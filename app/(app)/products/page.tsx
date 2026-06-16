@@ -60,6 +60,7 @@ export default async function ProductsPage({
         statuses={statusOptions}
         assignees={employees}
         canEdit={canEdit}
+        canReview={canReview}
         showWorkspace
         showAssignee={user.role !== "employee"}
       />

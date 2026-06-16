@@ -52,7 +52,13 @@ export async function GET(req: Request) {
  * Body: { workspaceId, recipeId?, fields?, productIds? }
  */
 export async function POST(req: Request) {
-  let body: { workspaceId?: string; recipeId?: string; fields?: unknown; productIds?: string[] };
+  let body: {
+    workspaceId?: string;
+    recipeId?: string;
+    fields?: unknown;
+    productIds?: string[];
+    mode?: string; // "browser" = run live in the extension tab (skip the Docker worker)
+  };
   try {
     body = await req.json();
   } catch {
@@ -95,6 +101,10 @@ export async function POST(req: Request) {
 
   if (items.length === 0) return jsonCors({ error: "لا توجد منتجات مسودة بلينك للسحب" }, 400);
 
+  // Browser mode runs live in the extension tab — mark it running so the Docker
+  // worker (which only claims "pending") leaves it alone.
+  const browserMode = body.mode === "browser";
+
   const [job] = await db
     .insert(scrapeJobs)
     .values({
@@ -103,10 +113,11 @@ export async function POST(req: Request) {
       fields,
       items,
       total: items.length,
-      status: "pending",
+      status: browserMode ? "running" : "pending",
+      startedAt: browserMode ? new Date() : null,
       createdById: userId,
     })
     .returning({ id: scrapeJobs.id });
 
-  return jsonCors({ jobId: job.id, total: items.length });
+  return jsonCors({ jobId: job.id, total: items.length, items, fields });
 }

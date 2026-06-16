@@ -114,7 +114,39 @@
   document.addEventListener("mousemove", onMove, true);
   document.addEventListener("click", onClick, true);
 
+  function flash(el) {
+    const prevOutline = el.style.outline;
+    const prevBg = el.style.backgroundColor;
+    el.style.outline = "3px solid #F7C52D";
+    el.style.backgroundColor = "rgba(10, 51, 209, 0.12)";
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setTimeout(() => {
+      el.style.outline = prevOutline;
+      el.style.backgroundColor = prevBg;
+    }, 700);
+  }
+
+  // Live run: extract all fields on the current page using the saved selectors.
+  function extractAll(fields) {
+    const data = {};
+    for (const [key, def] of Object.entries(fields)) {
+      const el = document.querySelector(def.selector);
+      if (!el) continue;
+      flash(el);
+      const value = readValue(el, def.attr || "text");
+      if (value) data[key] = value;
+    }
+    return data;
+  }
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg?.type === "extract") {
+      showBanner("⏳ يسحب البيانات…");
+      const data = extractAll(msg.fields || {});
+      setTimeout(hideBanner, 900);
+      sendResponse({ ok: true, data });
+      return true;
+    }
     if (msg?.type === "armPick") {
       armedField = msg.field;
       showBanner(`اضغط على عنصر «${msg.labelAr || msg.field}» في الصفحة لالتقاطه`);

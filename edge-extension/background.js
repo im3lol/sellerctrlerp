@@ -45,6 +45,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // async response
   }
 
+  if (msg?.type === "liveExtract") {
+    // Navigate the same tab to a product URL, wait for load, inject the picker,
+    // then extract all fields with the saved selectors. Resolves with the data.
+    (async () => {
+      const { tabId, url, fields } = msg;
+      try {
+        await chrome.tabs.update(tabId, { url, active: true });
+
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            reject(new Error("timeout"));
+          }, 45000);
+          const listener = (id, info) => {
+            if (id === tabId && info.status === "complete") {
+              clearTimeout(timeout);
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }
+          };
+          chrome.tabs.onUpdated.addListener(listener);
+        });
+
+        // let late/JS-rendered content settle
+        await new Promise((r) => setTimeout(r, 1200));
+
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+        const res = await chrome.tabs.sendMessage(tabId, { type: "extract", fields });
+        sendResponse({ ok: true, data: res?.data || {} });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
+
   if (msg?.type === "injectPicker") {
     chrome.scripting
       .executeScript({ target: { tabId: msg.tabId }, files: ["content.js"] })

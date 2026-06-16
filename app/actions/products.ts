@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "@/lib/db";
 import { products, productStatuses, users } from "@/db/schema";
@@ -181,6 +181,55 @@ export async function publishProductAction(productId: string): Promise<ProductFo
   revalidatePath(`/workspaces/${before.workspaceId}`);
   revalidatePath("/products");
   return { ok: true };
+}
+
+/**
+ * Bulk-confirm drafts → visible to employees. Reviewers only; silently skips
+ * products outside the user's accessible workspaces. Returns how many published.
+ */
+export async function publishProductsAction(ids: string[]): Promise<{ ok: boolean; published?: number; error?: string }> {
+  const user = await requireUser();
+  if (!can(user.role, "product.review")) return { ok: false, error: "غير مصرّح" };
+  const wanted = ids.filter((id) => typeof id === "string" && id);
+  if (wanted.length === 0) return { ok: false, error: "لم يتم تحديد منتجات" };
+
+  const rows = await db
+    .select()
+    .from(products)
+    .where(and(inArray(products.id, wanted), eq(products.isDraft, true)));
+
+  let published = 0;
+  const workspacesTouched = new Set<string>();
+  for (const p of rows) {
+    if (!(await canAccessWorkspace(user, p.workspaceId))) continue;
+    await db.update(products).set({ isDraft: false, updatedAt: new Date() }).where(eq(products.id, p.id));
+    workspacesTouched.add(p.workspaceId);
+    published++;
+    if (p.assignedTo) {
+      await notify({
+        userId: p.assignedTo,
+        type: "product_assigned",
+        title: "منتج جاهز للعمل",
+        body: p.name,
+        link: `/products/${p.id}`,
+      });
+    }
+  }
+
+  if (published > 0) {
+    await recordActivity({
+      actorId: user.id,
+      workspaceId: rows[0]?.workspaceId,
+      entityType: "product",
+      action: "products.published",
+      summaryAr: `${user.name} أكّد ${published} منتج وأتاحها للموظفين`,
+    });
+    for (const ws of workspacesTouched) {
+      await publish(query, { channel: `workspace:${ws}`, type: "product_updated", payload: { bulkPublished: true } });
+    }
+    revalidatePath("/products");
+  }
+  return { ok: true, published };
 }
 
 async function loadProduct(id: string) {

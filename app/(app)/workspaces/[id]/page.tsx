@@ -114,7 +114,7 @@ async function ProductsTabContent({
           </div>
         )}
       </div>
-      <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} />
+      <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} canReview={canReview} />
     </>
   );
 }

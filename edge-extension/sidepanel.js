@@ -171,6 +171,91 @@ async function saveRecipe() {
   return data.id;
 }
 
+function setLiveProgress(done, total, updated, msg) {
+  $("jobBox").classList.remove("hidden");
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  $("jobBar").style.width = pct + "%";
+  $("jobStat").textContent = `${done} / ${total}`;
+  $("jobMsg").textContent = msg ?? `محدّث: ${updated}`;
+}
+
+// Live run: loop every draft product IN THIS TAB, extract with the saved
+// selectors, and post each result so the platform updates as we go.
+async function liveRun() {
+  const fields = recipeFields();
+  if (Object.keys(fields).length === 0) {
+    toast("حدّد عنصراً واحداً على الأقل أولاً.", "err");
+    return;
+  }
+  if (!state.drafts.length) {
+    toast("حمّل المنتجات المسودة أولاً.", "err");
+    return;
+  }
+  // Need an open tab to drive. Open the first product if none yet.
+  if (!state.pickTabId) {
+    const resp = await chrome.runtime.sendMessage({ type: "openPickTab", url: state.drafts[0].url });
+    if (!resp?.ok) {
+      toast("تعذّر فتح التاب.", "err");
+      return;
+    }
+    state.pickTabId = resp.tabId;
+  }
+
+  // Create a browser-mode job (Docker worker won't touch it) for platform tracking.
+  const res = await api("/api/scrape/jobs", {
+    method: "POST",
+    body: JSON.stringify({ workspaceId: state.config.workspaceId, fields, mode: "browser" }),
+  });
+  if (!res.ok) {
+    toast("تعذّر بدء المهمة: " + (await res.text()), "err");
+    return;
+  }
+  const job = await res.json();
+  const items = job.items || state.drafts.map((d) => ({ id: d.id, url: d.url }));
+  const total = items.length;
+
+  $("liveRun").disabled = true;
+  $("saveRun").disabled = true;
+  let done = 0;
+  let updated = 0;
+
+  for (const item of items) {
+    setLiveProgress(done, total, updated, `يفتح: ${item.url}`);
+    let data = {};
+    let error = null;
+    try {
+      const r = await chrome.runtime.sendMessage({
+        type: "liveExtract",
+        tabId: state.pickTabId,
+        url: item.url,
+        fields,
+      });
+      if (r?.ok) data = r.data || {};
+      else error = r?.error || "فشل الاستخراج";
+    } catch (e) {
+      error = String(e);
+    }
+    // Save this product's result immediately → platform updates live.
+    await api("/api/scrape/worker/result", {
+      method: "POST",
+      body: JSON.stringify({ jobId: job.jobId, productId: item.id, data, error }),
+    }).catch(() => {});
+    done++;
+    if (Object.keys(data).length) updated++;
+    setLiveProgress(done, total, updated);
+  }
+
+  await api("/api/scrape/worker/finish", {
+    method: "POST",
+    body: JSON.stringify({ jobId: job.jobId, status: "done" }),
+  }).catch(() => {});
+
+  setLiveProgress(done, total, updated, `اكتمل ✓ — حُدّث ${updated} منتج.`);
+  toast(`اكتمل السحب المباشر — حُدّث ${updated} منتج.`);
+  $("liveRun").disabled = false;
+  $("saveRun").disabled = false;
+}
+
 async function pollJob(jobId) {
   $("jobBox").classList.remove("hidden");
   const tick = async () => {
@@ -233,6 +318,8 @@ async function init() {
       toast("تعذّر فتح الصفحة.", "err");
     }
   };
+
+  $("liveRun").onclick = () => liveRun();
 
   $("saveRecipe").onclick = async () => {
     const id = await saveRecipe();

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { ExternalLink, CheckCircle2, Loader2, EyeOff } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { ExternalLink, CheckCircle2, Loader2, EyeOff, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -23,15 +23,21 @@ import {
 import { ProductThumb } from "@/components/products/product-thumb";
 import { InlineFieldEdit } from "@/components/products/inline-field-edit";
 import { ListingButton } from "@/components/products/listing-button";
-import { publishProductAction } from "@/app/actions/products";
+import { publishProductAction, publishProductsAction } from "@/app/actions/products";
 import { useRealtime } from "@/components/realtime/use-realtime";
 import type { ProductRow } from "@/lib/queries/products";
+
+/** A draft is "ready to confirm" once its core fields are filled. */
+function isReady(p: ProductRow) {
+  return !!(p.name && p.imageUrl && p.price);
+}
 
 export function ProductsTable({
   rows,
   statuses,
   assignees,
   canEdit,
+  canReview = false,
   showWorkspace = false,
   showAssignee = true,
 }: {
@@ -39,21 +45,109 @@ export function ProductsTable({
   statuses: StatusOption[];
   assignees: AssigneeOption[];
   canEdit: boolean;
+  canReview?: boolean;
   showWorkspace?: boolean;
   showAssignee?: boolean;
 }) {
   const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkPending, startBulk] = useTransition();
 
   // Live refresh when any product in a visible workspace changes (§15/§17).
   useRealtime((e) => {
     if (e.type === "product_updated") router.refresh();
   });
 
+  const draftRows = useMemo(() => rows.filter((r) => r.isDraft), [rows]);
+  // Show the selection column only to reviewers when drafts are present.
+  const selectable = canReview && draftRows.length > 0;
+  const draftIds = useMemo(() => draftRows.map((r) => r.id), [draftRows]);
+  const readyIds = useMemo(() => draftRows.filter(isReady).map((r) => r.id), [draftRows]);
+  const allSelected = draftIds.length > 0 && draftIds.every((id) => selected.has(id));
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectMany = (ids: string[]) => setSelected(new Set(ids));
+  const clearSel = () => setSelected(new Set());
+
+  const confirmSelected = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    startBulk(async () => {
+      const res = await publishProductsAction(ids);
+      if (res.ok) {
+        toast.success(`تم تأكيد ${res.published} منتج وإتاحتها للموظفين`);
+        clearSel();
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "تعذّر التأكيد");
+      }
+    });
+  };
+
   return (
-    <div className="overflow-x-auto rounded-2xl border bg-card">
+    <div className="space-y-3">
+      {selectable && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3">
+          <span className="text-sm font-medium">
+            {selected.size > 0 ? `محدّد: ${selected.size}` : "تأكيد المسودات"}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => selectMany(draftIds)}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium hover:bg-accent/70"
+            >
+              تحديد كل المسودات ({draftIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => selectMany(readyIds)}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium hover:bg-accent/70"
+            >
+              تحديد الجاهزة ({readyIds.length})
+            </button>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                onClick={clearSel}
+                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+              >
+                إلغاء التحديد
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={selected.size === 0 || bulkPending}
+            onClick={confirmSelected}
+            className="ms-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {bulkPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
+            تأكيد المحدد{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-2xl border bg-card">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
+            {selectable && (
+              <TableHead className="w-10 text-center">
+                <input
+                  type="checkbox"
+                  aria-label="تحديد كل المسودات"
+                  checked={allSelected}
+                  onChange={(e) => (e.target.checked ? selectMany(draftIds) : clearSel())}
+                  className="size-4 cursor-pointer accent-primary"
+                />
+              </TableHead>
+            )}
             <TableHead className="w-14 text-right">الصورة</TableHead>
             <TableHead className="text-right">المنتج</TableHead>
             <TableHead className="text-right">السعر</TableHead>
@@ -68,7 +162,20 @@ export function ProductsTable({
         </TableHeader>
         <TableBody>
           {rows.map((p) => (
-            <TableRow key={p.id} className="group">
+            <TableRow key={p.id} className="group" data-selected={selected.has(p.id) || undefined}>
+              {selectable && (
+                <TableCell className="text-center">
+                  {p.isDraft ? (
+                    <input
+                      type="checkbox"
+                      aria-label="تحديد المنتج"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggle(p.id)}
+                      className="size-4 cursor-pointer accent-primary"
+                    />
+                  ) : null}
+                </TableCell>
+              )}
               <TableCell>
                 <ProductThumb src={p.imageUrl} name={p.name} />
               </TableCell>
@@ -147,6 +254,7 @@ export function ProductsTable({
       {rows.length === 0 && (
         <div className="py-12 text-center text-sm text-muted-foreground">لا توجد منتجات</div>
       )}
+      </div>
     </div>
   );
 }
