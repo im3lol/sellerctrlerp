@@ -63,32 +63,51 @@ export default async function ProductDetailPage({
             <h1 className="text-xl font-bold">{p.name}</h1>
             <p className="mt-1 font-mono text-sm text-muted-foreground" dir="ltr">{p.sku}</p>
 
-            {/* Images */}
-            {p.images && p.images.length > 0 && (
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {p.images.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" className="aspect-square rounded-xl border object-cover" />
-                ))}
+            {/* Main image + gallery */}
+            {p.imageUrl && (
+              <div className="mt-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.imageUrl} alt={p.name} className="max-h-72 w-full rounded-xl border object-contain" />
               </div>
             )}
 
-            {/* Locked base data §9 */}
+            {/* Locked data from the imported Excel (§9) */}
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-              <Field label="ASIN" value={p.asin} mono />
               <Field label="البراند" value={p.brand} />
               <Field label="السعر" value={p.price ? `${p.price} ر.س` : null} />
+              <Field label="الألوان" value={p.colors} />
+              <Field label="المقاسات" value={p.sizes} />
+              {p.galleryUrl && (
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">لينك كل الصور</p>
+                  <a href={p.galleryUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline" dir="ltr">
+                    {p.galleryUrl}
+                  </a>
+                </div>
+              )}
+              {p.features && (
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">المميزات</p>
+                  <p className="whitespace-pre-wrap">{p.features}</p>
+                </div>
+              )}
+              {p.description && (
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">الوصف</p>
+                  <p className="whitespace-pre-wrap">{p.description}</p>
+                </div>
+              )}
               {Object.entries(baseData).map(([k, v]) => (
                 <Field key={k} label={k} value={String(v)} />
               ))}
             </div>
           </Card>
 
-          {/* Open editable fields §9 */}
+          {/* Open editable fields — app-owned (§9) */}
           <Card className="space-y-5 p-6">
             <h2 className="font-semibold">الحقول القابلة للتعديل</h2>
             <EditableField productId={id} field="notes" label="ملاحظات" value={p.notes} canEdit={canEdit} placeholder="أضف ملاحظة…" />
-            <EditableField productId={id} field="amazonCode" label="Amazon Code" value={p.amazonCode} canEdit={canEdit} />
+            <EditableField productId={id} field="amazonCode" label="كود المنتج على المنصة" value={p.amazonCode} canEdit={canEdit} />
             <EditableField productId={id} field="internalNotes" label="ملاحظات داخلية" value={p.internalNotes} canEdit={canEdit} />
           </Card>
 

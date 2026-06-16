@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Keep heavy server-only deps out of the Turbopack bundle — loaded as native
   // node modules at runtime. Big win for cold-compile time in dev.
-  serverExternalPackages: ["pg", "googleapis", "@anthropic-ai/sdk", "bcryptjs"],
+  serverExternalPackages: ["pg", "googleapis", "@anthropic-ai/sdk", "bcryptjs", "xlsx"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

@@ -17,6 +17,7 @@ import {
   type StatusOption,
   type AssigneeOption,
 } from "@/components/products/inline-editors";
+import { ProductThumb } from "@/components/products/product-thumb";
 import { useRealtime } from "@/components/realtime/use-realtime";
 import type { ProductRow } from "@/lib/queries/products";
 
@@ -45,22 +46,24 @@ export function ProductsTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="text-right">SKU</TableHead>
+            <TableHead className="w-14 text-right">الصورة</TableHead>
             <TableHead className="text-right">المنتج</TableHead>
             <TableHead className="text-right">البراند</TableHead>
             <TableHead className="text-right">السعر</TableHead>
             {showWorkspace && <TableHead className="text-right">مساحة العمل</TableHead>}
-            <TableHead className="text-right">الحالة</TableHead>
+            {/* open columns (app-owned, after the imported data) */}
             <TableHead className="text-right">المسؤول</TableHead>
+            <TableHead className="text-right">حالة المنصة</TableHead>
             <TableHead className="text-right">ملاحظات</TableHead>
+            <TableHead className="text-right">كود المنصة</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((p) => (
             <TableRow key={p.id} className="group">
-              <TableCell className="font-mono text-xs" dir="ltr">
-                {p.sku}
+              <TableCell>
+                <ProductThumb src={p.imageUrl} name={p.name} />
               </TableCell>
               <TableCell className="max-w-[220px]">
                 <Link href={`/products/${p.id}`} className="font-medium hover:text-primary">
@@ -80,14 +83,6 @@ export function ProductsTable({
                 <TableCell className="text-sm text-muted-foreground">{p.workspaceName}</TableCell>
               )}
               <TableCell>
-                <ProductStatusSelect
-                  productId={p.id}
-                  statusId={p.statusId}
-                  statuses={statuses}
-                  disabled={!canEdit}
-                />
-              </TableCell>
-              <TableCell>
                 <ProductAssigneeSelect
                   productId={p.id}
                   assignedTo={p.assignedTo}
@@ -95,8 +90,19 @@ export function ProductsTable({
                   disabled={!canEdit}
                 />
               </TableCell>
-              <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+              <TableCell>
+                <ProductStatusSelect
+                  productId={p.id}
+                  statusId={p.statusId}
+                  statuses={statuses}
+                  disabled={!canEdit}
+                />
+              </TableCell>
+              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">
                 {p.notes ?? "—"}
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">
+                {p.amazonCode ?? "—"}
               </TableCell>
               <TableCell>
                 <Link

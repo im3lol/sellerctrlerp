@@ -8,6 +8,13 @@
       "when": 1781557917750,
       "tag": "0000_curvy_mother_askani",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781579035550,
+      "tag": "0001_loving_nightshade",
+      "breakpoints": true
     }
   ]
 }

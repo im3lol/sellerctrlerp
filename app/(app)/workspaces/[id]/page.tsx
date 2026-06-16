@@ -20,6 +20,7 @@ import { StatCard } from "@/components/stat-card";
 import { WorkspaceTabBar } from "@/components/workspaces/workspace-tab-bar";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductsFilters } from "@/components/products/products-filters";
+import { ImportProductsDialog } from "@/components/products/import-products-dialog";
 import { MembersPanel } from "@/components/workspaces/members-panel";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { EmptyState } from "@/components/empty-state";
@@ -60,7 +61,12 @@ export default async function WorkspaceDetailPage({
       <WorkspaceTabBar active={tab} />
 
       {tab === "products" && (
-        <ProductsTabContent workspaceId={id} filters={sp} canEdit={canEdit} />
+        <ProductsTabContent
+          workspaceId={id}
+          filters={sp}
+          canEdit={canEdit}
+          canImport={can(user.role, "product.distribute")}
+        />
       )}
       {tab === "team" && <TeamTabContent workspaceId={id} canManage={canManage} />}
       {tab === "tasks" && <TasksTabContent workspaceId={id} />}
@@ -74,10 +80,12 @@ async function ProductsTabContent({
   workspaceId,
   filters,
   canEdit,
+  canImport,
 }: {
   workspaceId: string;
   filters: Record<string, string>;
   canEdit: boolean;
+  canImport: boolean;
 }) {
   const [rows, statuses, assignees] = await Promise.all([
     listProducts({
@@ -92,7 +100,10 @@ async function ProductsTabContent({
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   return (
     <>
-      <ProductsFilters statuses={statusOptions} assignees={assignees} />
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <ProductsFilters statuses={statusOptions} assignees={assignees} />
+        {canImport && <ImportProductsDialog workspaceId={workspaceId} />}
+      </div>
       <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} />
     </>
   );

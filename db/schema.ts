@@ -143,9 +143,15 @@ export const products = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    // Locked columns (synced FROM Google Sheets, app never overwrites)
+    // Locked columns (imported FROM the client's Excel file, app never overwrites)
     sku: text("sku").notNull(),
     name: text("name").notNull(),
+    description: text("description"), // الوصف
+    sizes: text("sizes"), // المقاسات
+    features: text("features"), // المميزات
+    colors: text("colors"), // الألوان
+    imageUrl: text("image_url"), // لينك الصورة (main image — previewed in table)
+    galleryUrl: text("gallery_url"), // لينك كل الصور مجمعة
     asin: text("asin"),
     brand: text("brand"),
     price: numeric("price", { precision: 12, scale: 2 }),
