@@ -332,6 +332,7 @@ async function loadProduct(id: string) {
 
 export async function setProductStatusAction(productId: string, statusId: string) {
   const user = await requireUser();
+  console.error(`[diag] setProductStatus role=${user.role} product=${productId} status=${statusId}`);
   if (!can(user.role, "product.edit")) throw new Error("forbidden");
   const before = await loadProduct(productId);
   if (!before) throw new Error("not found");
