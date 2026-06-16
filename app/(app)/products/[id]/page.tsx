@@ -108,7 +108,7 @@ export default async function ProductDetailPage({
             {/* Locked data from the imported Excel */}
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
               <Field label="البراند" value={p.brand} />
-              <Field label="السعر" value={p.price ? `${p.price} ر.س` : null} />
+              <Field label="السعر" value={p.price ? String(p.price) : null} />
               <Field label="المقاسات" value={p.sizes} />
               {p.productUrl && (
                 <LinkField label="رابط المنتج على الموقع" href={p.productUrl} />

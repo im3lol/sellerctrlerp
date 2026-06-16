@@ -5,6 +5,7 @@ import { getWorkspaceOr404, WORKSPACE_TYPE_LABELS } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { users, workspaceMembers, tasks, files } from "@/db/schema";
+import { WorkspaceSettings } from "@/components/workspaces/workspace-settings";
 import { publicUrl } from "@/lib/storage";
 import { FileManager } from "@/components/files/file-manager";
 import {
@@ -46,14 +47,36 @@ export default async function WorkspaceDetailPage({
   const ws = await getWorkspaceOr404(user, id);
   const canEdit = can(user.role, "product.edit");
   const canManage = can(user.role, "workspace.manage") || can(user.role, "task.manage");
+  const canManageWs = can(user.role, "workspace.manage");
 
-  const [stats] = await Promise.all([getWorkspaceStats([id])]);
+  const [stats, clients] = await Promise.all([
+    getWorkspaceStats([id]),
+    canManageWs
+      ? db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "client"))
+      : Promise.resolve([] as { id: string; name: string }[]),
+  ]);
   const s = stats[id];
 
   return (
     <div>
       <PageHeader title={ws.name} description={ws.description ?? undefined}>
-        <Badge variant="secondary">{WORKSPACE_TYPE_LABELS[ws.type]}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">{WORKSPACE_TYPE_LABELS[ws.type]}</Badge>
+          {ws.isArchived && <Badge variant="outline" className="border-amber-300 text-amber-700">موقوفة</Badge>}
+          {canManageWs && (
+            <WorkspaceSettings
+              ws={{
+                id: ws.id,
+                name: ws.name,
+                type: ws.type,
+                description: ws.description,
+                clientUserId: ws.clientUserId,
+                isArchived: ws.isArchived,
+              }}
+              clients={clients}
+            />
+          )}
+        </div>
       </PageHeader>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">

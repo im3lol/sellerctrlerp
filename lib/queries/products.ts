@@ -80,6 +80,7 @@ export async function listProducts(filters: ProductFilters, limit = 200, offset 
       assigneeName: assignee.name,
       assigneeAvatar: assignee.avatarUrl,
       workspaceName: workspaces.name,
+      workspaceType: workspaces.type,
     })
     .from(products)
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))

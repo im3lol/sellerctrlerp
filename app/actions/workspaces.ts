@@ -96,3 +96,77 @@ export async function archiveWorkspaceAction(workspaceId: string) {
   await db.update(workspaces).set({ isArchived: true }).where(eq(workspaces.id, workspaceId));
   revalidatePath("/workspaces");
 }
+
+const updateSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(2, "الاسم قصير جداً"),
+  type: z.enum(["amazon", "noon", "brand", "other"]),
+  description: z.string().optional(),
+  clientUserId: z.string().uuid().optional().or(z.literal("")),
+});
+
+/** Edit a workspace's name/platform/description/client (managers only). */
+export async function updateWorkspaceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  if (!can(user.role, "workspace.manage")) return { error: "غير مصرّح" };
+  const parsed = updateSchema.safeParse({
+    workspaceId: formData.get("workspaceId"),
+    name: formData.get("name"),
+    type: formData.get("type"),
+    description: formData.get("description") || undefined,
+    clientUserId: formData.get("clientUserId") === "none" ? "" : formData.get("clientUserId") || "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { workspaceId, name, type, description, clientUserId } = parsed.data;
+
+  await db
+    .update(workspaces)
+    .set({ name, type, description: description ?? null, clientUserId: clientUserId || null, updatedAt: new Date() })
+    .where(eq(workspaces.id, workspaceId));
+
+  await recordActivity({
+    actorId: user.id,
+    workspaceId,
+    entityType: "workspace",
+    entityId: workspaceId,
+    action: "workspace.updated",
+    summaryAr: `${user.name} عدّل بيانات مساحة العمل «${name}»`,
+  });
+  revalidatePath("/workspaces");
+  revalidatePath(`/workspaces/${workspaceId}`);
+  return { ok: true };
+}
+
+/** Archive (stop) or reactivate a workspace. */
+export async function setWorkspaceArchivedAction(workspaceId: string, archived: boolean): Promise<ActionState> {
+  const user = await requireUser();
+  if (!can(user.role, "workspace.manage")) return { error: "غير مصرّح" };
+  await db.update(workspaces).set({ isArchived: archived, updatedAt: new Date() }).where(eq(workspaces.id, workspaceId));
+  await recordActivity({
+    actorId: user.id,
+    workspaceId,
+    entityType: "workspace",
+    entityId: workspaceId,
+    action: archived ? "workspace.archived" : "workspace.reactivated",
+    summaryAr: `${user.name} ${archived ? "أوقف" : "أعاد تفعيل"} مساحة العمل`,
+  });
+  revalidatePath("/workspaces");
+  revalidatePath(`/workspaces/${workspaceId}`);
+  return { ok: true };
+}
+
+/** Permanently delete a workspace and all its data (managers only). */
+export async function deleteWorkspaceAction(workspaceId: string): Promise<ActionState> {
+  const user = await requireUser();
+  if (!can(user.role, "workspace.manage")) return { error: "غير مصرّح" };
+  await db.delete(workspaces).where(eq(workspaces.id, workspaceId));
+  await recordActivity({
+    actorId: user.id,
+    entityType: "workspace",
+    entityId: workspaceId,
+    action: "workspace.deleted",
+    summaryAr: `${user.name} حذف مساحة عمل`,
+  });
+  revalidatePath("/workspaces");
+  return { ok: true };
+}

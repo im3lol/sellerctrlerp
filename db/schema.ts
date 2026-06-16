@@ -404,9 +404,13 @@ export const scrapeJobs = pgTable(
       .$type<Record<string, { selector: string; attr: string }>>()
       .notNull()
       .default({}),
-    // products to scrape: [{ id, url }]
+    // products to scrape: [{ id, url }]. For worker jobs this is recomputed live
+    // at claim time from current product state (resume = only-incomplete).
     items: jsonb("items").$type<{ id: string; url: string }[]>().notNull().default([]),
     status: text("status").notNull().default("pending"), // pending | running | done | error
+    runner: text("runner").notNull().default("worker"), // worker (Docker) | browser (extension)
+    target: text("target").notNull().default("incomplete"), // incomplete (only-missing) | all
+    overwrite: boolean("overwrite").notNull().default(false), // re-scrape: overwrite existing fields
     total: integer("total").notNull().default(0),
     done: integer("done").notNull().default(0), // items processed (ok or failed)
     updatedCount: integer("updated_count").notNull().default(0), // items that got new data
@@ -421,6 +425,41 @@ export const scrapeJobs = pgTable(
     index("scrape_jobs_status_idx").on(t.status),
     index("scrape_jobs_workspace_idx").on(t.workspaceId),
   ],
+);
+
+/* ───────────── Academy (learning hub) ───────────────────── */
+// Admin-published learning content: articles, YouTube videos, and tips.
+export const academyItems = pgTable(
+  "academy_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: text("type").notNull(), // article | video | tip
+    title: text("title").notNull(),
+    body: text("body"), // article/tip content (markdown-ish plain text)
+    youtubeUrl: text("youtube_url"), // for video type
+    category: text("category"), // optional grouping label
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    isPublished: boolean("is_published").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("academy_items_type_idx").on(t.type)],
+);
+
+// One row per (item, user) the first time they read/watch — for engagement tracking.
+export const academyViews = pgTable(
+  "academy_views",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => academyItems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("academy_views_unique").on(t.itemId, t.userId)],
 );
 
 /* ───────────────────── Relations ────────────────────────── */

@@ -54,6 +54,7 @@ type ProductRow = typeof products.$inferSelect;
 export function buildScrapeUpdate(
   product: ProductRow,
   data: Record<string, string>,
+  overwrite = false,
 ): Partial<Record<ScrapeFieldKey, string>> | null {
   const update: Record<string, string> = {};
   for (const { key } of SCRAPE_FIELDS) {
@@ -61,12 +62,19 @@ export function buildScrapeUpdate(
     if (typeof raw !== "string") continue;
     const value = key === "price" ? raw.replace(/[^\d.]/g, "") : raw.trim();
     if (!value) continue;
-    // Don't overwrite data that already exists on the product.
-    if (product[key as keyof ProductRow]) continue;
+    // By default don't overwrite existing data; "re-scrape all" mode overwrites.
+    if (!overwrite && product[key as keyof ProductRow]) continue;
     update[key] = value;
   }
   return Object.keys(update).length ? update : null;
 }
+
+/**
+ * SQL-ish predicate (as Drizzle conditions are built by callers): a draft is
+ * "incomplete" when it still lacks a core scraped field (image or price).
+ * Centralised here so worker + UI agree on what "needs scraping" means.
+ */
+export const INCOMPLETE_FIELDS = ["imageUrl", "price"] as const;
 
 /** True for a canonical UUID — guards DB queries from malformed input (else Postgres 500s). */
 export function isUuid(v: unknown): v is string {

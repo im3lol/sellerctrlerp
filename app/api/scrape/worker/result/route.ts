@@ -26,11 +26,18 @@ export async function POST(req: Request) {
   const { jobId, productId } = body;
   if (!jobId || !productId) return jsonCors({ error: "jobId and productId required" }, 400);
 
+  // Read the job's overwrite mode once.
+  const [job] = await db
+    .select({ overwrite: scrapeJobs.overwrite })
+    .from(scrapeJobs)
+    .where(eq(scrapeJobs.id, jobId))
+    .limit(1);
+
   let didUpdate = false;
   if (!body.error && body.data) {
     const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
     if (product) {
-      const update = buildScrapeUpdate(product, body.data);
+      const update = buildScrapeUpdate(product, body.data, job?.overwrite === true);
       if (update) {
         await db
           .update(products)

@@ -18,7 +18,9 @@ export default async function DistributionPage() {
     db
       .select({ workspaceId: products.workspaceId, count: sql<number>`count(*)::int` })
       .from(products)
-      .where(isNull(products.assignedTo))
+      // Match the distribution engine: only published (non-draft) unassigned
+      // products are distributable. Drafts are hidden from employees.
+      .where(and(isNull(products.assignedTo), eq(products.isDraft, false)))
       .groupBy(products.workspaceId),
     db
       .select({ workspaceId: workspaceMembers.workspaceId, count: sql<number>`count(*)::int` })

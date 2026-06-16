@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ne, desc } from "drizzle-orm";
 import { requireCapability } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { UserActiveToggle } from "@/components/admin/user-active-toggle";
+import { UserRowActions } from "@/components/admin/user-row-actions";
 import { formatDateAr } from "@/lib/format";
 
 export default async function UsersAdminPage() {
@@ -41,6 +43,7 @@ export default async function UsersAdminPage() {
               <TableHead className="text-right">الدور</TableHead>
               <TableHead className="text-right">تاريخ الانضمام</TableHead>
               <TableHead className="text-right">نشط</TableHead>
+              <TableHead className="text-left">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -49,7 +52,7 @@ export default async function UsersAdminPage() {
               return (
                 <TableRow key={u.id}>
                   <TableCell>
-                    <div className="flex items-center gap-3">
+                    <Link href={`/admin/users/${u.id}`} className="flex items-center gap-3 hover:text-primary">
                       <Avatar className="size-9">
                         {u.avatarUrl && <AvatarImage src={u.avatarUrl} />}
                         <AvatarFallback className="bg-primary/10 text-primary">{init}</AvatarFallback>
@@ -58,13 +61,16 @@ export default async function UsersAdminPage() {
                         <p className="font-medium">{u.name}</p>
                         <p className="text-xs text-muted-foreground" dir="ltr">{u.email}</p>
                       </div>
-                    </div>
+                    </Link>
                   </TableCell>
                   <TableCell><Badge variant="secondary">{ROLE_LABELS_AR[u.role as Role]}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {u.hiredAt ? formatDateAr(u.hiredAt) : "—"}
                   </TableCell>
                   <TableCell><UserActiveToggle userId={u.id} active={u.isActive} /></TableCell>
+                  <TableCell>
+                    <UserRowActions user={{ id: u.id, name: u.name, email: u.email, role: u.role, title: u.title }} />
+                  </TableCell>
                 </TableRow>
               );
             })}

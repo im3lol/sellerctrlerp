@@ -19,10 +19,11 @@ export const NAV: NavSection[] = [
       { label: "لوحة التحكم", href: "/dashboard", icon: "LayoutDashboard", exact: true },
       { label: "مساحات العمل", href: "/workspaces", icon: "Briefcase" },
       { label: "المنتجات", href: "/products", icon: "Package" },
-      { label: "المهام", href: "/tasks", icon: "ListChecks" },
-      { label: "لوحة كانبان", href: "/tasks/kanban", icon: "Columns3" },
+      { label: "المهام", href: "/tasks/kanban", icon: "Columns3" },
+      { label: "قائمة المهام", href: "/tasks", icon: "ListChecks" },
       { label: "المهام المتكررة", href: "/tasks/recurring", icon: "Repeat", capability: "task.manage" },
       { label: "الحضور", href: "/attendance", icon: "Clock" },
+      { label: "الأكاديمية", href: "/academy", icon: "GraduationCap" },
     ],
   },
   {

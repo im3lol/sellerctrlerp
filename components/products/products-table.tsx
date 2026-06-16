@@ -32,6 +32,13 @@ function isReady(p: ProductRow) {
   return !!(p.name && p.imageUrl && p.price);
 }
 
+const WS_TYPE_AR: Record<string, string> = {
+  amazon: "أمازون",
+  noon: "نون",
+  brand: "براند",
+  other: "أخرى",
+};
+
 export function ProductsTable({
   rows,
   statuses,
@@ -205,10 +212,17 @@ export function ProductsTable({
                 </div>
               </TableCell>
               <TableCell className="tabular-nums text-sm" dir="ltr">
-                {p.price ? `${p.price} ر.س` : "—"}
+                {p.price ? String(p.price) : "—"}
               </TableCell>
               {showWorkspace && (
-                <TableCell className="text-sm text-muted-foreground">{p.workspaceName}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <span>{p.workspaceName}</span>
+                    {p.workspaceType && (
+                      <Badge variant="outline" className="shrink-0 text-[10px]">{WS_TYPE_AR[p.workspaceType] ?? p.workspaceType}</Badge>
+                    )}
+                  </div>
+                </TableCell>
               )}
               {showAssignee && (
                 <TableCell>

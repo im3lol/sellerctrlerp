@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, ne, inArray } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull, ne, or, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { scrapeJobs, scrapeRecipes, products } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
@@ -58,6 +58,8 @@ export async function POST(req: Request) {
     fields?: unknown;
     productIds?: string[];
     mode?: string; // "browser" = run live in the extension tab (skip the Docker worker)
+    target?: string; // "incomplete" (default, resume-safe) | "all"
+    overwrite?: boolean; // re-scrape: overwrite existing fields
   };
   try {
     body = await req.json();
@@ -81,13 +83,20 @@ export async function POST(req: Request) {
   }
   if (Object.keys(fields).length === 0) return jsonCors({ error: "no selectors (recipeId or fields)" }, 400);
 
-  // Target products: explicit ids or all draft products in the workspace with a URL.
+  // "incomplete" (default) targets only drafts still missing a core field, so a
+  // re-run after a crash resumes on the leftovers. "all" re-scrapes everything.
+  const target = body.target === "all" ? "all" : "incomplete";
+  const overwrite = body.overwrite === true;
+
   const conds = [
     eq(products.workspaceId, workspaceId),
     eq(products.isDraft, true),
     isNotNull(products.productUrl),
     ne(products.productUrl, ""),
   ];
+  if (target === "incomplete") {
+    conds.push(or(isNull(products.imageUrl), isNull(products.price))!);
+  }
   if (body.productIds?.length) conds.push(inArray(products.id, body.productIds));
 
   const targets = await db
@@ -114,6 +123,9 @@ export async function POST(req: Request) {
       items,
       total: items.length,
       status: browserMode ? "running" : "pending",
+      runner: browserMode ? "browser" : "worker",
+      target,
+      overwrite,
       startedAt: browserMode ? new Date() : null,
       createdById: userId,
     })

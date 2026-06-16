@@ -34,6 +34,7 @@ export function ScrapingPanel({ workspaces }: { workspaces: Workspace[] }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState<"incomplete" | "all">("incomplete");
 
   const load = useCallback(async () => {
     if (!wsId) return;
@@ -82,7 +83,12 @@ export function ScrapingPanel({ workspaces }: { workspaces: Workspace[] }) {
       const res = await fetch("/api/scrape/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: wsId, recipeId }),
+        body: JSON.stringify({
+          workspaceId: wsId,
+          recipeId,
+          target: mode,
+          overwrite: mode === "all",
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -145,12 +151,21 @@ export function ScrapingPanel({ workspaces }: { workspaces: Workspace[] }) {
               {draftCount === null ? "…" : draftCount}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value as "incomplete" | "all")}
+              className="rounded-lg border bg-background px-3 py-2 text-sm"
+              title="نوع السحب"
+            >
+              <option value="incomplete">الناقص فقط (يستأنف)</option>
+              <option value="all">إعادة سحب الكل (يستبدل)</option>
+            </select>
             <Button variant="outline" onClick={load} disabled={loading}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               تحديث
             </Button>
-            <Button onClick={runJob} disabled={running || !recipeId || !draftCount}>
+            <Button onClick={runJob} disabled={running || !recipeId}>
               {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
               تشغيل السحب
             </Button>

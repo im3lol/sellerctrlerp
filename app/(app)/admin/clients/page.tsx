@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { UserActiveToggle } from "@/components/admin/user-active-toggle";
+import { UserRowActions } from "@/components/admin/user-row-actions";
 import { EmptyState } from "@/components/empty-state";
 
 export default async function ClientsAdminPage() {
@@ -51,6 +52,7 @@ export default async function ClientsAdminPage() {
                 <TableHead className="text-right">العميل</TableHead>
                 <TableHead className="text-right">مساحات العمل</TableHead>
                 <TableHead className="text-right">نشط</TableHead>
+                <TableHead className="text-left">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,6 +74,9 @@ export default async function ClientsAdminPage() {
                     </TableCell>
                     <TableCell><Badge variant="secondary">{c.workspaceCount} مساحة</Badge></TableCell>
                     <TableCell><UserActiveToggle userId={c.id} active={c.isActive} /></TableCell>
+                    <TableCell>
+                      <UserRowActions user={{ id: c.id, name: c.name, email: c.email, role: "client" }} clientOnly />
+                    </TableCell>
                   </TableRow>
                 );
               })}

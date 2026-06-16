@@ -34,6 +34,18 @@ if (!TOKEN) {
 const authHeaders = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function recoverStuckJobs() {
+  try {
+    const res = await fetch(`${APP_URL}/api/scrape/worker/recover`, { method: "POST", headers: authHeaders });
+    if (res.ok) {
+      const { requeued } = await res.json();
+      if (requeued) console.log(`[worker] resumed ${requeued} interrupted job(s)`);
+    }
+  } catch (e) {
+    console.error("[worker] recover failed:", e.message);
+  }
+}
+
 async function claimJob() {
   const res = await fetch(`${APP_URL}/api/scrape/worker/next`, { headers: authHeaders });
   if (res.status === 204) return null;
@@ -117,6 +129,8 @@ async function runJob(job, browser) {
 
 async function main() {
   console.log(`[worker] starting — app=${APP_URL} headless=${HEADLESS} channel=${BROWSER_CHANNEL || "chromium"}`);
+  // Resume any job interrupted by a previous crash/stop.
+  await recoverStuckJobs();
   const browser = await chromium.launch({ headless: HEADLESS, channel: BROWSER_CHANNEL });
 
   // graceful shutdown
