@@ -6,6 +6,7 @@ export default function AdminLoginPage() {
       callbackUrl="/dashboard"
       title="دخول الإدارة"
       subtitle="لوحة تحكم مدير النظام ومدير العمليات"
+      welcome="🔐 منطقة الإدارة — صلاحيات كاملة لإدارة النظام والفرق والعملاء."
     />
   );
 }

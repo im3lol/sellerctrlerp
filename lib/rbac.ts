@@ -69,7 +69,7 @@ export const ROLE_LABELS_AR: Record<Role, string> = {
   ops_manager: "مدير العمليات",
   team_lead: "قائد فريق",
   employee: "موظف",
-  client: "عميل",
+  client: "شريك",
 };
 
 /** Roles considered internal staff (everyone except clients). */

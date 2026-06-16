@@ -25,7 +25,7 @@ export default async function PortalHome() {
   if (wsIds.length === 0) {
     return (
       <div>
-        <PageHeader title={`أهلاً، ${user.name}`} description="متابعة تقدم العمل على متاجرك" />
+        <PageHeader title={`أهلاً بشريكنا، ${user.name} 🤝`} description="سعداء بالعمل معك — هنا متابعة لحظية لتقدّم العمل على متاجرك ومنتجاتك" />
         <EmptyState icon="Briefcase" title="لا توجد مساحات عمل" description="لم يتم ربط أي متجر بحسابك بعد." />
       </div>
     );
@@ -60,7 +60,7 @@ export default async function PortalHome() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`أهلاً، ${user.name}`} description="متابعة تقدم العمل على متاجرك" />
+      <PageHeader title={`أهلاً بشريكنا، ${user.name} 🤝`} description="سعداء بالعمل معك — هنا متابعة لحظية لتقدّم العمل على متاجرك ومنتجاتك" />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="إجمالي المنتجات" value={total} icon="Package" tone="blue" />

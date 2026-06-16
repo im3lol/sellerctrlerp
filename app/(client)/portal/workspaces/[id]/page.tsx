@@ -34,20 +34,26 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
   const [stats] = await Promise.all([getWorkspaceStats([id])]);
   const s = stats[id];
 
-  // Read-only product list — NO assignee or internal notes (§22).
+  // Read-only product list for the partner — product data + status + platform
+  // code + notes. NO assignee, NO internal notes, NO AI tools. Drafts hidden.
   const rows = await db
     .select({
       id: products.id,
       sku: products.sku,
       name: products.name,
       brand: products.brand,
+      price: products.price,
+      imageUrl: products.imageUrl,
+      productUrl: products.productUrl,
+      amazonCode: products.amazonCode,
+      notes: products.notes,
       statusName: productStatuses.name,
       statusColor: productStatuses.color,
       updatedAt: products.updatedAt,
     })
     .from(products)
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
-    .where(eq(products.workspaceId, id))
+    .where(and(eq(products.workspaceId, id), eq(products.isDraft, false)))
     .orderBy(desc(products.updatedAt))
     .limit(300);
 
@@ -67,23 +73,41 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
         <StatCard label="نسبة الإنجاز" value={`${s.completion}%`} icon="TrendingUp" tone="yellow" />
       </div>
 
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-x-auto p-0">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="text-right">SKU</TableHead>
+              <TableHead className="w-14 text-right">الصورة</TableHead>
               <TableHead className="text-right">المنتج</TableHead>
               <TableHead className="text-right">البراند</TableHead>
+              <TableHead className="text-right">السعر</TableHead>
               <TableHead className="text-right">الحالة</TableHead>
+              <TableHead className="text-right">الكود</TableHead>
+              <TableHead className="text-right">ملاحظات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs" dir="ltr">{p.sku}</TableCell>
-                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell>
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg border object-cover" />
+                  ) : (
+                    <div className="size-10 rounded-lg border bg-muted" />
+                  )}
+                </TableCell>
+                <TableCell className="max-w-[240px]">
+                  <p className="truncate font-medium">{p.name}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground" dir="ltr">{p.sku}</p>
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{p.brand ?? "—"}</TableCell>
+                <TableCell className="tabular-nums text-sm" dir="ltr">{p.price ?? "—"}</TableCell>
                 <TableCell><StatusBadge name={p.statusName} color={p.statusColor} /></TableCell>
+                <TableCell className="font-mono text-xs" dir="ltr">{p.amazonCode ?? "—"}</TableCell>
+                <TableCell className="max-w-[220px] text-sm text-muted-foreground">
+                  <span className="line-clamp-2 whitespace-pre-wrap">{p.notes ?? "—"}</span>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

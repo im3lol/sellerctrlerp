@@ -11,6 +11,7 @@ export default async function LoginPage({
       callbackUrl={callbackUrl ?? "/dashboard"}
       title="دخول الفريق"
       subtitle="تسجيل دخول الموظفين وفريق العمليات"
+      welcome="👋 أهلاً بفريق SellerCtrl — سجّل الدخول لمتابعة مهامك ومنتجاتك."
     />
   );
 }

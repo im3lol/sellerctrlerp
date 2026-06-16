@@ -23,11 +23,13 @@ export function LoginForm({
   callbackUrl,
   title = "تسجيل الدخول",
   subtitle = "أدخل بياناتك للوصول إلى مساحة العمل",
+  welcome,
   hint,
 }: {
   callbackUrl?: string;
   title?: string;
   subtitle?: string;
+  welcome?: string;
   hint?: string;
 }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
@@ -38,6 +40,12 @@ export function LoginForm({
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
+
+      {welcome && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-center text-sm text-primary">
+          {welcome}
+        </div>
+      )}
 
       {state.error && (
         <Alert variant="destructive">
