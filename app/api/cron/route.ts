@@ -1,5 +1,6 @@
 import { runDueRecurrences } from "@/lib/recurring";
 import { syncAllDue } from "@/lib/sync";
+import { remindStaleProducts } from "@/lib/reminders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,11 +17,16 @@ export async function GET(req: Request) {
     if (auth !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 });
   }
 
-  const result = { recurringCreated: 0, sheetsSynced: false as boolean };
+  const result = { recurringCreated: 0, sheetsSynced: false as boolean, staleReminded: 0 };
   try {
     result.recurringCreated = await runDueRecurrences();
   } catch (e) {
     console.error("[cron] recurring failed", e);
+  }
+  try {
+    result.staleReminded = await remindStaleProducts(3);
+  } catch (e) {
+    console.error("[cron] stale reminders failed", e);
   }
   // Google Sheets sync is disabled for now; safe no-op if no connections.
   try {

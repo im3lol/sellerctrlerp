@@ -30,6 +30,7 @@ export const NAV: NavSection[] = [
     heading: "التحليلات",
     items: [
       { label: "المتصدرون", href: "/leaderboard", icon: "Trophy" },
+      { label: "متابعة الأداء", href: "/admin/monitoring", icon: "Activity", capability: "reports.view" },
       { label: "التقارير", href: "/reports", icon: "BarChart3", capability: "reports.view" },
       { label: "المساعد الذكي", href: "/assistant", icon: "Sparkles", capability: "ai.use" },
     ],

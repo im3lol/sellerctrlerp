@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setProductStatusAction, assignProductAction } from "@/app/actions/products";
@@ -30,23 +30,29 @@ export function ProductStatusSelect({
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
-  const current = statuses.find((s) => s.id === statusId);
+  // Optimistic local value so the change shows instantly and never visually reverts.
+  const [value, setValue] = useState<string | null>(statusId);
+  useEffect(() => setValue(statusId), [statusId]);
+  const current = statuses.find((s) => s.id === value);
 
   if (disabled) return <StatusBadge name={current?.name ?? null} color={current?.color ?? null} />;
 
   return (
     <Select
-      value={statusId ?? undefined}
-      onValueChange={(v) =>
+      value={value ?? undefined}
+      onValueChange={(v) => {
+        const prev = value;
+        setValue(v);
         start(async () => {
           try {
             await setProductStatusAction(productId, v);
             router.refresh();
           } catch {
+            setValue(prev);
             toast.error("تعذّر تحديث الحالة");
           }
-        })
-      }
+        });
+      }}
     >
       <SelectTrigger
         size="sm"
@@ -82,7 +88,9 @@ export function ProductAssigneeSelect({
 }) {
   const [, start] = useTransition();
   const router = useRouter();
-  const current = assignees.find((a) => a.id === assignedTo);
+  const [value, setValue] = useState<string | null>(assignedTo);
+  useEffect(() => setValue(assignedTo), [assignedTo]);
+  const current = assignees.find((a) => a.id === value);
   const initials = (name: string) => name.split(" ").slice(0, 2).map((p) => p[0]).join("");
 
   const Pill = (
@@ -101,17 +109,20 @@ export function ProductAssigneeSelect({
 
   return (
     <Select
-      value={assignedTo ?? "none"}
-      onValueChange={(v) =>
+      value={value ?? "none"}
+      onValueChange={(v) => {
+        const prev = value;
+        setValue(v === "none" ? null : v);
         start(async () => {
           try {
             await assignProductAction(productId, v === "none" ? null : v);
             router.refresh();
           } catch {
+            setValue(prev);
             toast.error("تعذّر التعيين");
           }
-        })
-      }
+        });
+      }}
     >
       <SelectTrigger
         size="sm"

@@ -7,6 +7,7 @@ import { listTasks } from "@/lib/queries/tasks";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
+import { ProductProgress } from "@/components/products/product-progress";
 
 export default async function KanbanPage() {
   const user = await requireUser();
@@ -27,6 +28,7 @@ export default async function KanbanPage() {
           </Link>
         </Button>
       </PageHeader>
+      <ProductProgress userId={user.id} />
       <KanbanBoard tasks={tasks} canEdit={canEdit} />
     </div>
   );

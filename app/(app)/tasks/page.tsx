@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PriorityBadge } from "@/components/tasks/priority-badge";
 import { StatusBadge } from "@/components/products/status-badge";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
+import { ProductProgress } from "@/components/products/product-progress";
 import { EmptyState } from "@/components/empty-state";
 import { Columns3 } from "lucide-react";
 import { formatDateAr } from "@/lib/format";
@@ -46,6 +47,8 @@ export default async function TasksPage() {
           />
         )}
       </PageHeader>
+
+      <ProductProgress userId={user.id} />
 
       {tasks.length === 0 ? (
         <EmptyState icon="ListChecks" title="لا توجد مهام" />

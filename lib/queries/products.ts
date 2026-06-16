@@ -113,6 +113,26 @@ export async function getProductDetail(id: string) {
   return p ?? null;
 }
 
+/**
+ * A user's assigned-product workload, aggregated per workspace, with how many
+ * are completed (terminal status). Powers the "product progress" bars — one per
+ * workspace instead of hundreds of per-product tasks.
+ */
+export async function myProductProgress(userId: string) {
+  return db
+    .select({
+      workspaceId: products.workspaceId,
+      workspaceName: workspaces.name,
+      total: sql<number>`count(*)::int`,
+      completed: sql<number>`count(*) filter (where ${productStatuses.isTerminal})::int`,
+    })
+    .from(products)
+    .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
+    .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
+    .where(and(eq(products.assignedTo, userId), eq(products.isDraft, false)))
+    .groupBy(products.workspaceId, workspaces.name);
+}
+
 /** Statuses available for a workspace: globals + workspace-specific. */
 export async function listStatuses(workspaceId?: string) {
   const rows = await db

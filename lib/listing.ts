@@ -17,10 +17,24 @@ export type ListingProduct = {
  * forbid the AI from inventing anything not present in the provided data.
  */
 export function buildListingMarkdown(p: ListingProduct): string {
-  const row = (label: string, v: string | null) => `- **${label}:** ${v && v.trim() ? v.trim() : "N/A"}`;
-  const imageBlock = p.imageUrl
-    ? `\n![product image](${p.imageUrl})\n`
-    : "";
+  // Only include fields that actually have a value — omit empties entirely
+  // (cleaner prompt, no "N/A" noise).
+  const fields: [string, string | null][] = [
+    ["Product Name", p.name],
+    ["Main Image", p.imageUrl],
+    ["Description", p.description],
+    ["Features", p.features],
+    ["Sizes", p.sizes],
+    ["Colors", p.colors],
+    ["Brand", p.brand],
+    ["Price", p.price],
+    ["Product URL", p.productUrl],
+  ];
+  const dataLines = fields
+    .filter(([, v]) => v && v.trim())
+    .map(([label, v]) => `- **${label}:** ${(v as string).trim()}`)
+    .join("\n");
+  const imageBlock = p.imageUrl ? `\n![product image](${p.imageUrl})\n` : "";
 
   return `# Task: Create an Amazon-ready product listing (English)
 
@@ -28,7 +42,7 @@ You are a senior **Amazon listing specialist and cataloguing expert**. Produce a
 
 ## ⚠️ STRICT RULES — follow them exactly:
 1. FACTUAL content (specifications, features, materials, measurements, claims): use ONLY the "Product Data". Never invent, assume, or fabricate.
-2. If information is missing ("N/A"): omit it, or mark a structured attribute as "Not provided". Do not guess.
+2. ONLY the fields listed in "Product Data" are known. Any field NOT listed is unknown — omit it, or mark a structured attribute as "Not provided". Never guess or fabricate missing fields.
 3. Follow Amazon policies strictly:
    - Title: NO promotional words or claims (no "best", "sale", "free shipping", "#1", "guaranteed", "new"), NO price, NO seller/contact info, NO URLs/emails/phone numbers, NO ALL-CAPS words, NO emojis or decorative symbols.
    - Bullets & description: factual, no promotional/time-sensitive claims, no pricing, no shipping/warranty claims unless explicitly in the data.
@@ -48,14 +62,6 @@ You are a senior **Amazon listing specialist and cataloguing expert**. Produce a
 ---
 
 ## Product Data
-${row("Product Name", p.name)}
-${row("Main Image", p.imageUrl)}
-${row("Description", p.description)}
-${row("Features", p.features)}
-${row("Sizes", p.sizes)}
-${row("Colors", p.colors)}
-${row("Brand", p.brand)}
-${row("Price", p.price)}
-${row("Product URL", p.productUrl)}
+${dataLines}
 ${imageBlock}`;
 }

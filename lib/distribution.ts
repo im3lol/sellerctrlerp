@@ -114,7 +114,7 @@ export async function distributeWorkspace(
   }
 
   const unassigned = await db
-    .select({ id: products.id })
+    .select({ id: products.id, name: products.name })
     .from(products)
     .where(
       and(
@@ -160,6 +160,10 @@ export async function distributeWorkspace(
       .set({ assignedTo: userId, updatedAt: new Date() })
       .where(inArray(products.id, productIds));
   }
+
+  // Note: we intentionally do NOT create a task per product (would be hundreds).
+  // Each employee's product workload is shown as one aggregated progress bar per
+  // workspace (see myProductProgress / ProductProgress).
 
   // Record the run.
   await db.insert(distributionRuns).values({
