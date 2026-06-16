@@ -36,9 +36,17 @@ export default auth((req) => {
     if (!isClient && onPortal) {
       return Response.redirect(new URL("/dashboard", nextUrl));
     }
-    // Already-authed users on any login page → their area.
+    // Already-authed users on a login page → send them to their area ONLY when
+    // their role matches that page's audience (remember them). If a different
+    // audience's login is opened (e.g. an admin visiting the partner login),
+    // show the form so they can sign in with the right account instead of being
+    // bounced into the wrong dashboard.
     if (path.startsWith("/login")) {
-      return Response.redirect(new URL(isClient ? "/portal" : "/dashboard", nextUrl));
+      const isPartnerPage = path.startsWith("/login/partner") || path.startsWith("/login/client");
+      const matchesAudience = isPartnerPage ? isClient : !isClient;
+      if (matchesAudience) {
+        return Response.redirect(new URL(isClient ? "/portal" : "/dashboard", nextUrl));
+      }
     }
   }
 
