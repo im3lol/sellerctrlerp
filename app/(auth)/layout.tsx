@@ -32,7 +32,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <span>·</span>
             <a href="/login/admin" className="hover:text-foreground">الإدارة</a>
             <span>·</span>
-            <a href="/login/client" className="hover:text-foreground">الشركاء</a>
+            <a href="/login/partner" className="hover:text-foreground">الشركاء</a>
           </div>
         </div>
       </div>

@@ -1,12 +1,6 @@
-import { LoginForm } from "@/components/auth/login-form";
+import { redirect } from "next/navigation";
 
-export default function PartnerLoginPage() {
-  return (
-    <LoginForm
-      callbackUrl="/portal"
-      title="بوابة الشركاء"
-      subtitle="تابع تقدّم العمل على متجرك ومنتجاتك"
-      welcome="🤝 أهلاً بشركائنا — سعداء بالعمل معك. سجّل الدخول لمتابعة منتجاتك وحالتها لحظياً."
-    />
-  );
+// Old partner URL — kept as a redirect so existing links keep working.
+export default function ClientLoginRedirect() {
+  redirect("/login/partner");
 }
