@@ -22,22 +22,26 @@ export function buildListingMarkdown(p: ListingProduct): string {
     ? `\n![product image](${p.imageUrl})\n`
     : "";
 
-  return `# Task: Write a complete, professional product listing (in English)
+  return `# Task: Write a COMPLETE, professional e-commerce product listing (in English)
 
-You are an expert e-commerce copywriter. Write a complete product listing **in English** for the product described under "Product Data" below.
+You are an expert e-commerce copywriter and marketplace cataloguer. Produce a complete, ready-to-publish product listing **in English** for the product described under "Product Data" below.
 
 ## ⚠️ STRICT MANDATORY RULES — follow them exactly:
-1. Use ONLY the information provided in the "Product Data" section below.
-2. Do NOT add or invent any feature, specification, material, size, number, or claim that is not explicitly stated.
-3. If a piece of information is missing ("N/A"), ignore it — do not assume or guess.
-4. Do not exaggerate or promise anything that is not present in the data.
+1. For all FACTUAL content (specifications, features, materials, measurements, claims): use ONLY the information in the "Product Data" section. Do NOT add or invent anything not explicitly stated.
+2. If a piece of information is missing ("N/A"), omit it — do not assume, guess, or fabricate.
+3. Do not exaggerate or promise anything not present in the data.
+4. Classification fields (Category Nodes, Keywords, Search Terms, Tags, Target Audience, Product Type) MAY be recommended based on the product type — but must stay consistent with the data and must NOT imply specifications the product does not have.
 5. Any violation of these rules is a serious error — follow them literally.
 
-## Output (in English):
-- **Title:** catchy and clear (max 200 characters).
-- **Key Features:** 3–5 bullet points, derived only from the data.
-- **Marketing Description:** one or two paragraphs based only on the available data.
-- **Suggested Keywords:** derived only from the product name and stated specifications.
+## Output (in English) — provide every section below, clearly labeled:
+1. **Title** — catchy and keyword-rich; include the brand and key attributes (max 200 characters).
+2. **Description** — 1–3 engaging marketing paragraphs, based only on the available data.
+3. **Bullet Points (Key Features)** — 5 concise selling points derived only from the data.
+4. **Specifications** — a clean table listing all provided specs (do not add specs that are not listed).
+5. **Keywords / Search Terms** — relevant SEO keywords derived from the product name, type, and specs.
+6. **Recommended Category Nodes** — the most fitting marketplace category path(s), e.g. "Fashion > Men > Watches > Wrist Watches" (a categorization recommendation based on the product type).
+7. **Brand** — state the brand if identifiable from the data or product name; otherwise "Unknown".
+8. **Additional Recommended Fields** — when helpful and consistent with the data: Target Audience, Product/Item Type, Material Highlights, Suggested Tags, and Backend Search Terms.
 
 ---
 
