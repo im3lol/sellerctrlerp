@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { products } from "@/db/schema";
+import { products, productBases } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { canAccessWorkspace } from "@/lib/workspaces";
@@ -26,14 +26,15 @@ export async function GET(req: Request) {
   }
 
   const rows = await db
-    .select({ id: products.id, name: products.name, url: products.productUrl })
+    .select({ id: products.id, name: productBases.name, url: productBases.productUrl })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .where(
       and(
         eq(products.workspaceId, workspaceId),
         eq(products.isDraft, true),
-        isNotNull(products.productUrl),
-        ne(products.productUrl, ""),
+        isNotNull(productBases.productUrl),
+        ne(productBases.productUrl, ""),
       ),
     );
 

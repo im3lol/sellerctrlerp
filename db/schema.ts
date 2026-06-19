@@ -174,25 +174,16 @@ export const products = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    // Shared base catalog item (single source of truth for base data across
-    // platform listings). Nullable during migration; base data below is kept
-    // for back-compat but the base row is authoritative going forward.
-    baseId: uuid("base_id").references(() => productBases.id, { onDelete: "set null" }),
-    // Locked columns (imported FROM the client's Excel file, app never overwrites)
+    // Shared base catalog item — SINGLE SOURCE of base data (name, image,
+    // price, description…) across all platform listings. Base data is NOT
+    // duplicated on the listing anymore; read it via the productBases join.
+    baseId: uuid("base_id")
+      .notNull()
+      .references(() => productBases.id, { onDelete: "cascade" }),
+    // Per-listing identifiers
     sku: text("sku").notNull(),
-    name: text("name").notNull(),
-    description: text("description"), // الوصف
-    sizes: text("sizes"), // المقاسات
-    features: text("features"), // المميزات
-    colors: text("colors"), // الألوان
-    imageUrl: text("image_url"), // لينك صورة العرض (main image — previewed in table)
-    galleryUrl: text("gallery_url"), // صور المنتج كلها (لينك درايف)
-    productUrl: text("product_url"), // لينك المنتج على الموقع
-    asin: text("asin"),
-    brand: text("brand"),
-    price: numeric("price", { precision: 12, scale: 2 }),
-    baseData: jsonb("base_data").$type<Record<string, unknown>>().default({}),
-    // Open columns (app-owned, editable in UI)
+    asin: text("asin"), // platform-specific (e.g. Amazon ASIN)
+    // Open columns (app-owned, per-platform, editable in UI)
     statusId: uuid("status_id").references(() => productStatuses.id, { onDelete: "set null" }),
     notes: text("notes"),
     amazonCode: text("amazon_code"),

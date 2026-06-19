@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import {
   users,
   products,
+  productBases,
   productStatuses,
   tasks,
   workspaces,
@@ -64,13 +65,14 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
       db
         .select({
           id: products.id,
-          name: products.name,
+          name: productBases.name,
           statusName: productStatuses.name,
           statusColor: productStatuses.color,
           workspaceName: workspaces.name,
           updatedAt: products.updatedAt,
         })
         .from(products)
+        .leftJoin(productBases, eq(products.baseId, productBases.id))
         .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
         .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
         .where(eq(products.assignedTo, id))

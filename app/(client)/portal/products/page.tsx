@@ -1,7 +1,7 @@
 import { and, eq, inArray, desc, sql } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { products, productStatuses, workspaces } from "@/db/schema";
+import { products, productBases, productStatuses, workspaces } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { PartnerProductsTable } from "@/components/portal/partner-products-table";
@@ -40,10 +40,10 @@ export default async function PortalProductsPage({
       .select({
         id: products.id,
         sku: products.sku,
-        name: products.name,
-        brand: products.brand,
-        price: products.price,
-        imageUrl: products.imageUrl,
+        name: productBases.name,
+        brand: productBases.brand,
+        price: productBases.price,
+        imageUrl: productBases.imageUrl,
         amazonCode: products.amazonCode,
         notes: products.notes,
         statusName: productStatuses.name,
@@ -51,6 +51,7 @@ export default async function PortalProductsPage({
         workspaceName: workspaces.name,
       })
       .from(products)
+      .leftJoin(productBases, eq(products.baseId, productBases.id))
       .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
       .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
       .where(cond)

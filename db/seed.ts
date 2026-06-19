@@ -6,6 +6,7 @@ import {
   workspaceMembers,
   productStatuses,
   products,
+  productBases,
   tasks,
   attendance,
 } from "@/db/schema";
@@ -88,17 +89,24 @@ async function main() {
 
   let n = 1000;
   for (const it of items) {
+    n++;
+    const [b] = await db
+      .insert(productBases)
+      .values({
+        name: it.name,
+        description: it.desc,
+        features: it.features,
+        sizes: it.sizes,
+        price: it.price,
+        imageUrl: `https://picsum.photos/seed/${it.img}/400/400`,
+        galleryUrl: drive,
+        productUrl: it.ws === wsA.id ? amzn + "B0" + n : noon + "p-" + n,
+      })
+      .returning({ id: productBases.id });
     await db.insert(products).values({
       workspaceId: it.ws,
-      sku: `SKU-${++n}`,
-      name: it.name,
-      description: it.desc,
-      features: it.features,
-      sizes: it.sizes,
-      price: it.price,
-      imageUrl: `https://picsum.photos/seed/${it.img}/400/400`,
-      galleryUrl: drive,
-      productUrl: (it.ws === wsA.id ? amzn + "B0" + n : noon + "p-" + n),
+      baseId: b.id,
+      sku: `SKU-${n}`,
       statusId: S[it.status],
       assignedTo: it.assignee,
       amazonCode: it.code ?? null,

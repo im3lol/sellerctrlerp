@@ -255,7 +255,7 @@ export function ProductsTable({
                 </TableCell>
               )}
               <TableCell>
-                <ProductThumb src={p.imageUrl} name={p.name} />
+                <ProductThumb src={p.imageUrl} name={p.name ?? ""} />
               </TableCell>
               <TableCell className="max-w-[240px]">
                 <div className="flex items-center gap-1.5">

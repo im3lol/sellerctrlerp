@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
-import { products, scrapeJobs } from "@/db/schema";
+import { products, productBases, scrapeJobs } from "@/db/schema";
 import { scraperTokenOk, buildScrapeUpdate, jsonCors } from "@/lib/scrape";
 import { publish } from "@/lib/realtime";
 
@@ -35,14 +35,20 @@ export async function POST(req: Request) {
 
   let didUpdate = false;
   if (!body.error && body.data) {
-    const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
-    if (product) {
-      const update = buildScrapeUpdate(product, body.data, job?.overwrite === true);
+    // Scraped values fill the SHARED base catalog row (single source).
+    const [product] = await db
+      .select({ workspaceId: products.workspaceId, baseId: products.baseId })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
+    if (product?.baseId) {
+      const [base] = await db.select().from(productBases).where(eq(productBases.id, product.baseId)).limit(1);
+      const update = base ? buildScrapeUpdate(base, body.data, job?.overwrite === true) : null;
       if (update) {
         await db
-          .update(products)
+          .update(productBases)
           .set({ ...update, updatedAt: new Date() })
-          .where(eq(products.id, productId));
+          .where(eq(productBases.id, product.baseId));
         didUpdate = true;
         await publish(query, {
           channel: `workspace:${product.workspaceId}`,

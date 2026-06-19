@@ -4,7 +4,7 @@ import { and, eq, desc } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { products, productStatuses, workspaces } from "@/db/schema";
+import { products, productBases, productStatuses, workspaces } from "@/db/schema";
 import { getWorkspaceStats } from "@/lib/queries/workspace-stats";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -40,11 +40,11 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
     .select({
       id: products.id,
       sku: products.sku,
-      name: products.name,
-      brand: products.brand,
-      price: products.price,
-      imageUrl: products.imageUrl,
-      productUrl: products.productUrl,
+      name: productBases.name,
+      brand: productBases.brand,
+      price: productBases.price,
+      imageUrl: productBases.imageUrl,
+      productUrl: productBases.productUrl,
       amazonCode: products.amazonCode,
       notes: products.notes,
       statusName: productStatuses.name,
@@ -52,6 +52,7 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
       updatedAt: products.updatedAt,
     })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
     .where(and(eq(products.workspaceId, id), eq(products.isDraft, false)))
     .orderBy(desc(products.updatedAt))
@@ -92,7 +93,7 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
                 <TableCell>
                   {p.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="size-10 rounded-lg border object-cover" />
+                    <img src={p.imageUrl} alt={p.name ?? ""} loading="lazy" decoding="async" className="size-10 rounded-lg border object-cover" />
                   ) : (
                     <div className="size-10 rounded-lg border bg-muted" />
                   )}

@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull, isNotNull, ne, or, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { scrapeJobs, scrapeRecipes, products } from "@/db/schema";
+import { scrapeJobs, scrapeRecipes, products, productBases } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { canAccessWorkspace } from "@/lib/workspaces";
@@ -91,17 +91,18 @@ export async function POST(req: Request) {
   const conds = [
     eq(products.workspaceId, workspaceId),
     eq(products.isDraft, true),
-    isNotNull(products.productUrl),
-    ne(products.productUrl, ""),
+    isNotNull(productBases.productUrl),
+    ne(productBases.productUrl, ""),
   ];
   if (target === "incomplete") {
-    conds.push(or(isNull(products.imageUrl), isNull(products.price))!);
+    conds.push(or(isNull(productBases.imageUrl), isNull(productBases.price))!);
   }
   if (body.productIds?.length) conds.push(inArray(products.id, body.productIds));
 
   const targets = await db
-    .select({ id: products.id, url: products.productUrl })
+    .select({ id: products.id, url: productBases.productUrl })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .where(and(...conds));
 
   const items = targets

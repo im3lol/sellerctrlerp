@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
-import { products, productStatuses } from "@/db/schema";
+import { products, productBases, productStatuses, workspaces } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { canAccessWorkspace } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
@@ -54,9 +54,11 @@ export async function importProductsAction(
   const stamp = Date.now();
   let imported = 0;
 
-  const values = rows.map((r, i) => ({
-    workspaceId,
-    sku: `XLS-${stamp}-${i + 1}`,
+  const [ws] = await db.select({ clientUserId: workspaces.clientUserId }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+
+  // Each imported row → one shared base catalog item + one platform listing.
+  const baseValues = rows.map((r, i) => ({
+    clientUserId: ws?.clientUserId ?? null,
     name: r.name ?? `منتج ${i + 1}`,
     brand: r.brand ?? null,
     description: r.description ?? null,
@@ -66,15 +68,22 @@ export async function importProductsAction(
     galleryUrl: r.galleryUrl ?? null,
     productUrl: r.productUrl ?? null,
     price: r.price ? r.price.replace(/[^\d.]/g, "") || null : null,
-    statusId,
-    isDraft: draft,
+    createdById: user.id,
   }));
 
-  // Insert in chunks to keep statements small.
-  for (let i = 0; i < values.length; i += 100) {
-    const chunk = values.slice(i, i + 100);
-    await db.insert(products).values(chunk);
-    imported += chunk.length;
+  // Insert bases in chunks (returning ids in insertion order), then the listings.
+  for (let i = 0; i < baseValues.length; i += 100) {
+    const baseChunk = baseValues.slice(i, i + 100);
+    const baseIds = await db.insert(productBases).values(baseChunk).returning({ id: productBases.id });
+    const productChunk = baseIds.map((b, j) => ({
+      workspaceId,
+      baseId: b.id,
+      sku: `XLS-${stamp}-${i + j + 1}`,
+      statusId,
+      isDraft: draft,
+    }));
+    await db.insert(products).values(productChunk);
+    imported += productChunk.length;
   }
 
   await recordActivity({

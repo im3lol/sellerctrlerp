@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, eq, sql, inArray, desc } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { products, tasks, workspaces, users, productStatuses } from "@/db/schema";
+import { products, productBases, tasks, workspaces, users, productStatuses } from "@/db/schema";
 import { can } from "@/lib/rbac";
 import { workedSecondsSince } from "@/lib/attendance";
 import {
@@ -62,12 +62,13 @@ async function ManagerDashboard({ todaySeconds, terminalIds }: { todaySeconds: n
       db
         .select({
           id: products.id,
-          name: products.name,
+          name: productBases.name,
           statusName: productStatuses.name,
           statusColor: productStatuses.color,
           workspaceName: workspaces.name,
         })
         .from(products)
+        .leftJoin(productBases, eq(products.baseId, productBases.id))
         .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
         .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
         .orderBy(desc(products.updatedAt))
@@ -149,12 +150,13 @@ async function EmployeeDashboard({
     db
       .select({
         id: products.id,
-        name: products.name,
+        name: productBases.name,
         statusName: productStatuses.name,
         statusColor: productStatuses.color,
         workspaceName: workspaces.name,
       })
       .from(products)
+      .leftJoin(productBases, eq(products.baseId, productBases.id))
       .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
       .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
       .where(eq(products.assignedTo, userId))

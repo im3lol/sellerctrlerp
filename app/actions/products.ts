@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, isNull, isNotNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "@/lib/db";
-import { products, productStatuses, users, productBases } from "@/db/schema";
-import { ne } from "drizzle-orm";
+import { products, productStatuses, users, productBases, workspaces } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { canAccessWorkspace } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
@@ -68,11 +67,12 @@ export async function createProductAction(_prev: ProductFormState, formData: For
     statusId = def?.id ?? null;
   }
 
-  const [p] = await db
-    .insert(products)
+  // Create the shared base catalog item, then the platform listing referencing it.
+  const [ws] = await db.select({ clientUserId: workspaces.clientUserId }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+  const [createdBase] = await db
+    .insert(productBases)
     .values({
-      workspaceId,
-      sku: `MAN-${Date.now()}`,
+      clientUserId: ws?.clientUserId ?? null,
       name: d.name,
       brand: d.brand ?? null,
       description: d.description ?? null,
@@ -82,6 +82,16 @@ export async function createProductAction(_prev: ProductFormState, formData: For
       imageUrl: d.imageUrl ?? null,
       galleryUrl: d.galleryUrl ?? null,
       productUrl: d.productUrl ?? null,
+      createdById: user.id,
+    })
+    .returning({ id: productBases.id });
+
+  const [p] = await db
+    .insert(products)
+    .values({
+      workspaceId,
+      baseId: createdBase.id,
+      sku: `MAN-${Date.now()}`,
       statusId,
       assignedTo: d.assignedTo || null,
     })
@@ -113,18 +123,10 @@ export async function updateProductAction(_prev: ProductFormState, formData: For
     ? await db.select().from(productStatuses).where(eq(productStatuses.id, d.statusId)).limit(1)
     : [undefined];
 
+  // Per-listing fields live on the product row.
   await db
     .update(products)
     .set({
-      name: d.name,
-      brand: d.brand ?? null,
-      description: d.description ?? null,
-      features: d.features ?? null,
-      sizes: d.sizes ?? null,
-      price: d.price ?? null,
-      imageUrl: d.imageUrl ?? null,
-      galleryUrl: d.galleryUrl ?? null,
-      productUrl: d.productUrl ?? null,
       statusId: d.statusId || before.statusId,
       assignedTo: d.assignedTo || null,
       completedAt: status?.isTerminal ? before.completedAt ?? new Date() : null,
@@ -132,27 +134,24 @@ export async function updateProductAction(_prev: ProductFormState, formData: For
     })
     .where(eq(products.id, productId));
 
-  // Base data is shared: update the base catalog item and sync it to every other
-  // platform listing of the same product (per-platform status/assignee/code/notes
-  // are left untouched).
+  // Base data is shared — written ONCE to the base; every platform listing of
+  // this product reads it via the join automatically.
   if (before.baseId) {
-    const baseFields = {
-      name: d.name,
-      brand: d.brand ?? null,
-      description: d.description ?? null,
-      features: d.features ?? null,
-      sizes: d.sizes ?? null,
-      price: d.price ?? null,
-      imageUrl: d.imageUrl ?? null,
-      galleryUrl: d.galleryUrl ?? null,
-      productUrl: d.productUrl ?? null,
-      updatedAt: new Date(),
-    };
-    await db.update(productBases).set(baseFields).where(eq(productBases.id, before.baseId));
     await db
-      .update(products)
-      .set(baseFields)
-      .where(and(eq(products.baseId, before.baseId), ne(products.id, productId)));
+      .update(productBases)
+      .set({
+        name: d.name,
+        brand: d.brand ?? null,
+        description: d.description ?? null,
+        features: d.features ?? null,
+        sizes: d.sizes ?? null,
+        price: d.price ?? null,
+        imageUrl: d.imageUrl ?? null,
+        galleryUrl: d.galleryUrl ?? null,
+        productUrl: d.productUrl ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(productBases.id, before.baseId));
   }
 
   await recordActivity({ actorId: user.id, workspaceId: before.workspaceId, entityType: "product", entityId: productId, action: "product.updated", summaryAr: `${user.name} عدّل بيانات المنتج «${d.name}»` });
@@ -220,8 +219,14 @@ export async function publishProductsAction(ids: string[]): Promise<{ ok: boolea
   if (wanted.length === 0) return { ok: false, error: "لم يتم تحديد منتجات" };
 
   const rows = await db
-    .select()
+    .select({
+      id: products.id,
+      workspaceId: products.workspaceId,
+      assignedTo: products.assignedTo,
+      name: productBases.name,
+    })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .where(and(inArray(products.id, wanted), eq(products.isDraft, true)));
 
   // Check workspace access ONCE per distinct workspace (not per product).
@@ -244,7 +249,7 @@ export async function publishProductsAction(ids: string[]): Promise<{ ok: boolea
     // Notify assignees (notifications are inherently per-user; best-effort).
     for (const p of allowed) {
       if (p.assignedTo) {
-        await notify({ userId: p.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: p.name, link: `/products/${p.id}` });
+        await notify({ userId: p.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: p.name ?? undefined, link: `/products/${p.id}` });
       }
     }
 
@@ -276,15 +281,15 @@ export async function publishWorkspaceReadyDraftsAction(
   if (!(await canAccessWorkspace(user, workspaceId))) return { ok: false, error: "غير مصرّح" };
 
   const rows = await db
-    .select({ id: products.id, assignedTo: products.assignedTo, name: products.name })
+    .select({ id: products.id, assignedTo: products.assignedTo, name: productBases.name })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .where(
       and(
         eq(products.workspaceId, workspaceId),
         eq(products.isDraft, true),
-        isNotNull(products.name),
-        isNotNull(products.imageUrl),
-        isNotNull(products.price),
+        isNotNull(productBases.imageUrl),
+        isNotNull(productBases.price),
       ),
     );
   if (rows.length === 0) return { ok: true, published: 0 };
@@ -296,7 +301,7 @@ export async function publishWorkspaceReadyDraftsAction(
 
   for (const r of rows) {
     if (r.assignedTo) {
-      await notify({ userId: r.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: r.name, link: `/products/${r.id}` });
+      await notify({ userId: r.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: r.name ?? undefined, link: `/products/${r.id}` });
     }
   }
   await recordActivity({
@@ -389,19 +394,8 @@ export async function createListingAction(
     .insert(products)
     .values({
       workspaceId: targetWorkspaceId,
-      baseId: src.baseId,
+      baseId: src.baseId, // shares the SAME base — no base-data duplication
       sku: `LST-${Date.now()}`,
-      // base data copied from the shared base (kept in sync on future edits)
-      name: src.name,
-      brand: src.brand,
-      description: src.description,
-      sizes: src.sizes,
-      features: src.features,
-      colors: src.colors,
-      imageUrl: src.imageUrl,
-      galleryUrl: src.galleryUrl,
-      productUrl: src.productUrl,
-      price: src.price,
       // fresh per-platform fields
       statusId: def?.id ?? null,
       isDraft: false,
@@ -423,9 +417,31 @@ export async function createListingAction(
   return { ok: true, listingId: listing.id };
 }
 
+/** Load a product listing merged with its shared base data (single source). */
 async function loadProduct(id: string) {
-  const [p] = await db.select().from(products).where(eq(products.id, id)).limit(1);
-  return p ?? null;
+  const [row] = await db
+    .select({ p: products, b: productBases })
+    .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
+    .where(eq(products.id, id))
+    .limit(1);
+  if (!row) return null;
+  const { p, b } = row;
+  return {
+    ...p,
+    // base fields (read-through for back-compat with existing call sites)
+    name: b?.name ?? "",
+    brand: b?.brand ?? null,
+    description: b?.description ?? null,
+    sizes: b?.sizes ?? null,
+    features: b?.features ?? null,
+    colors: b?.colors ?? null,
+    imageUrl: b?.imageUrl ?? null,
+    galleryUrl: b?.galleryUrl ?? null,
+    productUrl: b?.productUrl ?? null,
+    price: b?.price ?? null,
+    baseData: b?.baseData ?? {},
+  };
 }
 
 export async function setProductStatusAction(productId: string, statusId: string) {

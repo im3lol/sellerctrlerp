@@ -1,6 +1,9 @@
 import { and, eq, or, ilike, isNull, isNotNull, inArray, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { products, productStatuses, users, workspaces, workspaceMembers } from "@/db/schema";
+import { products, productBases, productStatuses, users, workspaces, workspaceMembers } from "@/db/schema";
+
+// Base catalog data (name, image, price…) lives in productBases — single source.
+const base = productBases;
 
 export const PRODUCTS_PER_PAGE = 20;
 
@@ -31,14 +34,14 @@ function buildConds(filters: ProductFilters): unknown[] | null {
   if (filters.draft === "only") conds.push(eq(products.isDraft, true));
   else if (filters.draft !== "all") conds.push(eq(products.isDraft, false));
   if (filters.ready) {
-    conds.push(isNotNull(products.imageUrl), isNotNull(products.price));
+    conds.push(isNotNull(base.imageUrl), isNotNull(base.price));
   }
   if (filters.statusId) conds.push(eq(products.statusId, filters.statusId));
   if (filters.assignedTo === "unassigned") conds.push(isNull(products.assignedTo));
   else if (filters.assignedTo) conds.push(eq(products.assignedTo, filters.assignedTo));
   if (filters.search) {
     const q = `%${filters.search}%`;
-    conds.push(or(ilike(products.name, q), ilike(products.sku, q), ilike(products.asin, q)));
+    conds.push(or(ilike(base.name, q), ilike(products.sku, q), ilike(products.asin, q)));
   }
   return conds;
 }
@@ -50,6 +53,7 @@ export async function countProducts(filters: ProductFilters): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(products)
+    .leftJoin(base, eq(products.baseId, base.id))
     .where(conds.length ? and(...(conds as never[])) : undefined);
   return row?.count ?? 0;
 }
@@ -63,12 +67,12 @@ export async function listProducts(filters: ProductFilters, limit = 200, offset 
       id: products.id,
       workspaceId: products.workspaceId,
       sku: products.sku,
-      name: products.name,
+      name: base.name,
       asin: products.asin,
-      brand: products.brand,
-      price: products.price,
-      imageUrl: products.imageUrl,
-      productUrl: products.productUrl,
+      brand: base.brand,
+      price: base.price,
+      imageUrl: base.imageUrl,
+      productUrl: base.productUrl,
       notes: products.notes,
       amazonCode: products.amazonCode,
       assignedTo: products.assignedTo,
@@ -83,6 +87,7 @@ export async function listProducts(filters: ProductFilters, limit = 200, offset 
       workspaceType: workspaces.type,
     })
     .from(products)
+    .leftJoin(base, eq(products.baseId, base.id))
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
     .leftJoin(assignee, eq(products.assignedTo, assignee.id))
     .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
@@ -98,6 +103,7 @@ export async function getProductDetail(id: string) {
   const [p] = await db
     .select({
       product: products,
+      base: base,
       statusName: productStatuses.name,
       statusColor: productStatuses.color,
       assigneeName: users.name,
@@ -105,12 +111,32 @@ export async function getProductDetail(id: string) {
       workspaceName: workspaces.name,
     })
     .from(products)
+    .leftJoin(base, eq(products.baseId, base.id))
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
     .leftJoin(users, eq(products.assignedTo, users.id))
     .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
     .where(eq(products.id, id))
     .limit(1);
-  return p ?? null;
+  if (!p) return null;
+  // Merge base data onto the product so callers read p.product.name etc. as before.
+  const b = p.base;
+  return {
+    ...p,
+    product: {
+      ...p.product,
+      name: b?.name ?? "",
+      brand: b?.brand ?? null,
+      description: b?.description ?? null,
+      sizes: b?.sizes ?? null,
+      features: b?.features ?? null,
+      colors: b?.colors ?? null,
+      imageUrl: b?.imageUrl ?? null,
+      galleryUrl: b?.galleryUrl ?? null,
+      productUrl: b?.productUrl ?? null,
+      price: b?.price ?? null,
+      baseData: b?.baseData ?? {},
+    },
+  };
 }
 
 /**

@@ -114,7 +114,7 @@ export async function distributeWorkspace(
   }
 
   const unassigned = await db
-    .select({ id: products.id, name: products.name })
+    .select({ id: products.id })
     .from(products)
     .where(
       and(

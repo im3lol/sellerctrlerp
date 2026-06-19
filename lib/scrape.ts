@@ -10,7 +10,7 @@
  */
 
 import { timingSafeEqual } from "node:crypto";
-import type { products } from "@/db/schema";
+import type { productBases } from "@/db/schema";
 
 /** Product columns that can be populated by scraping (key = recipe field). */
 export const SCRAPE_FIELDS = [
@@ -45,15 +45,15 @@ export function sanitizeFields(input: unknown): RecipeFields {
   return out;
 }
 
-type ProductRow = typeof products.$inferSelect;
+type BaseRow = typeof productBases.$inferSelect;
 
 /**
- * Given a draft product and the values a worker scraped, compute the column
- * updates — only for fields that are currently empty. `price` is normalised to
- * digits/decimal. Returns null when nothing new can be filled.
+ * Given a product's base catalog row and the values a worker scraped, compute
+ * the base-column updates — only for fields currently empty. `price` is
+ * normalised to digits/decimal. Returns null when nothing new can be filled.
  */
 export function buildScrapeUpdate(
-  product: ProductRow,
+  base: BaseRow,
   data: Record<string, string>,
   overwrite = false,
 ): Partial<Record<ScrapeFieldKey, string>> | null {
@@ -64,7 +64,7 @@ export function buildScrapeUpdate(
     const value = key === "price" ? raw.replace(/[^\d.]/g, "") : raw.trim();
     if (!value) continue;
     // By default don't overwrite existing data; "re-scrape all" mode overwrites.
-    if (!overwrite && product[key as keyof ProductRow]) continue;
+    if (!overwrite && base[key as keyof BaseRow]) continue;
     update[key] = value;
   }
   return Object.keys(update).length ? update : null;

@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { sheetsConnections, products, productStatuses } from "@/db/schema";
+import { sheetsConnections, products, productBases, productStatuses } from "@/db/schema";
 import { readSheet } from "@/lib/sheets";
 
 export type SyncResult = {
@@ -69,34 +69,38 @@ export async function syncConnection(connectionId: string): Promise<SyncResult> 
       }
 
       const [existing] = await db
-        .select({ id: products.id })
+        .select({ id: products.id, baseId: products.baseId })
         .from(products)
         .where(and(eq(products.workspaceId, conn.workspaceId), eq(products.sku, sku)))
         .limit(1);
 
       if (existing) {
+        // Base (locked) data lives in productBases — single source.
         await db
-          .update(products)
+          .update(productBases)
           .set({
             name: locked.name ?? undefined,
-            asin: locked.asin ?? undefined,
             brand: locked.brand ?? undefined,
             price: locked.price ?? undefined,
             baseData,
-            sheetRowRef: row.__rowRef,
             updatedAt: new Date(),
           })
+          .where(eq(productBases.id, existing.baseId));
+        await db
+          .update(products)
+          .set({ asin: locked.asin ?? undefined, sheetRowRef: row.__rowRef, updatedAt: new Date() })
           .where(eq(products.id, existing.id));
         updated++;
       } else {
+        const [b] = await db
+          .insert(productBases)
+          .values({ name: locked.name ?? sku, brand: locked.brand ?? null, price: locked.price ?? null, baseData })
+          .returning({ id: productBases.id });
         await db.insert(products).values({
           workspaceId: conn.workspaceId,
+          baseId: b.id,
           sku,
-          name: locked.name ?? sku,
           asin: locked.asin ?? null,
-          brand: locked.brand ?? null,
-          price: locked.price ?? null,
-          baseData,
           statusId,
           sheetRowRef: row.__rowRef,
         });

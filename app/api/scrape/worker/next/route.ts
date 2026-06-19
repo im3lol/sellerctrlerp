@@ -1,6 +1,6 @@
 import { and, eq, isNull, isNotNull, ne, or } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
-import { products, scrapeJobs } from "@/db/schema";
+import { products, productBases, scrapeJobs } from "@/db/schema";
 import { scraperTokenOk, jsonCors } from "@/lib/scrape";
 
 export const runtime = "nodejs";
@@ -34,15 +34,16 @@ export async function GET(req: Request) {
   const conds = [
     eq(products.workspaceId, job.workspace_id),
     eq(products.isDraft, true),
-    isNotNull(products.productUrl),
-    ne(products.productUrl, ""),
+    isNotNull(productBases.productUrl),
+    ne(productBases.productUrl, ""),
   ];
   if (job.target !== "all") {
-    conds.push(or(isNull(products.imageUrl), isNull(products.price))!);
+    conds.push(or(isNull(productBases.imageUrl), isNull(productBases.price))!);
   }
   const targets = await db
-    .select({ id: products.id, url: products.productUrl })
+    .select({ id: products.id, url: productBases.productUrl })
     .from(products)
+    .leftJoin(productBases, eq(products.baseId, productBases.id))
     .where(and(...conds));
 
   const items = targets

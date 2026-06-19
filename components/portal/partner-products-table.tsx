@@ -12,7 +12,7 @@ import {
 export type PartnerProductRow = {
   id: string;
   sku: string;
-  name: string;
+  name: string | null;
   brand: string | null;
   price: string | null;
   imageUrl: string | null;
@@ -53,13 +53,13 @@ export function PartnerProductsTable({
               <TableCell>
                 {p.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="size-10 rounded-lg border object-cover" />
+                  <img src={p.imageUrl} alt={p.name ?? ""} loading="lazy" decoding="async" className="size-10 rounded-lg border object-cover" />
                 ) : (
                   <div className="size-10 rounded-lg border bg-muted" />
                 )}
               </TableCell>
               <TableCell className="max-w-[240px]">
-                <p className="truncate font-medium">{p.name}</p>
+                <p className="truncate font-medium">{p.name ?? "—"}</p>
                 <p className="font-mono text-[11px] text-muted-foreground" dir="ltr">{p.sku}</p>
               </TableCell>
               {showWorkspace && (
