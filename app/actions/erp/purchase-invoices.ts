@@ -68,7 +68,8 @@ export async function createPurchaseInvoiceAction(input: unknown): Promise<SaveI
         discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
       })));
 
-      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${totalAmount}` }).where(eq(suppliers.id, supplierId));
+      // A DRAFT invoice has no subledger effect — the supplier balance is
+      // established only when the invoice is posted (see postPurchaseInvoiceAction).
       return inv.id;
     });
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: id, entityNumber: number, summary: `إنشاء فاتورة شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
@@ -138,6 +139,8 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
           referenceType: "PURCHASE_INVOICE", referenceId: inv.id, reason: `استلام شراء ${inv.number}`,
         });
       }
+      // Establish the supplier payable now (not at draft).
+      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, inv.supplierId));
       await tx.update(purchaseInvoices).set({ status: "POSTED" }).where(eq(purchaseInvoices.id, inv.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة شراء ${inv.number}`, metadata: { total } });
     });

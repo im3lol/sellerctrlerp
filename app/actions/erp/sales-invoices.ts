@@ -95,12 +95,8 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
         })),
       );
 
-      // Customer owes the invoice total (subledger).
-      await tx
-        .update(customers)
-        .set({ balance: sql`${customers.balance} + ${totalAmount}` })
-        .where(eq(customers.id, customerId));
-
+      // A DRAFT invoice has no subledger effect — the customer balance is
+      // established only when the invoice is posted (see postSalesInvoiceAction).
       return inv.id;
     });
 
@@ -201,6 +197,8 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
         }
       }
 
+      // Establish the customer receivable now (not at draft).
+      await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, inv.customerId));
       await tx.update(salesInvoices).set({ status: "POSTED" }).where(eq(salesInvoices.id, inv.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة بيع ${inv.number}`, metadata: { total } });
       return eid;
