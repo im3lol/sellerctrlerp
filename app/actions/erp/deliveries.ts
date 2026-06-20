@@ -21,7 +21,7 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
 
 /** Deliver a confirmed sales order in full: issue stock at WAC + post COGS. */
 export async function createDeliveryFromOrderAction(salesOrderId: string): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
   const [so] = await db.select().from(salesOrders)
@@ -81,7 +81,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string): Promi
 /** Bill a delivery: create a POSTED sales invoice (revenue/AR only — stock + COGS
  *  already posted at delivery). */
 export async function convertDeliveryToInvoiceAction(deliveryId: string): Promise<ActionState & { invoiceId?: string }> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
   const [dn] = await db.select().from(deliveryNotes)

@@ -101,7 +101,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
  *   + reduce the customer balance. Sets status = POSTED.
  */
 export async function confirmSalesReturnAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
   const [ret] = await db.select().from(salesReturns)

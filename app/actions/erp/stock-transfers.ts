@@ -73,7 +73,7 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
  * posted (single inventory control account). Sets status = POSTED.
  */
 export async function confirmStockTransferAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.confirm");
   if ("error" in auth) return auth;
 
   const [tr] = await db.select().from(stockTransfers)

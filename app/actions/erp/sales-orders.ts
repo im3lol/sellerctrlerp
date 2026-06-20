@@ -78,7 +78,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
 
 /** Confirm a DRAFT sales order (approval/reservation — no stock/GL). */
 export async function confirmSalesOrderAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
   const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
@@ -106,7 +106,7 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
 
 /** Convert a CONFIRMED sales order into a DRAFT sales invoice; mark it INVOICED. */
 export async function convertSalesOrderToInvoiceAction(id: string): Promise<ActionState & { invoiceId?: string }> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
   const [so] = await db.select().from(salesOrders)
@@ -136,7 +136,7 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
 
 /** Cancel a sales order (only before it is invoiced). */
 export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
   const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);

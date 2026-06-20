@@ -95,7 +95,7 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
  *   + reduce the supplier balance. Sets status = POSTED.
  */
 export async function confirmPurchaseReturnAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("purchases.create");
+  const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
   const [ret] = await db.select().from(purchaseReturns)

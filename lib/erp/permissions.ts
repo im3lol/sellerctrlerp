@@ -11,7 +11,7 @@ export type ErpPermission =
   // Settings
   | "settings.view" | "settings.edit"
   // Inventory
-  | "inventory.view" | "inventory.create" | "inventory.edit" | "inventory.delete"
+  | "inventory.view" | "inventory.create" | "inventory.edit" | "inventory.delete" | "inventory.confirm"
   // Accounting
   | "accounting.view" | "accounting.create" | "accounting.post" | "accounting.reverse"
   // Sales
@@ -29,7 +29,7 @@ export type ErpPermission =
 
 export const allErpPermissions: ErpPermission[] = [
   "settings.view", "settings.edit",
-  "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
+  "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.confirm",
   "accounting.view", "accounting.create", "accounting.post", "accounting.reverse",
   "sales.view", "sales.create", "sales.edit", "sales.confirm", "sales.collect",
   "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay",
@@ -70,7 +70,7 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
 
   inventory: [
     "settings.view",
-    "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
+    "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.confirm",
     "reports.view",
   ],
 

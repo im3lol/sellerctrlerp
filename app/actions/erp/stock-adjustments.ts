@@ -86,7 +86,7 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
  * delta is recomputed from current stock for "set" mode. Sets status = POSTED.
  */
 export async function confirmStockAdjustmentAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.confirm");
   if ("error" in auth) return auth;
 
   const [adj] = await db.select().from(stockAdjustments)

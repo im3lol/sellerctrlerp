@@ -21,7 +21,7 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
 
 /** Receive a confirmed purchase order in full: stock in at cost + Dr Inventory / Cr GRNI. */
 export async function createReceiptFromOrderAction(purchaseOrderId: string): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("purchases.create");
+  const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
   const [po] = await db.select().from(purchaseOrders)
@@ -81,7 +81,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string): Pro
 
 /** Bill a goods receipt: POSTED purchase invoice that clears GRNI → AP (no stock). */
 export async function convertReceiptToInvoiceAction(receiptId: string): Promise<ActionState & { invoiceId?: string }> {
-  const auth = await authorizeErp("purchases.create");
+  const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
   const [grn] = await db.select().from(purchaseReceipts)
