@@ -10,6 +10,7 @@ export type NavItem = {
 
 export type NavSection = {
   heading?: string; // module name. When set, the group is collapsible.
+  headingHref?: string; // when set, clicking the heading navigates here (module landing/dashboard)
   icon?: string; // module (lucide) icon shown next to the heading
   items: NavItem[];
 };
@@ -25,9 +26,11 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المحاسبة",
+    headingHref: "/erp/accounting",
     icon: "Calculator",
     items: [
-      { label: "دليل الحسابات", href: "/erp/accounting", icon: "Calculator", capability: "erp.accounting.view", exact: true },
+      { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
+      { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator", capability: "erp.accounting.view" },
       { label: "القيود اليومية", href: "/erp/accounting/journal", icon: "BookText", capability: "erp.accounting.view" },
       { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view" },
       { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target", capability: "erp.accounting.view" },

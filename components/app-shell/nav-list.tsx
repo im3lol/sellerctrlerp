@@ -51,29 +51,36 @@ export function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => v
           );
         }
 
-        // Collapsible module group.
-        const open = openMap[i] ?? false;
+        // Collapsible module group (auto-open when it contains the active route).
         const groupActive = items.some((it) => isActive(pathname, it.href, it.exact));
+        const open = openMap[i] ?? groupActive;
+        const headingCls = cn(
+          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+          groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        );
+        const chevron = (
+          <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />
+        );
         return (
           <div key={i} className="space-y-1">
-            <button
-              type="button"
-              onClick={() => toggle(i)}
-              aria-expanded={open}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
-                groupActive
-                  ? "text-sidebar-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              )}
-            >
-              {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-              <span className="flex-1 text-start">{section.heading}</span>
-              <Icon
-                name="ChevronDown"
-                className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")}
-              />
-            </button>
+            {section.headingHref ? (
+              <div className={cn(headingCls, "pe-1")}>
+                <Link href={section.headingHref} onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3">
+                  {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+                  <span className="flex-1 truncate text-start">{section.heading}</span>
+                </Link>
+                <button type="button" onClick={() => toggle(i)} aria-expanded={open} aria-label="طيّ"
+                  className="grid size-6 shrink-0 place-items-center rounded hover:bg-sidebar-accent">
+                  {chevron}
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
+                {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+                <span className="flex-1 text-start">{section.heading}</span>
+                {chevron}
+              </button>
+            )}
             {open && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
                 {items.map((item) => (
