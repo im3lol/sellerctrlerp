@@ -490,6 +490,26 @@ async function main() {
         await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, pi.supplierId));
       });
     }
+
+    // ── DRAFT demo returns (awaiting confirmation) — header + lines only, no GL/stock/balance ──
+    if (si) {
+      const dnet = 500, drate = Number(si.subtotal) > 0 ? Number(si.taxAmount) / Number(si.subtotal) : 0;
+      const dtotal = r2(dnet + r2(dnet * drate));
+      const [dret] = await db.insert(salesReturns).values({
+        organizationId: org.id, number: "SR-2026-0002", date: new Date(2026, 5, 19), status: "DRAFT",
+        customerId: si.customerId, warehouseId: demoWh.id, salesInvoiceId: si.id, totalAmount: String(dtotal), notes: "بانتظار التأكيد",
+      }).returning({ id: salesReturns.id });
+      await db.insert(salesReturnLines).values({ salesReturnId: dret.id, itemId: demoItemId, quantity: "1", unitPrice: "500", totalAmount: "500" });
+    }
+    if (pi) {
+      const dnet = 300, drate = Number(pi.subtotal) > 0 ? Number(pi.taxAmount) / Number(pi.subtotal) : 0;
+      const dtotal = r2(dnet + r2(dnet * drate));
+      const [dret] = await db.insert(purchaseReturns).values({
+        organizationId: org.id, number: "PR-2026-0002", date: new Date(2026, 2, 21), status: "DRAFT",
+        supplierId: pi.supplierId, warehouseId: pi.warehouseId, purchaseInvoiceId: pi.id, totalAmount: String(dtotal), notes: "بانتظار التأكيد",
+      }).returning({ id: purchaseReturns.id });
+      await db.insert(purchaseReturnLines).values({ purchaseReturnId: dret.id, itemId: demoItemId, quantity: "1", unitPrice: "300", totalAmount: "300" });
+    }
   }
 
   // ── Demo stock operations (adjustment + transfer) ──

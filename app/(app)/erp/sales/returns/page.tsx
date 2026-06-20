@@ -9,18 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReturnRowActions } from "@/components/erp/return-row-actions";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function SalesReturnsPage() {
   const { orgId, role } = await requireErpModule("sales.view");
+  const canManage = erpCan(role, "sales.create");
   const rows = await db
     .select({
       id: salesReturns.id,
       number: salesReturns.number,
       date: salesReturns.date,
       total: salesReturns.totalAmount,
+      status: salesReturns.status,
       customer: customers.nameAr,
       invoice: salesInvoices.number,
     })
@@ -30,7 +33,7 @@ export default async function SalesReturnsPage() {
     .where(eq(salesReturns.organizationId, orgId))
     .orderBy(desc(salesReturns.date), desc(salesReturns.number));
 
-  const total = rows.reduce((s, r) => s + Number(r.total), 0);
+  const total = rows.filter((r) => r.status === "POSTED").reduce((s, r) => s + Number(r.total), 0);
 
   return (
     <div className="space-y-6">
@@ -64,6 +67,7 @@ export default async function SalesReturnsPage() {
                   <TableHead className="text-start">الفاتورة</TableHead>
                   <TableHead className="text-start">الإجمالي</TableHead>
                   <TableHead className="text-start">الحالة</TableHead>
+                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -74,7 +78,8 @@ export default async function SalesReturnsPage() {
                     <TableCell>{r.customer ?? "—"}</TableCell>
                     <TableCell className="font-mono">{r.invoice ?? "—"}</TableCell>
                     <TableCell>{fmt(r.total)}</TableCell>
-                    <TableCell><Badge variant="default">مرحّل</Badge></TableCell>
+                    <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                    {canManage && <TableCell><ReturnRowActions returnId={r.id} type="sales" status={r.status} canManage={canManage} /></TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

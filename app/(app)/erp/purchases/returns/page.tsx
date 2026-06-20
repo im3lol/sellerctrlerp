@@ -9,18 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReturnRowActions } from "@/components/erp/return-row-actions";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function PurchaseReturnsPage() {
   const { orgId, role } = await requireErpModule("purchases.view");
+  const canManage = erpCan(role, "purchases.create");
   const rows = await db
     .select({
       id: purchaseReturns.id,
       number: purchaseReturns.number,
       date: purchaseReturns.date,
       total: purchaseReturns.totalAmount,
+      status: purchaseReturns.status,
       supplier: suppliers.nameAr,
       invoice: purchaseInvoices.number,
     })
@@ -30,7 +33,7 @@ export default async function PurchaseReturnsPage() {
     .where(eq(purchaseReturns.organizationId, orgId))
     .orderBy(desc(purchaseReturns.date), desc(purchaseReturns.number));
 
-  const total = rows.reduce((s, r) => s + Number(r.total), 0);
+  const total = rows.filter((r) => r.status === "POSTED").reduce((s, r) => s + Number(r.total), 0);
 
   return (
     <div className="space-y-6">
@@ -64,6 +67,7 @@ export default async function PurchaseReturnsPage() {
                   <TableHead className="text-start">الفاتورة</TableHead>
                   <TableHead className="text-start">الإجمالي</TableHead>
                   <TableHead className="text-start">الحالة</TableHead>
+                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -74,7 +78,8 @@ export default async function PurchaseReturnsPage() {
                     <TableCell>{r.supplier ?? "—"}</TableCell>
                     <TableCell className="font-mono">{r.invoice ?? "—"}</TableCell>
                     <TableCell>{fmt(r.total)}</TableCell>
-                    <TableCell><Badge variant="default">مرحّل</Badge></TableCell>
+                    <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                    {canManage && <TableCell><ReturnRowActions returnId={r.id} type="purchase" status={r.status} canManage={canManage} /></TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

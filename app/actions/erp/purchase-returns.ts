@@ -36,9 +36,8 @@ async function nextNumber(orgId: string, year: number): Promise<string> {
 }
 
 /**
- * Create + post a purchase return (debit note):
- *   Dr الموردون (2101) = total · Cr المخزون (1104) = net · Cr ضريبة المدخلات (1107) = tax
- *   + issue stock out at the credited unit price (keeps GL inventory == ledger).
+ * Create a purchase return (debit note) as a DRAFT — header + lines only.
+ * No GL, no stock, no balance change until it is confirmed.
  */
 export async function createPurchaseReturnAction(input: unknown): Promise<SaveReturnState> {
   const auth = await authorizeErp("purchases.create");
@@ -67,18 +66,13 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
   const tax = round2(net * taxRate);
   const total = round2(net + tax);
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "1107"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
-  if (!A["2101"] || !A["1104"]) return { error: "حسابات الترحيل غير مكتملة (الموردون/المخزون)." };
-
   const d = new Date(date);
   const number = await nextNumber(auth.orgId, d.getFullYear());
 
   try {
     const id = await db.transaction(async (tx) => {
       const [ret] = await tx.insert(purchaseReturns).values({
-        organizationId: auth.orgId, number, date: d, status: "POSTED",
+        organizationId: auth.orgId, number, date: d, status: "DRAFT",
         supplierId: inv.supplierId, warehouseId: inv.warehouseId, purchaseInvoiceId: inv.id,
         totalAmount: String(total), notes: notes || null,
       }).returning({ id: purchaseReturns.id });
@@ -87,34 +81,103 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
         purchaseReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity),
         unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
       })));
+      return ret.id;
+    });
 
+    revalidatePath("/erp/purchases/returns");
+    return { ok: true, id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
+  }
+}
+
+/**
+ * Confirm (post) a DRAFT purchase return — atomic + idempotent:
+ *   Dr الموردون (2101) = total · Cr المخزون (1104) = net · Cr ضريبة المدخلات (1107) = tax
+ *   + issue stock out at the credited unit price (keeps GL inventory == ledger).
+ *   + reduce the supplier balance. Sets status = POSTED.
+ */
+export async function confirmPurchaseReturnAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+
+  const [ret] = await db.select().from(purchaseReturns)
+    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+  if (!ret) return { error: "المرتجع غير موجود" };
+  if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
+
+  const [inv] = await db.select().from(purchaseInvoices)
+    .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId ?? ""), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
+  if (!inv) return { error: "الفاتورة غير موجودة" };
+  if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
+
+  const retLines = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice })
+    .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
+  if (retLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
+  const lines = retLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }));
+
+  const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const subtotal = Number(inv.subtotal) || 0;
+  const taxRate = subtotal > 0 ? Number(inv.taxAmount) / subtotal : 0;
+  const tax = round2(net * taxRate);
+  const total = round2(net + tax);
+
+  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "1107"])));
+  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  if (!A["2101"] || !A["1104"]) return { error: "حسابات الترحيل غير مكتملة (الموردون/المخزون)." };
+
+  const whId = ret.warehouseId;
+  const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
+
+  try {
+    await db.transaction(async (tx) => {
       // Issue stock out at the credited price (so the 1104 credit matches).
       for (const l of lines) {
         await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: l.itemId, warehouseId: inv.warehouseId, type: "OUT",
+          orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
           quantity: l.quantity, unitCost: l.unitPrice, date: d,
-          referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${number}`,
+          referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
         });
       }
 
       const glLines = [
         { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
-        { accountId: A["1104"], debit: 0, credit: net, description: `إرجاع مخزون ${number}` },
+        { accountId: A["1104"], debit: 0, credit: net, description: `إرجاع مخزون ${ret.number}` },
       ];
-      if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${number}` });
+      if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
       await postEntry(tx, {
         orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id,
-        description: `مرتجع مشتريات ${number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
+        description: `مرتجع مشتريات ${ret.number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
       });
 
-      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, inv.supplierId));
-      return ret.id;
+      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, ret.supplierId));
+      await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
     });
 
     revalidatePath("/erp/purchases/returns");
     revalidatePath("/erp/accounting/journal");
-    return { ok: true, id };
+    return { ok: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
+    return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
   }
+}
+
+/** Delete a DRAFT purchase return (header + lines). Posted returns are immutable. */
+export async function deletePurchaseReturnAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+
+  const [ret] = await db.select({ status: purchaseReturns.status }).from(purchaseReturns)
+    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+  if (!ret) return { error: "المرتجع غير موجود" };
+  if (ret.status !== "DRAFT") return { error: "لا يمكن حذف مرتجع مُرحّل" };
+
+  await db.transaction(async (tx) => {
+    await tx.delete(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
+    await tx.delete(purchaseReturns).where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId)));
+  });
+
+  revalidatePath("/erp/purchases/returns");
+  return { ok: true };
 }

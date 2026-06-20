@@ -56,7 +56,7 @@ export function ReturnForm({
         ? await createSalesReturnAction({ ...payload, salesInvoiceId: invoiceId })
         : await createPurchaseReturnAction({ ...payload, purchaseInvoiceId: invoiceId });
       if (r.ok) {
-        toast.success(isSales ? "تم تسجيل مرتجع المبيعات (إشعار دائن)" : "تم تسجيل مرتجع المشتريات (إشعار مدين)");
+        toast.success((isSales ? "تم حفظ مرتجع المبيعات" : "تم حفظ مرتجع المشتريات") + " (مسودة) — أكّده للترحيل");
         router.push(dest);
         router.refresh();
       } else {
@@ -122,7 +122,7 @@ export function ReturnForm({
           </Table>
           <div className="mt-4 flex justify-end">
             <Button disabled={pending || net <= 0} onClick={submit}>
-              {isSales ? "تسجيل مرتجع وإشعار دائن" : "تسجيل مرتجع وإشعار مدين"}
+              {isSales ? "حفظ مرتجع مبيعات (مسودة)" : "حفظ مرتجع مشتريات (مسودة)"}
             </Button>
           </div>
         </CardContent>
