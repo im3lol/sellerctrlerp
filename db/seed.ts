@@ -4,6 +4,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
+import { syncDocumentSequences } from "@/lib/erp/sequence";
 import {
   users,
   workspaces,
@@ -34,6 +35,7 @@ import {
   stockTransfers,
   stockTransferLines,
   stockAdjustments,
+  documentSequences,
   receiptVouchers,
   paymentVouchers,
   salesReturns,
@@ -98,6 +100,7 @@ async function main() {
   await db.delete(warehouses);
   await db.delete(accountingJournals);
   await db.delete(fiscalPeriods);
+  await db.delete(documentSequences);
   await db.delete(organizationMembers);
   await db.delete(organizations);
   await db.delete(users);
@@ -724,6 +727,10 @@ async function main() {
     { workspaceId: wsA.id, title: "تجهيز صور منتجات النخبة", assigneeId: ahmed.id, createdById: lead.id, status: "in_progress", priority: "high" },
     { workspaceId: wsB.id, title: "مراجعة أوصاف منتجات الأناقة", assigneeId: mona.id, createdById: lead.id, status: "new", priority: "medium" },
   ]);
+
+  // Initialise document sequences from the explicit numbers seeded above so the
+  // first user-created document of each type continues the series (no collision).
+  await syncDocumentSequences(org.id);
 
   console.log("✅ Demo seed complete. All passwords: password123");
   console.log("   مدير:   admin@sellerctrl.com");

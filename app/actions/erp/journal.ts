@@ -2,12 +2,13 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, postDraft, reverseEntry } from "@/lib/erp/posting";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 export type SaveEntryState = ActionState & { id?: string };
 
@@ -29,21 +30,9 @@ const schema = z.object({
 
 const cents = (n: number) => Math.round(Number(n || 0) * 100);
 
-/** Next DRAFT entry number DR-YYYY-NNNN for the org. */
+/** Next DRAFT entry number DR-YYYY-NNNN for the org (atomic). */
 async function nextDraftNumber(orgId: string, year: number): Promise<string> {
-  const prefix = `DR-${year}-`;
-  const [last] = await db
-    .select({ number: journalEntries.number })
-    .from(journalEntries)
-    .where(and(eq(journalEntries.organizationId, orgId), like(journalEntries.number, `${prefix}%`)))
-    .orderBy(desc(journalEntries.number))
-    .limit(1);
-  let seq = 1;
-  if (last) {
-    const n = parseInt(last.number.split("-").pop() || "0", 10);
-    if (!Number.isNaN(n)) seq = n + 1;
-  }
-  return `${prefix}${String(seq).padStart(4, "0")}`;
+  return nextDocumentNumber(db, orgId, "DR", year);
 }
 
 /** Create a manual journal entry — saved as DRAFT or posted immediately. */

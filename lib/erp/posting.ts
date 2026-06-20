@@ -1,6 +1,7 @@
-import { and, desc, eq, gte, like, lte } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals } from "@/db/schema";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -26,21 +27,9 @@ export type PostInput = {
 const cents = (n: number) => Math.round(Number(n || 0) * 100);
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
-/** Next general journal-entry number JV-YYYY-NNNN for the org. */
+/** Next general journal-entry number JV-YYYY-NNNN for the org (atomic). */
 async function nextNumber(tx: Tx, orgId: string, year: number): Promise<string> {
-  const prefix = `JV-${year}-`;
-  const [last] = await tx
-    .select({ number: journalEntries.number })
-    .from(journalEntries)
-    .where(and(eq(journalEntries.organizationId, orgId), like(journalEntries.number, `${prefix}%`)))
-    .orderBy(desc(journalEntries.number))
-    .limit(1);
-  let seq = 1;
-  if (last) {
-    const n = parseInt(last.number.split("-").pop() || "0", 10);
-    if (!Number.isNaN(n)) seq = n + 1;
-  }
-  return `${prefix}${String(seq).padStart(4, "0")}`;
+  return nextDocumentNumber(tx, orgId, "JV", year);
 }
 
 /**

@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
   purchaseInvoices, purchaseInvoiceLines, suppliers, accounts,
@@ -13,14 +14,8 @@ import { postStockMovement } from "@/lib/erp/inventory";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-async function nextNumber(table: typeof purchaseReceipts | typeof purchaseInvoices, prefix: string, orgId: string, year: number): Promise<string> {
-  const p = `${prefix}-${year}-`;
-  const [last] = await db.select({ number: table.number }).from(table)
-    .where(and(eq(table.organizationId, orgId), like(table.number, `${p}%`)))
-    .orderBy(desc(table.number)).limit(1);
-  let seq = 1;
-  if (last) { const n = parseInt(last.number.split("-").pop() || "0", 10); if (!Number.isNaN(n)) seq = n + 1; }
-  return `${p}${String(seq).padStart(4, "0")}`;
+async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {
+  return nextDocumentNumber(db, orgId, prefix, year);
 }
 
 /** Receive a confirmed purchase order in full: stock in at cost + Dr Inventory / Cr GRNI. */
@@ -40,7 +35,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string): Pro
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
   if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
 
-  const number = await nextNumber(purchaseReceipts, "GRN", auth.orgId, new Date(po.date).getFullYear());
+  const number = await nextNumber("GRN", auth.orgId, new Date(po.date).getFullYear());
   try {
     const id = await db.transaction(async (tx) => {
       const [grn] = await tx.insert(purchaseReceipts).values({
@@ -105,7 +100,7 @@ export async function convertReceiptToInvoiceAction(receiptId: string): Promise<
   const total = Number(po.totalAmount);
   const tax = Number(po.taxAmount);
   const net = round2(Number(po.subtotal) - Number(po.discountAmount));
-  const number = await nextNumber(purchaseInvoices, "PI", auth.orgId, new Date(po.date).getFullYear());
+  const number = await nextNumber("PI", auth.orgId, new Date(po.date).getFullYear());
 
   try {
     const invoiceId = await db.transaction(async (tx) => {

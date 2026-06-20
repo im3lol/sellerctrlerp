@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
   salesInvoices, salesInvoiceLines, customers, accounts, warehouses,
@@ -13,14 +14,8 @@ import { postStockMovement } from "@/lib/erp/inventory";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-async function nextNumber(table: typeof deliveryNotes | typeof salesInvoices, prefix: string, orgId: string, year: number): Promise<string> {
-  const p = `${prefix}-${year}-`;
-  const [last] = await db.select({ number: table.number }).from(table)
-    .where(and(eq(table.organizationId, orgId), like(table.number, `${p}%`)))
-    .orderBy(desc(table.number)).limit(1);
-  let seq = 1;
-  if (last) { const n = parseInt(last.number.split("-").pop() || "0", 10); if (!Number.isNaN(n)) seq = n + 1; }
-  return `${p}${String(seq).padStart(4, "0")}`;
+async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {
+  return nextDocumentNumber(db, orgId, prefix, year);
 }
 
 /** Deliver a confirmed sales order in full: issue stock at WAC + post COGS. */
@@ -42,7 +37,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string): Promi
     .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
   if (!wh) return { error: "لا يوجد مستودع" };
 
-  const number = await nextNumber(deliveryNotes, "DLV", auth.orgId, new Date(so.date).getFullYear());
+  const number = await nextNumber("DLV", auth.orgId, new Date(so.date).getFullYear());
   try {
     const id = await db.transaction(async (tx) => {
       const [dn] = await tx.insert(deliveryNotes).values({
@@ -105,7 +100,7 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string): Promis
   const total = Number(so.totalAmount);
   const tax = Number(so.taxAmount);
   const net = round2(Number(so.subtotal) - Number(so.discountAmount));
-  const number = await nextNumber(salesInvoices, "SI", auth.orgId, new Date(so.date).getFullYear());
+  const number = await nextNumber("SI", auth.orgId, new Date(so.date).getFullYear());
 
   try {
     const invoiceId = await db.transaction(async (tx) => {

@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
@@ -26,13 +27,7 @@ const schema = z.object({
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 async function nextNumber(orgId: string, year: number): Promise<string> {
-  const prefix = `SR-${year}-`;
-  const [last] = await db.select({ number: salesReturns.number }).from(salesReturns)
-    .where(and(eq(salesReturns.organizationId, orgId), like(salesReturns.number, `${prefix}%`)))
-    .orderBy(desc(salesReturns.number)).limit(1);
-  let seq = 1;
-  if (last) { const n = parseInt(last.number.split("-").pop() || "0", 10); if (!Number.isNaN(n)) seq = n + 1; }
-  return `${prefix}${String(seq).padStart(4, "0")}`;
+  return nextDocumentNumber(db, orgId, "SR", year);
 }
 
 /**

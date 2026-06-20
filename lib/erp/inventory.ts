@@ -1,6 +1,7 @@
-import { and, desc, eq, like } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { stockMovements } from "@/db/schema";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -33,21 +34,9 @@ export type StockResult = {
 
 const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
-/** Next stock-movement number SM-YYYY-NNNN for the org. */
+/** Next stock-movement number SM-YYYY-NNNN for the org (atomic). */
 async function nextNumber(tx: Tx, orgId: string, year: number): Promise<string> {
-  const prefix = `SM-${year}-`;
-  const [last] = await tx
-    .select({ number: stockMovements.number })
-    .from(stockMovements)
-    .where(and(eq(stockMovements.organizationId, orgId), like(stockMovements.number, `${prefix}%`)))
-    .orderBy(desc(stockMovements.number))
-    .limit(1);
-  let seq = 1;
-  if (last) {
-    const n = parseInt(last.number.split("-").pop() || "0", 10);
-    if (!Number.isNaN(n)) seq = n + 1;
-  }
-  return `${prefix}${String(seq).padStart(4, "0")}`;
+  return nextDocumentNumber(tx, orgId, "SM", year);
 }
 
 /** Latest running balance for an item in a warehouse (0/0 if none yet). */

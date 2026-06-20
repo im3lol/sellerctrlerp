@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesInvoices, salesInvoiceLines, customers, accounts, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
@@ -30,19 +31,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Next invoice number SI-YYYY-NNNN for the org (per-year sequence). */
 async function nextNumber(orgId: string, year: number): Promise<string> {
-  const prefix = `SI-${year}-`;
-  const [last] = await db
-    .select({ number: salesInvoices.number })
-    .from(salesInvoices)
-    .where(and(eq(salesInvoices.organizationId, orgId), like(salesInvoices.number, `${prefix}%`)))
-    .orderBy(desc(salesInvoices.number))
-    .limit(1);
-  let seq = 1;
-  if (last) {
-    const n = parseInt(last.number.split("-").pop() || "0", 10);
-    if (!Number.isNaN(n)) seq = n + 1;
-  }
-  return `${prefix}${String(seq).padStart(4, "0")}`;
+  return nextDocumentNumber(db, orgId, "SI", year);
 }
 
 export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvoiceState> {
