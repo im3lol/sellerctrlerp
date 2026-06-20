@@ -940,7 +940,7 @@ DRAFT → RECEIVED/ISSUED → DEPOSITED → CLEARED
 - ❌ **Document Links** (جدول `document_links` عام): يوجد ربط جزئي عبر أعمدة (`deliveryNoteId`/`goodsReceiptId`/`salesInvoiceId`/`salesOrderId`…) لكن لا جدول روابط موحّد.
 - ✅ **Audit Log** (`audit_logs`): مُنفّذ — جدول append-only + `lib/erp/audit.ts` (`recordAudit`/`tryRecordAudit`) موصول بكل أحداث دورة المستند (CREATE/CONFIRM/POST/CANCEL/CONVERT/REVERSE)؛ عارض `/erp/audit` بفلاتر + ترقيم 20 صف. (حذف المسودات غير مُسجَّل بعد — متابعة صغيرة.)
 - ⚠️ **Idempotency**: التأكيد idempotent فعليًا عبر فهرس `(org, sourceType, sourceId)` في محرك الترحيل + حارس الحالة (DRAFT→POSTED). لا يوجد جدول `idempotency_keys` عام بعد.
-- ⚠️ **عزل الشركة والصلاحيات**: كل Query/Mutation مقيّدة بالشركة النشطة عبر `requireErpModule`/`authorizeErp`، و`organizationId` يُستخرج من السياق لا من المتصفح. مصفوفة الصلاحيات الدقيقة لكل نوع مستند (إنشاء/تعديل/تأكيد/إلغاء/تجاوز §25) — ❌.
+- ⚠️ **عزل الشركة والصلاحيات**: كل Query/Mutation مقيّدة بالشركة النشطة عبر `requireErpModule`/`authorizeErp`، و`organizationId` يُستخرج من السياق لا من المتصفح. ✅ **فصل التأكيد عن الإنشاء**: confirm/cancel/convert/fulfil على `.confirm` (sales/purchases/inventory) لا `.create`؛ السندات collect/pay، الفواتير accounting.post. (لا يزال ينقص: صلاحيات التجاوز price/qty/credit §25.)
 
 ### P1 — أساس الأصناف والمخزون
 
@@ -971,7 +971,8 @@ DRAFT → RECEIVED/ISSUED → DEPOSITED → CLEARED
 1. ✅ إنهاء الترقيم Atomic (شامل SM) — build + commit.
 2. ✅ **جدول `audit_logs` + تسجيل** كل إنشاء/تأكيد/ترحيل/إلغاء/تحويل/عكس + عارض.
 3. ✅ **صفحات تفصيل المستند بالرقم المقروء** لكل الأنواع + روابط المصدر/التالي + سجل التدقيق الخاص بالمستند.
-4. **جدول `document_links` موحّد** يعمّم الربط الحالي بين الرؤوس والأسطر. ← التالي
-5. **مصفوفة صلاحيات لكل نوع مستند** (§25).
-6. (مع P3/P4) **أبعاد الحالة المستقلة** + التنفيذ/الفوترة الجزئية.
+4. ✅ **مصفوفة صلاحيات لكل نوع مستند** (§25 — فصل التأكيد عن الإنشاء؛ التجاوزات لاحقًا).
+5. **أكواد الأصناف + البحث + الباركود** (§7-8). ← التالي
+6. **التنفيذ الجزئي + Backorder** (§11-16) — ومعه جدول `document_links` (يحتاجه الربط متعدد لواحد).
+7. (مع P3/P4) **أبعاد الحالة المستقلة**.
 
