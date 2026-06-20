@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ItemCombobox } from "@/components/erp/item-combobox";
+import { BarcodeScan } from "@/components/erp/barcode-scan";
+import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
@@ -34,6 +37,18 @@ export function InvoiceForm({ customers, items }: { customers: Customer[]; items
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, { itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 }]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
+
+  // Add the scanned/searched item: bump its quantity if already present, else
+  // fill an empty line or append a new one (price prefilled from the item).
+  const addOrBumpItem = (item: ItemSearchResult) =>
+    setLines((ls) => {
+      const idx = ls.findIndex((l) => l.itemId === item.id);
+      if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
+      const line = { itemId: item.id, quantity: 1, unitPrice: item.sellPrice || 0, discountAmount: 0, taxAmount: 0 };
+      const emptyIdx = ls.findIndex((l) => !l.itemId);
+      if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
+      return [...ls, line];
+    });
 
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -76,6 +91,17 @@ export function InvoiceForm({ customers, items }: { customers: Customer[]; items
           <div className="space-y-2">
             <Label>ملاحظات</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>مسح باركود</Label>
+            <BarcodeScan onScan={addOrBumpItem} />
+          </div>
+          <div className="space-y-2">
+            <Label>بحث وإضافة صنف</Label>
+            <ItemCombobox onSelect={addOrBumpItem} />
           </div>
         </div>
 

@@ -21,6 +21,7 @@ import {
   suppliers,
   investors,
   items as itemsTable,
+  itemCodes,
   accountingJournals,
   fiscalPeriods,
   salesInvoices,
@@ -94,6 +95,7 @@ async function main() {
   await db.delete(purchaseInvoiceLines);
   await db.delete(purchaseInvoices);
   await db.delete(accounts);
+  await db.delete(itemCodes);
   await db.delete(itemsTable);
   await db.delete(customers);
   await db.delete(suppliers);
@@ -261,6 +263,22 @@ async function main() {
   );
   const [demoWh] = await db.select({ id: warehouses.id }).from(warehouses).where(eq(warehouses.organizationId, org.id)).limit(1);
   const demoItemId = itemByCode["ITM-1001"];
+
+  // ── Demo item codes (barcode/SKU/ASIN) so item search + barcode scan work ──
+  const normCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const demoCodes = [
+    { code: "ITM-1001", type: "BARCODE", value: "6221031499011" },
+    { code: "ITM-1001", type: "SKU", value: "SK-1001" },
+    { code: "ITM-1002", type: "BARCODE", value: "6221031499028" },
+    { code: "ITM-1002", type: "ASIN", value: "B08AAA1002" },
+    { code: "ITM-1003", type: "BARCODE", value: "6221031499035" },
+    { code: "ITM-1004", type: "SKU", value: "SK-1004" },
+  ].filter((c) => itemByCode[c.code]);
+  if (demoCodes.length) {
+    await db.insert(itemCodes).values(demoCodes.map((c) => ({
+      itemId: itemByCode[c.code], organizationId: org.id, codeType: c.type, code: c.value, normalizedCode: normCode(c.value), isPrimary: c.type === "BARCODE",
+    })));
+  }
 
   // ── Opening stock (Dr Inventory / Cr Capital) + ledger movements ──
   const opening = [

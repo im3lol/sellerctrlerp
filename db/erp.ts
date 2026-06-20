@@ -188,13 +188,18 @@ export const itemCodes = pgTable(
   {
     id: pk(),
     itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
-    codeType: text("code_type").notNull(), // UPC, EAN, SKU, ASIN, FNSKU, OTHER
+    organizationId: text("organization_id"), // denormalized for org-scoped search/uniqueness
+    codeType: text("code_type").notNull(), // UPC, EAN, SKU, ASIN, FNSKU, BARCODE, AMAZON, NOON, OTHER
     code: text("code").notNull(),
+    normalizedCode: text("normalized_code"), // upper + alnum-only, for scan/exact match
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("item_codes_unique").on(t.itemId, t.codeType, t.code)],
+  (t) => [
+    uniqueIndex("item_codes_unique").on(t.itemId, t.codeType, t.code),
+    index("item_codes_org_norm_idx").on(t.organizationId, t.normalizedCode),
+  ],
 );
 
 export const itemBalances = pgTable(
