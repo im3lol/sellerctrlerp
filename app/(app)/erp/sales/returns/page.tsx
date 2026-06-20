@@ -73,7 +73,7 @@ export default async function SalesReturnsPage() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-mono">{r.number}</TableCell>
+                    <TableCell className="font-mono"><Link href={`/erp/sales/returns/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link></TableCell>
                     <TableCell>{dt(r.date)}</TableCell>
                     <TableCell>{r.customer ?? "—"}</TableCell>
                     <TableCell className="font-mono">{r.invoice ?? "—"}</TableCell>

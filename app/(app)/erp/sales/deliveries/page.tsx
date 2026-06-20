@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -52,7 +53,7 @@ export default async function DeliveriesPage() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-mono">{r.number}</TableCell>
+                    <TableCell className="font-mono"><Link href={`/erp/sales/deliveries/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link></TableCell>
                     <TableCell>{dt(r.date)}</TableCell>
                     <TableCell>{r.customer ?? "—"}</TableCell>
                     <TableCell className="font-mono">{r.order ?? "—"}</TableCell>

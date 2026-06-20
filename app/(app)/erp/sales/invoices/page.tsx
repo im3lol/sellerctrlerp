@@ -80,7 +80,7 @@ export default async function SalesInvoicesPage() {
                   const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
                   return (
                     <TableRow key={r.id}>
-                      <TableCell className="font-mono">{r.number}</TableCell>
+                      <TableCell className="font-mono"><Link href={`/erp/sales/invoices/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link></TableCell>
                       <TableCell>{dt(r.date)}</TableCell>
                       <TableCell>{r.customerName ?? "—"}</TableCell>
                       <TableCell>{fmt(r.total)}</TableCell>
