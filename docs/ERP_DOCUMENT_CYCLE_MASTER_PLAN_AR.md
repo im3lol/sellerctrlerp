@@ -938,7 +938,7 @@ DRAFT → RECEIVED/ISSUED → DEPOSITED → CLEARED
 - ⚠️ **الروابط المقروءة**: القيد `/erp/accounting/journal/[number]` + تحويل UUID القديم ✅. باقي المستندات (PO/SO/SI/PI/DN/GRN/المرتجعات) تحتاج **صفحات تفصيل بالرقم** — ❌.
 - ❌ **حالات المستند المستقلة** (أبعاد منفصلة: سير/مخزني/فوترة/دفع/مرتجع): الحالي حقل `status` واحد لكل مستند. يُستكمل مع التنفيذ الجزئي (P3/P4).
 - ❌ **Document Links** (جدول `document_links` عام): يوجد ربط جزئي عبر أعمدة (`deliveryNoteId`/`goodsReceiptId`/`salesInvoiceId`/`salesOrderId`…) لكن لا جدول روابط موحّد.
-- ❌ **Audit Log** (`audit_logs`): غير منفّذ.
+- ✅ **Audit Log** (`audit_logs`): مُنفّذ — جدول append-only + `lib/erp/audit.ts` (`recordAudit`/`tryRecordAudit`) موصول بكل أحداث دورة المستند (CREATE/CONFIRM/POST/CANCEL/CONVERT/REVERSE)؛ عارض `/erp/audit` بفلاتر + ترقيم 20 صف. (حذف المسودات غير مُسجَّل بعد — متابعة صغيرة.)
 - ⚠️ **Idempotency**: التأكيد idempotent فعليًا عبر فهرس `(org, sourceType, sourceId)` في محرك الترحيل + حارس الحالة (DRAFT→POSTED). لا يوجد جدول `idempotency_keys` عام بعد.
 - ⚠️ **عزل الشركة والصلاحيات**: كل Query/Mutation مقيّدة بالشركة النشطة عبر `requireErpModule`/`authorizeErp`، و`organizationId` يُستخرج من السياق لا من المتصفح. مصفوفة الصلاحيات الدقيقة لكل نوع مستند (إنشاء/تعديل/تأكيد/إلغاء/تجاوز §25) — ❌.
 
@@ -969,8 +969,8 @@ DRAFT → RECEIVED/ISSUED → DEPOSITED → CLEARED
 
 ### الخطوات التالية لإكمال P0 (بالترتيب)
 1. ✅ إنهاء الترقيم Atomic (شامل SM) — build + commit.
-2. **جدول `audit_logs` + تسجيل** كل إنشاء/تأكيد/إلغاء/عكس (cross-cutting، يفيد كل ما بعده).
-3. **صفحات تفصيل المستند بالرقم المقروء** لكل الأنواع (PO/SO/SI/PI/DN/GRN/المرتجعات) مع روابط المصدر/التالي.
+2. ✅ **جدول `audit_logs` + تسجيل** كل إنشاء/تأكيد/ترحيل/إلغاء/تحويل/عكس + عارض.
+3. **صفحات تفصيل المستند بالرقم المقروء** لكل الأنواع (PO/SO/SI/PI/DN/GRN/المرتجعات) مع روابط المصدر/التالي + سجل التدقيق الخاص بالمستند. ← التالي
 4. **جدول `document_links` موحّد** يعمّم الربط الحالي بين الرؤوس والأسطر.
 5. **مصفوفة صلاحيات لكل نوع مستند** (§25).
 6. (مع P3/P4) **أبعاد الحالة المستقلة** + التنفيذ/الفوترة الجزئية.
