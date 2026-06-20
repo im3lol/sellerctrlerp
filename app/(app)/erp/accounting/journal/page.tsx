@@ -114,12 +114,17 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       />
 
       <Card>
-        <CardHeader>
-          <CardTitle>تصفية</CardTitle>
-          <CardDescription>ابحث وصفِّ القيود حسب الحالة والمصدر والفترة.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-wrap items-end gap-3">
+        <details open={hasFilters} className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-6 [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center gap-2">
+              <Icon name="ListFilter" className="size-4 text-muted-foreground" />
+              <span className="font-semibold">تصفية</span>
+              {hasFilters && <Badge variant="secondary">مُفعّلة</Badge>}
+            </div>
+            <Icon name="ChevronDown" className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="px-6 pb-6">
+            <form className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
               <Label htmlFor="q">بحث</Label>
               <Input id="q" name="q" defaultValue={q} placeholder="رقم القيد أو البيان" className="min-w-56" />
@@ -152,8 +157,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             {hasFilters && (
               <Button asChild variant="ghost"><Link href="/erp/accounting/journal">مسح</Link></Button>
             )}
-          </form>
-        </CardContent>
+            </form>
+          </div>
+        </details>
       </Card>
 
       <Card>
@@ -185,7 +191,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                     return (
                       <TableRow key={r.id} className="hover:bg-muted/50">
                         <TableCell className="font-mono">
-                          <Link href={`/erp/accounting/journal/${r.id}`} className="text-primary hover:underline">{r.number}</Link>
+                          <Link href={`/erp/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
                         </TableCell>
                         <TableCell>{dt(r.date)}</TableCell>
                         <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>

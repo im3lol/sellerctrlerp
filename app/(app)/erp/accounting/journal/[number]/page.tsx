@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
@@ -13,13 +13,13 @@ import { JournalEntryActions } from "@/components/erp/journal-entry-actions";
 const fmt = (v: string | number | null) =>
   Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
   POSTED: { label: "مرحّل", variant: "default" },
   REVERSED: { label: "معكوس", variant: "destructive" },
 };
-
 const SOURCE: Record<string, string> = {
   MANUAL: "قيد يدوي",
   SALES_INVOICE: "فاتورة بيع",
@@ -27,14 +27,25 @@ const SOURCE: Record<string, string> = {
   REVERSAL: "قيد عكسي",
 };
 
-export default async function JournalEntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function JournalEntryDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = decodeURIComponent((await params).number);
   const { orgId, role } = await requireErpModule("accounting.view");
+
+  // Public URLs use the readable document number; old UUID links redirect to it.
+  if (UUID_RE.test(raw)) {
+    const [byId] = await db
+      .select({ number: journalEntries.number })
+      .from(journalEntries)
+      .where(and(eq(journalEntries.id, raw), eq(journalEntries.organizationId, orgId)))
+      .limit(1);
+    if (!byId) notFound();
+    redirect(`/erp/accounting/journal/${encodeURIComponent(byId.number)}`);
+  }
 
   const [entry] = await db
     .select()
     .from(journalEntries)
-    .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, orgId)))
+    .where(and(eq(journalEntries.number, raw), eq(journalEntries.organizationId, orgId)))
     .limit(1);
   if (!entry) notFound();
 
@@ -52,6 +63,12 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
     .innerJoin(accounts, eq(accounts.id, journalEntryLines.accountId))
     .leftJoin(costCenters, eq(costCenters.id, journalEntryLines.costCenterId))
     .where(eq(journalEntryLines.journalEntryId, entry.id));
+
+  let reversalNumber: string | null = null;
+  if (entry.status === "REVERSED" && entry.reversedById) {
+    const [rev] = await db.select({ number: journalEntries.number }).from(journalEntries).where(eq(journalEntries.id, entry.reversedById)).limit(1);
+    reversalNumber = rev?.number ?? null;
+  }
 
   const totalDebit = lines.reduce((s, l) => s + Number(l.debit), 0);
   const totalCredit = lines.reduce((s, l) => s + Number(l.credit), 0);
@@ -85,11 +102,11 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
         <Field label="البيان">{entry.description || "—"}</Field>
       </div>
 
-      {entry.status === "REVERSED" && entry.reversedById && (
+      {entry.status === "REVERSED" && reversalNumber && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
           هذا القيد معكوس.{" "}
-          <Link href={`/erp/accounting/journal/${entry.reversedById}`} className="font-medium text-primary underline">
-            عرض القيد العكسي
+          <Link href={`/erp/accounting/journal/${encodeURIComponent(reversalNumber)}`} className="font-medium text-primary underline">
+            عرض القيد العكسي ({reversalNumber})
           </Link>
           {entry.reversalReason ? ` — السبب: ${entry.reversalReason}` : ""}
         </div>
