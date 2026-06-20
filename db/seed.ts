@@ -535,12 +535,12 @@ async function main() {
     }
   }
 
-  // ── Demo orders (document flow: confirmed, awaiting conversion to invoice) ──
+  // ── Demo orders (document flow: DRAFT, awaiting manual confirmation) ──
   {
     const soSub = 3 * 500, soTax = 225, soTotal = soSub + soTax;
     const [so] = await db.insert(salesOrders).values({
       organizationId: org.id, number: "SO-2026-0001", customerId: custByCode["C-002"], date: new Date(2026, 5, 16),
-      dueDate: new Date(2026, 5, 26), status: "CONFIRMED", subtotal: String(soSub), taxAmount: String(soTax),
+      dueDate: new Date(2026, 5, 26), status: "DRAFT", subtotal: String(soSub), taxAmount: String(soTax),
       totalAmount: String(soTotal), notes: "أمر بيع تجريبي",
     }).returning({ id: salesOrders.id });
     await db.insert(salesOrderLines).values({
@@ -550,7 +550,7 @@ async function main() {
     const poSub = 10 * 480, poTax = 720, poTotal = poSub + poTax;
     const [po] = await db.insert(purchaseOrders).values({
       organizationId: org.id, number: "PO-2026-0001", supplierId: supByCode["S-002"], warehouseId: demoWh.id, date: new Date(2026, 5, 14),
-      status: "CONFIRMED", subtotal: String(poSub), taxAmount: String(poTax), totalAmount: String(poTotal), notes: "أمر شراء تجريبي",
+      status: "DRAFT", subtotal: String(poSub), taxAmount: String(poTax), totalAmount: String(poTotal), notes: "أمر شراء تجريبي",
     }).returning({ id: purchaseOrders.id });
     await db.insert(purchaseOrderLines).values({
       purchaseOrderId: po.id, itemId: demoItemId, quantity: "10", unitPrice: "480", taxAmount: String(poTax), totalAmount: String(poTotal),

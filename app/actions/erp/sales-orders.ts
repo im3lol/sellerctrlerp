@@ -37,7 +37,7 @@ async function nextNumber(orgId: string, year: number): Promise<string> {
   return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
-/** Create a confirmed sales order (commitment; no GL/stock until invoiced). */
+/** Create a sales order as DRAFT (no effect until confirmed). */
 export async function createSalesOrderAction(input: unknown): Promise<SaveOrderState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
@@ -63,7 +63,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
     const id = await db.transaction(async (tx) => {
       const [so] = await tx.insert(salesOrders).values({
         organizationId: auth.orgId, number, customerId, date: d, dueDate: dueDate ? new Date(dueDate) : null,
-        status: "CONFIRMED", subtotal: String(subtotal), discountAmount: String(discountAmount),
+        status: "DRAFT", subtotal: String(subtotal), discountAmount: String(discountAmount),
         taxAmount: String(taxAmount), totalAmount: String(totalAmount), notes: notes || null,
       }).returning({ id: salesOrders.id });
       await tx.insert(salesOrderLines).values(computed.map((l) => ({
@@ -79,7 +79,34 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
   }
 }
 
-/** Convert a sales order into a DRAFT sales invoice; mark the order INVOICED. */
+/** Confirm a DRAFT sales order (approval/reservation — no stock/GL). */
+export async function confirmSalesOrderAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+    .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+  if (!so) return { error: "الأمر غير موجود" };
+  if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
+  await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+  revalidatePath("/erp/sales/orders");
+  revalidatePath(`/erp/sales/orders/${id}`);
+  return { ok: true };
+}
+
+/** Delete a DRAFT sales order (confirmed orders are cancelled, not deleted). */
+export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+    .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+  if (!so) return { error: "الأمر غير موجود" };
+  if (so.status !== "DRAFT") return { error: "لا يمكن حذف أمر مؤكّد — استخدم الإلغاء" };
+  await db.delete(salesOrders).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+  revalidatePath("/erp/sales/orders");
+  return { ok: true };
+}
+
+/** Convert a CONFIRMED sales order into a DRAFT sales invoice; mark it INVOICED. */
 export async function convertSalesOrderToInvoiceAction(id: string): Promise<ActionState & { invoiceId?: string }> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
@@ -87,6 +114,7 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
   const [so] = await db.select().from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "الأمر غير موجود" };
+  if (so.status === "DRAFT") return { error: "أكّد الأمر أولاً قبل الفوترة" };
   if (so.status === "INVOICED") return { error: "الأمر محوّل لفاتورة بالفعل" };
   if (so.status === "CANCELLED") return { error: "الأمر ملغى" };
 

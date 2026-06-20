@@ -37,7 +37,7 @@ async function nextNumber(orgId: string, year: number): Promise<string> {
   return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
-/** Create a confirmed purchase order (commitment; no GL/stock until invoiced). */
+/** Create a purchase order as DRAFT (no effect until confirmed). */
 export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrderState> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
@@ -62,7 +62,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
   try {
     const id = await db.transaction(async (tx) => {
       const [po] = await tx.insert(purchaseOrders).values({
-        organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "CONFIRMED",
+        organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "DRAFT",
         subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
         totalAmount: String(totalAmount), notes: notes || null,
       }).returning({ id: purchaseOrders.id });
@@ -79,7 +79,34 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
   }
 }
 
-/** Convert a purchase order into a DRAFT purchase invoice; mark the order INVOICED. */
+/** Confirm a DRAFT purchase order (approval only — no stock/GL). */
+export async function confirmPurchaseOrderAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+  const [po] = await db.select({ status: purchaseOrders.status }).from(purchaseOrders)
+    .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+  if (!po) return { error: "الأمر غير موجود" };
+  if (po.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
+  await db.update(purchaseOrders).set({ status: "CONFIRMED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+  revalidatePath("/erp/purchases/orders");
+  revalidatePath(`/erp/purchases/orders/${id}`);
+  return { ok: true };
+}
+
+/** Delete a DRAFT purchase order (confirmed orders are cancelled, not deleted). */
+export async function deletePurchaseOrderAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+  const [po] = await db.select({ status: purchaseOrders.status }).from(purchaseOrders)
+    .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+  if (!po) return { error: "الأمر غير موجود" };
+  if (po.status !== "DRAFT") return { error: "لا يمكن حذف أمر مؤكّد — استخدم الإلغاء" };
+  await db.delete(purchaseOrders).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+  revalidatePath("/erp/purchases/orders");
+  return { ok: true };
+}
+
+/** Convert a CONFIRMED purchase order into a DRAFT purchase invoice; mark it INVOICED. */
 export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<ActionState & { invoiceId?: string }> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
@@ -87,6 +114,7 @@ export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<A
   const [po] = await db.select().from(purchaseOrders)
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "الأمر غير موجود" };
+  if (po.status === "DRAFT") return { error: "أكّد الأمر أولاً قبل الفوترة" };
   if (po.status === "INVOICED") return { error: "الأمر محوّل لفاتورة بالفعل" };
   if (po.status === "CANCELLED") return { error: "الأمر ملغى" };
 

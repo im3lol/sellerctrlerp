@@ -3,8 +3,12 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { convertSalesOrderToInvoiceAction, cancelSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
+import {
+  confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction,
+} from "@/app/actions/erp/sales-orders";
+import {
+  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction,
+} from "@/app/actions/erp/purchase-orders";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { createReceiptFromOrderAction } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
@@ -36,6 +40,23 @@ export function OrderRowActions({
       else toast.error(r.error ?? "تعذّر التنفيذ");
     });
 
+  // DRAFT: confirm or delete (no stock/GL yet).
+  if (status === "DRAFT") {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Button size="sm" disabled={pending}
+          onClick={() => run(() => isSales ? confirmSalesOrderAction(orderId) : confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
+          <Icon name="Check" className="size-4" />تأكيد
+        </Button>
+        <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
+          onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
+          <Icon name="Trash2" className="size-4 text-destructive" />
+        </Button>
+      </div>
+    );
+  }
+
+  // CONFIRMED: fulfill (delivery/receipt), bill directly, or cancel.
   return (
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="outline" disabled={pending}
