@@ -42,7 +42,7 @@ export function AdjustmentForm({ items, warehouses, stock }: { items: Option[]; 
         itemId, warehouseId, mode: "set", value: Number(counted),
         unitCost: unitCost ? Number(unitCost) : undefined, reason, date,
       });
-      if (r.ok) { toast.success("تم تسجيل التسوية"); router.push("/erp/inventory/adjustments"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — أكّدها للترحيل"); router.push("/erp/inventory/adjustments"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 
@@ -99,7 +99,7 @@ export function AdjustmentForm({ items, warehouses, stock }: { items: Option[]; 
           </select>
         </div>
         <div className="sm:col-span-2 flex justify-end">
-          <Button disabled={pending || delta === 0} onClick={submit}>تسجيل التسوية</Button>
+          <Button disabled={pending || delta === 0} onClick={submit}>حفظ التسوية (مسودة)</Button>
         </div>
       </CardContent>
     </Card>

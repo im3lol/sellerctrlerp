@@ -10,11 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { StockRowActions } from "@/components/erp/stock-row-actions";
 
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function TransfersPage() {
   const { orgId, role } = await requireErpModule("inventory.view");
+  const canManage = erpCan(role, "inventory.create");
   const fromWh = alias(warehouses, "from_wh");
   const toWh = alias(warehouses, "to_wh");
   const rows = await db
@@ -25,6 +27,7 @@ export default async function TransfersPage() {
       from: fromWh.nameAr,
       to: toWh.nameAr,
       notes: stockTransfers.notes,
+      status: stockTransfers.status,
       lineCount: sql<number>`count(${stockTransferLines.id})`,
     })
     .from(stockTransfers)
@@ -67,6 +70,7 @@ export default async function TransfersPage() {
                   <TableHead className="text-start">إلى</TableHead>
                   <TableHead className="text-start">عدد الأصناف</TableHead>
                   <TableHead className="text-start">الحالة</TableHead>
+                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -77,7 +81,8 @@ export default async function TransfersPage() {
                     <TableCell>{r.from ?? "—"}</TableCell>
                     <TableCell>{r.to ?? "—"}</TableCell>
                     <TableCell>{Number(r.lineCount).toLocaleString("ar-EG-u-nu-latn")}</TableCell>
-                    <TableCell><Badge variant="default">مرحّل</Badge></TableCell>
+                    <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                    {canManage && <TableCell><StockRowActions docId={r.id} type="transfer" status={r.status} canManage={canManage} /></TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

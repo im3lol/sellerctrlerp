@@ -33,6 +33,7 @@ import {
   stockMovements,
   stockTransfers,
   stockTransferLines,
+  stockAdjustments,
   receiptVouchers,
   paymentVouchers,
   salesReturns,
@@ -83,6 +84,7 @@ async function main() {
   await db.delete(costCenters);
   await db.delete(stockTransferLines);
   await db.delete(stockTransfers);
+  await db.delete(stockAdjustments);
   await db.delete(stockMovements);
   await db.delete(salesInvoiceLines);
   await db.delete(salesInvoices);
@@ -516,26 +518,41 @@ async function main() {
   const [wh2] = await db.select({ id: warehouses.id }).from(warehouses)
     .where(and(eq(warehouses.organizationId, org.id), eq(warehouses.code, "WH-02"))).limit(1);
   {
-    // Damage adjustment: ITM-1004 from 50 → 48 (deficit 2) at WAC.
+    // Damage adjustment (POSTED): ITM-1004 deficit 2 at WAC — header + movement + GL.
     const itm4 = itemByCode["ITM-1004"];
     await db.transaction(async (tx) => {
+      const [adj] = await tx.insert(stockAdjustments).values({
+        organizationId: org.id, number: "AJ-2026-0001", date: new Date(2026, 5, 17), status: "POSTED",
+        itemId: itm4, warehouseId: demoWh.id, mode: "delta", enteredValue: "-2", deltaQuantity: "-2", reason: "تالف",
+      }).returning({ id: stockAdjustments.id });
       const r = await postStockMovement(tx, {
         orgId: org.id, itemId: itm4, warehouseId: demoWh.id, type: "ADJ",
-        quantity: -2, date: new Date(2026, 5, 17), referenceType: "ADJUSTMENT", reason: "تالف",
+        quantity: -2, date: new Date(2026, 5, 17), referenceType: "ADJUSTMENT", referenceId: adj.id, reason: "تالف",
       });
       if (r.totalCost > 0) {
         await postEntry(tx, {
-          orgId: org.id, date: new Date(2026, 5, 17), sourceType: "STOCK_ADJUSTMENT", sourceId: r.movementId,
-          description: "تسوية مخزون — تالف", journalType: "GENERAL",
+          orgId: org.id, date: new Date(2026, 5, 17), sourceType: "STOCK_ADJUSTMENT", sourceId: adj.id,
+          description: "تسوية مخزون AJ-2026-0001 — تالف", journalType: "GENERAL",
           lines: [
             { accountId: A["5301"], debit: r.totalCost, credit: 0 },
             { accountId: A["1104"], debit: 0, credit: r.totalCost },
           ],
         });
       }
+      await tx.update(stockAdjustments).set({ totalValue: String(Math.round(r.totalCost * 100) / 100), movementId: r.movementId }).where(eq(stockAdjustments.id, adj.id));
     });
 
-    // Transfer: 20 units of ITM-1001 from WH-01 → WH-02 (no GL).
+    // Draft adjustment (awaiting confirmation): ITM-1002 surplus +5 — header only, no movement/GL.
+    const itm2 = itemByCode["ITM-1002"];
+    if (itm2) {
+      await db.insert(stockAdjustments).values({
+        organizationId: org.id, number: "AJ-2026-0002", date: new Date(2026, 5, 19), status: "DRAFT",
+        itemId: itm2, warehouseId: demoWh.id, mode: "delta", enteredValue: "5", deltaQuantity: "5",
+        totalValue: "0", reason: "فرق جرد فعلي", notes: "بانتظار التأكيد",
+      });
+    }
+
+    // Transfer (POSTED): 20 units of ITM-1001 from WH-01 → WH-02 (no GL).
     if (wh2) {
       await db.transaction(async (tx) => {
         const [tr] = await tx.insert(stockTransfers).values({
@@ -552,6 +569,13 @@ async function main() {
           quantity: 20, unitCost: out.unitCost, date: new Date(2026, 5, 18), referenceType: "TRANSFER", referenceId: tr.id, reason: "تحويل TR-2026-0001",
         });
       });
+
+      // Draft transfer (awaiting confirmation): 5 units ITM-1001 WH-01 → WH-02 — header + lines only.
+      const [dtr] = await db.insert(stockTransfers).values({
+        organizationId: org.id, number: "TR-2026-0002", date: new Date(2026, 5, 19), status: "DRAFT",
+        fromWarehouseId: demoWh.id, toWarehouseId: wh2.id, notes: "بانتظار التأكيد",
+      }).returning({ id: stockTransfers.id });
+      await db.insert(stockTransferLines).values({ stockTransferId: dtr.id, itemId: demoItemId, quantity: "5" });
     }
   }
 

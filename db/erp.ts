@@ -274,6 +274,37 @@ export const stockTransferLines = pgTable("stock_transfer_lines", {
   notes: text("notes"),
 });
 
+/**
+ * Stock adjustment document (count correction / damage / surplus). The header
+ * holds the DRAFT; confirming it posts the ADJ stock movement + GL entry and
+ * links `movementId`. Storing it as a document (with its own number) is what
+ * lets adjustments follow the Draft→Confirm cycle like every other document.
+ */
+export const stockAdjustments = pgTable(
+  "stock_adjustments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    itemId: text("item_id").notNull().references(() => items.id),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    mode: text("mode").notNull().default("set"), // set (target qty) | delta (signed change)
+    enteredValue: money("entered_value").notNull(),
+    unitCost: money("unit_cost"),
+    deltaQuantity: money("delta_quantity").notNull().default("0"), // create-time estimate (recomputed on confirm for "set")
+    totalValue: money("total_value").notNull().default("0"),
+    status: text("status").notNull().default("DRAFT"),
+    reason: text("reason").notNull(),
+    movementId: text("movement_id"), // the ADJ stock movement, set on confirm
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("stock_adjustments_org_number_idx").on(t.organizationId, t.number)],
+);
+
 export const materialRequests = pgTable(
   "material_requests",
   {

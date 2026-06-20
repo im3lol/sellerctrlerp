@@ -39,7 +39,7 @@ export function TransferForm({ items, warehouses }: { items: Option[]; warehouse
         .map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) }));
       if (picked.length === 0) { toast.error("أضف صنفاً واحداً على الأقل"); return; }
       const r = await createStockTransferAction({ fromWarehouseId: fromWh, toWarehouseId: toWh, date, notes, lines: picked });
-      if (r.ok) { toast.success("تم تسجيل التحويل"); router.push("/erp/inventory/transfers"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/erp/inventory/transfers"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 
@@ -105,7 +105,7 @@ export function TransferForm({ items, warehouses }: { items: Option[]; warehouse
           </Table>
           <div className="mt-4 flex items-center justify-between">
             <Button type="button" variant="outline" onClick={addLine}><Icon name="Plus" className="size-4" />إضافة صنف</Button>
-            <Button type="button" disabled={pending} onClick={submit}>تسجيل التحويل</Button>
+            <Button type="button" disabled={pending} onClick={submit}>حفظ التحويل (مسودة)</Button>
           </div>
         </CardContent>
       </Card>
