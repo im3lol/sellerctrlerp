@@ -153,7 +153,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
             <StatCard label="منتجات مُسندة" value={totalProducts} icon="Package" tone="blue" />
             <StatCard label="مكتملة" value={completedProducts} icon="CheckCircle2" tone="green" hint={`${completion}% إنجاز`} />
             <StatCard label="مهام مفتوحة" value={openTasks} icon="ListChecks" tone="yellow" />
-            <StatCard label="ساعات (٣٠ يوم)" value={hours} icon="Clock" tone="purple" hint={`${attAgg[0]?.days ?? 0} يوم حضور`} />
+            <StatCard label="ساعات (30 يوم)" value={hours} icon="Clock" tone="purple" hint={`${attAgg[0]?.days ?? 0} يوم حضور`} />
           </div>
 
           {/* Assigned products */}

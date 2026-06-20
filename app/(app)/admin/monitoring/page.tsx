@@ -66,7 +66,7 @@ export default async function MonitoringPage() {
         <StatCard label="موظفون نشطون" value={data.length} icon="Users" tone="slate" />
         <StatCard label="منتجات مُسندة" value={totals.assigned} icon="Package" tone="blue" />
         <StatCard label="مكتملة" value={totals.completed} icon="CheckCircle2" tone="green" />
-        <StatCard label="متأخرة (بدون حركة +٣ أيام)" value={totals.stale} icon="AlertTriangle" tone="red" />
+        <StatCard label="متأخرة (بدون حركة +3 أيام)" value={totals.stale} icon="AlertTriangle" tone="red" />
       </div>
 
       {data.length === 0 ? (

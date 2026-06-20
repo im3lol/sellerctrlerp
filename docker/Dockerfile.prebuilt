@@ -1,0 +1,35 @@
+# Runtime-only image: ships the Next.js standalone bundle built on the host.
+# This machine OOMs `next build` inside Docker's ~3.7 GB limit (the host build
+# needs ~6 GB heap), so we copy the prebuilt artifact instead of compiling here.
+# Rebuild flow:  npm run build  →  copy static/public into standalone  →
+#                docker compose --profile app up -d --build
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+# The host build already copies .next/static + public into the standalone dir.
+COPY --chown=nextjs:nodejs .next/standalone ./
+
+# Repair the artifact for Linux:
+#  1. Drop the host-baked .env (env comes from compose).
+#  2. Drop the Windows-only sharp binary (Next falls back to wasm optimizer).
+#  3. Next traces serverExternalPackages as symlinks pointing to ABSOLUTE host
+#     (Windows) paths under .next/node_modules — they dangle on Linux. Re-point
+#     each to the real package under /app/node_modules.
+RUN set -e; \
+    rm -f .env; \
+    rm -rf node_modules/@img node_modules/sharp; \
+    if [ -d .next/node_modules ]; then \
+      for L in $(find .next/node_modules -type l); do \
+        pkg=$(readlink "$L"); pkg=${pkg##*node_modules/}; \
+        rm -f "$L"; ln -s "/app/node_modules/$pkg" "$L"; \
+      done; \
+    fi
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]

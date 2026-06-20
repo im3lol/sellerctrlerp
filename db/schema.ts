@@ -15,6 +15,8 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+// The organization is the single tenant; CRM workspaces belong to one.
+import { organizations } from "./erp";
 
 /* ───────────────────────── Enums ───────────────────────── */
 
@@ -77,6 +79,8 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
     email: varchar("email", { length: 255 }).notNull(),
+    // Optional login alias — migrated ERP users sign in by username (no email).
+    username: varchar("username", { length: 255 }),
     passwordHash: text("password_hash").notNull(),
     role: userRoleEnum("role").notNull().default("employee"),
     avatarUrl: text("avatar_url"),
@@ -86,13 +90,19 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+  (t) => [
+    uniqueIndex("users_email_idx").on(t.email),
+    uniqueIndex("users_username_idx").on(t.username),
+  ],
 );
 
 /* ─────────────────────── Workspaces ─────────────────────── */
 
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").defaultRandom().primaryKey(),
+  // The owning organization (single tenant). Nullable during migration; new
+  // workspaces are created under the active org.
+  organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   type: workspaceTypeEnum("type").notNull().default("amazon"),
   description: text("description"),
@@ -529,3 +539,8 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
 
 // helper for raw NOTIFY payloads
 export const notifyChannel = sql`sellerctrl_events`;
+
+/* ───────────── ERP module (المالية والمخزون) ───────────── */
+// Accounting / inventory / sales / purchases / investors tables, migrated from
+// the legacy Ctrl ERP Prisma schema. Kept in a separate file for readability.
+export * from "./erp";

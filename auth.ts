@@ -1,28 +1,56 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { authConfig } from "./auth.config";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
+import { isErpLegacyHash, verifyErpPassword } from "@/lib/erp/password";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
       credentials: {
-        email: { label: "البريد الإلكتروني", type: "email" },
+        // Accepts an email OR a username (migrated ERP users have no email).
+        email: { label: "البريد الإلكتروني أو اسم المستخدم", type: "text" },
         password: { label: "كلمة المرور", type: "password" },
       },
       async authorize(creds) {
-        const email = String(creds?.email ?? "").toLowerCase().trim();
+        const identifier = String(creds?.email ?? "").toLowerCase().trim();
         const password = String(creds?.password ?? "");
-        if (!email || !password) return null;
+        if (!identifier || !password) return null;
 
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        // Match by email first; then by (case-insensitive) username. The
+        // username branch is wrapped so it degrades gracefully on a database
+        // where the column has not been migrated yet.
+        let [user] = await db.select().from(users).where(eq(users.email, identifier)).limit(1);
+        if (!user) {
+          try {
+            [user] = await db
+              .select()
+              .from(users)
+              .where(eq(sql`lower(${users.username})`, identifier))
+              .limit(1);
+          } catch {
+            // username column not present — email-only login.
+          }
+        }
         if (!user || !user.isActive) return null;
 
-        const ok = await bcrypt.compare(password, user.passwordHash);
+        let ok = false;
+        if (user.passwordHash.startsWith("$2")) {
+          // Standard bcrypt hash.
+          ok = await bcrypt.compare(password, user.passwordHash);
+        } else if (isErpLegacyHash(user.passwordHash)) {
+          // Migrated ERP user (scrypt or legacy base64): verify, then upgrade
+          // the stored hash to bcrypt on first successful login.
+          ok = await verifyErpPassword(password, user.passwordHash);
+          if (ok) {
+            const upgraded = await bcrypt.hash(password, 10);
+            await db.update(users).set({ passwordHash: upgraded }).where(eq(users.id, user.id));
+          }
+        }
         if (!ok) return null;
 
         return {

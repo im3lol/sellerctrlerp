@@ -69,7 +69,7 @@ export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-xl border p-4">
             <div>
-              <p className="text-sm font-medium">١. حمّل القالب</p>
+              <p className="text-sm font-medium">1. حمّل القالب</p>
               <p className="text-xs text-muted-foreground">يحتوي الأعمدة المطلوبة بالعربية</p>
             </div>
             <Button variant="secondary" asChild>
@@ -95,7 +95,7 @@ export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
 
           <div className="rounded-xl border border-dashed p-6 text-center">
             <p className="mb-3 text-sm font-medium">
-              {draft ? "٢. ارفع الملف (سيُضاف كمسودة)" : "٢. ارفع الملف بعد تعبئته"}
+              {draft ? "2. ارفع الملف (سيُضاف كمسودة)" : "2. ارفع الملف بعد تعبئته"}
             </p>
             <input
               ref={inputRef}

@@ -4,6 +4,7 @@ import { Menu, Search } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { AttendanceQuickToggle } from "@/components/attendance/attendance-quick-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -15,10 +16,14 @@ export function Topbar({
   user,
   unreadCount,
   attendance,
+  orgs,
+  activeOrgId,
 }: {
   user: { name: string; email: string; role: Role; title?: string | null; avatarUrl?: string | null };
   unreadCount: number;
   attendance: AttendanceSnapshot;
+  orgs: { id: string; nameAr: string }[];
+  activeOrgId: string | null;
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
@@ -44,6 +49,7 @@ export function Topbar({
 
       {/* Actions (pushed to the end / left in RTL) */}
       <div className="ms-auto flex items-center gap-2">
+        <OrgSwitcher orgs={orgs} activeId={activeOrgId} />
         <AttendanceQuickToggle initial={attendance} />
         <NotificationBell initialCount={unreadCount} />
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />

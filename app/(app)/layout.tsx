@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { notifications } from "@/db/schema";
 import { getTodaySnapshot } from "@/lib/attendance";
+import { getActiveOrg } from "@/lib/erp/org";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { PollRefresh } from "@/components/realtime/poll-refresh";
@@ -13,12 +14,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   if (user.role === "client") redirect("/portal");
 
-  const [[{ count }], attendanceSnap] = await Promise.all([
+  const [[{ count }], attendanceSnap, activeOrg] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(notifications)
       .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt))),
     getTodaySnapshot(user.id),
+    getActiveOrg(),
   ]);
 
   return (
@@ -35,6 +37,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }}
           unreadCount={count ?? 0}
           attendance={attendanceSnap}
+          orgs={activeOrg.orgs.map((o) => ({ id: o.id, nameAr: o.nameAr }))}
+          activeOrgId={activeOrg.org?.id ?? null}
         />
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
         <PollRefresh />

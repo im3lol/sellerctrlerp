@@ -25,6 +25,10 @@ export const pool =
     connectionString,
     max: 10,
     ssl: isLocal ? undefined : remoteSsl,
+    // Keep pooled sockets alive; avoids ECONNRESET on idle connections
+    // (local Docker Postgres drops idle sockets).
+    keepAlive: true,
+    idleTimeoutMillis: 30_000,
   });
 
 if (process.env.NODE_ENV !== "production") globalForDb.__pgPool = pool;

@@ -78,7 +78,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            موثوق به لإدارة أكثر من <span className="font-bold text-foreground">٤٬٥٠٠</span> منتج يومياً
+            موثوق به لإدارة أكثر من <span className="font-bold text-foreground">4,500</span> منتج يومياً
           </p>
 
           {/* Dashboard preview */}

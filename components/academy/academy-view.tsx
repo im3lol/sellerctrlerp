@@ -232,7 +232,7 @@ function ViewersDialog({ item, onClose }: { item: Item | null; onClose: () => vo
             {viewers.map((v, i) => (
               <li key={i} className="flex items-center justify-between py-2 text-sm">
                 <span className="font-medium">{v.name}</span>
-                <span className="text-xs text-muted-foreground">{new Date(v.at).toLocaleString("ar-EG")}</span>
+                <span className="text-xs text-muted-foreground">{new Date(v.at).toLocaleString("ar-EG-u-nu-latn")}</span>
               </li>
             ))}
           </ul>

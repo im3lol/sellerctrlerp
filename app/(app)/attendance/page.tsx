@@ -48,8 +48,8 @@ export default async function AttendancePage() {
                 <div key={s.id} className="flex items-center justify-between py-2.5 text-sm">
                   <span>{formatDateAr(s.workDate)}</span>
                   <span className="font-mono text-muted-foreground" dir="ltr">
-                    {new Intl.DateTimeFormat("ar", { timeStyle: "short" }).format(s.clockIn)}
-                    {s.clockOut && ` — ${new Intl.DateTimeFormat("ar", { timeStyle: "short" }).format(s.clockOut)}`}
+                    {new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(s.clockIn)}
+                    {s.clockOut && ` — ${new Intl.DateTimeFormat("en-GB", { timeStyle: "short" }).format(s.clockOut)}`}
                   </span>
                   <span className="font-mono font-semibold tabular-nums" dir="ltr">{formatHMS(s.worked)}</span>
                 </div>

@@ -23,7 +23,22 @@ export type Capability =
   | "attendance.self"
   | "attendance.viewAll"
   | "ai.use"
-  | "client.portal";
+  | "client.portal"
+  // ERP module (المالية والمخزون) — global gate for nav/visibility.
+  // Fine-grained, org-scoped enforcement happens in lib/erp/auth-guard.ts.
+  | "erp.accounting.view"
+  | "erp.accounting.post"
+  | "erp.accounting.reverse"
+  | "erp.inventory.view"
+  | "erp.inventory.manage"
+  | "erp.sales.view"
+  | "erp.sales.manage"
+  | "erp.purchases.view"
+  | "erp.purchases.manage"
+  | "erp.investors.view"
+  | "erp.investors.manage"
+  | "erp.reports.view"
+  | "erp.settings.manage";
 
 const MATRIX: Record<Role, Capability[]> = {
   // مدير النظام — full access
@@ -33,12 +48,26 @@ const MATRIX: Record<Role, Capability[]> = {
     "sheets.connect", "product.distribute", "product.review", "product.edit",
     "task.manage", "task.approve", "task.updateOwn",
     "attendance.self", "attendance.viewAll", "ai.use",
+    // ERP — full access
+    "erp.accounting.view", "erp.accounting.post", "erp.accounting.reverse",
+    "erp.inventory.view", "erp.inventory.manage",
+    "erp.sales.view", "erp.sales.manage",
+    "erp.purchases.view", "erp.purchases.manage",
+    "erp.investors.view", "erp.investors.manage",
+    "erp.reports.view", "erp.settings.manage",
   ],
   // مدير العمليات
   ops_manager: [
     "workspace.viewAll", "reports.view", "product.distribute", "product.review",
     "product.edit", "task.manage", "task.approve", "task.updateOwn",
     "attendance.self", "attendance.viewAll", "ai.use", "sheets.connect",
+    // ERP — operational view + manage (no posting/reversal/settings)
+    "erp.accounting.view",
+    "erp.inventory.view", "erp.inventory.manage",
+    "erp.sales.view", "erp.sales.manage",
+    "erp.purchases.view", "erp.purchases.manage",
+    "erp.investors.view",
+    "erp.reports.view",
   ],
   // قائد فريق
   team_lead: [

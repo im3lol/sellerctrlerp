@@ -64,7 +64,7 @@ services:
     profiles: ["app"]
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/Dockerfile.prebuilt
     container_name: sellerctrl-app
     restart: unless-stopped
     env_file:
@@ -72,6 +72,8 @@ services:
     environment:
       DATABASE_URL: postgres://sellerctrl:sellerctrl@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
+      AUTH_TRUST_HOST: "true"
+      NODE_ENV: production
     ports:
       - "3000:3000"
     depends_on:
