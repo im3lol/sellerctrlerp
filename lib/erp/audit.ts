@@ -1,5 +1,7 @@
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs } from "@/db/schema";
+import { auditLogs, users } from "@/db/schema";
+import { sql } from "drizzle-orm";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
@@ -44,4 +46,28 @@ export async function tryRecordAudit(input: AuditInput): Promise<void> {
   } catch {
     // Audit is best-effort outside a transaction; don't surface to the user.
   }
+}
+
+export type AuditRow = {
+  id: string;
+  createdAt: Date;
+  action: string;
+  summary: string | null;
+  userName: string | null;
+};
+
+/** The audit trail for one document (by its UUID), newest first, with actor name. */
+export async function getDocumentAudit(orgId: string, entityId: string): Promise<AuditRow[]> {
+  return db
+    .select({
+      id: auditLogs.id,
+      createdAt: auditLogs.createdAt,
+      action: auditLogs.action,
+      summary: auditLogs.summary,
+      userName: users.name,
+    })
+    .from(auditLogs)
+    .leftJoin(users, sql`${users.id} = ${auditLogs.userId}::uuid`)
+    .where(and(eq(auditLogs.organizationId, orgId), eq(auditLogs.entityId, entityId)))
+    .orderBy(desc(auditLogs.createdAt));
 }
