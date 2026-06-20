@@ -635,6 +635,7 @@ export const receiptVouchers = pgTable(
     customerId: text("customer_id").notNull().references(() => customers.id),
     salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id),
     cashAccountId: text("cash_account_id").references(() => accounts.id),
+    status: text("status").notNull().default("DRAFT"), // DRAFT, POSTED
     date: ts("date").notNull(),
     amount: money("amount").notNull(),
     paymentMethod: text("payment_method").notNull().default("CASH"),
@@ -728,6 +729,7 @@ export const paymentVouchers = pgTable(
     supplierId: text("supplier_id").notNull().references(() => suppliers.id),
     purchaseInvoiceId: text("purchase_invoice_id").references(() => purchaseInvoices.id),
     cashAccountId: text("cash_account_id").references(() => accounts.id),
+    status: text("status").notNull().default("DRAFT"), // DRAFT, POSTED
     date: ts("date").notNull(),
     amount: money("amount").notNull(),
     paymentMethod: text("payment_method").notNull().default("CASH"),

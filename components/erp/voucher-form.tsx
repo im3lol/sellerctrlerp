@@ -65,7 +65,7 @@ export function VoucherForm({
         ? await createReceiptVoucherAction({ ...base, customerId: partyId, salesInvoiceId: invoiceId || undefined })
         : await createPaymentVoucherAction({ ...base, supplierId: partyId, purchaseInvoiceId: invoiceId || undefined });
       if (r.ok) {
-        toast.success(isReceipt ? "تم تسجيل سند القبض" : "تم تسجيل سند الصرف");
+        toast.success((isReceipt ? "تم حفظ سند القبض" : "تم حفظ سند الصرف") + " (مسودة) — أكّده للترحيل");
         router.push(dest);
         router.refresh();
       } else {

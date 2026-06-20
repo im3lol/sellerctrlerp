@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { paymentVouchers, suppliers, purchaseInvoices } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { VoucherRowActions } from "@/components/erp/voucher-row-actions";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -15,6 +17,7 @@ const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل ب�
 
 export default async function PaymentsPage() {
   const { orgId, role } = await requireErpModule("purchases.view");
+  const canManage = erpCan(role, "purchases.pay");
   const rows = await db
     .select({
       id: paymentVouchers.id,
@@ -22,6 +25,7 @@ export default async function PaymentsPage() {
       date: paymentVouchers.date,
       amount: paymentVouchers.amount,
       method: paymentVouchers.paymentMethod,
+      status: paymentVouchers.status,
       supplier: suppliers.nameAr,
       invoice: purchaseInvoices.number,
     })
@@ -31,7 +35,7 @@ export default async function PaymentsPage() {
     .where(eq(paymentVouchers.organizationId, orgId))
     .orderBy(desc(paymentVouchers.date), desc(paymentVouchers.number));
 
-  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const total = rows.filter((r) => r.status === "POSTED").reduce((s, r) => s + Number(r.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -65,6 +69,8 @@ export default async function PaymentsPage() {
                   <TableHead className="text-start">الفاتورة</TableHead>
                   <TableHead className="text-start">الطريقة</TableHead>
                   <TableHead className="text-start">المبلغ</TableHead>
+                  <TableHead className="text-start">الحالة</TableHead>
+                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -76,6 +82,8 @@ export default async function PaymentsPage() {
                     <TableCell className="font-mono">{r.invoice ?? "تحت الحساب"}</TableCell>
                     <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
                     <TableCell>{fmt(r.amount)}</TableCell>
+                    <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                    {canManage && <TableCell><VoucherRowActions voucherId={r.id} type="payment" status={r.status} canManage={canManage} /></TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

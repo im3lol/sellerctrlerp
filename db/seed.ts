@@ -326,7 +326,7 @@ async function main() {
         const rvNo = `RV-2026-${String(rvSeq).padStart(4, "0")}`;
         const [rv] = await tx.insert(receiptVouchers).values({
           organizationId: org.id, number: rvNo, customerId: custByCode[custCode], salesInvoiceId: inv.id,
-          cashAccountId: A["1101"], amount: String(paid), date: due, paymentMethod: "CASH", notes: `تحصيل من ${n}`,
+          cashAccountId: A["1101"], status: "POSTED", amount: String(paid), date: due, paymentMethod: "CASH", notes: `تحصيل من ${n}`,
         }).returning({ id: receiptVouchers.id });
         await postEntry(tx, {
           orgId: org.id, date: due, sourceType: "RECEIPT_VOUCHER", sourceId: rv.id,
@@ -392,7 +392,7 @@ async function main() {
       await db.transaction(async (tx) => {
         const [pv] = await tx.insert(paymentVouchers).values({
           organizationId: org.id, number: "PV-2026-0001", supplierId: pi.supplierId, purchaseInvoiceId: pi.id,
-          cashAccountId: A["1101"], amount: String(payAmt), date: new Date(2026, 4, 5), paymentMethod: "CASH", notes: "دفعة للمورد",
+          cashAccountId: A["1101"], status: "POSTED", amount: String(payAmt), date: new Date(2026, 4, 5), paymentMethod: "CASH", notes: "دفعة للمورد",
         }).returning({ id: paymentVouchers.id });
         await postEntry(tx, {
           orgId: org.id, date: new Date(2026, 4, 5), sourceType: "PAYMENT_VOUCHER", sourceId: pv.id,
@@ -594,6 +594,26 @@ async function main() {
       await postStockMovement(tx, { orgId: org.id, itemId: demoItemId, warehouseId: demoWh.id, type: "IN", quantity: 5, unitCost: 400, date: new Date(2026, 5, 13), referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: "استلام GRN-2026-0001" });
       await postEntry(tx, { orgId: org.id, date: new Date(2026, 5, 13), sourceType: "GOODS_RECEIPT", sourceId: grn.id, description: "استلام بضاعة GRN-2026-0001", journalType: "PURCHASE", lines: [{ accountId: A["1104"], debit: poNet, credit: 0 }, { accountId: A["2103"], debit: 0, credit: poNet }] });
     });
+  }
+
+  // ── Demo DRAFT vouchers (showcase Draft→Confirm — no GL until confirmed) ──
+  {
+    const [si] = await db.select({ id: salesInvoices.id, customerId: salesInvoices.customerId })
+      .from(salesInvoices).where(and(eq(salesInvoices.organizationId, org.id), eq(salesInvoices.number, "SI-2026-0001"))).limit(1);
+    if (si) {
+      await db.insert(receiptVouchers).values({
+        organizationId: org.id, number: "RV-2026-0002", customerId: si.customerId, salesInvoiceId: si.id,
+        cashAccountId: A["1101"], status: "DRAFT", amount: "500", date: new Date(2026, 5, 19), paymentMethod: "CASH", notes: "تحصيل (مسودة)",
+      });
+    }
+    const [pi3] = await db.select({ id: purchaseInvoices.id, supplierId: purchaseInvoices.supplierId })
+      .from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, org.id), eq(purchaseInvoices.number, "PI-2026-0003"))).limit(1);
+    if (pi3) {
+      await db.insert(paymentVouchers).values({
+        organizationId: org.id, number: "PV-2026-0002", supplierId: pi3.supplierId, purchaseInvoiceId: pi3.id,
+        cashAccountId: A["1101"], status: "DRAFT", amount: "1000", date: new Date(2026, 5, 19), paymentMethod: "BANK", notes: "دفعة (مسودة)",
+      });
+    }
   }
 
   // ── Workspaces (one per client) — belong to the organization ──
