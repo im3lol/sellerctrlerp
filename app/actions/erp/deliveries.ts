@@ -11,6 +11,7 @@ import {
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit } from "@/lib/erp/audit";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -66,6 +67,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string): Promi
         });
       }
       await tx.update(salesOrders).set({ status: "DELIVERED" }).where(eq(salesOrders.id, so.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `تأكيد إذن صرف ${number} (أمر بيع ${so.number})`, metadata: { cogs } });
       return dn.id;
     });
     revalidatePath("/erp/sales/deliveries");
@@ -126,6 +128,7 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string): Promis
       await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, so.customerId));
       await tx.update(deliveryNotes).set({ salesInvoiceId: inv.id }).where(eq(deliveryNotes.id, dn.id));
       await tx.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `فاتورة بيع ${number} من إذن صرف ${dn.number}`, metadata: { total } });
       return inv.id;
     });
     revalidatePath("/erp/sales/deliveries");

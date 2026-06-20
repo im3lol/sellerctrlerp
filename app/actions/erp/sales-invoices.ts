@@ -9,6 +9,7 @@ import { salesInvoices, salesInvoiceLines, customers, accounts, warehouses } fro
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveInvoiceState = ActionState & { id?: string };
 
@@ -103,6 +104,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
       return inv.id;
     });
 
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: id, entityNumber: number, summary: `إنشاء فاتورة بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
     revalidatePath("/erp/sales/invoices");
     revalidatePath("/erp/sales");
     return { ok: true, id };
@@ -200,6 +202,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
       }
 
       await tx.update(salesInvoices).set({ status: "POSTED" }).where(eq(salesInvoices.id, inv.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة بيع ${inv.number}`, metadata: { total } });
       return eid;
     });
     revalidatePath("/erp/sales/invoices");

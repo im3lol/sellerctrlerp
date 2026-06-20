@@ -9,6 +9,7 @@ import { journalEntries, journalEntryLines, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, postDraft, reverseEntry } from "@/lib/erp/posting";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+import { tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveEntryState = ActionState & { id?: string };
 
@@ -94,6 +95,7 @@ export async function createManualEntryAction(input: unknown): Promise<SaveEntry
           })),
         }),
       );
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, summary: `قيد يدوي مُرحّل: ${description}`, metadata: { debit: totalDebit / 100 } });
       revalidatePath("/erp/accounting/journal");
       return { ok: true, id };
     }
@@ -129,6 +131,7 @@ export async function createManualEntryAction(input: unknown): Promise<SaveEntry
       return entry.id;
     });
 
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "JOURNAL_ENTRY", entityId: id, entityNumber: number, summary: `قيد يدوي (مسودة): ${description}`, metadata: { debit: totalDebit / 100 } });
     revalidatePath("/erp/accounting/journal");
     return { ok: true, id };
   } catch (e) {
@@ -143,6 +146,7 @@ export async function postDraftEntryAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
   try {
     await db.transaction((tx) => postDraft(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId }));
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, summary: "ترحيل قيد يومية" });
     revalidatePath("/erp/accounting/journal");
     revalidatePath(`/erp/accounting/journal/${id}`);
     return { ok: true };
@@ -159,6 +163,7 @@ export async function reverseEntryAction(id: string, reason?: string): Promise<A
     const reversalId = await db.transaction((tx) =>
       reverseEntry(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId, reason: reason || null }),
     );
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "عكس قيد يومية", metadata: { reversalId, reason: reason || null } });
     revalidatePath("/erp/accounting/journal");
     revalidatePath(`/erp/accounting/journal/${id}`);
     return { ok: true, reversalId };

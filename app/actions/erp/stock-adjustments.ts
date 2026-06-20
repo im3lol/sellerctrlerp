@@ -9,6 +9,7 @@ import { items, warehouses, accounts, stockAdjustments } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveAdjustmentState = ActionState & { id?: string };
 
@@ -69,6 +70,7 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
       reason, createdBy: auth.userId,
     }).returning({ id: stockAdjustments.id });
 
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_ADJUSTMENT", entityId: adj.id, entityNumber: number, summary: `إنشاء تسوية مخزون ${number} (مسودة)`, metadata: { delta, reason } });
     revalidatePath("/erp/inventory/adjustments");
     return { ok: true, id: adj.id };
   } catch (e) {
@@ -134,6 +136,7 @@ export async function confirmStockAdjustmentAction(id: string): Promise<ActionSt
       await tx.update(stockAdjustments).set({
         status: "POSTED", deltaQuantity: String(delta), totalValue: String(round2(value)), movementId: r.movementId,
       }).where(eq(stockAdjustments.id, adj.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_ADJUSTMENT", entityId: adj.id, entityNumber: adj.number, summary: `تأكيد وترحيل تسوية مخزون ${adj.number}`, metadata: { delta, value: round2(value), reason: adj.reason } });
     });
 
     revalidatePath("/erp/inventory/adjustments");

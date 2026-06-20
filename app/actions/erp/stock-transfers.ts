@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { stockTransfers, stockTransferLines, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveTransferState = ActionState & { id?: string };
 
@@ -58,6 +59,7 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
       return tr.id;
     });
 
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (مسودة)`, metadata: { lines: lines.length } });
     revalidatePath("/erp/inventory/transfers");
     return { ok: true, id };
   } catch (e) {
@@ -100,6 +102,7 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
         });
       }
       await tx.update(stockTransfers).set({ status: "POSTED" }).where(eq(stockTransfers.id, tr.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: lines.length } });
     });
 
     revalidatePath("/erp/inventory/transfers");

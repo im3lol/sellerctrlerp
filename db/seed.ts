@@ -36,6 +36,7 @@ import {
   stockTransferLines,
   stockAdjustments,
   documentSequences,
+  auditLogs,
   receiptVouchers,
   paymentVouchers,
   salesReturns,
@@ -100,6 +101,7 @@ async function main() {
   await db.delete(warehouses);
   await db.delete(accountingJournals);
   await db.delete(fiscalPeriods);
+  await db.delete(auditLogs);
   await db.delete(documentSequences);
   await db.delete(organizationMembers);
   await db.delete(organizations);
@@ -731,6 +733,19 @@ async function main() {
   // Initialise document sequences from the explicit numbers seeded above so the
   // first user-created document of each type continues the series (no collision).
   await syncDocumentSequences(org.id);
+
+  // Demo audit trail so the log isn't empty out of the box (mirrors the events
+  // that would have produced the seeded documents).
+  await db.insert(auditLogs).values([
+    { organizationId: org.id, userId: admin.id, action: "CREATE", entityType: "PURCHASE_ORDER", entityNumber: "PO-2026-0001", summary: "إنشاء أمر شراء PO-2026-0001 (مسودة)" },
+    { organizationId: org.id, userId: admin.id, action: "CREATE", entityType: "SALES_ORDER", entityNumber: "SO-2026-0001", summary: "إنشاء أمر بيع SO-2026-0001 (مسودة)" },
+    { organizationId: org.id, userId: admin.id, action: "POST", entityType: "PURCHASE_INVOICE", entityNumber: "PI-2026-0002", summary: "ترحيل فاتورة شراء PI-2026-0002" },
+    { organizationId: org.id, userId: admin.id, action: "POST", entityType: "SALES_INVOICE", entityNumber: "SI-2026-0001", summary: "ترحيل فاتورة بيع SI-2026-0001" },
+    { organizationId: org.id, userId: admin.id, action: "CONFIRM", entityType: "RECEIPT_VOUCHER", entityNumber: "RV-2026-0001", summary: "تأكيد وترحيل سند قبض RV-2026-0001" },
+    { organizationId: org.id, userId: admin.id, action: "CONFIRM", entityType: "PAYMENT_VOUCHER", entityNumber: "PV-2026-0001", summary: "تأكيد وترحيل سند صرف PV-2026-0001" },
+    { organizationId: org.id, userId: admin.id, action: "POST", entityType: "GOODS_RECEIPT", entityNumber: "GRN-2026-0001", summary: "تأكيد إذن استلام GRN-2026-0001" },
+    { organizationId: org.id, userId: admin.id, action: "POST", entityType: "DELIVERY_NOTE", entityNumber: "DLV-2026-0001", summary: "تأكيد إذن صرف DLV-2026-0001" },
+  ]);
 
   console.log("✅ Demo seed complete. All passwords: password123");
   console.log("   مدير:   admin@sellerctrl.com");

@@ -9,6 +9,7 @@ import { purchaseInvoices, purchaseInvoiceLines, suppliers, accounts } from "@/d
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveInvoiceState = ActionState & { id?: string };
 
@@ -70,6 +71,7 @@ export async function createPurchaseInvoiceAction(input: unknown): Promise<SaveI
       await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${totalAmount}` }).where(eq(suppliers.id, supplierId));
       return inv.id;
     });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: id, entityNumber: number, summary: `إنشاء فاتورة شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
     revalidatePath("/erp/purchases/invoices");
     revalidatePath("/erp/purchases");
     return { ok: true, id };
@@ -137,6 +139,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
         });
       }
       await tx.update(purchaseInvoices).set({ status: "POSTED" }).where(eq(purchaseInvoices.id, inv.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة شراء ${inv.number}`, metadata: { total } });
     });
     revalidatePath("/erp/purchases/invoices");
     revalidatePath("/erp/accounting/journal");

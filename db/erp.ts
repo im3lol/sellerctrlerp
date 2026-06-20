@@ -22,6 +22,7 @@ import {
   boolean,
   timestamp,
   numeric,
+  jsonb,
   uniqueIndex,
   index,
   type AnyPgColumn,
@@ -514,6 +515,31 @@ export const documentSequences = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("document_sequences_unique").on(t.organizationId, t.key, t.year)],
+);
+
+/**
+ * Append-only audit trail. Every create/confirm/post/cancel/reverse/delete of an
+ * ERP document records who did what to which document (with its readable number),
+ * scoped to the active org. Rows are never updated or deleted.
+ */
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: text("user_id"), // actor; null for system actions
+    action: text("action").notNull(), // CREATE | CONFIRM | POST | CANCEL | REVERSE | DELETE | UPDATE
+    entityType: text("entity_type").notNull(), // SALES_ORDER, RECEIPT_VOUCHER, JOURNAL_ENTRY, …
+    entityId: text("entity_id"),
+    entityNumber: text("entity_number"), // readable document number (SO-2026-0001, …)
+    summary: text("summary"),
+    metadata: jsonb("metadata"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("audit_logs_org_idx").on(t.organizationId, t.createdAt),
+    index("audit_logs_entity_idx").on(t.entityType, t.entityId),
+  ],
 );
 
 export const accountingConfigurations = pgTable(

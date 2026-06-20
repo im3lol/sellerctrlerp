@@ -9,6 +9,7 @@ import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoice
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveReturnState = ActionState & { id?: string };
 
@@ -79,6 +80,7 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
       return ret.id;
     });
 
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مشتريات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
     revalidatePath("/erp/purchases/returns");
     return { ok: true, id };
   } catch (e) {
@@ -148,6 +150,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
 
       await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, ret.supplierId));
       await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
     });
 
     revalidatePath("/erp/purchases/returns");

@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { paymentVouchers, suppliers, purchaseInvoices, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveVoucherState = ActionState & { id?: string };
 
@@ -60,6 +61,7 @@ export async function createPaymentVoucherAction(input: unknown): Promise<SaveVo
       organizationId: auth.orgId, number, supplierId, purchaseInvoiceId: purchaseInvoiceId || null,
       cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
     }).returning({ id: paymentVouchers.id });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند صرف ${number} (مسودة)`, metadata: { amount } });
     revalidatePath("/erp/purchases/payments");
     return { ok: true, id: v.id };
   } catch (e) {
@@ -113,6 +115,7 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
         }).where(eq(purchaseInvoices.id, invoice.id));
       }
       await tx.update(paymentVouchers).set({ status: "POSTED" }).where(eq(paymentVouchers.id, v.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند صرف ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
     });
     revalidatePath("/erp/purchases/payments");
     revalidatePath("/erp/purchases/invoices");

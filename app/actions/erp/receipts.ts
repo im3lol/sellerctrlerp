@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { receiptVouchers, customers, salesInvoices, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
+import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveVoucherState = ActionState & { id?: string };
 
@@ -60,6 +61,7 @@ export async function createReceiptVoucherAction(input: unknown): Promise<SaveVo
       organizationId: auth.orgId, number, customerId, salesInvoiceId: salesInvoiceId || null,
       cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
     }).returning({ id: receiptVouchers.id });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند قبض ${number} (مسودة)`, metadata: { amount } });
     revalidatePath("/erp/sales/receipts");
     return { ok: true, id: v.id };
   } catch (e) {
@@ -113,6 +115,7 @@ export async function confirmReceiptVoucherAction(id: string): Promise<ActionSta
         }).where(eq(salesInvoices.id, invoice.id));
       }
       await tx.update(receiptVouchers).set({ status: "POSTED" }).where(eq(receiptVouchers.id, v.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند قبض ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
     });
     revalidatePath("/erp/sales/receipts");
     revalidatePath("/erp/sales/invoices");

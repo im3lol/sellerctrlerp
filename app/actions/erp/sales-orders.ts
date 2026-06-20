@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesOrders, salesOrderLines, customers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
+import { tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveOrderState = ActionState & { id?: string };
 
@@ -67,6 +68,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
       })));
       return so.id;
     });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
     revalidatePath("/erp/sales/orders");
     return { ok: true, id };
   } catch (e) {
@@ -78,11 +80,12 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
 export async function confirmSalesOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
-  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "الأمر غير موجود" };
   if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
   await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
   revalidatePath("/erp/sales/orders");
   revalidatePath(`/erp/sales/orders/${id}`);
   return { ok: true };
@@ -125,6 +128,7 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
   if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 
   await db.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "SALES_ORDER", entityId: so.id, entityNumber: so.number, summary: `تحويل أمر بيع ${so.number} إلى فاتورة (مسودة)` });
   revalidatePath("/erp/sales/orders");
   revalidatePath("/erp/sales/invoices");
   return { ok: true, invoiceId: r.id };
@@ -134,11 +138,12 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
 export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
-  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "الأمر غير موجود" };
   if (so.status === "INVOICED") return { error: "لا يمكن إلغاء أمر محوّل لفاتورة" };
   await db.update(salesOrders).set({ status: "CANCELLED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
   revalidatePath("/erp/sales/orders");
   return { ok: true };
 }

@@ -11,6 +11,7 @@ import {
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { recordAudit } from "@/lib/erp/audit";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -67,6 +68,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string): Pro
         });
       }
       await tx.update(purchaseOrders).set({ status: "RECEIVED" }).where(eq(purchaseOrders.id, po.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `تأكيد إذن استلام ${number} (أمر شراء ${po.number})`, metadata: { received } });
       return grn.id;
     });
     revalidatePath("/erp/purchases/receipts");
@@ -126,6 +128,7 @@ export async function convertReceiptToInvoiceAction(receiptId: string): Promise<
       await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, po.supplierId));
       await tx.update(purchaseReceipts).set({ purchaseInvoiceId: inv.id }).where(eq(purchaseReceipts.id, grn.id));
       await tx.update(purchaseOrders).set({ status: "INVOICED" }).where(eq(purchaseOrders.id, po.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: number, summary: `فاتورة شراء ${number} من إذن استلام ${grn.number}`, metadata: { total } });
       return inv.id;
     });
     revalidatePath("/erp/purchases/receipts");

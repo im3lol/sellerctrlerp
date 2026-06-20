@@ -123,6 +123,7 @@ export const NAV: NavSection[] = [
       { label: "الموظفون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
       { label: "العملاء", href: "/admin/clients", icon: "Store", capability: "client.manage" },
       { label: "سجل التدقيق", href: "/admin/audit", icon: "ShieldCheck", capability: "role.manage" },
+      { label: "سجل تدقيق ERP", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
       { label: "إعدادات ERP", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
     ],
   },
