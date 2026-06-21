@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemCombobox } from "@/components/erp/item-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
@@ -33,7 +34,6 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
 
-  const itemPrice = (id: string) => Number(items.find((i) => i.id === id)?.sellPrice ?? 0);
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
@@ -104,10 +104,7 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
-                    <select className={selectCls} value={l.itemId} onChange={(e) => setLine(i, { itemId: e.target.value, unitPrice: itemPrice(e.target.value) || l.unitPrice })}>
-                      <option value="">— اختر —</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.nameAr}</option>)}
-                    </select>
+                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, unitPrice: it.sellPrice || l.unitPrice })} />
                   </TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>

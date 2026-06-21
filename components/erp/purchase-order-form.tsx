@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemCombobox } from "@/components/erp/item-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
@@ -110,10 +111,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers:
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
-                    <select className={selectCls} value={l.itemId} onChange={(e) => setLine(i, { itemId: e.target.value })}>
-                      <option value="">— اختر —</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.nameAr}</option>)}
-                    </select>
+                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} />
                   </TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
