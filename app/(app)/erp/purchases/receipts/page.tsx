@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseReceipts, suppliers, purchaseOrders, purchaseInvoices } from "@/db/schema";
+import { purchaseReceipts, suppliers, purchaseOrders, purchaseInvoices, purchaseReturns, purchaseReturnLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,34 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     .orderBy(desc(purchaseReceipts.date), desc(purchaseReceipts.number))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
+
+  // Attach each receipt's returns (stock returns) as linked rows shown under it — quantity, not money.
+  const grnIds = tableRows.map((r) => r.id);
+  const retRows = grnIds.length
+    ? await db.select({ id: purchaseReturns.id, number: purchaseReturns.number, date: purchaseReturns.date, status: purchaseReturns.status, grnId: purchaseReturns.purchaseReceiptId })
+        .from(purchaseReturns)
+        .where(and(eq(purchaseReturns.organizationId, orgId), inArray(purchaseReturns.purchaseReceiptId, grnIds)))
+        .orderBy(desc(purchaseReturns.date), desc(purchaseReturns.number))
+    : [];
+  const retIds = retRows.map((r) => r.id);
+  const qtyRows = retIds.length
+    ? await db.select({ rid: purchaseReturnLines.purchaseReturnId, qty: sql<string>`coalesce(sum(${purchaseReturnLines.quantity}),0)` })
+        .from(purchaseReturnLines).where(inArray(purchaseReturnLines.purchaseReturnId, retIds))
+        .groupBy(purchaseReturnLines.purchaseReturnId)
+    : [];
+  const qtyByRet = new Map(qtyRows.map((r) => [r.rid, Number(r.qty)]));
+  const retsByGrn = new Map<string, { id: string; number: string; date: Date; qty: number; status: string }[]>();
+  for (const r of retRows) {
+    if (!r.grnId) continue;
+    const list = retsByGrn.get(r.grnId) ?? [];
+    list.push({ id: r.id, number: r.number, date: r.date, qty: qtyByRet.get(r.id) ?? 0, status: r.status });
+    retsByGrn.set(r.grnId, list);
+  }
+  const rows = tableRows.map((r) => ({
+    ...r,
+    returned: (retsByGrn.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+    returns: retsByGrn.get(r.id) ?? [],
+  }));
 
   const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
   const qs = (p: number) => {
@@ -119,7 +147,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون استلام بعد — أنشئها من أمر شراء مؤكّد."}</div>
           ) : (
             <>
-              <GoodsReceiptsTable rows={tableRows} canManage={canManage} />
+              <GoodsReceiptsTable rows={rows} canManage={canManage} />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

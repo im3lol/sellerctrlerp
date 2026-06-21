@@ -18,7 +18,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DRAFT: { label: "مسودة", variant: "secondary" },
   RECEIVED: { label: "تم الاستلام", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
-  REVERSED: { label: "معكوس", variant: "destructive" },
+  REVERSED: { label: "مرتجع", variant: "destructive" },
 };
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
