@@ -66,7 +66,7 @@ export function SalesOrderForm({ customers, items, orgName }: { customers: Custo
         customerId, date, dueDate: dueDate || undefined, notes,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
       });
-      if (r.ok) { toast.success("تم إنشاء أمر البيع"); router.push("/erp/sales/orders"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ أمر البيع (مسودة) — أكّده"); router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };

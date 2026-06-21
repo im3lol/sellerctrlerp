@@ -66,7 +66,7 @@ export function FulfillmentForm({
     <Card>
       <CardHeader>
         <CardTitle>{isDelivery ? "تسليم أصناف" : "استلام أصناف"}</CardTitle>
-        <CardDescription>أدخل الكمية {isDelivery ? "المسلّمة" : "المستلمة"} الآن لكل بند — يبقى المتبقّي مفتوحاً على الأمر (Backorder).</CardDescription>
+        <CardDescription>أدخل الكمية {isDelivery ? "المسلّمة" : "المستلمة"} الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Table>
@@ -100,7 +100,7 @@ export function FulfillmentForm({
         </Table>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => router.push(dest)}>إلغاء</Button>
-          <Button disabled={pending} onClick={submit}>{isDelivery ? "تأكيد التسليم" : "تأكيد الاستلام"}</Button>
+          <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن التسليم" : "حفظ إذن الاستلام"}</Button>
         </div>
       </CardContent>
     </Card>
