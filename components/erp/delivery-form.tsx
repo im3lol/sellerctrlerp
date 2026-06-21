@@ -50,7 +50,7 @@ export function DeliveryForm({
       if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
       if (r.lines.length === 0) { toast.message("تم تسليم كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
-      setLines(r.lines.map((l) => ({ ...l, warehouseId: def, now: String(l.remaining) })));
+      setLines(r.lines.map((l) => ({ ...l, warehouseId: l.warehouseId || def, now: String(l.remaining) })));
     });
   };
 

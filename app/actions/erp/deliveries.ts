@@ -26,7 +26,7 @@ export type Pick = { itemId: string; quantity: number; warehouseId?: string };
 
 export type DeliverableLine = {
   itemId: string; code: string; name: string; ordered: number; delivered: number; remaining: number;
-  stockByWarehouse: Record<string, number>;
+  warehouseId: string | null; stockByWarehouse: Record<string, number>;
 };
 
 /**
@@ -44,14 +44,14 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
   if (!so) return { error: "الأمر غير موجود" };
 
   const ols = await db
-    .select({ itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, code: items.code, name: items.nameAr })
+    .select({ itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId, code: items.code, name: items.nameAr })
     .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId))
     .where(eq(salesOrderLines.salesOrderId, so.id));
 
   const lines = ols
     .map((l) => {
       const ordered = Number(l.quantity), delivered = Number(l.deliveredQty);
-      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, delivered, remaining: round2(ordered - delivered), stockByWarehouse: {} as Record<string, number> };
+      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, delivered, remaining: round2(ordered - delivered), warehouseId: l.warehouseId, stockByWarehouse: {} as Record<string, number> };
     })
     .filter((l) => l.remaining > EPS);
 

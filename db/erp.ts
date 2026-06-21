@@ -912,6 +912,8 @@ export const salesOrderLines = pgTable("sales_order_lines", {
   id: pk(),
   salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
+  // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
+  warehouseId: text("warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(),
   deliveredQty: money("delivered_qty").notNull().default("0"),
   invoicedQty: money("invoiced_qty").notNull().default("0"),

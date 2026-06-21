@@ -5,27 +5,26 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createSalesOrderAction } from "@/app/actions/erp/sales-orders";
+import { getItemWarehouseStockAction, type WarehouseStock } from "@/app/actions/erp/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ItemCombobox } from "@/components/erp/item-combobox";
 import { ItemPicker } from "@/components/erp/item-picker";
-import { BarcodeScan } from "@/components/erp/barcode-scan";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
-type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number };
+type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
+const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-export function SalesOrderForm({ customers, items }: { customers: Customer[]; items: Item[] }) {
+export function SalesOrderForm({ customers, items, orgName }: { customers: Customer[]; items: Item[]; orgName: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -39,15 +38,16 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
 
-  const addOrBumpItem = (item: ItemSearchResult) =>
-    setLines((ls) => {
-      const idx = ls.findIndex((l) => l.itemId === item.id);
-      if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: item.sellPrice || 0, discountAmount: 0, taxAmount: 0 };
-      const emptyIdx = ls.findIndex((l) => !l.itemId);
-      if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
-      return [...ls, line];
+  // On item select: set price, then load on-hand per warehouse and default to the most-stocked one.
+  const pickItem = (i: number, item: ItemSearchResult) => {
+    setLine(i, { itemId: item.id, unitPrice: Number(item.sellPrice) || 0, stock: [], warehouseId: "" });
+    getItemWarehouseStockAction(item.id).then((r) => {
+      if (!r.ok || !r.stock) return;
+      const stocked = r.stock.filter((s) => s.qty > 0).sort((a, b) => b.qty - a.qty);
+      const def = (stocked[0] ?? r.stock[0])?.warehouseId ?? "";
+      setLine(i, { stock: r.stock, warehouseId: def });
     });
+  };
 
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -61,7 +61,10 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createSalesOrderAction({ customerId, date, dueDate: dueDate || undefined, notes, lines });
+      const r = await createSalesOrderAction({
+        customerId, date, dueDate: dueDate || undefined, notes,
+        lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
+      });
       if (r.ok) { toast.success("تم إنشاء أمر البيع"); router.push("/erp/sales/orders"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -81,6 +84,10 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2">
+            <Label>الشركة</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
+          </div>
+          <div className="space-y-2">
             <Label>العميل</Label>
             <select className={selectCls} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">— اختر —</option>
@@ -89,41 +96,51 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
         </div>
-
-        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
-          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
-          <div className="space-y-2"><Label>بحث وإضافة صنف</Label><ItemCombobox onSelect={addOrBumpItem} /></div>
-        </div>
+        <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
+                <TableHead className="w-48 text-start">المستودع</TableHead>
+                <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
+                <TableHead className="w-20 text-start">الكمية</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-28 text-start">خصم</TableHead>
-                <TableHead className="w-28 text-start">ضريبة</TableHead>
+                <TableHead className="w-24 text-start">خصم</TableHead>
+                <TableHead className="w-24 text-start">ضريبة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lines.map((l, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, unitPrice: it.sellPrice || l.unitPrice })} />
-                  </TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell className="font-medium">{fmt(round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount))}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
-                </TableRow>
-              ))}
+              {lines.map((l, i) => {
+                const opts = l.stock.filter((s) => s.qty > 0);
+                const whOpts = opts.length ? opts : l.stock;
+                const onHand = l.stock.find((s) => s.warehouseId === l.warehouseId)?.qty ?? 0;
+                return (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => pickItem(i, it)} />
+                    </TableCell>
+                    <TableCell>
+                      <select className={selectCls} value={l.warehouseId} disabled={!l.itemId} onChange={(e) => setLine(i, { warehouseId: e.target.value })}>
+                        {!l.itemId && <option value="">— اختر الصنف —</option>}
+                        {l.itemId && whOpts.length === 0 && <option value="">لا يوجد مستودع</option>}
+                        {whOpts.map((w) => <option key={w.warehouseId} value={w.warehouseId}>{w.name} — {qtyf(w.qty)}</option>)}
+                      </select>
+                    </TableCell>
+                    <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
+                    <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell className="font-medium">{fmt(round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount))}</TableCell>
+                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

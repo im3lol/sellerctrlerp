@@ -14,6 +14,7 @@ export type SaveOrderState = ActionState & { id?: string };
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
+  warehouseId: z.string().optional(),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().min(0),
   discountAmount: z.coerce.number().min(0).default(0),
@@ -63,7 +64,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
         taxAmount: String(taxAmount), totalAmount: String(totalAmount), notes: notes || null,
       }).returning({ id: salesOrders.id });
       await tx.insert(salesOrderLines).values(computed.map((l) => ({
-        salesOrderId: so.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+        salesOrderId: so.id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
         discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
       })));
       return so.id;
