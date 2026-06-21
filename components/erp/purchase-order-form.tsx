@@ -79,11 +79,13 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-        <CardTitle>بيانات أمر الشراء</CardTitle>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/orders")}>إلغاء</Button>
-          <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
+      <CardHeader>
+        <div className="flex w-full items-center justify-between gap-3">
+          <CardTitle>بيانات أمر الشراء</CardTitle>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/orders")}>إلغاء</Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
