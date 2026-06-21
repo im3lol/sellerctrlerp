@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseInvoices, suppliers } from "@/db/schema";
+import { purchaseInvoices, suppliers, purchaseReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,15 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
     .orderBy(desc(purchaseInvoices.date), desc(purchaseInvoices.number))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
+
+  // Mark invoices that have a posted return.
+  const invIds = tableRows.map((r) => r.id);
+  const retRows = invIds.length
+    ? await db.select({ id: purchaseReturns.purchaseInvoiceId }).from(purchaseReturns)
+        .where(and(eq(purchaseReturns.organizationId, orgId), eq(purchaseReturns.status, "POSTED"), inArray(purchaseReturns.purchaseInvoiceId, invIds)))
+    : [];
+  const returnedSet = new Set(retRows.map((r) => r.id));
+  const rows = tableRows.map((r) => ({ ...r, returned: returnedSet.has(r.id) }));
 
   const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
   const qs = (p: number) => {
@@ -120,7 +129,7 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
           ) : (
             <>
-              <PurchaseInvoicesTable rows={tableRows} canManage={canManage} canPost={canPost} />
+              <PurchaseInvoicesTable rows={rows} canManage={canManage} canPost={canPost} />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts } from "@/db/schema";
+import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts, purchaseReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,6 +54,10 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
     const [grn] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1);
     if (grn) linked.push({ label: "إذن استلام", number: grn.number, href: `/erp/purchases/receipts/${encodeURIComponent(grn.number)}` });
   }
+  const rets = await db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
+    .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.organizationId, orgId)));
+  for (const r of rets) linked.push({ label: "مرتجع مشتريات", number: r.number, href: `/erp/purchases/returns/${encodeURIComponent(r.number)}` });
+  const hasReturn = rets.some((r) => r.status === "POSTED");
 
   const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
@@ -67,11 +71,11 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
         title={`فاتورة شراء ${inv.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "فاتورة شراء"}
         backHref="/erp/purchases/invoices"
-        action={<PurchaseInvoiceDetailActions id={inv.id} status={inv.status} canPost={canPost} canManage={canManage} />}
+        action={<PurchaseInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
+        <Field label="الحالة"><div className="flex items-center gap-2"><Badge variant={st.variant}>{st.label}</Badge>{hasReturn && <Badge variant="destructive">مرتجع</Badge>}</div></Field>
         <Field label="التاريخ">{dt(inv.date)}</Field>
         {Number(inv.shippingAmount) > 0 && <Field label="الشحن">{fmt(inv.shippingAmount)}</Field>}
         <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>

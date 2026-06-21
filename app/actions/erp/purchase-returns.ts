@@ -161,6 +161,24 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
   }
 }
 
+export type ReturnPick = { itemId: string; quantity: number; unitPrice: number };
+
+/**
+ * One-shot return from a posted purchase invoice: create the debit-note draft for
+ * the picked quantities and immediately confirm (post) it. Used by the "مرتجع"
+ * shortcut on the invoice page.
+ */
+export async function returnFromPurchaseInvoiceAction(invoiceId: string, picks: ReturnPick[], date?: string): Promise<ActionState & { id?: string }> {
+  const lines = picks.filter((p) => p.quantity > 0);
+  if (lines.length === 0) return { error: "حدّد كمية مرتجعة لبند واحد على الأقل" };
+  const created = await createPurchaseReturnAction({ purchaseInvoiceId: invoiceId, date: date || new Date().toISOString().slice(0, 10), lines });
+  if (!created.ok || !created.id) return created;
+  const posted = await confirmPurchaseReturnAction(created.id);
+  if (!posted.ok) return { error: posted.error, id: created.id };
+  revalidatePath("/erp/purchases/invoices");
+  return { ok: true, id: created.id };
+}
+
 /** Delete a DRAFT purchase return (header + lines). Posted returns are immutable. */
 export async function deletePurchaseReturnAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.create");

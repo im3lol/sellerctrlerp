@@ -22,7 +22,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CANCELLED: { label: "ملغاة", variant: "destructive" },
 };
 
-type Row = { id: string; number: string; date: Date; supplier: string | null; total: string | null; balanceDue: string | null; status: string };
+type Row = { id: string; number: string; date: Date; supplier: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean };
 
 export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; canManage: boolean; canPost: boolean }) {
   const router = useRouter();
@@ -79,7 +79,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
                 <TableCell>{r.supplier ?? "—"}</TableCell>
                 <TableCell>{fmt(r.total)}</TableCell>
                 <TableCell>{fmt(r.balanceDue)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
               </TableRow>
             );
           })}

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, customers, items, deliveryNotes } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, items, deliveryNotes, salesReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,6 +53,10 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
     const [dn] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId)).limit(1);
     if (dn) linked.push({ label: "إذن صرف", number: dn.number, href: `/erp/sales/deliveries/${encodeURIComponent(dn.number)}` });
   }
+  const rets = await db.select({ number: salesReturns.number, status: salesReturns.status }).from(salesReturns)
+    .where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.organizationId, orgId)));
+  for (const r of rets) linked.push({ label: "مرتجع مبيعات", number: r.number, href: `/erp/sales/returns/${encodeURIComponent(r.number)}` });
+  const hasReturn = rets.some((r) => r.status === "POSTED");
 
   const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
@@ -66,11 +70,11 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
         title={`فاتورة بيع ${inv.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "فاتورة بيع"}
         backHref="/erp/sales/invoices"
-        action={<SalesInvoiceDetailActions id={inv.id} status={inv.status} canPost={canPost} canManage={canManage} />}
+        action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
+        <Field label="الحالة"><div className="flex items-center gap-2"><Badge variant={st.variant}>{st.label}</Badge>{hasReturn && <Badge variant="destructive">مرتجع</Badge>}</div></Field>
         <Field label="التاريخ">{dt(inv.date)}</Field>
         <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>
         <Field label="المدفوع / المتبقّي">{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>

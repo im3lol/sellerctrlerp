@@ -35,6 +35,10 @@ export const NAV: NavSection[] = [
       { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view" },
       { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target", capability: "erp.accounting.view" },
       { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock", capability: "erp.accounting.view" },
+      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view" },
+      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view" },
+      { label: "أعمار الذمم المدينة", href: "/erp/sales/aging", icon: "CalendarClock", capability: "erp.sales.view" },
+      { label: "أعمار الذمم الدائنة", href: "/erp/purchases/aging", icon: "CalendarClock", capability: "erp.purchases.view" },
     ],
   },
   {
@@ -44,9 +48,7 @@ export const NAV: NavSection[] = [
       { label: "الموردون", href: "/erp/purchases", icon: "Users", capability: "erp.purchases.view", exact: true },
       { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view" },
       { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view" },
-      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view" },
       { label: "مرتجعات المشتريات", href: "/erp/purchases/returns", icon: "Undo2", capability: "erp.purchases.view" },
-      { label: "أعمار الذمم الدائنة", href: "/erp/purchases/aging", icon: "CalendarClock", capability: "erp.purchases.view" },
     ],
   },
   {
@@ -72,9 +74,7 @@ export const NAV: NavSection[] = [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
-      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view" },
       { label: "مرتجعات المبيعات", href: "/erp/sales/returns", icon: "Undo2", capability: "erp.sales.view" },
-      { label: "أعمار الذمم المدينة", href: "/erp/sales/aging", icon: "CalendarClock", capability: "erp.sales.view" },
     ],
   },
   {

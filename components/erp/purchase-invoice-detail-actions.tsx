@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -8,11 +9,10 @@ import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction } from "@/app/ac
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
-/** Draft purchase invoice: post (if allowed) or delete the draft. */
-export function PurchaseInvoiceDetailActions({ id, status, canPost, canManage }: { id: string; status: string; canPost: boolean; canManage: boolean }) {
+/** Draft purchase invoice: post / delete. Posted: a "مرتجع" shortcut. */
+export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (status !== "DRAFT") return null;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) =>
     start(async () => {
@@ -21,18 +21,31 @@ export function PurchaseInvoiceDetailActions({ id, status, canPost, canManage }:
       else toast.error(r.error ?? "تعذّر التنفيذ");
     });
 
-  return (
-    <div className="flex flex-wrap gap-2">
-      {canPost && (
-        <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
-        </Button>
-      )}
-      {canManage && (
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/erp/purchases/invoices")}>
-          <Icon name="Trash2" className="size-4 text-destructive" />حذف
-        </Button>
-      )}
-    </div>
-  );
+  if (status === "DRAFT") {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {canPost && (
+          <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+          </Button>
+        )}
+        {canManage && (
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/erp/purchases/invoices")}>
+            <Icon name="Trash2" className="size-4 text-destructive" />حذف
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Posted (not cancelled): allow creating a return from this invoice.
+  if (status !== "CANCELLED" && canManage) {
+    return (
+      <Button size="sm" variant="outline" asChild>
+        <Link href={`/erp/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+      </Button>
+    );
+  }
+
+  return null;
 }

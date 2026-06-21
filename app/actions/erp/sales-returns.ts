@@ -183,6 +183,24 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
   }
 }
 
+export type ReturnPick = { itemId: string; quantity: number; unitPrice: number };
+
+/**
+ * One-shot return from a posted sales invoice: create the credit-note draft for
+ * the picked quantities and immediately confirm (post) it. Used by the "مرتجع"
+ * shortcut on the invoice page.
+ */
+export async function returnFromSalesInvoiceAction(invoiceId: string, picks: ReturnPick[], date?: string): Promise<ActionState & { id?: string }> {
+  const lines = picks.filter((p) => p.quantity > 0);
+  if (lines.length === 0) return { error: "حدّد كمية مرتجعة لبند واحد على الأقل" };
+  const created = await createSalesReturnAction({ salesInvoiceId: invoiceId, date: date || new Date().toISOString().slice(0, 10), lines });
+  if (!created.ok || !created.id) return created;
+  const posted = await confirmSalesReturnAction(created.id);
+  if (!posted.ok) return { error: posted.error, id: created.id };
+  revalidatePath("/erp/sales/invoices");
+  return { ok: true, id: created.id };
+}
+
 /** Delete a DRAFT sales return (header + lines). Posted returns are immutable. */
 export async function deleteSalesReturnAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
