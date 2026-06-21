@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { Input } from "@/components/ui/input";
 
@@ -9,8 +10,8 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFraction
 /**
  * In-cell searchable item picker for document line tables. Shows the selected
  * item's label; on focus it clears for a typeahead search (name / internal code
- * / any external code / barcode) and calls onSelect with the chosen item. If the
- * user leaves without picking, the previous selection is restored.
+ * / any external code / barcode). The results panel renders in a portal with
+ * fixed positioning so it is never clipped by the table's overflow.
  */
 export function ItemPicker({
   selectedLabel,
@@ -26,9 +27,12 @@ export function ItemPicker({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
-  const boxRef = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const ddRef = useRef<HTMLDivElement>(null);
 
-  // Mirror the external selection whenever we're not actively editing.
+  useEffect(() => setMounted(true), []);
   useEffect(() => { if (!editing) setQ(selectedLabel ?? ""); }, [selectedLabel, editing]);
 
   useEffect(() => {
@@ -39,12 +43,27 @@ export function ItemPicker({
     return () => clearTimeout(t);
   }, [q, editing]);
 
+  // Keep the portal panel aligned under the input.
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) { setOpen(false); setEditing(false); }
+    if (!open) return;
+    const reposition = () => {
+      const el = wrapRef.current;
+      if (el) { const r = el.getBoundingClientRect(); setRect({ top: r.bottom + 4, left: r.left, width: r.width }); }
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => { window.removeEventListener("scroll", reposition, true); window.removeEventListener("resize", reposition); };
+  }, [open]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (wrapRef.current?.contains(t) || ddRef.current?.contains(t)) return;
+      setOpen(false); setEditing(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
   const pick = (it: ItemSearchResult) => {
@@ -53,34 +72,44 @@ export function ItemPicker({
     setQ(`${it.code} — ${it.name}`);
   };
 
+  const panel =
+    mounted && open && editing && rect && (results.length > 0 || pending)
+      ? createPortal(
+          <div
+            ref={ddRef}
+            style={{ position: "fixed", top: rect.top, left: rect.left, width: Math.max(rect.width, 280), zIndex: 9999 }}
+            className="max-h-72 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg"
+          >
+            {results.length === 0 && pending ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">جارٍ البحث…</div>
+            ) : (
+              results.map((it) => (
+                <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{it.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      <span className="font-mono">{it.code}</span>
+                      {it.codes.length ? " · " + it.codes.slice(0, 2).map((c) => c.code).join(" · ") : ""}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-end text-xs text-muted-foreground">متاح: {fmt(it.stock)}</div>
+                </button>
+              ))
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div ref={boxRef} className="relative min-w-48">
+    <div ref={wrapRef} className="min-w-48">
       <Input
         value={q}
         placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
         onFocus={() => { setEditing(true); setQ(""); }}
         onChange={(e) => setQ(e.target.value)}
       />
-      {open && editing && (results.length > 0 || pending) && (
-        <div className="absolute z-50 mt-1 max-h-72 w-full min-w-64 overflow-auto rounded-md border bg-popover shadow-lg">
-          {results.length === 0 && pending ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">جارٍ البحث…</div>
-          ) : (
-            results.map((it) => (
-              <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{it.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    <span className="font-mono">{it.code}</span>
-                    {it.codes.length ? " · " + it.codes.slice(0, 2).map((c) => c.code).join(" · ") : ""}
-                  </div>
-                </div>
-                <div className="shrink-0 text-end text-xs text-muted-foreground">متاح: {fmt(it.stock)}</div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      {panel}
     </div>
   );
 }
