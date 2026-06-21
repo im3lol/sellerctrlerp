@@ -5,11 +5,13 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, accounts, warehouses } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, accounts, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
+import { linkDocuments } from "@/lib/erp/links";
+import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
 
 export type SaveInvoiceState = ActionState & { id?: string };
 
@@ -110,10 +112,14 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
 }
 
 /**
- * Post a DRAFT sales invoice to the ledger:
- *   Dr العملاء (1103) = الإجمالي
- *   Cr إيرادات المبيعات (4101) = الصافي (الفرعي − الخصم)
- *   Cr ضريبة المخرجات (2102) = الضريبة (إن وُجدت)
+ * Post a DRAFT sales invoice. Revenue is always recognised:
+ *   Dr العملاء (1103) = الإجمالي · Cr إيرادات (4101) = الصافي · Cr ضريبة (2102)
+ * Inventory/COGS depends on the source:
+ *  • Billed from a delivery (deliveryNoteId set): stock was already issued + COGS
+ *    posted at the delivery, so NO stock here — just mark the delivery INVOICED
+ *    and advance the order's invoicedQty.
+ *  • Standalone (no delivery): issue stock OUT at WAC + Dr COGS (5101) /
+ *    Cr Inventory (1104).
  */
 export async function postSalesInvoiceAction(id: string): Promise<ActionState & { entryId?: string }> {
   const auth = await authorizeErp("accounting.post");
@@ -127,7 +133,6 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
   if (!inv) return { error: "الفاتورة غير موجودة" };
   if (inv.status !== "DRAFT") return { error: "الفاتورة مُرحّلة بالفعل" };
 
-  // Resolve required accounts by code (incl. COGS 5101 + inventory 1104).
   const accs = await db
     .select({ code: accounts.code, id: accounts.id })
     .from(accounts)
@@ -140,6 +145,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
   const total = Number(inv.totalAmount);
   const tax = Number(inv.taxAmount);
   const net = Number(inv.subtotal) - Number(inv.discountAmount);
+  const fromDelivery = Boolean(inv.deliveryNoteId);
 
   const lines = [
     { accountId: byCode["1103"], debit: total, credit: 0, description: `فاتورة بيع ${inv.number}` },
@@ -149,65 +155,109 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
     lines.push({ accountId: byCode["2102"], debit: 0, credit: tax, description: `ضريبة مخرجات ${inv.number}` });
   }
 
-  // Stock issue lines + main warehouse (perpetual inventory → COGS).
-  const invLines = await db
-    .select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
-    .from(salesInvoiceLines)
-    .where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
-  const [wh] = await db
-    .select({ id: warehouses.id })
-    .from(warehouses)
-    .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true)))
-    .limit(1);
-
   try {
     const entryId = await db.transaction(async (tx) => {
       const eid = await postEntry(tx, {
-        orgId: auth.orgId,
-        date: new Date(inv.date),
-        sourceType: "SALES_INVOICE",
-        sourceId: inv.id,
-        description: `فاتورة بيع ${inv.number}`,
-        journalType: "SALES",
-        lines,
+        orgId: auth.orgId, date: new Date(inv.date), sourceType: "SALES_INVOICE", sourceId: inv.id,
+        description: `فاتورة بيع ${inv.number}`, journalType: "SALES", userId: auth.userId, lines,
       });
 
-      // Issue stock at moving-average cost and accumulate COGS.
-      let cogs = 0;
-      if (wh && byCode["5101"] && byCode["1104"]) {
-        for (const l of invLines) {
-          const qty = Number(l.quantity);
-          if (qty <= 0) continue;
-          const r = await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: l.itemId, warehouseId: wh.id, type: "OUT",
-            quantity: qty, date: new Date(inv.date),
-            referenceType: "SALES_INVOICE", referenceId: inv.id, reason: `صرف بيع ${inv.number}`,
-          });
-          cogs += r.totalCost;
+      if (fromDelivery) {
+        // Stock + COGS already posted at the delivery — settle the order, no stock here.
+        const [dn] = await tx.select().from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId!)).limit(1);
+        await tx.update(deliveryNotes).set({ salesInvoiceId: inv.id, status: "INVOICED" }).where(eq(deliveryNotes.id, inv.deliveryNoteId!));
+        if (dn?.salesOrderId) {
+          const dnLines = await tx.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
+            .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+          const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId })
+            .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId));
+          const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+          for (const dl of dnLines) {
+            const sol = soByItem.get(dl.itemId);
+            if (sol) await tx.update(salesOrderLines).set({ invoicedQty: sql`${salesOrderLines.invoicedQty} + ${Number(dl.quantity)}` }).where(eq(salesOrderLines.id, sol.id));
+          }
+          await recomputeSalesOrderStatus(tx, dn.salesOrderId);
+          await linkDocuments(tx, { orgId: auth.orgId, fromType: "DELIVERY_NOTE", fromId: dn.id, fromNumber: dn.number, toType: "SALES_INVOICE", toId: inv.id, toNumber: inv.number, relation: "INVOICES" });
         }
-        if (cogs > 0) {
-          await postEntry(tx, {
-            orgId: auth.orgId, date: new Date(inv.date), sourceType: "SALES_COGS", sourceId: inv.id,
-            description: `تكلفة بضاعة مباعة ${inv.number}`, journalType: "GENERAL",
-            lines: [
-              { accountId: byCode["5101"], debit: cogs, credit: 0, description: `ت.ب.م ${inv.number}` },
-              { accountId: byCode["1104"], debit: 0, credit: cogs, description: `صرف مخزون ${inv.number}` },
-            ],
-          });
+      } else {
+        // Standalone invoice: issue stock OUT at WAC + COGS.
+        const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
+          .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
+        const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
+          .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
+        let cogs = 0;
+        if (wh && byCode["5101"] && byCode["1104"]) {
+          for (const l of invLines) {
+            const qty = Number(l.quantity);
+            if (qty <= 0) continue;
+            const r = await postStockMovement(tx, {
+              orgId: auth.orgId, itemId: l.itemId, warehouseId: wh.id, type: "OUT",
+              quantity: qty, date: new Date(inv.date), referenceType: "SALES_INVOICE", referenceId: inv.id, reason: `صرف بيع ${inv.number}`,
+            });
+            cogs += r.totalCost;
+          }
+          if (cogs > 0) {
+            await postEntry(tx, {
+              orgId: auth.orgId, date: new Date(inv.date), sourceType: "SALES_COGS", sourceId: inv.id,
+              description: `تكلفة بضاعة مباعة ${inv.number}`, journalType: "GENERAL",
+              lines: [
+                { accountId: byCode["5101"], debit: cogs, credit: 0, description: `ت.ب.م ${inv.number}` },
+                { accountId: byCode["1104"], debit: 0, credit: cogs, description: `صرف مخزون ${inv.number}` },
+              ],
+            });
+          }
         }
       }
 
-      // Establish the customer receivable now (not at draft).
       await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, inv.customerId));
       await tx.update(salesInvoices).set({ status: "POSTED" }).where(eq(salesInvoices.id, inv.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة بيع ${inv.number}`, metadata: { total } });
       return eid;
     });
     revalidatePath("/erp/sales/invoices");
+    revalidatePath("/erp/sales/deliveries");
+    revalidatePath("/erp/sales/orders");
     revalidatePath("/erp/accounting/journal");
     return { ok: true, entryId };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "تعذّر الترحيل";
     return { error: msg.includes("unique") || msg.includes("23505") ? "الفاتورة مُرحّلة بالفعل" : msg };
   }
+}
+
+/** Delete a DRAFT sales invoice (nothing posted yet). Posted invoices are immutable. */
+export async function deleteSalesInvoiceAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  const [inv] = await db.select().from(salesInvoices)
+    .where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+  if (!inv) return { error: "الفاتورة غير موجودة" };
+  if (inv.status !== "DRAFT") return { error: "لا يمكن حذف فاتورة مُرحّلة" };
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
+      await tx.delete(salesInvoices).where(eq(salesInvoices.id, inv.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `حذف مسودة فاتورة بيع ${inv.number}` });
+    });
+    revalidatePath("/erp/sales/invoices");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر الحذف" };
+  }
+}
+
+/** Bulk post / delete sales invoices (drafts only). Skips ineligible rows. */
+export async function bulkSalesInvoicesAction(op: "post" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" ? "sales.create" : "accounting.post");
+  if ("error" in auth) return auth;
+  if (!ids.length) return { error: "لم تُحدّد أي فواتير" };
+  let count = 0;
+  let lastError: string | undefined;
+  for (const id of ids) {
+    const r = op === "post" ? await postSalesInvoiceAction(id) : await deleteSalesInvoiceAction(id);
+    if (r.ok) count++;
+    else lastError = r.error;
+  }
+  if (count === 0) return { error: lastError ?? "تعذّر التنفيذ" };
+  return { ok: true, count };
 }

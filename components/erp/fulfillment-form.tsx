@@ -51,10 +51,11 @@ export function FulfillmentForm({
         ? await createDeliveryFromOrderAction(orderId, picks)
         : await createReceiptFromOrderAction(orderId, picks);
       if (r.ok) {
-        toast.success(isDelivery ? "تم تسجيل التسليم" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
-        // Receipt is now a draft: land on it to confirm. Delivery still posts.
-        const grnId = !isDelivery && "id" in r ? (r as { id?: string }).id : undefined;
-        router.push(grnId ? `/erp/purchases/receipts/${grnId}` : dest);
+        // Both are now drafts: land on the new document to confirm.
+        toast.success(isDelivery ? "تم حفظ إذن التسليم (مسودة) — أكّده لترحيله" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
+        const newId = "id" in r ? (r as { id?: string }).id : undefined;
+        const base = isDelivery ? "/erp/sales/deliveries" : "/erp/purchases/receipts";
+        router.push(newId ? `${base}/${newId}` : dest);
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر التنفيذ");

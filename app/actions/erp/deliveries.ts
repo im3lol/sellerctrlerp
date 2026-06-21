@@ -1,18 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, customers, accounts, warehouses,
+  salesInvoices, salesInvoiceLines, accounts, items, stockMovements, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
+import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const EPS = 1e-6;
@@ -21,30 +22,71 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
   return nextDocumentNumber(db, orgId, prefix, year);
 }
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Pick = { itemId: string; quantity: number; warehouseId?: string };
 
-/** Recompute a sales order's status from its lines' delivered/invoiced quantities. */
-async function recomputeSalesOrderStatus(tx: Tx, soId: string) {
-  const lines = await tx.select({ q: salesOrderLines.quantity, d: salesOrderLines.deliveredQty, inv: salesOrderLines.invoicedQty })
-    .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, soId));
-  const allDelivered = lines.every((l) => Number(l.d) >= Number(l.q) - EPS);
-  const anyDelivered = lines.some((l) => Number(l.d) > EPS);
-  const allInvoiced = lines.every((l) => Number(l.inv) >= Number(l.q) - EPS);
-  const status = allInvoiced ? "INVOICED" : allDelivered ? "DELIVERED" : anyDelivered ? "PARTIALLY_DELIVERED" : "CONFIRMED";
-  await tx.update(salesOrders).set({ status }).where(eq(salesOrders.id, soId));
-  return status;
-}
-
-export type Pick = { itemId: string; quantity: number };
+export type DeliverableLine = {
+  itemId: string; code: string; name: string; ordered: number; delivered: number; remaining: number;
+  stockByWarehouse: Record<string, number>;
+};
 
 /**
- * Deliver a confirmed sales order — fully or PARTIALLY. `picks` caps the
- * quantity per item (≤ remaining = ordered − already delivered); omitted →
- * deliver all remaining. Issues stock at WAC + posts COGS, bumps deliveredQty,
- * and recomputes the order status (CONFIRMED → PARTIALLY_DELIVERED → DELIVERED).
+ * Recall a confirmed/partial sales order's still-undelivered lines for the
+ * delivery form: remaining qty + current on-hand per warehouse per item.
  */
-export async function createDeliveryFromOrderAction(salesOrderId: string, picks?: Pick[]): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("sales.confirm");
+export async function getDeliverableOrderLinesAction(salesOrderId: string): Promise<
+  ActionState & { lines?: DeliverableLine[]; defaultWarehouseId?: string }
+> {
+  const auth = await authorizeErp("sales.view");
+  if ("error" in auth) return auth;
+
+  const [so] = await db.select().from(salesOrders)
+    .where(and(eq(salesOrders.id, salesOrderId), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+  if (!so) return { error: "الأمر غير موجود" };
+
+  const ols = await db
+    .select({ itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, code: items.code, name: items.nameAr })
+    .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId))
+    .where(eq(salesOrderLines.salesOrderId, so.id));
+
+  const lines = ols
+    .map((l) => {
+      const ordered = Number(l.quantity), delivered = Number(l.deliveredQty);
+      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, delivered, remaining: round2(ordered - delivered), stockByWarehouse: {} as Record<string, number> };
+    })
+    .filter((l) => l.remaining > EPS);
+
+  const itemIds = lines.map((l) => l.itemId);
+  if (itemIds.length) {
+    const sm = await db
+      .select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
+      .from(stockMovements)
+      .where(and(eq(stockMovements.organizationId, auth.orgId), inArray(stockMovements.itemId, itemIds)))
+      .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id));
+    const seen = new Set<string>();
+    const byItem = new Map(lines.map((l) => [l.itemId, l]));
+    for (const m of sm) {
+      const key = `${m.itemId}|${m.warehouseId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const line = byItem.get(m.itemId);
+      if (line) line.stockByWarehouse[m.warehouseId] = Number(m.bal);
+    }
+  }
+
+  // Default warehouse = first active (delivery issues from one).
+  const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+    .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
+  return { ok: true, lines, defaultWarehouseId: wh?.id };
+}
+
+/**
+ * Save a delivery as a DRAFT from a confirmed/partial sales order — no stock, no
+ * COGS, the order is NOT advanced (save → draft, confirm → post). `picks` set the
+ * delivered quantity per item (≤ remaining) with an optional per-line
+ * `warehouseId`. `date` is the delivery date. Confirm later to post.
+ */
+export async function createDeliveryFromOrderAction(salesOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string }> {
+  const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
 
   const [so] = await db.select().from(salesOrders)
@@ -55,101 +97,180 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
   const orderLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
     .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
 
-  // Resolve quantities to deliver now (default = full remaining), validated ≤ remaining.
-  const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p.quantity]));
-  const toDeliver: { line: typeof orderLines[number]; qty: number }[] = [];
+  const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
+  const toDeliver: { itemId: string; qty: number; warehouseId: string | null }[] = [];
   for (const l of orderLines) {
     const remaining = round2(Number(l.quantity) - Number(l.deliveredQty));
-    const want = picks ? (pickBy.get(l.itemId) ?? 0) : remaining;
+    const p = picks ? pickBy.get(l.itemId) : undefined;
+    const want = picks ? (p?.quantity ?? 0) : remaining;
     if (want < -EPS) return { error: "كمية غير صالحة" };
-    if (want > remaining + EPS) return { error: `الكمية المسلّمة أكبر من المتبقّي للصنف` };
-    if (want > EPS) toDeliver.push({ line: l, qty: round2(want) });
+    if (want > remaining + EPS) return { error: "الكمية المسلّمة أكبر من المتبقّي للصنف" };
+    if (want > EPS) toDeliver.push({ itemId: l.itemId, qty: round2(want), warehouseId: p?.warehouseId || null });
   }
   if (toDeliver.length === 0) return { error: "لا توجد كميات للتسليم" };
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["5101", "1104"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  // Header warehouse = first line's warehouse, else any active warehouse.
   const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
     .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
-  if (!wh) return { error: "لا يوجد مستودع" };
+  const headerWh = toDeliver.find((t) => t.warehouseId)?.warehouseId || wh?.id;
+  if (!headerWh) return { error: "لا يوجد مستودع" };
 
-  const number = await nextNumber("DLV", auth.orgId, new Date(so.date).getFullYear());
+  const deliveryDate = date ? new Date(date) : new Date(so.date);
+  const number = await nextNumber("DLV", auth.orgId, deliveryDate.getFullYear());
   try {
     const id = await db.transaction(async (tx) => {
       const [dn] = await tx.insert(deliveryNotes).values({
-        organizationId: auth.orgId, number, date: new Date(so.date), status: "DELIVERED",
-        salesOrderId: so.id, customerId: so.customerId, warehouseId: wh.id, notes: `تسليم أمر ${so.number}`,
+        organizationId: auth.orgId, number, date: deliveryDate, status: "DRAFT",
+        salesOrderId: so.id, customerId: so.customerId, warehouseId: headerWh, notes: `تسليم أمر ${so.number}`,
       }).returning({ id: deliveryNotes.id });
-      await tx.insert(deliveryNoteLines).values(toDeliver.map((t) => ({ deliveryNoteId: dn.id, itemId: t.line.itemId, quantity: String(t.qty) })));
-
-      let cogs = 0;
-      for (const t of toDeliver) {
-        const r = await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: t.line.itemId, warehouseId: wh.id, type: "OUT",
-          quantity: t.qty, date: new Date(so.date),
-          referenceType: "DELIVERY", referenceId: dn.id, reason: `تسليم ${number}`,
-        });
-        cogs += r.totalCost;
-        await tx.update(salesOrderLines).set({ deliveredQty: sql`${salesOrderLines.deliveredQty} + ${t.qty}` }).where(eq(salesOrderLines.id, t.line.id));
-      }
-      if (cogs > 0 && A["5101"] && A["1104"]) {
-        await postEntry(tx, {
-          orgId: auth.orgId, date: new Date(so.date), sourceType: "DELIVERY_COGS", sourceId: dn.id,
-          description: `ت.ب.م تسليم ${number}`, journalType: "GENERAL",
-          lines: [
-            { accountId: A["5101"], debit: cogs, credit: 0, description: `ت.ب.م ${number}` },
-            { accountId: A["1104"], debit: 0, credit: cogs, description: `صرف مخزون ${number}` },
-          ],
-        });
-      }
-      const newStatus = await recomputeSalesOrderStatus(tx, so.id);
-      await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: number, relation: "FULFILLS" });
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `تسليم ${number} من أمر بيع ${so.number} (${newStatus === "DELIVERED" ? "كامل" : "جزئي"})`, metadata: { cogs } });
+      await tx.insert(deliveryNoteLines).values(toDeliver.map((t) => ({
+        deliveryNoteId: dn.id, itemId: t.itemId, warehouseId: t.warehouseId ?? headerWh, quantity: String(t.qty),
+      })));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `حفظ مسودة إذن تسليم ${number} من أمر بيع ${so.number}` });
       return dn.id;
     });
     revalidatePath("/erp/sales/deliveries");
-    revalidatePath("/erp/sales/orders");
     return { ok: true, id };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر إنشاء التسليم" };
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ التسليم" };
   }
 }
 
 /**
- * Bill a delivery: POSTED sales invoice for THIS delivery's quantities only
- * (revenue/AR; stock + COGS already posted at delivery). Amounts pro-rate the
- * order line's discount/tax by delivered fraction. Bumps invoicedQty + status.
+ * Confirm a DRAFT delivery → POST it: issue stock OUT at WAC + Dr COGS (5101) /
+ * Cr Inventory (1104), advance the order's deliveredQty, recompute the order
+ * status, link + audit, flip DRAFT → DELIVERED. Re-validates ≤ remaining.
  */
-export async function convertDeliveryToInvoiceAction(deliveryId: string): Promise<ActionState & { invoiceId?: string }> {
+export async function confirmDeliveryAction(deliveryId: string): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
   const [dn] = await db.select().from(deliveryNotes)
     .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
   if (!dn) return { error: "التسليم غير موجود" };
-  if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
+  if (dn.status !== "DRAFT") return { error: "تم تأكيد التسليم بالفعل" };
   if (!dn.salesOrderId) return { error: "التسليم غير مرتبط بأمر بيع" };
 
   const [so] = await db.select().from(salesOrders).where(eq(salesOrders.id, dn.salesOrderId)).limit(1);
   if (!so) return { error: "أمر البيع غير موجود" };
-  const soLines = await db.select().from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
-  const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
-  const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
+
+  const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity, warehouseId: deliveryNoteLines.warehouseId })
     .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+  const soLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
+    .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
+  const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+
+  for (const dl of dnLines) {
+    const sol = soByItem.get(dl.itemId);
+    if (!sol) return { error: "أحد الأصناف غير موجود في أمر البيع" };
+    const remaining = round2(Number(sol.quantity) - Number(sol.deliveredQty));
+    if (Number(dl.quantity) > remaining + EPS) return { error: "الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
+  }
 
   const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1103", "4101", "2102"])));
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["5101", "1104"])));
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
-  if (!A["1103"] || !A["4101"]) return { error: "حسابات الترحيل غير مكتملة" };
 
-  // Build invoice lines from the delivered quantities, pro-rating discount/tax.
-  const invLines: { itemId: string; quantity: string; unitPrice: string; discountAmount: string; taxAmount: string; totalAmount: string }[] = [];
+  const deliveryDate = new Date(dn.date);
+  try {
+    await db.transaction(async (tx) => {
+      let cogs = 0;
+      for (const dl of dnLines) {
+        const qty = Number(dl.quantity);
+        if (qty <= EPS) continue;
+        const r = await postStockMovement(tx, {
+          orgId: auth.orgId, itemId: dl.itemId, warehouseId: dl.warehouseId || dn.warehouseId, type: "OUT",
+          quantity: qty, date: deliveryDate, referenceType: "DELIVERY", referenceId: dn.id, reason: `تسليم ${dn.number}`,
+        });
+        cogs += r.totalCost;
+        const sol = soByItem.get(dl.itemId)!;
+        await tx.update(salesOrderLines).set({ deliveredQty: sql`${salesOrderLines.deliveredQty} + ${qty}` }).where(eq(salesOrderLines.id, sol.id));
+      }
+      cogs = round2(cogs);
+      if (cogs > 0 && A["5101"] && A["1104"]) {
+        await postEntry(tx, {
+          orgId: auth.orgId, date: deliveryDate, sourceType: "DELIVERY_COGS", sourceId: dn.id,
+          description: `ت.ب.م تسليم ${dn.number}`, journalType: "GENERAL", userId: auth.userId,
+          lines: [
+            { accountId: A["5101"], debit: cogs, credit: 0, description: `ت.ب.م ${dn.number}` },
+            { accountId: A["1104"], debit: 0, credit: cogs, description: `صرف مخزون ${dn.number}` },
+          ],
+        });
+      }
+      await tx.update(deliveryNotes).set({ status: "DELIVERED" }).where(eq(deliveryNotes.id, dn.id));
+      const newStatus = await recomputeSalesOrderStatus(tx, so.id);
+      await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: dn.number, relation: "FULFILLS" });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `تأكيد إذن تسليم ${dn.number} من أمر بيع ${so.number} (${newStatus === "DELIVERED" ? "كامل" : "جزئي"})`, metadata: { cogs } });
+    });
+    revalidatePath("/erp/sales/deliveries");
+    revalidatePath("/erp/sales/orders");
+    revalidatePath(`/erp/sales/deliveries/${dn.number}`);
+    return { ok: true, id: dn.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر تأكيد التسليم" };
+  }
+}
+
+/** Delete a DRAFT delivery (nothing posted yet). Confirmed deliveries are immutable. */
+export async function deleteDeliveryAction(deliveryId: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  const [dn] = await db.select().from(deliveryNotes)
+    .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+  if (!dn) return { error: "التسليم غير موجود" };
+  if (dn.status !== "DRAFT") return { error: "لا يمكن حذف إذن تسليم مؤكّد" };
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+      await tx.delete(deliveryNotes).where(eq(deliveryNotes.id, dn.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `حذف مسودة إذن تسليم ${dn.number}` });
+    });
+    revalidatePath("/erp/sales/deliveries");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر الحذف" };
+  }
+}
+
+/** Bulk confirm / bill / delete deliveries. Skips rows ineligible for the op. */
+export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
+  if ("error" in auth) return auth;
+  if (!ids.length) return { error: "لم تُحدّد أي إذون" };
+  let count = 0;
+  let lastError: string | undefined;
+  for (const id of ids) {
+    const r = op === "confirm" ? await confirmDeliveryAction(id)
+      : op === "bill" ? await convertDeliveryToInvoiceAction(id)
+      : await deleteDeliveryAction(id);
+    if (r.ok) count++;
+    else lastError = r.error;
+  }
+  if (count === 0) return { error: lastError ?? "تعذّر التنفيذ" };
+  return { ok: true, count };
+}
+
+export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number };
+export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number };
+
+/** Compute the invoice a delivery would produce (priced from the order). */
+async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Promise<DeliveryInvoicePreview | { error: string }> {
+  if (!dn.salesOrderId) return { error: "التسليم غير مرتبط بأمر بيع" };
+  const [so] = await db.select().from(salesOrders).where(eq(salesOrders.id, dn.salesOrderId)).limit(1);
+  if (!so) return { error: "أمر البيع غير موجود" };
+  const soLines = await db.select().from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
+  const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+  const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity, code: items.code, name: items.nameAr })
+    .from(deliveryNoteLines).leftJoin(items, eq(items.id, deliveryNoteLines.itemId))
+    .where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+
+  const lines: DeliveryInvoiceLine[] = [];
   let subtotal = 0, discount = 0, tax = 0;
   for (const dl of dnLines) {
     const so2 = soByItem.get(dl.itemId);
     if (!so2) continue;
     const dq = Number(dl.quantity);
+    if (dq <= EPS) continue;
     const oq = Number(so2.quantity) || dq;
     const f = oq > 0 ? dq / oq : 0;
     const price = Number(so2.unitPrice);
@@ -157,46 +278,68 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string): Promis
     const lineTax = round2(Number(so2.taxAmount) * f);
     const lineTotal = round2(price * dq - lineDisc + lineTax);
     subtotal += price * dq; discount += lineDisc; tax += lineTax;
-    invLines.push({ itemId: dl.itemId, quantity: String(dq), unitPrice: String(price), discountAmount: String(lineDisc), taxAmount: String(lineTax), totalAmount: String(lineTotal) });
+    lines.push({ itemId: dl.itemId, code: dl.code ?? "", name: dl.name ?? "", quantity: dq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  const net = round2(subtotal - discount);
-  const total = round2(net + tax);
-  if (total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
-  const number = await nextNumber("SI", auth.orgId, new Date(so.date).getFullYear());
+  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+}
 
+/** Preview the invoice a confirmed delivery would produce (for the create form). */
+export async function getDeliveryInvoicePreviewAction(deliveryId: string): Promise<ActionState & { preview?: DeliveryInvoicePreview }> {
+  const auth = await authorizeErp("sales.view");
+  if ("error" in auth) return auth;
+  const [dn] = await db.select().from(deliveryNotes)
+    .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+  if (!dn) return { error: "التسليم غير موجود" };
+  const built = await buildDeliveryInvoice(dn);
+  if ("error" in built) return built;
+  return { ok: true, preview: built };
+}
+
+/**
+ * Bill a confirmed delivery → a DRAFT sales invoice for the delivered quantities
+ * (priced from the order, discount/tax pro-rated). No GL until the invoice is
+ * posted — posting recognises revenue/AR only (stock + COGS already done at
+ * delivery). `date`/`notes` optional.
+ */
+export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: string, notes?: string): Promise<ActionState & { invoiceId?: string }> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+
+  const [dn] = await db.select().from(deliveryNotes)
+    .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+  if (!dn) return { error: "التسليم غير موجود" };
+  if (dn.status === "DRAFT") return { error: "أكّد إذن التسليم أولاً قبل تحويله إلى فاتورة" };
+  if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
+  const customerId = dn.customerId;
+  if (!customerId) return { error: "التسليم غير مرتبط بعميل" };
+
+  const [existing] = await db.select({ id: salesInvoices.id }).from(salesInvoices)
+    .where(and(eq(salesInvoices.deliveryNoteId, dn.id), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+  if (existing) return { error: "لهذا التسليم فاتورة بالفعل (مسودة أو مرحّلة)" };
+
+  const built = await buildDeliveryInvoice(dn);
+  if ("error" in built) return built;
+  if (built.total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
+
+  const invoiceDate = date ? new Date(date) : new Date(dn.date);
+  const number = await nextNumber("SI", auth.orgId, invoiceDate.getFullYear());
   try {
     const invoiceId = await db.transaction(async (tx) => {
       const [inv] = await tx.insert(salesInvoices).values({
-        organizationId: auth.orgId, number, customerId: so.customerId, deliveryNoteId: dn.id, date: new Date(so.date),
-        status: "POSTED", subtotal: String(subtotal), discountAmount: String(discount), taxAmount: String(tax), totalAmount: String(total),
-        paidAmount: "0", balanceDue: String(total), notes: `فاتورة تسليم ${dn.number}`,
+        organizationId: auth.orgId, number, customerId, deliveryNoteId: dn.id, date: invoiceDate, status: "DRAFT",
+        subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), totalAmount: String(built.total),
+        paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة تسليم ${dn.number}`,
       }).returning({ id: salesInvoices.id });
-      await tx.insert(salesInvoiceLines).values(invLines.map((l) => ({ salesInvoiceId: inv.id, ...l })));
-
-      const glLines = [
-        { accountId: A["1103"], debit: total, credit: 0, description: `فاتورة ${number}` },
-        { accountId: A["4101"], debit: 0, credit: net, description: `إيراد ${number}` },
-      ];
-      if (tax > 0 && A["2102"]) glLines.push({ accountId: A["2102"], debit: 0, credit: tax, description: `ضريبة ${number}` });
-      await postEntry(tx, {
-        orgId: auth.orgId, date: new Date(so.date), sourceType: "SALES_INVOICE", sourceId: inv.id,
-        description: `فاتورة بيع ${number} (تسليم ${dn.number})`, journalType: "SALES", userId: auth.userId, lines: glLines,
-      });
-      await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, so.customerId));
-      await tx.update(deliveryNotes).set({ salesInvoiceId: inv.id, status: "INVOICED" }).where(eq(deliveryNotes.id, dn.id));
-      for (const dl of dnLines) {
-        const so2 = soByItem.get(dl.itemId);
-        if (so2) await tx.update(salesOrderLines).set({ invoicedQty: sql`${salesOrderLines.invoicedQty} + ${Number(dl.quantity)}` }).where(eq(salesOrderLines.id, so2.id));
-      }
-      await recomputeSalesOrderStatus(tx, so.id);
-      await linkDocuments(tx, { orgId: auth.orgId, fromType: "DELIVERY_NOTE", fromId: dn.id, fromNumber: dn.number, toType: "SALES_INVOICE", toId: inv.id, toNumber: number, relation: "INVOICES" });
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `فاتورة بيع ${number} من إذن صرف ${dn.number}`, metadata: { total } });
+      await tx.insert(salesInvoiceLines).values(built.lines.map((l) => ({
+        salesInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+      })));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة بيع ${number} من إذن تسليم ${dn.number}`, metadata: { total: built.total } });
       return inv.id;
     });
     revalidatePath("/erp/sales/deliveries");
     revalidatePath("/erp/sales/invoices");
-    revalidatePath("/erp/sales/orders");
     return { ok: true, invoiceId };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };

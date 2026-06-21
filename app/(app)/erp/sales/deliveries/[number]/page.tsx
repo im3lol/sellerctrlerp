@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { FulfillmentRowActions } from "@/components/erp/fulfillment-row-actions";
+import { DeliveryDetailActions } from "@/components/erp/delivery-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -41,9 +41,10 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
   const [wh] = await db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, dn.warehouseId)).limit(1);
 
   const lines = await db
-    .select({ id: deliveryNoteLines.id, qty: deliveryNoteLines.quantity, code: items.code, name: items.nameAr })
+    .select({ id: deliveryNoteLines.id, qty: deliveryNoteLines.quantity, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
     .from(deliveryNoteLines)
     .leftJoin(items, eq(items.id, deliveryNoteLines.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, deliveryNoteLines.warehouseId))
     .where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
 
   const linked: DocLink[] = [];
@@ -67,7 +68,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         title={`إذن صرف ${dn.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
         backHref="/erp/sales/deliveries"
-        action={<FulfillmentRowActions docId={dn.id} type="delivery" invoiced={Boolean(dn.salesInvoiceId)} canManage={canManage} />}
+        action={<DeliveryDetailActions id={dn.id} status={dn.status} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -84,13 +85,15 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="text-start">الكمية</TableHead>
+                <TableHead className="text-start">مخزن الصرف</TableHead>
+                <TableHead className="text-start">الكمية المسلّمة</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                   <TableCell>{qtyf(l.qty)}</TableCell>
                 </TableRow>
               ))}
