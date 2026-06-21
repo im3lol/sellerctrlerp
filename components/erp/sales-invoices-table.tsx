@@ -86,7 +86,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {actionable && <TableCell />}
                     <TableCell className="ps-8">
-                      <span className="flex items-center gap-1 text-muted-foreground"><Icon name="Undo2" className="size-3.5" />{rt.number}</span>
+                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>

@@ -5,9 +5,9 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, accounts } from "@/db/schema";
+import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, journalEntries, stockMovements } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
@@ -202,4 +202,41 @@ export async function deletePurchaseReturnAction(id: string): Promise<ActionStat
 
   revalidatePath("/erp/purchases/invoices");
   return { ok: true };
+}
+
+/**
+ * Cancel a POSTED purchase return: reverse its GL entry, undo any stock-out,
+ * restore the supplier balance, and mark it CANCELLED.
+ */
+export async function reversePurchaseReturnAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  const [ret] = await db.select().from(purchaseReturns)
+    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+  if (!ret) return { error: "المرتجع غير موجود" };
+  if (ret.status !== "POSTED") return { error: "يمكن إلغاء مرتجع مُرحّل فقط" };
+  const total = Number(ret.totalAmount);
+  const d = new Date();
+  try {
+    await db.transaction(async (tx) => {
+      const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+        .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "PURCHASE_RETURN"), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
+      for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
+
+      const moves = await tx.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
+        .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "PURCHASE_RETURN"), eq(stockMovements.referenceId, ret.id)));
+      for (const m of moves) {
+        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "OUT" ? "IN" : "OUT", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, referenceType: "PURCHASE_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+      }
+
+      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, ret.supplierId));
+      await tx.update(purchaseReturns).set({ status: "CANCELLED" }).where(eq(purchaseReturns.id, ret.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مشتريات ${ret.number}`, metadata: { total } });
+    });
+    revalidatePath("/erp/purchases/invoices");
+    revalidatePath("/erp/accounting/journal");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
+  }
 }
