@@ -1,69 +1,139 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReceipts, suppliers, purchaseOrders, purchaseInvoices } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { FulfillmentRowActions } from "@/components/erp/fulfillment-row-actions";
+import { GoodsReceiptsTable } from "@/components/erp/goods-receipts-table";
 
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const PER_PAGE = 10;
+const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+const STATUS_OPTIONS: [string, string][] = [["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"]];
 
-export default async function ReceiptsPage() {
+type SP = { [k: string]: string | string[] | undefined };
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+export default async function ReceiptsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { orgId, role } = await requireErpModule("purchases.view");
   const canManage = erpCan(role, "purchases.create");
+  const sp = await searchParams;
+  const q = one(sp.q).trim();
+  const fStatus = one(sp.status);
+  const fSupplier = one(sp.supplier);
+  const from = one(sp.from);
+  const to = one(sp.to);
+  const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+
+  const conds = [eq(purchaseReceipts.organizationId, orgId)];
+  if (q) conds.push(ilike(purchaseReceipts.number, `%${q}%`));
+  if (fStatus) conds.push(eq(purchaseReceipts.status, fStatus));
+  if (fSupplier) conds.push(eq(purchaseReceipts.supplierId, fSupplier));
+  if (from) conds.push(gte(purchaseReceipts.date, new Date(from)));
+  if (to) conds.push(lte(purchaseReceipts.date, new Date(to + "T23:59:59")));
+  const where = and(...conds);
+
+  const [supList, [{ total }]] = await Promise.all([
+    db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
+    db.select({ total: count() }).from(purchaseReceipts).where(where),
+  ]);
+  const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
+  const safePage = Math.min(page, pages);
+
   const rows = await db
     .select({
-      id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, status: purchaseReceipts.status,
+      id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date,
       supplier: suppliers.nameAr, order: purchaseOrders.number, invoice: purchaseInvoices.number, invoiceId: purchaseReceipts.purchaseInvoiceId,
     })
     .from(purchaseReceipts)
     .leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
     .leftJoin(purchaseOrders, eq(purchaseOrders.id, purchaseReceipts.purchaseOrderId))
     .leftJoin(purchaseInvoices, eq(purchaseInvoices.id, purchaseReceipts.purchaseInvoiceId))
-    .where(eq(purchaseReceipts.organizationId, orgId))
-    .orderBy(desc(purchaseReceipts.date), desc(purchaseReceipts.number));
+    .where(where)
+    .orderBy(desc(purchaseReceipts.date), desc(purchaseReceipts.number))
+    .limit(PER_PAGE)
+    .offset((safePage - 1) * PER_PAGE);
+
+  const tableRows = rows.map((r) => ({ ...r, invoiced: Boolean(r.invoiceId) }));
+
+  const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
+  const qs = (p: number) => {
+    const u = new URLSearchParams();
+    if (q) u.set("q", q);
+    if (fStatus) u.set("status", fStatus);
+    if (fSupplier) u.set("supplier", fSupplier);
+    if (from) u.set("from", from);
+    if (to) u.set("to", to);
+    u.set("page", String(p));
+    return `?${u.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="PackageCheck" title="إذون الاستلام" subtitle={`${rows.length} إذن`} />
+      <ErpPageHeader
+        icon="PackageCheck"
+        title="إذون الاستلام"
+        subtitle={`${total} إذن`}
+        action={canManage ? (
+          <Button asChild><Link href="/erp/purchases/receipts/new"><Icon name="Plus" className="size-4" />إذن استلام</Link></Button>
+        ) : undefined}
+      />
       <Card>
         <CardHeader>
           <CardTitle>إذون استلام البضاعة (GRN)</CardTitle>
-          <CardDescription>إدخال البضاعة للمخزون يُرحّل عند الاستلام (مدين المخزون / دائن بضاعة لم تُفوتر)؛ الفاتورة تُسوّي الحساب مع المورد.</CardDescription>
+          <CardDescription>إدخال البضاعة للمخزون يُرحّل عند الاستلام (مدين المخزون / دائن بضاعة لم تُفوتر)؛ الفاتورة تُسوّي الحساب مع المورد. حدّد عدّة إذون لتحويلها إلى فواتير دفعةً واحدة.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <details open={hasFilters} className="rounded-lg border">
+            <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
+              <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+            </summary>
+            <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+              <div className="space-y-1"><Label htmlFor="q">رقم الإذن</Label><Input id="q" name="q" defaultValue={q} placeholder="GRN-2026-..." /></div>
+              <div className="space-y-1">
+                <Label htmlFor="status">الحالة</Label>
+                <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
+                  <option value="">الكل</option>
+                  {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="supplier">المورد</Label>
+                <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
+                  <option value="">الكل</option>
+                  {supList.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+              <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+              <div className="flex gap-2 sm:col-span-5">
+                <Button type="submit">تطبيق</Button>
+                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/purchases/receipts">مسح</a></Button>}
+              </div>
+            </form>
+          </details>
+
           {rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد إذون استلام بعد — أنشئها من أمر شراء مؤكّد.</div>
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون استلام بعد — أنشئها من أمر شراء مؤكّد."}</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-start">الرقم</TableHead>
-                  <TableHead className="text-start">التاريخ</TableHead>
-                  <TableHead className="text-start">المورد</TableHead>
-                  <TableHead className="text-start">أمر الشراء</TableHead>
-                  <TableHead className="text-start">الفاتورة</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
-                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono"><Link href={`/erp/purchases/receipts/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link></TableCell>
-                    <TableCell>{dt(r.date)}</TableCell>
-                    <TableCell>{r.supplier ?? "—"}</TableCell>
-                    <TableCell className="font-mono">{r.order ?? "—"}</TableCell>
-                    <TableCell className="font-mono">{r.invoice ?? "—"}</TableCell>
-                    <TableCell><Badge variant={r.invoiceId ? "default" : "secondary"}>{r.invoiceId ? "مفوتر" : "تم الاستلام"}</Badge></TableCell>
-                    {canManage && <TableCell><FulfillmentRowActions docId={r.id} type="receipt" invoiced={!!r.invoiceId} canManage={canManage} /></TableCell>}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              <GoodsReceiptsTable rows={tableRows} canManage={canManage} />
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>صفحة {safePage} من {pages}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
+                    {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
+                    {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

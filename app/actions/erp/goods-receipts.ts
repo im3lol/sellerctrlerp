@@ -117,6 +117,22 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   }
 }
 
+/** Bill several un-invoiced goods receipts in one go. Skips already-invoiced. */
+export async function bulkConvertReceiptsAction(ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  if (!ids.length) return { error: "لم تُحدّد أي إذون" };
+  let count = 0;
+  let lastError: string | undefined;
+  for (const id of ids) {
+    const r = await convertReceiptToInvoiceAction(id);
+    if (r.ok) count++;
+    else lastError = r.error;
+  }
+  if (count === 0) return { error: lastError ?? "تعذّر التحويل" };
+  return { ok: true, count };
+}
+
 /**
  * Bill a goods receipt: POSTED purchase invoice for THIS receipt's quantities
  * (clears GRNI → AP; no stock). Amounts pro-rate the order line discount/tax by
