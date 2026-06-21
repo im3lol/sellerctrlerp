@@ -96,12 +96,13 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {canManage && <TableCell />}
                     <TableCell className="ps-8">
-                      <Link href={`/erp/purchases/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <Link href={`/erp/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>
-                    <TableCell>—</TableCell>
-                    <TableCell className="text-destructive">كمية مرتجعة: {qf(rt.qty)}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
                   </TableRow>
                 ))}
