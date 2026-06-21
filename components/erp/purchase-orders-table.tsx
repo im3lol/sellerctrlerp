@@ -75,8 +75,8 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
-                <TableCell className="font-mono">
-                  <Link href={`/erp/purchases/orders/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link>
+                <TableCell>
+                  <Link href={`/erp/purchases/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                 </TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.supplier ?? "—"}</TableCell>
