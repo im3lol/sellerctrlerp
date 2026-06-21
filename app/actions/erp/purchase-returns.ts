@@ -120,27 +120,33 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
   const total = round2(net + tax);
 
   const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "1107"])));
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "2103", "1107"])));
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
-  if (!A["2101"] || !A["1104"]) return { error: "حسابات الترحيل غير مكتملة (الموردون/المخزون)." };
+  // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
+  // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
+  const fromReceipt = Boolean(inv.goodsReceiptId);
+  const creditAcc = fromReceipt ? A["2103"] : A["1104"];
+  if (!A["2101"] || !creditAcc) return { error: "حسابات الترحيل غير مكتملة." };
 
   const whId = ret.warehouseId;
   const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
 
   try {
     await db.transaction(async (tx) => {
-      // Issue stock out at the credited price (so the 1104 credit matches).
-      for (const l of lines) {
-        await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
-          quantity: l.quantity, unitCost: l.unitPrice, date: d,
-          referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
-        });
+      if (!fromReceipt) {
+        // Standalone invoice: take the goods back out of stock at the credited price.
+        for (const l of lines) {
+          await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
+            quantity: l.quantity, unitCost: l.unitPrice, date: d,
+            referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
+          });
+        }
       }
 
       const glLines = [
         { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
-        { accountId: A["1104"], debit: 0, credit: net, description: `إرجاع مخزون ${ret.number}` },
+        { accountId: creditAcc, debit: 0, credit: net, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
       ];
       if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
       await postEntry(tx, {

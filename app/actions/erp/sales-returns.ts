@@ -146,9 +146,11 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
         description: `مرتجع مبيعات ${ret.number} — فاتورة ${inv.number}`, journalType: "SALES", userId: auth.userId, lines: revLines,
       });
 
-      // Restock at WAC + reverse COGS.
+      // Restock + reverse COGS ONLY for a standalone invoice (no delivery). When the
+      // invoice was billed from a delivery, the stock side is handled by the
+      // delivery's own return (مرتجع إذن الصرف) — this credit note is money-only.
       let cogs = 0;
-      if (whId && A["1104"] && A["5101"]) {
+      if (!inv.deliveryNoteId && whId && A["1104"] && A["5101"]) {
         for (const l of lines) {
           const { avgCost } = await currentStock(auth.orgId, l.itemId, whId, tx);
           const r = await postStockMovement(tx, {

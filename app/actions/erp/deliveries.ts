@@ -358,8 +358,9 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
   const [dn] = await db.select().from(deliveryNotes)
     .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
   if (!dn) return { error: "الإذن غير موجود" };
-  if (dn.salesInvoiceId || dn.status === "INVOICED") return { error: "الإذن مفوتر — استخدم مرتجع الفاتورة" };
-  if (dn.status !== "DELIVERED") return { error: "لا يمكن عكس هذا الإذن" };
+  // Stock-side return: available whether or not the delivery was invoiced (the
+  // money side is handled separately by the invoice return).
+  if (dn.status !== "DELIVERED" && dn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
   const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));

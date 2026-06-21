@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -8,7 +7,7 @@ import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAc
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
-export function DeliveryDetailActions({ id, status, canManage, invoiceNumber }: { id: string; status: string; canManage: boolean; invoiceNumber?: string | null }) {
+export function DeliveryDetailActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
@@ -34,8 +33,8 @@ export function DeliveryDetailActions({ id, status, canManage, invoiceNumber }: 
     );
   }
 
-  // DELIVERED (posted, not billed): bill it, or reverse the whole delivery (reopens the order).
-  if (status === "DELIVERED") {
+  // DELIVERED / INVOICED: bill it (if not yet) and/or take the stock back into the warehouse.
+  if (status === "DELIVERED" || status === "INVOICED") {
     const bill = () =>
       start(async () => {
         const r = await convertDeliveryToInvoiceAction(id);
@@ -44,20 +43,11 @@ export function DeliveryDetailActions({ id, status, canManage, invoiceNumber }: 
       });
     return (
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => reverseDeliveryAction(id), "تم عكس الصرف — أُعيد فتح الأمر")}>
-          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع/عكس
+        {status === "DELIVERED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => reverseDeliveryAction(id), "تم إرجاع البضاعة للمخزن — أُعيد فتح الأمر")}>
+          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
         </Button>
       </div>
-    );
-  }
-
-  // INVOICED: a return goes through the invoice (credit note).
-  if (status === "INVOICED" && invoiceNumber) {
-    return (
-      <Button size="sm" variant="outline" asChild>
-        <Link href={`/erp/sales/invoices/${encodeURIComponent(invoiceNumber)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
-      </Button>
     );
   }
 

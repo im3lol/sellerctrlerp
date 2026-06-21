@@ -369,8 +369,9 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
   const [grn] = await db.select().from(purchaseReceipts)
     .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
   if (!grn) return { error: "الإذن غير موجود" };
-  if (grn.purchaseInvoiceId || grn.status === "INVOICED") return { error: "الإذن مفوتر — استخدم مرتجع الفاتورة" };
-  if (grn.status !== "RECEIVED") return { error: "لا يمكن عكس هذا الإذن" };
+  // Stock-side return: available whether or not the receipt was invoiced (the
+  // money side is handled separately by the invoice return).
+  if (grn.status !== "RECEIVED" && grn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
   const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));

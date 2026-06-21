@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -8,7 +7,7 @@ import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceActio
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
-export function ReceiptDetailActions({ id, status, canManage, invoiceNumber }: { id: string; status: string; canManage: boolean; invoiceNumber?: string | null }) {
+export function ReceiptDetailActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
@@ -34,8 +33,8 @@ export function ReceiptDetailActions({ id, status, canManage, invoiceNumber }: {
     );
   }
 
-  // RECEIVED (posted, not yet billed): bill it, or reverse the whole receipt (reopens the order).
-  if (status === "RECEIVED") {
+  // RECEIVED / INVOICED: bill it (if not yet) and/or return the stock to the warehouse.
+  if (status === "RECEIVED" || status === "INVOICED") {
     const bill = () =>
       start(async () => {
         const r = await convertReceiptToInvoiceAction(id);
@@ -44,20 +43,11 @@ export function ReceiptDetailActions({ id, status, canManage, invoiceNumber }: {
       });
     return (
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => reverseReceiptAction(id), "تم عكس الاستلام — أُعيد فتح الأمر")}>
-          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع/عكس
+        {status === "RECEIVED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => reverseReceiptAction(id), "تم إرجاع البضاعة للمخزن — أُعيد فتح الأمر")}>
+          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
         </Button>
       </div>
-    );
-  }
-
-  // INVOICED: a return goes through the invoice (credit/debit note).
-  if (status === "INVOICED" && invoiceNumber) {
-    return (
-      <Button size="sm" variant="outline" asChild>
-        <Link href={`/erp/purchases/invoices/${encodeURIComponent(invoiceNumber)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
-      </Button>
     );
   }
 
