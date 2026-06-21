@@ -149,3 +149,37 @@ export async function cancelPurchaseOrderAction(id: string): Promise<ActionState
   revalidatePath("/erp/purchases/orders");
   return { ok: true };
 }
+
+/**
+ * Bulk confirm / cancel / delete selected purchase orders. Each id is checked
+ * against the op's precondition (confirm/delete need DRAFT; cancel needs a
+ * non-invoiced, non-cancelled order) and skipped otherwise. Returns how many
+ * actually changed.
+ */
+export async function bulkPurchaseOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" ? "purchases.create" : "purchases.confirm");
+  if ("error" in auth) return auth;
+  if (!ids.length) return { error: "لم تحدّد أي أمر" };
+
+  let count = 0;
+  for (const id of ids) {
+    const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+    if (!po) continue;
+    if (op === "confirm" && po.status === "DRAFT") {
+      await db.update(purchaseOrders).set({ status: "CONFIRMED" }).where(eq(purchaseOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
+      count++;
+    } else if (op === "cancel" && po.status !== "INVOICED" && po.status !== "CANCELLED") {
+      await db.update(purchaseOrders).set({ status: "CANCELLED" }).where(eq(purchaseOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إلغاء أمر شراء ${po.number}` });
+      count++;
+    } else if (op === "delete" && po.status === "DRAFT") {
+      await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `حذف مسودة أمر شراء ${po.number}` });
+      count++;
+    }
+  }
+  revalidatePath("/erp/purchases/orders");
+  return { ok: true, count };
+}

@@ -1,46 +1,79 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseOrders, suppliers } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { OrderRowActions } from "@/components/erp/order-row-actions";
+import { PurchaseOrdersTable } from "@/components/erp/purchase-orders-table";
 
-const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
-const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  DRAFT: { label: "مسودة", variant: "secondary" },
-  CONFIRMED: { label: "مؤكّد", variant: "default" },
-  PARTIALLY_RECEIVED: { label: "استلام جزئي", variant: "secondary" },
-  RECEIVED: { label: "تم الاستلام", variant: "default" },
-  INVOICED: { label: "مفوتر", variant: "default" },
-  CANCELLED: { label: "ملغى", variant: "destructive" },
-};
+const PER_PAGE = 10;
+const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+const STATUS_OPTIONS: [string, string][] = [
+  ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_RECEIVED", "استلام جزئي"],
+  ["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"], ["CANCELLED", "ملغى"],
+];
 
-export default async function PurchaseOrdersPage() {
+type SP = { [k: string]: string | string[] | undefined };
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+export default async function PurchaseOrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { orgId, role } = await requireErpModule("purchases.view");
   const canManage = erpCan(role, "purchases.create");
+  const sp = await searchParams;
+  const q = one(sp.q).trim();
+  const fStatus = one(sp.status);
+  const fSupplier = one(sp.supplier);
+  const from = one(sp.from);
+  const to = one(sp.to);
+  const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+
+  const conds = [eq(purchaseOrders.organizationId, orgId)];
+  if (q) conds.push(ilike(purchaseOrders.number, `%${q}%`));
+  if (fStatus) conds.push(eq(purchaseOrders.status, fStatus));
+  if (fSupplier) conds.push(eq(purchaseOrders.supplierId, fSupplier));
+  if (from) conds.push(gte(purchaseOrders.date, new Date(from)));
+  if (to) conds.push(lte(purchaseOrders.date, new Date(to + "T23:59:59")));
+  const where = and(...conds);
+
+  const [supList, [{ total }]] = await Promise.all([
+    db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
+    db.select({ total: count() }).from(purchaseOrders).where(where),
+  ]);
+  const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
+  const safePage = Math.min(page, pages);
+
   const rows = await db
-    .select({
-      id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date,
-      total: purchaseOrders.totalAmount, status: purchaseOrders.status, supplier: suppliers.nameAr,
-    })
+    .select({ id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date, total: purchaseOrders.totalAmount, status: purchaseOrders.status, supplier: suppliers.nameAr })
     .from(purchaseOrders)
     .leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
-    .where(eq(purchaseOrders.organizationId, orgId))
-    .orderBy(desc(purchaseOrders.date), desc(purchaseOrders.number));
+    .where(where)
+    .orderBy(desc(purchaseOrders.date), desc(purchaseOrders.number))
+    .limit(PER_PAGE)
+    .offset((safePage - 1) * PER_PAGE);
+
+  const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
+  const qs = (p: number) => {
+    const u = new URLSearchParams();
+    if (q) u.set("q", q);
+    if (fStatus) u.set("status", fStatus);
+    if (fSupplier) u.set("supplier", fSupplier);
+    if (from) u.set("from", from);
+    if (to) u.set("to", to);
+    u.set("page", String(p));
+    return `?${u.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
       <ErpPageHeader
         icon="ClipboardList"
         title="أوامر الشراء"
-        subtitle={`${rows.length} أمر`}
+        subtitle={`${total} أمر`}
         action={canManage ? (
           <Button asChild><Link href="/erp/purchases/orders/new"><Icon name="Plus" className="size-4" />أمر شراء</Link></Button>
         ) : undefined}
@@ -48,41 +81,55 @@ export default async function PurchaseOrdersPage() {
       <Card>
         <CardHeader>
           <CardTitle>أوامر الشراء</CardTitle>
-          <CardDescription>التزامات شراء تُحوّل إلى فواتير (بدون قيد محاسبي حتى الترحيل).</CardDescription>
+          <CardDescription>التزامات شراء تُحوّل إلى فواتير. حدّد عدّة أوامر لتأكيدها أو إلغائها أو حذفها دفعةً واحدة.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <details open={hasFilters} className="rounded-lg border">
+            <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
+              <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+            </summary>
+            <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+              <div className="space-y-1"><Label htmlFor="q">رقم الأمر</Label><Input id="q" name="q" defaultValue={q} placeholder="PO-2026-..." /></div>
+              <div className="space-y-1">
+                <Label htmlFor="status">الحالة</Label>
+                <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
+                  <option value="">الكل</option>
+                  {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="supplier">المورد</Label>
+                <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
+                  <option value="">الكل</option>
+                  {supList.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+              <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+              <div className="flex gap-2 sm:col-span-5">
+                <Button type="submit">تطبيق</Button>
+                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/purchases/orders">مسح</a></Button>}
+              </div>
+            </form>
+          </details>
+
           {rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد أوامر شراء بعد.</div>
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر شراء بعد."}</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-start">الرقم</TableHead>
-                  <TableHead className="text-start">التاريخ</TableHead>
-                  <TableHead className="text-start">المورد</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
-                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => {
-                  const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-mono">
-                        <Link href={`/erp/purchases/orders/${encodeURIComponent(r.number)}`} className="text-primary underline">{r.number}</Link>
-                      </TableCell>
-                      <TableCell>{dt(r.date)}</TableCell>
-                      <TableCell>{r.supplier ?? "—"}</TableCell>
-                      <TableCell>{fmt(r.total)}</TableCell>
-                      <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                      {canManage && <TableCell><OrderRowActions orderId={r.id} type="purchase" status={r.status} canManage={canManage} /></TableCell>}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <>
+              <PurchaseOrdersTable rows={rows} canManage={canManage} />
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>صفحة {safePage} من {pages}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
+                    {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
+                    {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
