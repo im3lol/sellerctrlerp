@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ItemCombobox } from "@/components/erp/item-combobox";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
@@ -23,9 +22,10 @@ type Line = { itemId: string; quantity: number; unitPrice: number; discountAmoun
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[] }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -53,7 +53,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers:
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
     const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
-    return { subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+    const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
+    return { subtotal, discount, tax, qty, total: round2(subtotal - discount + tax) };
   }, [lines]);
 
   const submit = () => {
@@ -80,10 +81,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers:
             </select>
           </div>
           <div className="space-y-2">
-            <Label>المستودع</Label>
-            <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
-            </select>
+            <Label>الشركة</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
@@ -91,7 +90,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers:
 
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
-          <div className="space-y-2"><Label>بحث وإضافة صنف</Label><ItemCombobox onSelect={addOrBumpItem} /></div>
+          <div className="space-y-2">
+            <Label>المستودع</Label>
+            <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="rounded-xl border">
@@ -126,11 +130,17 @@ export function PurchaseOrderForm({ suppliers, warehouses, items }: { suppliers:
         </div>
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
 
-        <div className="flex flex-col items-end gap-1 text-sm">
-          <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-          <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-          <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-          <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+        <div className="flex items-start justify-between gap-4 text-sm">
+          <div className="rounded-xl border bg-muted/30 px-4 py-3">
+            <div className="text-xs text-muted-foreground">إجمالي الكمية</div>
+            <div className="mt-1 text-lg font-bold">{qtyf(totals.qty)}</div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+            <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
+            <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2">
