@@ -17,14 +17,14 @@ import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
-type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number };
+type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; taxAmount: number };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount);
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountAmount: 0, taxAmount: 0 });
+const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + l.taxAmount);
+const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 });
 
 export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string }) {
   const router = useRouter();
@@ -44,7 +44,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountAmount: 0, taxAmount: 0 };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
       return [...ls, line];
@@ -53,7 +53,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const shipping = round2(lines.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
-    const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
+    const discount = round2(lines.reduce((s, l) => s + l.quantity * l.discountPerUnit, 0));
     const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
     const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
     return { subtotal, shipping, discount, tax, qty, total: round2(subtotal + shipping - discount + tax) };
@@ -64,7 +64,11 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
     if (!warehouseId) return toast.error("اختر المستودع");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines });
+      const payload = lines.map((l) => ({
+        itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
+        taxAmount: l.taxAmount, discountAmount: round2(l.quantity * l.discountPerUnit),
+      }));
+      const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
       if (r.ok) {
         toast.success("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
         router.push(r.id ? `/erp/purchases/orders/${r.id}` : "/erp/purchases/orders");
@@ -116,7 +120,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
                 <TableHead className="text-start">الصنف</TableHead>
                 <TableHead className="w-24 text-start">الكمية</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-28 text-start">خصم</TableHead>
+                <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
                 <TableHead className="w-28 text-start">ضريبة</TableHead>
                 <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
@@ -131,7 +135,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
                   </TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="0.01" min="0" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.shippingPerUnit} onChange={(e) => setLine(i, { shippingPerUnit: Number(e.target.value) })} /></TableCell>
                   <TableCell className="font-medium">{fmt(lineTotal(l))}</TableCell>
