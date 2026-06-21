@@ -13,7 +13,7 @@ import { GoodsReceiptsTable } from "@/components/erp/goods-receipts-table";
 
 const PER_PAGE = 10;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
-const STATUS_OPTIONS: [string, string][] = [["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"]];
+const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"]];
 
 type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -44,10 +44,10 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
   const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
   const safePage = Math.min(page, pages);
 
-  const rows = await db
+  const tableRows = await db
     .select({
-      id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date,
-      supplier: suppliers.nameAr, order: purchaseOrders.number, invoice: purchaseInvoices.number, invoiceId: purchaseReceipts.purchaseInvoiceId,
+      id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, status: purchaseReceipts.status,
+      supplier: suppliers.nameAr, order: purchaseOrders.number, invoice: purchaseInvoices.number,
     })
     .from(purchaseReceipts)
     .leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
@@ -57,8 +57,6 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     .orderBy(desc(purchaseReceipts.date), desc(purchaseReceipts.number))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
-
-  const tableRows = rows.map((r) => ({ ...r, invoiced: Boolean(r.invoiceId) }));
 
   const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
   const qs = (p: number) => {
@@ -117,7 +115,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
             </form>
           </details>
 
-          {rows.length === 0 ? (
+          {tableRows.length === 0 ? (
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون استلام بعد — أنشئها من أمر شراء مؤكّد."}</div>
           ) : (
             <>

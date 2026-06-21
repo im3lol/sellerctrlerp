@@ -91,16 +91,16 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
 }
 
 /**
- * Receive a confirmed purchase order — fully or PARTIALLY. `picks` caps the
- * accepted quantity per item (≤ remaining = ordered − already received); omitted
- * → receive all remaining. Optional per-line `warehouseId` (defaults to the
- * order warehouse) and `rejectedQty` (recorded only — never enters stock and
- * never advances the order, so it stays open as backorder). `date` is the actual
- * receipt date (defaults to the order date). Stock IN at cost + Dr Inventory /
- * Cr GRNI on the accepted qty, bumps receivedQty, recomputes the order status.
+ * Save a goods receipt as a DRAFT from a confirmed/partial purchase order — no
+ * stock, no GL, the order is NOT advanced (matches the document cycle: save →
+ * draft, confirm → post). `picks` set the accepted quantity per item
+ * (≤ remaining = ordered − already received); omitted → all remaining. Optional
+ * per-line `warehouseId` (defaults to the order warehouse) and `rejectedQty`
+ * (recorded only — never enters stock and stays open as backorder). `date` is
+ * the receipt date (defaults to the order date). Confirm it later to post.
  */
 export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("purchases.confirm");
+  const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
   const [po] = await db.select().from(purchaseOrders)
@@ -108,11 +108,11 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   if (!po) return { error: "الأمر غير موجود" };
   if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-  const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
+  const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty })
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
   const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
-  const toReceive: { line: typeof orderLines[number]; qty: number; rejected: number; warehouseId: string }[] = [];
+  const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string }[] = [];
   for (const l of orderLines) {
     const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
     const p = picks ? pickBy.get(l.itemId) : undefined;
@@ -120,14 +120,9 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
     if (want < -EPS) return { error: "كمية غير صالحة" };
     if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
-    if (want > EPS || rejected > EPS) toReceive.push({ line: l, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId });
+    if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId });
   }
   if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
-
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
-  if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
 
   const receiptDate = date ? new Date(date) : new Date(po.date);
   const headerWh = toReceive.find((t) => t.qty > EPS)?.warehouseId || po.warehouseId;
@@ -135,65 +130,139 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   try {
     const id = await db.transaction(async (tx) => {
       const [grn] = await tx.insert(purchaseReceipts).values({
-        organizationId: auth.orgId, number, date: receiptDate, status: "RECEIVED",
+        organizationId: auth.orgId, number, date: receiptDate, status: "DRAFT",
         purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
       }).returning({ id: purchaseReceipts.id });
       await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
-        purchaseReceiptId: grn.id, itemId: t.line.itemId, warehouseId: t.warehouseId,
+        purchaseReceiptId: grn.id, itemId: t.itemId, warehouseId: t.warehouseId,
         quantity: String(t.qty), rejectedQty: String(t.rejected),
       })));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
+      return grn.id;
+    });
+    revalidatePath("/erp/purchases/receipts");
+    return { ok: true, id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" };
+  }
+}
 
+/**
+ * Confirm a DRAFT goods receipt → POST it: stock IN at cost + Dr 1104 (Inventory)
+ * / Cr 2103 (GRNI) on the accepted qty, advance the order's receivedQty (rejected
+ * stays backorder), recompute the order status, link + audit, flip DRAFT →
+ * RECEIVED. Re-validates accepted ≤ remaining at confirm time. Idempotent.
+ */
+export async function confirmReceiptAction(receiptId: string): Promise<ActionState & { id?: string }> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+
+  const [grn] = await db.select().from(purchaseReceipts)
+    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+  if (!grn) return { error: "الاستلام غير موجود" };
+  if (grn.status !== "DRAFT") return { error: "تم تأكيد إذن الاستلام بالفعل" };
+  if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
+
+  const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
+  if (!po) return { error: "أمر الشراء غير موجود" };
+
+  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId })
+    .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+  const poLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
+    .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+  const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+
+  for (const gl of grnLines) {
+    const pol = poByItem.get(gl.itemId);
+    if (!pol) return { error: "أحد الأصناف غير موجود في أمر الشراء" };
+    const remaining = round2(Number(pol.quantity) - Number(pol.receivedQty));
+    if (Number(gl.quantity) > remaining + EPS) return { error: "الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
+  }
+
+  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
+  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
+
+  const receiptDate = new Date(grn.date);
+  try {
+    await db.transaction(async (tx) => {
       let received = 0;
-      for (const t of toReceive) {
-        if (t.qty <= EPS) continue; // rejected-only line: recorded, no stock/GL
+      for (const gl of grnLines) {
+        const qty = Number(gl.quantity);
+        if (qty <= EPS) continue; // rejected-only line: recorded, no stock/GL
+        const pol = poByItem.get(gl.itemId)!;
         // Capitalise the per-unit shipping into the inventory cost (plan §10.5).
-        const unitNet = Number(t.line.unitPrice) - Number(t.line.discountAmount) / (Number(t.line.quantity) || 1) + Number(t.line.shippingPerUnit);
-        const lineNet = round2(t.qty * unitNet);
-        received += lineNet;
+        const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(pol.shippingPerUnit);
+        received += round2(qty * unitNet);
         await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: t.line.itemId, warehouseId: t.warehouseId, type: "IN",
-          quantity: t.qty, unitCost: unitNet, date: receiptDate,
-          referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: `استلام ${number}`,
+          orgId: auth.orgId, itemId: gl.itemId, warehouseId: gl.warehouseId || grn.warehouseId, type: "IN",
+          quantity: qty, unitCost: unitNet, date: receiptDate,
+          referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: `استلام ${grn.number}`,
         });
-        await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${t.qty}` }).where(eq(purchaseOrderLines.id, t.line.id));
+        await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${qty}` }).where(eq(purchaseOrderLines.id, pol.id));
       }
       received = round2(received);
       if (received > 0) {
         await postEntry(tx, {
           orgId: auth.orgId, date: receiptDate, sourceType: "GOODS_RECEIPT", sourceId: grn.id,
-          description: `استلام بضاعة ${number}`, journalType: "PURCHASE", userId: auth.userId,
+          description: `استلام بضاعة ${grn.number}`, journalType: "PURCHASE", userId: auth.userId,
           lines: [
-            { accountId: A["1104"], debit: received, credit: 0, description: `مخزون مستلم ${number}` },
-            { accountId: A["2103"], debit: 0, credit: received, description: `بضاعة لم تُفوتر ${number}` },
+            { accountId: A["1104"], debit: received, credit: 0, description: `مخزون مستلم ${grn.number}` },
+            { accountId: A["2103"], debit: 0, credit: received, description: `بضاعة لم تُفوتر ${grn.number}` },
           ],
         });
       }
+      await tx.update(purchaseReceipts).set({ status: "RECEIVED" }).where(eq(purchaseReceipts.id, grn.id));
       const newStatus = await recomputePurchaseOrderStatus(tx, po.id);
-      await linkDocuments(tx, { orgId: auth.orgId, fromType: "PURCHASE_ORDER", fromId: po.id, fromNumber: po.number, toType: "GOODS_RECEIPT", toId: grn.id, toNumber: number, relation: "FULFILLS" });
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `استلام ${number} من أمر شراء ${po.number} (${newStatus === "RECEIVED" ? "كامل" : "جزئي"})`, metadata: { received } });
-      return grn.id;
+      await linkDocuments(tx, { orgId: auth.orgId, fromType: "PURCHASE_ORDER", fromId: po.id, fromNumber: po.number, toType: "GOODS_RECEIPT", toId: grn.id, toNumber: grn.number, relation: "FULFILLS" });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `تأكيد إذن استلام ${grn.number} من أمر شراء ${po.number} (${newStatus === "RECEIVED" ? "كامل" : "جزئي"})`, metadata: { received } });
     });
     revalidatePath("/erp/purchases/receipts");
     revalidatePath("/erp/purchases/orders");
-    return { ok: true, id };
+    revalidatePath(`/erp/purchases/receipts/${grn.number}`);
+    return { ok: true, id: grn.id };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر إنشاء الاستلام" };
+    return { error: e instanceof Error ? e.message : "تعذّر تأكيد الاستلام" };
   }
 }
 
-/** Bill several un-invoiced goods receipts in one go. Skips already-invoiced. */
-export async function bulkConvertReceiptsAction(ids: string[]): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp("purchases.confirm");
+/** Delete a DRAFT goods receipt (nothing posted yet). Confirmed receipts are immutable. */
+export async function deleteReceiptAction(receiptId: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+  const [grn] = await db.select().from(purchaseReceipts)
+    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+  if (!grn) return { error: "الاستلام غير موجود" };
+  if (grn.status !== "DRAFT") return { error: "لا يمكن حذف إذن استلام مؤكّد" };
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+      await tx.delete(purchaseReceipts).where(eq(purchaseReceipts.id, grn.id));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `حذف مسودة إذن استلام ${grn.number}` });
+    });
+    revalidatePath("/erp/purchases/receipts");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر الحذف" };
+  }
+}
+
+/** Bulk confirm / bill / delete goods receipts. Skips rows ineligible for the op. */
+export async function bulkReceiptsAction(op: "confirm" | "bill" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" ? "purchases.create" : "purchases.confirm");
   if ("error" in auth) return auth;
   if (!ids.length) return { error: "لم تُحدّد أي إذون" };
   let count = 0;
   let lastError: string | undefined;
   for (const id of ids) {
-    const r = await convertReceiptToInvoiceAction(id);
+    const r = op === "confirm" ? await confirmReceiptAction(id)
+      : op === "bill" ? await convertReceiptToInvoiceAction(id)
+      : await deleteReceiptAction(id);
     if (r.ok) count++;
     else lastError = r.error;
   }
-  if (count === 0) return { error: lastError ?? "تعذّر التحويل" };
+  if (count === 0) return { error: lastError ?? "تعذّر التنفيذ" };
   return { ok: true, count };
 }
 
@@ -209,6 +278,7 @@ export async function convertReceiptToInvoiceAction(receiptId: string): Promise<
   const [grn] = await db.select().from(purchaseReceipts)
     .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
   if (!grn) return { error: "الاستلام غير موجود" };
+  if (grn.status === "DRAFT") return { error: "أكّد إذن الاستلام أولاً قبل تحويله إلى فاتورة" };
   if (grn.purchaseInvoiceId) return { error: "الاستلام مفوتر بالفعل" };
   if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
 

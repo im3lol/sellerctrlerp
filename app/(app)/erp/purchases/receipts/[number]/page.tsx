@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { FulfillmentRowActions } from "@/components/erp/fulfillment-row-actions";
+import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -69,7 +69,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         title={`إذن استلام ${grn.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
         backHref="/erp/purchases/receipts"
-        action={<FulfillmentRowActions docId={grn.id} type="receipt" invoiced={Boolean(grn.purchaseInvoiceId)} canManage={canManage} />}
+        action={<ReceiptDetailActions id={grn.id} status={grn.status} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

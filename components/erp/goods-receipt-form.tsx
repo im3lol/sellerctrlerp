@@ -73,7 +73,7 @@ export function GoodsReceiptForm({
     start(async () => {
       const r = await createReceiptFromOrderAction(orderId, picks, date);
       if (r.ok) {
-        toast.success("تم تسجيل الاستلام");
+        toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
         router.push(r.id ? `/erp/purchases/receipts/${r.id}` : "/erp/purchases/receipts");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
