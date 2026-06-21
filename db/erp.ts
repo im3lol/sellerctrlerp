@@ -361,6 +361,8 @@ export const deliveryNoteLines = pgTable("delivery_note_lines", {
   id: pk(),
   deliveryNoteId: text("delivery_note_id").notNull().references(() => deliveryNotes.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
+  // Per-line issuing warehouse (falls back to the note's warehouse when null).
+  warehouseId: text("warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(),
   salesInvoiceLineId: text("sales_invoice_line_id"),
   notes: text("notes"),

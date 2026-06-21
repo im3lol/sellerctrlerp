@@ -22,6 +22,7 @@ type Line = { itemId: string; quantity: number; unitPrice: number; discountAmoun
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
 export function SalesOrderForm({ customers, items }: { customers: Customer[]; items: Item[] }) {
@@ -52,7 +53,8 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
     const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
-    return { subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+    const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
+    return { subtotal, discount, tax, qty, total: round2(subtotal - discount + tax) };
   }, [lines]);
 
   const submit = () => {
@@ -67,7 +69,15 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
 
   return (
     <Card>
-      <CardHeader><CardTitle>بيانات أمر البيع</CardTitle></CardHeader>
+      <CardHeader>
+        <div className="flex w-full items-center justify-between gap-3">
+          <CardTitle>بيانات أمر البيع</CardTitle>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/orders")}>إلغاء</Button>
+          </div>
+        </div>
+      </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2">
@@ -119,16 +129,16 @@ export function SalesOrderForm({ customers, items }: { customers: Customer[]; it
         </div>
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
 
-        <div className="flex flex-col items-end gap-1 text-sm">
-          <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-          <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-          <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-          <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => router.push("/erp/sales/orders")}>إلغاء</Button>
-          <Button onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
+        <div className="flex items-start justify-between gap-4 text-sm">
+          <div className="flex flex-col items-start gap-1">
+            <div>إجمالي الكمية: <span className="font-medium">{qtyf(totals.qty)}</span></div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+            <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
+            <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+          </div>
         </div>
       </CardContent>
     </Card>

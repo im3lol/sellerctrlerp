@@ -132,6 +132,39 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
   return { ok: true, invoiceId: r.id };
 }
 
+/**
+ * Bulk confirm / cancel / delete selected sales orders. Each id is checked
+ * against the op's precondition (confirm/delete need DRAFT; cancel needs a
+ * non-invoiced, non-cancelled order) and skipped otherwise.
+ */
+export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
+  if ("error" in auth) return auth;
+  if (!ids.length) return { error: "لم تحدّد أي أمر" };
+
+  let count = 0;
+  for (const id of ids) {
+    const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+    if (!so) continue;
+    if (op === "confirm" && so.status === "DRAFT") {
+      await db.update(salesOrders).set({ status: "CONFIRMED" }).where(eq(salesOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
+      count++;
+    } else if (op === "cancel" && so.status !== "INVOICED" && so.status !== "CANCELLED") {
+      await db.update(salesOrders).set({ status: "CANCELLED" }).where(eq(salesOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
+      count++;
+    } else if (op === "delete" && so.status === "DRAFT") {
+      await db.delete(salesOrders).where(eq(salesOrders.id, id));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف مسودة أمر بيع ${so.number}` });
+      count++;
+    }
+  }
+  revalidatePath("/erp/sales/orders");
+  return { ok: true, count };
+}
+
 /** Cancel a sales order (only before it is invoiced). */
 export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");
