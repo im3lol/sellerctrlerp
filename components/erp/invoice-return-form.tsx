@@ -48,7 +48,7 @@ export function InvoiceReturnForm({
       const r = type === "sales"
         ? await returnFromSalesInvoiceAction(invoiceId, picks, date)
         : await returnFromPurchaseInvoiceAction(invoiceId, picks, date);
-      if (r.ok) { toast.success("تم تسجيل المرتجع وترحيله"); router.push(backHref); router.refresh(); }
+      if (r.ok) { toast.success("تم تسجيل المرتجع وترحيله"); router.push(type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر تسجيل المرتجع");
     });
   };

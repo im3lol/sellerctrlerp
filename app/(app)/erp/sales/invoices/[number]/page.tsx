@@ -53,9 +53,8 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
     const [dn] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId)).limit(1);
     if (dn) linked.push({ label: "إذن صرف", number: dn.number, href: `/erp/sales/deliveries/${encodeURIComponent(dn.number)}` });
   }
-  const rets = await db.select({ number: salesReturns.number, status: salesReturns.status }).from(salesReturns)
+  const rets = await db.select({ status: salesReturns.status }).from(salesReturns)
     .where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.organizationId, orgId)));
-  for (const r of rets) linked.push({ label: "مرتجع مبيعات", number: r.number, href: `/erp/sales/returns/${encodeURIComponent(r.number)}` });
   const hasReturn = rets.some((r) => r.status === "POSTED");
 
   const audit = await getDocumentAudit(orgId, inv.id);

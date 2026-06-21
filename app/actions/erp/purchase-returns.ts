@@ -81,7 +81,7 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     });
 
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مشتريات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
-    revalidatePath("/erp/purchases/returns");
+    revalidatePath("/erp/purchases/invoices");
     return { ok: true, id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
@@ -159,7 +159,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
     });
 
-    revalidatePath("/erp/purchases/returns");
+    revalidatePath("/erp/purchases/invoices");
     revalidatePath("/erp/accounting/journal");
     return { ok: true };
   } catch (e) {
@@ -200,6 +200,6 @@ export async function deletePurchaseReturnAction(id: string): Promise<ActionStat
     await tx.delete(purchaseReturns).where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId)));
   });
 
-  revalidatePath("/erp/purchases/returns");
+  revalidatePath("/erp/purchases/invoices");
   return { ok: true };
 }
