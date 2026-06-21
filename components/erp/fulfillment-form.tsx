@@ -52,7 +52,7 @@ export function FulfillmentForm({
         : await createReceiptFromOrderAction(orderId, picks);
       if (r.ok) {
         // Both are now drafts: land on the new document to confirm.
-        toast.success(isDelivery ? "تم حفظ إذن التسليم (مسودة) — أكّده لترحيله" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
+        toast.success(isDelivery ? "تم حفظ إذن الصرف (مسودة) — أكّده لترحيله" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
         const newId = "id" in r ? (r as { id?: string }).id : undefined;
         const base = isDelivery ? "/erp/sales/deliveries" : "/erp/purchases/receipts";
         router.push(newId ? `${base}/${newId}` : dest);
@@ -100,7 +100,7 @@ export function FulfillmentForm({
         </Table>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => router.push(dest)}>إلغاء</Button>
-          <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن التسليم" : "حفظ إذن الاستلام"}</Button>
+          <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن الصرف" : "حفظ إذن الاستلام"}</Button>
         </div>
       </CardContent>
     </Card>

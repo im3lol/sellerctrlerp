@@ -28,7 +28,7 @@ export default async function NewSalesInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="ReceiptText" title="فاتورة بيع جديدة" subtitle="اختر العميل ثم استدعِ إذن تسليم لفوترته" backHref="/erp/sales/invoices" />
+      <ErpPageHeader icon="ReceiptText" title="فاتورة بيع جديدة" subtitle="اختر العميل ثم استدعِ إذن صرف لفوترته" backHref="/erp/sales/invoices" />
       <SalesInvoiceFromDeliveryForm orgName={org[0]?.nameAr ?? "—"} customers={custRows} deliveries={deliveries} />
     </div>
   );

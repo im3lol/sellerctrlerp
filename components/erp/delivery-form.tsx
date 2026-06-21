@@ -70,7 +70,7 @@ export function DeliveryForm({
     start(async () => {
       const r = await createDeliveryFromOrderAction(orderId, picks, date);
       if (r.ok) {
-        toast.success("تم حفظ إذن التسليم (مسودة) — أكّده لترحيله");
+        toast.success("تم حفظ إذن الصرف (مسودة) — أكّده لترحيله");
         router.push(r.id ? `/erp/sales/deliveries/${r.id}` : "/erp/sales/deliveries");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
@@ -81,9 +81,9 @@ export function DeliveryForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات إذن التسليم</CardTitle>
+          <CardTitle>بيانات إذن الصرف</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ التسليم</Button>
+            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ إذن الصرف</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/deliveries")}>إلغاء</Button>
           </div>
         </div>

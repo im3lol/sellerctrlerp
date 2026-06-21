@@ -26,7 +26,7 @@ export default async function NewDeliveryPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Truck" title="إذن تسليم جديد" subtitle="اختر العميل ثم استدعِ أمر بيع لتسليم بضاعته (كاملاً أو جزئياً)" backHref="/erp/sales/deliveries" />
+      <ErpPageHeader icon="Truck" title="إذن صرف جديد" subtitle="اختر العميل ثم استدعِ أمر بيع لتسليم بضاعته (كاملاً أو جزئياً)" backHref="/erp/sales/deliveries" />
       <DeliveryForm orgName={org[0]?.nameAr ?? "—"} customers={custList} warehouses={whList} openOrders={orders} />
     </div>
   );

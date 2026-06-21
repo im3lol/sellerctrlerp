@@ -54,7 +54,7 @@ export function SalesInvoiceFromDeliveryForm({
 
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
-    if (!deliveryId) return toast.error("استدعِ إذن تسليم أولاً");
+    if (!deliveryId) return toast.error("استدعِ إذن صرف أولاً");
     if (!preview || preview.lines.length === 0) return toast.error("لا توجد بنود للفوترة");
     start(async () => {
       const r = await convertDeliveryToInvoiceAction(deliveryId, date, notes || undefined);
@@ -95,15 +95,15 @@ export function SalesInvoiceFromDeliveryForm({
 
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>استدعاء إذن تسليم</Label>
+            <Label>استدعاء إذن صرف</Label>
             <select className={selectCls} value={deliveryId} disabled={!customerId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{customerId ? "— اختر إذن تسليم —" : "اختر العميل أولاً"}</option>
+              <option value="">{customerId ? "— اختر إذن صرف —" : "اختر العميل أولاً"}</option>
               {customerDeliveries.map((d) => <option key={d.id} value={d.id}>{d.number} — {d.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />جارٍ تحميل بنود التسليم…</span>
-              : customerId && customerDeliveries.length === 0 ? "لا توجد إذون تسليم مؤكَّدة غير مفوترة لهذا العميل."
+              : customerId && customerDeliveries.length === 0 ? "لا توجد إذون صرف مؤكَّدة غير مفوترة لهذا العميل."
               : "تنزل أصناف التسليم وأسعارها من أمر البيع في الجدول."}
           </div>
         </div>
@@ -122,7 +122,7 @@ export function SalesInvoiceFromDeliveryForm({
             </TableHeader>
             <TableBody>
               {!preview ? (
-                <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ إذن تسليم لعرض البنود.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ إذن صرف لعرض البنود.</TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>

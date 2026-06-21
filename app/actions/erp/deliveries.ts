@@ -126,7 +126,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
       await tx.insert(deliveryNoteLines).values(toDeliver.map((t) => ({
         deliveryNoteId: dn.id, itemId: t.itemId, warehouseId: t.warehouseId ?? headerWh, quantity: String(t.qty),
       })));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `حفظ مسودة إذن تسليم ${number} من أمر بيع ${so.number}` });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `حفظ مسودة إذن صرف ${number} من أمر بيع ${so.number}` });
       return dn.id;
     });
     revalidatePath("/erp/sales/deliveries");
@@ -200,7 +200,7 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
       await tx.update(deliveryNotes).set({ status: "DELIVERED" }).where(eq(deliveryNotes.id, dn.id));
       const newStatus = await recomputeSalesOrderStatus(tx, so.id);
       await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: dn.number, relation: "FULFILLS" });
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `تأكيد إذن تسليم ${dn.number} من أمر بيع ${so.number} (${newStatus === "DELIVERED" ? "كامل" : "جزئي"})`, metadata: { cogs } });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `تأكيد إذن صرف ${dn.number} من أمر بيع ${so.number} (${newStatus === "DELIVERED" ? "كامل" : "جزئي"})`, metadata: { cogs } });
     });
     revalidatePath("/erp/sales/deliveries");
     revalidatePath("/erp/sales/orders");
@@ -218,12 +218,12 @@ export async function deleteDeliveryAction(deliveryId: string): Promise<ActionSt
   const [dn] = await db.select().from(deliveryNotes)
     .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
   if (!dn) return { error: "التسليم غير موجود" };
-  if (dn.status !== "DRAFT") return { error: "لا يمكن حذف إذن تسليم مؤكّد" };
+  if (dn.status !== "DRAFT") return { error: "لا يمكن حذف إذن صرف مؤكّد" };
   try {
     await db.transaction(async (tx) => {
       await tx.delete(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
       await tx.delete(deliveryNotes).where(eq(deliveryNotes.id, dn.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `حذف مسودة إذن تسليم ${dn.number}` });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `حذف مسودة إذن صرف ${dn.number}` });
     });
     revalidatePath("/erp/sales/deliveries");
     return { ok: true };
@@ -309,7 +309,7 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: 
   const [dn] = await db.select().from(deliveryNotes)
     .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
   if (!dn) return { error: "التسليم غير موجود" };
-  if (dn.status === "DRAFT") return { error: "أكّد إذن التسليم أولاً قبل تحويله إلى فاتورة" };
+  if (dn.status === "DRAFT") return { error: "أكّد إذن الصرف أولاً قبل تحويله إلى فاتورة" };
   if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
   const customerId = dn.customerId;
   if (!customerId) return { error: "التسليم غير مرتبط بعميل" };
@@ -335,7 +335,7 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: 
         salesInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
         discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
       })));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة بيع ${number} من إذن تسليم ${dn.number}`, metadata: { total: built.total } });
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة بيع ${number} من إذن صرف ${dn.number}`, metadata: { total: built.total } });
       return inv.id;
     });
     revalidatePath("/erp/sales/deliveries");

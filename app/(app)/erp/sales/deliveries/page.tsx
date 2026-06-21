@@ -74,15 +74,15 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <ErpPageHeader
         icon="Truck"
-        title="إذون التسليم"
+        title="إذون الصرف"
         subtitle={`${total} إذن`}
         action={canManage ? (
-          <Button asChild><Link href="/erp/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن تسليم</Link></Button>
+          <Button asChild><Link href="/erp/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن صرف</Link></Button>
         ) : undefined}
       />
       <Card>
         <CardHeader>
-          <CardTitle>إذون التسليم (صرف بضاعة)</CardTitle>
+          <CardTitle>إذون الصرف</CardTitle>
           <CardDescription>صرف البضاعة + تكلفة البضاعة المباعة تُرحّل عند التأكيد؛ الفاتورة تُرحّل الإيراد فقط. حدّد عدّة إذون لتأكيدها أو تحويلها لفواتير أو حذفها.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -116,7 +116,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
           </details>
 
           {tableRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون تسليم بعد — أنشئها من أمر بيع مؤكّد."}</div>
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد."}</div>
           ) : (
             <>
               <DeliveriesTable rows={tableRows} canManage={canManage} />

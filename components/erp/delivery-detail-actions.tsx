@@ -23,8 +23,8 @@ export function DeliveryDetailActions({ id, status, canManage }: { id: string; s
   if (status === "DRAFT") {
     return (
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد التسليم وترحيله")}>
-          <Icon name="Check" className="size-4" />تأكيد التسليم
+        <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد إذن الصرف وترحيله")}>
+          <Icon name="Check" className="size-4" />تأكيد الصرف
         </Button>
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteDeliveryAction(id), "تم حذف المسودة", "/erp/sales/deliveries")}>
           <Icon name="Trash2" className="size-4 text-destructive" />حذف
