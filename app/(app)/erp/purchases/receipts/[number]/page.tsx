@@ -41,10 +41,12 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
   const [wh] = await db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1);
 
   const lines = await db
-    .select({ id: purchaseReceiptLines.id, qty: purchaseReceiptLines.quantity, code: items.code, name: items.nameAr })
+    .select({ id: purchaseReceiptLines.id, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
     .from(purchaseReceiptLines)
     .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
     .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+  const anyRejected = lines.some((l) => Number(l.rejected) > 0);
 
   const linked: DocLink[] = [];
   if (grn.purchaseOrderId) {
@@ -84,14 +86,18 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="text-start">الكمية</TableHead>
+                <TableHead className="text-start">مخزن الاستلام</TableHead>
+                <TableHead className="text-start">الكمية المستلمة</TableHead>
+                {anyRejected && <TableHead className="text-start">الكمية المرفوضة</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                   <TableCell>{qtyf(l.qty)}</TableCell>
+                  {anyRejected && <TableCell className={Number(l.rejected) > 0 ? "text-destructive" : "text-muted-foreground"}>{qtyf(l.rejected)}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>

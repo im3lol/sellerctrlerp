@@ -389,7 +389,10 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   id: pk(),
   purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
-  quantity: money("quantity").notNull(),
+  // Per-line receiving warehouse (falls back to the receipt's warehouse when null).
+  warehouseId: text("warehouse_id").references(() => warehouses.id),
+  quantity: money("quantity").notNull(), // accepted into stock
+  rejectedQty: money("rejected_qty").notNull().default("0"), // inspected & rejected (no stock)
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
   notes: text("notes"),
 });

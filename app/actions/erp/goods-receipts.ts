@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, suppliers, accounts,
+  purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, items, stockMovements,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
@@ -35,15 +35,71 @@ async function recomputePurchaseOrderStatus(tx: Tx, poId: string) {
   return status;
 }
 
-export type Pick = { itemId: string; quantity: number };
+export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string };
+
+export type ReceivableLine = {
+  itemId: string; code: string; name: string; ordered: number; received: number; remaining: number;
+  stockByWarehouse: Record<string, number>;
+};
+
+/**
+ * Recall a confirmed/partial purchase order's still-unreceived lines for the
+ * goods-receipt form: remaining qty + current on-hand per warehouse per item.
+ */
+export async function getReceivableOrderLinesAction(purchaseOrderId: string): Promise<
+  ActionState & { lines?: ReceivableLine[]; defaultWarehouseId?: string }
+> {
+  const auth = await authorizeErp("purchases.view");
+  if ("error" in auth) return auth;
+
+  const [po] = await db.select().from(purchaseOrders)
+    .where(and(eq(purchaseOrders.id, purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+  if (!po) return { error: "الأمر غير موجود" };
+
+  const ols = await db
+    .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr })
+    .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
+    .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+
+  const lines = ols
+    .map((l) => {
+      const ordered = Number(l.quantity), received = Number(l.receivedQty);
+      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number> };
+    })
+    .filter((l) => l.remaining > EPS);
+
+  const itemIds = lines.map((l) => l.itemId);
+  if (itemIds.length) {
+    // Latest running balance per (item, warehouse): newest movement wins.
+    const sm = await db
+      .select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
+      .from(stockMovements)
+      .where(and(eq(stockMovements.organizationId, auth.orgId), inArray(stockMovements.itemId, itemIds)))
+      .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id));
+    const seen = new Set<string>();
+    const byItem = new Map(lines.map((l) => [l.itemId, l]));
+    for (const m of sm) {
+      const key = `${m.itemId}|${m.warehouseId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const line = byItem.get(m.itemId);
+      if (line) line.stockByWarehouse[m.warehouseId] = Number(m.bal);
+    }
+  }
+
+  return { ok: true, lines, defaultWarehouseId: po.warehouseId };
+}
 
 /**
  * Receive a confirmed purchase order — fully or PARTIALLY. `picks` caps the
- * quantity per item (≤ remaining = ordered − already received); omitted →
- * receive all remaining. Stock IN at cost + Dr Inventory / Cr GRNI, bumps
- * receivedQty, recomputes the order status.
+ * accepted quantity per item (≤ remaining = ordered − already received); omitted
+ * → receive all remaining. Optional per-line `warehouseId` (defaults to the
+ * order warehouse) and `rejectedQty` (recorded only — never enters stock and
+ * never advances the order, so it stays open as backorder). `date` is the actual
+ * receipt date (defaults to the order date). Stock IN at cost + Dr Inventory /
+ * Cr GRNI on the accepted qty, bumps receivedQty, recomputes the order status.
  */
-export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[]): Promise<ActionState & { id?: string }> {
+export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
@@ -55,14 +111,16 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
-  const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p.quantity]));
-  const toReceive: { line: typeof orderLines[number]; qty: number }[] = [];
+  const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
+  const toReceive: { line: typeof orderLines[number]; qty: number; rejected: number; warehouseId: string }[] = [];
   for (const l of orderLines) {
     const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
-    const want = picks ? (pickBy.get(l.itemId) ?? 0) : remaining;
+    const p = picks ? pickBy.get(l.itemId) : undefined;
+    const want = picks ? (p?.quantity ?? 0) : remaining;
+    const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
     if (want < -EPS) return { error: "كمية غير صالحة" };
     if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
-    if (want > EPS) toReceive.push({ line: l, qty: round2(want) });
+    if (want > EPS || rejected > EPS) toReceive.push({ line: l, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId });
   }
   if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
 
@@ -71,24 +129,30 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
   if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
 
-  const number = await nextNumber("GRN", auth.orgId, new Date(po.date).getFullYear());
+  const receiptDate = date ? new Date(date) : new Date(po.date);
+  const headerWh = toReceive.find((t) => t.qty > EPS)?.warehouseId || po.warehouseId;
+  const number = await nextNumber("GRN", auth.orgId, receiptDate.getFullYear());
   try {
     const id = await db.transaction(async (tx) => {
       const [grn] = await tx.insert(purchaseReceipts).values({
-        organizationId: auth.orgId, number, date: new Date(po.date), status: "RECEIVED",
-        purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: po.warehouseId, notes: `استلام أمر ${po.number}`,
+        organizationId: auth.orgId, number, date: receiptDate, status: "RECEIVED",
+        purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
       }).returning({ id: purchaseReceipts.id });
-      await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({ purchaseReceiptId: grn.id, itemId: t.line.itemId, quantity: String(t.qty) })));
+      await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
+        purchaseReceiptId: grn.id, itemId: t.line.itemId, warehouseId: t.warehouseId,
+        quantity: String(t.qty), rejectedQty: String(t.rejected),
+      })));
 
       let received = 0;
       for (const t of toReceive) {
+        if (t.qty <= EPS) continue; // rejected-only line: recorded, no stock/GL
         // Capitalise the per-unit shipping into the inventory cost (plan §10.5).
         const unitNet = Number(t.line.unitPrice) - Number(t.line.discountAmount) / (Number(t.line.quantity) || 1) + Number(t.line.shippingPerUnit);
         const lineNet = round2(t.qty * unitNet);
         received += lineNet;
         await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: t.line.itemId, warehouseId: po.warehouseId, type: "IN",
-          quantity: t.qty, unitCost: unitNet, date: new Date(po.date),
+          orgId: auth.orgId, itemId: t.line.itemId, warehouseId: t.warehouseId, type: "IN",
+          quantity: t.qty, unitCost: unitNet, date: receiptDate,
           referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: `استلام ${number}`,
         });
         await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${t.qty}` }).where(eq(purchaseOrderLines.id, t.line.id));
@@ -96,7 +160,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       received = round2(received);
       if (received > 0) {
         await postEntry(tx, {
-          orgId: auth.orgId, date: new Date(po.date), sourceType: "GOODS_RECEIPT", sourceId: grn.id,
+          orgId: auth.orgId, date: receiptDate, sourceType: "GOODS_RECEIPT", sourceId: grn.id,
           description: `استلام بضاعة ${number}`, journalType: "PURCHASE", userId: auth.userId,
           lines: [
             { accountId: A["1104"], debit: received, credit: 0, description: `مخزون مستلم ${number}` },
