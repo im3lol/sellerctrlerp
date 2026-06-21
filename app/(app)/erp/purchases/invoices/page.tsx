@@ -84,7 +84,7 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
       <Card>
         <CardHeader>
           <CardTitle>الفواتير</CardTitle>
-          <CardDescription>فواتير الشراء تُحفظ مسودة ثم تُرحّل. حدّد عدّة مسودات لترحيلها أو حذفها دفعةً واحدة.</CardDescription>
+          <CardDescription>فواتير الشراء تُحفظ مسودة ثم تُؤكَّد (تُرحّل محاسبياً). حدّد عدّة مسودات لتأكيدها أو حذفها دفعةً واحدة.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <details open={hasFilters} className="rounded-lg border">

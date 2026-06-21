@@ -49,7 +49,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
-            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "ترحيل")}><Icon name="Check" className="size-4" />ترحيل</Button>}
+            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
             <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
           </div>
         </div>

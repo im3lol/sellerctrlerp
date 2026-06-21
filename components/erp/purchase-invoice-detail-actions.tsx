@@ -24,8 +24,8 @@ export function PurchaseInvoiceDetailActions({ id, status, canPost, canManage }:
   return (
     <div className="flex flex-wrap gap-2">
       {canPost && (
-        <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم ترحيل الفاتورة محاسبياً")}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}ترحيل
+        <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
         </Button>
       )}
       {canManage && (
