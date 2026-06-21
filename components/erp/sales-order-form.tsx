@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
+import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Customer = { id: string; nameAr: string };
@@ -125,11 +126,13 @@ export function SalesOrderForm({ customers, items, orgName }: { customers: Custo
                       <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => pickItem(i, it)} />
                     </TableCell>
                     <TableCell>
-                      <select className={selectCls} value={l.warehouseId} disabled={!l.itemId} onChange={(e) => setLine(i, { warehouseId: e.target.value })}>
-                        {!l.itemId && <option value="">— اختر الصنف —</option>}
-                        {l.itemId && whOpts.length === 0 && <option value="">لا يوجد مستودع</option>}
-                        {whOpts.map((w) => <option key={w.warehouseId} value={w.warehouseId}>{w.name} — {qtyf(w.qty)}</option>)}
-                      </select>
+                      <WarehousePicker
+                        options={whOpts}
+                        value={l.warehouseId}
+                        disabled={!l.itemId}
+                        placeholder={l.itemId ? "ابحث عن مستودع…" : "اختر الصنف أولاً"}
+                        onSelect={(id) => setLine(i, { warehouseId: id })}
+                      />
                     </TableCell>
                     <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
                     <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
