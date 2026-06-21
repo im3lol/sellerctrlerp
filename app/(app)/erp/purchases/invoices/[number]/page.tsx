@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -106,13 +106,15 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                 </TableRow>
               ))}
             </TableBody>
-            <TableFooter>
-              <TableRow className="font-bold">
-                <TableCell colSpan={anyShipping ? 6 : 5}>الإجمالي</TableCell>
-                <TableCell>{fmt(inv.totalAmount)}</TableCell>
-              </TableRow>
-            </TableFooter>
           </Table>
+
+          <div className="mt-4 flex flex-col items-end gap-1 text-sm">
+            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(inv.subtotal)}</span></div>
+            <div>الخصم: <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
+            <div>الشحن: <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>
+            <div>الضريبة: <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
+            <div className="text-base font-bold text-primary">الإجمالي للكل: {fmt(inv.totalAmount)}</div>
+          </div>
           {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}
         </CardContent>
       </Card>
