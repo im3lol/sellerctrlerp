@@ -118,6 +118,7 @@ export function PurchaseInvoiceFromReceiptForm({
                 <TableHead className="text-start">المنتج</TableHead>
                 <TableHead className="w-24 text-start">الكمية</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>
+                <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
                 <TableHead className="w-28 text-start">الخصم</TableHead>
                 <TableHead className="w-28 text-start">الضريبة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
@@ -125,12 +126,13 @@ export function PurchaseInvoiceFromReceiptForm({
             </TableHeader>
             <TableBody>
               {!preview ? (
-                <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ إذن استلام لعرض البنود.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ إذن استلام لعرض البنود.</TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
+                  <TableCell>{fmt(l.shippingPerUnit)}</TableCell>
                   <TableCell>{fmt(l.discountAmount)}</TableCell>
                   <TableCell>{fmt(l.taxAmount)}</TableCell>
                   <TableCell className="font-medium">{fmt(l.totalAmount)}</TableCell>
@@ -139,7 +141,7 @@ export function PurchaseInvoiceFromReceiptForm({
             </TableBody>
             {preview && (
               <TableFooter>
-                <TableRow className="font-bold"><TableCell colSpan={5}>الإجمالي</TableCell><TableCell>{fmt(preview.total)}</TableCell></TableRow>
+                <TableRow className="font-bold"><TableCell colSpan={6}>الإجمالي</TableCell><TableCell>{fmt(preview.total)}</TableCell></TableRow>
               </TableFooter>
             )}
           </Table>
@@ -148,6 +150,7 @@ export function PurchaseInvoiceFromReceiptForm({
         {preview && (
           <div className="flex flex-col items-end gap-1 text-sm">
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(preview.subtotal)}</span></div>
+            <div>الشحن: <span className="font-medium">{fmt(preview.shipping)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
             <div className="text-base font-bold text-primary">الإجمالي: {fmt(preview.total)}</div>

@@ -253,13 +253,14 @@ export async function bulkReceiptsAction(op: "confirm" | "bill" | "delete", ids:
   return { ok: true, count };
 }
 
-export type ReceiptInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number };
-export type ReceiptInvoicePreview = { lines: ReceiptInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number };
+export type ReceiptInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; totalAmount: number };
+export type ReceiptInvoicePreview = { lines: ReceiptInvoiceLine[]; subtotal: number; shipping: number; discount: number; tax: number; total: number };
 
 /**
  * Compute the invoice a goods receipt would produce: one line per received item,
- * priced from the order (shipping capitalised, discount/tax pro-rated by the
- * received fraction). Pure read — used by both the preview and the draft create.
+ * priced from the order (per-unit shipping recalled separately, discount/tax
+ * pro-rated by the received fraction). Pure read — used by both the preview and
+ * the draft create.
  */
 async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$inferSelect): Promise<ReceiptInvoicePreview | { error: string }> {
   if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
@@ -272,7 +273,7 @@ async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$
     .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
 
   const lines: ReceiptInvoiceLine[] = [];
-  let subtotal = 0, discount = 0, tax = 0;
+  let subtotal = 0, shipping = 0, discount = 0, tax = 0;
   for (const gl of grnLines) {
     const po2 = poByItem.get(gl.itemId);
     if (!po2) continue;
@@ -281,15 +282,16 @@ async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$
     const oq = Number(po2.quantity) || gq;
     const f = oq > 0 ? gq / oq : 0;
     const price = Number(po2.unitPrice);
-    const lineShip = round2(Number(po2.shippingPerUnit) * gq); // capitalised shipping clears GRNI
+    const shipPerUnit = Number(po2.shippingPerUnit); // recalled from the order, per unit
+    const lineShip = round2(shipPerUnit * gq);
     const lineDisc = round2(Number(po2.discountAmount) * f);
     const lineTax = round2(Number(po2.taxAmount) * f);
     const lineTotal = round2(price * gq + lineShip - lineDisc + lineTax);
-    subtotal += price * gq + lineShip; discount += lineDisc; tax += lineTax;
-    lines.push({ itemId: gl.itemId, code: gl.code ?? "", name: gl.name ?? "", quantity: gq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
+    subtotal += price * gq; shipping += lineShip; discount += lineDisc; tax += lineTax;
+    lines.push({ itemId: gl.itemId, code: gl.code ?? "", name: gl.name ?? "", quantity: gq, unitPrice: price, shippingPerUnit: shipPerUnit, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
-  subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+  subtotal = round2(subtotal); shipping = round2(shipping); discount = round2(discount); tax = round2(tax);
+  return { lines, subtotal, shipping, discount, tax, total: round2(subtotal + shipping - discount + tax) };
 }
 
 /** Preview the invoice a confirmed receipt would produce (for the create form). */
@@ -337,12 +339,13 @@ export async function convertReceiptToInvoiceAction(receiptId: string, date?: st
     const invoiceId = await db.transaction(async (tx) => {
       const [inv] = await tx.insert(purchaseInvoices).values({
         organizationId: auth.orgId, number, supplierId, warehouseId: grn.warehouseId, goodsReceiptId: grn.id,
-        date: invoiceDate, status: "DRAFT", subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax),
+        date: invoiceDate, status: "DRAFT", subtotal: String(built.subtotal), shippingAmount: String(built.shipping),
+        discountAmount: String(built.discount), taxAmount: String(built.tax),
         totalAmount: String(built.total), paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة استلام ${grn.number}`,
       }).returning({ id: purchaseInvoices.id });
       await tx.insert(purchaseInvoiceLines).values(built.lines.map((l) => ({
         purchaseInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+        shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
       })));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة شراء ${number} من إذن استلام ${grn.number}`, metadata: { total: built.total } });
       return inv.id;

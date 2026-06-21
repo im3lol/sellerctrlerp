@@ -43,10 +43,11 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
     : [undefined];
 
   const lines = await db
-    .select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
+    .select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, shipping: purchaseInvoiceLines.shippingPerUnit, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
     .from(purchaseInvoiceLines)
     .leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId))
     .where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
+  const anyShipping = lines.some((l) => Number(l.shipping) > 0);
 
   const linked: DocLink[] = [];
   if (inv.goodsReceiptId) {
@@ -72,6 +73,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
         <Field label="التاريخ">{dt(inv.date)}</Field>
+        {Number(inv.shippingAmount) > 0 && <Field label="الشحن">{fmt(inv.shippingAmount)}</Field>}
         <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>
         <Field label="المدفوع / المتبقّي">{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
       </div>
@@ -85,6 +87,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                 <TableHead className="text-start">الصنف</TableHead>
                 <TableHead className="text-start">الكمية</TableHead>
                 <TableHead className="text-start">السعر</TableHead>
+                {anyShipping && <TableHead className="text-start">شحن/وحدة</TableHead>}
                 <TableHead className="text-start">الخصم</TableHead>
                 <TableHead className="text-start">الضريبة</TableHead>
                 <TableHead className="text-start">الإجمالي</TableHead>
@@ -96,6 +99,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
                   <TableCell>{qty(l.qty)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
+                  {anyShipping && <TableCell>{fmt(l.shipping)}</TableCell>}
                   <TableCell>{fmt(l.discount)}</TableCell>
                   <TableCell>{fmt(l.tax)}</TableCell>
                   <TableCell>{fmt(l.total)}</TableCell>
@@ -104,7 +108,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
             </TableBody>
             <TableFooter>
               <TableRow className="font-bold">
-                <TableCell colSpan={5}>الإجمالي</TableCell>
+                <TableCell colSpan={anyShipping ? 6 : 5}>الإجمالي</TableCell>
                 <TableCell>{fmt(inv.totalAmount)}</TableCell>
               </TableRow>
             </TableFooter>

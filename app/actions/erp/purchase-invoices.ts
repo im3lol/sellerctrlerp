@@ -105,7 +105,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
 
   const total = Number(inv.totalAmount);
   const tax = Number(inv.taxAmount);
-  const net = Number(inv.subtotal) - Number(inv.discountAmount);
+  const net = Number(inv.subtotal) + Number(inv.shippingAmount) - Number(inv.discountAmount);
   const fromReceipt = Boolean(inv.goodsReceiptId);
 
   // GRN path debits GRNI (2103); standalone path debits Inventory (1104) + adds stock.
