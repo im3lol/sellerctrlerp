@@ -52,7 +52,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
   if (!po) return { error: "الأمر غير موجود" };
   if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-  const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount })
+  const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
   const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p.quantity]));
@@ -82,7 +82,8 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
 
       let received = 0;
       for (const t of toReceive) {
-        const unitNet = Number(t.line.unitPrice) - Number(t.line.discountAmount) / (Number(t.line.quantity) || 1);
+        // Capitalise the per-unit shipping into the inventory cost (plan §10.5).
+        const unitNet = Number(t.line.unitPrice) - Number(t.line.discountAmount) / (Number(t.line.quantity) || 1) + Number(t.line.shippingPerUnit);
         const lineNet = round2(t.qty * unitNet);
         received += lineNet;
         await postStockMovement(tx, {
@@ -152,10 +153,11 @@ export async function convertReceiptToInvoiceAction(receiptId: string): Promise<
     const oq = Number(po2.quantity) || gq;
     const f = oq > 0 ? gq / oq : 0;
     const price = Number(po2.unitPrice);
+    const lineShip = round2(Number(po2.shippingPerUnit) * gq); // capitalised shipping clears GRNI
     const lineDisc = round2(Number(po2.discountAmount) * f);
     const lineTax = round2(Number(po2.taxAmount) * f);
-    const lineTotal = round2(price * gq - lineDisc + lineTax);
-    subtotal += price * gq; discount += lineDisc; tax += lineTax;
+    const lineTotal = round2(price * gq + lineShip - lineDisc + lineTax);
+    subtotal += price * gq + lineShip; discount += lineDisc; tax += lineTax;
     invLines.push({ itemId: gl.itemId, quantity: String(gq), unitPrice: String(price), discountAmount: String(lineDisc), taxAmount: String(lineTax), totalAmount: String(lineTotal) });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);

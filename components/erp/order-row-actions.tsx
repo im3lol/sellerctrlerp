@@ -11,6 +11,9 @@ import {
 } from "@/app/actions/erp/purchase-orders";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export function OrderRowActions({
   orderId,
@@ -38,7 +41,7 @@ export function OrderRowActions({
       else toast.error(r.error ?? "تعذّر التنفيذ");
     });
 
-  // DRAFT: confirm or delete (no stock/GL yet).
+  // DRAFT: confirm or cancel (delete the draft) — no stock/GL yet.
   if (status === "DRAFT") {
     return (
       <div className="flex flex-wrap gap-1">
@@ -46,9 +49,9 @@ export function OrderRowActions({
           onClick={() => run(() => isSales ? confirmSalesOrderAction(orderId) : confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
           <Icon name="Check" className="size-4" />تأكيد
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
+        <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
-          <Icon name="Trash2" className="size-4 text-destructive" />
+          <Icon name="X" className="size-4 text-destructive" />إلغاء
         </Button>
       </div>
     );
@@ -63,26 +66,37 @@ export function OrderRowActions({
     );
   }
 
-  // Fully delivered/received but not yet invoiced — bill from the delivery/receipt list.
+  // Fully delivered/received but not invoiced — bill from the delivery/receipt.
   if (status === "DELIVERED" || status === "RECEIVED") return null;
 
-  // CONFIRMED: start fulfilment, bill directly (whole order), or cancel.
+  // CONFIRMED: actions dropdown — create the next document or cancel.
   return (
-    <div className="flex flex-wrap gap-1">
-      <Button size="sm" variant="outline" disabled={pending} onClick={() => router.push(fulfillPath)}>
-        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? "تسليم" : "استلام"}
-      </Button>
-      <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(
-          () => isSales ? convertSalesOrderToInvoiceAction(orderId) : convertPurchaseOrderToInvoiceAction(orderId),
-          "تم التحويل إلى فاتورة (مسودة)", invoiceDest,
-        )}>
-        <Icon name="FileText" className="size-4" />فاتورة مباشرة
-      </Button>
-      <Button size="sm" variant="ghost" disabled={pending} aria-label="إلغاء"
-        onClick={() => run(() => isSales ? cancelSalesOrderAction(orderId) : cancelPurchaseOrderAction(orderId), "تم الإلغاء")}>
-        <Icon name="X" className="size-4 text-destructive" />
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" disabled={pending}>
+          إجراءات<Icon name="ChevronDown" className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onClick={() => router.push(fulfillPath)}>
+          <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
+          {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => run(
+            () => isSales ? convertSalesOrderToInvoiceAction(orderId) : convertPurchaseOrderToInvoiceAction(orderId),
+            "تم التحويل إلى فاتورة (مسودة)", invoiceDest,
+          )}>
+          <Icon name="FileText" className="size-4" />
+          {isSales ? "إنشاء فاتورة بيع" : "إنشاء فاتورة شراء"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => run(() => isSales ? cancelSalesOrderAction(orderId) : cancelPurchaseOrderAction(orderId), "تم إلغاء الأمر")}>
+          <Icon name="X" className="size-4" />إلغاء الأمر
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

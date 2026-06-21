@@ -44,7 +44,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
     : [undefined];
 
   const lines = await db
-    .select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
+    .select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
     .from(purchaseOrderLines)
     .leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
     .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
@@ -77,8 +77,9 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
         <Field label="التاريخ">{dt(po.date)}</Field>
-        <Field label="الإجمالي">{fmt(po.totalAmount)}</Field>
+        <Field label="الشحن">{fmt(po.shippingAmount)}</Field>
         <Field label="الضريبة">{fmt(po.taxAmount)}</Field>
+        <Field label="الإجمالي">{fmt(po.totalAmount)}</Field>
       </div>
 
       <Card>
@@ -92,6 +93,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                 <TableHead className="text-start">السعر</TableHead>
                 <TableHead className="text-start">الخصم</TableHead>
                 <TableHead className="text-start">الضريبة</TableHead>
+                <TableHead className="text-start">شحن/وحدة</TableHead>
                 <TableHead className="text-start">الإجمالي</TableHead>
               </TableRow>
             </TableHeader>
@@ -103,13 +105,14 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.discount)}</TableCell>
                   <TableCell>{fmt(l.tax)}</TableCell>
+                  <TableCell>{fmt(l.shipping)}</TableCell>
                   <TableCell>{fmt(l.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow className="font-bold">
-                <TableCell colSpan={5}>الإجمالي</TableCell>
+                <TableCell colSpan={6}>الإجمالي</TableCell>
                 <TableCell>{fmt(po.totalAmount)}</TableCell>
               </TableRow>
             </TableFooter>

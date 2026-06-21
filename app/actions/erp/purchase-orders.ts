@@ -16,6 +16,7 @@ const lineSchema = z.object({
   itemId: z.string().min(1),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().min(0),
+  shippingPerUnit: z.coerce.number().min(0).default(0),
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
 });
@@ -46,11 +47,12 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
     .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
   if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
 
-  const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
+  const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount) }));
   const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const shippingAmount = round2(computed.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
   const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
   const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
-  const totalAmount = round2(subtotal - discountAmount + taxAmount);
+  const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
 
   const d = new Date(date);
   const number = await nextNumber(auth.orgId, d.getFullYear());
@@ -59,12 +61,12 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
     const id = await db.transaction(async (tx) => {
       const [po] = await tx.insert(purchaseOrders).values({
         organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "DRAFT",
-        subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
+        subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
         totalAmount: String(totalAmount), notes: notes || null,
       }).returning({ id: purchaseOrders.id });
       await tx.insert(purchaseOrderLines).values(computed.map((l) => ({
         purchaseOrderId: po.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+        shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
       })));
       return po.id;
     });
@@ -116,13 +118,14 @@ export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<A
 
   const lines = await db.select({
     itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice,
-    discountAmount: purchaseOrderLines.discountAmount, taxAmount: purchaseOrderLines.taxAmount,
+    shippingPerUnit: purchaseOrderLines.shippingPerUnit, discountAmount: purchaseOrderLines.discountAmount, taxAmount: purchaseOrderLines.taxAmount,
   }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
   const r = await createPurchaseInvoiceAction({
     supplierId: po.supplierId, warehouseId: po.warehouseId, date: new Date(po.date).toISOString().slice(0, 10),
     notes: `من أمر شراء ${po.number}`,
-    lines: lines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) })),
+    // Capitalise shipping into the unit cost for the direct (no-receipt) path.
+    lines: lines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) + Number(l.shippingPerUnit), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) })),
   });
   if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 
