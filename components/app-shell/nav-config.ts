@@ -48,7 +48,6 @@ export const NAV: NavSection[] = [
       { label: "الموردون", href: "/erp/purchases", icon: "Users", capability: "erp.purchases.view", exact: true },
       { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view" },
       { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view" },
-      { label: "مرتجعات المشتريات", href: "/erp/purchases/returns", icon: "Undo2", capability: "erp.purchases.view" },
     ],
   },
   {
@@ -74,7 +73,6 @@ export const NAV: NavSection[] = [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
-      { label: "مرتجعات المبيعات", href: "/erp/sales/returns", icon: "Undo2", capability: "erp.sales.view" },
     ],
   },
   {

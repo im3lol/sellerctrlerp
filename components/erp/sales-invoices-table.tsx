@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { bulkSalesInvoicesAction } from "@/app/actions/erp/sales-invoices";
@@ -22,7 +22,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CANCELLED: { label: "ملغاة", variant: "destructive" },
 };
 
-type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean };
+type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
+type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; canManage: boolean; canPost: boolean }) {
   const router = useRouter();
@@ -69,17 +70,32 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
           {rows.map((r) => {
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
-              <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
-                <TableCell>
-                  <Link href={`/erp/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
-                </TableCell>
-                <TableCell>{dt(r.date)}</TableCell>
-                <TableCell>{r.customer ?? "—"}</TableCell>
-                <TableCell>{fmt(r.total)}</TableCell>
-                <TableCell>{fmt(r.balanceDue)}</TableCell>
-                <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
-              </TableRow>
+              <Fragment key={r.id}>
+                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
+                  {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
+                  <TableCell>
+                    <Link href={`/erp/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                  </TableCell>
+                  <TableCell>{dt(r.date)}</TableCell>
+                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell>{fmt(r.total)}</TableCell>
+                  <TableCell>{fmt(r.balanceDue)}</TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                </TableRow>
+                {r.returns?.map((rt) => (
+                  <TableRow key={rt.id} className="bg-destructive/5">
+                    {actionable && <TableCell />}
+                    <TableCell className="ps-8">
+                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </Fragment>
             );
           })}
         </TableBody>

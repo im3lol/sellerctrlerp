@@ -59,14 +59,26 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
 
-  // Mark invoices that have a posted return.
+  // Attach each invoice's returns (credit notes) as linked rows shown under it.
   const invIds = tableRows.map((r) => r.id);
   const retRows = invIds.length
-    ? await db.select({ id: salesReturns.salesInvoiceId }).from(salesReturns)
-        .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), inArray(salesReturns.salesInvoiceId, invIds)))
+    ? await db.select({ id: salesReturns.id, number: salesReturns.number, date: salesReturns.date, total: salesReturns.totalAmount, status: salesReturns.status, invId: salesReturns.salesInvoiceId })
+        .from(salesReturns)
+        .where(and(eq(salesReturns.organizationId, orgId), inArray(salesReturns.salesInvoiceId, invIds)))
+        .orderBy(desc(salesReturns.date), desc(salesReturns.number))
     : [];
-  const returnedSet = new Set(retRows.map((r) => r.id));
-  const rows = tableRows.map((r) => ({ ...r, returned: returnedSet.has(r.id) }));
+  const retsByInv = new Map<string, { id: string; number: string; date: Date; total: string | null; status: string }[]>();
+  for (const r of retRows) {
+    if (!r.invId) continue;
+    const list = retsByInv.get(r.invId) ?? [];
+    list.push({ id: r.id, number: r.number, date: r.date, total: r.total, status: r.status });
+    retsByInv.set(r.invId, list);
+  }
+  const rows = tableRows.map((r) => ({
+    ...r,
+    returned: (retsByInv.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+    returns: retsByInv.get(r.id) ?? [],
+  }));
 
   const hasFilters = Boolean(q || fStatus || fCustomer || from || to);
   const qs = (p: number) => {
