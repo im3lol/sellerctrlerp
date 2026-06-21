@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, suppliers } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,18 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
     .orderBy(desc(purchaseOrders.date), desc(purchaseOrders.number))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
+
+  // Received progress (received qty / ordered qty) per order on this page.
+  const ids = rows.map((r) => r.id);
+  const agg = ids.length
+    ? await db.select({
+        poId: purchaseOrderLines.purchaseOrderId,
+        ordered: sql<string>`coalesce(sum(${purchaseOrderLines.quantity}),0)`,
+        received: sql<string>`coalesce(sum(${purchaseOrderLines.receivedQty}),0)`,
+      }).from(purchaseOrderLines).where(inArray(purchaseOrderLines.purchaseOrderId, ids)).groupBy(purchaseOrderLines.purchaseOrderId)
+    : [];
+  const aggBy = new Map(agg.map((a) => [a.poId, { ordered: Number(a.ordered), received: Number(a.received) }]));
+  const tableRows = rows.map((r) => ({ ...r, orderedQty: aggBy.get(r.id)?.ordered ?? 0, receivedQty: aggBy.get(r.id)?.received ?? 0 }));
 
   const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
   const qs = (p: number) => {
@@ -117,7 +129,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر شراء بعد."}</div>
           ) : (
             <>
-              <PurchaseOrdersTable rows={rows} canManage={canManage} />
+              <PurchaseOrdersTable rows={tableRows} canManage={canManage} />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

@@ -672,7 +672,7 @@ async function main() {
         organizationId: org.id, number: "PO-2026-0002", supplierId: supByCode["S-001"], warehouseId: demoWh.id, date: new Date(2026, 5, 13),
         status: "RECEIVED", subtotal: String(poSub), taxAmount: "300", totalAmount: String(poSub + 300), notes: "أمر مُستلم",
       }).returning({ id: purchaseOrders.id });
-      await tx.insert(purchaseOrderLines).values({ purchaseOrderId: po.id, itemId: demoItemId, quantity: "5", unitPrice: "400", taxAmount: "300", totalAmount: String(poSub + 300) });
+      await tx.insert(purchaseOrderLines).values({ purchaseOrderId: po.id, itemId: demoItemId, quantity: "5", receivedQty: "5", unitPrice: "400", taxAmount: "300", totalAmount: String(poSub + 300) });
       const [grn] = await tx.insert(purchaseReceipts).values({
         organizationId: org.id, number: "GRN-2026-0001", date: new Date(2026, 5, 13), status: "RECEIVED",
         purchaseOrderId: po.id, supplierId: supByCode["S-001"], warehouseId: demoWh.id, notes: "استلام PO-2026-0002",

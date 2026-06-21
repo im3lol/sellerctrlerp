@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Icon } from "@/components/icon";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -23,7 +24,9 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CANCELLED: { label: "ملغى", variant: "destructive" },
 };
 
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; supplier: string | null };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; supplier: string | null; orderedQty: number; receivedQty: number };
+
+const RECEIVING = new Set(["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED", "INVOICED"]);
 
 export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
   const router = useRouter();
@@ -72,6 +75,9 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
         <TableBody>
           {rows.map((r) => {
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
+            const pct = r.orderedQty > 0 ? Math.min(100, Math.round((r.receivedQty / r.orderedQty) * 100)) : 0;
+            const showBar = RECEIVING.has(r.status);
+            const full = pct >= 100;
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
@@ -81,7 +87,19 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.supplier ?? "—"}</TableCell>
                 <TableCell>{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <Badge variant={st.variant}>{st.label}</Badge>
+                    {showBar && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
+                          <div className={`h-full rounded-full ${full ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: pct === 0 ? "0%" : `${Math.max(pct, 4)}%` }} />
+                        </div>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">{qty(r.receivedQty)}/{qty(r.orderedQty)}</span>
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
             );
           })}
