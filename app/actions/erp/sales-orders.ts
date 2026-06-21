@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, deliveryNotes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -92,15 +92,21 @@ export async function confirmSalesOrderAction(id: string): Promise<ActionState> 
   return { ok: true };
 }
 
-/** Delete a DRAFT sales order (confirmed orders are cancelled, not deleted). */
+/** Delete a DRAFT order, or a CANCELLED order that isn't linked to any delivery. */
 export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
-  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "الأمر غير موجود" };
-  if (so.status !== "DRAFT") return { error: "لا يمكن حذف أمر مؤكّد — استخدم الإلغاء" };
+  if (so.status !== "DRAFT" && so.status !== "CANCELLED") return { error: "يمكن حذف مسودة أو أمر ملغى فقط — أكّد الإلغاء أولاً" };
+  if (so.status === "CANCELLED") {
+    const [dn] = await db.select({ id: deliveryNotes.id }).from(deliveryNotes)
+      .where(and(eq(deliveryNotes.salesOrderId, id), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+    if (dn) return { error: "لا يمكن حذف أمر مرتبط بإذون صرف" };
+  }
   await db.delete(salesOrders).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
   revalidatePath("/erp/sales/orders");
   return { ok: true };
 }

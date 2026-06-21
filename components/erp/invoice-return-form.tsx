@@ -4,14 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { returnFromSalesInvoiceAction } from "@/app/actions/erp/sales-returns";
-import { returnFromPurchaseInvoiceAction } from "@/app/actions/erp/purchase-returns";
+import { createSalesReturnAction } from "@/app/actions/erp/sales-returns";
+import { createPurchaseReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { confirm } from "@/components/erp/confirm";
 
 export type ReturnLine = { itemId: string; code: string; name: string; invoiced: number; returned: number; remaining: number; unitPrice: number };
 
@@ -45,16 +44,17 @@ export function InvoiceReturnForm({
       .filter((p) => p.quantity > 0);
     if (picks.length === 0) return toast.error("حدّد كمية مرتجعة لبند واحد على الأقل");
     if (lines.some((l) => (Number(qtys[l.itemId]) || 0) > l.remaining + 1e-6)) return toast.error("الكمية المرتجعة أكبر من المتبقّي");
-    void (async () => {
-    if (!(await confirm({ title: "تأكيد المرتجع", description: "سيُسجَّل المرتجع ويُرحَّل محاسبياً.", danger: true }))) return;
     start(async () => {
-      const r = type === "sales"
-        ? await returnFromSalesInvoiceAction(invoiceId, picks, date)
-        : await returnFromPurchaseInvoiceAction(invoiceId, picks, date);
-      if (r.ok) { toast.success("تم تسجيل المرتجع وترحيله"); router.push(type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر تسجيل المرتجع");
+      const input = type === "sales"
+        ? { salesInvoiceId: invoiceId, date, lines: picks }
+        : { purchaseInvoiceId: invoiceId, date, lines: picks };
+      const r = type === "sales" ? await createSalesReturnAction(input) : await createPurchaseReturnAction(input);
+      if (r.ok) {
+        toast.success("تم حفظ المرتجع (مسودة) — أكّده");
+        router.push(`/erp/${type === "sales" ? "sales" : "purchases"}/returns/${r.id}`);
+        router.refresh();
+      } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
     });
-    })();
   };
 
   return (
@@ -63,7 +63,7 @@ export function InvoiceReturnForm({
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>مرتجع من فاتورة {invoiceNumber}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}تأكيد المرتجع</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المرتجع</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>إلغاء</Button>
           </div>
         </div>

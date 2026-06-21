@@ -29,7 +29,7 @@ export function OrderRowActions({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (!canManage || ["INVOICED", "CANCELLED"].includes(status)) return null;
+  if (!canManage || status === "INVOICED") return null;
 
   const isSales = type === "sales";
   const invoiceDest = isSales ? "/erp/sales/invoices" : "/erp/purchases/invoices";
@@ -45,6 +45,16 @@ export function OrderRowActions({
       });
     })();
   };
+
+  // CANCELLED: can be deleted if it isn't linked to any receipt/delivery.
+  if (status === "CANCELLED") {
+    return (
+      <Button size="sm" variant="ghost" disabled={pending}
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/erp/sales/orders" : "/erp/purchases/orders")}>
+        <Icon name="Trash2" className="size-4 text-destructive" />حذف
+      </Button>
+    );
+  }
 
   // DRAFT: confirm or cancel (delete the draft) — no stock/GL yet.
   if (status === "DRAFT") {

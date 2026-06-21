@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -93,15 +93,21 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
   return { ok: true };
 }
 
-/** Delete a DRAFT purchase order (confirmed orders are cancelled, not deleted). */
+/** Delete a DRAFT order, or a CANCELLED order that isn't linked to any goods receipt. */
 export async function deletePurchaseOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
-  const [po] = await db.select({ status: purchaseOrders.status }).from(purchaseOrders)
+  const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "الأمر غير موجود" };
-  if (po.status !== "DRAFT") return { error: "لا يمكن حذف أمر مؤكّد — استخدم الإلغاء" };
+  if (po.status !== "DRAFT" && po.status !== "CANCELLED") return { error: "يمكن حذف مسودة أو أمر ملغى فقط — أكّد الإلغاء أولاً" };
+  if (po.status === "CANCELLED") {
+    const [grn] = await db.select({ id: purchaseReceipts.id }).from(purchaseReceipts)
+      .where(and(eq(purchaseReceipts.purchaseOrderId, id), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+    if (grn) return { error: "لا يمكن حذف أمر مرتبط بإذون استلام" };
+  }
   await db.delete(purchaseOrders).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `حذف أمر شراء ${po.number}` });
   revalidatePath("/erp/purchases/orders");
   return { ok: true };
 }
