@@ -8,18 +8,23 @@ import { toast } from "sonner";
 import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 /** Draft sales invoice: post / delete. Posted: a "مرتجع" shortcut. */
 export function SalesInvoiceDetailActions({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) =>
-    start(async () => {
-      const r = await fn();
-      if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+    void (async () => {
+      if (!(await confirm({ danger: /حذف|إلغاء|عكس/.test(ok) }))) return;
+      start(async () => {
+        const r = await fn();
+        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   if (status === "DRAFT") {
     return (

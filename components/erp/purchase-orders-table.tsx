@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -38,16 +39,17 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
   const allSelected = ids.length > 0 && ids.every((id) => sel.has(id));
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(ids));
 
-  const bulk = (op: "confirm" | "cancel" | "delete") =>
-    start(async () => {
-      const r = await bulkPurchaseOrdersAction(op, [...sel]);
-      if (r.ok) {
-        const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
-        toast.success(`تم ${verb} ${r.count ?? 0} أمر`);
-        setSel(new Set());
-        router.refresh();
-      } else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const bulk = (op: "confirm" | "cancel" | "delete") => {
+    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
+    void (async () => {
+      if (!(await confirm({ title: `${verb} ${sel.size} أمر`, danger: op !== "confirm" }))) return;
+      start(async () => {
+        const r = await bulkPurchaseOrdersAction(op, [...sel]);
+        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} أمر`); setSel(new Set()); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   return (
     <div className="space-y-3">

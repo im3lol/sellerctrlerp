@@ -14,6 +14,7 @@ import { Icon } from "@/components/icon";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { confirm } from "@/components/erp/confirm";
 
 export function OrderRowActions({
   orderId,
@@ -34,12 +35,16 @@ export function OrderRowActions({
   const invoiceDest = isSales ? "/erp/sales/invoices" : "/erp/purchases/invoices";
   const fulfillPath = isSales ? `/erp/sales/orders/${orderId}/deliver` : `/erp/purchases/orders/${orderId}/receive`;
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) =>
-    start(async () => {
-      const r = await fn();
-      if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+    void (async () => {
+      if (!(await confirm({ danger: /حذف|إلغاء/.test(ok) }))) return;
+      start(async () => {
+        const r = await fn();
+        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   // DRAFT: confirm or cancel (delete the draft) — no stock/GL yet.
   if (status === "DRAFT") {

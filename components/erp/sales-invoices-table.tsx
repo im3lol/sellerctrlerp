@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -36,12 +37,16 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
   const actionable = canManage && eligible.length > 0;
 
-  const run = (op: "post" | "delete", verb: string) =>
-    start(async () => {
-      const r = await bulkSalesInvoicesAction(op, [...sel]);
-      if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} فاتورة`); setSel(new Set()); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (op: "post" | "delete", verb: string) => {
+    void (async () => {
+      if (!(await confirm({ title: `${verb} ${sel.size} فاتورة`, danger: op === "delete" }))) return;
+      start(async () => {
+        const r = await bulkSalesInvoicesAction(op, [...sel]);
+        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} فاتورة`); setSel(new Set()); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   return (
     <div className="space-y-3">

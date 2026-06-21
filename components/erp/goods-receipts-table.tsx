@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
@@ -38,12 +39,16 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
   const hasDraft = selRows.some((r) => r.status === "DRAFT");
   const hasReceived = selRows.some((r) => r.status === "RECEIVED");
 
-  const run = (op: "confirm" | "bill" | "delete", verb: string) =>
-    start(async () => {
-      const r = await bulkReceiptsAction(op, [...sel]);
-      if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} إذن`); setSel(new Set()); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (op: "confirm" | "bill" | "delete", verb: string) => {
+    void (async () => {
+      if (!(await confirm({ title: `${verb} ${sel.size} إذن`, danger: op === "delete" }))) return;
+      start(async () => {
+        const r = await bulkReceiptsAction(op, [...sel]);
+        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} إذن`); setSel(new Set()); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   return (
     <div className="space-y-3">

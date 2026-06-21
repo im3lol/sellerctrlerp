@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { confirm } from "@/components/erp/confirm";
 
 export type ReturnLine = { itemId: string; code: string; name: string; invoiced: number; returned: number; remaining: number; unitPrice: number };
 
@@ -44,6 +45,8 @@ export function InvoiceReturnForm({
       .filter((p) => p.quantity > 0);
     if (picks.length === 0) return toast.error("حدّد كمية مرتجعة لبند واحد على الأقل");
     if (lines.some((l) => (Number(qtys[l.itemId]) || 0) > l.remaining + 1e-6)) return toast.error("الكمية المرتجعة أكبر من المتبقّي");
+    void (async () => {
+    if (!(await confirm({ title: "تأكيد المرتجع", description: "سيُسجَّل المرتجع ويُرحَّل محاسبياً.", danger: true }))) return;
     start(async () => {
       const r = type === "sales"
         ? await returnFromSalesInvoiceAction(invoiceId, picks, date)
@@ -51,6 +54,7 @@ export function InvoiceReturnForm({
       if (r.ok) { toast.success("تم تسجيل المرتجع وترحيله"); router.push(type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر تسجيل المرتجع");
     });
+    })();
   };
 
   return (

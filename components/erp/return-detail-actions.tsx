@@ -7,6 +7,7 @@ import { deleteSalesReturnAction, reverseSalesReturnAction } from "@/app/actions
 import { deletePurchaseReturnAction, reversePurchaseReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 /** Manage a return from its detail page: delete a draft, or cancel (reverse) a posted one. */
 export function ReturnDetailActions({ id, type, status, canManage }: { id: string; type: "sales" | "purchase"; status: string; canManage: boolean }) {
@@ -15,12 +16,16 @@ export function ReturnDetailActions({ id, type, status, canManage }: { id: strin
   if (!canManage) return null;
 
   const dest = type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices";
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) =>
-    start(async () => {
-      const r = await fn();
-      if (r.ok) { toast.success(ok); router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) => {
+    void (async () => {
+      if (!(await confirm({ danger: true }))) return;
+      start(async () => {
+        const r = await fn();
+        if (r.ok) { toast.success(ok); router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   if (status === "DRAFT") {
     return (

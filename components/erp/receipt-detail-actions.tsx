@@ -6,18 +6,23 @@ import { toast } from "sonner";
 import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceAction, reverseReceiptAction } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
+import { confirm } from "@/components/erp/confirm";
 
 export function ReceiptDetailActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) =>
-    start(async () => {
-      const r = await fn();
-      if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
-    });
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+    void (async () => {
+      if (!(await confirm({ danger: /حذف|إلغاء|عكس|مرتجع/.test(ok) }))) return;
+      start(async () => {
+        const r = await fn();
+        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التنفيذ");
+      });
+    })();
+  };
 
   // DRAFT: confirm (post) or delete the draft.
   if (status === "DRAFT") {
@@ -36,11 +41,14 @@ export function ReceiptDetailActions({ id, status, canManage }: { id: string; st
   // RECEIVED / INVOICED: bill it (if not yet) and/or return the stock to the warehouse.
   if (status === "RECEIVED" || status === "INVOICED") {
     const bill = () =>
-      start(async () => {
-        const r = await convertReceiptToInvoiceAction(id);
-        if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/erp/purchases/invoices/${r.invoiceId}` : "/erp/purchases/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
-      });
+      void (async () => {
+        if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة شراء من هذا الإذن؟" }))) return;
+        start(async () => {
+          const r = await convertReceiptToInvoiceAction(id);
+          if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/erp/purchases/invoices/${r.invoiceId}` : "/erp/purchases/invoices"); router.refresh(); }
+          else toast.error(r.error ?? "تعذّر التحويل");
+        });
+      })();
     return (
       <div className="flex flex-wrap gap-2">
         {status === "RECEIVED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
