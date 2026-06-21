@@ -622,6 +622,26 @@ async function main() {
     await db.insert(purchaseOrderLines).values({
       purchaseOrderId: po.id, itemId: demoItemId, quantity: "10", unitPrice: "480", taxAmount: String(poTax), totalAmount: String(poTotal),
     });
+
+    // CONFIRMED orders so partial delivery/receipt is testable out of the box.
+    const so3Sub = 5 * 500, so3Tax = 375, so3Total = so3Sub + so3Tax;
+    const [so3] = await db.insert(salesOrders).values({
+      organizationId: org.id, number: "SO-2026-0003", customerId: custByCode["C-002"], date: new Date(2026, 5, 20),
+      dueDate: new Date(2026, 5, 30), status: "CONFIRMED", subtotal: String(so3Sub), taxAmount: String(so3Tax),
+      totalAmount: String(so3Total), notes: "أمر بيع مؤكّد — جاهز للتسليم الجزئي",
+    }).returning({ id: salesOrders.id });
+    await db.insert(salesOrderLines).values({
+      salesOrderId: so3.id, itemId: demoItemId, quantity: "5", unitPrice: "500", taxAmount: String(so3Tax), totalAmount: String(so3Total),
+    });
+
+    const po3Sub = 8 * 480, po3Tax = 576, po3Total = po3Sub + po3Tax;
+    const [po3] = await db.insert(purchaseOrders).values({
+      organizationId: org.id, number: "PO-2026-0003", supplierId: supByCode["S-002"], warehouseId: demoWh.id, date: new Date(2026, 5, 21),
+      status: "CONFIRMED", subtotal: String(po3Sub), taxAmount: String(po3Tax), totalAmount: String(po3Total), notes: "أمر شراء مؤكّد — جاهز للاستلام الجزئي",
+    }).returning({ id: purchaseOrders.id });
+    await db.insert(purchaseOrderLines).values({
+      purchaseOrderId: po3.id, itemId: demoItemId, quantity: "8", unitPrice: "480", taxAmount: String(po3Tax), totalAmount: String(po3Total),
+    });
   }
 
   // ── Demo document flow: SO → Delivery (stock+COGS), PO → GRN (stock+GRNI) ──

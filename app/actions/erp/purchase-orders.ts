@@ -112,9 +112,7 @@ export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<A
   const [po] = await db.select().from(purchaseOrders)
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "الأمر غير موجود" };
-  if (po.status === "DRAFT") return { error: "أكّد الأمر أولاً قبل الفوترة" };
-  if (po.status === "INVOICED") return { error: "الأمر محوّل لفاتورة بالفعل" };
-  if (po.status === "CANCELLED") return { error: "الأمر ملغى" };
+  if (po.status !== "CONFIRMED") return { error: "الفوترة المباشرة للأوامر المؤكّدة فقط — بعد بدء الاستلام استخدم الفوترة من إذن الاستلام" };
 
   const lines = await db.select({
     itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice,

@@ -9,8 +9,6 @@ import {
 import {
   confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction,
 } from "@/app/actions/erp/purchase-orders";
-import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
-import { createReceiptFromOrderAction } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
@@ -27,11 +25,11 @@ export function OrderRowActions({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (!canManage || ["INVOICED", "CANCELLED", "DELIVERED", "RECEIVED"].includes(status)) return null;
+  if (!canManage || ["INVOICED", "CANCELLED"].includes(status)) return null;
 
   const isSales = type === "sales";
   const invoiceDest = isSales ? "/erp/sales/invoices" : "/erp/purchases/invoices";
-  const fulfillDest = isSales ? "/erp/sales/deliveries" : "/erp/purchases/receipts";
+  const fulfillPath = isSales ? `/erp/sales/orders/${orderId}/deliver` : `/erp/purchases/orders/${orderId}/receive`;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) =>
     start(async () => {
@@ -56,14 +54,22 @@ export function OrderRowActions({
     );
   }
 
-  // CONFIRMED: fulfill (delivery/receipt), bill directly, or cancel.
+  // Partially executed: continue fulfilling (rest stays as backorder).
+  if (status === "PARTIALLY_DELIVERED" || status === "PARTIALLY_RECEIVED") {
+    return (
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => router.push(fulfillPath)}>
+        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? "متابعة التسليم" : "متابعة الاستلام"}
+      </Button>
+    );
+  }
+
+  // Fully delivered/received but not yet invoiced — bill from the delivery/receipt list.
+  if (status === "DELIVERED" || status === "RECEIVED") return null;
+
+  // CONFIRMED: start fulfilment, bill directly (whole order), or cancel.
   return (
     <div className="flex flex-wrap gap-1">
-      <Button size="sm" variant="outline" disabled={pending}
-        onClick={() => run(
-          () => isSales ? createDeliveryFromOrderAction(orderId) : createReceiptFromOrderAction(orderId),
-          isSales ? "تم إنشاء إذن التسليم" : "تم إنشاء إذن الاستلام", fulfillDest,
-        )}>
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => router.push(fulfillPath)}>
         <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? "تسليم" : "استلام"}
       </Button>
       <Button size="sm" variant="ghost" disabled={pending}

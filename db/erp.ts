@@ -547,6 +547,31 @@ export const auditLogs = pgTable(
   ],
 );
 
+/**
+ * Generic prev/next document graph. A delivery/receipt fulfils an order; an
+ * invoice bills one or more deliveries/receipts (many-to-one). Lets any document
+ * page surface its related documents without per-type FK juggling.
+ */
+export const documentLinks = pgTable(
+  "document_links",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    fromType: text("from_type").notNull(),
+    fromId: text("from_id").notNull(),
+    fromNumber: text("from_number"),
+    toType: text("to_type").notNull(),
+    toId: text("to_id").notNull(),
+    toNumber: text("to_number"),
+    relation: text("relation").notNull(), // FULFILLS | INVOICES | RETURNS | SETTLES
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("document_links_from_idx").on(t.organizationId, t.fromType, t.fromId),
+    index("document_links_to_idx").on(t.organizationId, t.toType, t.toId),
+  ],
+);
+
 export const accountingConfigurations = pgTable(
   "accounting_configurations",
   {
@@ -843,6 +868,7 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   receivedQty: money("received_qty").notNull().default("0"),
+  invoicedQty: money("invoiced_qty").notNull().default("0"),
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
@@ -879,6 +905,7 @@ export const salesOrderLines = pgTable("sales_order_lines", {
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   deliveredQty: money("delivered_qty").notNull().default("0"),
+  invoicedQty: money("invoiced_qty").notNull().default("0"),
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),

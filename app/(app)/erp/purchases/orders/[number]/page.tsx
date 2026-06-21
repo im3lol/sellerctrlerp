@@ -18,8 +18,9 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
   CONFIRMED: { label: "مؤكّد", variant: "default" },
+  PARTIALLY_RECEIVED: { label: "استلام جزئي", variant: "secondary" },
   RECEIVED: { label: "تم الاستلام", variant: "default" },
-  INVOICED: { label: "محوّل لفاتورة", variant: "default" },
+  INVOICED: { label: "مفوتر", variant: "default" },
   CANCELLED: { label: "ملغى", variant: "destructive" },
 };
 
