@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createSalesReturnAction } from "@/app/actions/erp/sales-returns";
-import { createPurchaseReturnAction } from "@/app/actions/erp/purchase-returns";
+import { createPurchaseReturnAction, createReceiptReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,13 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function InvoiceReturnForm({
   type, invoiceId, invoiceNumber, backHref, lines,
 }: {
-  type: "sales" | "purchase";
+  type: "sales" | "purchase" | "receipt";
   invoiceId: string;
   invoiceNumber: string;
   backHref: string;
   lines: ReturnLine[];
 }) {
+  const docLabel = type === "receipt" ? "إذن استلام" : "فاتورة";
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -45,10 +46,9 @@ export function InvoiceReturnForm({
     if (picks.length === 0) return toast.error("حدّد كمية مرتجعة لبند واحد على الأقل");
     if (lines.some((l) => (Number(qtys[l.itemId]) || 0) > l.remaining + 1e-6)) return toast.error("الكمية المرتجعة أكبر من المتبقّي");
     start(async () => {
-      const input = type === "sales"
-        ? { salesInvoiceId: invoiceId, date, lines: picks }
-        : { purchaseInvoiceId: invoiceId, date, lines: picks };
-      const r = type === "sales" ? await createSalesReturnAction(input) : await createPurchaseReturnAction(input);
+      const r = type === "sales" ? await createSalesReturnAction({ salesInvoiceId: invoiceId, date, lines: picks })
+        : type === "receipt" ? await createReceiptReturnAction({ goodsReceiptId: invoiceId, date, lines: picks })
+        : await createPurchaseReturnAction({ purchaseInvoiceId: invoiceId, date, lines: picks });
       if (r.ok) {
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
         router.push(`/erp/${type === "sales" ? "sales" : "purchases"}/returns/${r.id}`);
@@ -61,7 +61,7 @@ export function InvoiceReturnForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>مرتجع من فاتورة {invoiceNumber}</CardTitle>
+          <CardTitle>مرتجع من {docLabel} {invoiceNumber}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المرتجع</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>إلغاء</Button>
@@ -78,7 +78,7 @@ export function InvoiceReturnForm({
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="w-24 text-start">المفوتر</TableHead>
+                <TableHead className="w-24 text-start">{type === "receipt" ? "المستلم" : "المفوتر"}</TableHead>
                 <TableHead className="w-24 text-start">المرتجع سابقاً</TableHead>
                 <TableHead className="w-24 text-start">المتبقّي</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>

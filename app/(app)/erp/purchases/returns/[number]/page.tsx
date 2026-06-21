@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseReturns, purchaseReturnLines, suppliers, items, purchaseInvoices } from "@/db/schema";
+import { purchaseReturns, purchaseReturnLines, suppliers, items, purchaseInvoices, purchaseReceipts } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,9 +47,14 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
     .where(eq(purchaseReturnLines.purchaseReturnId, ret.id));
 
   const linked: DocLink[] = [];
+  let backHref = "/erp/purchases/invoices";
   if (ret.purchaseInvoiceId) {
     const [pi] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, ret.purchaseInvoiceId)).limit(1);
     if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
+  }
+  if (ret.purchaseReceiptId) {
+    const [grn] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, ret.purchaseReceiptId)).limit(1);
+    if (grn) { const href = `/erp/purchases/receipts/${encodeURIComponent(grn.number)}`; linked.push({ label: "إذن استلام", number: grn.number, href }); backHref = href; }
   }
 
   const audit = await getDocumentAudit(orgId, ret.id);
@@ -62,8 +67,8 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
         icon="Undo2"
         title={`مرتجع مشتريات ${ret.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "مرتجع مشتريات"}
-        backHref="/erp/purchases/invoices"
-        action={<ReturnDetailActions id={ret.id} type="purchase" status={ret.status} canManage={canManage} />}
+        backHref={backHref}
+        action={<ReturnDetailActions id={ret.id} type="purchase" status={ret.status} canManage={canManage} dest={backHref} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

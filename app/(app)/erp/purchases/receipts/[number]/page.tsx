@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices } from "@/db/schema";
+import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices, purchaseReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -58,6 +58,12 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     const [pi] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, grn.purchaseInvoiceId)).limit(1);
     if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
   }
+  const retDocs = await db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
+    .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId)));
+  for (const rd of retDocs) {
+    if (rd.status === "CANCELLED") continue;
+    linked.push({ label: rd.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)", number: rd.number, href: `/erp/purchases/returns/${encodeURIComponent(rd.number)}` });
+  }
 
   const audit = await getDocumentAudit(orgId, grn.id);
   const st = STATUS[grn.status] ?? { label: grn.status, variant: "secondary" as const };
@@ -70,7 +76,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         title={`إذن استلام ${grn.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
         backHref="/erp/purchases/receipts"
-        action={<ReceiptDetailActions id={grn.id} status={grn.status} canManage={canManage} />}
+        action={<ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

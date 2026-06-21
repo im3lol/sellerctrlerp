@@ -10,12 +10,12 @@ import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
 /** Manage a return from its detail page: delete a draft, or cancel (reverse) a posted one. */
-export function ReturnDetailActions({ id, type, status, canManage }: { id: string; type: "sales" | "purchase"; status: string; canManage: boolean }) {
+export function ReturnDetailActions({ id, type, status, canManage, dest: destProp }: { id: string; type: "sales" | "purchase"; status: string; canManage: boolean; dest?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
 
-  const dest = type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices";
+  const dest = destProp ?? (type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices");
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) => {
     void (async () => {
       if (!(await confirm({ danger: /حذف|إلغاء|عكس/.test(ok) }))) return;
