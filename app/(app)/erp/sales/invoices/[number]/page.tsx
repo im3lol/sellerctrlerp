@@ -5,9 +5,9 @@ import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, customers, items, deliveryNotes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { PostInvoiceButton } from "@/components/erp/post-invoice-button";
+import { SalesInvoiceDetailActions } from "@/components/erp/sales-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -57,6 +57,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
   const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
   const canPost = erpCan(role, "accounting.post");
+  const canManage = erpCan(role, "sales.create");
 
   return (
     <div className="space-y-6">
@@ -65,7 +66,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
         title={`فاتورة بيع ${inv.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "فاتورة بيع"}
         backHref="/erp/sales/invoices"
-        action={inv.status === "DRAFT" && canPost ? <PostInvoiceButton id={inv.id} /> : undefined}
+        action={<SalesInvoiceDetailActions id={inv.id} status={inv.status} canPost={canPost} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -101,13 +102,14 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
                 </TableRow>
               ))}
             </TableBody>
-            <TableFooter>
-              <TableRow className="font-bold">
-                <TableCell colSpan={5}>الإجمالي</TableCell>
-                <TableCell>{fmt(inv.totalAmount)}</TableCell>
-              </TableRow>
-            </TableFooter>
           </Table>
+
+          <div className="mt-4 flex flex-col items-end gap-1 text-sm">
+            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(inv.subtotal)}</span></div>
+            <div>الخصم: <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
+            <div>الضريبة: <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
+            <div className="text-base font-bold text-primary">الإجمالي للكل: {fmt(inv.totalAmount)}</div>
+          </div>
           {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}
         </CardContent>
       </Card>
