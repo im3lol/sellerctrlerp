@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { PostPurchaseInvoiceButton } from "@/components/erp/post-purchase-invoice-button";
+import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -57,6 +57,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
   const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
   const canPost = erpCan(role, "accounting.post");
+  const canManage = erpCan(role, "purchases.create");
 
   return (
     <div className="space-y-6">
@@ -65,7 +66,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
         title={`فاتورة شراء ${inv.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "فاتورة شراء"}
         backHref="/erp/purchases/invoices"
-        action={inv.status === "DRAFT" && canPost ? <PostPurchaseInvoiceButton id={inv.id} /> : undefined}
+        action={<PurchaseInvoiceDetailActions id={inv.id} status={inv.status} canPost={canPost} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

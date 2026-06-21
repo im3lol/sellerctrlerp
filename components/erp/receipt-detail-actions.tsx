@@ -33,10 +33,16 @@ export function ReceiptDetailActions({ id, status, canManage }: { id: string; st
     );
   }
 
-  // RECEIVED (posted, not yet billed): convert to a purchase invoice.
+  // RECEIVED (posted, not yet billed): create a DRAFT purchase invoice and land on it.
   if (status === "RECEIVED") {
+    const bill = () =>
+      start(async () => {
+        const r = await convertReceiptToInvoiceAction(id);
+        if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/erp/purchases/invoices/${r.invoiceId}` : "/erp/purchases/invoices"); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التحويل");
+      });
     return (
-      <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => convertReceiptToInvoiceAction(id), "تم إنشاء الفاتورة وترحيلها", "/erp/purchases/invoices")}>
+      <Button size="sm" variant="outline" disabled={pending} onClick={bill}>
         <Icon name="FileText" className="size-4" />تحويل لفاتورة
       </Button>
     );

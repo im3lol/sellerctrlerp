@@ -6,33 +6,20 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, items, stockMovements,
+  purchaseInvoices, purchaseInvoiceLines, accounts, items, stockMovements,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
+import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const EPS = 1e-6;
 
 async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(db, orgId, prefix, year);
-}
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-/** Recompute a purchase order's status from its lines' received/invoiced quantities. */
-async function recomputePurchaseOrderStatus(tx: Tx, poId: string) {
-  const lines = await tx.select({ q: purchaseOrderLines.quantity, r: purchaseOrderLines.receivedQty, inv: purchaseOrderLines.invoicedQty })
-    .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, poId));
-  const allReceived = lines.every((l) => Number(l.r) >= Number(l.q) - EPS);
-  const anyReceived = lines.some((l) => Number(l.r) > EPS);
-  const allInvoiced = lines.every((l) => Number(l.inv) >= Number(l.q) - EPS);
-  const status = allInvoiced ? "INVOICED" : allReceived ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "CONFIRMED";
-  await tx.update(purchaseOrders).set({ status }).where(eq(purchaseOrders.id, poId));
-  return status;
 }
 
 export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string };
@@ -266,40 +253,31 @@ export async function bulkReceiptsAction(op: "confirm" | "bill" | "delete", ids:
   return { ok: true, count };
 }
 
+export type ReceiptInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number };
+export type ReceiptInvoicePreview = { lines: ReceiptInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number };
+
 /**
- * Bill a goods receipt: POSTED purchase invoice for THIS receipt's quantities
- * (clears GRNI → AP; no stock). Amounts pro-rate the order line discount/tax by
- * the received fraction. Bumps invoicedQty + recomputes order status.
+ * Compute the invoice a goods receipt would produce: one line per received item,
+ * priced from the order (shipping capitalised, discount/tax pro-rated by the
+ * received fraction). Pure read — used by both the preview and the draft create.
  */
-export async function convertReceiptToInvoiceAction(receiptId: string): Promise<ActionState & { invoiceId?: string }> {
-  const auth = await authorizeErp("purchases.confirm");
-  if ("error" in auth) return auth;
-
-  const [grn] = await db.select().from(purchaseReceipts)
-    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
-  if (!grn) return { error: "الاستلام غير موجود" };
-  if (grn.status === "DRAFT") return { error: "أكّد إذن الاستلام أولاً قبل تحويله إلى فاتورة" };
-  if (grn.purchaseInvoiceId) return { error: "الاستلام مفوتر بالفعل" };
+async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$inferSelect): Promise<ReceiptInvoicePreview | { error: string }> {
   if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
-
   const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
   if (!po) return { error: "أمر الشراء غير موجود" };
   const poLines = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
   const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
-    .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, code: items.code, name: items.nameAr })
+    .from(purchaseReceiptLines).leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
+    .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2103", "1107", "2101"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
-  if (!A["2103"] || !A["2101"]) return { error: "حسابات الترحيل غير مكتملة" };
-
-  const invLines: { itemId: string; quantity: string; unitPrice: string; discountAmount: string; taxAmount: string; totalAmount: string }[] = [];
+  const lines: ReceiptInvoiceLine[] = [];
   let subtotal = 0, discount = 0, tax = 0;
   for (const gl of grnLines) {
     const po2 = poByItem.get(gl.itemId);
     if (!po2) continue;
     const gq = Number(gl.quantity);
+    if (gq <= EPS) continue; // rejected-only line: nothing to bill
     const oq = Number(po2.quantity) || gq;
     const f = oq > 0 ? gq / oq : 0;
     const price = Number(po2.unitPrice);
@@ -308,46 +286,69 @@ export async function convertReceiptToInvoiceAction(receiptId: string): Promise<
     const lineTax = round2(Number(po2.taxAmount) * f);
     const lineTotal = round2(price * gq + lineShip - lineDisc + lineTax);
     subtotal += price * gq + lineShip; discount += lineDisc; tax += lineTax;
-    invLines.push({ itemId: gl.itemId, quantity: String(gq), unitPrice: String(price), discountAmount: String(lineDisc), taxAmount: String(lineTax), totalAmount: String(lineTotal) });
+    lines.push({ itemId: gl.itemId, code: gl.code ?? "", name: gl.name ?? "", quantity: gq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  const net = round2(subtotal - discount);
-  const total = round2(net + tax);
-  if (total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
-  const number = await nextNumber("PI", auth.orgId, new Date(po.date).getFullYear());
+  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+}
 
+/** Preview the invoice a confirmed receipt would produce (for the create form). */
+export async function getReceiptInvoicePreviewAction(receiptId: string): Promise<ActionState & { preview?: ReceiptInvoicePreview }> {
+  const auth = await authorizeErp("purchases.view");
+  if ("error" in auth) return auth;
+  const [grn] = await db.select().from(purchaseReceipts)
+    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+  if (!grn) return { error: "الاستلام غير موجود" };
+  const built = await buildReceiptInvoice(auth.orgId, grn);
+  if ("error" in built) return built;
+  return { ok: true, preview: built };
+}
+
+/**
+ * Bill a confirmed goods receipt → a DRAFT purchase invoice for the received
+ * quantities (one PI per receipt; lines priced from the order with shipping
+ * capitalised and discount/tax pro-rated). No GL until the invoice is posted —
+ * posting clears GRNI (2103) → AP (2101). `date`/`notes` are optional overrides.
+ */
+export async function convertReceiptToInvoiceAction(receiptId: string, date?: string, notes?: string): Promise<ActionState & { invoiceId?: string }> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+
+  const [grn] = await db.select().from(purchaseReceipts)
+    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+  if (!grn) return { error: "الاستلام غير موجود" };
+  if (grn.status === "DRAFT") return { error: "أكّد إذن الاستلام أولاً قبل تحويله إلى فاتورة" };
+  if (grn.purchaseInvoiceId) return { error: "الاستلام مفوتر بالفعل" };
+  const supplierId = grn.supplierId;
+  if (!supplierId) return { error: "الاستلام غير مرتبط بمورد" };
+
+  // Prevent a second invoice (draft or posted) for the same receipt.
+  const [existing] = await db.select({ id: purchaseInvoices.id }).from(purchaseInvoices)
+    .where(and(eq(purchaseInvoices.goodsReceiptId, grn.id), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
+  if (existing) return { error: "لهذا الإذن فاتورة بالفعل (مسودة أو مرحّلة)" };
+
+  const built = await buildReceiptInvoice(auth.orgId, grn);
+  if ("error" in built) return built;
+  if (built.total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
+
+  const invoiceDate = date ? new Date(date) : new Date(grn.date);
+  const number = await nextNumber("PI", auth.orgId, invoiceDate.getFullYear());
   try {
     const invoiceId = await db.transaction(async (tx) => {
       const [inv] = await tx.insert(purchaseInvoices).values({
-        organizationId: auth.orgId, number, supplierId: po.supplierId, warehouseId: po.warehouseId, goodsReceiptId: grn.id,
-        date: new Date(po.date), status: "POSTED", subtotal: String(subtotal), discountAmount: String(discount), taxAmount: String(tax), totalAmount: String(total),
-        paidAmount: "0", balanceDue: String(total), notes: `فاتورة استلام ${grn.number}`,
+        organizationId: auth.orgId, number, supplierId, warehouseId: grn.warehouseId, goodsReceiptId: grn.id,
+        date: invoiceDate, status: "DRAFT", subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax),
+        totalAmount: String(built.total), paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة استلام ${grn.number}`,
       }).returning({ id: purchaseInvoices.id });
-      await tx.insert(purchaseInvoiceLines).values(invLines.map((l) => ({ purchaseInvoiceId: inv.id, ...l })));
-
-      const glLines = [
-        { accountId: A["2103"], debit: net, credit: 0, description: `تسوية بضاعة مستلمة ${number}` },
-        { accountId: A["2101"], debit: 0, credit: total, description: `مستحق للمورد ${number}` },
-      ];
-      if (tax > 0 && A["1107"]) glLines.splice(1, 0, { accountId: A["1107"], debit: tax, credit: 0, description: `ضريبة مدخلات ${number}` });
-      await postEntry(tx, {
-        orgId: auth.orgId, date: new Date(po.date), sourceType: "PURCHASE_INVOICE", sourceId: inv.id,
-        description: `فاتورة شراء ${number} (استلام ${grn.number})`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
-      });
-      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, po.supplierId));
-      await tx.update(purchaseReceipts).set({ purchaseInvoiceId: inv.id, status: "INVOICED" }).where(eq(purchaseReceipts.id, grn.id));
-      for (const gl of grnLines) {
-        const po2 = poByItem.get(gl.itemId);
-        if (po2) await tx.update(purchaseOrderLines).set({ invoicedQty: sql`${purchaseOrderLines.invoicedQty} + ${Number(gl.quantity)}` }).where(eq(purchaseOrderLines.id, po2.id));
-      }
-      await recomputePurchaseOrderStatus(tx, po.id);
-      await linkDocuments(tx, { orgId: auth.orgId, fromType: "GOODS_RECEIPT", fromId: grn.id, fromNumber: grn.number, toType: "PURCHASE_INVOICE", toId: inv.id, toNumber: number, relation: "INVOICES" });
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: number, summary: `فاتورة شراء ${number} من إذن استلام ${grn.number}`, metadata: { total } });
+      await tx.insert(purchaseInvoiceLines).values(built.lines.map((l) => ({
+        purchaseInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+      })));
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة شراء ${number} من إذن استلام ${grn.number}`, metadata: { total: built.total } });
       return inv.id;
     });
     revalidatePath("/erp/purchases/receipts");
     revalidatePath("/erp/purchases/invoices");
-    revalidatePath("/erp/purchases/orders");
     return { ok: true, invoiceId };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
