@@ -357,3 +357,69 @@ export async function convertReceiptToInvoiceAction(receiptId: string, date?: st
     return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
   }
 }
+
+/**
+ * Fully reverse a confirmed, UN-invoiced goods receipt ("عكس الاستلام"): stock OUT
+ * at the original receipt cost + Dr 2103 / Cr 1104, drop the order's receivedQty so
+ * it reopens, mark the receipt REVERSED. Invoiced receipts must use the invoice return.
+ */
+export async function reverseReceiptAction(receiptId: string): Promise<ActionState & { id?: string }> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  const [grn] = await db.select().from(purchaseReceipts)
+    .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+  if (!grn) return { error: "الإذن غير موجود" };
+  if (grn.purchaseInvoiceId || grn.status === "INVOICED") return { error: "الإذن مفوتر — استخدم مرتجع الفاتورة" };
+  if (grn.status !== "RECEIVED") return { error: "لا يمكن عكس هذا الإذن" };
+
+  const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+    .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
+  if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
+
+  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
+  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  if (!A["1104"] || !A["2103"]) return { error: "حسابات العكس غير مكتملة" };
+
+  const poLines = grn.purchaseOrderId
+    ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
+    : [];
+  const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+  const date = new Date();
+
+  try {
+    await db.transaction(async (tx) => {
+      let value = 0;
+      for (const m of moves) {
+        const qty = Number(m.quantity), cost = Number(m.unitCost);
+        await postStockMovement(tx, {
+          orgId: auth.orgId, itemId: m.itemId, warehouseId: grn.warehouseId, type: "OUT",
+          quantity: qty, unitCost: cost, date, referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
+        });
+        value += round2(qty * cost);
+        const pol = poByItem.get(m.itemId);
+        if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${qty})` }).where(eq(purchaseOrderLines.id, pol.id));
+      }
+      value = round2(value);
+      if (value > 0) {
+        await postEntry(tx, {
+          orgId: auth.orgId, date, sourceType: "GOODS_RECEIPT_REVERSE", sourceId: grn.id,
+          description: `عكس استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId,
+          lines: [
+            { accountId: A["2103"], debit: value, credit: 0, description: `عكس بضاعة لم تُفوتر ${grn.number}` },
+            { accountId: A["1104"], debit: 0, credit: value, description: `عكس مخزون مستلم ${grn.number}` },
+          ],
+        });
+      }
+      await tx.update(purchaseReceipts).set({ status: "REVERSED" }).where(eq(purchaseReceipts.id, grn.id));
+      if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `عكس إذن استلام ${grn.number} — أُعيد فتح الأمر`, metadata: { value } });
+    });
+    revalidatePath("/erp/purchases/receipts");
+    revalidatePath("/erp/purchases/orders");
+    revalidatePath(`/erp/purchases/receipts/${grn.number}`);
+    return { ok: true, id: grn.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر عكس الاستلام" };
+  }
+}

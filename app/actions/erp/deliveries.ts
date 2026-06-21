@@ -345,3 +345,70 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: 
     return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
   }
 }
+
+/**
+ * Fully reverse a confirmed, UN-invoiced delivery ("عكس الصرف"): restock at the
+ * original delivery cost + Dr 1104 / Cr 5101 (reverse COGS), drop the order's
+ * deliveredQty so it reopens, mark the delivery REVERSED. Invoiced deliveries
+ * must use the invoice return.
+ */
+export async function reverseDeliveryAction(deliveryId: string): Promise<ActionState & { id?: string }> {
+  const auth = await authorizeErp("sales.confirm");
+  if ("error" in auth) return auth;
+  const [dn] = await db.select().from(deliveryNotes)
+    .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+  if (!dn) return { error: "الإذن غير موجود" };
+  if (dn.salesInvoiceId || dn.status === "INVOICED") return { error: "الإذن مفوتر — استخدم مرتجع الفاتورة" };
+  if (dn.status !== "DELIVERED") return { error: "لا يمكن عكس هذا الإذن" };
+
+  const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+    .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
+  if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
+
+  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["5101", "1104"])));
+  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  if (!A["5101"] || !A["1104"]) return { error: "حسابات العكس غير مكتملة" };
+
+  const soLines = dn.salesOrderId
+    ? await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId))
+    : [];
+  const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+  const date = new Date();
+
+  try {
+    await db.transaction(async (tx) => {
+      let cogs = 0;
+      for (const m of moves) {
+        const qty = Number(m.quantity), cost = Number(m.unitCost);
+        await postStockMovement(tx, {
+          orgId: auth.orgId, itemId: m.itemId, warehouseId: dn.warehouseId, type: "IN",
+          quantity: qty, unitCost: cost, date, referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
+        });
+        cogs += round2(qty * cost);
+        const sol = soByItem.get(m.itemId);
+        if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${qty})` }).where(eq(salesOrderLines.id, sol.id));
+      }
+      cogs = round2(cogs);
+      if (cogs > 0) {
+        await postEntry(tx, {
+          orgId: auth.orgId, date, sourceType: "DELIVERY_REVERSE", sourceId: dn.id,
+          description: `عكس صرف ${dn.number}`, journalType: "GENERAL", userId: auth.userId,
+          lines: [
+            { accountId: A["1104"], debit: cogs, credit: 0, description: `عكس صرف مخزون ${dn.number}` },
+            { accountId: A["5101"], debit: 0, credit: cogs, description: `عكس ت.ب.م ${dn.number}` },
+          ],
+        });
+      }
+      await tx.update(deliveryNotes).set({ status: "REVERSED" }).where(eq(deliveryNotes.id, dn.id));
+      if (dn.salesOrderId) await recomputeSalesOrderStatus(tx, dn.salesOrderId);
+      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `عكس إذن صرف ${dn.number} — أُعيد فتح الأمر`, metadata: { cogs } });
+    });
+    revalidatePath("/erp/sales/deliveries");
+    revalidatePath("/erp/sales/orders");
+    revalidatePath(`/erp/sales/deliveries/${dn.number}`);
+    return { ok: true, id: dn.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر عكس الصرف" };
+  }
+}

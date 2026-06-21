@@ -17,7 +17,9 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DRAFT: { label: "مسودة", variant: "secondary" },
   DELIVERED: { label: "تم التسليم", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
+  REVERSED: { label: "معكوس", variant: "destructive" },
 };
+const DONE = new Set(["INVOICED", "REVERSED"]);
 
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string };
 
@@ -26,7 +28,7 @@ export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: b
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
 
-  const eligible = rows.filter((r) => r.status !== "INVOICED").map((r) => r.id);
+  const eligible = rows.filter((r) => !DONE.has(r.status)).map((r) => r.id);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
@@ -71,7 +73,7 @@ export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: b
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                {canManage && <TableCell>{r.status === "INVOICED" ? null : <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
+                {canManage && <TableCell>{DONE.has(r.status) ? null : <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
                 <TableCell>
                   <Link href={`/erp/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                 </TableCell>

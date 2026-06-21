@@ -18,6 +18,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DRAFT: { label: "مسودة", variant: "secondary" },
   DELIVERED: { label: "تم التسليم", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
+  REVERSED: { label: "معكوس", variant: "destructive" },
 };
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ number: string }> }) {
@@ -52,9 +53,10 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     const [so] = await db.select({ number: salesOrders.number }).from(salesOrders).where(eq(salesOrders.id, dn.salesOrderId)).limit(1);
     if (so) linked.push({ label: "أمر بيع", number: so.number, href: `/erp/sales/orders/${encodeURIComponent(so.number)}` });
   }
+  let invoiceNumber: string | null = null;
   if (dn.salesInvoiceId) {
     const [si] = await db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, dn.salesInvoiceId)).limit(1);
-    if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
+    if (si) { invoiceNumber = si.number; linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` }); }
   }
 
   const audit = await getDocumentAudit(orgId, dn.id);
@@ -68,7 +70,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         title={`إذن صرف ${dn.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
         backHref="/erp/sales/deliveries"
-        action={<DeliveryDetailActions id={dn.id} status={dn.status} canManage={canManage} />}
+        action={<DeliveryDetailActions id={dn.id} status={dn.status} canManage={canManage} invoiceNumber={invoiceNumber} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

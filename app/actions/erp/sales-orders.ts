@@ -179,3 +179,21 @@ export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
   revalidatePath("/erp/sales/orders");
   return { ok: true };
 }
+
+/** Reopen a CONFIRMED sales order back to DRAFT (only when nothing delivered/invoiced). */
+export async function revertSalesOrderToDraftAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.confirm");
+  if ("error" in auth) return auth;
+  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+    .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+  if (!so) return { error: "الأمر غير موجود" };
+  if (so.status !== "CONFIRMED") return { error: "يمكن إعادة فتح أمر مؤكّد فقط" };
+  const lines = await db.select({ d: salesOrderLines.deliveredQty, inv: salesOrderLines.invoicedQty })
+    .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+  if (lines.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) return { error: "اعكس الصرف/الفاتورة أولاً قبل إعادة فتح الأمر" };
+  await db.update(salesOrders).set({ status: "DRAFT" }).where(eq(salesOrders.id, id));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إعادة فتح أمر بيع ${so.number} كمسودة` });
+  revalidatePath("/erp/sales/orders");
+  revalidatePath(`/erp/sales/orders/${id}`);
+  return { ok: true };
+}

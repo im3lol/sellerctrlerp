@@ -18,6 +18,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DRAFT: { label: "مسودة", variant: "secondary" },
   RECEIVED: { label: "تم الاستلام", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
+  REVERSED: { label: "معكوس", variant: "destructive" },
 };
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
@@ -53,9 +54,10 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     const [po] = await db.select({ number: purchaseOrders.number }).from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
     if (po) linked.push({ label: "أمر شراء", number: po.number, href: `/erp/purchases/orders/${encodeURIComponent(po.number)}` });
   }
+  let invoiceNumber: string | null = null;
   if (grn.purchaseInvoiceId) {
     const [pi] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, grn.purchaseInvoiceId)).limit(1);
-    if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
+    if (pi) { invoiceNumber = pi.number; linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` }); }
   }
 
   const audit = await getDocumentAudit(orgId, grn.id);
@@ -69,7 +71,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         title={`إذن استلام ${grn.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
         backHref="/erp/purchases/receipts"
-        action={<ReceiptDetailActions id={grn.id} status={grn.status} canManage={canManage} />}
+        action={<ReceiptDetailActions id={grn.id} status={grn.status} canManage={canManage} invoiceNumber={invoiceNumber} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

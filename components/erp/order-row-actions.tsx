@@ -4,10 +4,10 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction,
+  confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction, revertSalesOrderToDraftAction,
 } from "@/app/actions/erp/sales-orders";
 import {
-  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction,
+  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction,
 } from "@/app/actions/erp/purchase-orders";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -89,6 +89,10 @@ export function OrderRowActions({
           )}>
           <Icon name="FileText" className="size-4" />
           {isSales ? "إنشاء فاتورة بيع" : "إنشاء فاتورة شراء"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => run(() => isSales ? revertSalesOrderToDraftAction(orderId) : revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
+          <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

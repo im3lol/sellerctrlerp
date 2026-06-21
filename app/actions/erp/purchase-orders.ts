@@ -183,3 +183,21 @@ export async function bulkPurchaseOrdersAction(op: "confirm" | "cancel" | "delet
   revalidatePath("/erp/purchases/orders");
   return { ok: true, count };
 }
+
+/** Reopen a CONFIRMED purchase order back to DRAFT (only when nothing received/invoiced). */
+export async function revertPurchaseOrderToDraftAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
+    .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+  if (!po) return { error: "الأمر غير موجود" };
+  if (po.status !== "CONFIRMED") return { error: "يمكن إعادة فتح أمر مؤكّد فقط" };
+  const lines = await db.select({ r: purchaseOrderLines.receivedQty, inv: purchaseOrderLines.invoicedQty })
+    .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
+  if (lines.some((l) => Number(l.r) > 0 || Number(l.inv) > 0)) return { error: "اعكس الاستلام/الفاتورة أولاً قبل إعادة فتح الأمر" };
+  await db.update(purchaseOrders).set({ status: "DRAFT" }).where(eq(purchaseOrders.id, id));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إعادة فتح أمر شراء ${po.number} كمسودة` });
+  revalidatePath("/erp/purchases/orders");
+  revalidatePath(`/erp/purchases/orders/${id}`);
+  return { ok: true };
+}
