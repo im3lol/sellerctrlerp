@@ -63,6 +63,13 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
   const tax = round2(net * taxRate);
   const total = round2(net + tax);
 
+  // Trace the originating order (via the invoice's receipt) so the return also shows under the order.
+  let orderId: string | null = null;
+  if (inv.goodsReceiptId) {
+    const [rc] = await db.select({ poId: purchaseReceipts.purchaseOrderId }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1);
+    orderId = rc?.poId ?? null;
+  }
+
   const d = new Date(date);
   const number = await nextNumber(auth.orgId, d.getFullYear());
 
@@ -70,7 +77,7 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     const id = await db.transaction(async (tx) => {
       const [ret] = await tx.insert(purchaseReturns).values({
         organizationId: auth.orgId, number, date: d, status: "DRAFT",
-        supplierId: inv.supplierId, warehouseId: inv.warehouseId, purchaseInvoiceId: inv.id,
+        supplierId: inv.supplierId, warehouseId: inv.warehouseId, purchaseInvoiceId: inv.id, purchaseOrderId: orderId,
         totalAmount: String(total), notes: notes || null,
       }).returning({ id: purchaseReturns.id });
 

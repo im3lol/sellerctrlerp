@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseOrderLines, suppliers } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReturns, purchaseReturnLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,34 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
       }).from(purchaseOrderLines).where(inArray(purchaseOrderLines.purchaseOrderId, ids)).groupBy(purchaseOrderLines.purchaseOrderId)
     : [];
   const aggBy = new Map(agg.map((a) => [a.poId, { ordered: Number(a.ordered), received: Number(a.received) }]));
-  const tableRows = rows.map((r) => ({ ...r, orderedQty: aggBy.get(r.id)?.ordered ?? 0, receivedQty: aggBy.get(r.id)?.received ?? 0 }));
+
+  // Returns linked to each order (stock returns from its receipts + money returns from its invoices) — shown as sub-rows.
+  const retRows = ids.length
+    ? await db.select({ id: purchaseReturns.id, number: purchaseReturns.number, date: purchaseReturns.date, status: purchaseReturns.status, poId: purchaseReturns.purchaseOrderId })
+        .from(purchaseReturns)
+        .where(and(eq(purchaseReturns.organizationId, orgId), inArray(purchaseReturns.purchaseOrderId, ids)))
+        .orderBy(desc(purchaseReturns.date), desc(purchaseReturns.number))
+    : [];
+  const retIds = retRows.map((r) => r.id);
+  const qtyRows = retIds.length
+    ? await db.select({ rid: purchaseReturnLines.purchaseReturnId, qty: sql<string>`coalesce(sum(${purchaseReturnLines.quantity}),0)` })
+        .from(purchaseReturnLines).where(inArray(purchaseReturnLines.purchaseReturnId, retIds)).groupBy(purchaseReturnLines.purchaseReturnId)
+    : [];
+  const qtyByRet = new Map(qtyRows.map((r) => [r.rid, Number(r.qty)]));
+  const retsByPo = new Map<string, { id: string; number: string; date: Date; qty: number; status: string }[]>();
+  for (const r of retRows) {
+    if (!r.poId) continue;
+    const list = retsByPo.get(r.poId) ?? [];
+    list.push({ id: r.id, number: r.number, date: r.date, qty: qtyByRet.get(r.id) ?? 0, status: r.status });
+    retsByPo.set(r.poId, list);
+  }
+
+  const tableRows = rows.map((r) => ({
+    ...r,
+    orderedQty: aggBy.get(r.id)?.ordered ?? 0, receivedQty: aggBy.get(r.id)?.received ?? 0,
+    returned: (retsByPo.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+    returns: retsByPo.get(r.id) ?? [],
+  }));
 
   const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
   const qs = (p: number) => {
