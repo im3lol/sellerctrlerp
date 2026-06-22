@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesReturns, salesReturnLines, customers, items, salesInvoices } from "@/db/schema";
+import { salesReturns, salesReturnLines, customers, items, salesInvoices, deliveryNotes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,9 +47,14 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
     .where(eq(salesReturnLines.salesReturnId, ret.id));
 
   const linked: DocLink[] = [];
+  let backHref = "/erp/sales/invoices";
   if (ret.salesInvoiceId) {
     const [si] = await db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, ret.salesInvoiceId)).limit(1);
     if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
+  }
+  if (ret.deliveryNoteId) {
+    const [dn] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1);
+    if (dn) { const href = `/erp/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
   }
 
   const audit = await getDocumentAudit(orgId, ret.id);
@@ -62,8 +67,8 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
         icon="Undo2"
         title={`مرتجع مبيعات ${ret.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
-        backHref="/erp/sales/invoices"
-        action={<ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} />}
+        backHref={backHref}
+        action={<ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} dest={backHref} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

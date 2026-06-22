@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { deliveryNotes, customers, salesOrders, salesInvoices } from "@/db/schema";
+import { deliveryNotes, customers, salesOrders, salesInvoices, salesReturns, salesReturnLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,33 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     .orderBy(desc(deliveryNotes.date), desc(deliveryNotes.number))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
+
+  // Attach each delivery's returns (stock returns) as linked rows shown under it — quantity, not money.
+  const dnIds = tableRows.map((r) => r.id);
+  const retRows = dnIds.length
+    ? await db.select({ id: salesReturns.id, number: salesReturns.number, date: salesReturns.date, status: salesReturns.status, dnId: salesReturns.deliveryNoteId })
+        .from(salesReturns)
+        .where(and(eq(salesReturns.organizationId, orgId), inArray(salesReturns.deliveryNoteId, dnIds)))
+        .orderBy(desc(salesReturns.date), desc(salesReturns.number))
+    : [];
+  const retIds = retRows.map((r) => r.id);
+  const qtyRows = retIds.length
+    ? await db.select({ rid: salesReturnLines.salesReturnId, qty: sql<string>`coalesce(sum(${salesReturnLines.quantity}),0)` })
+        .from(salesReturnLines).where(inArray(salesReturnLines.salesReturnId, retIds)).groupBy(salesReturnLines.salesReturnId)
+    : [];
+  const qtyByRet = new Map(qtyRows.map((r) => [r.rid, Number(r.qty)]));
+  const retsByDn = new Map<string, { id: string; number: string; date: Date; qty: number; status: string }[]>();
+  for (const r of retRows) {
+    if (!r.dnId) continue;
+    const list = retsByDn.get(r.dnId) ?? [];
+    list.push({ id: r.id, number: r.number, date: r.date, qty: qtyByRet.get(r.id) ?? 0, status: r.status });
+    retsByDn.set(r.dnId, list);
+  }
+  const rows = tableRows.map((r) => ({
+    ...r,
+    returned: (retsByDn.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+    returns: retsByDn.get(r.id) ?? [],
+  }));
 
   const hasFilters = Boolean(q || fStatus || fCustomer || from || to);
   const qs = (p: number) => {
@@ -119,7 +146,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد."}</div>
           ) : (
             <>
-              <DeliveriesTable rows={tableRows} canManage={canManage} />
+              <DeliveriesTable rows={rows} canManage={canManage} />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

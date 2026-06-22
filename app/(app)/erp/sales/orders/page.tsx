@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesOrders, salesOrderLines, customers } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, salesReturns, salesReturnLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,33 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       }).from(salesOrderLines).where(inArray(salesOrderLines.salesOrderId, ids)).groupBy(salesOrderLines.salesOrderId)
     : [];
   const aggBy = new Map(agg.map((a) => [a.soId, { ordered: Number(a.ordered), delivered: Number(a.delivered) }]));
-  const tableRows = rows.map((r) => ({ ...r, orderedQty: aggBy.get(r.id)?.ordered ?? 0, deliveredQty: aggBy.get(r.id)?.delivered ?? 0 }));
+
+  // Returns linked to each order (stock returns from its deliveries + money returns from its invoices) — shown as sub-rows.
+  const retRows = ids.length
+    ? await db.select({ id: salesReturns.id, number: salesReturns.number, date: salesReturns.date, status: salesReturns.status, soId: salesReturns.salesOrderId })
+        .from(salesReturns)
+        .where(and(eq(salesReturns.organizationId, orgId), inArray(salesReturns.salesOrderId, ids)))
+        .orderBy(desc(salesReturns.date), desc(salesReturns.number))
+    : [];
+  const retIds = retRows.map((r) => r.id);
+  const qtyRows = retIds.length
+    ? await db.select({ rid: salesReturnLines.salesReturnId, qty: sql<string>`coalesce(sum(${salesReturnLines.quantity}),0)` })
+        .from(salesReturnLines).where(inArray(salesReturnLines.salesReturnId, retIds)).groupBy(salesReturnLines.salesReturnId)
+    : [];
+  const qtyByRet = new Map(qtyRows.map((r) => [r.rid, Number(r.qty)]));
+  const retsBySo = new Map<string, { id: string; number: string; date: Date; qty: number; status: string }[]>();
+  for (const r of retRows) {
+    if (!r.soId) continue;
+    const list = retsBySo.get(r.soId) ?? [];
+    list.push({ id: r.id, number: r.number, date: r.date, qty: qtyByRet.get(r.id) ?? 0, status: r.status });
+    retsBySo.set(r.soId, list);
+  }
+  const tableRows = rows.map((r) => ({
+    ...r,
+    orderedQty: aggBy.get(r.id)?.ordered ?? 0, deliveredQty: aggBy.get(r.id)?.delivered ?? 0,
+    returned: (retsBySo.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+    returns: retsBySo.get(r.id) ?? [],
+  }));
 
   const hasFilters = Boolean(q || fStatus || fCustomer || from || to);
   const qs = (p: number) => {

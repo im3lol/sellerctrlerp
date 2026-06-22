@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { bulkSalesOrdersAction } from "@/app/actions/erp/sales-orders";
@@ -25,7 +25,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CANCELLED: { label: "ملغى", variant: "destructive" },
 };
 
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number };
+type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[] };
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
@@ -81,28 +82,43 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
             const showBar = DELIVERING.has(r.status);
             const full = pct >= 100;
             return (
-              <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
-                <TableCell>
-                  <Link href={`/erp/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
-                </TableCell>
-                <TableCell>{dt(r.date)}</TableCell>
-                <TableCell>{r.customer ?? "—"}</TableCell>
-                <TableCell>{fmt(r.total)}</TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <Badge variant={st.variant}>{st.label}</Badge>
-                    {showBar && (
-                      <div className="flex items-center gap-2">
-                        <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
-                          <div className={`h-full rounded-full ${full ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: pct === 0 ? "0%" : `${Math.max(pct, 4)}%` }} />
+              <Fragment key={r.id}>
+                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  <TableCell>
+                    <Link href={`/erp/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                  </TableCell>
+                  <TableCell>{dt(r.date)}</TableCell>
+                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell>{fmt(r.total)}</TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div>
+                      {showBar && (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
+                            <div className={`h-full rounded-full ${full ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: pct === 0 ? "0%" : `${Math.max(pct, 4)}%` }} />
+                          </div>
+                          <span className="text-[11px] tabular-nums text-muted-foreground">{qty(r.deliveredQty)}/{qty(r.orderedQty)}</span>
                         </div>
-                        <span className="text-[11px] tabular-nums text-muted-foreground">{qty(r.deliveredQty)}/{qty(r.orderedQty)}</span>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {r.returns?.map((rt) => (
+                  <TableRow key={rt.id} className="bg-destructive/5">
+                    {canManage && <TableCell />}
+                    <TableCell className="ps-8">
+                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </Fragment>
             );
           })}
         </TableBody>

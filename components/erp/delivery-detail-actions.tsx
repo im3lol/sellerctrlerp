@@ -3,12 +3,12 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAction, reverseDeliveryAction } from "@/app/actions/erp/deliveries";
+import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
-export function DeliveryDetailActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
+export function DeliveryDetailActions({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
@@ -52,7 +52,7 @@ export function DeliveryDetailActions({ id, status, canManage }: { id: string; s
     return (
       <div className="flex flex-wrap gap-2">
         {status === "DELIVERED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => reverseDeliveryAction(id), "تم إرجاع البضاعة للمخزن — أُعيد فتح الأمر")}>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => router.push(`/erp/sales/deliveries/${encodeURIComponent(number)}/return`)}>
           <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
         </Button>
       </div>

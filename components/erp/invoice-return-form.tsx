@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createSalesReturnAction } from "@/app/actions/erp/sales-returns";
+import { createSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
 import { createPurchaseReturnAction, createReceiptReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +21,15 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function InvoiceReturnForm({
   type, invoiceId, invoiceNumber, backHref, lines,
 }: {
-  type: "sales" | "purchase" | "receipt";
+  type: "sales" | "purchase" | "receipt" | "delivery";
   invoiceId: string;
   invoiceNumber: string;
   backHref: string;
   lines: ReturnLine[];
 }) {
-  const docLabel = type === "receipt" ? "إذن استلام" : "فاتورة";
+  const docLabel = type === "receipt" ? "إذن استلام" : type === "delivery" ? "إذن صرف" : "فاتورة";
+  const qtyLabel = type === "receipt" ? "المستلم" : type === "delivery" ? "المُسلّم" : "المفوتر";
+  const salesSide = type === "sales" || type === "delivery";
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -47,11 +49,12 @@ export function InvoiceReturnForm({
     if (lines.some((l) => (Number(qtys[l.itemId]) || 0) > l.remaining + 1e-6)) return toast.error("الكمية المرتجعة أكبر من المتبقّي");
     start(async () => {
       const r = type === "sales" ? await createSalesReturnAction({ salesInvoiceId: invoiceId, date, lines: picks })
+        : type === "delivery" ? await createDeliveryReturnAction({ deliveryNoteId: invoiceId, date, lines: picks })
         : type === "receipt" ? await createReceiptReturnAction({ goodsReceiptId: invoiceId, date, lines: picks })
         : await createPurchaseReturnAction({ purchaseInvoiceId: invoiceId, date, lines: picks });
       if (r.ok) {
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
-        router.push(`/erp/${type === "sales" ? "sales" : "purchases"}/returns/${r.id}`);
+        router.push(`/erp/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
         router.refresh();
       } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
     });
@@ -78,7 +81,7 @@ export function InvoiceReturnForm({
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="w-24 text-start">{type === "receipt" ? "المستلم" : "المفوتر"}</TableHead>
+                <TableHead className="w-24 text-start">{qtyLabel}</TableHead>
                 <TableHead className="w-24 text-start">المرتجع سابقاً</TableHead>
                 <TableHead className="w-24 text-start">المتبقّي</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>

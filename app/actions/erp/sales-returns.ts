@@ -5,11 +5,12 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses, journalEntries, stockMovements } from "@/db/schema";
+import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses, journalEntries, stockMovements, deliveryNotes, deliveryNoteLines, salesOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
+import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
 
 export type SaveReturnState = ActionState & { id?: string };
 
@@ -68,6 +69,13 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
   const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
     .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
 
+  // Trace the originating order (via the invoice's delivery) so the return also shows under the order.
+  let orderId: string | null = null;
+  if (inv.deliveryNoteId) {
+    const [d2] = await db.select({ soId: deliveryNotes.salesOrderId }).from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId)).limit(1);
+    orderId = d2?.soId ?? null;
+  }
+
   const d = new Date(date);
   const number = await nextNumber(auth.orgId, d.getFullYear());
 
@@ -75,7 +83,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
     const id = await db.transaction(async (tx) => {
       const [ret] = await tx.insert(salesReturns).values({
         organizationId: auth.orgId, number, date: d, status: "DRAFT",
-        customerId: inv.customerId, warehouseId: wh?.id ?? "", salesInvoiceId: inv.id,
+        customerId: inv.customerId, warehouseId: wh?.id ?? "", salesInvoiceId: inv.id, salesOrderId: orderId,
         totalAmount: String(total), notes: notes || null,
       }).returning({ id: salesReturns.id });
 
@@ -108,6 +116,48 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
     .where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId))).limit(1);
   if (!ret) return { error: "المرتجع غير موجود" };
   if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
+
+  // Delivery return (stock side): restock + Dr 1104 / Cr 5101 (reverse COGS), drop deliveredQty.
+  if (ret.deliveryNoteId) {
+    const [dn] = await db.select().from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1);
+    if (!dn) return { error: "إذن الصرف غير موجود" };
+    const rLines = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice })
+      .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, id));
+    if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
+    const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
+    const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
+      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "5101"])));
+    const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+    if (!A["1104"] || !A["5101"]) return { error: "حسابات الترحيل غير مكتملة." };
+    const soLines = dn.salesOrderId
+      ? await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId))
+      : [];
+    const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+    const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
+    try {
+      await db.transaction(async (tx) => {
+        for (const l of rLines) {
+          const q = Number(l.quantity);
+          await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: dn.warehouseId, type: "IN", quantity: q, unitCost: Number(l.unitPrice), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
+          const sol = soByItem.get(l.itemId);
+          if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${q})` }).where(eq(salesOrderLines.id, sol.id));
+        }
+        await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "SALES_RETURN", sourceId: ret.id, description: `مرتجع إذن صرف ${dn.number}`, journalType: "GENERAL", userId: auth.userId, lines: [
+          { accountId: A["1104"], debit: net, credit: 0, description: `إرجاع مخزون ${ret.number}` },
+          { accountId: A["5101"], debit: 0, credit: net, description: `عكس ت.ب.م ${ret.number}` },
+        ] });
+        if (dn.salesOrderId) await recomputeSalesOrderStatus(tx, dn.salesOrderId);
+        await tx.update(salesReturns).set({ status: "POSTED" }).where(eq(salesReturns.id, ret.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن صرف ${dn.number}`, metadata: { net } });
+      });
+      revalidatePath("/erp/sales/deliveries");
+      revalidatePath("/erp/sales/orders");
+      revalidatePath("/erp/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
+    }
+  }
 
   const [inv] = await db.select().from(salesInvoices)
     .where(and(eq(salesInvoices.id, ret.salesInvoiceId ?? ""), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
@@ -247,7 +297,18 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
         await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "IN" ? "OUT" : "IN", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, referenceType: "SALES_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
       }
 
-      if (ret.customerId) await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, ret.customerId));
+      if (ret.deliveryNoteId) {
+        // Delivery (stock) return: no AR impact — restore the order's deliveredQty instead.
+        if (ret.salesOrderId) {
+          const rLines = await tx.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity }).from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, ret.id));
+          const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, ret.salesOrderId));
+          const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+          for (const l of rLines) { const sol = soByItem.get(l.itemId); if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`${salesOrderLines.deliveredQty} + ${Number(l.quantity)}` }).where(eq(salesOrderLines.id, sol.id)); }
+          await recomputeSalesOrderStatus(tx, ret.salesOrderId);
+        }
+      } else if (ret.customerId) {
+        await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, ret.customerId));
+      }
       await tx.update(salesReturns).set({ status: "CANCELLED" }).where(eq(salesReturns.id, ret.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مبيعات ${ret.number}`, metadata: { total } });
     });
@@ -256,5 +317,64 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
     return { ok: true };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
+  }
+}
+
+const deliveryReturnSchema = z.object({
+  deliveryNoteId: z.string().min(1, "اختر الإذن"),
+  date: z.string().min(1, "التاريخ مطلوب"),
+  notes: z.string().optional(),
+  lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
+});
+
+/** Create a stock return from a delivery note as a DRAFT (salesReturns.deliveryNoteId). */
+export async function createDeliveryReturnAction(input: unknown): Promise<SaveReturnState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  const parsed = deliveryReturnSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { deliveryNoteId, date, notes, lines } = parsed.data;
+
+  const [dn] = await db.select().from(deliveryNotes)
+    .where(and(eq(deliveryNotes.id, deliveryNoteId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+  if (!dn) return { error: "إذن الصرف غير موجود" };
+  if (dn.status !== "DELIVERED" && dn.status !== "INVOICED") return { error: "لا يمكن الإرجاع من هذا الإذن" };
+  if (!dn.customerId) return { error: "الإذن غير مرتبط بعميل" };
+
+  // remaining = delivered − already returned (posted), per item.
+  const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
+    .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+  const deliveredByItem = new Map<string, number>();
+  for (const l of dnLines) deliveredByItem.set(l.itemId, (deliveredByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+  const prior = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity })
+    .from(salesReturnLines).innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
+    .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.status, "POSTED")));
+  const returnedByItem = new Map<string, number>();
+  for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+  for (const l of lines) {
+    const remaining = (deliveredByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+    if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+  }
+
+  const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const d = new Date(date);
+  const number = await nextNumber(auth.orgId, d.getFullYear());
+  try {
+    const id = await db.transaction(async (tx) => {
+      const [ret] = await tx.insert(salesReturns).values({
+        organizationId: auth.orgId, number, date: d, status: "DRAFT",
+        customerId: dn.customerId!, warehouseId: dn.warehouseId, deliveryNoteId: dn.id, salesOrderId: dn.salesOrderId,
+        totalAmount: String(net), notes: notes || null,
+      }).returning({ id: salesReturns.id });
+      await tx.insert(salesReturnLines).values(lines.map((l) => ({
+        salesReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
+      })));
+      return ret.id;
+    });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_RETURN", entityId: id, entityNumber: number, summary: `مرتجع إذن صرف ${dn.number} (مسودة)`, metadata: { net } });
+    revalidatePath("/erp/sales/deliveries");
+    return { ok: true, id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
   }
 }

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices } from "@/db/schema";
+import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices, salesReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +18,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DRAFT: { label: "مسودة", variant: "secondary" },
   DELIVERED: { label: "تم التسليم", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
-  REVERSED: { label: "معكوس", variant: "destructive" },
+  REVERSED: { label: "مرتجع", variant: "destructive" },
 };
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ number: string }> }) {
@@ -57,6 +57,12 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     const [si] = await db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, dn.salesInvoiceId)).limit(1);
     if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
   }
+  const retDocs = await db.select({ number: salesReturns.number, status: salesReturns.status }).from(salesReturns)
+    .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.organizationId, orgId)));
+  for (const rd of retDocs) {
+    if (rd.status === "CANCELLED") continue;
+    linked.push({ label: rd.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)", number: rd.number, href: `/erp/sales/returns/${encodeURIComponent(rd.number)}` });
+  }
 
   const audit = await getDocumentAudit(orgId, dn.id);
   const st = STATUS[dn.status] ?? { label: dn.status, variant: "secondary" as const };
@@ -69,7 +75,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         title={`إذن صرف ${dn.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
         backHref="/erp/sales/deliveries"
-        action={<DeliveryDetailActions id={dn.id} status={dn.status} canManage={canManage} />}
+        action={<DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
