@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, warehouses, stockMovements } from "@/db/schema";
 
@@ -31,6 +31,8 @@ export type StockLedgerRow = {
   type: string;
   refType: string | null;
   reason: string | null;
+  itemCode: string | null;
+  itemName: string | null;
   warehouse: string | null;
   quantity: number;
   unitCost: number;
@@ -46,15 +48,24 @@ export type StockLedgerFilters = {
   from?: string;
   to?: string;
   type?: string; // "" | IN | OUT | ADJ
+  page?: number; // 1-based; omit to return all rows (export)
+  pageSize?: number;
 };
 
-/** Per-item stock movement ledger (WAC running balance), with filters. */
+/**
+ * Stock movement ledger. With no itemId it shows the latest movements across all
+ * items (newest first); with an itemId it shows that item's full history oldest
+ * first (so the WAC running balance reads correctly). Totals + count cover the
+ * whole filtered set; rows are paginated when pageSize is given.
+ */
 export async function getStockLedger(orgId: string, filters: StockLedgerFilters) {
   const itemId = filters.itemId ?? "";
   const fWarehouse = filters.warehouse ?? "";
   const fType = filters.type ?? "";
   const fromDate = filters.from ? new Date(filters.from) : null;
   const toDate = filters.to ? new Date(filters.to + "T23:59:59") : null;
+  const pageSize = filters.pageSize;
+  const page = Math.max(1, filters.page ?? 1);
 
   const [itemList, whList] = await Promise.all([
     db.select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn })
@@ -67,54 +78,68 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
       .orderBy(asc(warehouses.code)),
   ]);
 
-  let rows: StockLedgerRow[] = [];
-  let itemLabel = "";
-  if (itemId) {
-    const it = itemList.find((i) => i.id === itemId);
-    itemLabel = it ? `${it.code} — ${it.nameAr ?? it.nameEn ?? ""}` : "";
+  const it = itemId ? itemList.find((i) => i.id === itemId) : undefined;
+  const itemLabel = it ? `${it.code} — ${it.nameAr ?? it.nameEn ?? ""}` : "";
 
-    const conds: SQL[] = [eq(stockMovements.organizationId, orgId), eq(stockMovements.itemId, itemId)];
-    if (fWarehouse) conds.push(eq(stockMovements.warehouseId, fWarehouse));
-    if (fType) conds.push(eq(stockMovements.type, fType));
-    if (fromDate) conds.push(gte(stockMovements.date, fromDate));
-    if (toDate) conds.push(lte(stockMovements.date, toDate));
+  const conds: SQL[] = [eq(stockMovements.organizationId, orgId)];
+  if (itemId) conds.push(eq(stockMovements.itemId, itemId));
+  if (fWarehouse) conds.push(eq(stockMovements.warehouseId, fWarehouse));
+  if (fType) conds.push(eq(stockMovements.type, fType));
+  if (fromDate) conds.push(gte(stockMovements.date, fromDate));
+  if (toDate) conds.push(lte(stockMovements.date, toDate));
+  const where = and(...conds);
 
-    const raw = await db
-      .select({
-        date: stockMovements.date,
-        number: stockMovements.number,
-        type: stockMovements.type,
-        refType: stockMovements.referenceType,
-        reason: stockMovements.reason,
-        warehouse: warehouses.nameAr,
-        quantity: stockMovements.quantity,
-        unitCost: stockMovements.unitCost,
-        balanceQuantity: stockMovements.balanceQuantity,
-        balanceValue: stockMovements.balanceValue,
-      })
-      .from(stockMovements)
-      .leftJoin(warehouses, eq(warehouses.id, stockMovements.warehouseId))
-      .where(and(...conds))
-      .orderBy(asc(stockMovements.date), asc(stockMovements.createdAt));
-
-    rows = raw.map((r) => ({
-      ...r,
-      quantity: Number(r.quantity),
-      unitCost: Number(r.unitCost),
-      balanceQuantity: Number(r.balanceQuantity),
-      balanceValue: Number(r.balanceValue),
-    }));
+  // Totals over the full filtered set.
+  const totalsRows = await db
+    .select({ type: stockMovements.type, q: sql<string>`coalesce(sum(${stockMovements.quantity}),0)` })
+    .from(stockMovements)
+    .where(where)
+    .groupBy(stockMovements.type);
+  const totals: StockLedgerTotals = { inQty: 0, outQty: 0, net: 0 };
+  for (const t of totalsRows) {
+    if (t.type === "OUT") totals.outQty += Number(t.q);
+    else totals.inQty += Number(t.q);
   }
-
-  const totals = rows.reduce(
-    (acc, r) => {
-      if (r.type === "OUT") acc.outQty += r.quantity;
-      else acc.inQty += r.quantity;
-      return acc;
-    },
-    { inQty: 0, outQty: 0, net: 0 } as StockLedgerTotals,
-  );
   totals.net = totals.inQty - totals.outQty;
 
-  return { rows, totals, itemLabel, items: itemList, warehouses: whList };
+  let totalRows = 0;
+  if (pageSize) {
+    const [{ c }] = await db.select({ c: count() }).from(stockMovements).where(where);
+    totalRows = Number(c);
+  }
+
+  const base = db
+    .select({
+      date: stockMovements.date,
+      number: stockMovements.number,
+      type: stockMovements.type,
+      refType: stockMovements.referenceType,
+      reason: stockMovements.reason,
+      itemCode: items.code,
+      itemName: sql<string>`coalesce(${items.nameAr}, ${items.nameEn}, ${items.code})`,
+      warehouse: warehouses.nameAr,
+      quantity: stockMovements.quantity,
+      unitCost: stockMovements.unitCost,
+      balanceQuantity: stockMovements.balanceQuantity,
+      balanceValue: stockMovements.balanceValue,
+    })
+    .from(stockMovements)
+    .leftJoin(items, eq(items.id, stockMovements.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, stockMovements.warehouseId))
+    .where(where);
+
+  const ordered = itemId
+    ? base.orderBy(asc(stockMovements.date), asc(stockMovements.createdAt))
+    : base.orderBy(desc(stockMovements.date), desc(stockMovements.createdAt));
+  const raw = pageSize ? await ordered.limit(pageSize).offset((page - 1) * pageSize) : await ordered;
+
+  const rows: StockLedgerRow[] = raw.map((r) => ({
+    ...r,
+    quantity: Number(r.quantity),
+    unitCost: Number(r.unitCost),
+    balanceQuantity: Number(r.balanceQuantity),
+    balanceValue: Number(r.balanceValue),
+  }));
+
+  return { rows, totals, totalRows, itemLabel, items: itemList, warehouses: whList };
 }

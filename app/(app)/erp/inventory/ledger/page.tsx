@@ -10,6 +10,7 @@ import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemPickerField } from "@/components/erp/item-picker-field";
 
+const PER_PAGE = 50;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qfmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -28,12 +29,15 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
   const fType = one(sp.type);
   const from = one(sp.from);
   const to = one(sp.to);
+  const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
-  const { rows, totals, itemLabel, items: itemList, warehouses: whList } = await getStockLedger(orgId, {
-    itemId, warehouse: fWarehouse, type: fType, from, to,
+  const { rows, totals, totalRows, itemLabel, items: itemList, warehouses: whList } = await getStockLedger(orgId, {
+    itemId, warehouse: fWarehouse, type: fType, from, to, page, pageSize: PER_PAGE,
   });
 
-  const hasFilters = Boolean(fWarehouse || fType || from || to);
+  const pages = Math.max(1, Math.ceil(totalRows / PER_PAGE));
+  const safePage = Math.min(page, pages);
+  const hasFilters = Boolean(itemId || fWarehouse || fType || from || to);
   const filterQs = () => {
     const u = new URLSearchParams();
     if (itemId) u.set("item", itemId);
@@ -43,6 +47,11 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
     if (to) u.set("to", to);
     return u;
   };
+  const qs = (p: number) => {
+    const u = filterQs();
+    u.set("page", String(p));
+    return `?${u.toString()}`;
+  };
   const exportHref = `/api/erp/inventory/ledger/export?${filterQs().toString()}`;
 
   return (
@@ -50,10 +59,10 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
       <ErpPageHeader
         icon="ScrollText"
         title="دفتر حركة المخزون"
-        subtitle={itemLabel || "اختر صنفاً لعرض حركته"}
+        subtitle={itemLabel || "أحدث حركات المخزون"}
         backHref="/erp/inventory"
         action={
-          itemId && rows.length > 0 ? (
+          rows.length > 0 ? (
             <Button asChild variant="outline">
               <a href={exportHref}><Icon name="Download" className="size-4" />تحميل Excel</a>
             </Button>
@@ -64,7 +73,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
       <Card>
         <CardHeader>
           <CardTitle>تصفية</CardTitle>
-          <CardDescription>اختر الصنف، ثم حدّد المستودع أو نوع الحركة أو الفترة الزمنية (اختياري).</CardDescription>
+          <CardDescription>ابحث عن صنف معيّن، أو حدّد المستودع أو نوع الحركة أو الفترة الزمنية. بدون اختيار صنف تظهر أحدث الحركات لكل الأصناف.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 sm:grid-cols-4 items-end">
@@ -74,7 +83,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                 name="item"
                 defaultId={itemId}
                 defaultLabel={itemLabel}
-                placeholder="ابحث بالاسم أو الكود…"
+                placeholder="ابحث بالاسم أو الكود… (اتركه فارغاً لكل الأصناف)"
                 options={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? i.nameEn ?? ""}`, hint: i.code }))}
               />
             </div>
@@ -96,26 +105,27 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
             <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
             <div className="flex gap-2 sm:col-span-4">
               <Button type="submit">عرض</Button>
-              {(itemId || hasFilters) && <Button type="button" variant="outline" asChild><a href="/erp/inventory/ledger">مسح</a></Button>}
+              {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/inventory/ledger">مسح</a></Button>}
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {itemId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>الحركات</CardTitle>
-            <CardDescription>الرصيد بطريقة المتوسط المرجّح.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حركات مطابقة لهذا الصنف.</div>
-            ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle>الحركات</CardTitle>
+          <CardDescription>{itemLabel ? "الرصيد بطريقة المتوسط المرجّح." : "أحدث الحركات أولاً عبر كل الأصناف."} — {totalRows} حركة</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {rows.length === 0 ? (
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد حركات مطابقة." : "لا توجد حركات مخزون بعد."}</div>
+          ) : (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-start">التاريخ</TableHead>
+                    <TableHead className="text-start">الصنف</TableHead>
                     <TableHead className="text-start">الحركة</TableHead>
                     <TableHead className="text-start">المستند</TableHead>
                     <TableHead className="text-start">المستودع</TableHead>
@@ -133,7 +143,8 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                     const variant = t.tone === "in" ? "default" : t.tone === "out" ? "destructive" : "secondary";
                     return (
                       <TableRow key={i}>
-                        <TableCell>{dt(r.date)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
+                        <TableCell><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</TableCell>
                         <TableCell><Badge variant={variant}>{t.label}</Badge></TableCell>
                         <TableCell>{MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}</TableCell>
                         <TableCell>{r.warehouse ?? "—"}</TableCell>
@@ -148,17 +159,28 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell colSpan={4}>الإجمالي (وارد {qfmt(totals.inQty)} · منصرف {qfmt(totals.outQty)} · صافي {qfmt(totals.net)})</TableCell>
+                    <TableCell colSpan={5}>الإجمالي (صافي {qfmt(totals.net)})</TableCell>
                     <TableCell>{qfmt(totals.inQty)}</TableCell>
                     <TableCell>{qfmt(totals.outQty)}</TableCell>
                     <TableCell colSpan={3} />
                   </TableRow>
                 </TableFooter>
               </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>صفحة {safePage} من {pages}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
+                    {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
+                    {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

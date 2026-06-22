@@ -26,11 +26,12 @@ export async function GET(req: Request) {
     to: url.searchParams.get("to") ?? "",
   });
 
-  const headers = ["التاريخ", "الحركة", "المستند", "المستودع", "وارد", "منصرف", "التكلفة", "رصيد الكمية", "قيمة الرصيد"];
+  const headers = ["التاريخ", "الصنف", "الحركة", "المستند", "المستودع", "وارد", "منصرف", "التكلفة", "رصيد الكمية", "قيمة الرصيد"];
   const body = rows.map((r) => {
     const isOut = r.type === "OUT";
     return [
       fmtDate(r.date),
+      [r.itemCode, r.itemName].filter(Boolean).join(" — "),
       MOVE_TYPE[r.type]?.label ?? r.type,
       MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—",
       r.warehouse ?? "—",
@@ -41,10 +42,10 @@ export async function GET(req: Request) {
       r.balanceValue,
     ];
   });
-  const totalRow = ["الإجمالي", "", "", "", totals.inQty, totals.outQty, "", "", ""];
+  const totalRow = ["الإجمالي", "", "", "", "", totals.inQty, totals.outQty, "", "", ""];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
-  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+  ws["!cols"] = [{ wch: 12 }, { wch: 26 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
 
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };
