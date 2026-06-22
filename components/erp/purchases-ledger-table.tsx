@@ -1,35 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
-export type LedgerRow = {
-  id: string;
-  number: string;
-  date: Date;
-  supplierName: string;
-  docType: "ORDER" | "RECEIPT" | "INVOICE" | "RETURN";
-  status: string;
-  qtyTotal: number | null;
-  qtyReceived: number | null;
-  qtyRejected: number | null;
-  subtotal: number | null;
-  shipping: number | null;
-  discount: number | null;
-  tax: number | null;
-  total: number | null;
-  href: string;
-};
-
-export type LedgerTotals = {
-  qtyTotal: number;
-  qtyReceived: number;
-  qtyRejected: number;
-  subtotal: number;
-  shipping: number;
-  discount: number;
-  tax: number;
-  total: number;
-};
+import type { LedgerRow, LedgerTotals } from "@/lib/erp/purchases-ledger";
 
 const LOC = "ar-EG-u-nu-latn";
 const fmtMoney = (n: number) =>
