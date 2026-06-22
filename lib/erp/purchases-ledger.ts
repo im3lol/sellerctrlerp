@@ -1,10 +1,10 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { and, asc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
   purchaseOrders, purchaseOrderLines, purchaseReceipts, purchaseReceiptLines,
-  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, purchaseReturnLines, suppliers,
+  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, purchaseReturnLines, suppliers, items,
 } from "@/db/schema";
 
 export type LedgerDocType = "ORDER" | "RECEIPT" | "INVOICE" | "RETURN";
@@ -43,9 +43,22 @@ export type LedgerFilters = {
   type?: string; // "" | ORDER | RECEIPT | INVOICE | RETURN
   from?: string;
   to?: string;
+  product?: string; // free-text: item code or name
 };
 
 const num = (v: string | null) => (v === null ? null : Number(v));
+
+/** Distinct parent-document ids whose lines reference one of the given items. */
+async function docIdsWithItem(
+  table: PgTable,
+  parentCol: PgColumn,
+  itemCol: PgColumn,
+  itemIds: string[],
+): Promise<string[]> {
+  if (!itemIds.length) return [];
+  const r = await db.selectDistinct({ pid: parentCol }).from(table).where(inArray(itemCol, itemIds));
+  return r.map((x) => x.pid as string);
+}
 
 /**
  * Consolidated purchases ledger: every purchase document (orders, receipts,
@@ -58,7 +71,25 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   const toDate = filters.to ? new Date(filters.to + "T23:59:59") : null;
   const fSupplier = filters.supplier ?? "";
   const fType = filters.type ?? "";
+  const fProduct = (filters.product ?? "").trim();
   const want = (t: string) => !fType || fType === t;
+
+  // Product filter → resolve matching item ids (by code or name). null = no filter.
+  let matchedItemIds: string[] | null = null;
+  if (fProduct) {
+    const its = await db
+      .select({ id: items.id })
+      .from(items)
+      .where(and(
+        eq(items.organizationId, orgId),
+        or(
+          ilike(items.code, `%${fProduct}%`),
+          ilike(items.nameAr, `%${fProduct}%`),
+          ilike(items.nameEn, `%${fProduct}%`),
+        ),
+      ));
+    matchedItemIds = its.map((i) => i.id);
+  }
 
   const dateConds = (col: PgColumn) => {
     const c: SQL[] = [];
@@ -80,6 +111,10 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   if (want("ORDER")) {
     const conds = [eq(purchaseOrders.organizationId, orgId), ...dateConds(purchaseOrders.date)];
     if (fSupplier) conds.push(eq(purchaseOrders.supplierId, fSupplier));
+    if (matchedItemIds !== null) {
+      const pids = await docIdsWithItem(purchaseOrderLines, purchaseOrderLines.purchaseOrderId, purchaseOrderLines.itemId, matchedItemIds);
+      conds.push(pids.length ? inArray(purchaseOrders.id, pids) : sql`false`);
+    }
     const list = await db
       .select({
         id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date,
@@ -116,6 +151,10 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   if (want("RECEIPT")) {
     const conds = [eq(purchaseReceipts.organizationId, orgId), ...dateConds(purchaseReceipts.date)];
     if (fSupplier) conds.push(eq(purchaseReceipts.supplierId, fSupplier));
+    if (matchedItemIds !== null) {
+      const pids = await docIdsWithItem(purchaseReceiptLines, purchaseReceiptLines.purchaseReceiptId, purchaseReceiptLines.itemId, matchedItemIds);
+      conds.push(pids.length ? inArray(purchaseReceipts.id, pids) : sql`false`);
+    }
     const list = await db
       .select({
         id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date,
@@ -152,6 +191,10 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   if (want("INVOICE")) {
     const conds = [eq(purchaseInvoices.organizationId, orgId), ...dateConds(purchaseInvoices.date)];
     if (fSupplier) conds.push(eq(purchaseInvoices.supplierId, fSupplier));
+    if (matchedItemIds !== null) {
+      const pids = await docIdsWithItem(purchaseInvoiceLines, purchaseInvoiceLines.purchaseInvoiceId, purchaseInvoiceLines.itemId, matchedItemIds);
+      conds.push(pids.length ? inArray(purchaseInvoices.id, pids) : sql`false`);
+    }
     const list = await db
       .select({
         id: purchaseInvoices.id, number: purchaseInvoices.number, date: purchaseInvoices.date,
@@ -186,6 +229,10 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   if (want("RETURN")) {
     const conds = [eq(purchaseReturns.organizationId, orgId), ...dateConds(purchaseReturns.date)];
     if (fSupplier) conds.push(eq(purchaseReturns.supplierId, fSupplier));
+    if (matchedItemIds !== null) {
+      const pids = await docIdsWithItem(purchaseReturnLines, purchaseReturnLines.purchaseReturnId, purchaseReturnLines.itemId, matchedItemIds);
+      conds.push(pids.length ? inArray(purchaseReturns.id, pids) : sql`false`);
+    }
     const list = await db
       .select({
         id: purchaseReturns.id, number: purchaseReturns.number, date: purchaseReturns.date,

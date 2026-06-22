@@ -28,10 +28,11 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
   const fType = one(sp.type); // "" = all, else ORDER|RECEIPT|INVOICE|RETURN
   const from = one(sp.from);
   const to = one(sp.to);
+  const fProduct = one(sp.product).trim();
   const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
   const { rows, totals, suppliers: supList } = await getPurchasesLedger(orgId, {
-    supplier: fSupplier, type: fType, from, to,
+    supplier: fSupplier, type: fType, from, to, product: fProduct,
   });
 
   const totalRows = rows.length;
@@ -39,13 +40,14 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
   const safePage = Math.min(page, pages);
   const pageRows = rows.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  const hasFilters = Boolean(fSupplier || fType || from || to);
+  const hasFilters = Boolean(fSupplier || fType || from || to || fProduct);
   const filterQs = () => {
     const u = new URLSearchParams();
     if (fSupplier) u.set("supplier", fSupplier);
     if (fType) u.set("type", fType);
     if (from) u.set("from", from);
     if (to) u.set("to", to);
+    if (fProduct) u.set("product", fProduct);
     return u;
   };
   const qs = (p: number) => {
@@ -81,7 +83,11 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
             <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
               <Icon name="ListFilter" className="size-4" /> بحث وتصفية
             </summary>
-            <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
+            <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="product">المنتج (اسم أو كود)</Label>
+                <Input id="product" name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" />
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="supplier">المورد</Label>
                 <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
@@ -98,7 +104,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
               </div>
               <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
               <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
-              <div className="flex gap-2 sm:col-span-4">
+              <div className="flex gap-2 sm:col-span-5">
                 <Button type="submit">تطبيق</Button>
                 {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/purchases/reports/ledger">مسح</a></Button>}
               </div>

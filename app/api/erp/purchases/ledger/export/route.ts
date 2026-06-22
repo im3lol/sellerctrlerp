@@ -33,6 +33,7 @@ export async function GET(req: Request) {
     type: url.searchParams.get("type") ?? "",
     from: url.searchParams.get("from") ?? "",
     to: url.searchParams.get("to") ?? "",
+    product: url.searchParams.get("product") ?? "",
   });
 
   const headers = [
