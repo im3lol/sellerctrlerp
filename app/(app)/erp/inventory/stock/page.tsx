@@ -56,9 +56,10 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المخزون</div><div className="text-2xl font-bold">{fmt(totals.value)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الأرصدة</div><div className="text-2xl font-bold">{intl(totals.count)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي الكمية</div><div className="text-2xl font-bold">{qty(totals.quantity)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الأصناف</div><div className="text-2xl font-bold">{intl(totals.items)}</div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون منخفض</div><div className="text-2xl font-bold text-amber-600">{intl(totals.low)}</div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون نافد</div><div className="text-2xl font-bold text-destructive">{intl(totals.out)}</div></CardContent></Card>
       </div>
@@ -131,7 +132,9 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={5}>إجمالي قيمة المخزون</TableCell>
+                  <TableCell colSpan={3}>الإجمالي</TableCell>
+                  <TableCell>{qty(totals.quantity)}</TableCell>
+                  <TableCell />
                   <TableCell>{fmt(totals.value)}</TableCell>
                   <TableCell />
                 </TableRow>

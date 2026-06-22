@@ -17,7 +17,7 @@ export type StockBalanceLine = {
   status: StockStatus;
 };
 
-export type StockBalanceTotals = { value: number; count: number; low: number; out: number };
+export type StockBalanceTotals = { value: number; quantity: number; items: number; low: number; out: number };
 
 export type StockBalanceFilters = {
   product?: string; // free-text: item code or name
@@ -95,16 +95,19 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
 
   lines.sort((a, b) => a.code.localeCompare(b.code) || a.warehouse.localeCompare(b.warehouse));
 
+  const itemCodes = new Set<string>();
   const totals = lines.reduce(
     (acc, l) => {
       acc.value += l.value;
-      acc.count += 1;
+      acc.quantity += l.quantity;
+      itemCodes.add(l.code);
       if (l.status === "LOW") acc.low += 1;
       if (l.status === "OUT") acc.out += 1;
       return acc;
     },
-    { value: 0, count: 0, low: 0, out: 0 } as StockBalanceTotals,
+    { value: 0, quantity: 0, items: 0, low: 0, out: 0 } as StockBalanceTotals,
   );
+  totals.items = itemCodes.size;
 
   return { lines, totals, warehouses: whList, productSuggestions };
 }

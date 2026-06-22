@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
   const headers = ["الكود", "الصنف", "المستودع", "الكمية", "متوسط التكلفة", "القيمة", "الحالة"];
   const body = lines.map((l) => [l.code, l.name, l.warehouse, l.quantity, l.avgCost, l.value, STATUS_LABEL[l.status] ?? l.status]);
-  const totalRow = ["الإجمالي", "", "", "", "", totals.value, ""];
+  const totalRow = ["الإجمالي", "", "", totals.quantity, "", totals.value, ""];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
   ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
