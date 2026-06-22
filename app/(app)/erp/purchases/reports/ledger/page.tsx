@@ -1,8 +1,11 @@
-import { and, asc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseReceipts, purchaseInvoices, purchaseReturns, suppliers } from "@/db/schema";
+import {
+  purchaseOrders, purchaseOrderLines, purchaseReceipts, purchaseReceiptLines,
+  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, purchaseReturnLines, suppliers,
+} from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,10 +71,23 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       })
       .from(purchaseOrders)
       .where(and(...conds));
+    const ids = list.map((r) => r.id);
+    const agg = ids.length
+      ? await db.select({
+          pid: purchaseOrderLines.purchaseOrderId,
+          total: sql<string>`coalesce(sum(${purchaseOrderLines.quantity}),0)`,
+          received: sql<string>`coalesce(sum(${purchaseOrderLines.receivedQty}),0)`,
+        }).from(purchaseOrderLines)
+          .where(inArray(purchaseOrderLines.purchaseOrderId, ids))
+          .groupBy(purchaseOrderLines.purchaseOrderId)
+      : [];
+    const qm = new Map(agg.map((a) => [a.pid, a]));
     for (const r of list) {
+      const q = qm.get(r.id);
       rows.push({
         id: `ORDER-${r.id}`, number: r.number, date: r.date,
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "ORDER", status: r.status,
+        qtyTotal: Number(q?.total ?? 0), qtyReceived: Number(q?.received ?? 0), qtyRejected: null,
         subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount),
         tax: num(r.tax), total: num(r.total), href: `/erp/purchases/orders/${r.number}`,
       });
@@ -89,10 +105,25 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       })
       .from(purchaseReceipts)
       .where(and(...conds));
+    const ids = list.map((r) => r.id);
+    const agg = ids.length
+      ? await db.select({
+          pid: purchaseReceiptLines.purchaseReceiptId,
+          received: sql<string>`coalesce(sum(${purchaseReceiptLines.quantity}),0)`,
+          rejected: sql<string>`coalesce(sum(${purchaseReceiptLines.rejectedQty}),0)`,
+        }).from(purchaseReceiptLines)
+          .where(inArray(purchaseReceiptLines.purchaseReceiptId, ids))
+          .groupBy(purchaseReceiptLines.purchaseReceiptId)
+      : [];
+    const qm = new Map(agg.map((a) => [a.pid, a]));
     for (const r of list) {
+      const q = qm.get(r.id);
+      const recv = Number(q?.received ?? 0);
+      const rej = Number(q?.rejected ?? 0);
       rows.push({
         id: `RECEIPT-${r.id}`, number: r.number, date: r.date,
         supplierName: (r.supplierId && supMap.get(r.supplierId)) || "—", docType: "RECEIPT", status: r.status,
+        qtyTotal: recv + rej, qtyReceived: recv, qtyRejected: rej,
         subtotal: null, shipping: null, discount: null, tax: null, total: null,
         href: `/erp/purchases/receipts/${r.number}`,
       });
@@ -112,10 +143,21 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       })
       .from(purchaseInvoices)
       .where(and(...conds));
+    const ids = list.map((r) => r.id);
+    const agg = ids.length
+      ? await db.select({
+          pid: purchaseInvoiceLines.purchaseInvoiceId,
+          total: sql<string>`coalesce(sum(${purchaseInvoiceLines.quantity}),0)`,
+        }).from(purchaseInvoiceLines)
+          .where(inArray(purchaseInvoiceLines.purchaseInvoiceId, ids))
+          .groupBy(purchaseInvoiceLines.purchaseInvoiceId)
+      : [];
+    const qm = new Map(agg.map((a) => [a.pid, a]));
     for (const r of list) {
       rows.push({
         id: `INVOICE-${r.id}`, number: r.number, date: r.date,
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "INVOICE", status: r.status,
+        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: null, qtyRejected: null,
         subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount),
         tax: num(r.tax), total: num(r.total), href: `/erp/purchases/invoices/${r.number}`,
       });
@@ -133,10 +175,21 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       })
       .from(purchaseReturns)
       .where(and(...conds));
+    const ids = list.map((r) => r.id);
+    const agg = ids.length
+      ? await db.select({
+          pid: purchaseReturnLines.purchaseReturnId,
+          total: sql<string>`coalesce(sum(${purchaseReturnLines.quantity}),0)`,
+        }).from(purchaseReturnLines)
+          .where(inArray(purchaseReturnLines.purchaseReturnId, ids))
+          .groupBy(purchaseReturnLines.purchaseReturnId)
+      : [];
+    const qm = new Map(agg.map((a) => [a.pid, a]));
     for (const r of list) {
       rows.push({
         id: `RETURN-${r.id}`, number: r.number, date: r.date,
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "RETURN", status: r.status,
+        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: null, qtyRejected: null,
         subtotal: null, shipping: null, discount: null, tax: null, total: num(r.total),
         href: `/erp/purchases/returns/${r.number}`,
       });
@@ -148,6 +201,9 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
 
   const totals = rows.reduce(
     (acc, r) => {
+      acc.qtyTotal += r.qtyTotal ?? 0;
+      acc.qtyReceived += r.qtyReceived ?? 0;
+      acc.qtyRejected += r.qtyRejected ?? 0;
       acc.subtotal += r.subtotal ?? 0;
       acc.shipping += r.shipping ?? 0;
       acc.discount += r.discount ?? 0;
@@ -155,7 +211,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       acc.total += r.total ?? 0;
       return acc;
     },
-    { subtotal: 0, shipping: 0, discount: 0, tax: 0, total: 0 },
+    { qtyTotal: 0, qtyReceived: 0, qtyRejected: 0, subtotal: 0, shipping: 0, discount: 0, tax: 0, total: 0 },
   );
 
   const totalRows = rows.length;
