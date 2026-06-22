@@ -99,11 +99,16 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
           orgId: auth.orgId, itemId: l.itemId, warehouseId: from, type: "OUT",
           quantity: qty, date: d, referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
         });
-        await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: l.itemId, warehouseId: to, type: "IN",
-          quantity: qty, unitCost: out.unitCost, date: d,
-          referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
-        });
+        // Carry each consumed lot's batch/expiry to the destination warehouse
+        // (one IN per source allocation) — value-neutral (same unit cost).
+        for (const a of out.batchAllocations) {
+          await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: l.itemId, warehouseId: to, type: "IN",
+            quantity: Math.abs(a.quantity), unitCost: out.unitCost, date: d,
+            batchNo: a.batchNo, expiryDate: a.expiryDate,
+            referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
+          });
+        }
       }
       await tx.update(stockTransfers).set({ status: "POSTED" }).where(eq(stockTransfers.id, tr.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: ls.length } });
