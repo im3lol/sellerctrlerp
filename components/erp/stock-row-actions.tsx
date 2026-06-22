@@ -14,11 +14,13 @@ export function StockRowActions({
   type,
   status,
   canManage,
+  dest,
 }: {
   docId: string;
   type: "transfer" | "adjustment";
   status: string;
   canManage: boolean;
+  dest?: string; // navigate here after a successful action (e.g. from a detail page)
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -29,7 +31,7 @@ export function StockRowActions({
     start(async () => {
       if (!(await confirm(opts))) return;
       const r = await fn();
-      if (r.ok) { toast.success(ok); router.refresh(); }
+      if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
       else toast.error(r.error ?? "تعذّر التنفيذ");
     });
 

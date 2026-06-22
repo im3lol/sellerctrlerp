@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 import { searchItemsAction } from "@/app/actions/erp/item-search";
-import { ItemPicker } from "@/components/erp/item-picker";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,6 @@ type Option = { id: string; code: string; name: string };
 type Stock = { itemId: string; warehouseId: string; quantity: number; avgCost: number };
 type Line = { key: number; itemId: string; itemLabel: string; warehouseId: string; counted: string; unitCost: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -50,6 +49,10 @@ export function AdjustmentForm({
   }, [stock]);
   const currentQty = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.quantity ?? 0;
   const currentCost = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.avgCost ?? 0;
+
+  const itemOptions = useMemo(() => items.map((i) => ({ id: i.id, label: `${i.code} — ${i.name}`, hint: i.code })), [items]);
+  const whOptions = useMemo(() => warehouses.map((w) => ({ id: w.id, label: w.name, hint: w.code })), [warehouses]);
+  const whLabel = (id: string) => warehouses.find((w) => w.id === id)?.name ?? "";
 
   const addLine = (itemId = "", itemLabel = "") =>
     setLines((ls) => [...ls, { key: nextKey(ls), itemId, itemLabel, warehouseId: defaultWh, counted: "", unitCost: "" }]);
@@ -162,12 +165,12 @@ export function AdjustmentForm({
                   return (
                     <tr key={l.key} className="align-top">
                       <td className="px-2 py-2">
-                        <ItemPicker selectedLabel={l.itemLabel} onSelect={(it) => updateLine(l.key, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
+                        <CellCombobox selectedLabel={l.itemLabel} options={itemOptions} placeholder="ابحث بالاسم أو الكود…"
+                          onSelect={(id, label) => updateLine(l.key, { itemId: id, itemLabel: label })} />
                       </td>
                       <td className="px-2 py-2">
-                        <select className={`${selectCls} min-w-36`} value={l.warehouseId} onChange={(e) => updateLine(l.key, { warehouseId: e.target.value })}>
-                          {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                        </select>
+                        <CellCombobox selectedLabel={whLabel(l.warehouseId)} options={whOptions} placeholder="المستودع…"
+                          onSelect={(id) => updateLine(l.key, { warehouseId: id })} />
                       </td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></td>

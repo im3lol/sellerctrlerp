@@ -48,7 +48,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
         title={`تسوية مخزون ${adj.number}`}
         subtitle={adj.reason}
         backHref="/erp/inventory/adjustments"
-        action={canManage && isDraft ? <StockRowActions docId={adj.id} type="adjustment" status={adj.status} canManage={canManage} /> : undefined}
+        action={canManage && isDraft ? <StockRowActions docId={adj.id} type="adjustment" status={adj.status} canManage={canManage} dest="/erp/inventory/adjustments" /> : undefined}
       />
 
       <Card>

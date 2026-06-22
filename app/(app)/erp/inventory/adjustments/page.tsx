@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { StockRowActions } from "@/components/erp/stock-row-actions";
 
 const PER_PAGE = 10;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
@@ -133,7 +132,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
                     <TableHead className="text-start">صافي الفرق</TableHead>
                     <TableHead className="text-start">القيمة</TableHead>
                     <TableHead className="text-start">الحالة</TableHead>
-                    {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                    <TableHead className="text-start"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -151,7 +150,11 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
                         <TableCell className={delta < 0 ? "text-destructive" : delta > 0 ? "text-emerald-600" : ""}>{delta > 0 ? "+" : ""}{intl(delta)}</TableCell>
                         <TableCell>{fmt(r.totalValue)}</TableCell>
                         <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-                        {canManage && <TableCell><StockRowActions docId={r.id} type="adjustment" status={r.status} canManage={canManage} /></TableCell>}
+                        <TableCell>
+                          <Link href={`/erp/inventory/adjustments/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+                            {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
+                          </Link>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
