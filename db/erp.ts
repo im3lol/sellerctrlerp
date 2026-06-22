@@ -472,6 +472,8 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   warehouseId: text("warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(), // accepted into stock
   rejectedQty: money("rejected_qty").notNull().default("0"), // inspected & rejected (no stock)
+  batchNo: text("batch_no"), // lot/batch (perishables)
+  expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
   notes: text("notes"),
 });

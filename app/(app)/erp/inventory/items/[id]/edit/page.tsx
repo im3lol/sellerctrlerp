@@ -20,6 +20,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
       <ItemForm initial={{
         id: item.id, code: item.code, nameAr: item.nameAr ?? "", nameEn: item.nameEn ?? "",
         description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",
+        isPerishable: item.isPerishable, shelfLifeDays: item.shelfLifeDays,
         image: item.image ?? "", codes,
       }} />
     </div>

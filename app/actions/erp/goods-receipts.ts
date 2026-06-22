@@ -22,11 +22,12 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
   return nextDocumentNumber(db, orgId, prefix, year);
 }
 
-export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string };
+export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string; batchNo?: string | null; expiryDate?: string | null };
 
 export type ReceivableLine = {
   itemId: string; code: string; name: string; ordered: number; received: number; remaining: number;
   stockByWarehouse: Record<string, number>;
+  isPerishable: boolean; shelfLifeDays: number | null;
 };
 
 /**
@@ -44,14 +45,14 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
   if (!po) return { error: "الأمر غير موجود" };
 
   const ols = await db
-    .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr })
+    .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
     .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
     .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
   const lines = ols
     .map((l) => {
       const ordered = Number(l.quantity), received = Number(l.receivedQty);
-      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number> };
+      return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
     })
     .filter((l) => l.remaining > EPS);
 
@@ -99,7 +100,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
   const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
-  const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string }[] = [];
+  const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null }[] = [];
   for (const l of orderLines) {
     const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
     const p = picks ? pickBy.get(l.itemId) : undefined;
@@ -107,7 +108,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
     if (want < -EPS) return { error: "كمية غير صالحة" };
     if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
-    if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId });
+    if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null });
   }
   if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
 
@@ -122,7 +123,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       }).returning({ id: purchaseReceipts.id });
       await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
         purchaseReceiptId: grn.id, itemId: t.itemId, warehouseId: t.warehouseId,
-        quantity: String(t.qty), rejectedQty: String(t.rejected),
+        quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate,
       })));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
       return grn.id;
@@ -153,7 +154,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
   const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
   if (!po) return { error: "أمر الشراء غير موجود" };
 
-  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId })
+  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
     .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
   const poLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
@@ -185,6 +186,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
         await postStockMovement(tx, {
           orgId: auth.orgId, itemId: gl.itemId, warehouseId: gl.warehouseId || grn.warehouseId, type: "IN",
           quantity: qty, unitCost: unitNet, date: receiptDate,
+          batchNo: gl.batchNo ?? null, expiryDate: gl.expiryDate ? new Date(gl.expiryDate) : null, deriveExpiryFromShelfLife: true,
           referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: `استلام ${grn.number}`,
         });
         await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${qty}` }).where(eq(purchaseOrderLines.id, pol.id));

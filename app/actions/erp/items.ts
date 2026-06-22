@@ -24,6 +24,8 @@ const schema = z.object({
   description: z.string().optional(),
   sellPrice: z.coerce.number().min(0).default(0),
   minStock: z.coerce.number().min(0).default(0),
+  isPerishable: z.coerce.boolean().default(false),
+  shelfLifeDays: z.coerce.number().int().min(0).optional(),
   image: z.string().optional(),
   codes: z.array(codeSchema).default([]),
 });
@@ -49,6 +51,8 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
     description: d.description?.trim() || null,
     sellPrice: String(d.sellPrice),
     minStock: String(d.minStock),
+    isPerishable: d.isPerishable,
+    shelfLifeDays: d.isPerishable ? (d.shelfLifeDays ?? null) : null,
     image: d.image?.trim() || null,
   };
 

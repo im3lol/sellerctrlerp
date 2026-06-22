@@ -17,6 +17,7 @@ type CodeRow = { codeType: string; code: string };
 export type ItemFormInitial = {
   id?: string; code?: string; nameAr?: string; nameEn?: string; description?: string;
   sellPrice?: string | number; minStock?: string | number; image?: string; codes?: CodeRow[];
+  isPerishable?: boolean; shelfLifeDays?: string | number | null;
 };
 
 export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
@@ -31,6 +32,8 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sellPrice, setSellPrice] = useState(String(initial?.sellPrice ?? "0"));
   const [minStock, setMinStock] = useState(String(initial?.minStock ?? "0"));
+  const [isPerishable, setIsPerishable] = useState(Boolean(initial?.isPerishable));
+  const [shelfLifeDays, setShelfLifeDays] = useState(initial?.shelfLifeDays != null ? String(initial.shelfLifeDays) : "");
   const [image, setImage] = useState(initial?.image ?? "");
   const [codes, setCodes] = useState<CodeRow[]>(initial?.codes?.length ? initial.codes : [{ codeType: "BARCODE", code: "" }]);
 
@@ -58,6 +61,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       const r = await saveItemAction({
         id: initial?.id, code, nameAr, nameEn, description,
         sellPrice: Number(sellPrice) || 0, minStock: Number(minStock) || 0, image,
+        isPerishable, shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : undefined,
         codes: codes.filter((c) => c.code.trim()),
       });
       if (r.ok) {
@@ -80,6 +84,16 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
             <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصنف…" />
           </div>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input id="perishable" type="checkbox" className="size-4 rounded border-input" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} />
+            <Label htmlFor="perishable" className="cursor-pointer">صنف له تاريخ صلاحية (يُتتبَّع بالدفعات/FEFO)</Label>
+          </div>
+          {isPerishable && (
+            <div className="space-y-2">
+              <Label>مدة الصلاحية (أيام) — اختياري</Label>
+              <Input type="number" min="0" step="1" value={shelfLifeDays} onChange={(e) => setShelfLifeDays(e.target.value)} placeholder="مثال: 365 — لاقتراح تاريخ الانتهاء عند الاستلام" />
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -14,10 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type OpenOrder = { id: string; number: string; supplierId: string | null; dateLabel: string };
-type Line = Omit<ReceivableLine, "received"> & { warehouseId: string; received: string; rejected: string };
+type Line = Omit<ReceivableLine, "received"> & { warehouseId: string; received: string; rejected: string; batchNo: string; expiryDate: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+const addDays = (iso: string, days: number) => { const d = new Date(iso); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
 
 export function GoodsReceiptForm({
   orgName, suppliers, warehouses, openOrders,
@@ -50,7 +51,10 @@ export function GoodsReceiptForm({
       if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
       if (r.lines.length === 0) { toast.message("تم استلام كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
-      setLines(r.lines.map((l) => ({ ...l, warehouseId: def, received: String(l.remaining), rejected: "0" })));
+      setLines(r.lines.map((l) => ({
+        ...l, warehouseId: def, received: String(l.remaining), rejected: "0",
+        batchNo: "", expiryDate: l.isPerishable && l.shelfLifeDays ? addDays(date, l.shelfLifeDays) : "",
+      })));
     });
   };
 
@@ -66,8 +70,9 @@ export function GoodsReceiptForm({
     if (lines.length === 0) return toast.error("لا توجد أصناف للاستلام");
     if (lines.some((l) => (Number(l.received) || 0) > l.remaining + 1e-6)) return toast.error("الكمية المستلمة أكبر من المتبقّي");
     if (lines.some((l) => !l.warehouseId && (Number(l.received) || 0) > 0)) return toast.error("اختر مخزن الاستلام لكل بند مستلم");
+    if (lines.some((l) => l.isPerishable && (Number(l.received) || 0) > 0 && !l.expiryDate)) return toast.error("أدخل تاريخ الصلاحية للأصناف القابلة للانتهاء");
     const picks = lines
-      .map((l) => ({ itemId: l.itemId, quantity: Number(l.received) || 0, rejectedQty: Number(l.rejected) || 0, warehouseId: l.warehouseId }))
+      .map((l) => ({ itemId: l.itemId, quantity: Number(l.received) || 0, rejectedQty: Number(l.rejected) || 0, warehouseId: l.warehouseId, batchNo: l.batchNo || null, expiryDate: l.expiryDate || null }))
       .filter((p) => p.quantity > 0 || p.rejectedQty > 0);
     if (picks.length === 0) return toast.error("حدّد كمية مستلمة أو مرفوضة لبند واحد على الأقل");
     start(async () => {
@@ -135,11 +140,13 @@ export function GoodsReceiptForm({
                 <TableHead className="w-28 text-start">المخزون الحالي</TableHead>
                 <TableHead className="w-28 text-start">الكمية المستلمة</TableHead>
                 <TableHead className="w-28 text-start">الكمية المرفوضة</TableHead>
+                <TableHead className="w-32 text-start">رقم التشغيلة</TableHead>
+                <TableHead className="w-36 text-start">تاريخ الصلاحية</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
               ) : lines.map((l) => (
                 <TableRow key={l.itemId}>
                   <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
@@ -152,6 +159,8 @@ export function GoodsReceiptForm({
                   <TableCell className="tabular-nums text-muted-foreground">{qtyf(l.stockByWarehouse[l.warehouseId] ?? 0)}</TableCell>
                   <TableCell><Input type="number" step="0.001" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value })} /></TableCell>
                   <TableCell><Input type="number" step="0.001" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value })} /></TableCell>
+                  <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder="اختياري" /> : <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell>{l.isPerishable ? <Input type="date" value={l.expiryDate} onChange={(e) => setLine(l.itemId, { expiryDate: e.target.value })} /> : <span className="text-muted-foreground">—</span>}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
