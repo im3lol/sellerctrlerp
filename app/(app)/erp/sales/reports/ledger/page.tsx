@@ -31,7 +31,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
   const fProduct = one(sp.product).trim();
   const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
-  const { rows, totals } = await getSalesLedger(orgId, {
+  const { rows, totals, customers: custList, items: itemList } = await getSalesLedger(orgId, {
     customer: fCustomer, type: fType, from, to, product: fProduct,
   });
 
@@ -86,11 +86,21 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
             <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                <Input id="product" name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" />
+                <Input id="product" name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" list="ledger-products" autoComplete="off" />
+                <datalist id="ledger-products">
+                  {itemList.map((it) => (
+                    <option key={it.id} value={it.nameAr ?? it.code}>{it.code}</option>
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="customer">العميل (اسم أو كود)</Label>
-                <Input id="customer" name="customer" defaultValue={fCustomer} placeholder="ابحث باسم العميل أو الكود…" />
+                <Input id="customer" name="customer" defaultValue={fCustomer} placeholder="ابحث باسم العميل أو الكود…" list="ledger-customers" autoComplete="off" />
+                <datalist id="ledger-customers">
+                  {custList.map((c) => (
+                    <option key={c.id} value={c.nameAr ?? c.code}>{c.code}</option>
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="type">نوع الوثيقة</Label>

@@ -100,6 +100,14 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     .orderBy(asc(customers.code));
   const custMap = new Map(custList.map((c) => [c.id, c.nameAr]));
 
+  // Suggestion list for the product search box (active items).
+  const itemList = await db
+    .select({ id: items.id, code: items.code, nameAr: items.nameAr })
+    .from(items)
+    .where(and(eq(items.organizationId, orgId), eq(items.isActive, true)))
+    .orderBy(asc(items.code))
+    .limit(1000);
+
   // Customer filter → free-text match on code or name (in-memory; bounded list). null = no filter.
   let matchedCustomerIds: string[] | null = null;
   if (fCustomer) {
@@ -281,5 +289,5 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     { qtyTotal: 0, qtyDelivered: 0, subtotal: 0, discount: 0, tax: 0, total: 0 } as SalesLedgerTotals,
   );
 
-  return { rows, totals, customers: custList };
+  return { rows, totals, customers: custList, items: itemList };
 }

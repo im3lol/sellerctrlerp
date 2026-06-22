@@ -105,6 +105,14 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     .orderBy(asc(suppliers.code));
   const supMap = new Map(supList.map((s) => [s.id, s.nameAr]));
 
+  // Suggestion list for the product search box (active items).
+  const itemList = await db
+    .select({ id: items.id, code: items.code, nameAr: items.nameAr })
+    .from(items)
+    .where(and(eq(items.organizationId, orgId), eq(items.isActive, true)))
+    .orderBy(asc(items.code))
+    .limit(1000);
+
   // Supplier filter → free-text match on code or name (in-memory; bounded list). null = no filter.
   let matchedSupplierIds: string[] | null = null;
   if (fSupplier) {
@@ -292,5 +300,5 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     { qtyTotal: 0, qtyReceived: 0, qtyRejected: 0, subtotal: 0, shipping: 0, discount: 0, tax: 0, total: 0 } as LedgerTotals,
   );
 
-  return { rows, totals, suppliers: supList };
+  return { rows, totals, suppliers: supList, items: itemList };
 }
