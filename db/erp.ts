@@ -174,6 +174,8 @@ export const items = pgTable(
     sellPrice: money("sell_price").notNull().default("0"),
     minStock: money("min_stock").notNull().default("0"),
     maxStock: money("max_stock"),
+    isPerishable: boolean("is_perishable").notNull().default(false),
+    shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),
     image: text("image"),
     isActive: boolean("is_active").notNull().default(true),
@@ -252,6 +254,62 @@ export const stockMovements = pgTable(
     uniqueIndex("stock_movements_org_number_idx").on(t.organizationId, t.number),
     index("stock_movements_item_wh_idx").on(t.organizationId, t.itemId, t.warehouseId),
     index("stock_movements_ref_idx").on(t.referenceType, t.referenceId),
+  ],
+);
+
+/**
+ * Batch/lot pool for expiry (FEFO) tracking. Tracks QUANTITY + expiry only — the
+ * value/WAC math lives in stock_movements (the GL==ledger invariant is untouched).
+ * `unitCost` here is a reference (display/landed) cost, NOT used by WAC. The
+ * synthetic row (batchNo=NULL, expiryDate=NULL) holds non-perishable / legacy /
+ * FEFO-overflow stock and is depleted last (NULLS LAST).
+ */
+export const stockBatches = pgTable(
+  "stock_batches",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    batchNo: text("batch_no"),
+    expiryDate: ts("expiry_date"),
+    receivedDate: ts("received_date"),
+    unitCost: money("unit_cost").notNull().default("0"), // reference only — never WAC/GL
+    remainingQuantity: money("remaining_quantity").notNull().default("0"),
+    receivedQuantity: money("received_quantity").notNull().default("0"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("stock_batches_identity_idx").on(
+      t.organizationId, t.itemId, t.warehouseId,
+      sql`coalesce(${t.batchNo}, '')`,
+      sql`coalesce(${t.expiryDate}, 'epoch'::timestamptz)`,
+    ),
+    index("stock_batches_fefo_idx").on(t.organizationId, t.itemId, t.warehouseId, t.expiryDate),
+    index("stock_batches_expiry_idx").on(t.organizationId, t.expiryDate),
+  ],
+);
+
+/** Per-movement batch allocation (signed: +IN/+ADJ-up, −OUT/−ADJ-down). Drives
+ *  lot traceability and exact reversal of the precise lots a movement touched. */
+export const stockMovementBatches = pgTable(
+  "stock_movement_batches",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    movementId: text("movement_id").notNull().references(() => stockMovements.id, { onDelete: "cascade" }),
+    batchId: text("batch_id").notNull().references(() => stockBatches.id),
+    quantity: money("quantity").notNull(), // signed
+    batchNo: text("batch_no"),
+    expiryDate: ts("expiry_date"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("smb_movement_idx").on(t.movementId),
+    index("smb_batch_idx").on(t.batchId),
+    index("smb_org_idx").on(t.organizationId),
   ],
 );
 
