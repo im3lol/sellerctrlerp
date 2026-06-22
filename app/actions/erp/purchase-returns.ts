@@ -5,7 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, journalEntries, stockMovements, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines } from "@/db/schema";
+import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, journalEntries, stockMovements, stockMovementBatches, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
@@ -273,10 +273,11 @@ export async function reversePurchaseReturnAction(id: string): Promise<ActionSta
         .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "PURCHASE_RETURN"), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
       for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
 
-      const moves = await tx.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
+      const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
         .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "PURCHASE_RETURN"), eq(stockMovements.referenceId, ret.id)));
       for (const m of moves) {
-        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "OUT" ? "IN" : "OUT", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, referenceType: "PURCHASE_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+        const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "OUT" ? "IN" : "OUT", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "PURCHASE_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
       }
 
       if (ret.purchaseReceiptId) {

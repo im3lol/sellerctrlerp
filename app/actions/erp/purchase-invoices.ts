@@ -158,6 +158,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
           await postStockMovement(tx, {
             orgId: auth.orgId, itemId: l.itemId, warehouseId: inv.warehouseId, type: "IN",
             quantity: qty, unitCost: lineNet / qty, date: new Date(inv.date),
+            deriveExpiryFromShelfLife: true, // perishables get expiry from shelf-life (no per-line UI here)
             referenceType: "PURCHASE_INVOICE", referenceId: inv.id, reason: `استلام شراء ${inv.number}`,
           });
         }

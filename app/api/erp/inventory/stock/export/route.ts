@@ -21,12 +21,13 @@ export async function GET(req: Request) {
     status: url.searchParams.get("status") ?? "",
   });
 
-  const headers = ["الكود", "الصنف", "المستودع", "الكمية", "متوسط التكلفة", "القيمة", "الحالة"];
-  const body = lines.map((l) => [l.code, l.name, l.warehouse, l.quantity, l.avgCost, l.value, STATUS_LABEL[l.status] ?? l.status]);
-  const totalRow = ["الإجمالي", "", "", totals.quantity, "", totals.value, ""];
+  const expFmt = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+  const headers = ["الكود", "الصنف", "المستودع", "الكمية", "متوسط التكلفة", "القيمة", "أقرب انتهاء", "الحالة"];
+  const body = lines.map((l) => [l.code, l.name, l.warehouse, l.quantity, l.avgCost, l.value, expFmt(l.nearestExpiry), STATUS_LABEL[l.status] ?? l.status]);
+  const totalRow = ["الإجمالي", "", "", totals.quantity, "", totals.value, "", ""];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
-  ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
+  ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
 
   const wb = XLSX.utils.book_new();
   wb.Workbook = { Views: [{ RTL: true }] };

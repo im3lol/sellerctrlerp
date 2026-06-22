@@ -6,6 +6,7 @@ import { warehouses } from "@/db/schema";
 export type StockStatus = "OUT" | "LOW" | "OK";
 
 export type StockBalanceLine = {
+  itemId: string;
   code: string;
   name: string;
   warehouse: string;
@@ -15,6 +16,8 @@ export type StockBalanceLine = {
   value: number;
   avgCost: number;
   status: StockStatus;
+  nearestExpiry: Date | null;
+  expiryStatus: "EXPIRED" | "NEAR" | "OK" | null;
 };
 
 export type StockBalanceTotals = { value: number; quantity: number; items: number; low: number; out: number };
@@ -26,6 +29,7 @@ export type StockBalanceFilters = {
 };
 
 type Raw = {
+  item_id: string;
   item_code: string;
   item_name: string;
   warehouse_id: string;
@@ -49,6 +53,7 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
 
   const result = await db.execute<Raw>(sql`
     SELECT DISTINCT ON (sm.item_id, sm.warehouse_id)
+      sm.item_id AS item_id,
       i.code AS item_code,
       coalesce(i.name_ar, i.name_en, i.code) AS item_name,
       sm.warehouse_id AS warehouse_id,
@@ -69,6 +74,7 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
     const min = Number(r.min_stock);
     const status: StockStatus = quantity <= 0 ? "OUT" : min > 0 && quantity <= min ? "LOW" : "OK";
     return {
+      itemId: r.item_id,
       code: r.item_code,
       name: r.item_name,
       warehouse: r.warehouse_name,
@@ -78,11 +84,29 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
       value,
       avgCost: quantity > 0 ? value / quantity : 0,
       status,
+      nearestExpiry: null as Date | null,
+      expiryStatus: null as StockBalanceLine["expiryStatus"],
     };
   });
 
   // Keep only non-empty balances (matches the prior page behaviour).
   lines = lines.filter((l) => Math.abs(l.quantity) > 1e-9 || Math.abs(l.value) > 1e-9);
+
+  // Nearest expiry per (item, warehouse) from live batches (perishables only).
+  const exp = await db.execute<{ item_id: string; warehouse_id: string; nearest: string }>(sql`
+    SELECT item_id, warehouse_id, min(expiry_date) AS nearest FROM stock_batches
+    WHERE organization_id = ${orgId} AND remaining_quantity > 0 AND expiry_date IS NOT NULL
+    GROUP BY item_id, warehouse_id`);
+  const expMap = new Map((exp.rows ?? []).map((r) => [`${r.item_id}|${r.warehouse_id}`, r.nearest]));
+  const now = Date.now();
+  for (const l of lines) {
+    const n = expMap.get(`${l.itemId}|${l.warehouseId}`);
+    if (!n) continue;
+    const d = new Date(n);
+    l.nearestExpiry = d;
+    const daysLeft = Math.floor((d.getTime() - now) / 86400000);
+    l.expiryStatus = daysLeft < 0 ? "EXPIRED" : daysLeft <= 30 ? "NEAR" : "OK";
+  }
 
   // Product suggestions from the full balance set (before the product filter narrows it).
   const productSuggestions = Array.from(

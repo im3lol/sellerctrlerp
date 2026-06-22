@@ -12,6 +12,7 @@ import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
+const expDate = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 const STATUS_OPTIONS: [string, string][] = [["OK", "متوفّر"], ["LOW", "منخفض"], ["OUT", "نافد"]];
@@ -112,6 +113,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   <TableHead className="text-start">الكمية</TableHead>
                   <TableHead className="text-start">متوسط التكلفة</TableHead>
                   <TableHead className="text-start">القيمة</TableHead>
+                  <TableHead className="text-start">أقرب انتهاء</TableHead>
                   <TableHead className="text-start">الحالة</TableHead>
                 </TableRow>
               </TableHeader>
@@ -124,6 +126,9 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                     <TableCell>{qty(l.quantity)}</TableCell>
                     <TableCell>{fmt(l.avgCost)}</TableCell>
                     <TableCell>{fmt(l.value)}</TableCell>
+                    <TableCell className={l.expiryStatus === "EXPIRED" ? "text-destructive whitespace-nowrap" : l.expiryStatus === "NEAR" ? "text-amber-600 whitespace-nowrap" : "text-muted-foreground whitespace-nowrap"}>
+                      {l.nearestExpiry ? expDate(l.nearestExpiry) : "—"}
+                    </TableCell>
                     <TableCell>
                       {l.status === "OUT" ? <Badge variant="destructive">نافد</Badge> : l.status === "LOW" ? <Badge variant="secondary">منخفض</Badge> : <Badge variant="default">متوفّر</Badge>}
                     </TableCell>
@@ -136,6 +141,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   <TableCell>{qty(totals.quantity)}</TableCell>
                   <TableCell />
                   <TableCell>{fmt(totals.value)}</TableCell>
+                  <TableCell />
                   <TableCell />
                 </TableRow>
               </TableFooter>

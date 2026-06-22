@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, accounts, items, stockMovements,
+  purchaseInvoices, purchaseInvoiceLines, accounts, items, stockMovements, stockMovementBatches,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
@@ -375,7 +375,7 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
   // money side is handled separately by the invoice return).
   if (grn.status !== "RECEIVED" && grn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
-  const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+  const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
   if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
@@ -395,9 +395,10 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
       let value = 0;
       for (const m of moves) {
         const qty = Number(m.quantity), cost = Number(m.unitCost);
+        const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
         await postStockMovement(tx, {
           orgId: auth.orgId, itemId: m.itemId, warehouseId: grn.warehouseId, type: "OUT",
-          quantity: qty, unitCost: cost, date, referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
+          quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
         });
         value += round2(qty * cost);
         const pol = poByItem.get(m.itemId);

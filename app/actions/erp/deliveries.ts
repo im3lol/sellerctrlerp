@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, accounts, items, stockMovements, warehouses,
+  salesInvoices, salesInvoiceLines, accounts, items, stockMovements, stockMovementBatches, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
@@ -362,7 +362,7 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
   // money side is handled separately by the invoice return).
   if (dn.status !== "DELIVERED" && dn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
-  const moves = await db.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+  const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
   if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
@@ -382,9 +382,10 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
       let cogs = 0;
       for (const m of moves) {
         const qty = Number(m.quantity), cost = Number(m.unitCost);
+        const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
         await postStockMovement(tx, {
           orgId: auth.orgId, itemId: m.itemId, warehouseId: dn.warehouseId, type: "IN",
-          quantity: qty, unitCost: cost, date, referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
+          quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
         });
         cogs += round2(qty * cost);
         const sol = soByItem.get(m.itemId);

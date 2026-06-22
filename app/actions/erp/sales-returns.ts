@@ -5,7 +5,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses, journalEntries, stockMovements, deliveryNotes, deliveryNoteLines, salesOrderLines } from "@/db/schema";
+import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses, journalEntries, stockMovements, stockMovementBatches, deliveryNotes, deliveryNoteLines, salesOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
@@ -291,10 +291,11 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
         .where(and(eq(journalEntries.organizationId, auth.orgId), inArray(journalEntries.sourceType, ["SALES_RETURN", "SALES_RETURN_COGS"]), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
       for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
 
-      const moves = await tx.select({ itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
+      const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
         .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "SALES_RETURN"), eq(stockMovements.referenceId, ret.id)));
       for (const m of moves) {
-        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "IN" ? "OUT" : "IN", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, referenceType: "SALES_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+        const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "IN" ? "OUT" : "IN", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "SALES_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
       }
 
       if (ret.deliveryNoteId) {
