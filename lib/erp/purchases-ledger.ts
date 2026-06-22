@@ -69,7 +69,7 @@ async function docIdsWithItem(
 export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) {
   const fromDate = filters.from ? new Date(filters.from) : null;
   const toDate = filters.to ? new Date(filters.to + "T23:59:59") : null;
-  const fSupplier = filters.supplier ?? "";
+  const fSupplier = (filters.supplier ?? "").trim();
   const fType = filters.type ?? "";
   const fProduct = (filters.product ?? "").trim();
   const want = (t: string) => !fType || fType === t;
@@ -99,18 +99,31 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   };
 
   const supList = await db
-    .select({ id: suppliers.id, nameAr: suppliers.nameAr })
+    .select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr, nameEn: suppliers.nameEn })
     .from(suppliers)
     .where(eq(suppliers.organizationId, orgId))
     .orderBy(asc(suppliers.code));
   const supMap = new Map(supList.map((s) => [s.id, s.nameAr]));
+
+  // Supplier filter → free-text match on code or name (in-memory; bounded list). null = no filter.
+  let matchedSupplierIds: string[] | null = null;
+  if (fSupplier) {
+    const q = fSupplier.toLowerCase();
+    matchedSupplierIds = supList
+      .filter((s) =>
+        (s.code ?? "").toLowerCase().includes(q) ||
+        (s.nameAr ?? "").toLowerCase().includes(q) ||
+        (s.nameEn ?? "").toLowerCase().includes(q),
+      )
+      .map((s) => s.id);
+  }
 
   const rows: LedgerRow[] = [];
 
   // ── Purchase Orders ──
   if (want("ORDER")) {
     const conds = [eq(purchaseOrders.organizationId, orgId), ...dateConds(purchaseOrders.date)];
-    if (fSupplier) conds.push(eq(purchaseOrders.supplierId, fSupplier));
+    if (matchedSupplierIds !== null) conds.push(matchedSupplierIds.length ? inArray(purchaseOrders.supplierId, matchedSupplierIds) : sql`false`);
     if (matchedItemIds !== null) {
       const pids = await docIdsWithItem(purchaseOrderLines, purchaseOrderLines.purchaseOrderId, purchaseOrderLines.itemId, matchedItemIds);
       conds.push(pids.length ? inArray(purchaseOrders.id, pids) : sql`false`);
@@ -150,7 +163,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   // ── Purchase Receipts (stock only — no money columns) ──
   if (want("RECEIPT")) {
     const conds = [eq(purchaseReceipts.organizationId, orgId), ...dateConds(purchaseReceipts.date)];
-    if (fSupplier) conds.push(eq(purchaseReceipts.supplierId, fSupplier));
+    if (matchedSupplierIds !== null) conds.push(matchedSupplierIds.length ? inArray(purchaseReceipts.supplierId, matchedSupplierIds) : sql`false`);
     if (matchedItemIds !== null) {
       const pids = await docIdsWithItem(purchaseReceiptLines, purchaseReceiptLines.purchaseReceiptId, purchaseReceiptLines.itemId, matchedItemIds);
       conds.push(pids.length ? inArray(purchaseReceipts.id, pids) : sql`false`);
@@ -190,7 +203,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   // ── Purchase Invoices ──
   if (want("INVOICE")) {
     const conds = [eq(purchaseInvoices.organizationId, orgId), ...dateConds(purchaseInvoices.date)];
-    if (fSupplier) conds.push(eq(purchaseInvoices.supplierId, fSupplier));
+    if (matchedSupplierIds !== null) conds.push(matchedSupplierIds.length ? inArray(purchaseInvoices.supplierId, matchedSupplierIds) : sql`false`);
     if (matchedItemIds !== null) {
       const pids = await docIdsWithItem(purchaseInvoiceLines, purchaseInvoiceLines.purchaseInvoiceId, purchaseInvoiceLines.itemId, matchedItemIds);
       conds.push(pids.length ? inArray(purchaseInvoices.id, pids) : sql`false`);
@@ -228,7 +241,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   // ── Purchase Returns (debit notes — total only) ──
   if (want("RETURN")) {
     const conds = [eq(purchaseReturns.organizationId, orgId), ...dateConds(purchaseReturns.date)];
-    if (fSupplier) conds.push(eq(purchaseReturns.supplierId, fSupplier));
+    if (matchedSupplierIds !== null) conds.push(matchedSupplierIds.length ? inArray(purchaseReturns.supplierId, matchedSupplierIds) : sql`false`);
     if (matchedItemIds !== null) {
       const pids = await docIdsWithItem(purchaseReturnLines, purchaseReturnLines.purchaseReturnId, purchaseReturnLines.itemId, matchedItemIds);
       conds.push(pids.length ? inArray(purchaseReturns.id, pids) : sql`false`);

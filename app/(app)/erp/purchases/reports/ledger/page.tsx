@@ -31,7 +31,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
   const fProduct = one(sp.product).trim();
   const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
-  const { rows, totals, suppliers: supList } = await getPurchasesLedger(orgId, {
+  const { rows, totals } = await getPurchasesLedger(orgId, {
     supplier: fSupplier, type: fType, from, to, product: fProduct,
   });
 
@@ -89,11 +89,8 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
                 <Input id="product" name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="supplier">المورد</Label>
-                <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
-                  <option value="">كل الموردين</option>
-                  {supList.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
-                </select>
+                <Label htmlFor="supplier">المورد (اسم أو كود)</Label>
+                <Input id="supplier" name="supplier" defaultValue={fSupplier} placeholder="ابحث باسم المورد أو الكود…" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="type">نوع الوثيقة</Label>
