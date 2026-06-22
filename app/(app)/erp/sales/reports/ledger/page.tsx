@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesLedgerTable } from "@/components/erp/sales-ledger-table";
+import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 
 const PER_PAGE = 20;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
@@ -86,21 +87,13 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
             <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                <Input id="product" name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" list="ledger-products" autoComplete="off" />
-                <datalist id="ledger-products">
-                  {itemList.map((it) => (
-                    <option key={it.id} value={it.nameAr ?? it.code}>{it.code}</option>
-                  ))}
-                </datalist>
+                <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…"
+                  options={itemList.map((it) => ({ value: it.nameAr ?? it.code, hint: it.code }))} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="customer">العميل (اسم أو كود)</Label>
-                <Input id="customer" name="customer" defaultValue={fCustomer} placeholder="ابحث باسم العميل أو الكود…" list="ledger-customers" autoComplete="off" />
-                <datalist id="ledger-customers">
-                  {custList.map((c) => (
-                    <option key={c.id} value={c.nameAr ?? c.code}>{c.code}</option>
-                  ))}
-                </datalist>
+                <LedgerCombobox name="customer" defaultValue={fCustomer} placeholder="ابحث باسم العميل أو الكود…"
+                  options={custList.map((c) => ({ value: c.nameAr ?? c.code, hint: c.code }))} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="type">نوع الوثيقة</Label>
