@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { items, warehouses } from "@/db/schema";
+import { items, warehouses, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AdjustmentForm } from "@/components/erp/adjustment-form";
 
@@ -9,6 +9,7 @@ type StockRow = { item_id: string; warehouse_id: string; balance_quantity: strin
 
 export default async function NewAdjustmentPage() {
   const { orgId } = await requireErpModule("inventory.create");
+  const [org] = await db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
 
   const [itemList, whList, stockRes] = await Promise.all([
     db.select({ id: items.id, code: items.code, name: items.nameAr }).from(items)
@@ -30,6 +31,7 @@ export default async function NewAdjustmentPage() {
     <div className="space-y-6">
       <ErpPageHeader icon="ClipboardCheck" title="تسوية مخزون جديدة" subtitle="جرد / تالف / فاقد" backHref="/erp/inventory/adjustments" />
       <AdjustmentForm
+        orgName={org?.nameAr ?? ""}
         items={itemList.map((i) => ({ id: i.id, code: i.code, name: i.name ?? "" }))}
         warehouses={whList.map((w) => ({ id: w.id, code: w.code, name: w.name }))}
         stock={stock}

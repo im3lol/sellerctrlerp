@@ -60,14 +60,16 @@ async function confirmTransfer(orgId: string, id: string) {
 async function confirmAdjustment(orgId: string, id: string) {
   const [adj] = await db.select().from(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
   if (!adj || adj.status !== "DRAFT") return false;
+  const itemId = adj.itemId, warehouseId = adj.warehouseId;
+  if (!itemId || !warehouseId) return false; // legacy single-line path only
   const entered = Number(adj.enteredValue);
   const unitCost = adj.unitCost != null ? Number(adj.unitCost) : undefined;
   const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts).where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["1104", "4201", "5301"])));
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
   await db.transaction(async (tx) => {
-    const cur = await currentStock(orgId, adj.itemId, adj.warehouseId, tx);
+    const cur = await currentStock(orgId, itemId, warehouseId, tx);
     const delta = adj.mode === "set" ? entered - cur.quantity : entered;
-    const r = await postStockMovement(tx, { orgId, itemId: adj.itemId, warehouseId: adj.warehouseId, type: "ADJ", quantity: delta, unitCost: delta > 0 ? unitCost : undefined, date: adj.date, referenceType: "ADJUSTMENT", referenceId: adj.id, reason: adj.reason });
+    const r = await postStockMovement(tx, { orgId, itemId, warehouseId, type: "ADJ", quantity: delta, unitCost: delta > 0 ? unitCost : undefined, date: adj.date, referenceType: "ADJUSTMENT", referenceId: adj.id, reason: adj.reason });
     const value = r.totalCost;
     if (value > 0) {
       const lines = delta > 0

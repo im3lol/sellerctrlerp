@@ -293,16 +293,18 @@ export const stockAdjustments = pgTable(
     organizationId: orgId(),
     number: text("number").notNull(),
     date: ts("date").notNull(),
-    itemId: text("item_id").notNull().references(() => items.id),
-    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
-    mode: text("mode").notNull().default("set"), // set (target qty) | delta (signed change)
-    enteredValue: money("entered_value").notNull(),
+    // Legacy single-line columns (nullable now that adjustments carry lines).
+    // Existing rows keep them; new multi-line adjustments leave them null.
+    itemId: text("item_id").references(() => items.id),
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    mode: text("mode").default("set"), // set (target qty) | delta (signed change)
+    enteredValue: money("entered_value"),
     unitCost: money("unit_cost"),
     deltaQuantity: money("delta_quantity").notNull().default("0"), // create-time estimate (recomputed on confirm for "set")
     totalValue: money("total_value").notNull().default("0"),
     status: text("status").notNull().default("DRAFT"),
     reason: text("reason").notNull(),
-    movementId: text("movement_id"), // the ADJ stock movement, set on confirm
+    movementId: text("movement_id"), // legacy single-line movement, set on confirm
     notes: text("notes"),
     createdBy: text("created_by"),
     createdAt: createdAt(),
@@ -310,6 +312,20 @@ export const stockAdjustments = pgTable(
   },
   (t) => [uniqueIndex("stock_adjustments_org_number_idx").on(t.organizationId, t.number)],
 );
+
+export const stockAdjustmentLines = pgTable("stock_adjustment_lines", {
+  id: pk(),
+  stockAdjustmentId: text("stock_adjustment_id").notNull().references(() => stockAdjustments.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+  mode: text("mode").notNull().default("set"), // set (target qty) | delta (signed change)
+  enteredValue: money("entered_value").notNull(),
+  unitCost: money("unit_cost"),
+  deltaQuantity: money("delta_quantity").notNull().default("0"), // create-time estimate (recomputed on confirm for "set")
+  totalValue: money("total_value").notNull().default("0"),
+  movementId: text("movement_id"), // the ADJ stock movement for this line, set on confirm
+  notes: text("notes"),
+});
 
 export const materialRequests = pgTable(
   "material_requests",
