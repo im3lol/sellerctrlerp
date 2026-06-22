@@ -8,7 +8,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type StockMovementType = "IN" | "OUT" | "ADJ";
 
 export type BatchAllocationInput = { batchId: string; quantity: number };
-export type BatchAllocation = { batchId: string; batchNo: string | null; expiryDate: Date | null; quantity: number };
+export type BatchAllocation = { batchId: string; batchNo: string | null; expiryDate: Date | null; quantity: number; unitCost: number };
 
 export type StockInput = {
   orgId: string;
@@ -78,7 +78,7 @@ async function priorBalance(tx: Tx, orgId: string, itemId: string, warehouseId: 
 const CONFLICT = sql`(organization_id, item_id, warehouse_id, coalesce(batch_no, ''), coalesce(expiry_date, 'epoch'::timestamptz))`;
 
 /** Merge an inbound quantity into its (item,wh,batchNo,expiry) lot; returns the lot id. */
-async function upsertBatch(tx: Tx, input: StockInput, refCost: number, qty: number): Promise<{ id: string; batchNo: string | null; expiryDate: Date | null }> {
+async function upsertBatch(tx: Tx, input: StockInput, refCost: number, qty: number): Promise<{ id: string; batchNo: string | null; expiryDate: Date | null; unitCost: number }> {
   const batchNo = input.batchNo ?? null;
   let expiry = input.expiryDate ?? null;
   if (!expiry && input.deriveExpiryFromShelfLife) {
@@ -86,32 +86,41 @@ async function upsertBatch(tx: Tx, input: StockInput, refCost: number, qty: numb
     if (it?.d) { const e = new Date(input.date); e.setDate(e.getDate() + Number(it.d)); expiry = e; }
   }
   const received = input.receivedDate ?? input.date;
-  const res = await tx.execute<{ id: string; batch_no: string | null; expiry_date: string | null }>(sql`
+  const res = await tx.execute<{ id: string; batch_no: string | null; expiry_date: string | null; unit_cost: string }>(sql`
     INSERT INTO stock_batches (organization_id, item_id, warehouse_id, batch_no, expiry_date, received_date, unit_cost, remaining_quantity, received_quantity, is_active, updated_at)
     VALUES (${input.orgId}, ${input.itemId}, ${input.warehouseId}, ${batchNo}, ${expiry}, ${received}, ${round4(refCost)}, ${qty}, ${qty}, true, now())
     ON CONFLICT ${CONFLICT}
-    DO UPDATE SET remaining_quantity = stock_batches.remaining_quantity + EXCLUDED.remaining_quantity,
+    DO UPDATE SET
+                  -- Weighted cost within the lot so lot value (remaining×unit_cost)
+                  -- stays == Σ intakes; required for FIFO lot costing (GL==ledger).
+                  unit_cost = coalesce(
+                    (stock_batches.remaining_quantity * stock_batches.unit_cost + EXCLUDED.remaining_quantity * EXCLUDED.unit_cost)
+                    / NULLIF(stock_batches.remaining_quantity + EXCLUDED.remaining_quantity, 0),
+                    EXCLUDED.unit_cost),
+                  remaining_quantity = stock_batches.remaining_quantity + EXCLUDED.remaining_quantity,
                   received_quantity = stock_batches.received_quantity + EXCLUDED.received_quantity,
-                  unit_cost = EXCLUDED.unit_cost, is_active = true, updated_at = now()
-    RETURNING id, batch_no, expiry_date`);
+                  is_active = true, updated_at = now()
+    RETURNING id, batch_no, expiry_date, unit_cost`);
   const r = res.rows[0];
-  return { id: r.id, batchNo: r.batch_no, expiryDate: r.expiry_date ? new Date(r.expiry_date) : null };
+  return { id: r.id, batchNo: r.batch_no, expiryDate: r.expiry_date ? new Date(r.expiry_date) : null, unitCost: Number(r.unit_cost) };
 }
 
-/** Ensure the synthetic (NULL,NULL) overflow lot exists; returns its id. */
-async function ensureSynthetic(tx: Tx, orgId: string, itemId: string, warehouseId: string): Promise<string> {
-  const res = await tx.execute<{ id: string }>(sql`
+/** Ensure the synthetic (NULL,NULL) overflow lot exists; returns its id + cost. */
+async function ensureSynthetic(tx: Tx, orgId: string, itemId: string, warehouseId: string): Promise<{ id: string; unitCost: number }> {
+  const res = await tx.execute<{ id: string; unit_cost: string }>(sql`
     INSERT INTO stock_batches (organization_id, item_id, warehouse_id, batch_no, expiry_date, received_date, unit_cost, remaining_quantity, received_quantity, is_active, updated_at)
     VALUES (${orgId}, ${itemId}, ${warehouseId}, NULL, NULL, now(), 0, 0, 0, true, now())
     ON CONFLICT ${CONFLICT} DO UPDATE SET updated_at = now()
-    RETURNING id`);
-  return res.rows[0].id;
+    RETURNING id, unit_cost`);
+  return { id: res.rows[0].id, unitCost: Number(res.rows[0].unit_cost) };
 }
 
-/** FEFO depletion plan: earliest expiry first (NULLs last), then received date. */
-async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: string, need: number) {
+type PlanLine = { batchId: string; qty: number; unitCost: number };
+
+/** FEFO depletion plan with per-lot cost: earliest expiry first (NULLs last), then received date. */
+async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: string, need: number): Promise<PlanLine[]> {
   const lots = await tx
-    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity })
+    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost })
     .from(stockBatches)
     .where(and(
       eq(stockBatches.organizationId, orgId),
@@ -122,19 +131,29 @@ async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: stri
     .orderBy(sql`${stockBatches.expiryDate} ASC NULLS LAST`, sql`${stockBatches.receivedDate} ASC NULLS LAST`, asc(stockBatches.id));
 
   let left = round4(need);
-  const plan: { batchId: string; qty: number }[] = [];
+  const plan: PlanLine[] = [];
   for (const lot of lots) {
     if (left <= 1e-9) break;
     const take = Math.min(left, Number(lot.rem));
     if (take <= 1e-9) continue;
-    plan.push({ batchId: lot.id, qty: round4(take) });
+    plan.push({ batchId: lot.id, qty: round4(take), unitCost: Number(lot.cost) });
     left = round4(left - take);
   }
   if (left > 1e-9) {
-    const synId = await ensureSynthetic(tx, orgId, itemId, warehouseId);
-    plan.push({ batchId: synId, qty: round4(left) }); // overflow may drive synthetic negative (mirrors pooled balance)
+    const syn = await ensureSynthetic(tx, orgId, itemId, warehouseId);
+    plan.push({ batchId: syn.id, qty: round4(left), unitCost: syn.unitCost }); // overflow may drive synthetic negative
   }
   return plan;
+}
+
+/** Load current cost of pinned batches (reversals/cancels) → plan lines. */
+async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanLine[]> {
+  const out: PlanLine[] = [];
+  for (const a of allocs) {
+    const [b] = await tx.select({ cost: stockBatches.unitCost }).from(stockBatches).where(eq(stockBatches.id, a.batchId)).limit(1);
+    out.push({ batchId: a.batchId, qty: round4(a.quantity), unitCost: Number(b?.cost ?? 0) });
+  }
+  return out;
 }
 
 /**
@@ -154,28 +173,44 @@ export async function postStockMovement(tx: Tx, input: StockInput): Promise<Stoc
   let recordedUnitCost: number;
   let signedQty: number; // delta applied to the balance
   let valueDelta: number;
+  let intakeCost = 0; // for normal inbound (single new/merged lot)
+  let inboundPinned: PlanLine[] | null = null; // reversal IN
+  let outPlan: PlanLine[] | null = null; // OUT / −ADJ depletion (FIFO lot cost)
 
   if (input.type === "IN") {
     if (input.unitCost == null) throw new Error("سعر التكلفة مطلوب لحركة الإدخال");
-    recordedUnitCost = input.unitCost;
     signedQty = Math.abs(input.quantity);
-    valueDelta = round4(signedQty * recordedUnitCost);
+    if (input.allocations?.length) {
+      inboundPinned = await loadPinned(tx, input.allocations); // restore exact lots at their cost
+      valueDelta = round4(inboundPinned.reduce((s, p) => s + p.qty * p.unitCost, 0));
+    } else {
+      intakeCost = input.unitCost;
+      valueDelta = round4(signedQty * intakeCost);
+    }
+    recordedUnitCost = signedQty > 0 ? round4(valueDelta / signedQty) : 0;
   } else if (input.type === "OUT") {
     const out = Math.abs(input.quantity);
-    if (!input.allowNegative && out > priorQty + 1e-9) {
-      throw new Error("الكمية المطلوبة غير متاحة بالمخزون");
-    }
-    // Default to moving-average; allow an explicit cost (e.g. purchase returns
-    // leave stock at the price credited to the supplier, not the WAC).
-    recordedUnitCost = input.unitCost ?? wac;
+    if (!input.allowNegative && out > priorQty + 1e-9) throw new Error("الكمية المطلوبة غير متاحة بالمخزون");
     signedQty = -out;
-    valueDelta = -round4(out * recordedUnitCost);
+    // FIFO lot costing: value = Σ(consumed lot qty × that lot's cost).
+    outPlan = input.allocations?.length ? await loadPinned(tx, input.allocations) : await fefoPlan(tx, input.orgId, input.itemId, input.warehouseId, out);
+    const v = round4(outPlan.reduce((s, p) => s + p.qty * p.unitCost, 0));
+    valueDelta = -v;
+    recordedUnitCost = out > 1e-9 ? round4(v / out) : 0;
   } else {
-    // ADJ: input.quantity is the signed delta. Increases valued at unitCost (or
-    // WAC), decreases valued at WAC.
+    // ADJ: signed delta. Increase valued at unitCost (or WAC); decrease at FIFO lot cost.
     signedQty = input.quantity;
-    recordedUnitCost = signedQty >= 0 ? (input.unitCost ?? wac) : wac;
-    valueDelta = round4(signedQty * recordedUnitCost);
+    if (signedQty >= 0) {
+      intakeCost = input.unitCost ?? wac;
+      valueDelta = round4(signedQty * intakeCost);
+      recordedUnitCost = intakeCost;
+    } else {
+      const out = -signedQty;
+      outPlan = await fefoPlan(tx, input.orgId, input.itemId, input.warehouseId, out);
+      const v = round4(outPlan.reduce((s, p) => s + p.qty * p.unitCost, 0));
+      valueDelta = -v;
+      recordedUnitCost = round4(v / out);
+    }
   }
 
   const newQty = round4(priorQty + signedQty);
@@ -202,33 +237,26 @@ export async function postStockMovement(tx: Tx, input: StockInput): Promise<Stoc
     })
     .returning({ id: stockMovements.id });
 
-  // ── Batch layer (quantity only) — keeps Σ(remaining) == balanceQuantity ──
+  // ── Batch layer — keeps Σ(remaining)==balanceQuantity AND Σ(remaining×cost)==balanceValue ──
   const batchAllocations: BatchAllocation[] = [];
-  if (signedQty > 0) {
-    if (input.allocations?.length) {
-      // Reversal IN: return quantity to the exact original lots.
-      for (const a of input.allocations) {
-        const [b] = await tx.update(stockBatches)
-          .set({ remainingQuantity: sql`${stockBatches.remainingQuantity} + ${a.quantity}`, isActive: true, updatedAt: new Date() })
-          .where(eq(stockBatches.id, a.batchId))
-          .returning({ batchNo: stockBatches.batchNo, expiryDate: stockBatches.expiryDate });
-        batchAllocations.push({ batchId: a.batchId, batchNo: b?.batchNo ?? null, expiryDate: b?.expiryDate ?? null, quantity: round4(a.quantity) });
-      }
-    } else {
-      const b = await upsertBatch(tx, input, recordedUnitCost, signedQty);
-      batchAllocations.push({ batchId: b.id, batchNo: b.batchNo, expiryDate: b.expiryDate, quantity: signedQty });
+  if (signedQty > 0 && inboundPinned) {
+    for (const p of inboundPinned) {
+      const [b] = await tx.update(stockBatches)
+        .set({ remainingQuantity: sql`${stockBatches.remainingQuantity} + ${p.qty}`, isActive: true, updatedAt: new Date() })
+        .where(eq(stockBatches.id, p.batchId))
+        .returning({ batchNo: stockBatches.batchNo, expiryDate: stockBatches.expiryDate });
+      batchAllocations.push({ batchId: p.batchId, batchNo: b?.batchNo ?? null, expiryDate: b?.expiryDate ?? null, quantity: p.qty, unitCost: p.unitCost });
     }
-  } else if (signedQty < 0) {
-    const need = -signedQty;
-    const plan = input.allocations?.length
-      ? input.allocations.map((a) => ({ batchId: a.batchId, qty: round4(a.quantity) }))
-      : await fefoPlan(tx, input.orgId, input.itemId, input.warehouseId, need);
-    for (const p of plan) {
+  } else if (signedQty > 0) {
+    const b = await upsertBatch(tx, input, intakeCost, signedQty);
+    batchAllocations.push({ batchId: b.id, batchNo: b.batchNo, expiryDate: b.expiryDate, quantity: signedQty, unitCost: intakeCost });
+  } else if (signedQty < 0 && outPlan) {
+    for (const p of outPlan) {
       const [b] = await tx.update(stockBatches)
         .set({ remainingQuantity: sql`${stockBatches.remainingQuantity} - ${p.qty}`, updatedAt: new Date() })
         .where(eq(stockBatches.id, p.batchId))
         .returning({ batchNo: stockBatches.batchNo, expiryDate: stockBatches.expiryDate });
-      batchAllocations.push({ batchId: p.batchId, batchNo: b?.batchNo ?? null, expiryDate: b?.expiryDate ?? null, quantity: -p.qty });
+      batchAllocations.push({ batchId: p.batchId, batchNo: b?.batchNo ?? null, expiryDate: b?.expiryDate ?? null, quantity: -p.qty, unitCost: p.unitCost });
     }
   }
 

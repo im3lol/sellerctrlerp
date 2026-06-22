@@ -37,9 +37,9 @@ async function main() {
       // value neutrality: after two INs of 10@5, value must equal prior + 100
       console.log(`${ok(r4(in2.balanceValue) === r4(before.value + 100))} value after 2×(10@5): ${r4(in2.balanceValue)} (expect ${r4(before.value + 100)})`);
 
-      const wac = (before.value + 100) / (before.quantity + 20);
+      // FIFO lot costing: both T1 and T2 cost 5, so OUT 15 = 75 regardless of pooled WAC.
       const out = await postStockMovement(tx, { orgId, itemId: item, warehouseId: wh, type: "OUT", quantity: 15, date: d, referenceType: "DELIVERY", referenceId: "CHK" });
-      console.log(`${ok(r4(out.balanceValue) === r4(before.value + 100 - 15 * wac))} OUT 15 valued at WAC: ΔV=${r4(out.balanceValue - (before.value + 100))} (expect ${r4(-15 * wac)})`);
+      console.log(`${ok(r4(out.balanceValue) === r4(before.value + 100 - 75))} OUT 15 valued at FIFO lot cost: ΔV=${r4(out.balanceValue - (before.value + 100))} (expect ${r4(-75)})`);
 
       // FEFO: T1 (Jan) fully then T2 (Dec) partial
       const a = out.batchAllocations;

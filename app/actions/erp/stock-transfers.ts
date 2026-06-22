@@ -104,7 +104,7 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
         for (const a of out.batchAllocations) {
           await postStockMovement(tx, {
             orgId: auth.orgId, itemId: l.itemId, warehouseId: to, type: "IN",
-            quantity: Math.abs(a.quantity), unitCost: out.unitCost, date: d,
+            quantity: Math.abs(a.quantity), unitCost: a.unitCost, date: d,
             batchNo: a.batchNo, expiryDate: a.expiryDate,
             referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
           });

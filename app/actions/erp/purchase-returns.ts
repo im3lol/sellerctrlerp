@@ -120,7 +120,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
     if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
     const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
     const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
+      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103", "4201", "5301"])));
     const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
     const poLines = grn.purchaseOrderId
@@ -130,16 +130,23 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
     const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
     try {
       await db.transaction(async (tx) => {
+        // FIFO lot costing: stock leaves at batch cost; the price↔cost gap is a variance.
+        let cost = 0;
         for (const l of rLines) {
           const q = Number(l.quantity);
-          await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, unitCost: Number(l.unitPrice), date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
+          const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
+          cost = round2(cost + r.totalCost);
           const pol = poByItem.get(l.itemId);
           if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${q})` }).where(eq(purchaseOrderLines.id, pol.id));
         }
-        await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id, description: `مرتجع إذن استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId, lines: [
+        const variance = round2(net - cost);
+        const glLines = [
           { accountId: A["2103"], debit: net, credit: 0, description: `تسوية بضاعة لم تُفوتر ${ret.number}` },
-          { accountId: A["1104"], debit: 0, credit: net, description: `إرجاع مخزون ${ret.number}` },
-        ] });
+          { accountId: A["1104"], debit: 0, credit: cost, description: `إرجاع مخزون ${ret.number}` },
+        ];
+        if (variance > 0 && A["4201"]) glLines.push({ accountId: A["4201"], debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });
+        else if (variance < 0 && A["5301"]) glLines.push({ accountId: A["5301"], debit: -variance, credit: 0, description: `فرق سعر مرتجع ${ret.number}` });
+        await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id, description: `مرتجع إذن استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines });
         if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
         await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن استلام ${grn.number}`, metadata: { net } });
@@ -170,7 +177,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
   const total = round2(net + tax);
 
   const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "2103", "1107"])));
+    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "2103", "1107", "4201", "5301"])));
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
   // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
   // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
@@ -183,22 +190,29 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
 
   try {
     await db.transaction(async (tx) => {
+      // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
+      // touch no stock (credit GRNI at net). `cost` = inventory value credited.
+      let cost = net;
       if (!fromReceipt) {
-        // Standalone invoice: take the goods back out of stock at the credited price.
+        cost = 0;
         for (const l of lines) {
-          await postStockMovement(tx, {
+          const r = await postStockMovement(tx, {
             orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
-            quantity: l.quantity, unitCost: l.unitPrice, date: d,
+            quantity: l.quantity, date: d,
             referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
           });
+          cost = round2(cost + r.totalCost);
         }
       }
 
       const glLines = [
         { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
-        { accountId: creditAcc, debit: 0, credit: net, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
+        { accountId: creditAcc, debit: 0, credit: cost, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
       ];
       if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
+      const variance = round2(net - cost); // 0 for from-GRN; price↔cost gap for standalone
+      if (variance > 0 && A["4201"]) glLines.push({ accountId: A["4201"], debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });
+      else if (variance < 0 && A["5301"]) glLines.push({ accountId: A["5301"], debit: -variance, credit: 0, description: `فرق سعر مرتجع ${ret.number}` });
       await postEntry(tx, {
         orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id,
         description: `مرتجع مشتريات ${ret.number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
