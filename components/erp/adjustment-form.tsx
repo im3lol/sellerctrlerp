@@ -13,11 +13,12 @@ import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Option = { id: string; code: string; name: string };
-type Stock = { itemId: string; warehouseId: string; quantity: number };
+type Stock = { itemId: string; warehouseId: string; quantity: number; avgCost: number };
 type Line = { key: number; itemId: string; itemLabel: string; warehouseId: string; counted: string; unitCost: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function AdjustmentForm({
   orgName,
@@ -43,11 +44,12 @@ export function AdjustmentForm({
   const nextKey = (ls: Line[]) => ls.reduce((m, l) => Math.max(m, l.key), 0) + 1;
 
   const stockMap = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const s of stock) m.set(`${s.itemId}|${s.warehouseId}`, s.quantity);
+    const m = new Map<string, { quantity: number; avgCost: number }>();
+    for (const s of stock) m.set(`${s.itemId}|${s.warehouseId}`, { quantity: s.quantity, avgCost: s.avgCost });
     return m;
   }, [stock]);
-  const currentQty = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`) ?? 0;
+  const currentQty = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.quantity ?? 0;
+  const currentCost = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.avgCost ?? 0;
 
   const addLine = (itemId = "", itemLabel = "") =>
     setLines((ls) => [...ls, { key: nextKey(ls), itemId, itemLabel, warehouseId: defaultWh, counted: "", unitCost: "" }]);
@@ -145,6 +147,7 @@ export function AdjustmentForm({
                   <th className="px-3 py-2 text-right font-medium min-w-56">اسم الصنف</th>
                   <th className="px-3 py-2 text-right font-medium">المخزن</th>
                   <th className="px-3 py-2 text-right font-medium">الكمية الحالية</th>
+                  <th className="px-3 py-2 text-right font-medium">التكلفة الحالية</th>
                   <th className="px-3 py-2 text-right font-medium">الكمية الفعلية</th>
                   <th className="px-3 py-2 text-right font-medium">السعر</th>
                   <th className="px-3 py-2 text-right font-medium">الفرق</th>
@@ -167,6 +170,7 @@ export function AdjustmentForm({
                         </select>
                       </td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></td>
+                      <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></td>
                       <td className="px-2 py-2"><Input type="number" step="0.001" className="w-28" value={l.counted} onChange={(e) => updateLine(l.key, { counted: e.target.value })} /></td>
                       <td className="px-2 py-2"><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.key, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? "مطلوب" : "تلقائي"} /></td>
                       <td className="px-2 py-2">

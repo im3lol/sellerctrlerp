@@ -5,7 +5,7 @@ import { items, warehouses, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AdjustmentForm } from "@/components/erp/adjustment-form";
 
-type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string };
+type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string; balance_value: string };
 
 export default async function NewAdjustmentPage() {
   const { orgId } = await requireErpModule("inventory.create");
@@ -17,15 +17,17 @@ export default async function NewAdjustmentPage() {
     db.select({ id: warehouses.id, code: warehouses.code, name: warehouses.nameAr }).from(warehouses)
       .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
     db.execute<StockRow>(sql`
-      SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity
+      SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity, balance_value
       FROM stock_movements WHERE organization_id = ${orgId}
       ORDER BY item_id, warehouse_id, created_at DESC, id DESC
     `),
   ]);
 
-  const stock = (stockRes.rows as StockRow[]).map((r) => ({
-    itemId: r.item_id, warehouseId: r.warehouse_id, quantity: Number(r.balance_quantity),
-  }));
+  const stock = (stockRes.rows as StockRow[]).map((r) => {
+    const quantity = Number(r.balance_quantity);
+    const value = Number(r.balance_value);
+    return { itemId: r.item_id, warehouseId: r.warehouse_id, quantity, avgCost: quantity > 0 ? value / quantity : 0 };
+  });
 
   return (
     <div className="space-y-6">
