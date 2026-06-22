@@ -46,11 +46,13 @@ function show(label: string, b: Awaited<ReturnType<typeof books>>) {
 async function confirmTransfer(orgId: string, id: string) {
   const [tr] = await db.select().from(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
   if (!tr || tr.status !== "DRAFT") return false;
+  const fromWh = tr.fromWarehouseId, toWh = tr.toWarehouseId;
+  if (!fromWh || !toWh) return false; // legacy header-level path only
   const ls = await db.select({ itemId: stockTransferLines.itemId, quantity: stockTransferLines.quantity }).from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
   await db.transaction(async (tx) => {
     for (const l of ls) {
-      const out = await postStockMovement(tx, { orgId, itemId: l.itemId, warehouseId: tr.fromWarehouseId, type: "OUT", quantity: Number(l.quantity), date: tr.date, referenceType: "TRANSFER", referenceId: tr.id, reason: "test" });
-      await postStockMovement(tx, { orgId, itemId: l.itemId, warehouseId: tr.toWarehouseId, type: "IN", quantity: Number(l.quantity), unitCost: out.unitCost, date: tr.date, referenceType: "TRANSFER", referenceId: tr.id, reason: "test" });
+      const out = await postStockMovement(tx, { orgId, itemId: l.itemId, warehouseId: fromWh, type: "OUT", quantity: Number(l.quantity), date: tr.date, referenceType: "TRANSFER", referenceId: tr.id, reason: "test" });
+      await postStockMovement(tx, { orgId, itemId: l.itemId, warehouseId: toWh, type: "IN", quantity: Number(l.quantity), unitCost: out.unitCost, date: tr.date, referenceType: "TRANSFER", referenceId: tr.id, reason: "test" });
     }
     await tx.update(stockTransfers).set({ status: "POSTED" }).where(eq(stockTransfers.id, tr.id));
   });

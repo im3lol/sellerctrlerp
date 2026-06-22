@@ -262,8 +262,9 @@ export const stockTransfers = pgTable(
     organizationId: orgId(),
     number: text("number").notNull(),
     date: ts("date").notNull(),
-    fromWarehouseId: text("from_warehouse_id").notNull().references(() => warehouses.id),
-    toWarehouseId: text("to_warehouse_id").notNull().references(() => warehouses.id),
+    // Legacy header-level from/to (nullable now that lines carry per-line warehouses).
+    fromWarehouseId: text("from_warehouse_id").references(() => warehouses.id),
+    toWarehouseId: text("to_warehouse_id").references(() => warehouses.id),
     status: text("status").notNull().default("DRAFT"),
     notes: text("notes"),
     createdAt: createdAt(),
@@ -276,6 +277,8 @@ export const stockTransferLines = pgTable("stock_transfer_lines", {
   id: pk(),
   stockTransferId: text("stock_transfer_id").notNull().references(() => stockTransfers.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
+  fromWarehouseId: text("from_warehouse_id").references(() => warehouses.id),
+  toWarehouseId: text("to_warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(),
   notes: text("notes"),
 });
