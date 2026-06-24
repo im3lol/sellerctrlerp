@@ -705,7 +705,7 @@ async function main() {
   }
 
   // ── Workspaces (one per client) — belong to the organization ──
-  const [wsA] = await db.insert(workspaces).values({ organizationId: org.id, name: "متجر النخبة", type: "amazon", clientUserId: client1.id, description: "متجر أمازون — إلكترونيات" }).returning();
+  const [wsA] = await db.insert(workspaces).values({ organizationId: org.id, name: "متجر النخبة", type: "amazon", clientUserId: client1.id, customerId: custByCode["C-001"], description: "متجر أمازون — إلكترونيات" }).returning();
   const [wsB] = await db.insert(workspaces).values({ organizationId: org.id, name: "متجر الأناقة", type: "noon", clientUserId: client2.id, description: "متجر نون — إكسسوارات" }).returning();
 
   await db.insert(workspaceMembers).values([

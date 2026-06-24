@@ -53,10 +53,11 @@ type Ws = {
   type: string;
   description: string | null;
   clientUserId: string | null;
+  customerId: string | null;
   isArchived: boolean;
 };
 
-export function WorkspaceSettings({ ws, clients }: { ws: Ws; clients: { id: string; name: string }[] }) {
+export function WorkspaceSettings({ ws, clients, customers }: { ws: Ws; clients: { id: string; name: string }[]; customers: { id: string; name: string }[] }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -136,7 +137,7 @@ export function WorkspaceSettings({ ws, clients }: { ws: Ws; clients: { id: stri
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>العميل</Label>
+                <Label>العميل (مستخدم)</Label>
                 <Select name="clientUserId" defaultValue={ws.clientUserId ?? "none"}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -147,6 +148,19 @@ export function WorkspaceSettings({ ws, clients }: { ws: Ws; clients: { id: stri
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>عميل ERP (للفوترة والذمم)</Label>
+              <Select name="customerId" defaultValue={ws.customerId ?? "none"}>
+                <SelectTrigger><SelectValue placeholder="بدون" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون</SelectItem>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">يربط هذا المتجر بحساب العميل في الحسابات والمبيعات.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ws-desc">الوصف</Label>

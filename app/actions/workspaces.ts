@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { workspaces, workspaceMembers } from "@/db/schema";
+import { workspaces, workspaceMembers, customers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { can, type Role } from "@/lib/rbac";
@@ -106,25 +106,41 @@ const updateSchema = z.object({
   type: z.enum(["amazon", "noon", "brand", "other"]),
   description: z.string().optional(),
   clientUserId: z.string().uuid().optional().or(z.literal("")),
+  customerId: z.string().optional().or(z.literal("")),
 });
 
-/** Edit a workspace's name/platform/description/client (managers only). */
+/** Edit a workspace's name/platform/description/client + linked ERP customer (managers only). */
 export async function updateWorkspaceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
   if (!can(user.role, "workspace.manage")) return { error: "غير مصرّح" };
+  const { org } = await getActiveOrg();
+  if (!org) return { error: "لا توجد مؤسسة نشطة" };
   const parsed = updateSchema.safeParse({
     workspaceId: formData.get("workspaceId"),
     name: formData.get("name"),
     type: formData.get("type"),
     description: formData.get("description") || undefined,
     clientUserId: formData.get("clientUserId") === "none" ? "" : formData.get("clientUserId") || "",
+    customerId: formData.get("customerId") === "none" ? "" : formData.get("customerId") || "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { workspaceId, name, type, description, clientUserId } = parsed.data;
+  const { workspaceId, name, type, description, clientUserId, customerId } = parsed.data;
+
+  // Tenant isolation: the workspace must belong to the active org.
+  const [wsRow] = await db.select({ orgId: workspaces.organizationId }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+  if (!wsRow || wsRow.orgId !== org.id) return { error: "غير مصرّح" };
+  // Validate the linked customer belongs to the same org.
+  let customerIdVal: string | null = null;
+  if (customerId) {
+    const [c] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.organizationId, org.id))).limit(1);
+    if (!c) return { error: "العميل غير موجود في هذه المؤسسة" };
+    customerIdVal = c.id;
+  }
 
   await db
     .update(workspaces)
-    .set({ name, type, description: description ?? null, clientUserId: clientUserId || null, updatedAt: new Date() })
+    .set({ name, type, description: description ?? null, clientUserId: clientUserId || null, customerId: customerIdVal, updatedAt: new Date() })
     .where(eq(workspaces.id, workspaceId));
 
   await recordActivity({

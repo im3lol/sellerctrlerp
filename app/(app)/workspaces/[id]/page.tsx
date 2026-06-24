@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { and, eq, ne, notInArray, desc } from "drizzle-orm";
-import { requireUser } from "@/lib/session";
+import { and, eq, ne, notInArray, asc, desc } from "drizzle-orm";
+import { requireCrm } from "@/lib/crm/guard";
 import { getWorkspaceOr404, WORKSPACE_TYPE_LABELS } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { users, workspaceMembers, tasks, files } from "@/db/schema";
+import { users, workspaceMembers, tasks, files, customers } from "@/db/schema";
 import { WorkspaceSettings } from "@/components/workspaces/workspace-settings";
 import { publicUrl } from "@/lib/storage";
 import { FileManager } from "@/components/files/file-manager";
@@ -39,7 +39,7 @@ export default async function WorkspaceDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string>>;
 }) {
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm();
   const { id } = await params;
   const sp = await searchParams;
   const tab = sp.tab || "products";
@@ -49,13 +49,21 @@ export default async function WorkspaceDetailPage({
   const canManage = can(user.role, "workspace.manage") || can(user.role, "task.manage");
   const canManageWs = can(user.role, "workspace.manage");
 
-  const [stats, clients] = await Promise.all([
+  const [stats, clients, erpCustomers, linkedRows] = await Promise.all([
     getWorkspaceStats([id]),
     canManageWs
       ? db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "client"))
       : Promise.resolve([] as { id: string; name: string }[]),
+    canManageWs
+      ? db.select({ id: customers.id, name: customers.nameAr }).from(customers)
+          .where(and(eq(customers.organizationId, orgId), eq(customers.isActive, true))).orderBy(asc(customers.nameAr))
+      : Promise.resolve([] as { id: string; name: string }[]),
+    ws.customerId
+      ? db.select({ name: customers.nameAr, code: customers.code }).from(customers).where(eq(customers.id, ws.customerId)).limit(1)
+      : Promise.resolve([] as { name: string; code: string }[]),
   ]);
   const s = stats[id];
+  const linkedCustomer = linkedRows[0] ?? null;
 
   return (
     <div>
@@ -71,13 +79,23 @@ export default async function WorkspaceDetailPage({
                 type: ws.type,
                 description: ws.description,
                 clientUserId: ws.clientUserId,
+                customerId: ws.customerId,
                 isArchived: ws.isArchived,
               }}
               clients={clients}
+              customers={erpCustomers}
             />
           )}
         </div>
       </PageHeader>
+
+      {linkedCustomer && (
+        <Link href="/erp/sales/reports/ledger" className="mb-4 inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm transition-colors hover:border-primary hover:bg-accent">
+          <span className="text-muted-foreground">عميل ERP المرتبط:</span>
+          <span className="font-medium">{linkedCustomer.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">{linkedCustomer.code}</span>
+        </Link>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="المنتجات" value={s.productCount} icon="Package" tone="blue" />

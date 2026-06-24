@@ -16,7 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 // The organization is the single tenant; CRM workspaces belong to one.
-import { organizations } from "./erp";
+import { organizations, customers } from "./erp";
 
 /* ───────────────────────── Enums ───────────────────────── */
 
@@ -107,6 +107,9 @@ export const workspaces = pgTable("workspaces", {
   type: workspaceTypeEnum("type").notNull().default("amazon"),
   description: text("description"),
   clientUserId: uuid("client_user_id").references(() => users.id, { onDelete: "set null" }),
+  // The seller this workspace belongs to, as an ERP customer (billing/AR link).
+  // Optional — connects the CRM client to the ledger without forcing it.
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
   isArchived: boolean("is_archived").notNull().default(false),
   // Auto-distribute newly-published products once no drafts remain.
   autoDistribute: boolean("auto_distribute").notNull().default(false),
