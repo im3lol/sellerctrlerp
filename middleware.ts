@@ -11,15 +11,17 @@ export default auth((req) => {
 
   const isPublic =
     path === "/" ||
+    path === "/platform/login" || // standalone owner login (own audience)
     path.startsWith("/login") || // /login, /login/admin, /login/client
     path.startsWith("/api/auth") ||
     path.startsWith("/api/scrape") || // token-authed (Edge extension + Docker worker); routes enforce auth
     path.startsWith("/_next") ||
     path.startsWith("/brand");
 
-  // Unauthenticated → bounce to login (preserve intended destination).
+  // Unauthenticated → bounce to login (the owner console has its own login).
   if (!isLoggedIn && !isPublic) {
-    const url = new URL("/login", nextUrl);
+    const loginPath = path.startsWith("/platform") ? "/platform/login" : "/login";
+    const url = new URL(loginPath, nextUrl);
     url.searchParams.set("callbackUrl", path);
     return Response.redirect(url);
   }

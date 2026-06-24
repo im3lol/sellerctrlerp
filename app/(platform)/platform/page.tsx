@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { asc, desc } from "drizzle-orm";
-import { requireUser } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { organizations, orgSubscriptions, activationCodes } from "@/db/schema";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/entitlements";
@@ -13,7 +13,8 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const DAY = 86_400_000;
 
 export default async function PlatformAdminPage() {
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) redirect("/platform/login");
   if (user.role !== "system_admin") redirect("/dashboard");
 
   const [orgs, subs, codes] = await Promise.all([

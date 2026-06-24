@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeftRight, LogOut } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { signOutAction } from "@/app/actions/auth";
 import { Logo } from "@/components/brand/logo";
 
-// Standalone platform-owner console — fully isolated from the tenant ERP. No org
-// switcher, no module nav; only the system owner (system_admin) may enter.
+// Standalone platform-owner console — fully isolated from the tenant ERP. The
+// owner gets a distinct dark shell; everyone else (incl. the /platform/login
+// screen) renders bare, and each page enforces the system_admin gate itself.
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role !== "system_admin") redirect("/dashboard");
+  if (user?.role !== "system_admin") return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
