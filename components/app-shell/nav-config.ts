@@ -9,8 +9,7 @@ export type NavItem = {
 };
 
 export type NavSection = {
-  heading?: string; // module name. When set, the group is collapsible.
-  headingHref?: string; // when set, clicking the heading navigates here (module landing/dashboard)
+  heading?: string; // module name. When set, the group is collapsible (heading toggles it).
   icon?: string; // module (lucide) icon shown next to the heading
   items: NavItem[];
 };
@@ -26,7 +25,6 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المحاسبة",
-    headingHref: "/erp/accounting",
     icon: "Calculator",
     items: [
       { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
@@ -54,7 +52,6 @@ export const NAV: NavSection[] = [
   {
     heading: "المخزون",
     icon: "Warehouse",
-    headingHref: "/erp/inventory",
     items: [
       { label: "نظرة عامة", href: "/erp/inventory", icon: "LayoutDashboard", capability: "erp.inventory.view", exact: true },
       { label: "الأصناف", href: "/erp/inventory/items", icon: "Package", capability: "erp.inventory.view" },

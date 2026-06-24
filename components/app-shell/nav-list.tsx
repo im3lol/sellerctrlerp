@@ -63,24 +63,13 @@ export function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => v
         );
         return (
           <div key={i} className="space-y-1">
-            {section.headingHref ? (
-              <div className={cn(headingCls, "pe-1")}>
-                <Link href={section.headingHref} onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3">
-                  {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-                  <span className="flex-1 truncate text-start">{section.heading}</span>
-                </Link>
-                <button type="button" onClick={() => toggle(i)} aria-expanded={open} aria-label="طيّ"
-                  className="grid size-6 shrink-0 place-items-center rounded hover:bg-sidebar-accent">
-                  {chevron}
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
-                {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-                <span className="flex-1 text-start">{section.heading}</span>
-                {chevron}
-              </button>
-            )}
+            {/* Whole heading toggles the group open/closed (the module landing is
+                reachable via the "نظرة عامة" item inside). Consistent across all modules. */}
+            <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
+              {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+              <span className="flex-1 text-start">{section.heading}</span>
+              {chevron}
+            </button>
             {open && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
                 {items.map((item) => (
