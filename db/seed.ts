@@ -9,6 +9,8 @@ import {
   users,
   workspaces,
   workspaceMembers,
+  crmStages,
+  crmOpportunities,
   productStatuses,
   products,
   productBases,
@@ -707,6 +709,21 @@ async function main() {
   // ── Workspaces (one per client) — belong to the organization ──
   const [wsA] = await db.insert(workspaces).values({ organizationId: org.id, name: "متجر النخبة", type: "amazon", clientUserId: client1.id, customerId: custByCode["C-001"], description: "متجر أمازون — إلكترونيات" }).returning();
   const [wsB] = await db.insert(workspaces).values({ organizationId: org.id, name: "متجر الأناقة", type: "noon", clientUserId: client2.id, description: "متجر نون — إكسسوارات" }).returning();
+
+  // ── CRM sales pipeline (Odoo-style): stages + demo opportunities ──
+  const stageRows = await db.insert(crmStages).values([
+    { organizationId: org.id, name: "جديد", sortOrder: 0 },
+    { organizationId: org.id, name: "مؤهّل", sortOrder: 1 },
+    { organizationId: org.id, name: "عرض سعر", sortOrder: 2 },
+    { organizationId: org.id, name: "تفاوض", sortOrder: 3 },
+    { organizationId: org.id, name: "مكسوب", sortOrder: 4, isWon: true },
+  ]).returning({ id: crmStages.id, name: crmStages.name });
+  const stageByName = Object.fromEntries(stageRows.map((s) => [s.name, s.id]));
+  await db.insert(crmOpportunities).values([
+    { organizationId: org.id, number: "OPP-2026-0001", name: "توريد أجهزة لمتجر الرياض", customerId: custByCode["C-001"], stageId: stageByName["جديد"], expectedRevenue: "25000", probability: 20, salespersonId: ops.id, status: "OPEN" },
+    { organizationId: org.id, number: "OPP-2026-0002", name: "عقد إدارة لستنج نون", customerId: custByCode["C-002"], stageId: stageByName["مؤهّل"], expectedRevenue: "12000", probability: 40, salespersonId: ops.id, status: "OPEN" },
+    { organizationId: org.id, number: "OPP-2026-0003", name: "صفقة جملة إكسسوارات", customerId: custByCode["C-001"], stageId: stageByName["عرض سعر"], expectedRevenue: "8000", probability: 60, salespersonId: lead.id, status: "OPEN" },
+  ]);
 
   await db.insert(workspaceMembers).values([
     { workspaceId: wsA.id, userId: lead.id, memberRole: "team_lead" },

@@ -829,6 +829,57 @@ export const receiptLines = pgTable("receipt_lines", {
   amount: money("amount").notNull(),
 });
 
+/* ══════════════════ CRM — SALES PIPELINE ══════════════════ */
+
+// Pipeline stages (Kanban columns). Org-scoped, ordered; a stage may be marked
+// won/lost (terminal). Odoo-style: New → Qualified → Proposition → Won/Lost.
+export const crmStages = pgTable(
+  "crm_stages",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isWon: boolean("is_won").notNull().default(false),
+    isLost: boolean("is_lost").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("crm_stages_org_name_idx").on(t.organizationId, t.name)],
+);
+
+// Opportunities = the pipeline cards. Linked to an ERP customer (the partner),
+// carry expected revenue + probability + salesperson, and convert to a sales
+// order once won (salesOrderId set).
+export const crmOpportunities = pgTable(
+  "crm_opportunities",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    name: text("name").notNull(),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    contactName: text("contact_name"),
+    phone: text("phone"),
+    email: text("email"),
+    stageId: text("stage_id").references(() => crmStages.id),
+    expectedRevenue: money("expected_revenue").notNull().default("0"),
+    probability: integer("probability").notNull().default(0), // 0–100
+    salespersonId: uuid("salesperson_id").references(() => users.id, { onDelete: "set null" }),
+    source: text("source"),
+    status: text("status").notNull().default("OPEN"), // OPEN, WON, LOST
+    lostReason: text("lost_reason"),
+    expectedCloseDate: ts("expected_close_date"),
+    salesOrderId: text("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("crm_opportunities_org_number_idx").on(t.organizationId, t.number),
+    index("crm_opportunities_org_stage_idx").on(t.organizationId, t.stageId),
+  ],
+);
+
 /* ════════════════════════ PURCHASES ═══════════════════════ */
 
 export const suppliers = pgTable(
