@@ -176,6 +176,7 @@ async function main() {
     { code: "5101", nameAr: "تكلفة البضاعة المباعة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
     { code: "5201", nameAr: "مصروفات عمومية وإدارية", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
     { code: "5301", nameAr: "عجز وتالف المخزون (خسائر جرد)", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
+    { code: "5302", nameAr: "فروق أسعار مرتجعات الشراء", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   ];
   const insertedAccs = await db.insert(accounts)
     .values(coa.map(({ parent, ...a }) => ({ ...a, organizationId: org.id })))

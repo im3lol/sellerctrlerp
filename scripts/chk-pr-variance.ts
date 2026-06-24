@@ -22,28 +22,30 @@ async function bal(x: Tx, orgId: string, accId: string) {
 
 // Verify the purchase-return variance GL (receipt branch) for price≠cost both ways.
 async function scenario(tx: Tx, orgId: string, A: Record<string, string>, label: string, net: number, cost: number, tag: string) {
-  const before = { s: await sums(tx, orgId), inv: await bal(tx, orgId, A["1104"]), grni: await bal(tx, orgId, A["2103"]), gain: await bal(tx, orgId, A["4201"]), loss: await bal(tx, orgId, A["5301"]) };
+  const before = { s: await sums(tx, orgId), inv: await bal(tx, orgId, A["1104"]), grni: await bal(tx, orgId, A["2103"]), pv: await bal(tx, orgId, A["5302"]) };
   const variance = r2(net - cost);
   const glLines = [
     { accountId: A["2103"], debit: net, credit: 0, description: "grni" },
     { accountId: A["1104"], debit: 0, credit: cost, description: "inv" },
   ];
-  if (variance > 0) glLines.push({ accountId: A["4201"], debit: 0, credit: variance, description: "gain" });
-  else if (variance < 0) glLines.push({ accountId: A["5301"], debit: -variance, credit: 0, description: "loss" });
+  // Both directions route to the dedicated price-variance account 5302 (gain = credit, loss = debit).
+  if (variance > 0) glLines.push({ accountId: A["5302"], debit: 0, credit: variance, description: "gain" });
+  else if (variance < 0) glLines.push({ accountId: A["5302"], debit: -variance, credit: 0, description: "loss" });
   await postEntry(tx, { orgId, date: new Date("2026-06-01"), sourceType: "PURCHASE_RETURN", sourceId: `CHK-${tag}`, description: "test", journalType: "PURCHASE", lines: glLines });
-  const after = { s: await sums(tx, orgId), inv: await bal(tx, orgId, A["1104"]), grni: await bal(tx, orgId, A["2103"]), gain: await bal(tx, orgId, A["4201"]), loss: await bal(tx, orgId, A["5301"]) };
+  const after = { s: await sums(tx, orgId), inv: await bal(tx, orgId, A["1104"]), grni: await bal(tx, orgId, A["2103"]), pv: await bal(tx, orgId, A["5302"]) };
   console.log(`${ok(r2(after.s.d) === r2(after.s.c))} [${label}] books balanced (${r2(after.s.d)}==${r2(after.s.c)})`);
   console.log(`${ok(r2(after.inv - before.inv) === -cost)} [${label}] 1104 Δ=${r2(after.inv - before.inv)} (expect ${-cost})`);
   console.log(`${ok(r2(after.grni - before.grni) === net)} [${label}] 2103 Δ=${r2(after.grni - before.grni)} (expect ${net})`);
-  const varAcct = variance > 0 ? after.gain - before.gain : after.loss - before.loss;
-  console.log(`${ok(r2(Math.abs(varAcct)) === r2(Math.abs(variance)))} [${label}] variance ${variance > 0 ? "4201" : "5301"} = ${r2(Math.abs(varAcct))} (expect ${r2(Math.abs(variance))})`);
+  // 5302 is debit-normal: a loss (variance<0) debits it (+balance), a gain credits it (−balance).
+  const varDelta = r2(after.pv - before.pv);
+  console.log(`${ok(varDelta === r2(-variance))} [${label}] 5302 Δ=${varDelta} (expect ${r2(-variance)})`);
 }
 
 async function main() {
   const [org] = await db.select().from(organizations).limit(1);
   const orgId = org.id;
   const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["1104", "2103", "4201", "5301"])));
+    .where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["1104", "2103", "5302"])));
   const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
   try {
     await db.transaction(async (tx) => {
