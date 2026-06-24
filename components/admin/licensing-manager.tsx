@@ -20,17 +20,18 @@ import { cn } from "@/lib/utils";
 
 export type CustomerRow = {
   id: string; name: string; email: string | null;
-  status: string; interval: string | null; planName: string | null;
+  status: string; interval: string | null; planName: string | null; price: number;
   modules: string[]; expiresAt: string | null; daysLeft: number | null; live: boolean;
 };
 export type CodeRow = {
   id: string; hint: string; interval: string; durationMonths: number; modules: string[];
-  planName: string | null; status: string; orgName: string | null; redeemedAt: string | null; createdAt: string;
+  planName: string | null; price: number; status: string; orgName: string | null; redeemedAt: string | null; createdAt: string;
 };
 type ModuleOption = { key: string; label: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const SUB_STATUS: Record<string, { label: string; cls: string }> = {
   NONE: { label: "بدون اشتراك", cls: "bg-muted text-muted-foreground" },
@@ -66,6 +67,7 @@ function ManageDialog({ customer, moduleOptions }: { customer: CustomerRow; modu
   const [interval, setIntervalVal] = useState(customer.interval ?? "ANNUAL");
   const [extendMonths, setExtendMonths] = useState(0);
   const [planName, setPlanName] = useState(customer.planName ?? "");
+  const [price, setPrice] = useState(customer.price || 0);
   const [code, setCode] = useState("");
 
   const toggle = (k: string) => setSelected((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
@@ -73,7 +75,7 @@ function ManageDialog({ customer, moduleOptions }: { customer: CustomerRow; modu
   const save = () => start(async () => {
     const r = await setOrgSubscriptionAction({
       organizationId: customer.id, modules: [...selected], status: status as "ACTIVE",
-      interval: interval as "ANNUAL", extendMonths: Number(extendMonths) || 0, planName: planName || undefined,
+      interval: interval as "ANNUAL", extendMonths: Number(extendMonths) || 0, planName: planName || undefined, price: Number(price) || 0,
     });
     if (r.ok) { toast.success("تم تحديث الاشتراك"); setOpen(false); } else toast.error(r.error ?? "تعذّر الحفظ");
   });
@@ -117,7 +119,8 @@ function ManageDialog({ customer, moduleOptions }: { customer: CustomerRow; modu
               </select>
             </div>
             <div className="space-y-1"><Label className="text-xs">تمديد (أشهر)</Label><Input type="number" min="0" value={extendMonths} onChange={(e) => setExtendMonths(Number(e.target.value))} dir="ltr" /></div>
-            <div className="space-y-1"><Label className="text-xs">اسم الخطة</Label><Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="اختياري" /></div>
+            <div className="space-y-1"><Label className="text-xs">السعر / الدورة</Label><Input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(Number(e.target.value))} dir="ltr" /></div>
+            <div className="space-y-1 col-span-2"><Label className="text-xs">اسم الخطة</Label><Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="اختياري" /></div>
           </div>
         </div>
 
@@ -136,6 +139,7 @@ function GenerateDialog({ moduleOptions }: { moduleOptions: ModuleOption[] }) {
   const [durationMonths, setDurationMonths] = useState(12);
   const [selected, setSelected] = useState<Set<string>>(new Set(moduleOptions.map((m) => m.key)));
   const [planName, setPlanName] = useState("");
+  const [price, setPrice] = useState(0);
   const [validDays, setValidDays] = useState(0);
   const [issued, setIssued] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -146,7 +150,7 @@ function GenerateDialog({ moduleOptions }: { moduleOptions: ModuleOption[] }) {
   const generate = () => start(async () => {
     const r = await generateActivationCodeAction({
       interval: interval as "ANNUAL", durationMonths: Number(durationMonths) || 12,
-      modules: [...selected], planName: planName || undefined, validDays: Number(validDays) || undefined,
+      modules: [...selected], planName: planName || undefined, price: Number(price) || 0, validDays: Number(validDays) || undefined,
     });
     if (r.ok && r.code) { setIssued(r.code); toast.success("تم توليد الكود"); } else toast.error(r.error ?? "تعذّر التوليد");
   });
@@ -183,6 +187,7 @@ function GenerateDialog({ moduleOptions }: { moduleOptions: ModuleOption[] }) {
                 </select>
               </div>
               <div className="space-y-1"><Label className="text-xs">المدة (أشهر)</Label><Input type="number" min="1" value={durationMonths} onChange={(e) => setDurationMonths(Number(e.target.value))} dir="ltr" /></div>
+              <div className="space-y-1"><Label className="text-xs">السعر / الدورة</Label><Input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(Number(e.target.value))} dir="ltr" /></div>
               <div className="space-y-1"><Label className="text-xs">اسم الخطة</Label><Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="اختياري" /></div>
               <div className="space-y-1"><Label className="text-xs">صلاحية الكود (أيام)</Label><Input type="number" min="0" value={validDays} onChange={(e) => setValidDays(Number(e.target.value))} placeholder="0 = دائم" dir="ltr" /></div>
             </div>
@@ -216,7 +221,7 @@ export function LicensingManager({ customers, codes, moduleOptions }: { customer
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b text-start [&>th]:p-2 [&>th]:text-start">
-                <th>العميل</th><th>الحالة</th><th>الدورة</th><th>الموديولات</th><th>الانتهاء</th><th></th>
+                <th>العميل</th><th>الحالة</th><th>الدورة</th><th>السعر</th><th>الموديولات</th><th>الانتهاء</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -227,6 +232,7 @@ export function LicensingManager({ customers, codes, moduleOptions }: { customer
                     <td><div className="font-medium">{c.name}</div>{c.email && <div className="text-xs text-muted-foreground" dir="ltr">{c.email}</div>}</td>
                     <td><span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span></td>
                     <td className="text-xs text-muted-foreground">{c.interval === "MONTHLY" ? "شهري" : c.interval === "ANNUAL" ? "سنوي" : "—"}</td>
+                    <td className="text-xs tabular-nums">{c.price > 0 ? money(c.price) : "—"}</td>
                     <td>
                       <div className="flex max-w-xs flex-wrap gap-1">
                         {c.modules.length ? c.modules.map((m) => <Badge key={m} variant="secondary" className="text-[10px]">{labelOf(m)}</Badge>) : <span className="text-xs text-muted-foreground">—</span>}
@@ -260,7 +266,7 @@ export function LicensingManager({ customers, codes, moduleOptions }: { customer
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b [&>th]:p-2 [&>th]:text-start">
-                  <th>الكود</th><th>الحالة</th><th>الدورة/المدة</th><th>الموديولات</th><th>العميل</th><th></th>
+                  <th>الكود</th><th>الحالة</th><th>الدورة/المدة</th><th>السعر</th><th>الموديولات</th><th>العميل</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -271,6 +277,7 @@ export function LicensingManager({ customers, codes, moduleOptions }: { customer
                       <td className="font-mono text-xs" dir="ltr">{c.hint}</td>
                       <td><span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span></td>
                       <td className="text-xs text-muted-foreground">{c.interval === "MONTHLY" ? "شهري" : "سنوي"} · {c.durationMonths} شهر</td>
+                      <td className="text-xs tabular-nums">{c.price > 0 ? money(c.price) : "—"}</td>
                       <td><div className="flex max-w-xs flex-wrap gap-1">{c.modules.map((m) => <Badge key={m} variant="secondary" className="text-[10px]">{labelOf(m)}</Badge>)}</div></td>
                       <td className="text-xs">{c.orgName ?? "—"}</td>
                       <td className="text-end">{c.status === "UNUSED" && <Button variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={() => revoke(c.id)}><Trash2 className="size-3.5" /></Button>}</td>

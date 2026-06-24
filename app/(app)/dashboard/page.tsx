@@ -13,6 +13,7 @@ import {
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
 import { getErpOverview, type ErpOverview } from "@/lib/erp/overview";
+import { MODULE_LABELS } from "@/lib/erp/entitlements";
 import { orgWorkspaceIds } from "@/lib/crm/scope";
 import { cn } from "@/lib/utils";
 import { formatDurationAr } from "@/components/attendance/format";
@@ -28,9 +29,10 @@ import { StatusBadge } from "@/components/products/status-badge";
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ locked?: string }> }) {
   const user = await requireUser();
   const manager = can(user.role, "workspace.viewAll");
+  const locked = (await searchParams).locked;
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -51,6 +53,13 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={`أهلاً، ${user.name.split(" ")[0]} 👋`} description="نظرة عامة سريعة على عملياتك اليوم" />
+
+      {locked && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <Icon name="Lock" className="size-5 shrink-0" />
+          <span>موديول «{MODULE_LABELS[locked] ?? locked}» غير مشمول في اشتراكك الحالي. تواصل لترقية الاشتراك لتفعيله.</span>
+        </div>
+      )}
 
       {overview && org && <ErpOverviewSection overview={overview} orgName={org.nameAr} />}
 

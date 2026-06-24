@@ -35,6 +35,7 @@ export async function generateActivationCodeAction(input: {
   durationMonths: number;
   modules: string[];
   planName?: string;
+  price?: number;
   validDays?: number;
   notes?: string;
 }): Promise<LicState & { code?: string }> {
@@ -58,6 +59,7 @@ export async function generateActivationCodeAction(input: {
       durationMonths,
       enabledModules: modules,
       planName: input.planName?.trim() || null,
+      price: String(Math.max(0, Number(input.price) || 0)),
       status: "UNUSED",
       expiresAt,
       notes: input.notes?.trim() || null,
@@ -100,7 +102,7 @@ export async function applyCodeToOrgAction(input: { code: string; organizationId
     await db.transaction(async (tx) => {
       const [existing] = await tx.select({ id: orgSubscriptions.id }).from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, org.id)).limit(1);
       const values = {
-        status: "ACTIVE", interval: code.interval, planName: code.planName,
+        status: "ACTIVE", interval: code.interval, planName: code.planName, price: code.price,
         enabledModules: code.enabledModules, startedAt: now, expiresAt, activatedByCodeId: code.id, updatedAt: now,
       };
       if (existing) await tx.update(orgSubscriptions).set(values).where(eq(orgSubscriptions.id, existing.id));
@@ -122,6 +124,7 @@ export async function setOrgSubscriptionAction(input: {
   interval?: "MONTHLY" | "ANNUAL";
   extendMonths?: number;
   planName?: string;
+  price?: number;
 }): Promise<LicState> {
   const auth = await requireOwner();
   if ("error" in auth) return auth;
@@ -138,6 +141,7 @@ export async function setOrgSubscriptionAction(input: {
       status: input.status, enabledModules: modules,
       interval: input.interval ?? existing?.interval ?? null,
       planName: input.planName?.trim() ?? existing?.planName ?? null,
+      price: input.price != null ? String(Math.max(0, input.price)) : (existing?.price ?? "0"),
       startedAt: existing?.startedAt ?? now, expiresAt, updatedAt: now,
     };
     if (existing) await db.update(orgSubscriptions).set(values).where(eq(orgSubscriptions.id, existing.id));

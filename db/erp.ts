@@ -1202,6 +1202,7 @@ export const orgSubscriptions = pgTable(
     status: text("status").notNull().default("NONE"), // NONE, TRIAL, ACTIVE, EXPIRED, CANCELLED
     interval: text("interval"), // MONTHLY, ANNUAL
     planName: text("plan_name"),
+    price: money("price").notNull().default("0"), // charged per interval (for MRR/ARR)
     enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
     startedAt: ts("started_at"),
     expiresAt: ts("expires_at"),
@@ -1226,6 +1227,7 @@ export const activationCodes = pgTable(
     durationMonths: integer("duration_months").notNull().default(12),
     enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
     planName: text("plan_name"),
+    price: money("price").notNull().default("0"), // charged per interval
     status: text("status").notNull().default("UNUSED"), // UNUSED, USED, REVOKED
     organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
     redeemedAt: ts("redeemed_at"),

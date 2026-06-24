@@ -9,6 +9,7 @@ import { StatCard } from "@/components/stat-card";
 import { LicensingManager, type CustomerRow, type CodeRow } from "@/components/admin/licensing-manager";
 
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const DAY = 86_400_000;
 
 export default async function PlatformAdminPage() {
@@ -36,6 +37,7 @@ export default async function PlatformAdminPage() {
       status: s?.status ?? "NONE",
       interval: s?.interval ?? null,
       planName: s?.planName ?? null,
+      price: Number(s?.price ?? 0),
       modules: s?.enabledModules ?? [],
       expiresAt: s?.expiresAt ? new Date(s.expiresAt).toISOString() : null,
       daysLeft: expiresAt ? Math.ceil((expiresAt - now) / DAY) : null,
@@ -50,6 +52,7 @@ export default async function PlatformAdminPage() {
     durationMonths: c.durationMonths,
     modules: c.enabledModules ?? [],
     planName: c.planName ?? null,
+    price: Number(c.price),
     status: c.status,
     orgName: c.organizationId ? (orgs.find((o) => o.id === c.organizationId)?.nameAr ?? "—") : null,
     redeemedAt: c.redeemedAt ? new Date(c.redeemedAt).toISOString() : null,
@@ -62,10 +65,15 @@ export default async function PlatformAdminPage() {
   const annual = activeSubs.filter((c) => c.interval === "ANNUAL").length;
   const cancelled = customers.filter((c) => c.status === "CANCELLED").length;
   const codesUnused = codes.filter((c) => c.status === "UNUSED").length;
+  // Monthly recurring revenue: monthly plans at full price, annual plans / 12.
+  const mrr = activeSubs.reduce((s, c) => s + (c.interval === "MONTHLY" ? c.price : c.interval === "ANNUAL" ? c.price / 12 : 0), 0);
+  const arr = mrr * 12;
 
   const kpis = [
     { label: "العملاء", value: intf(orgs.length), icon: "Building2", tone: "blue" as const },
     { label: "اشتراكات نشطة", value: intf(activeSubs.length), icon: "CircleCheck", tone: "green" as const },
+    { label: "الإيراد الشهري (MRR)", value: money(mrr), icon: "Wallet", tone: "green" as const },
+    { label: "الإيراد السنوي (ARR)", value: money(arr), icon: "TrendingUp", tone: "green" as const },
     { label: "تقارب الانتهاء (٣٠ يوم)", value: intf(expiringSoon), icon: "CalendarClock", tone: expiringSoon ? ("yellow" as const) : ("slate" as const) },
     { label: "شهري / سنوي", value: `${intf(monthly)} / ${intf(annual)}`, icon: "Repeat", tone: "purple" as const },
     { label: "ملغاة", value: intf(cancelled), icon: "CircleX", tone: cancelled ? ("red" as const) : ("slate" as const) },
@@ -78,7 +86,7 @@ export default async function PlatformAdminPage() {
     <div className="space-y-6">
       <PageHeader title="لوحة المالك — الاشتراكات والتفعيل" description="إدارة العملاء، أكواد التفعيل المشفّرة، والموديولات المتاحة لكل عميل." />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} icon={k.icon} tone={k.tone} />)}
       </div>
 
