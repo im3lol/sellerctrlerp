@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { workspaces, workspaceMembers } from "@/db/schema";
 import { can } from "@/lib/rbac";
+import { getActiveOrg } from "@/lib/erp/org";
 import type { SessionUser } from "@/lib/session";
 
 /** Workspace ids the user is a member of. */
@@ -45,17 +46,23 @@ export async function getAccessibleWorkspaces(user: SessionUser, orgId: string) 
     .orderBy(desc(workspaces.createdAt));
 }
 
-/** True if the user may access a specific workspace. */
+/**
+ * True if the user may access a specific workspace. Tenant isolation first: the
+ * workspace must belong to the active organization — so even a manager
+ * (workspace.viewAll) cannot reach another org's workspace. Then the role check.
+ */
 export async function canAccessWorkspace(user: SessionUser, workspaceId: string): Promise<boolean> {
+  const { org } = await getActiveOrg();
+  if (!org) return false;
+  const [ws] = await db
+    .select({ organizationId: workspaces.organizationId, clientUserId: workspaces.clientUserId })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+  if (!ws || ws.organizationId !== org.id) return false; // cross-org → denied
+
   if (can(user.role, "workspace.viewAll")) return true;
-  if (user.role === "client") {
-    const [ws] = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.id, workspaceId), eq(workspaces.clientUserId, user.id)))
-      .limit(1);
-    return !!ws;
-  }
+  if (user.role === "client") return ws.clientUserId === user.id;
   const [m] = await db
     .select({ id: workspaceMembers.id })
     .from(workspaceMembers)

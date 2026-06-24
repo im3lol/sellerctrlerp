@@ -1,13 +1,14 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
-import { requireCapability } from "@/lib/session";
+import { and, eq, isNull, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { workspaces, products, workspaceMembers, users } from "@/db/schema";
+import { requireCrm } from "@/lib/crm/guard";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { DistributionPanel } from "@/components/distribution/distribution-panel";
 
 export default async function DistributionPage() {
-  await requireCapability("product.distribute");
+  const { orgId } = await requireCrm("product.distribute");
 
   const wsList = await db
     .select({
@@ -17,7 +18,7 @@ export default async function DistributionPage() {
       autoDistributeStrategy: workspaces.autoDistributeStrategy,
     })
     .from(workspaces)
-    .where(eq(workspaces.isArchived, false));
+    .where(and(eq(workspaces.isArchived, false), eq(workspaces.organizationId, orgId)));
 
   const [unassignedRows, empRows] = await Promise.all([
     db
@@ -25,13 +26,13 @@ export default async function DistributionPage() {
       .from(products)
       // Match the distribution engine: only published (non-draft) unassigned
       // products are distributable. Drafts are hidden from employees.
-      .where(and(isNull(products.assignedTo), eq(products.isDraft, false)))
+      .where(and(isNull(products.assignedTo), eq(products.isDraft, false), inArray(products.workspaceId, orgWorkspaceIds(orgId))))
       .groupBy(products.workspaceId),
     db
       .select({ workspaceId: workspaceMembers.workspaceId, count: sql<number>`count(*)::int` })
       .from(workspaceMembers)
       .innerJoin(users, eq(workspaceMembers.userId, users.id))
-      .where(eq(users.role, "employee"))
+      .where(and(eq(users.role, "employee"), inArray(workspaceMembers.workspaceId, orgWorkspaceIds(orgId))))
       .groupBy(workspaceMembers.workspaceId),
   ]);
 

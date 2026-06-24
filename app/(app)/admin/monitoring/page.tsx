@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireCapability } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
 import { pool } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -21,8 +21,9 @@ type Row = {
 };
 
 export default async function MonitoringPage() {
-  await requireCapability("reports.view");
+  const { orgId } = await requireCrm("reports.view");
 
+  // Org-scoped: only products/tasks in the active org's workspaces are counted.
   const { rows } = await pool.query(
     `SELECT u.id, u.name,
             count(p.id) FILTER (WHERE p.assigned_to IS NOT NULL) AS total,
@@ -30,13 +31,17 @@ export default async function MonitoringPage() {
             count(p.id) FILTER (WHERE p.assigned_to IS NOT NULL AND NOT COALESCE(s.is_terminal, false)) AS in_progress,
             count(p.id) FILTER (WHERE NOT COALESCE(s.is_terminal, false) AND p.assigned_to IS NOT NULL
                                  AND p.updated_at < now() - interval '3 days') AS stale,
-            (SELECT count(*)::int FROM tasks t WHERE t.assignee_id = u.id AND t.status <> 'done') AS open_tasks
+            (SELECT count(*)::int FROM tasks t
+              WHERE t.assignee_id = u.id AND t.status <> 'done'
+                AND t.workspace_id IN (SELECT id FROM workspaces WHERE organization_id = $1)) AS open_tasks
        FROM users u
        LEFT JOIN products p ON p.assigned_to = u.id AND p.is_draft = false
+            AND p.workspace_id IN (SELECT id FROM workspaces WHERE organization_id = $1)
        LEFT JOIN product_statuses s ON s.id = p.status_id
       WHERE u.role = 'employee' AND u.is_active = true
       GROUP BY u.id, u.name
       ORDER BY stale DESC, total DESC`,
+    [orgId],
   );
 
   const data = (rows as Row[]).map((r) => ({
