@@ -57,15 +57,15 @@ export function LoginForm({
       <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/dashboard"} />
 
       <div className="space-y-2">
-        <Label htmlFor="email">البريد الإلكتروني</Label>
+        <Label htmlFor="email">البريد الإلكتروني أو اسم المستخدم</Label>
         <Input
           id="email"
           name="email"
-          type="email"
-          placeholder="name@sellerctrl.com"
+          type="text"
+          placeholder="admin أو name@sellerctrl.com"
           dir="ltr"
           required
-          autoComplete="email"
+          autoComplete="username"
         />
       </div>
 
