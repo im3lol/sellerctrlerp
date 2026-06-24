@@ -323,11 +323,12 @@ function DashboardPreview() {
     { label: "ذمم دائنة", value: "31,800", icon: Truck, tone: "text-foreground" },
     { label: "قيمة المخزون", value: "76,733", icon: Boxes, tone: "text-emerald-600" },
   ];
-  const bars = [
-    { label: "الإيرادات", h: 90, c: "bg-rose-400" },
-    { label: "المصروفات", h: 56, c: "bg-blue-500" },
-    { label: "صافي الربح", h: 40, c: "bg-emerald-500" },
-  ];
+  // Two trend lines over the last 6 months. Points are ordered left→right in SVG
+  // space; since the board is RTL the right edge reads as the earliest month, so
+  // a line that climbs toward the left reads as growth over time.
+  const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"];
+  const revenue = "10,28 66,32 122,24 178,34 234,40 290,50";
+  const expense = "10,60 66,58 122,62 178,56 234,60 290,64";
   const stages = [
     { name: "جديد", count: "8", val: "92,000" },
     { name: "عرض سعر", count: "5", val: "61,000" },
@@ -378,15 +379,21 @@ function DashboardPreview() {
       {/* P&L + month */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-3 lg:col-span-2">
-          <div className="text-[11px] font-semibold text-muted-foreground">الأرباح والخسائر</div>
-          <div className="mt-3 flex h-28 items-end justify-around gap-4 border-b pb-1">
-            {bars.map((b) => (
-              <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end">
-                <div className={cn("w-full max-w-12 rounded-t", b.c)} style={{ height: `${b.h}%` }} />
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-semibold text-muted-foreground">الأرباح والخسائر</div>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-rose-400" /> الإيرادات</span>
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> المصروفات</span>
+            </div>
           </div>
-          <div className="mt-1 flex justify-around text-[10px] text-muted-foreground">{bars.map((b) => <span key={b.label}>{b.label}</span>)}</div>
+          <svg viewBox="0 0 300 80" preserveAspectRatio="none" className="mt-3 h-24 w-full">
+            <line x1="0" y1="78" x2="300" y2="78" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <polyline points={revenue} fill="none" className="stroke-rose-400" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <polyline points={expense} fill="none" className="stroke-blue-500" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <div className="mt-1 flex justify-between px-1 text-[10px] text-muted-foreground">
+            {months.map((m) => <span key={m}>{m}</span>)}
+          </div>
         </div>
         <div className="rounded-xl border bg-card p-3">
           <div className="text-[11px] font-semibold text-muted-foreground">حركة الشهر</div>
