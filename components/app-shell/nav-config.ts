@@ -130,7 +130,6 @@ export const NAV: NavSection[] = [
     heading: "الإدارة والإعدادات",
     icon: "ShieldCheck",
     items: [
-      { label: "لوحة المالك (الاشتراكات)", href: "/admin/platform", icon: "KeyRound", capability: "role.manage" },
       { label: "الموظفون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
       { label: "العملاء", href: "/admin/clients", icon: "Store", capability: "client.manage" },
       { label: "سجل التدقيق", href: "/admin/audit", icon: "ShieldCheck", capability: "role.manage" },

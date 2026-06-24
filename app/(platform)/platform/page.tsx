@@ -84,7 +84,7 @@ export default async function PlatformAdminPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="لوحة المالك — الاشتراكات والتفعيل" description="إدارة العملاء، أكواد التفعيل المشفّرة، والموديولات المتاحة لكل عميل." />
+      <PageHeader title="إدارة المنصّة — العملاء والاشتراكات" description="إدارة العملاء، أكواد التفعيل المشفّرة، والموديولات المتاحة لكل عميل." />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} icon={k.icon} tone={k.tone} />)}
