@@ -1,6 +1,7 @@
-import { and, eq, gte, sql, isNotNull } from "drizzle-orm";
+import { and, eq, gte, sql, isNotNull, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products, productStatuses, users, tasks } from "@/db/schema";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 
 export type EmployeeKpi = {
   id: string;
@@ -13,8 +14,10 @@ export type EmployeeKpi = {
   openTasks: number;
 };
 
-/** Per-employee KPIs (§20) used by the leaderboard (§21) and dashboards. */
-export async function getEmployeeKpis(): Promise<EmployeeKpi[]> {
+/** Per-employee KPIs (§20) used by the leaderboard (§21) and dashboards. Scoped
+ *  to the active org: only products/tasks in that org's workspaces are counted. */
+export async function getEmployeeKpis(orgId: string): Promise<EmployeeKpi[]> {
+  const inOrg = orgWorkspaceIds(orgId);
   const rows = await db
     .select({
       id: users.id,
@@ -25,19 +28,19 @@ export async function getEmployeeKpis(): Promise<EmployeeKpi[]> {
       avgSeconds: sql<number | null>`avg(extract(epoch from (${products.completedAt} - ${products.createdAt}))) filter (where ${products.completedAt} is not null)`,
     })
     .from(users)
-    .leftJoin(products, eq(products.assignedTo, users.id))
+    .leftJoin(products, and(eq(products.assignedTo, users.id), inArray(products.workspaceId, inOrg)))
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
     .where(eq(users.role, "employee"))
     .groupBy(users.id, users.name, users.avatarUrl);
 
-  // Open tasks per employee.
+  // Open tasks per employee (org-scoped).
   const taskRows = await db
     .select({
       assigneeId: tasks.assigneeId,
       open: sql<number>`count(*) filter (where ${tasks.status} <> 'done')::int`,
     })
     .from(tasks)
-    .where(isNotNull(tasks.assigneeId))
+    .where(and(isNotNull(tasks.assigneeId), inArray(tasks.workspaceId, orgWorkspaceIds(orgId))))
     .groupBy(tasks.assigneeId);
   const openMap = new Map(taskRows.map((t) => [t.assigneeId, t.open]));
 
@@ -55,8 +58,9 @@ export async function getEmployeeKpis(): Promise<EmployeeKpi[]> {
     .sort((a, b) => b.completed - a.completed || b.completionRate - a.completionRate);
 }
 
-/** Product counts per status — for the dashboard donut. */
-export async function getStatusDistribution(workspaceId?: string) {
+/** Product counts per status — for the dashboard donut. Org-scoped; an optional
+ *  single workspace narrows it further. */
+export async function getStatusDistribution(orgId: string, workspaceId?: string) {
   const rows = await db
     .select({
       name: productStatuses.name,
@@ -65,14 +69,14 @@ export async function getStatusDistribution(workspaceId?: string) {
     })
     .from(products)
     .innerJoin(productStatuses, eq(products.statusId, productStatuses.id))
-    .where(workspaceId ? eq(products.workspaceId, workspaceId) : undefined)
+    .where(workspaceId ? eq(products.workspaceId, workspaceId) : inArray(products.workspaceId, orgWorkspaceIds(orgId)))
     .groupBy(productStatuses.name, productStatuses.color, productStatuses.sortOrder)
     .orderBy(productStatuses.sortOrder);
   return rows;
 }
 
-/** Products completed per day over the last `days` days — for the line chart. */
-export async function getCompletionTrend(days = 7) {
+/** Products completed per day over the last `days` days — for the line chart. Org-scoped. */
+export async function getCompletionTrend(orgId: string, days = 7) {
   const since = new Date();
   since.setDate(since.getDate() - (days - 1));
   since.setHours(0, 0, 0, 0);
@@ -83,7 +87,7 @@ export async function getCompletionTrend(days = 7) {
       count: sql<number>`count(*)::int`,
     })
     .from(products)
-    .where(and(isNotNull(products.completedAt), gte(products.completedAt, since)))
+    .where(and(isNotNull(products.completedAt), gte(products.completedAt, since), inArray(products.workspaceId, orgWorkspaceIds(orgId))))
     .groupBy(sql`to_char(${products.completedAt}, 'YYYY-MM-DD')`);
 
   const map = new Map(rows.map((r) => [r.day, r.count]));
@@ -98,14 +102,15 @@ export async function getCompletionTrend(days = 7) {
   return out;
 }
 
-/** Headline report numbers for a window. */
-export async function getReportTotals(sinceDays: number) {
+/** Headline report numbers for a window. Org-scoped. */
+export async function getReportTotals(orgId: string, sinceDays: number) {
   const since = new Date();
   since.setDate(since.getDate() - sinceDays);
+  const inOrg = orgWorkspaceIds(orgId);
 
   const [[created], [completed]] = await Promise.all([
-    db.select({ n: sql<number>`count(*)::int` }).from(products).where(gte(products.createdAt, since)),
-    db.select({ n: sql<number>`count(*)::int` }).from(products).where(and(isNotNull(products.completedAt), gte(products.completedAt, since))),
+    db.select({ n: sql<number>`count(*)::int` }).from(products).where(and(gte(products.createdAt, since), inArray(products.workspaceId, inOrg))),
+    db.select({ n: sql<number>`count(*)::int` }).from(products).where(and(isNotNull(products.completedAt), gte(products.completedAt, since), inArray(products.workspaceId, orgWorkspaceIds(orgId)))),
   ]);
   return { created: created.n, completed: completed.n };
 }

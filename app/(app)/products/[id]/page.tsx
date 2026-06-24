@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { requireUser } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
 import { canAccessWorkspace, getAccessibleWorkspaces } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import {
@@ -31,7 +31,7 @@ export default async function ProductDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm();
   const { id } = await params;
   const detail = await getProductDetail(id);
   if (!detail) notFound();
@@ -49,7 +49,7 @@ export default async function ProductDetailPage({
     workspaceAssignees(p.workspaceId),
     listEntityActivity("product", id),
     p.baseId ? listingsForBase(p.baseId) : Promise.resolve([]),
-    canManageListings ? getAccessibleWorkspaces(user).then((ws) => ws.map((w) => ({ id: w.id, name: w.name }))) : Promise.resolve([] as { id: string; name: string }[]),
+    canManageListings ? getAccessibleWorkspaces(user, orgId).then((ws) => ws.map((w) => ({ id: w.id, name: w.name }))) : Promise.resolve([] as { id: string; name: string }[]),
   ]);
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   const baseData = (p.baseData ?? {}) as Record<string, unknown>;

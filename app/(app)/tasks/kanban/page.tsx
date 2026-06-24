@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { List } from "lucide-react";
-import { requireUser } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
 import { can } from "@/lib/rbac";
 import { memberWorkspaceIds } from "@/lib/workspaces";
 import { listTasks } from "@/lib/queries/tasks";
@@ -10,12 +10,12 @@ import { KanbanBoard } from "@/components/tasks/kanban-board";
 import { ProductProgress } from "@/components/products/product-progress";
 
 export default async function KanbanPage() {
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm();
   const manager = can(user.role, "workspace.viewAll");
   const canEdit = can(user.role, "task.updateOwn");
 
   const tasks = await listTasks(
-    manager ? {} : { ownUserId: user.id, workspaceIds: await memberWorkspaceIds(user.id) },
+    manager ? { orgId } : { orgId, ownUserId: user.id, workspaceIds: await memberWorkspaceIds(user.id) },
   );
 
   return (

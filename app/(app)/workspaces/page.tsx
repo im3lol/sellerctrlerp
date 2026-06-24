@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { requireUser } from "@/lib/session";
 import { getAccessibleWorkspaces } from "@/lib/workspaces";
 import { getWorkspaceStats } from "@/lib/queries/workspace-stats";
+import { requireCrm } from "@/lib/crm/guard";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { can } from "@/lib/rbac";
@@ -11,8 +11,8 @@ import { CreateWorkspaceDialog } from "@/components/workspaces/create-workspace-
 import { EmptyState } from "@/components/empty-state";
 
 export default async function WorkspacesPage() {
-  const user = await requireUser();
-  const list = await getAccessibleWorkspaces(user);
+  const { user, orgId } = await requireCrm();
+  const list = await getAccessibleWorkspaces(user, orgId);
   const stats = await getWorkspaceStats(list.map((w) => w.id));
 
   const clients = can(user.role, "workspace.create")

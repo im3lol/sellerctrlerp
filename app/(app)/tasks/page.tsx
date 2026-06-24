@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ne, eq } from "drizzle-orm";
-import { requireUser } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
@@ -18,16 +18,16 @@ import { Columns3 } from "lucide-react";
 import { formatDateAr } from "@/lib/format";
 
 export default async function TasksPage() {
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm();
   const manager = can(user.role, "workspace.viewAll");
   const canManage = can(user.role, "task.manage");
 
   const tasks = await listTasks(
-    manager ? {} : { ownUserId: user.id, workspaceIds: await memberWorkspaceIds(user.id) },
+    manager ? { orgId } : { orgId, ownUserId: user.id, workspaceIds: await memberWorkspaceIds(user.id) },
   );
 
   const [wsList, assignees] = await Promise.all([
-    getAccessibleWorkspaces(user),
+    getAccessibleWorkspaces(user, orgId),
     db.select({ id: users.id, name: users.name }).from(users).where(ne(users.role, "client")),
   ]);
 

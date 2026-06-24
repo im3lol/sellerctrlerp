@@ -15,22 +15,25 @@ export async function memberWorkspaceIds(userId: string): Promise<string[]> {
 }
 
 /**
- * Workspaces the user can see. Managers (workspace.viewAll) see all;
- * everyone else only their memberships. Clients see workspaces they own.
+ * Workspaces the user can see WITHIN the active organization. Managers
+ * (workspace.viewAll) see all of the org's workspaces; everyone else only their
+ * memberships; clients only the ones they own. CRM is org-scoped like the rest
+ * of the system, so every branch is constrained to `orgId`.
  */
-export async function getAccessibleWorkspaces(user: SessionUser) {
+export async function getAccessibleWorkspaces(user: SessionUser, orgId: string) {
+  const inOrg = eq(workspaces.organizationId, orgId);
   if (can(user.role, "workspace.viewAll")) {
     return db
       .select()
       .from(workspaces)
-      .where(eq(workspaces.isArchived, false))
+      .where(and(inOrg, eq(workspaces.isArchived, false)))
       .orderBy(desc(workspaces.createdAt));
   }
   if (user.role === "client") {
     return db
       .select()
       .from(workspaces)
-      .where(and(eq(workspaces.clientUserId, user.id), eq(workspaces.isArchived, false)))
+      .where(and(inOrg, eq(workspaces.clientUserId, user.id), eq(workspaces.isArchived, false)))
       .orderBy(desc(workspaces.createdAt));
   }
   const ids = await memberWorkspaceIds(user.id);
@@ -38,7 +41,7 @@ export async function getAccessibleWorkspaces(user: SessionUser) {
   return db
     .select()
     .from(workspaces)
-    .where(and(inArray(workspaces.id, ids), eq(workspaces.isArchived, false)))
+    .where(and(inOrg, inArray(workspaces.id, ids), eq(workspaces.isArchived, false)))
     .orderBy(desc(workspaces.createdAt));
 }
 

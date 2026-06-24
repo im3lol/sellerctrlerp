@@ -13,6 +13,7 @@ import {
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
 import { getErpOverview, type ErpOverview } from "@/lib/erp/overview";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 import { cn } from "@/lib/utils";
 import { formatDurationAr } from "@/components/attendance/format";
 import { PageHeader } from "@/components/page-header";
@@ -53,10 +54,14 @@ export default async function DashboardPage() {
 
       {overview && org && <ErpOverviewSection overview={overview} orgName={org.nameAr} />}
 
-      {manager ? (
-        <ManagerDashboard todaySeconds={todaySeconds} terminalIds={terminalIds} />
+      {org ? (
+        manager ? (
+          <ManagerDashboard orgId={org.id} todaySeconds={todaySeconds} terminalIds={terminalIds} />
+        ) : (
+          <EmployeeDashboard orgId={org.id} userId={user.id} todaySeconds={todaySeconds} terminalIds={terminalIds} />
+        )
       ) : (
-        <EmployeeDashboard userId={user.id} todaySeconds={todaySeconds} terminalIds={terminalIds} />
+        <Card className="p-6 text-center text-sm text-muted-foreground">لا توجد مؤسسة نشطة — تواصل مع المسؤول لإضافتك إلى مؤسسة.</Card>
       )}
     </div>
   );
@@ -142,19 +147,19 @@ function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; o
   );
 }
 
-async function ManagerDashboard({ todaySeconds, terminalIds }: { todaySeconds: number; terminalIds: string[] }) {
+async function ManagerDashboard({ orgId, todaySeconds, terminalIds }: { orgId: string; todaySeconds: number; terminalIds: string[] }) {
   const [[{ wsCount }], [{ prodCount }], [{ empCount }], [{ doneCount }], dist, trend, kpis, recent] =
     await Promise.all([
-      db.select({ wsCount: sql<number>`count(*)::int` }).from(workspaces).where(eq(workspaces.isArchived, false)),
-      db.select({ prodCount: sql<number>`count(*)::int` }).from(products),
+      db.select({ wsCount: sql<number>`count(*)::int` }).from(workspaces).where(and(eq(workspaces.isArchived, false), eq(workspaces.organizationId, orgId))),
+      db.select({ prodCount: sql<number>`count(*)::int` }).from(products).where(inArray(products.workspaceId, orgWorkspaceIds(orgId))),
       db.select({ empCount: sql<number>`count(*)::int` }).from(users).where(eq(users.role, "employee")),
       db
         .select({ doneCount: sql<number>`count(*)::int` })
         .from(products)
-        .where(terminalIds.length ? inArray(products.statusId, terminalIds) : sql`false`),
-      getStatusDistribution(),
-      getCompletionTrend(7),
-      getEmployeeKpis(),
+        .where(and(inArray(products.workspaceId, orgWorkspaceIds(orgId)), terminalIds.length ? inArray(products.statusId, terminalIds) : sql`false`)),
+      getStatusDistribution(orgId),
+      getCompletionTrend(orgId, 7),
+      getEmployeeKpis(orgId),
       db
         .select({
           id: products.id,
@@ -167,6 +172,7 @@ async function ManagerDashboard({ todaySeconds, terminalIds }: { todaySeconds: n
         .leftJoin(productBases, eq(products.baseId, productBases.id))
         .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
         .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
+        .where(inArray(products.workspaceId, orgWorkspaceIds(orgId)))
         .orderBy(desc(products.updatedAt))
         .limit(6),
     ]);
@@ -224,25 +230,27 @@ async function ManagerDashboard({ todaySeconds, terminalIds }: { todaySeconds: n
 }
 
 async function EmployeeDashboard({
+  orgId,
   userId,
   todaySeconds,
   terminalIds,
 }: {
+  orgId: string;
   userId: string;
   todaySeconds: number;
   terminalIds: string[];
 }) {
   const [[{ myProducts }], [{ myDone }], [{ myOpenTasks }], trend, myProductsList] = await Promise.all([
-    db.select({ myProducts: sql<number>`count(*)::int` }).from(products).where(eq(products.assignedTo, userId)),
+    db.select({ myProducts: sql<number>`count(*)::int` }).from(products).where(and(eq(products.assignedTo, userId), inArray(products.workspaceId, orgWorkspaceIds(orgId)))),
     db
       .select({ myDone: sql<number>`count(*)::int` })
       .from(products)
-      .where(and(eq(products.assignedTo, userId), terminalIds.length ? inArray(products.statusId, terminalIds) : sql`false`)),
+      .where(and(eq(products.assignedTo, userId), inArray(products.workspaceId, orgWorkspaceIds(orgId)), terminalIds.length ? inArray(products.statusId, terminalIds) : sql`false`)),
     db
       .select({ myOpenTasks: sql<number>`count(*)::int` })
       .from(tasks)
-      .where(and(eq(tasks.assigneeId, userId), sql`${tasks.status} <> 'done'`)),
-    getCompletionTrend(7),
+      .where(and(eq(tasks.assigneeId, userId), inArray(tasks.workspaceId, orgWorkspaceIds(orgId)), sql`${tasks.status} <> 'done'`)),
+    getCompletionTrend(orgId, 7),
     db
       .select({
         id: products.id,
@@ -255,7 +263,7 @@ async function EmployeeDashboard({
       .leftJoin(productBases, eq(products.baseId, productBases.id))
       .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
       .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
-      .where(eq(products.assignedTo, userId))
+      .where(and(eq(products.assignedTo, userId), inArray(products.workspaceId, orgWorkspaceIds(orgId))))
       .orderBy(desc(products.updatedAt))
       .limit(8),
   ]);

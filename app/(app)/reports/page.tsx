@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { requireCapability } from "@/lib/session";
 import {
   getReportTotals,
   getCompletionTrend,
   getStatusDistribution,
   getEmployeeKpis,
 } from "@/lib/queries/kpi";
+import { requireCrm } from "@/lib/crm/guard";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/stat-card";
@@ -25,15 +25,15 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  await requireCapability("reports.view");
+  const { orgId } = await requireCrm("reports.view");
   const { period = "week" } = await searchParams;
   const sel = PERIODS.find((p) => p.key === period) ?? PERIODS[1];
 
   const [totals, trend, dist, kpis] = await Promise.all([
-    getReportTotals(sel.days),
-    getCompletionTrend(sel.days <= 7 ? 7 : 30),
-    getStatusDistribution(),
-    getEmployeeKpis(),
+    getReportTotals(orgId, sel.days),
+    getCompletionTrend(orgId, sel.days <= 7 ? 7 : 30),
+    getStatusDistribution(orgId),
+    getEmployeeKpis(orgId),
   ]);
 
   return (

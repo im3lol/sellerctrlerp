@@ -1,6 +1,7 @@
 import { and, eq, or, ilike, isNull, isNotNull, inArray, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products, productBases, productStatuses, users, workspaces, workspaceMembers } from "@/db/schema";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 
 // Base catalog data (name, image, price…) lives in productBases — single source.
 const base = productBases;
@@ -8,6 +9,7 @@ const base = productBases;
 export const PRODUCTS_PER_PAGE = 20;
 
 export type ProductFilters = {
+  orgId?: string; // restrict to the active organization's workspaces (tenant scope)
   workspaceId?: string;
   workspaceIds?: string[]; // restrict to a set (access scoping)
   statusId?: string;
@@ -26,6 +28,8 @@ const assignee = users;
  *  null when the filter set is provably empty (e.g. no accessible workspaces). */
 function buildConds(filters: ProductFilters): unknown[] | null {
   const conds = [];
+  // Tenant scope: products only within the active org's workspaces.
+  if (filters.orgId) conds.push(inArray(products.workspaceId, orgWorkspaceIds(filters.orgId)));
   if (filters.workspaceId) conds.push(eq(products.workspaceId, filters.workspaceId));
   else if (filters.workspaceIds) {
     if (filters.workspaceIds.length === 0) return null;

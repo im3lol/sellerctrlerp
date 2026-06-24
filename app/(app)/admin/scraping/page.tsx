@@ -1,13 +1,13 @@
-import { requireCapability } from "@/lib/session";
 import { getAccessibleWorkspaces } from "@/lib/workspaces";
+import { requireCrm } from "@/lib/crm/guard";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ScrapingPanel } from "@/components/scraping/scraping-panel";
 
 export default async function ScrapingPage() {
-  const user = await requireCapability("product.review");
-  const wsList = (await getAccessibleWorkspaces(user)).map((w) => ({ id: w.id, name: w.name }));
+  const { user, orgId } = await requireCrm("product.review");
+  const wsList = (await getAccessibleWorkspaces(user, orgId)).map((w) => ({ id: w.id, name: w.name }));
 
   return (
     <div>

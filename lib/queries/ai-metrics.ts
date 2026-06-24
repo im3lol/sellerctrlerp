@@ -1,7 +1,8 @@
-import { and, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products, productStatuses, workspaces } from "@/db/schema";
 import { getEmployeeKpis } from "@/lib/queries/kpi";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 
 export type OpsMetrics = {
   totals: { products: number; completed: number; unassigned: number; late: number };
@@ -10,11 +11,12 @@ export type OpsMetrics = {
   statusDistribution: { name: string; count: number }[];
 };
 
-/** Gather aggregated operational metrics for the AI assistant + heuristics. */
-export async function gatherOpsMetrics(): Promise<OpsMetrics> {
+/** Gather aggregated operational metrics for the AI assistant + heuristics. Org-scoped. */
+export async function gatherOpsMetrics(orgId: string): Promise<OpsMetrics> {
   // "Late": not completed and created more than 7 days ago.
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
+  const inOrg = orgWorkspaceIds(orgId);
 
   const [
     [{ total }],
@@ -25,17 +27,17 @@ export async function gatherOpsMetrics(): Promise<OpsMetrics> {
     statusRows,
     kpis,
   ] = await Promise.all([
-    db.select({ total: sql<number>`count(*)::int` }).from(products),
+    db.select({ total: sql<number>`count(*)::int` }).from(products).where(inArray(products.workspaceId, inOrg)),
     db
       .select({ completed: sql<number>`count(*)::int` })
       .from(products)
       .innerJoin(productStatuses, eq(products.statusId, productStatuses.id))
-      .where(eq(productStatuses.isTerminal, true)),
-    db.select({ unassigned: sql<number>`count(*)::int` }).from(products).where(isNull(products.assignedTo)),
+      .where(and(eq(productStatuses.isTerminal, true), inArray(products.workspaceId, inOrg))),
+    db.select({ unassigned: sql<number>`count(*)::int` }).from(products).where(and(isNull(products.assignedTo), inArray(products.workspaceId, inOrg))),
     db
       .select({ late: sql<number>`count(*)::int` })
       .from(products)
-      .where(and(isNull(products.completedAt), lt(products.createdAt, weekAgo))),
+      .where(and(isNull(products.completedAt), lt(products.createdAt, weekAgo), inArray(products.workspaceId, inOrg))),
     db
       .select({
         name: workspaces.name,
@@ -46,16 +48,16 @@ export async function gatherOpsMetrics(): Promise<OpsMetrics> {
       .from(workspaces)
       .leftJoin(products, eq(products.workspaceId, workspaces.id))
       .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
-      .where(eq(workspaces.isArchived, false))
+      .where(and(eq(workspaces.isArchived, false), eq(workspaces.organizationId, orgId)))
       .groupBy(workspaces.name),
     db
       .select({ name: productStatuses.name, count: sql<number>`count(${products.id})::int` })
       .from(productStatuses)
-      .leftJoin(products, eq(products.statusId, productStatuses.id))
+      .leftJoin(products, and(eq(products.statusId, productStatuses.id), inArray(products.workspaceId, inOrg)))
       .where(isNull(productStatuses.workspaceId))
       .groupBy(productStatuses.name, productStatuses.sortOrder)
       .orderBy(productStatuses.sortOrder),
-    getEmployeeKpis(),
+    getEmployeeKpis(orgId),
   ]);
 
   return {

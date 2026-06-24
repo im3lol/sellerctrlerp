@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { workspaces, workspaceMembers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { getActiveOrg } from "@/lib/erp/org";
 import { can, type Role } from "@/lib/rbac";
 import { recordActivity, notify } from "@/lib/activity";
 
@@ -24,6 +25,8 @@ export async function createWorkspaceAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   if (!can(user.role, "workspace.create")) return { error: "لا تملك صلاحية إنشاء مساحة عمل" };
+  const { org } = await getActiveOrg();
+  if (!org) return { error: "لا توجد مؤسسة نشطة" };
 
   const parsed = createSchema.safeParse({
     name: formData.get("name"),
@@ -36,7 +39,7 @@ export async function createWorkspaceAction(
   const { name, type, description, clientUserId } = parsed.data;
   const [ws] = await db
     .insert(workspaces)
-    .values({ name, type, description, clientUserId: clientUserId || null })
+    .values({ organizationId: org.id, name, type, description, clientUserId: clientUserId || null })
     .returning();
 
   await recordActivity({

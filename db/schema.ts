@@ -100,9 +100,9 @@ export const users = pgTable(
 
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").defaultRandom().primaryKey(),
-  // The owning organization (single tenant). Nullable during migration; new
-  // workspaces are created under the active org.
-  organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+  // The owning organization (single tenant). Required — CRM is an org-scoped
+  // module like the rest of the system; every workspace belongs to one org.
+  organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   type: workspaceTypeEnum("type").notNull().default("amazon"),
   description: text("description"),

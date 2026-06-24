@@ -1,12 +1,12 @@
-import { requireUser } from "@/lib/session";
 import { getEmployeeKpis } from "@/lib/queries/kpi";
+import { requireCrm } from "@/lib/crm/guard";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
 
 export default async function LeaderboardPage() {
-  await requireUser();
-  const kpis = await getEmployeeKpis();
+  const { orgId } = await requireCrm();
+  const kpis = await getEmployeeKpis(orgId);
 
   const top = kpis[0];
   const fastest = [...kpis].filter((k) => k.avgHours != null).sort((a, b) => (a.avgHours ?? 0) - (b.avgHours ?? 0))[0];

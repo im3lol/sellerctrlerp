@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ne, eq, desc } from "drizzle-orm";
-import { requireCapability } from "@/lib/session";
+import { ne, eq, desc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { taskRecurrences, users, workspaces } from "@/db/schema";
 import { getAccessibleWorkspaces } from "@/lib/workspaces";
-import { requireUser } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,7 @@ import { formatDateAr } from "@/lib/format";
 const FREQ_AR: Record<string, string> = { daily: "يومياً", weekly: "أسبوعياً", monthly: "شهرياً" };
 
 export default async function RecurringTasksPage() {
-  await requireCapability("task.manage");
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm("task.manage");
 
   const [rows, wsList, assignees] = await Promise.all([
     db
@@ -33,8 +32,9 @@ export default async function RecurringTasksPage() {
       .from(taskRecurrences)
       .leftJoin(users, eq(taskRecurrences.assigneeId, users.id))
       .leftJoin(workspaces, eq(taskRecurrences.workspaceId, workspaces.id))
+      .where(inArray(taskRecurrences.workspaceId, orgWorkspaceIds(orgId)))
       .orderBy(desc(taskRecurrences.createdAt)),
-    getAccessibleWorkspaces(user),
+    getAccessibleWorkspaces(user, orgId),
     db.select({ id: users.id, name: users.name }).from(users).where(ne(users.role, "client")),
   ]);
 

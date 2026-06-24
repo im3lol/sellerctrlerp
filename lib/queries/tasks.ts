@@ -1,8 +1,10 @@
 import { and, eq, or, inArray, desc, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tasks, users, workspaces } from "@/db/schema";
+import { orgWorkspaceIds } from "@/lib/crm/scope";
 
 export type TaskScope = {
+  orgId?: string; // tenant scope: only tasks in the active org's workspaces
   // Access: if provided, restrict to (assignee = me) OR (workspace in my workspaces).
   ownUserId?: string;
   workspaceIds?: string[];
@@ -14,6 +16,7 @@ export type TaskScope = {
 
 function scopeConds(scope: TaskScope) {
   const conds = [];
+  if (scope.orgId) conds.push(inArray(tasks.workspaceId, orgWorkspaceIds(scope.orgId)));
   if (scope.workspaceId) conds.push(eq(tasks.workspaceId, scope.workspaceId));
   if (scope.assigneeId) conds.push(eq(tasks.assigneeId, scope.assigneeId));
   if (scope.status) conds.push(eq(tasks.status, scope.status as "new"));

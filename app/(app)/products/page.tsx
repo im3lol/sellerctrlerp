@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { requireUser } from "@/lib/session";
+import { requireCrm } from "@/lib/crm/guard";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
@@ -22,13 +22,14 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  const user = await requireUser();
+  const { user, orgId } = await requireCrm();
   const sp = await searchParams;
   const manager = can(user.role, "workspace.viewAll");
   const canEdit = can(user.role, "product.edit");
   const canReview = can(user.role, "product.review");
 
   const filters: ProductFilters = {
+    orgId,
     statusId: sp.statusId,
     assignedTo: sp.assignedTo,
     search: sp.search,
@@ -65,7 +66,7 @@ export default async function ProductsPage({
   const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PER_PAGE));
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   const canAdd = can(user.role, "product.distribute");
-  const wsList = canAdd ? (await getAccessibleWorkspaces(user)).map((w) => ({ id: w.id, name: w.name })) : [];
+  const wsList = canAdd ? (await getAccessibleWorkspaces(user, orgId)).map((w) => ({ id: w.id, name: w.name })) : [];
 
   return (
     <div>
