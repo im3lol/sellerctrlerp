@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   Calculator,
   Boxes,
@@ -17,6 +16,10 @@ import {
   Zap,
   ShieldCheck,
   ArrowLeft,
+  TrendingUp,
+  Users,
+  Truck,
+  Search,
   Globe,
   Mail,
   Share2,
@@ -24,6 +27,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Pain points the unified system removes.
 const PAINS = [
@@ -121,18 +125,11 @@ export default function Home() {
             بدون بطاقة ائتمان · إعداد في دقائق · دعم بالعربي
           </p>
 
-          {/* Dashboard preview */}
+          {/* Dashboard preview — a live, on-brand mockup of the unified board */}
           <div className="relative mx-auto mt-14 max-w-5xl">
             <div className="absolute inset-x-8 -bottom-6 h-24 rounded-full bg-primary/20 blur-3xl" />
-            <div className="relative overflow-hidden rounded-2xl border bg-card shadow-2xl">
-              <Image
-                src="/brand/dashboard-mockup.png"
-                alt="لوحة تحكم SellerCtrl"
-                width={1200}
-                height={750}
-                priority
-                className="w-full"
-              />
+            <div className="relative overflow-hidden rounded-2xl border bg-card text-right shadow-2xl">
+              <DashboardPreview />
             </div>
           </div>
         </div>
@@ -301,6 +298,97 @@ export default function Home() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function DashboardPreview() {
+  const kpis = [
+    { label: "صافي الربح", value: "124,500", icon: TrendingUp, tone: "text-emerald-600" },
+    { label: "النقدية والبنوك", value: "86,200", icon: Wallet, tone: "text-foreground" },
+    { label: "ذمم مدينة", value: "42,300", icon: Users, tone: "text-foreground" },
+    { label: "ذمم دائنة", value: "31,800", icon: Truck, tone: "text-foreground" },
+    { label: "قيمة المخزون", value: "76,733", icon: Boxes, tone: "text-emerald-600" },
+  ];
+  const bars = [
+    { label: "الإيرادات", h: 90, c: "bg-rose-400" },
+    { label: "المصروفات", h: 56, c: "bg-blue-500" },
+    { label: "صافي الربح", h: 40, c: "bg-emerald-500" },
+  ];
+  const stages = [
+    { name: "جديد", count: "8", val: "92,000" },
+    { name: "عرض سعر", count: "5", val: "61,000" },
+    { name: "تفاوض", count: "3", val: "38,000" },
+    { name: "مكسوب", count: "6", val: "120,000" },
+  ];
+  return (
+    <div className="bg-muted/20 p-4 sm:p-5">
+      {/* Faux app top bar */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary"><LayoutDashboard className="size-4" /></div>
+          <div>
+            <div className="text-sm font-bold">لوحة التحكم</div>
+            <div className="text-[10px] text-muted-foreground">نظرة شاملة على تجارتك</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px] text-muted-foreground sm:flex"><Search className="size-3" /> ابحث…</div>
+          <Logo className="text-lg text-primary" />
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
+        {kpis.map((k) => (
+          <div key={k.label} className="rounded-xl border bg-card p-3">
+            <div className="flex items-center justify-between gap-1">
+              <span className="truncate text-[10px] text-muted-foreground">{k.label}</span>
+              <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><k.icon className="size-3" /></span>
+            </div>
+            <div className={cn("mt-1 text-base font-bold tabular-nums", k.tone)}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* P&L + month */}
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <div className="rounded-xl border bg-card p-3 lg:col-span-2">
+          <div className="text-[11px] font-semibold text-muted-foreground">الأرباح والخسائر</div>
+          <div className="mt-3 flex h-28 items-end justify-around gap-4 border-b pb-1">
+            {bars.map((b) => (
+              <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end">
+                <div className={cn("w-full max-w-12 rounded-t", b.c)} style={{ height: `${b.h}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-around text-[10px] text-muted-foreground">{bars.map((b) => <span key={b.label}>{b.label}</span>)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-3">
+          <div className="text-[11px] font-semibold text-muted-foreground">حركة الشهر</div>
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1 text-muted-foreground"><ReceiptText className="size-3 text-emerald-600" /> مبيعات</span><span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">24</span></div>
+            <div className="text-lg font-bold tabular-nums text-emerald-600">312,000</div>
+          </div>
+          <div className="mt-2 border-t pt-2">
+            <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1 text-muted-foreground"><ShoppingCart className="size-3 text-primary" /> مشتريات</span><span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">11</span></div>
+            <div className="text-lg font-bold tabular-nums text-primary">148,500</div>
+          </div>
+        </div>
+      </div>
+
+      {/* CRM pipeline strip */}
+      <div className="mt-3 rounded-xl border bg-card p-3">
+        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><Target className="size-3.5 text-primary" /> خط أنابيب المبيعات (CRM)</div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {stages.map((s) => (
+            <div key={s.name} className="rounded-lg bg-muted/40 p-2">
+              <div className="flex items-center justify-between text-[10px]"><span className="font-medium">{s.name}</span><span className="rounded-full bg-card px-1.5 text-muted-foreground tabular-nums">{s.count}</span></div>
+              <div className="mt-1 text-xs font-bold tabular-nums text-emerald-600">{s.val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
