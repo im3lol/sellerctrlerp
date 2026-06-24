@@ -92,18 +92,36 @@ function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; o
     { label: "منتهية الصلاحية", value: o.expiredCount, href: "/erp/inventory/expiry", tone: o.expiredCount ? "text-destructive" : "text-muted-foreground" },
   ];
 
+  const max = Math.max(o.income, o.expense, Math.abs(o.net), 1);
+  const bars = [
+    { label: "الإيرادات", value: o.income, color: "bg-rose-400" },
+    { label: "المصروفات", value: o.expense, color: "bg-blue-500" },
+    { label: "صافي الربح", value: o.net, color: o.net >= 0 ? "bg-emerald-500" : "bg-destructive" },
+  ];
+
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-semibold"><Icon name="Building2" className="size-4 text-primary" /> نظرة عامة على النظام — {orgName}</h2>
-        <Link href="/erp/dashboard" className="text-sm text-primary hover:underline">لوحة ERP الكاملة ←</Link>
-      </div>
+      <h2 className="flex items-center gap-2 font-semibold"><Icon name="Building2" className="size-4 text-primary" /> نظرة عامة على النظام — {orgName}</h2>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} icon={k.icon} tone={k.tone} />)}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
+        {/* Profit & Loss chart */}
+        <Card className="space-y-3 p-5 lg:col-span-2">
+          <h3 className="text-sm font-semibold text-muted-foreground">الأرباح والخسائر</h3>
+          <div className="flex h-40 items-end justify-around gap-6 border-b pb-2">
+            {bars.map((b) => (
+              <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                <span className="text-xs font-semibold tabular-nums">{money(b.value)}</span>
+                <div className={cn("w-full max-w-24 rounded-t-md", b.color)} style={{ height: `${Math.max((Math.abs(b.value) / max) * 100, 2)}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-around text-xs text-muted-foreground">{bars.map((b) => <span key={b.label}>{b.label}</span>)}</div>
+        </Card>
+
         {/* This month */}
         <Card className="space-y-4 p-5">
           <h3 className="text-sm font-semibold text-muted-foreground">حركة الشهر</h3>
