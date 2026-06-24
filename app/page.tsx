@@ -20,6 +20,8 @@ import {
   Users,
   Truck,
   Search,
+  Settings,
+  ChartPie,
   Globe,
   Mail,
   Share2,
@@ -302,6 +304,17 @@ export default function Home() {
   );
 }
 
+const PREVIEW_NAV = [
+  { label: "لوحة التحكم", icon: LayoutDashboard, active: true },
+  { label: "المحاسبة", icon: Calculator },
+  { label: "المخزون", icon: Boxes },
+  { label: "المبيعات", icon: ReceiptText },
+  { label: "المشتريات", icon: ShoppingCart },
+  { label: "الفرص (CRM)", icon: Target },
+  { label: "التقارير", icon: ChartPie },
+  { label: "الإعدادات", icon: Settings },
+] as const;
+
 function DashboardPreview() {
   const kpis = [
     { label: "صافي الربح", value: "124,500", icon: TrendingUp, tone: "text-emerald-600" },
@@ -322,19 +335,30 @@ function DashboardPreview() {
     { name: "مكسوب", count: "6", val: "120,000" },
   ];
   return (
-    <div className="bg-muted/20 p-4 sm:p-5">
-      {/* Faux app top bar */}
+    <div className="flex" dir="rtl">
+      {/* Sidebar (القائمة الجانبية) — right side in RTL */}
+      <aside className="hidden w-44 shrink-0 flex-col bg-card p-3 md:flex">
+        <div className="mb-4 px-2 pt-1"><Logo className="text-lg text-primary" /></div>
+        <nav className="space-y-1">
+          {PREVIEW_NAV.map((it) => (
+            <div key={it.label} className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium", "active" in it && it.active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}>
+              <it.icon className="size-4 shrink-0" /> {it.label}
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 border-s bg-muted/20 p-4 sm:p-5">
+      {/* Top bar */}
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary"><LayoutDashboard className="size-4" /></div>
-          <div>
-            <div className="text-sm font-bold">لوحة التحكم</div>
-            <div className="text-[10px] text-muted-foreground">نظرة شاملة على تجارتك</div>
-          </div>
+        <div>
+          <div className="text-sm font-bold">لوحة التحكم</div>
+          <div className="text-[10px] text-muted-foreground">نظرة شاملة على تجارتك</div>
         </div>
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px] text-muted-foreground sm:flex"><Search className="size-3" /> ابحث…</div>
-          <Logo className="text-lg text-primary" />
+          <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">أ م</span>
         </div>
       </div>
 
@@ -388,6 +412,7 @@ function DashboardPreview() {
             </div>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );
