@@ -89,6 +89,8 @@ export function CrmPipeline({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Opp | null>(null);
   const [pending, startTransition] = useTransition();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overStage, setOverStage] = useState<string | null>(null);
 
   const byStage = useMemo(() => {
     const m = new Map<string, Opp[]>();
@@ -103,10 +105,16 @@ export function CrmPipeline({
   const openCreate = () => { setEditing(null); setOpen(true); };
   const openEdit = (o: Opp) => { setEditing(o); setOpen(true); };
 
-  const move = (o: Opp, stageId: string) => startTransition(async () => {
-    const r = await moveOpportunityStageAction(o.id, stageId);
+  const move = (oppId: string, stageId: string) => startTransition(async () => {
+    const r = await moveOpportunityStageAction(oppId, stageId);
     if (!r.ok) toast.error(r.error ?? "تعذّر النقل");
   });
+  const onDrop = (stageId: string) => {
+    setOverStage(null);
+    const id = dragId;
+    setDragId(null);
+    if (id) move(id, stageId);
+  };
   const setStatus = (o: Opp, status: "WON" | "LOST" | "OPEN") => startTransition(async () => {
     const r = await setOpportunityStatusAction(o.id, status, status === "LOST" ? "—" : undefined);
     if (r.ok) toast.success(status === "WON" ? "تم تعليمها مكسوبة" : status === "LOST" ? "تم تعليمها خاسرة" : "أُعيد فتحها");
@@ -133,7 +141,13 @@ export function CrmPipeline({
           const cards = byStage.get(s.id) ?? [];
           const total = cards.reduce((sum, c) => sum + Number(c.expectedRevenue), 0);
           return (
-            <div key={s.id} className="flex w-72 shrink-0 flex-col rounded-2xl bg-muted/40 p-2">
+            <div
+              key={s.id}
+              className={cn("flex w-72 shrink-0 flex-col rounded-2xl bg-muted/40 p-2 transition-colors", overStage === s.id && "bg-primary/10 ring-2 ring-primary/40")}
+              onDragOver={canManage ? (e) => { e.preventDefault(); setOverStage(s.id); } : undefined}
+              onDragLeave={canManage ? () => setOverStage((cur) => (cur === s.id ? null : cur)) : undefined}
+              onDrop={canManage ? () => onDrop(s.id) : undefined}
+            >
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   {s.isWon && <Trophy className="size-3.5 text-emerald-600" />}
@@ -146,7 +160,13 @@ export function CrmPipeline({
                 {cards.length === 0 ? (
                   <div className="rounded-xl border border-dashed py-6 text-center text-xs text-muted-foreground">لا فرص</div>
                 ) : cards.map((o) => (
-                  <div key={o.id} className="group rounded-xl border bg-card p-3 shadow-sm">
+                  <div
+                    key={o.id}
+                    draggable={canManage}
+                    onDragStart={canManage ? () => setDragId(o.id) : undefined}
+                    onDragEnd={canManage ? () => { setDragId(null); setOverStage(null); } : undefined}
+                    className={cn("group rounded-xl border bg-card p-3 shadow-sm", canManage && "cursor-grab active:cursor-grabbing", dragId === o.id && "opacity-50")}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{o.name}</div>
@@ -165,7 +185,7 @@ export function CrmPipeline({
                           className={selectCls}
                           value={o.stageId ?? ""}
                           disabled={pending}
-                          onChange={(e) => move(o, e.target.value)}
+                          onChange={(e) => move(o.id, e.target.value)}
                           aria-label="نقل المرحلة"
                         >
                           {stages.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
@@ -181,7 +201,7 @@ export function CrmPipeline({
                           <Button variant="ghost" size="icon" className="size-7" disabled={pending} onClick={() => remove(o)} aria-label="حذف"><Trash2 className="size-3.5 text-destructive" /></Button>
                         </div>
                         {o.customerId && (
-                          <a href={`/erp/sales/orders/new`} className="block rounded-md bg-primary/10 py-1 text-center text-[11px] font-medium text-primary hover:bg-primary/20">إنشاء أمر بيع ←</a>
+                          <a href={`/erp/sales/orders/new?customerId=${o.customerId}&opp=${o.id}`} className="block rounded-md bg-primary/10 py-1 text-center text-[11px] font-medium text-primary hover:bg-primary/20">إنشاء أمر بيع ←</a>
                         )}
                       </div>
                     )}

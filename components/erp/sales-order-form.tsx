@@ -25,11 +25,11 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-export function SalesOrderForm({ customers, items, orgName }: { customers: Customer[]; items: Item[]; orgName: string }) {
+export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, opportunityId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; opportunityId?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
   const [date, setDate] = useState(today);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -63,7 +63,7 @@ export function SalesOrderForm({ customers, items, orgName }: { customers: Custo
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createSalesOrderAction({
-        customerId, date, dueDate: dueDate || undefined, notes,
+        customerId, date, dueDate: dueDate || undefined, notes, opportunityId,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
       });
       if (r.ok) { toast.success("تم حفظ أمر البيع (مسودة) — أكّده"); router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh(); }

@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers, deliveryNotes } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, deliveryNotes, crmOpportunities } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -25,6 +25,7 @@ const schema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
+  opportunityId: z.string().optional(), // CRM pipeline: link + mark the opportunity won
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 
@@ -41,7 +42,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { customerId, date, dueDate, notes, lines } = parsed.data;
+  const { customerId, date, dueDate, notes, opportunityId, lines } = parsed.data;
 
   const [cust] = await db.select({ id: customers.id }).from(customers)
     .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
@@ -70,6 +71,12 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
       return so.id;
     });
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
+    // CRM: link the source opportunity and mark it won.
+    if (opportunityId) {
+      await db.update(crmOpportunities).set({ salesOrderId: id, status: "WON", updatedAt: new Date() })
+        .where(and(eq(crmOpportunities.id, opportunityId), eq(crmOpportunities.organizationId, auth.orgId)));
+      revalidatePath("/erp/crm");
+    }
     revalidatePath("/erp/sales/orders");
     return { ok: true, id };
   } catch (e) {
