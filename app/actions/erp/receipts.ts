@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { receiptVouchers, customers, salesInvoices, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
@@ -81,9 +82,8 @@ export async function confirmReceiptVoucherAction(id: string): Promise<ActionSta
   if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
 
   const amount = Number(v.amount);
-  const accs = await db.select({ id: accounts.id, code: accounts.code }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1103"])));
-  const ar = accs.find((a) => a.code === "1103");
+  const A = await resolveAccountIds(auth.orgId, ["1103"]);
+  const ar = A["1103"] ? { id: A["1103"] } : undefined;
   if (!ar) return { error: "حساب العملاء (1103) غير موجود" };
 
   let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;

@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, journalEntries, stockMovements, stockMovementBatches, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines } from "@/db/schema";
+import { purchaseReturns, purchaseReturnLines, purchaseInvoices, purchaseInvoiceLines, suppliers, journalEntries, stockMovements, stockMovementBatches, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -119,9 +120,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
     if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
     const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
-    const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103", "4201", "5301"])));
-    const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+    const A = await resolveAccountIds(auth.orgId, ["1104", "2103", "4201", "5301"]);
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
     const poLines = grn.purchaseOrderId
       ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
@@ -176,9 +175,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
   const tax = round2(net * taxRate);
   const total = round2(net + tax);
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["2101", "1104", "2103", "1107", "4201", "5301"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["2101", "1104", "2103", "1107", "4201", "5301"]);
   // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
   // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
   const fromReceipt = Boolean(inv.goodsReceiptId);

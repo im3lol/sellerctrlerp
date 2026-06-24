@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseInvoices, purchaseInvoiceLines, suppliers, accounts, purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines } from "@/db/schema";
+import { purchaseInvoices, purchaseInvoiceLines, suppliers, purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -110,9 +111,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
 
   // GRN path debits GRNI (2103); standalone path debits Inventory (1104) + adds stock.
   const codes = fromReceipt ? ["2103", "1107", "2101"] : ["1104", "1107", "2101"];
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, codes)));
-  const byCode = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const byCode = await resolveAccountIds(auth.orgId, codes);
   const debitAcc = fromReceipt ? byCode["2103"] : byCode["1104"];
   if (!debitAcc || !byCode["2101"]) return { error: "حسابات الترحيل غير مكتملة." };
 

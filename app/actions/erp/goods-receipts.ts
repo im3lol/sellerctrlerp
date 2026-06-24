@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, accounts, items, stockMovements, stockMovementBatches,
+  purchaseInvoices, purchaseInvoiceLines, items, stockMovements, stockMovementBatches,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
@@ -167,9 +168,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     if (Number(gl.quantity) > remaining + EPS) return { error: "الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
   }
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
   if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
 
   const receiptDate = new Date(grn.date);
@@ -379,9 +378,7 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
   if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "2103"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
   if (!A["1104"] || !A["2103"]) return { error: "حسابات العكس غير مكتملة" };
 
   const poLines = grn.purchaseOrderId

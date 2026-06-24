@@ -5,8 +5,9 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { items, warehouses, accounts, stockAdjustments, stockAdjustmentLines } from "@/db/schema";
+import { items, warehouses, stockAdjustments, stockAdjustmentLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -110,9 +111,7 @@ export async function confirmStockAdjustmentAction(id: string): Promise<ActionSt
   const lines = await db.select().from(stockAdjustmentLines).where(eq(stockAdjustmentLines.stockAdjustmentId, id));
   if (lines.length === 0) return { error: "لا توجد بنود في التسوية" };
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "4201", "5301"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["1104", "4201", "5301"]);
   if (!A["1104"] || !A["4201"] || !A["5301"]) return { error: "حسابات تسويات المخزون غير مكتملة (1104/4201/5301)." };
 
   const d = adj.date instanceof Date ? adj.date : new Date(adj.date);

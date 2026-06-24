@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, accounts, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -133,11 +134,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
   if (!inv) return { error: "الفاتورة غير موجودة" };
   if (inv.status !== "DRAFT") return { error: "الفاتورة مُرحّلة بالفعل" };
 
-  const accs = await db
-    .select({ code: accounts.code, id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1103", "4101", "2102", "5101", "1104"])));
-  const byCode = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const byCode = await resolveAccountIds(auth.orgId, ["1103", "4101", "2102", "5101", "1104"]);
   if (!byCode["1103"] || !byCode["4101"]) {
     return { error: "حسابات الترحيل غير مكتملة (العملاء/المبيعات). أضِفها في دليل الحسابات." };
   }

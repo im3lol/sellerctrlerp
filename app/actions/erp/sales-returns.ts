@@ -5,8 +5,9 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, accounts, warehouses, journalEntries, stockMovements, stockMovementBatches, deliveryNotes, deliveryNoteLines, salesOrderLines } from "@/db/schema";
+import { salesReturns, salesReturnLines, salesInvoices, salesInvoiceLines, customers, warehouses, journalEntries, stockMovements, stockMovementBatches, deliveryNotes, deliveryNoteLines, salesOrderLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -125,9 +126,7 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, id));
     if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
     const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
-    const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["1104", "5101"])));
-    const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+    const A = await resolveAccountIds(auth.orgId, ["1104", "5101"]);
     if (!A["1104"] || !A["5101"]) return { error: "حسابات الترحيل غير مكتملة." };
     const soLines = dn.salesOrderId
       ? await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId))
@@ -175,9 +174,7 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
   const tax = round2(net * taxRate);
   const total = round2(net + tax);
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["4102", "2102", "1103", "1104", "5101"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["4102", "2102", "1103", "1104", "5101"]);
   if (!A["4102"] || !A["1103"]) return { error: "حسابات الترحيل غير مكتملة (مردودات/العملاء)." };
 
   const whId = ret.warehouseId;

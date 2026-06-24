@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, accounts, items, stockMovements, stockMovementBatches, warehouses,
+  salesInvoices, salesInvoiceLines, items, stockMovements, stockMovementBatches, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
@@ -167,9 +168,7 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
     if (Number(dl.quantity) > remaining + EPS) return { error: "الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
   }
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["5101", "1104"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["5101", "1104"]);
 
   const deliveryDate = new Date(dn.date);
   try {
@@ -366,9 +365,7 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
     .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
   if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
-  const accs = await db.select({ code: accounts.code, id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.code, ["5101", "1104"])));
-  const A = Object.fromEntries(accs.map((a) => [a.code, a.id]));
+  const A = await resolveAccountIds(auth.orgId, ["5101", "1104"]);
   if (!A["5101"] || !A["1104"]) return { error: "حسابات العكس غير مكتملة" };
 
   const soLines = dn.salesOrderId
