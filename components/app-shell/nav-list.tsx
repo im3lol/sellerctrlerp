@@ -17,7 +17,7 @@ function visibleItems(section: NavSection, role: Role) {
   return section.items.filter((it) => !it.capability || can(role, it.capability as Capability));
 }
 
-export function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
+export function NavList({ role, modules, onNavigate }: { role: Role; modules?: string[]; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   // A module is open if it contains the active route. Users can toggle modules
@@ -37,6 +37,8 @@ export function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => v
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       {NAV.map((section, i) => {
+        // Subscription gate: hide a module the tenant doesn't have.
+        if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
         const items = visibleItems(section, role);
         if (items.length === 0) return null;
 

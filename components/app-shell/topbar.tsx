@@ -18,12 +18,14 @@ export function Topbar({
   attendance,
   orgs,
   activeOrgId,
+  modules,
 }: {
   user: { name: string; email: string; role: Role; title?: string | null; avatarUrl?: string | null };
   unreadCount: number;
   attendance: AttendanceSnapshot;
   orgs: { id: string; nameAr: string }[];
   activeOrgId: string | null;
+  modules: string[];
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
@@ -37,7 +39,7 @@ export function Topbar({
           <div className="flex h-16 items-center px-6">
             <Logo className="text-2xl text-sidebar-foreground" />
           </div>
-          <NavList role={user.role} />
+          <NavList role={user.role} modules={modules} />
         </SheetContent>
       </Sheet>
 

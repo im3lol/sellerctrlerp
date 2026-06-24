@@ -11,6 +11,7 @@ export type NavItem = {
 export type NavSection = {
   heading?: string; // module name. When set, the group is collapsible (heading toggles it).
   icon?: string; // module (lucide) icon shown next to the heading
+  moduleKey?: string; // subscription module gate; hidden when the tenant lacks it
   items: NavItem[];
 };
 
@@ -25,6 +26,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المحاسبة",
+    moduleKey: "accounting",
     icon: "Calculator",
     items: [
       { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
@@ -41,6 +43,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المشتريات",
+    moduleKey: "purchases",
     icon: "Truck",
     items: [
       { label: "الموردون", href: "/erp/purchases", icon: "Users", capability: "erp.purchases.view", exact: true },
@@ -51,6 +54,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المخزون",
+    moduleKey: "inventory",
     icon: "Warehouse",
     items: [
       { label: "نظرة عامة", href: "/erp/inventory", icon: "LayoutDashboard", capability: "erp.inventory.view", exact: true },
@@ -67,6 +71,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المبيعات",
+    moduleKey: "sales",
     icon: "ShoppingCart",
     items: [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
@@ -78,6 +83,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "إدارة العملاء (CRM)",
+    moduleKey: "crm",
     icon: "Headset",
     items: [
       { label: "مساحات العمل", href: "/workspaces", icon: "Briefcase" },
@@ -91,6 +97,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المستثمرون",
+    moduleKey: "investors",
     icon: "Coins",
     items: [
       { label: "نظرة عامة", href: "/erp/investors", icon: "Coins", capability: "erp.investors.view" },
@@ -98,6 +105,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "الموارد البشرية",
+    moduleKey: "hr",
     icon: "UsersRound",
     items: [
       { label: "الحضور", href: "/attendance", icon: "Clock" },
@@ -107,6 +115,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "التقارير والتحليلات",
+    moduleKey: "reports",
     icon: "ChartColumn",
     items: [
       { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie", capability: "erp.reports.view", exact: true },
@@ -121,6 +130,7 @@ export const NAV: NavSection[] = [
     heading: "الإدارة والإعدادات",
     icon: "ShieldCheck",
     items: [
+      { label: "لوحة المالك (الاشتراكات)", href: "/admin/platform", icon: "KeyRound", capability: "role.manage" },
       { label: "الموظفون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
       { label: "العملاء", href: "/admin/clients", icon: "Store", capability: "client.manage" },
       { label: "سجل التدقيق", href: "/admin/audit", icon: "ShieldCheck", capability: "role.manage" },

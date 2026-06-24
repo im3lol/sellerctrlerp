@@ -1188,3 +1188,51 @@ export const salesReturnLines = pgTable("sales_return_lines", {
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
 });
+
+/* ═══════════════ PLATFORM / LICENSING (SaaS) ══════════════ */
+
+// One subscription/entitlement record per customer organization. `enabledModules`
+// is the source of truth for which ERP modules the tenant may access; the page
+// guards + nav read it. Managed by the platform owner (system_admin).
+export const orgSubscriptions = pgTable(
+  "org_subscriptions",
+  {
+    id: pk(),
+    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("NONE"), // NONE, TRIAL, ACTIVE, EXPIRED, CANCELLED
+    interval: text("interval"), // MONTHLY, ANNUAL
+    planName: text("plan_name"),
+    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+    startedAt: ts("started_at"),
+    expiresAt: ts("expires_at"),
+    activatedByCodeId: text("activated_by_code_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("org_subscriptions_org_idx").on(t.organizationId)],
+);
+
+// Activation codes are stored ONLY as an HMAC hash (never plaintext). The full
+// code is shown once at creation; redeeming activates/extends a tenant's
+// subscription with the code's interval + duration + modules. Single-use,
+// revocable, optionally time-limited.
+export const activationCodes = pgTable(
+  "activation_codes",
+  {
+    id: pk(),
+    codeHash: text("code_hash").notNull(),
+    codeHint: text("code_hint").notNull(), // masked, e.g. "SCTL-••••-••••-7Q3X"
+    interval: text("interval").notNull().default("ANNUAL"), // MONTHLY, ANNUAL
+    durationMonths: integer("duration_months").notNull().default(12),
+    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+    planName: text("plan_name"),
+    status: text("status").notNull().default("UNUSED"), // UNUSED, USED, REVOKED
+    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+    redeemedAt: ts("redeemed_at"),
+    expiresAt: ts("expires_at"), // code validity window (optional)
+    notes: text("notes"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("activation_codes_hash_idx").on(t.codeHash)],
+);

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg, type OrgSummary } from "@/lib/erp/org";
+import { orgHasModule } from "@/lib/erp/entitlements";
 import { can, type Capability, type Role } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 
@@ -18,6 +19,8 @@ export async function requireCrm(capability?: Capability): Promise<CrmContext> {
   const { org } = await getActiveOrg();
   if (!org) redirect("/dashboard");
   if (capability && !can(user.role as Role, capability)) redirect("/dashboard");
+  // CRM module entitlement (platform owner bypasses).
+  if (user.role !== "system_admin" && !(await orgHasModule(org.id, "crm"))) redirect("/dashboard?locked=crm");
   return { user, role: user.role as Role, orgId: org.id, org };
 }
 
