@@ -92,12 +92,16 @@ function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; o
     { label: "منتهية الصلاحية", value: o.expiredCount, href: "/erp/inventory/expiry", tone: o.expiredCount ? "text-destructive" : "text-muted-foreground" },
   ];
 
-  const max = Math.max(o.income, o.expense, Math.abs(o.net), 1);
-  const bars = [
-    { label: "الإيرادات", value: o.income, color: "bg-rose-400" },
-    { label: "المصروفات", value: o.expense, color: "bg-blue-500" },
-    { label: "صافي الربح", value: o.net, color: o.net >= 0 ? "bg-emerald-500" : "bg-destructive" },
-  ];
+  // P&L trend line: revenue vs expenses over the last 6 months. SVG x runs
+  // left→right; the board is RTL so the oldest month sits at the right edge.
+  const trend = o.pnlTrend;
+  const W = 300, top = 8, bot = 84, padX = 10;
+  const trendMax = Math.max(...trend.flatMap((t) => [t.revenue, t.expense]), 1);
+  const n = trend.length;
+  const xAt = (i: number) => (n <= 1 ? W / 2 : (W - padX) - i * ((W - 2 * padX) / (n - 1)));
+  const yAt = (v: number) => top + (1 - Math.max(v, 0) / trendMax) * (bot - top);
+  const revPts = trend.map((t, i) => `${xAt(i).toFixed(1)},${yAt(t.revenue).toFixed(1)}`).join(" ");
+  const expPts = trend.map((t, i) => `${xAt(i).toFixed(1)},${yAt(t.expense).toFixed(1)}`).join(" ");
 
   return (
     <section className="space-y-4">
@@ -108,18 +112,21 @@ function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; o
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Profit & Loss chart */}
+        {/* Profit & Loss trend (line chart) */}
         <Card className="space-y-3 p-5 lg:col-span-2">
-          <h3 className="text-sm font-semibold text-muted-foreground">الأرباح والخسائر</h3>
-          <div className="flex h-40 items-end justify-around gap-6 border-b pb-2">
-            {bars.map((b) => (
-              <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                <span className="text-xs font-semibold tabular-nums">{money(b.value)}</span>
-                <div className={cn("w-full max-w-24 rounded-t-md", b.color)} style={{ height: `${Math.max((Math.abs(b.value) / max) * 100, 2)}%` }} />
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">الأرباح والخسائر</h3>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-rose-400" /> الإيرادات</span>
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-blue-500" /> المصروفات</span>
+            </div>
           </div>
-          <div className="flex justify-around text-xs text-muted-foreground">{bars.map((b) => <span key={b.label}>{b.label}</span>)}</div>
+          <svg viewBox="0 0 300 96" preserveAspectRatio="none" className="h-40 w-full">
+            <line x1="0" y1="84" x2="300" y2="84" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <polyline points={revPts} fill="none" className="stroke-rose-400" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <polyline points={expPts} fill="none" className="stroke-blue-500" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <div className="flex justify-between px-1 text-xs text-muted-foreground">{trend.map((t, i) => <span key={i}>{t.label}</span>)}</div>
         </Card>
 
         {/* This month */}

@@ -22,11 +22,41 @@ export type ErpOverview = {
   nearExpiryCount: number;
   expiredCount: number;
   topItems: { name: string; value: number }[];
+  /** Revenue vs expenses per month over the last 6 months (oldest → newest). */
+  pnlTrend: { label: string; revenue: number; expense: number }[];
 };
+
+const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
 function monthStart(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+/** Build a 6-month revenue/expense series from posted GL, filling empty months. */
+async function pnlTrend(orgId: string): Promise<{ label: string; revenue: number; expense: number }[]> {
+  const now = new Date();
+  const since6 = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const rows = (await db.execute<{ ym: string; revenue: string; expense: string }>(sql`
+    SELECT to_char(je.date, 'YYYY-MM') AS ym,
+           COALESCE(sum(CASE WHEN a.type = 'REVENUE' THEN jl.credit - jl.debit ELSE 0 END), 0) AS revenue,
+           COALESCE(sum(CASE WHEN a.type = 'EXPENSE' THEN jl.debit - jl.credit ELSE 0 END), 0) AS expense
+    FROM journal_entry_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    JOIN accounts a ON a.id = jl.account_id
+    WHERE je.organization_id = ${orgId} AND je.status = 'POSTED' AND je.date >= ${since6}
+    GROUP BY ym
+  `)).rows as { ym: string; revenue: string; expense: string }[];
+  const byMonth = new Map(rows.map((r) => [r.ym, r]));
+
+  const out: { label: string; revenue: number; expense: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const r = byMonth.get(key);
+    out.push({ label: AR_MONTHS[d.getMonth()], revenue: Number(r?.revenue ?? 0), expense: Number(r?.expense ?? 0) });
+  }
+  return out;
 }
 
 /**
@@ -52,7 +82,7 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     WHERE i.organization_id = ${orgId} AND i.is_active = true
   `)).rows as { name: string; min_stock: string; qty: string; val: string }[];
 
-  const [balances, [sm], [pm], expiry] = await Promise.all([
+  const [balances, [sm], [pm], expiry, trend] = await Promise.all([
     accountBalances({ orgId }),
     db.select({ n: sql<number>`count(*)`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
       .from(salesInvoices)
@@ -61,6 +91,7 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
       .from(purchaseInvoices)
       .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED"), gte(purchaseInvoices.date, since))),
     getExpiryReport(orgId, {}),
+    pnlTrend(orgId),
   ]);
 
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
@@ -94,5 +125,6 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     nearExpiryCount: expiry.totals.nearCount,
     expiredCount: expiry.totals.expiredCount,
     topItems,
+    pnlTrend: trend,
   };
 }
