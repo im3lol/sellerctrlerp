@@ -1,10 +1,6 @@
 import Link from "next/link";
-import { and, eq, gte, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
-import { db } from "@/lib/db";
-import { salesInvoices, purchaseInvoices } from "@/db/schema";
-import { accountBalances, naturalAmount } from "@/lib/erp/financials";
-import { getExpiryReport } from "@/lib/erp/expiry";
+import { getErpOverview } from "@/lib/erp/overview";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
@@ -28,81 +24,32 @@ const SHORTCUTS = [
   { label: "أعمار الديون (موردون)", href: "/erp/purchases/aging", icon: "Truck" },
 ] as const;
 
-function monthStart() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
 export default async function ErpDashboardPage() {
   const { orgId } = await requireErpModule("reports.view");
-  const since = monthStart();
+  const o = await getErpOverview(orgId);
 
-  // Inventory on-hand value/qty per item (latest balance per warehouse), with min-stock flags.
-  const invRows = (await db.execute<{ name: string; min_stock: string; qty: string; val: string }>(sql`
-    SELECT COALESCE(i.name_ar, i.code) AS name, i.min_stock,
-           COALESCE(s.qty, 0) AS qty, COALESCE(s.val, 0) AS val
-    FROM items i
-    LEFT JOIN (
-      SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
-        SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
-        FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, number DESC
-      ) t GROUP BY item_id
-    ) s ON s.item_id = i.id
-    WHERE i.organization_id = ${orgId} AND i.is_active = true
-  `)).rows as { name: string; min_stock: string; qty: string; val: string }[];
-
-  const [balances, [sm], [pm], expiry] = await Promise.all([
-    accountBalances({ orgId }),
-    db.select({ n: sql<number>`count(*)`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
-      .from(salesInvoices)
-      .where(and(eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "POSTED"), gte(salesInvoices.date, since))),
-    db.select({ n: sql<number>`count(*)`, t: sql<string>`coalesce(sum(${purchaseInvoices.totalAmount}),0)` })
-      .from(purchaseInvoices)
-      .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED"), gte(purchaseInvoices.date, since))),
-    getExpiryReport(orgId, {}),
-  ]);
-
-  // Financial figures from posted GL.
-  const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
-  const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
-  const net = income - expense;
-  const byCode = Object.fromEntries(balances.map((b) => [b.code, b.balance]));
-  const ar = byCode["1103"] ?? 0;
-  const ap = -(byCode["2101"] ?? 0);
-  const cash = (byCode["1101"] ?? 0) + (byCode["1102"] ?? 0);
-
-  // Inventory aggregates.
-  const totalValue = invRows.reduce((s, r) => s + Number(r.val), 0);
-  const totalItems = invRows.length;
-  const lowStock = invRows.filter((r) => Number(r.min_stock) > 0 && Number(r.qty) <= Number(r.min_stock) && Number(r.qty) > 0).length;
-  const outOfStock = invRows.filter((r) => Number(r.qty) <= 0).length;
-  const topItems = [...invRows].filter((r) => Number(r.val) > 0).sort((a, b) => Number(b.val) - Number(a.val)).slice(0, 6);
-  const maxVal = Math.max(...topItems.map((r) => Number(r.val)), 1);
-
-  const salesMonth = Number(sm.t);
-  const purchMonth = Number(pm.t);
+  const maxVal = Math.max(...o.topItems.map((r) => r.value), 1);
 
   const kpis = [
-    { label: "صافي الربح/الخسارة", value: money(net), tone: net >= 0 ? "text-emerald-600" : "text-destructive", icon: "TrendingUp" },
-    { label: "النقدية والبنوك", value: money(cash), tone: "text-foreground", icon: "Wallet" },
-    { label: "الذمم المدينة (عملاء)", value: money(ar), tone: "text-foreground", icon: "Users" },
-    { label: "الذمم الدائنة (موردون)", value: money(ap), tone: "text-foreground", icon: "Truck" },
-    { label: "قيمة المخزون", value: money(totalValue), tone: "text-emerald-600", icon: "Boxes" },
+    { label: "صافي الربح/الخسارة", value: money(o.net), tone: o.net >= 0 ? "text-emerald-600" : "text-destructive", icon: "TrendingUp" },
+    { label: "النقدية والبنوك", value: money(o.cash), tone: "text-foreground", icon: "Wallet" },
+    { label: "الذمم المدينة (عملاء)", value: money(o.ar), tone: "text-foreground", icon: "Users" },
+    { label: "الذمم الدائنة (موردون)", value: money(o.ap), tone: "text-foreground", icon: "Truck" },
+    { label: "قيمة المخزون", value: money(o.inventoryValue), tone: "text-emerald-600", icon: "Boxes" },
   ];
 
-  const max = Math.max(income, expense, Math.abs(net), 1);
+  const max = Math.max(o.income, o.expense, Math.abs(o.net), 1);
   const bars = [
-    { label: "الإيرادات", value: income, color: "bg-rose-400" },
-    { label: "المصروفات", value: expense, color: "bg-blue-500" },
-    { label: "صافي الربح", value: net, color: net >= 0 ? "bg-emerald-500" : "bg-destructive" },
+    { label: "الإيرادات", value: o.income, color: "bg-rose-400" },
+    { label: "المصروفات", value: o.expense, color: "bg-blue-500" },
+    { label: "صافي الربح", value: o.net, color: o.net >= 0 ? "bg-emerald-500" : "bg-destructive" },
   ];
 
   const alerts = [
-    { label: "تحت حد الطلب", value: lowStock, href: "/erp/inventory/reorder", icon: "TriangleAlert", tone: lowStock ? "text-amber-600" : "text-muted-foreground" },
-    { label: "أصناف منتهية المخزون", value: outOfStock, href: "/erp/inventory/reorder", icon: "PackageX", tone: outOfStock ? "text-destructive" : "text-muted-foreground" },
-    { label: "دفعات قاربت الانتهاء", value: expiry.totals.nearCount, href: "/erp/inventory/expiry", icon: "Clock", tone: expiry.totals.nearCount ? "text-amber-600" : "text-muted-foreground" },
-    { label: "دفعات منتهية الصلاحية", value: expiry.totals.expiredCount, href: "/erp/inventory/expiry", icon: "CalendarX", tone: expiry.totals.expiredCount ? "text-destructive" : "text-muted-foreground" },
+    { label: "تحت حد الطلب", value: o.lowStock, href: "/erp/inventory/reorder", icon: "TriangleAlert", tone: o.lowStock ? "text-amber-600" : "text-muted-foreground" },
+    { label: "أصناف منتهية المخزون", value: o.outOfStock, href: "/erp/inventory/reorder", icon: "PackageX", tone: o.outOfStock ? "text-destructive" : "text-muted-foreground" },
+    { label: "دفعات قاربت الانتهاء", value: o.nearExpiryCount, href: "/erp/inventory/expiry", icon: "Clock", tone: o.nearExpiryCount ? "text-amber-600" : "text-muted-foreground" },
+    { label: "دفعات منتهية الصلاحية", value: o.expiredCount, href: "/erp/inventory/expiry", icon: "CalendarX", tone: o.expiredCount ? "text-destructive" : "text-muted-foreground" },
   ];
 
   return (
@@ -156,16 +103,16 @@ export default async function ErpDashboardPage() {
             <div>
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground"><Icon name="ReceiptText" className="size-4 text-emerald-600" /> مبيعات الشهر</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(Number(sm.n))} فاتورة</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(o.salesCount)} فاتورة</span>
               </div>
-              <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(salesMonth)}</div>
+              <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(o.salesMonth)}</div>
             </div>
             <div className="border-t pt-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground"><Icon name="ShoppingCart" className="size-4 text-blue-600" /> مشتريات الشهر</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(Number(pm.n))} فاتورة</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(o.purchasesCount)} فاتورة</span>
               </div>
-              <div className="mt-1 text-2xl font-bold tabular-nums text-blue-600">{money(purchMonth)}</div>
+              <div className="mt-1 text-2xl font-bold tabular-nums text-blue-600">{money(o.purchasesMonth)}</div>
             </div>
           </CardContent>
         </Card>
@@ -176,17 +123,17 @@ export default async function ErpDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>أعلى الأصناف قيمةً</CardTitle>
-            <CardDescription>أكبر 6 أصناف من حيث قيمة المخزون ({intf(totalItems)} صنف نشِط).</CardDescription>
+            <CardDescription>أكبر 6 أصناف من حيث قيمة المخزون ({intf(o.totalItems)} صنف نشِط).</CardDescription>
           </CardHeader>
           <CardContent>
-            {topItems.length === 0 ? (
+            {o.topItems.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">لا توجد أرصدة بعد.</div>
             ) : (
               <div className="space-y-3">
-                {topItems.map((r) => (
+                {o.topItems.map((r) => (
                   <div key={r.name} className="space-y-1">
-                    <div className="flex justify-between text-sm"><span className="truncate">{r.name}</span><span className="font-medium tabular-nums">{money(Number(r.val))}</span></div>
-                    <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((Number(r.val) / maxVal) * 100, 2)}%` }} /></div>
+                    <div className="flex justify-between text-sm"><span className="truncate">{r.name}</span><span className="font-medium tabular-nums">{money(r.value)}</span></div>
+                    <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((r.value / maxVal) * 100, 2)}%` }} /></div>
                   </div>
                 ))}
               </div>

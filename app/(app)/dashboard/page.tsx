@@ -10,14 +10,22 @@ import {
   getCompletionTrend,
   getEmployeeKpis,
 } from "@/lib/queries/kpi";
+import { getActiveOrg } from "@/lib/erp/org";
+import { getErpRole } from "@/lib/erp/auth-guard";
+import { getErpOverview, type ErpOverview } from "@/lib/erp/overview";
+import { cn } from "@/lib/utils";
 import { formatDurationAr } from "@/components/attendance/format";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/ui/card";
+import { Icon } from "@/components/icon";
 import { StatusDonut } from "@/components/charts/status-donut";
 import { CompletionLine } from "@/components/charts/completion-line";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
 import { StatusBadge } from "@/components/products/status-badge";
+
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -25,17 +33,25 @@ export default async function DashboardPage() {
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const todaySeconds = await workedSecondsSince(user.id, startOfDay);
 
-  const terminalStatuses = await db
-    .select({ id: productStatuses.id })
-    .from(productStatuses)
-    .where(eq(productStatuses.isTerminal, true));
+  // ERP overview is surfaced here (the unified home) when the user has access to
+  // an active organization with an ERP role — so the system's financial/inventory
+  // reports lead the dashboard instead of living only under /erp.
+  const { org } = await getActiveOrg();
+  const erpRole = org ? await getErpRole(org.id, user) : null;
+
+  const [todaySeconds, terminalStatuses, overview] = await Promise.all([
+    workedSecondsSince(user.id, startOfDay),
+    db.select({ id: productStatuses.id }).from(productStatuses).where(eq(productStatuses.isTerminal, true)),
+    org && erpRole ? getErpOverview(org.id) : Promise.resolve(null),
+  ]);
   const terminalIds = terminalStatuses.map((s) => s.id);
 
   return (
     <div className="space-y-6">
       <PageHeader title={`أهلاً، ${user.name.split(" ")[0]} 👋`} description="نظرة عامة سريعة على عملياتك اليوم" />
+
+      {overview && org && <ErpOverviewSection overview={overview} orgName={org.nameAr} />}
 
       {manager ? (
         <ManagerDashboard todaySeconds={todaySeconds} terminalIds={terminalIds} />
@@ -43,6 +59,86 @@ export default async function DashboardPage() {
         <EmployeeDashboard userId={user.id} todaySeconds={todaySeconds} terminalIds={terminalIds} />
       )}
     </div>
+  );
+}
+
+const REPORT_LINKS = [
+  { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie" },
+  { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp" },
+  { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale" },
+  { label: "أعمار الذمم (عملاء)", href: "/erp/sales/aging", icon: "Users" },
+  { label: "أعمار الذمم (موردون)", href: "/erp/purchases/aging", icon: "Truck" },
+  { label: "أرصدة المخزون", href: "/erp/inventory/stock", icon: "Boxes" },
+] as const;
+
+function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; orgName: string }) {
+  const kpis = [
+    { label: "صافي الربح/الخسارة", value: money(o.net), icon: "TrendingUp", tone: o.net >= 0 ? "green" : "red" },
+    { label: "النقدية والبنوك", value: money(o.cash), icon: "Wallet", tone: "blue" },
+    { label: "ذمم مدينة (عملاء)", value: money(o.ar), icon: "Users", tone: "purple" },
+    { label: "ذمم دائنة (موردون)", value: money(o.ap), icon: "Truck", tone: "yellow" },
+    { label: "قيمة المخزون", value: money(o.inventoryValue), icon: "Boxes", tone: "slate" },
+  ] as const;
+
+  const alerts = [
+    { label: "تحت حد الطلب", value: o.lowStock, href: "/erp/inventory/reorder", tone: o.lowStock ? "text-amber-600" : "text-muted-foreground" },
+    { label: "نواقص المخزون", value: o.outOfStock, href: "/erp/inventory/reorder", tone: o.outOfStock ? "text-destructive" : "text-muted-foreground" },
+    { label: "قرب الانتهاء", value: o.nearExpiryCount, href: "/erp/inventory/expiry", tone: o.nearExpiryCount ? "text-amber-600" : "text-muted-foreground" },
+    { label: "منتهية الصلاحية", value: o.expiredCount, href: "/erp/inventory/expiry", tone: o.expiredCount ? "text-destructive" : "text-muted-foreground" },
+  ];
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-semibold"><Icon name="Building2" className="size-4 text-primary" /> نظرة عامة على النظام — {orgName}</h2>
+        <Link href="/erp/dashboard" className="text-sm text-primary hover:underline">لوحة ERP الكاملة ←</Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} icon={k.icon} tone={k.tone} />)}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* This month */}
+        <Card className="space-y-4 p-5">
+          <h3 className="text-sm font-semibold text-muted-foreground">حركة الشهر</h3>
+          <div>
+            <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><Icon name="ReceiptText" className="size-4 text-success" /> مبيعات</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(o.salesCount)}</span></div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-success">{money(o.salesMonth)}</div>
+          </div>
+          <div className="border-t pt-3">
+            <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><Icon name="ShoppingCart" className="size-4 text-primary" /> مشتريات</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{intf(o.purchasesCount)}</span></div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-primary">{money(o.purchasesMonth)}</div>
+          </div>
+        </Card>
+
+        {/* Alerts */}
+        <Card className="space-y-3 p-5">
+          <h3 className="text-sm font-semibold text-muted-foreground">تنبيهات المخزون</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {alerts.map((a) => (
+              <Link key={a.label} href={a.href} className="rounded-lg border px-3 py-2 transition-colors hover:border-primary hover:bg-accent">
+                <div className="text-xs text-muted-foreground">{a.label}</div>
+                <div className={cn("text-xl font-bold tabular-nums", a.tone)}>{intf(a.value)}</div>
+              </Link>
+            ))}
+          </div>
+        </Card>
+
+        {/* Report quick links */}
+        <Card className="space-y-2 p-5">
+          <h3 className="text-sm font-semibold text-muted-foreground">التقارير</h3>
+          <div className="grid gap-1.5">
+            {REPORT_LINKS.map((r) => (
+              <Link key={r.href} href={r.href} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-accent">
+                <Icon name={r.icon} className="size-4 text-primary" /> <span className="flex-1">{r.label}</span>
+                <Icon name="ChevronLeft" className="size-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </section>
   );
 }
 
