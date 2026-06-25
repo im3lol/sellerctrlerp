@@ -83,6 +83,7 @@ export const NAV: NavSection[] = [
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
       { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view" },
+      { label: "تقرير الأصناف", href: "/erp/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view" },
     ],
   },
   {
@@ -132,6 +133,13 @@ export const NAV: NavSection[] = [
       { label: "تقارير العمليات", href: "/reports", icon: "BarChart3", capability: "reports.view" },
       { label: "متابعة الأداء", href: "/admin/monitoring", icon: "Activity", capability: "reports.view" },
       { label: "المساعد الذكي", href: "/assistant", icon: "Sparkles", capability: "ai.use" },
+    ],
+  },
+  {
+    heading: "الأدوات",
+    icon: "Wrench",
+    items: [
+      { label: "استيراد البيانات (CSV)", href: "/erp/imports", icon: "Upload", capability: "erp.sales.view" },
     ],
   },
   {

@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices, salesReturns } from "@/db/schema";
+import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices, salesReturns, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DeliveryDetailActions } from "@/components/erp/delivery-detail-actions";
+import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -42,11 +43,20 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
   const [wh] = await db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, dn.warehouseId)).limit(1);
 
   const lines = await db
-    .select({ id: deliveryNoteLines.id, qty: deliveryNoteLines.quantity, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
+    .select({ id: deliveryNoteLines.id, itemId: deliveryNoteLines.itemId, qty: deliveryNoteLines.quantity, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
     .from(deliveryNoteLines)
     .leftJoin(items, eq(items.id, deliveryNoteLines.itemId))
     .leftJoin(warehouses, eq(warehouses.id, deliveryNoteLines.warehouseId))
     .where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+
+  const itemIds = lines.map((l) => l.itemId).filter(Boolean) as string[];
+  const barcodeRows = itemIds.length
+    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true))
+    : [];
+  const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
+  const barcodeItems = lines
+    .filter((l) => l.itemId && barcodeMap[l.itemId])
+    .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.code ?? "", itemName: l.name ?? "", quantity: Math.max(1, Math.round(Number(l.qty ?? 1))) }));
 
   const linked: DocLink[] = [];
   if (dn.salesOrderId) {
@@ -75,7 +85,12 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         title={`إذن صرف ${dn.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
         backHref="/erp/sales/deliveries"
-        action={<DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />}
+        action={
+          <div className="flex gap-2">
+            <BarcodePrintButton items={barcodeItems} />
+            <DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

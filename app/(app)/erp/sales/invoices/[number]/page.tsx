@@ -10,6 +10,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesInvoiceDetailActions } from "@/components/erp/sales-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { AttachmentsCard } from "@/components/erp/attachments-card";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -117,6 +118,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
         </CardContent>
       </Card>
 
+      <AttachmentsCard entityType="SALES_INVOICE" entityId={inv.id} canManage={canManage} />
       <LinkedDocsCard links={linked} />
       <DocAuditCard rows={audit} />
     </div>

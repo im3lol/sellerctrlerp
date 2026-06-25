@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices, purchaseReturns } from "@/db/schema";
+import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices, purchaseReturns, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
+import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -42,12 +43,24 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
   const [wh] = await db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1);
 
   const lines = await db
-    .select({ id: purchaseReceiptLines.id, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
+    .select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
     .from(purchaseReceiptLines)
     .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
     .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
     .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
   const anyRejected = lines.some((l) => Number(l.rejected) > 0);
+
+  // Fetch primary barcode per item for label printing
+  const itemIds = lines.map((l) => l.itemId).filter(Boolean) as string[];
+  const barcodeRows = itemIds.length
+    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code })
+        .from(itemCodes)
+        .where(and(eq(itemCodes.isPrimary, true)))
+    : [];
+  const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
+  const barcodeItems = lines
+    .filter((l) => l.itemId && barcodeMap[l.itemId])
+    .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.code ?? "", itemName: l.name ?? "", quantity: Math.max(1, Math.round(Number(l.qty ?? 1))) }));
 
   const linked: DocLink[] = [];
   if (grn.purchaseOrderId) {
@@ -76,7 +89,12 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         title={`إذن استلام ${grn.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
         backHref="/erp/purchases/receipts"
-        action={<ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />}
+        action={
+          <div className="flex gap-2">
+            <BarcodePrintButton items={barcodeItems} />
+            <ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

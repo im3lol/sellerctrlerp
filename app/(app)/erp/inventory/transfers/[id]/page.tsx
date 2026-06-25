@@ -3,12 +3,13 @@ import { and, asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { stockTransfers, stockTransferLines, items, warehouses } from "@/db/schema";
+import { stockTransfers, stockTransferLines, items, warehouses, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
+import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -21,6 +22,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
   const [tr] = await db.select().from(stockTransfers)
     .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
   if (!tr) notFound();
+
 
   const fromWh = alias(warehouses, "from_wh");
   const toWh = alias(warehouses, "to_wh");
@@ -40,6 +42,24 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
     .where(eq(stockTransferLines.stockTransferId, id))
     .orderBy(asc(items.code));
 
+  const lineItemIds = lines.map((l) => l.id).filter(Boolean) as string[];
+  const barcodeRows = lineItemIds.length
+    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true))
+    : [];
+  const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
+
+  // Map transfer lines: use itemId from stockTransferLines
+  const transferBarcodeItems = await (async () => {
+    const fullLines = await db
+      .select({ itemId: stockTransferLines.itemId, quantity: stockTransferLines.quantity, itemCode: items.code, itemName: items.nameAr })
+      .from(stockTransferLines)
+      .leftJoin(items, eq(items.id, stockTransferLines.itemId))
+      .where(eq(stockTransferLines.stockTransferId, id));
+    return fullLines
+      .filter((l) => l.itemId && barcodeMap[l.itemId])
+      .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.itemCode ?? "", itemName: l.itemName ?? "", quantity: Math.max(1, Math.round(Number(l.quantity ?? 1))) }));
+  })();
+
   const isDraft = tr.status === "DRAFT";
 
   return (
@@ -49,7 +69,12 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
         title={`تحويل مخزني ${tr.number}`}
         subtitle={tr.notes ?? "نقل بين المستودعات"}
         backHref="/erp/inventory/transfers"
-        action={canManage && isDraft ? <StockRowActions docId={tr.id} type="transfer" status={tr.status} canManage={canManage} dest="/erp/inventory/transfers" /> : undefined}
+        action={
+          <div className="flex gap-2">
+            <BarcodePrintButton items={transferBarcodeItems} />
+            {canManage && isDraft && <StockRowActions docId={tr.id} type="transfer" status={tr.status} canManage={canManage} dest="/erp/inventory/transfers" />}
+          </div>
+        }
       />
 
       <Card>

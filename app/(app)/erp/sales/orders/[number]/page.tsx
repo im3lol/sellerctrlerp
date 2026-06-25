@@ -3,11 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
+import { Icon } from "@/components/icon";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -72,7 +75,16 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         title={`أمر بيع ${so.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "أمر بيع"}
         backHref="/erp/sales/orders"
-        action={<OrderRowActions orderId={so.id} type="sales" status={so.status} canManage={canManage} />}
+        action={
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/erp/sales/orders/${encodeURIComponent(so.number)}/print`} target="_blank">
+                <Icon name="Printer" className="size-4" />طباعة
+              </Link>
+            </Button>
+            <OrderRowActions orderId={so.id} type="sales" status={so.status} canManage={canManage} />
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

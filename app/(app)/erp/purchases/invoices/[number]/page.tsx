@@ -10,6 +10,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { AttachmentsCard } from "@/components/erp/attachments-card";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -122,6 +123,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
         </CardContent>
       </Card>
 
+      <AttachmentsCard entityType="PURCHASE_INVOICE" entityId={inv.id} canManage={canManage} />
       <LinkedDocsCard links={linked} />
       <DocAuditCard rows={audit} />
     </div>

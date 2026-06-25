@@ -828,6 +828,27 @@ export const accountBudgets = pgTable(
   ],
 );
 
+/* ═══════════════════════ ATTACHMENTS ══════════════════════ */
+
+export const documentAttachments = pgTable(
+  "document_attachments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    entityType: text("entity_type").notNull(), // SALES_INVOICE, PURCHASE_INVOICE, etc.
+    entityId: text("entity_id").notNull(),
+    fileName: text("file_name").notNull(),
+    fileSize: integer("file_size").notNull(), // bytes
+    mimeType: text("mime_type").notNull(),
+    content: text("content").notNull(), // base64-encoded
+    uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("document_attachments_entity_idx").on(t.organizationId, t.entityType, t.entityId),
+  ],
+);
+
 /* ══════════════════════════ BANKING ═══════════════════════ */
 
 export const bankAccounts = pgTable(
