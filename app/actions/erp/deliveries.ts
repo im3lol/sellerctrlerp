@@ -301,7 +301,13 @@ export async function getDeliveryInvoicePreviewAction(deliveryId: string): Promi
  * posted — posting recognises revenue/AR only (stock + COGS already done at
  * delivery). `date`/`notes` optional.
  */
-export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: string, notes?: string): Promise<ActionState & { invoiceId?: string }> {
+export async function convertDeliveryToInvoiceAction(
+  deliveryId: string,
+  date?: string,
+  notes?: string,
+  currencyCode?: string,
+  exchangeRate?: number,
+): Promise<ActionState & { invoiceId?: string }> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
 
@@ -323,12 +329,22 @@ export async function convertDeliveryToInvoiceAction(deliveryId: string, date?: 
 
   const invoiceDate = date ? new Date(date) : new Date(dn.date);
   const number = await nextNumber("SI", auth.orgId, invoiceDate.getFullYear());
+
+  // Multi-currency: delivery amounts are in base currency (SAR).
+  // If the user selects a foreign currency, foreignAmount = total / rate (display only).
+  const code = (currencyCode ?? "SAR").toUpperCase();
+  const rate = exchangeRate && exchangeRate > 0 ? exchangeRate : 1;
+  const foreignTotalAmount = code !== "SAR" ? Math.round((built.total / rate) * 10000) / 10000 : null;
+
   try {
     const invoiceId = await db.transaction(async (tx) => {
       const [inv] = await tx.insert(salesInvoices).values({
         organizationId: auth.orgId, number, customerId, deliveryNoteId: dn.id, date: invoiceDate, status: "DRAFT",
         subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), totalAmount: String(built.total),
         paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة تسليم ${dn.number}`,
+        currencyCode: code,
+        exchangeRate: String(rate),
+        foreignAmount: foreignTotalAmount !== null ? String(foreignTotalAmount) : null,
       }).returning({ id: salesInvoices.id });
       await tx.insert(salesInvoiceLines).values(built.lines.map((l) => ({
         salesInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),

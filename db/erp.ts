@@ -108,6 +108,24 @@ export const currencies = pgTable(
   (t) => [uniqueIndex("currencies_org_code_idx").on(t.organizationId, t.code)],
 );
 
+/** Daily exchange rates for multi-currency GL: 1 unit of `currencyCode` = `rate` units of base currency. */
+export const exchangeRates = pgTable(
+  "exchange_rates",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    currencyCode: text("currency_code").notNull(),
+    date: ts("date").notNull(),
+    rate: numeric("rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("exchange_rates_org_code_date_idx").on(t.organizationId, t.currencyCode, t.date),
+    index("exchange_rates_org_date_idx").on(t.organizationId, t.date),
+  ],
+);
+
 export const unitsOfMeasure = pgTable(
   "units_of_measure",
   {
@@ -253,6 +271,11 @@ export const stockMovements = pgTable(
   (t) => [
     uniqueIndex("stock_movements_org_number_idx").on(t.organizationId, t.number),
     index("stock_movements_item_wh_idx").on(t.organizationId, t.itemId, t.warehouseId),
+    // Covers DISTINCT ON (item_id, wh_id) ORDER BY item_id, wh_id, created_at DESC, number DESC
+    // used by stock-balance queries — without this PostgreSQL does a full table scan + sort.
+    // Apply with: CREATE INDEX CONCURRENTLY stock_movements_balance_idx ON
+    //   stock_movements (organization_id, item_id, warehouse_id, created_at DESC, number DESC);
+    index("stock_movements_balance_idx").on(t.organizationId, t.itemId, t.warehouseId, t.createdAt, t.number),
     index("stock_movements_ref_idx").on(t.referenceType, t.referenceId),
   ],
 );
@@ -778,6 +801,11 @@ export const salesInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
+    // Multi-currency: GL always stores base-currency amounts; these fields preserve
+    // the original foreign currency for display and FX reconciliation.
+    currencyCode: text("currency_code").notNull().default("SAR"),
+    exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    foreignAmount: money("foreign_amount"),   // totalAmount in the invoice currency
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -925,6 +953,9 @@ export const purchaseInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
+    currencyCode: text("currency_code").notNull().default("SAR"),
+    exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    foreignAmount: money("foreign_amount"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1238,3 +1269,125 @@ export const activationCodes = pgTable(
   },
   (t) => [uniqueIndex("activation_codes_hash_idx").on(t.codeHash)],
 );
+
+/* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
+
+// Payroll configuration per employee per organisation. When payType=HOURLY,
+// basicSalary is used as the hourly rate; hours are pulled from attendance.
+export const employees = pgTable(
+  "employees",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    employeeCode: text("employee_code"),
+    position: text("position"),
+    department: text("department"),
+    payType: text("pay_type").notNull().default("MONTHLY"),   // MONTHLY | HOURLY
+    basicSalary: money("basic_salary").notNull().default("0"), // monthly or hourly rate
+    allowances: money("allowances").notNull().default("0"),    // fixed monthly allowances
+    deductions: money("deductions").notNull().default("0"),    // fixed monthly deductions
+    taxRate: money("tax_rate").notNull().default("0"),         // income tax %
+    isActive: boolean("is_active").notNull().default(true),
+    hiredAt: ts("hired_at"),
+    terminatedAt: ts("terminated_at"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("employees_org_user_idx").on(t.organizationId, t.userId),
+    index("employees_org_idx").on(t.organizationId),
+  ],
+);
+
+// One payroll batch per period (usually monthly). Confirmed → posts GL entry.
+export const payrollRuns = pgTable(
+  "payroll_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),         // PR-2026-0001
+    periodStart: ts("period_start").notNull(),
+    periodEnd: ts("period_end").notNull(),
+    paymentDate: ts("payment_date"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | POSTED | REVERSED
+    totalGross: money("total_gross").notNull().default("0"),
+    totalAllowances: money("total_allowances").notNull().default("0"),
+    totalDeductions: money("total_deductions").notNull().default("0"),
+    totalNet: money("total_net").notNull().default("0"),
+    journalEntryId: text("journal_entry_id"),
+    notes: text("notes"),
+    createdById: text("created_by_id"),
+    postedById: text("posted_by_id"),
+    postedAt: ts("posted_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("payroll_runs_org_num_idx").on(t.organizationId, t.number),
+    index("payroll_runs_org_idx").on(t.organizationId),
+  ],
+);
+
+// Per-employee line inside a payroll run.
+export const payrollLines = pgTable(
+  "payroll_lines",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    payrollRunId: text("payroll_run_id").notNull().references(() => payrollRuns.id, { onDelete: "cascade" }),
+    employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "restrict" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    basicSalary: money("basic_salary").notNull().default("0"),
+    allowances: money("allowances").notNull().default("0"),
+    grossPay: money("gross_pay").notNull().default("0"),    // basic + allowances
+    deductions: money("deductions").notNull().default("0"),
+    taxAmount: money("tax_amount").notNull().default("0"),
+    netPay: money("net_pay").notNull().default("0"),        // gross - deductions - tax
+    hoursWorked: money("hours_worked"),                    // if HOURLY, from attendance
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("payroll_lines_run_emp_idx").on(t.payrollRunId, t.employeeId),
+    index("payroll_lines_run_idx").on(t.payrollRunId),
+  ],
+);
+
+/* ═══════════════ ON-PREMISES LICENSING ══════════════════════ */
+
+// Owner's server: one row per on-premises client deployment. licenseKey is a
+// UUID given to the client; the client sends it on every 24h heartbeat to prove
+// identity. Revoke by setting status='REVOKED'.
+export const installationLicenses = pgTable(
+  "installation_licenses",
+  {
+    id: pk(),
+    licenseKey: text("license_key").notNull(),
+    customerName: text("customer_name").notNull(),
+    status: text("status").notNull().default("ACTIVE"), // ACTIVE, REVOKED, SUSPENDED
+    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+    expiresAt: ts("expires_at"),            // null = perpetual
+    gracePeriodDays: integer("grace_period_days").notNull().default(7),
+    lastHeartbeatAt: ts("last_heartbeat_at"),
+    installId: text("install_id"),          // set on client's first heartbeat
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("installation_licenses_key_idx").on(t.licenseKey)],
+);
+
+// Client's server: single-row cache of last successful license check.
+// The app reads this on every request; the cron job updates it every 24h.
+export const licenseHeartbeat = pgTable("license_heartbeat", {
+  singleton: text("singleton").primaryKey().default("1"),
+  installId: text("install_id").notNull(),
+  lastCheckedAt: ts("last_checked_at").notNull(),
+  validUntil: ts("valid_until"),
+  enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+  status: text("status").notNull().default("UNCHECKED"), // UNCHECKED, VALID, GRACE, LOCKED
+  gracePeriodEndsAt: ts("grace_period_ends_at"),
+  updatedAt: updatedAt(),
+});

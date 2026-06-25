@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { customers, deliveryNotes, salesInvoices, organizations } from "@/db/schema";
+import { customers, currencies, deliveryNotes, exchangeRates, salesInvoices, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesInvoiceFromDeliveryForm } from "@/components/erp/sales-invoice-from-delivery-form";
 
@@ -10,7 +10,7 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric
 export default async function NewSalesInvoicePage() {
   const { orgId } = await requireErpModule("sales.create");
 
-  const [custRows, org, dns, billed] = await Promise.all([
+  const [custRows, org, dns, billed, currRows, rateRows] = await Promise.all([
     db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers)
       .where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
     db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
@@ -20,16 +20,40 @@ export default async function NewSalesInvoicePage() {
       .orderBy(desc(deliveryNotes.date), desc(deliveryNotes.number)),
     db.select({ dnId: salesInvoices.deliveryNoteId }).from(salesInvoices)
       .where(and(eq(salesInvoices.organizationId, orgId), isNotNull(salesInvoices.deliveryNoteId))),
+    db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate })
+      .from(currencies)
+      .where(and(eq(currencies.organizationId, orgId), eq(currencies.isActive, true)))
+      .orderBy(currencies.isBase, currencies.code),
+    db.select({ currencyCode: exchangeRates.currencyCode, rate: exchangeRates.rate })
+      .from(exchangeRates)
+      .where(eq(exchangeRates.organizationId, orgId))
+      .orderBy(desc(exchangeRates.date))
+      .limit(20),
   ]);
 
   // A confirmed delivery is billable until it already has an invoice (draft or posted).
   const billedSet = new Set(billed.map((b) => b.dnId));
   const deliveries = dns.filter((d) => !billedSet.has(d.id)).map((d) => ({ id: d.id, number: d.number, customerId: d.customerId, dateLabel: dt(d.date) }));
 
+  // Build latest-rate map: prefer historical rates, fall back to currency snapshot
+  const latestRates: Record<string, number> = {};
+  for (const c of currRows) {
+    latestRates[c.code] = Number(c.exchangeRate) || 1;
+  }
+  for (const r of rateRows) {
+    if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
+  }
+
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="ReceiptText" title="فاتورة بيع جديدة" subtitle="اختر العميل ثم استدعِ إذن صرف لفوترته" backHref="/erp/sales/invoices" />
-      <SalesInvoiceFromDeliveryForm orgName={org[0]?.nameAr ?? "—"} customers={custRows} deliveries={deliveries} />
+      <SalesInvoiceFromDeliveryForm
+        orgName={org[0]?.nameAr ?? "—"}
+        customers={custRows}
+        deliveries={deliveries}
+        currencies={currRows}
+        latestRates={latestRates}
+      />
     </div>
   );
 }

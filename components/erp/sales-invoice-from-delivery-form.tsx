@@ -13,17 +13,20 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 
 type Customer = { id: string; nameAr: string };
 type BillableDelivery = { id: string; number: string; customerId: string | null; dateLabel: string };
+type CurrencyOption = { code: string; nameAr: string; isBase: boolean; exchangeRate: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export function SalesInvoiceFromDeliveryForm({
-  orgName, customers, deliveries,
+  orgName, customers, deliveries, currencies, latestRates,
 }: {
   orgName: string;
   customers: Customer[];
   deliveries: BillableDelivery[];
+  currencies: CurrencyOption[];
+  latestRates: Record<string, number>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -35,6 +38,17 @@ export function SalesInvoiceFromDeliveryForm({
   const [notes, setNotes] = useState("");
   const [deliveryId, setDeliveryId] = useState("");
   const [preview, setPreview] = useState<DeliveryInvoicePreview | null>(null);
+
+  const baseCurrency = currencies.find((c) => c.isBase);
+  const foreignCurrencies = currencies.filter((c) => !c.isBase);
+  const [currencyCode, setCurrencyCode] = useState(baseCurrency?.code ?? "SAR");
+  const [exchangeRate, setExchangeRate] = useState<string>(String(latestRates[currencyCode] ?? 1));
+
+  const onCurrencyChange = (code: string) => {
+    setCurrencyCode(code);
+    const cur = currencies.find((c) => c.code === code);
+    setExchangeRate(cur?.isBase ? "1" : (latestRates[code] ? String(latestRates[code]) : (cur?.exchangeRate ?? "")));
+  };
 
   const customerDeliveries = useMemo(() => deliveries.filter((d) => d.customerId === customerId), [deliveries, customerId]);
 
@@ -52,12 +66,21 @@ export function SalesInvoiceFromDeliveryForm({
     });
   };
 
+  const isForeign = currencyCode !== (baseCurrency?.code ?? "SAR");
+  const rate = parseFloat(exchangeRate) || 1;
+  // For foreign currency: foreign display = base ÷ rate
+  const foreignTotal = preview && isForeign ? preview.total / rate : null;
+
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
     if (!deliveryId) return toast.error("استدعِ إذن صرف أولاً");
     if (!preview || preview.lines.length === 0) return toast.error("لا توجد بنود للفوترة");
+    if (isForeign && (!exchangeRate || rate <= 0)) return toast.error("أدخل سعر الصرف");
     start(async () => {
-      const r = await convertDeliveryToInvoiceAction(deliveryId, date, notes || undefined);
+      const r = await convertDeliveryToInvoiceAction(
+        deliveryId, date, notes || undefined,
+        currencyCode, isForeign ? rate : undefined,
+      );
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — أكّدها لاعتمادها");
         router.push(r.invoiceId ? `/erp/sales/invoices/${r.invoiceId}` : "/erp/sales/invoices");
@@ -92,6 +115,40 @@ export function SalesInvoiceFromDeliveryForm({
           </div>
           <div className="space-y-2"><Label>تاريخ الفاتورة</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
+
+        {/* Currency row — only show when there are active non-base currencies configured */}
+        {foreignCurrencies.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-dashed bg-muted/20 p-3">
+            <div className="space-y-2">
+              <Label>عملة الفاتورة</Label>
+              <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? " (أساسية)" : ""}</option>
+                ))}
+              </select>
+            </div>
+            {isForeign && (
+              <div className="space-y-2">
+                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCurrency?.code ?? "SAR"})</Label>
+                <Input
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  placeholder="مثال: 3.75"
+                />
+              </div>
+            )}
+            {isForeign && foreignTotal !== null && (
+              <div className="flex flex-col justify-end text-sm text-muted-foreground">
+                <span>إجمالي بالعملة الأجنبية:</span>
+                <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {currencyCode}</span>
+                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCurrency?.code ?? "SAR"})</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -147,7 +204,14 @@ export function SalesInvoiceFromDeliveryForm({
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(preview.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(preview.total)}</div>
+            <div className="text-base font-bold text-primary">
+              الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "SAR"}
+              {isForeign && foreignTotal !== null && (
+                <span className="ms-2 text-sm font-normal text-muted-foreground">
+                  = {fmt(foreignTotal)} {currencyCode}
+                </span>
+              )}
+            </div>
           </div>
         )}
 

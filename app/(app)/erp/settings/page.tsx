@@ -9,10 +9,11 @@ import { Icon } from "@/components/icon";
 import { SettingsForm, type OrgProfile, type AccountOption, type AccountingConfig } from "@/components/erp/settings-form";
 
 const MANAGE_LINKS = [
-  { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator" },
-  { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock" },
-  { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target" },
-  { label: "المستودعات والأصناف", href: "/erp/inventory/items", icon: "Warehouse" },
+  { label: "دليل الحسابات",       href: "/erp/accounting/chart",       icon: "Calculator" },
+  { label: "الفترات المالية",      href: "/erp/accounting/periods",     icon: "Lock" },
+  { label: "مراكز التكلفة",        href: "/erp/accounting/cost-centers", icon: "Target" },
+  { label: "المستودعات والأصناف",  href: "/erp/inventory/items",        icon: "Warehouse" },
+  { label: "العملات وأسعار الصرف", href: "/erp/settings/currencies",    icon: "BadgeDollarSign" },
 ] as const;
 
 export default async function ErpSettingsPage() {
