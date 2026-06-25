@@ -38,7 +38,9 @@ export type Capability =
   | "erp.investors.view"
   | "erp.investors.manage"
   | "erp.reports.view"
-  | "erp.settings.manage";
+  | "erp.settings.manage"
+  | "erp.hr.view"
+  | "erp.hr.manage";
 
 const MATRIX: Record<Role, Capability[]> = {
   // مدير النظام — full access
@@ -55,6 +57,7 @@ const MATRIX: Record<Role, Capability[]> = {
     "erp.purchases.view", "erp.purchases.manage",
     "erp.investors.view", "erp.investors.manage",
     "erp.reports.view", "erp.settings.manage",
+    "erp.hr.view", "erp.hr.manage",
   ],
   // مدير العمليات
   ops_manager: [
@@ -68,6 +71,7 @@ const MATRIX: Record<Role, Capability[]> = {
     "erp.purchases.view", "erp.purchases.manage",
     "erp.investors.view",
     "erp.reports.view",
+    "erp.hr.view",
   ],
   // قائد فريق
   team_lead: [

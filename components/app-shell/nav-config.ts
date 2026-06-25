@@ -37,8 +37,7 @@ export const NAV: NavSection[] = [
       { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock", capability: "erp.accounting.view" },
       { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view" },
       { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view" },
-      { label: "أعمار الذمم المدينة", href: "/erp/sales/aging", icon: "CalendarClock", capability: "erp.sales.view" },
-      { label: "أعمار الذمم الدائنة", href: "/erp/purchases/aging", icon: "CalendarClock", capability: "erp.purchases.view" },
+      { label: "تحليل الديون المتأخرة", href: "/erp/accounting/aging", icon: "CalendarClock", capability: "erp.accounting.view" },
     ],
   },
   {
@@ -108,9 +107,11 @@ export const NAV: NavSection[] = [
     moduleKey: "hr",
     icon: "UsersRound",
     items: [
-      { label: "الحضور", href: "/attendance", icon: "Clock" },
-      { label: "المتصدرون", href: "/leaderboard", icon: "Trophy" },
-      { label: "الأكاديمية", href: "/academy", icon: "GraduationCap" },
+      { label: "الموظفون",    href: "/erp/hr/employees", icon: "UserCog",       capability: "erp.hr.view" },
+      { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view" },
+      { label: "الحضور",      href: "/attendance",        icon: "Clock" },
+      { label: "المتصدرون",   href: "/leaderboard",       icon: "Trophy" },
+      { label: "الأكاديمية",  href: "/academy",           icon: "GraduationCap" },
     ],
   },
   {
@@ -121,6 +122,7 @@ export const NAV: NavSection[] = [
       { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie", capability: "erp.reports.view", exact: true },
       { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view" },
       { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale", capability: "erp.reports.view" },
+      { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view" },
       { label: "تقارير العمليات", href: "/reports", icon: "BarChart3", capability: "reports.view" },
       { label: "متابعة الأداء", href: "/admin/monitoring", icon: "Activity", capability: "reports.view" },
       { label: "المساعد الذكي", href: "/assistant", icon: "Sparkles", capability: "ai.use" },

@@ -26,6 +26,12 @@ export default auth((req) => {
     return Response.redirect(url);
   }
 
+  // Platform console is owner-only — enforce at middleware so a future page
+  // that forgets its own gate doesn't silently expose owner data.
+  if (isLoggedIn && path.startsWith("/platform") && !isPublic && role !== "system_admin") {
+    return Response.redirect(new URL("/dashboard", nextUrl));
+  }
+
   if (isLoggedIn) {
     const isClient = role === "client";
     const onPortal = path.startsWith("/portal");

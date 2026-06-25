@@ -22,6 +22,8 @@ export type ErpPermission =
   | "reports.view"
   // Investors
   | "investors.view" | "investors.create" | "investors.edit" | "investors.delete" | "investors.manage"
+  // HR & Payroll
+  | "hr.view" | "hr.create" | "hr.post"
   // Users (org-level membership management)
   | "users.view" | "users.create" | "users.edit" | "users.delete"
   // Organization settings
@@ -35,6 +37,7 @@ export const allErpPermissions: ErpPermission[] = [
   "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay",
   "reports.view",
   "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
+  "hr.view", "hr.create", "hr.post",
   "users.view", "users.create", "users.edit", "users.delete",
   "organization.manage",
 ];
@@ -51,6 +54,7 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
     "purchases.view",
     "reports.view",
     "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
+    "hr.view", "hr.create", "hr.post",
     "users.view",
   ],
 
