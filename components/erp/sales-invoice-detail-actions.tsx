@@ -11,7 +11,13 @@ import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
 /** Draft sales invoice: post / delete. Posted: a "مرتجع" shortcut. */
-export function SalesInvoiceDetailActions({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
+export function SalesInvoiceDetailActions({
+  id, number, status, canPost, canManage,
+  totalAmount, customerPhone, customerEmail,
+}: {
+  id: string; number: string; status: string; canPost: boolean; canManage: boolean;
+  totalAmount?: string | null; customerPhone?: string | null; customerEmail?: string | null;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -34,6 +40,28 @@ export function SalesInvoiceDetailActions({ id, number, status, canPost, canMana
     </Button>
   );
 
+  const fmt = (v: string | null | undefined) =>
+    Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const shareMsg = `فاتورة رقم: ${number}\nالمبلغ الإجمالي: ${fmt(totalAmount)}\nللاستفسار أو الدفع يرجى التواصل معنا.`;
+
+  const waPhone = customerPhone?.replace(/[\s\-\(\)]/g, "").replace(/^0/, "966");
+  const waBtn = waPhone ? (
+    <Button size="sm" variant="outline" asChild>
+      <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}`} target="_blank" rel="noopener">
+        <Icon name="MessageCircle" className="size-4" />واتساب
+      </a>
+    </Button>
+  ) : null;
+
+  const emailBtn = customerEmail ? (
+    <Button size="sm" variant="outline" asChild>
+      <a href={`mailto:${customerEmail}?subject=${encodeURIComponent(`فاتورة رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}`}>
+        <Icon name="Mail" className="size-4" />إيميل
+      </a>
+    </Button>
+  ) : null;
+
   if (status === "DRAFT") {
     return (
       <div className="flex flex-wrap gap-2">
@@ -43,6 +71,8 @@ export function SalesInvoiceDetailActions({ id, number, status, canPost, canMana
           </Button>
         )}
         {printBtn}
+        {waBtn}
+        {emailBtn}
         {canManage && (
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/erp/sales/invoices")}>
             <Icon name="Trash2" className="size-4 text-destructive" />حذف
@@ -60,9 +90,17 @@ export function SalesInvoiceDetailActions({ id, number, status, canPost, canMana
           <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
         </Button>
         {printBtn}
+        {waBtn}
+        {emailBtn}
       </div>
     );
   }
 
-  return printBtn;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {printBtn}
+      {waBtn}
+      {emailBtn}
+    </div>
+  );
 }
