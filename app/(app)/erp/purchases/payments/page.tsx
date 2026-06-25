@@ -70,6 +70,7 @@ export default async function PaymentsPage() {
                   <TableHead className="text-start">الطريقة</TableHead>
                   <TableHead className="text-start">المبلغ</TableHead>
                   <TableHead className="text-start">الحالة</TableHead>
+                  <TableHead />
                   {canManage && <TableHead className="text-start">إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -83,6 +84,13 @@ export default async function PaymentsPage() {
                     <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
                     <TableCell>{fmt(r.amount)}</TableCell>
                     <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                    <TableCell>
+                      <Button size="icon" variant="ghost" asChild>
+                        <a href={`/erp/purchases/payments/${encodeURIComponent(r.number)}/print`} target="_blank" rel="noopener" title="طباعة">
+                          <Icon name="Printer" className="size-4" />
+                        </a>
+                      </Button>
+                    </TableCell>
                     {canManage && <TableCell><VoucherRowActions voucherId={r.id} type="payment" status={r.status} canManage={canManage} /></TableCell>}
                   </TableRow>
                 ))}

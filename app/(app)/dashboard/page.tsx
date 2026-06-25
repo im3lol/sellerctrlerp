@@ -177,6 +177,61 @@ function ErpOverviewSection({ overview: o, orgName }: { overview: ErpOverview; o
           </div>
         </Card>
       </div>
+
+      {/* Overdue + recent activity */}
+      {(o.overdueAR > 0 || o.overdueAP > 0) && (
+        <div className="grid grid-cols-2 gap-4">
+          {o.overdueAR > 0 && (
+            <Link href="/erp/accounting/aging" className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 transition-colors hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30">
+              <Icon name="AlertCircle" className="size-5 shrink-0 text-rose-600" />
+              <div>
+                <p className="text-xs text-rose-700">ذمم مدينة متأخرة</p>
+                <p className="text-lg font-bold tabular-nums text-rose-700">{money(o.overdueAR)}</p>
+              </div>
+            </Link>
+          )}
+          {o.overdueAP > 0 && (
+            <Link href="/erp/accounting/aging" className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/30">
+              <Icon name="AlertCircle" className="size-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-xs text-amber-700">ذمم دائنة متأخرة</p>
+                <p className="text-lg font-bold tabular-nums text-amber-700">{money(o.overdueAP)}</p>
+              </div>
+            </Link>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {o.recentSales.length > 0 && (
+          <Card className="p-5">
+            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">آخر فواتير البيع</h3>
+            <div className="divide-y">
+              {o.recentSales.map((s) => (
+                <Link key={s.number} href={`/erp/sales/invoices/${encodeURIComponent(s.number)}`} className="flex items-center justify-between py-2 text-sm transition-colors hover:text-primary">
+                  <span className="font-mono text-xs text-muted-foreground">{s.number}</span>
+                  <span className="flex-1 px-3 truncate">{s.customer}</span>
+                  <span className="tabular-nums font-medium">{money(s.amount)}</span>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
+        {o.recentPurchases.length > 0 && (
+          <Card className="p-5">
+            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">آخر فواتير الشراء</h3>
+            <div className="divide-y">
+              {o.recentPurchases.map((p) => (
+                <Link key={p.number} href={`/erp/purchases/invoices/${encodeURIComponent(p.number)}`} className="flex items-center justify-between py-2 text-sm transition-colors hover:text-primary">
+                  <span className="font-mono text-xs text-muted-foreground">{p.number}</span>
+                  <span className="flex-1 px-3 truncate">{p.supplier}</span>
+                  <span className="tabular-nums font-medium">{money(p.amount)}</span>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
     </section>
   );
 }

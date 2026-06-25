@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
@@ -71,7 +73,16 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
         title={`أمر شراء ${po.number}`}
         subtitle={sup ? `${sup.code} — ${sup.name}` : "أمر شراء"}
         backHref="/erp/purchases/orders"
-        action={<OrderRowActions orderId={po.id} type="purchase" status={po.status} canManage={canManage} />}
+        action={
+          <div className="flex gap-2">
+            <OrderRowActions orderId={po.id} type="purchase" status={po.status} canManage={canManage} />
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/erp/purchases/orders/${encodeURIComponent(po.number)}/print`} target="_blank" rel="noopener">
+                <Icon name="Printer" className="size-4" />طباعة
+              </a>
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

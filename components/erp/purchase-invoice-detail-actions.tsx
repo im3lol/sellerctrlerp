@@ -26,6 +26,14 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     })();
   };
 
+  const printBtn = (
+    <Button size="sm" variant="outline" asChild>
+      <a href={`/erp/purchases/invoices/${encodeURIComponent(number)}/print`} target="_blank" rel="noopener">
+        <Icon name="Printer" className="size-4" />طباعة
+      </a>
+    </Button>
+  );
+
   if (status === "DRAFT") {
     return (
       <div className="flex flex-wrap gap-2">
@@ -34,6 +42,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
           </Button>
         )}
+        {printBtn}
         {canManage && (
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/erp/purchases/invoices")}>
             <Icon name="Trash2" className="size-4 text-destructive" />حذف
@@ -46,11 +55,14 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
   // Posted (not cancelled): allow creating a return from this invoice.
   if (status !== "CANCELLED" && canManage) {
     return (
-      <Button size="sm" variant="outline" asChild>
-        <Link href={`/erp/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" asChild>
+          <Link href={`/erp/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+        </Button>
+        {printBtn}
+      </div>
     );
   }
 
-  return null;
+  return printBtn;
 }

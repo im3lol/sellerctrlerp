@@ -1,6 +1,6 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesInvoices, purchaseInvoices } from "@/db/schema";
+import { salesInvoices, purchaseInvoices, customers, suppliers } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { getExpiryReport } from "@/lib/erp/expiry";
 
@@ -24,6 +24,10 @@ export type ErpOverview = {
   topItems: { name: string; value: number }[];
   /** Revenue vs expenses per month over the last 6 months (oldest → newest). */
   pnlTrend: { label: string; revenue: number; expense: number }[];
+  overdueAR: number;
+  overdueAP: number;
+  recentSales: { number: string; customer: string; amount: number; date: Date }[];
+  recentPurchases: { number: string; supplier: string; amount: number; date: Date }[];
 };
 
 const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
@@ -82,7 +86,9 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     WHERE i.organization_id = ${orgId} AND i.is_active = true
   `)).rows as { name: string; min_stock: string; qty: string; val: string }[];
 
-  const [balances, [sm], [pm], expiry, trend] = await Promise.all([
+  const today = new Date();
+
+  const [balances, [sm], [pm], expiry, trend, overdueSales, overduePurch, recentSales, recentPurchases] = await Promise.all([
     accountBalances({ orgId }),
     db.select({ n: sql<number>`count(*)`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
       .from(salesInvoices)
@@ -92,6 +98,24 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
       .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED"), gte(purchaseInvoices.date, since))),
     getExpiryReport(orgId, {}),
     pnlTrend(orgId),
+    db.select({ total: sql<string>`coalesce(sum(${salesInvoices.balanceDue}),0)` })
+      .from(salesInvoices)
+      .where(and(eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "POSTED"), lt(salesInvoices.dueDate, today))),
+    db.select({ total: sql<string>`coalesce(sum(${purchaseInvoices.balanceDue}),0)` })
+      .from(purchaseInvoices)
+      .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED"), lt(purchaseInvoices.dueDate, today))),
+    db.select({ number: salesInvoices.number, amount: salesInvoices.totalAmount, date: salesInvoices.date, customer: customers.nameAr })
+      .from(salesInvoices)
+      .leftJoin(customers, eq(customers.id, salesInvoices.customerId))
+      .where(and(eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "POSTED")))
+      .orderBy(sql`${salesInvoices.date} desc`)
+      .limit(5),
+    db.select({ number: purchaseInvoices.number, amount: purchaseInvoices.totalAmount, date: purchaseInvoices.date, supplier: suppliers.nameAr })
+      .from(purchaseInvoices)
+      .leftJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
+      .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED")))
+      .orderBy(sql`${purchaseInvoices.date} desc`)
+      .limit(5),
   ]);
 
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
@@ -126,5 +150,9 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     expiredCount: expiry.totals.expiredCount,
     topItems,
     pnlTrend: trend,
+    overdueAR: Number(overdueSales[0]?.total ?? 0),
+    overdueAP: Number(overduePurch[0]?.total ?? 0),
+    recentSales: recentSales.map((r) => ({ number: r.number, customer: r.customer ?? "—", amount: Number(r.amount), date: r.date })),
+    recentPurchases: recentPurchases.map((r) => ({ number: r.number, supplier: r.supplier ?? "—", amount: Number(r.amount), date: r.date })),
   };
 }
