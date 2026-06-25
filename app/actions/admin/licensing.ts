@@ -29,13 +29,12 @@ function addMonths(from: Date, months: number): Date {
 }
 
 /** Generate a new activation code. Returns the plaintext code ONCE (only its
- *  HMAC is stored). */
+ *  HMAC is stored). Codes carry modules + duration only — price/plan are set
+ *  on the subscription directly (in the subscriptions page). */
 export async function generateActivationCodeAction(input: {
   interval: "MONTHLY" | "ANNUAL";
   durationMonths: number;
   modules: string[];
-  planName?: string;
-  price?: number;
   validDays?: number;
   notes?: string;
 }): Promise<LicState & { code?: string }> {
@@ -58,8 +57,8 @@ export async function generateActivationCodeAction(input: {
       interval,
       durationMonths,
       enabledModules: modules,
-      planName: input.planName?.trim() || null,
-      price: String(Math.max(0, Number(input.price) || 0)),
+      planName: null,
+      price: "0",
       status: "UNUSED",
       expiresAt,
       notes: input.notes?.trim() || null,
@@ -68,7 +67,7 @@ export async function generateActivationCodeAction(input: {
   } catch {
     return { error: "تعذّر توليد الكود" };
   }
-  revalidatePath("/admin/platform");
+  revalidatePath("/platform", "layout");
   return { ok: true, code };
 }
 
@@ -79,7 +78,7 @@ export async function revokeActivationCodeAction(id: string): Promise<LicState> 
     .where(and(eq(activationCodes.id, id), eq(activationCodes.status, "UNUSED")))
     .returning({ id: activationCodes.id });
   if (!r.length) return { error: "لا يمكن إلغاء كود مستخدم بالفعل" };
-  revalidatePath("/admin/platform");
+  revalidatePath("/platform", "layout");
   return { ok: true };
 }
 
@@ -100,19 +99,38 @@ export async function applyCodeToOrgAction(input: { code: string; organizationId
   const expiresAt = addMonths(now, code.durationMonths);
   try {
     await db.transaction(async (tx) => {
-      const [existing] = await tx.select({ id: orgSubscriptions.id }).from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, org.id)).limit(1);
-      const values = {
-        status: "ACTIVE", interval: code.interval, planName: code.planName, price: code.price,
-        enabledModules: code.enabledModules, startedAt: now, expiresAt, activatedByCodeId: code.id, updatedAt: now,
-      };
-      if (existing) await tx.update(orgSubscriptions).set(values).where(eq(orgSubscriptions.id, existing.id));
-      else await tx.insert(orgSubscriptions).values({ organizationId: org.id, ...values });
+      const [existing] = await tx.select().from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, org.id)).limit(1);
+      if (existing) {
+        // Preserve existing price/planName — code only updates technical terms
+        await tx.update(orgSubscriptions).set({
+          status: "ACTIVE",
+          interval: code.interval,
+          enabledModules: code.enabledModules,
+          startedAt: now,
+          expiresAt,
+          activatedByCodeId: code.id,
+          updatedAt: now,
+        }).where(eq(orgSubscriptions.id, existing.id));
+      } else {
+        await tx.insert(orgSubscriptions).values({
+          organizationId: org.id,
+          status: "ACTIVE",
+          interval: code.interval,
+          planName: null,
+          price: "0",
+          enabledModules: code.enabledModules,
+          startedAt: now,
+          expiresAt,
+          activatedByCodeId: code.id,
+          updatedAt: now,
+        });
+      }
       await tx.update(activationCodes).set({ status: "USED", organizationId: org.id, redeemedAt: now }).where(eq(activationCodes.id, code.id));
     });
   } catch {
     return { error: "تعذّر تفعيل الاشتراك" };
   }
-  revalidatePath("/admin/platform");
+  revalidatePath("/platform", "layout");
   return { ok: true };
 }
 
@@ -149,7 +167,7 @@ export async function setOrgSubscriptionAction(input: {
   } catch {
     return { error: "تعذّر تحديث الاشتراك" };
   }
-  revalidatePath("/admin/platform");
+  revalidatePath("/platform", "layout");
   return { ok: true };
 }
 
@@ -157,6 +175,6 @@ export async function cancelOrgSubscriptionAction(organizationId: string): Promi
   const auth = await requireOwner();
   if ("error" in auth) return auth;
   await db.update(orgSubscriptions).set({ status: "CANCELLED", updatedAt: new Date() }).where(eq(orgSubscriptions.organizationId, organizationId));
-  revalidatePath("/admin/platform");
+  revalidatePath("/platform", "layout");
   return { ok: true };
 }
