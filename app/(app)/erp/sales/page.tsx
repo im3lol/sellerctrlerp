@@ -17,6 +17,7 @@ export default async function ErpSalesPage() {
       balance: customers.balance,
       creditLimit: customers.creditLimit,
       paymentTerms: customers.paymentTerms,
+      portalUserId: customers.portalUserId,
     })
     .from(customers)
     .where(eq(customers.organizationId, orgId))

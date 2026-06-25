@@ -808,6 +808,26 @@ export const assetDepreciationLines = pgTable(
   ],
 );
 
+/* ══════════════════════════ BUDGET ════════════════════════ */
+
+export const accountBudgets = pgTable(
+  "account_budgets",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    year: integer("year").notNull(),
+    accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+    amount: money("amount").notNull().default("0"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("account_budgets_org_year_account_idx").on(t.organizationId, t.year, t.accountId),
+    index("account_budgets_org_year_idx").on(t.organizationId, t.year),
+  ],
+);
+
 /* ══════════════════════════ BANKING ═══════════════════════ */
 
 export const bankAccounts = pgTable(
@@ -866,10 +886,14 @@ export const customers = pgTable(
     creditLimit: money("credit_limit").notNull().default("0"),
     paymentTerms: integer("payment_terms").notNull().default(30),
     isActive: boolean("is_active").notNull().default(true),
+    portalUserId: uuid("portal_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("customers_org_code_idx").on(t.organizationId, t.code)],
+  (t) => [
+    uniqueIndex("customers_org_code_idx").on(t.organizationId, t.code),
+    index("customers_portal_user_idx").on(t.portalUserId),
+  ],
 );
 
 export const salesInvoices = pgTable(

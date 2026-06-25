@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { customers } from "@/db/schema";
+import { customers, users } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
@@ -68,6 +68,35 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
     return { error: msg };
   }
 
+  revalidatePath("/erp/sales");
+  return { ok: true };
+}
+
+export async function linkCustomerPortalUserAction(input: {
+  customerId: string;
+  email: string;
+}): Promise<ActionState> {
+  const auth = await authorize("sales.edit");
+  if ("error" in auth) return auth;
+
+  const [cust] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.id, input.customerId), eq(customers.organizationId, auth.orgId)))
+    .limit(1);
+  if (!cust) return { error: "العميل غير موجود" };
+
+  if (!input.email) {
+    await db.update(customers).set({ portalUserId: null, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
+    revalidatePath("/erp/sales");
+    return { ok: true };
+  }
+
+  const [usr] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, input.email)).limit(1);
+  if (!usr) return { error: "لا يوجد مستخدم بهذا البريد الإلكتروني" };
+  if (usr.role !== "client") return { error: "المستخدم ليس بدور العميل (client)" };
+
+  await db.update(customers).set({ portalUserId: usr.id, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
   revalidatePath("/erp/sales");
   return { ok: true };
 }

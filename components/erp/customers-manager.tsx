@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveCustomerAction, deleteCustomerAction, type ActionState } from "@/app/actions/erp/customers";
+import { saveCustomerAction, deleteCustomerAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import {
 export type Customer = {
   id: string; code: string; nameAr: string; phone: string | null;
   email: string | null; balance: string | null; creditLimit: string | null; paymentTerms: number;
+  portalUserId?: string | null;
 };
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -86,9 +87,59 @@ function CustomerDialog({
   );
 }
 
+function PortalLinkDialog({
+  open, onOpenChange, customer,
+}: { open: boolean; onOpenChange: (o: boolean) => void; customer: Customer | null }) {
+  const [email, setEmail] = useState(customer?.email ?? "");
+  const [pending, start] = useTransition();
+
+  if (!customer) return null;
+
+  const handle = () => {
+    start(async () => {
+      const r = await linkCustomerPortalUserAction({ customerId: customer.id, email });
+      if (r.ok) { toast.success(email ? "تم الربط بالبوابة" : "تم إلغاء الربط"); onOpenChange(false); }
+      else toast.error(r.error ?? "تعذّر الربط");
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>ربط ببوابة العميل — {customer.nameAr}</DialogTitle>
+          <DialogDescription>ادخل بريد المستخدم (دور: client) لربطه بهذا العميل. اتركه فارغاً لإلغاء الربط.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>البريد الإلكتروني للمستخدم</Label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="user@example.com"
+            dir="ltr"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          {customer.portalUserId && (
+            <p className="text-xs text-success">مرتبط حالياً ببوابة عميل.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={handle} disabled={pending}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {email ? "ربط" : "إلغاء الربط"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CustomersManager({ customers, canManage }: { customers: Customer[]; canManage: boolean }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [portalOpen, setPortalOpen] = useState(false);
+  const [portalCustomer, setPortalCustomer] = useState<Customer | null>(null);
   const [pending, startTransition] = useTransition();
 
   const openCreate = () => { setEditing(null); setOpen(true); };
@@ -144,6 +195,14 @@ export function CustomersManager({ customers, canManage }: { customers: Customer
                         <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label="تعديل">
                           <Pencil className="size-4" />
                         </Button>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => { setPortalCustomer(c); setPortalOpen(true); }}
+                          aria-label="ربط ببوابة العميل"
+                          title="ربط ببوابة العميل"
+                        >
+                          <span className={`text-base ${c.portalUserId ? "text-success" : "text-muted-foreground"}`}>🔗</span>
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" disabled={pending} aria-label="حذف">
@@ -172,6 +231,7 @@ export function CustomersManager({ customers, canManage }: { customers: Customer
       </CardContent>
       {/* key forces fresh form state per create/edit target */}
       <CustomerDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />
+      <PortalLinkDialog key={`portal-${portalCustomer?.id}`} open={portalOpen} onOpenChange={setPortalOpen} customer={portalCustomer} />
     </Card>
   );
 }

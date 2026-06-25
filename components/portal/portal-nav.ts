@@ -16,4 +16,10 @@ export const PORTAL_NAV: { heading?: string; items: PortalNavItem[] }[] = [
       { label: "تقرير المرتجعات", href: "/portal/reports/returns", icon: "Undo2" },
     ],
   },
+  {
+    heading: "حسابي",
+    items: [
+      { label: "كشف حسابي", href: "/portal/erp", icon: "ReceiptText", exact: true },
+    ],
+  },
 ];
