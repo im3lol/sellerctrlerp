@@ -6,6 +6,7 @@ const TABS = [
   { href: "/erp/reports", label: "ميزان المراجعة", icon: "ChartPie" },
   { href: "/erp/reports/income-statement", label: "قائمة الدخل", icon: "TrendingUp" },
   { href: "/erp/reports/balance-sheet", label: "الميزانية العمومية", icon: "Scale" },
+  { href: "/erp/reports/cash-flow", label: "التدفق النقدي", icon: "ArrowLeftRight" },
 ];
 
 /** Quick switcher between the financial statements. */
