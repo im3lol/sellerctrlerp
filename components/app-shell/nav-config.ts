@@ -40,6 +40,7 @@ export const NAV: NavSection[] = [
       { label: "تحليل الديون المتأخرة",  href: "/erp/accounting/aging",               icon: "CalendarClock", capability: "erp.accounting.view" },
       { label: "كشف حساب العميل",        href: "/erp/accounting/customer-statement",  icon: "ScrollText",    capability: "erp.accounting.view" },
       { label: "كشف حساب المورّد",       href: "/erp/accounting/supplier-statement",  icon: "ScrollText",    capability: "erp.accounting.view" },
+      { label: "الحسابات البنكية",       href: "/erp/accounting/banks",               icon: "Landmark",      capability: "erp.accounting.view" },
     ],
   },
   {

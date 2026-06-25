@@ -757,6 +757,47 @@ export const journalEntryLines = pgTable(
   ],
 );
 
+/* ══════════════════════════ BANKING ═══════════════════════ */
+
+export const bankAccounts = pgTable(
+  "bank_accounts",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    nameAr: text("name_ar").notNull(),
+    bankName: text("bank_name"),
+    accountNumber: text("account_number"),
+    iban: text("iban"),
+    glAccountId: text("gl_account_id").references(() => accounts.id),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("bank_accounts_org_idx").on(t.organizationId)],
+);
+
+export const bankStatementLines = pgTable(
+  "bank_statement_lines",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    bankAccountId: text("bank_account_id").notNull().references(() => bankAccounts.id, { onDelete: "cascade" }),
+    date: ts("date").notNull(),
+    description: text("description"),
+    reference: text("reference"),
+    debit: money("debit").notNull().default("0"),   // money IN to bank
+    credit: money("credit").notNull().default("0"),  // money OUT of bank
+    isReconciled: boolean("is_reconciled").notNull().default(false),
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("bank_stmt_account_date_idx").on(t.bankAccountId, t.date),
+    index("bank_stmt_org_unreconciled_idx").on(t.organizationId, t.isReconciled),
+  ],
+);
+
 /* ══════════════════════════ SALES ═════════════════════════ */
 
 export const customers = pgTable(
