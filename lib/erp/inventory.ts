@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { stockMovements, stockBatches, stockMovementBatches, items } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -148,12 +148,12 @@ async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: stri
 
 /** Load current cost of pinned batches (reversals/cancels) → plan lines. */
 async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanLine[]> {
-  const out: PlanLine[] = [];
-  for (const a of allocs) {
-    const [b] = await tx.select({ cost: stockBatches.unitCost }).from(stockBatches).where(eq(stockBatches.id, a.batchId)).limit(1);
-    out.push({ batchId: a.batchId, qty: round4(a.quantity), unitCost: Number(b?.cost ?? 0) });
-  }
-  return out;
+  if (!allocs.length) return [];
+  const ids = allocs.map((a) => a.batchId);
+  const rows = await tx.select({ id: stockBatches.id, cost: stockBatches.unitCost })
+    .from(stockBatches).where(inArray(stockBatches.id, ids));
+  const costMap = new Map(rows.map((r) => [r.id, Number(r.cost)]));
+  return allocs.map((a) => ({ batchId: a.batchId, qty: round4(a.quantity), unitCost: costMap.get(a.batchId) ?? 0 }));
 }
 
 /**
