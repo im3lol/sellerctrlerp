@@ -1,11 +1,13 @@
 import { getEmployeeKpis } from "@/lib/queries/kpi";
-import { requireCrm } from "@/lib/crm/guard";
+import { requireHrAccess } from "@/lib/hr/guard";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
 
 export default async function LeaderboardPage() {
-  const { orgId } = await requireCrm();
+  const { orgId: rawOrgId } = await requireHrAccess();
+  if (!rawOrgId) return null; // system_admin with no org — shouldn't reach here in practice
+  const orgId = rawOrgId;
   const kpis = await getEmployeeKpis(orgId);
 
   const top = kpis[0];

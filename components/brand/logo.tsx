@@ -19,7 +19,7 @@ export function Logo({ className, showMark = true }: { className?: string; showM
       {showMark && (
         <svg
           viewBox="0 0 12 12"
-          className="ms-[0.15em] h-[0.42em] w-[0.42em] translate-y-[0.04em]"
+          style={{ height: "0.42em", width: "0.42em", marginInlineStart: "0.15em", transform: "translateY(0.04em)", flexShrink: 0 }}
           fill="hsl(var(--brand-yellow))"
           aria-hidden
         >

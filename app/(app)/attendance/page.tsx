@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/session";
+import { requireHrAccess } from "@/lib/hr/guard";
 import { can } from "@/lib/rbac";
 import { getTodaySnapshot } from "@/lib/attendance";
 import {
@@ -16,7 +16,7 @@ import { formatDateAr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default async function AttendancePage() {
-  const user = await requireUser();
+  const { user } = await requireHrAccess();
   const [snap, summary, sessions] = await Promise.all([
     getTodaySnapshot(user.id),
     getAttendanceSummary(user.id),

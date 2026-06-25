@@ -1,5 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { erpCan } from "@/lib/erp/org";
+import { requireCrm } from "@/lib/crm/guard";
 import { db } from "@/lib/db";
 import { crmStages, crmOpportunities, customers, users } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -12,7 +13,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function CrmPipelinePage() {
-  const { orgId, role } = await requireErpModule("sales.view");
+  const { orgId, role } = await requireCrm();
   const canManage = erpCan(role, "sales.create");
 
   const [stages, opps, customerList] = await Promise.all([
