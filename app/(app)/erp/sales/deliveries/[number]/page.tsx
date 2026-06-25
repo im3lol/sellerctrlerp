@@ -87,7 +87,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         backHref="/erp/sales/deliveries"
         action={
           <div className="flex gap-2">
-            <BarcodePrintButton items={barcodeItems} />
+            <BarcodePrintButton items={barcodeItems} printPageHref={`/erp/barcodes/delivery/${dn.id}`} />
             <DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />
           </div>
         }

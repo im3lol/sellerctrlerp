@@ -71,7 +71,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
         backHref="/erp/inventory/transfers"
         action={
           <div className="flex gap-2">
-            <BarcodePrintButton items={transferBarcodeItems} />
+            <BarcodePrintButton items={transferBarcodeItems} printPageHref={`/erp/barcodes/transfer/${tr.id}`} />
             {canManage && isDraft && <StockRowActions docId={tr.id} type="transfer" status={tr.status} canManage={canManage} dest="/erp/inventory/transfers" />}
           </div>
         }

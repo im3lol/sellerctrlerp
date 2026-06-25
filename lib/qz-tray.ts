@@ -50,25 +50,27 @@ export async function listPrinters(): Promise<string[]> {
 }
 
 /** Build a ZPL label for a single barcode.
- * Prints: item name (Arabic), barcode value, item code.
- * Label size: 2" × 1.25" (57mm × 32mm) — common thermal label.
+ * Label size: 50mm × 25mm (5cm × 2.5cm) at 203 DPI.
+ *   Width  = 50mm × 203/25.4 ≈ 400 dots
+ *   Height = 25mm × 203/25.4 ≈ 200 dots
  */
 export function buildZplLabel(opts: {
   barcode: string;
   itemCode: string;
   itemName: string;
-  qty?: number; // informational — does NOT repeat the label; use copies in printLabels
 }): string {
-  // ZPL II — ^XA … ^XZ
-  // DPI 203; label 406 dots wide (2"), 254 dots tall (1.25")
-  const name = opts.itemName.substring(0, 35); // truncate for label
+  const name = opts.itemName.substring(0, 30);
   return [
     "^XA",
-    "^CI28",              // UTF-8 font encoding
-    "^FO20,10^A0N,24,24^FD" + name + "^FS",
-    "^FO20,40^BCN,60,Y,N,N^FD" + opts.barcode + "^FS",
-    "^FO20,115^A0N,18,18^FD" + opts.itemCode + "^FS",
-    ...(opts.qty !== undefined ? [`^FO280,115^A0N,18,18^FDx${opts.qty}^FS`] : []),
+    "^PW400",               // print width 400 dots (50 mm @ 203 dpi)
+    "^LL200",               // label length 200 dots (25 mm @ 203 dpi)
+    "^CI28",                // UTF-8 encoding
+    // item name (top, small font)
+    "^FO10,8^A0N,18,18^FD" + name + "^FS",
+    // CODE128 barcode, height 80 dots, with human-readable below
+    "^FO10,30^BCN,80,Y,N,N^FD" + opts.barcode + "^FS",
+    // item code (bottom right)
+    "^FO250,170^A0N,16,16^FD" + opts.itemCode + "^FS",
     "^XZ",
   ].join("\n");
 }

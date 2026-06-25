@@ -91,7 +91,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         backHref="/erp/purchases/receipts"
         action={
           <div className="flex gap-2">
-            <BarcodePrintButton items={barcodeItems} />
+            <BarcodePrintButton items={barcodeItems} printPageHref={`/erp/barcodes/receipt/${grn.id}`} />
             <ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />
           </div>
         }
