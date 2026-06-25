@@ -123,6 +123,7 @@ export const NAV: NavSection[] = [
       { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view" },
       { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale", capability: "erp.reports.view" },
       { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view" },
+      { label: "ضريبة القيمة المضافة", href: "/erp/reports/vat", icon: "Percent", capability: "erp.reports.view" },
       { label: "تقارير العمليات", href: "/reports", icon: "BarChart3", capability: "reports.view" },
       { label: "متابعة الأداء", href: "/admin/monitoring", icon: "Activity", capability: "reports.view" },
       { label: "المساعد الذكي", href: "/assistant", icon: "Sparkles", capability: "ai.use" },
