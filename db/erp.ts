@@ -757,6 +757,57 @@ export const journalEntryLines = pgTable(
   ],
 );
 
+/* ══════════════════════════ FIXED ASSETS ══════════════════ */
+
+export const fixedAssets = pgTable(
+  "fixed_assets",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    category: text("category").notNull().default("OTHER"), // BUILDING, VEHICLE, EQUIPMENT, FURNITURE, IT, OTHER
+    purchaseDate: ts("purchase_date").notNull(),
+    purchaseCost: money("purchase_cost").notNull(),
+    salvageValue: money("salvage_value").notNull().default("0"),
+    usefulLifeYears: integer("useful_life_years").notNull().default(5),
+    depreciationMethod: text("depreciation_method").notNull().default("SL"), // SL = straight-line
+    accumulatedDepreciation: money("accumulated_depreciation").notNull().default("0"),
+    netBookValue: money("net_book_value").notNull().default("0"),  // purchaseCost - accumulated
+    status: text("status").notNull().default("ACTIVE"), // ACTIVE, DISPOSED, FULLY_DEPRECIATED
+    disposalDate: ts("disposal_date"),
+    disposalProceeds: money("disposal_proceeds"),
+    glAssetAccountId: text("gl_asset_account_id").references(() => accounts.id),
+    glAccumDeprecAccountId: text("gl_accum_deprec_account_id").references(() => accounts.id),
+    glDeprecExpenseAccountId: text("gl_deprec_expense_account_id").references(() => accounts.id),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("fixed_assets_org_code_idx").on(t.organizationId, t.code),
+    index("fixed_assets_org_status_idx").on(t.organizationId, t.status),
+  ],
+);
+
+export const assetDepreciationLines = pgTable(
+  "asset_depreciation_lines",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+    periodYear: integer("period_year").notNull(),
+    periodMonth: integer("period_month").notNull(), // 1-12
+    amount: money("amount").notNull(),
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("asset_deprec_asset_period_idx").on(t.assetId, t.periodYear, t.periodMonth),
+    index("asset_deprec_org_period_idx").on(t.organizationId, t.periodYear, t.periodMonth),
+  ],
+);
+
 /* ══════════════════════════ BANKING ═══════════════════════ */
 
 export const bankAccounts = pgTable(
