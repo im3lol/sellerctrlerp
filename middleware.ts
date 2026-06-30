@@ -35,6 +35,12 @@ export default auth((req) => {
   if (isLoggedIn) {
     const isClient = role === "client";
     const onPortal = path.startsWith("/portal");
+    const dest = isClient ? "/portal" : "/dashboard";
+
+    // Landing page → skip marketing, go straight to their area.
+    if (path === "/") {
+      return Response.redirect(new URL(dest, nextUrl));
+    }
 
     // Clients are confined to the portal.
     if (isClient && !onPortal && !isPublic) {
@@ -53,7 +59,7 @@ export default auth((req) => {
       const isPartnerPage = path.startsWith("/login/partner") || path.startsWith("/login/client");
       const matchesAudience = isPartnerPage ? isClient : !isClient;
       if (matchesAudience) {
-        return Response.redirect(new URL(isClient ? "/portal" : "/dashboard", nextUrl));
+        return Response.redirect(new URL(dest, nextUrl));
       }
     }
   }
