@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, KeyRound, Server, Settings } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, KeyRound, Server, Monitor, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -10,8 +10,9 @@ const NAV = [
   { href: "/platform/customers",        label: "إدارة العملاء",    icon: Users },
   { href: "/platform/subscriptions",   label: "الاشتراكات",       icon: CreditCard },
   { href: "/platform/codes",           label: "أكواد التفعيل",    icon: KeyRound },
-  { href: "/platform/installations",   label: "تثبيتات On-Prem",  icon: Server },
-  { href: "/platform/settings",        label: "الإعدادات",        icon: Settings },
+  { href: "/platform/installations",     label: "تثبيتات On-Prem",  icon: Server },
+  { href: "/platform/desktop-licenses", label: "تراخيص Desktop",   icon: Monitor },
+  { href: "/platform/settings",         label: "الإعدادات",        icon: Settings },
 ];
 
 export function PlatformSidebar() {
