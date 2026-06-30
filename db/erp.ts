@@ -25,6 +25,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -1379,6 +1380,32 @@ export const orgSubscriptions = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("org_subscriptions_org_idx").on(t.organizationId)],
+);
+
+// Desktop license tokens — long-lived API keys for SellerCtrl Desktop installs.
+// The token is stored as an HMAC-SHA256 hash; shown once at creation.
+// The desktop app calls /api/platform/desktop-license/validate with the raw token;
+// we hash it and look up the record. Returns enabled modules + expiry.
+export const desktopLicenses = pgTable(
+  "desktop_licenses",
+  {
+    id: pk(),
+    tokenHash: text("token_hash").notNull(),
+    tokenHint: text("token_hint").notNull(), // last 6 chars, e.g. "...Ab3X9Q"
+    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
+    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+    status: text("status").notNull().default("ACTIVE"), // ACTIVE, REVOKED
+    expiresAt: ts("expires_at"),
+    lastHeartbeatAt: ts("last_heartbeat_at"),
+    notes: text("notes"),
+    createdById: text("created_by_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("desktop_licenses_token_hash_idx").on(t.tokenHash),
+    index("desktop_licenses_org_idx").on(t.organizationId),
+    check("desktop_licenses_status_chk", sql`${t.status} IN ('ACTIVE','REVOKED')`),
+  ],
 );
 
 // Activation codes are stored ONLY as an HMAC hash (never plaintext). The full
