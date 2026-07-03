@@ -15,6 +15,7 @@ export default auth((req) => {
     path.startsWith("/login") || // /login, /login/admin, /login/client
     path.startsWith("/api/auth") ||
     path.startsWith("/api/scrape") || // token-authed (Edge extension + Docker worker); routes enforce auth
+    path.startsWith("/api/platform/desktop-license") || // token-authed phone-home (desktop app activation + heartbeat)
     path.startsWith("/_next") ||
     path.startsWith("/brand");
 
