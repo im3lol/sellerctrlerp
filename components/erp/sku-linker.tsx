@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { previewAmazonCodeLinkAction, saveAmazonCodeLinksAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
+import { previewAmazonCodeLinkAction, saveAmazonCodeLinksAction, createItemsFromSkusAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +19,13 @@ export function SkuLinker() {
   const [chosen, setChosen] = useState<Record<string, string>>({}); // sku → itemId
   const [previewing, startPreview] = useTransition();
   const [saving, startSave] = useTransition();
+  const [creating, startCreate] = useTransition();
 
   const labelById = useMemo(() => new Map((preview?.items ?? []).map((o) => [o.id, o.label])), [preview]);
   const chosenCount = useMemo(() => Object.values(chosen).filter(Boolean).length, [chosen]);
   const autoCount = useMemo(() => (preview?.rows ?? []).filter((r) => r.autoItemId).length, [preview]);
+  const unassignedCount = useMemo(() => (preview?.rows ?? []).filter((r) => !chosen[r.sku]).length, [preview, chosen]);
+  const busy = previewing || saving || creating;
 
   const doPreview = () => {
     if (!file) { toast.error("اختر ملف أمازون أولاً"); return; }
@@ -55,14 +58,29 @@ export function SkuLinker() {
     });
   };
 
+  const createNew = (skus: string[]) => {
+    if (!preview || skus.length === 0) return;
+    const set = new Set(skus);
+    const rows = preview.rows.filter((r) => set.has(r.sku))
+      .map((r) => ({ sku: r.sku, asin: r.asin, productName: r.productName, sellPrice: r.sellPrice }));
+    if (rows.length === 0) return;
+    startCreate(async () => {
+      const r = await createItemsFromSkusAction(rows);
+      if (!r.ok) { toast.error(r.error); return; }
+      toast.success(`تم إنشاء ${r.created} صنف جديد وربط أكوادها`);
+      setPreview((p) => p ? { ...p, rows: p.rows.filter((row) => !set.has(row.sku)), alreadyLinked: p.alreadyLinked + r.created } : p);
+      setChosen((c) => { const n = { ...c }; skus.forEach((s) => delete n[s]); return n; });
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>ربط أكواد أمازون بالأصناف</CardTitle>
           <CardDescription>
-            ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. الأصناف التي يطابق كودها الداخلي الـ SKU تُقترح تلقائياً؛
-            راجع/عدّل الاختيار ثم احفظ. بعد الربط ستنجح مطابقة استيراد الطلبات.
+            ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)،
+            أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -73,15 +91,23 @@ export function SkuLinker() {
               onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); setChosen({}); }}
               className="block text-sm file:me-3 file:rounded-md file:border file:border-input file:bg-muted file:px-3 file:py-1.5 file:text-sm"
             />
-            <Button onClick={doPreview} disabled={!file || previewing}>
+            <Button onClick={doPreview} disabled={!file || busy}>
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
               فحص الأكواد
             </Button>
             {preview && preview.rows.length > 0 && (
-              <Button onClick={doSave} disabled={saving || chosenCount === 0} className="bg-emerald-600 hover:bg-emerald-700">
-                {saving ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Link" className="size-4" />}
-                حفظ الروابط ({chosenCount})
-              </Button>
+              <>
+                <Button onClick={doSave} disabled={busy || chosenCount === 0} className="bg-emerald-600 hover:bg-emerald-700">
+                  {saving ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Link" className="size-4" />}
+                  ربط بأصناف موجودة ({chosenCount})
+                </Button>
+                {unassignedCount > 0 && (
+                  <Button variant="outline" onClick={() => createNew(preview.rows.filter((r) => !chosen[r.sku]).map((r) => r.sku))} disabled={busy}>
+                    {creating ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="PackagePlus" className="size-4" />}
+                    إنشاء أصناف جديدة للباقي ({unassignedCount})
+                  </Button>
+                )}
+              </>
             )}
           </div>
 
@@ -118,7 +144,10 @@ export function SkuLinker() {
                   <TableRow key={r.sku}>
                     <TableCell className="font-mono text-xs" dir="ltr">{r.sku}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">{r.asin}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={r.productName}>{r.productName}</TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="truncate" title={r.productName}>{r.productName}</div>
+                      {r.sellPrice > 0 && <div className="text-[11px] text-muted-foreground">سعر مقترح: {r.sellPrice.toLocaleString("ar-EG-u-nu-latn")}</div>}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <CellCombobox
@@ -128,9 +157,13 @@ export function SkuLinker() {
                           placeholder="ابحث عن الصنف…"
                         />
                         {r.autoItemId && chosen[r.sku] === r.autoItemId && <Badge variant="outline" className="shrink-0 text-[10px]">تلقائي</Badge>}
-                        {chosen[r.sku] && (
+                        {chosen[r.sku] ? (
                           <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setChosen((c) => { const n = { ...c }; delete n[r.sku]; return n; })} aria-label="مسح">
                             <Icon name="X" className="size-3.5" />
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" className="shrink-0 whitespace-nowrap" disabled={busy} onClick={() => createNew([r.sku])}>
+                            <Icon name="PackagePlus" className="size-3.5" />صنف جديد
                           </Button>
                         )}
                       </div>
