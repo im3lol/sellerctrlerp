@@ -92,6 +92,13 @@
       "when": 1782890726197,
       "tag": "0012_messy_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783375293368,
+      "tag": "0013_amazon_sales_channel",
+      "breakpoints": true
     }
   ]
 }

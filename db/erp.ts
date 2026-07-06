@@ -1199,12 +1199,22 @@ export const salesOrders = pgTable(
     discountPercent: money("discount_percent").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
     taxPercent: money("tax_percent").notNull().default("0"),
+    shippingAmount: money("shipping_amount").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
+    // Sales channel + the marketplace's own order id (Amazon/Noon). Lets imported
+    // orders be deduplicated and shown alongside their platform order number.
+    channel: text("channel").notNull().default("MANUAL"), // MANUAL, AMAZON, NOON
+    externalOrderId: text("external_order_id"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("sales_orders_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("sales_orders_org_number_idx").on(t.organizationId, t.number),
+    // Dedup imported orders per channel (NULL external ids never collide in PG).
+    uniqueIndex("sales_orders_channel_ext_idx").on(t.organizationId, t.channel, t.externalOrderId),
+    index("sales_orders_org_channel_idx").on(t.organizationId, t.channel),
+  ],
 );
 
 export const salesOrderLines = pgTable("sales_order_lines", {

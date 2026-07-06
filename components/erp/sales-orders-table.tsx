@@ -26,7 +26,9 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[] };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[]; channel?: string; externalOrderId?: string | null };
+
+const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون" };
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
@@ -87,6 +89,12 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                   {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/erp/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                    {r.externalOrderId && (
+                      <div className="mt-0.5 flex items-center gap-1">
+                        {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
+                        <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">{r.externalOrderId}</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
                   <TableCell>{r.customer ?? "—"}</TableCell>

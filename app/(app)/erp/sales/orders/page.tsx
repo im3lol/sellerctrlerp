@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, salesReturns, salesReturnLines } from "@/db/schema";
@@ -33,7 +33,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
   const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
   const conds = [eq(salesOrders.organizationId, orgId)];
-  if (q) conds.push(ilike(salesOrders.number, `%${q}%`));
+  if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
   if (fStatus) conds.push(eq(salesOrders.status, fStatus));
   if (fCustomer) conds.push(eq(salesOrders.customerId, fCustomer));
   if (from) conds.push(gte(salesOrders.date, new Date(from)));
@@ -48,7 +48,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
   const safePage = Math.min(page, pages);
 
   const rows = await db
-    .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr })
+    .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId })
     .from(salesOrders)
     .leftJoin(customers, eq(customers.id, salesOrders.customerId))
     .where(where)
@@ -113,7 +113,10 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
         title="أوامر البيع"
         subtitle={`${total} أمر`}
         action={canManage ? (
-          <Button asChild><Link href="/erp/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild><Link href="/erp/sales/orders/import"><Icon name="Upload" className="size-4" />استيراد أمازون</Link></Button>
+            <Button asChild><Link href="/erp/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
+          </div>
         ) : undefined}
       />
       <Card>
@@ -127,7 +130,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               <Icon name="ListFilter" className="size-4" /> بحث وتصفية
             </summary>
             <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
-              <div className="space-y-1"><Label htmlFor="q">رقم الأمر</Label><Input id="q" name="q" defaultValue={q} placeholder="SO-2026-..." /></div>
+              <div className="space-y-1"><Label htmlFor="q">رقم الأمر / أمازون</Label><Input id="q" name="q" defaultValue={q} placeholder="SO-2026-... أو 407-..." /></div>
               <div className="space-y-1">
                 <Label htmlFor="status">الحالة</Label>
                 <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
