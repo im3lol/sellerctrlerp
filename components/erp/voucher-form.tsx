@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Party = { id: string; code: string; name: string };
 type OpenInvoice = { id: string; number: string; partyId: string; balanceDue: number };
@@ -46,6 +47,11 @@ export function VoucherForm({
     [invoices, partyId],
   );
 
+  const partyOptions = useMemo(() => parties.map((p) => ({ id: p.id, label: `${p.code} — ${p.name}` })), [parties]);
+  const partyLabelById = useMemo(() => new Map(partyOptions.map((o) => [o.id, o.label])), [partyOptions]);
+  const cashOptions = useMemo(() => cashAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` })), [cashAccounts]);
+  const cashLabelById = useMemo(() => new Map(cashOptions.map((o) => [o.id, o.label])), [cashOptions]);
+
   const pickInvoice = (id: string) => {
     setInvoiceId(id);
     const inv = invoices.find((i) => i.id === id);
@@ -81,10 +87,12 @@ export function VoucherForm({
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="party">{partyLabel}</Label>
-          <select id="party" className={selectCls} value={partyId} onChange={(e) => { setPartyId(e.target.value); setInvoiceId(""); }}>
-            <option value="">— اختر —</option>
-            {parties.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          <CellCombobox
+            selectedLabel={partyLabelById.get(partyId) ?? ""}
+            options={partyOptions}
+            onSelect={(id) => { setPartyId(id); setInvoiceId(""); }}
+            placeholder={`ابحث عن ${partyLabel}…`}
+          />
         </div>
 
         <div className="space-y-2">
@@ -104,10 +112,12 @@ export function VoucherForm({
 
         <div className="space-y-2">
           <Label htmlFor="cash">حساب النقدية / البنك</Label>
-          <select id="cash" className={selectCls} value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
-            {cashAccounts.length === 0 && <option value="">لا توجد حسابات نقدية</option>}
-            {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-          </select>
+          <CellCombobox
+            selectedLabel={cashLabelById.get(cashAccountId) ?? ""}
+            options={cashOptions}
+            onSelect={(id) => setCashAccountId(id)}
+            placeholder={cashAccounts.length === 0 ? "لا توجد حسابات نقدية" : "ابحث عن الحساب…"}
+          />
         </div>
 
         <div className="space-y-2">

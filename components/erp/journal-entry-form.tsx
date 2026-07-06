@@ -16,7 +16,6 @@ type Option = { id: string; code: string; nameAr: string };
 type Line = { accountId: string; description: string; debit: string; credit: string; costCenterId: string };
 
 const emptyLine = (): Line => ({ accountId: "", description: "", debit: "", credit: "", costCenterId: "" });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function JournalEntryForm({
@@ -42,6 +41,14 @@ export function JournalEntryForm({
   const accountLabel = useMemo(
     () => new Map(accountOptions.map((o) => [o.id, o.label])),
     [accountOptions],
+  );
+  const costCenterOptions = useMemo(
+    () => costCenters.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` })),
+    [costCenters],
+  );
+  const costCenterLabel = useMemo(
+    () => new Map(costCenterOptions.map((o) => [o.id, o.label])),
+    [costCenterOptions],
   );
 
   const totals = useMemo(() => {
@@ -159,16 +166,12 @@ export function JournalEntryForm({
                   </TableCell>
                   {costCenters.length > 0 && (
                     <TableCell>
-                      <select
-                        className={selectCls}
-                        value={l.costCenterId}
-                        onChange={(e) => update(i, { costCenterId: e.target.value })}
-                      >
-                        <option value="">—</option>
-                        {costCenters.map((c) => (
-                          <option key={c.id} value={c.id}>{c.code} — {c.nameAr}</option>
-                        ))}
-                      </select>
+                      <CellCombobox
+                        selectedLabel={costCenterLabel.get(l.costCenterId) ?? ""}
+                        options={costCenterOptions}
+                        onSelect={(id) => update(i, { costCenterId: id })}
+                        placeholder="— اختياري —"
+                      />
                     </TableCell>
                   )}
                   <TableCell>

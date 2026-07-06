@@ -13,13 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
 type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -34,6 +34,8 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, newLine()]);
@@ -90,10 +92,12 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
           </div>
           <div className="space-y-2">
             <Label>العميل</Label>
-            <select className={selectCls} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">— اختر —</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
-            </select>
+            <CellCombobox
+              selectedLabel={customerLabelById.get(customerId) ?? ""}
+              options={customerOptions}
+              onSelect={(id) => setCustomerId(id)}
+              placeholder="ابحث عن العميل…"
+            />
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>

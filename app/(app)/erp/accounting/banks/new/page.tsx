@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { upsertBankAccountAction } from "@/app/actions/erp/bank-accounts";
-
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+import { FormCombobox } from "@/components/erp/form-combobox";
 
 export default async function NewBankAccountPage() {
   const { orgId } = await requireErpModule("accounting.create");
@@ -69,12 +68,11 @@ export default async function NewBankAccountPage() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="glAccountId">حساب الأستاذ المرتبط</Label>
-              <select id="glAccountId" name="glAccountId" className={selectCls}>
-                <option value="">— اختر حسابًا —</option>
-                {glAccounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>
-                ))}
-              </select>
+              <FormCombobox
+                name="glAccountId"
+                placeholder="ابحث عن حساب…"
+                options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+              />
             </div>
             <div className="space-y-1">
               <Label htmlFor="notes">ملاحظات</Label>

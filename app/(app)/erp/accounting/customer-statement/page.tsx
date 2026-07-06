@@ -5,6 +5,7 @@ import { customers, salesInvoices, receiptVouchers, salesReturns } from "@/db/sc
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FormCombobox } from "@/components/erp/form-combobox";
 
 type Params = { searchParams: Promise<{ customerId?: string; from?: string; to?: string }> };
 
@@ -156,7 +157,6 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
     return <Badge variant="outline" className="border-amber-500 text-amber-600">مرتجع</Badge>;
   };
 
-  const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -171,12 +171,12 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
       <form method="GET" className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1 min-w-48">
           <label className="text-xs text-muted-foreground">العميل</label>
-          <select name="customerId" defaultValue={selectedId} className={selectCls}>
-            <option value="">— اختر عميلًا —</option>
-            {custRows.map((c) => (
-              <option key={c.id} value={c.id}>{c.nameAr}</option>
-            ))}
-          </select>
+          <FormCombobox
+            name="customerId"
+            defaultValue={selectedId}
+            placeholder="ابحث عن عميل…"
+            options={custRows.map((c) => ({ id: c.id, label: c.nameAr }))}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">من</label>

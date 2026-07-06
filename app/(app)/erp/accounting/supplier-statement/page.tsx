@@ -5,6 +5,7 @@ import { suppliers, purchaseInvoices, paymentVouchers, purchaseReturns } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FormCombobox } from "@/components/erp/form-combobox";
 
 type Params = { searchParams: Promise<{ supplierId?: string; from?: string; to?: string }> };
 
@@ -153,8 +154,6 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
     return <Badge variant="outline" className="border-amber-500 text-amber-600">مرتجع</Badge>;
   };
 
-  const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
-
   return (
     <div className="space-y-6" dir="rtl">
       <ErpPageHeader
@@ -167,12 +166,12 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
       <form method="GET" className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1 min-w-48">
           <label className="text-xs text-muted-foreground">المورّد</label>
-          <select name="supplierId" defaultValue={selectedId} className={selectCls}>
-            <option value="">— اختر مورّدًا —</option>
-            {supplierRows.map((s) => (
-              <option key={s.id} value={s.id}>{s.nameAr}</option>
-            ))}
-          </select>
+          <FormCombobox
+            name="supplierId"
+            defaultValue={selectedId}
+            placeholder="ابحث عن مورّد…"
+            options={supplierRows.map((s) => ({ id: s.id, label: s.nameAr }))}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">من</label>

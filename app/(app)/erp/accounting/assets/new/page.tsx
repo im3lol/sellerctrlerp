@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { createAssetAction } from "@/app/actions/erp/fixed-assets";
+import { FormCombobox } from "@/components/erp/form-combobox";
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
@@ -97,12 +98,11 @@ export default async function NewFixedAssetPage() {
               ].map(([name, label]) => (
                 <div key={name} className="mb-3 space-y-1">
                   <Label htmlFor={name}>{label}</Label>
-                  <select id={name} name={name} className={selectCls}>
-                    <option value="">— اختياري —</option>
-                    {glAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>
-                    ))}
-                  </select>
+                  <FormCombobox
+                    name={name}
+                    placeholder="ابحث عن حساب… (اختياري)"
+                    options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+                  />
                 </div>
               ))}
             </div>

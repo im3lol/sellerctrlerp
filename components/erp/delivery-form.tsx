@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Customer = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
@@ -38,6 +39,8 @@ export function DeliveryForm({
   const [lines, setLines] = useState<Line[]>([]);
 
   const customerOrders = useMemo(() => openOrders.filter((o) => o.customerId === customerId), [openOrders, customerId]);
+  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const onCustomer = (id: string) => { setCustomerId(id); setOrderId(""); setLines([]); };
 
@@ -96,10 +99,12 @@ export function DeliveryForm({
           </div>
           <div className="space-y-2">
             <Label>العميل</Label>
-            <select className={selectCls} value={customerId} onChange={(e) => onCustomer(e.target.value)}>
-              <option value="">— اختر —</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
-            </select>
+            <CellCombobox
+              selectedLabel={customerLabelById.get(customerId) ?? ""}
+              options={customerOptions}
+              onSelect={(id) => onCustomer(id)}
+              placeholder="ابحث عن العميل…"
+            />
           </div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>

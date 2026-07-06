@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Supplier = { id: string; nameAr: string };
 type BillableReceipt = { id: string; number: string; supplierId: string | null; dateLabel: string };
@@ -37,6 +38,8 @@ export function PurchaseInvoiceFromReceiptForm({
   const [preview, setPreview] = useState<ReceiptInvoicePreview | null>(null);
 
   const supplierReceipts = useMemo(() => receipts.filter((r) => r.supplierId === supplierId), [receipts, supplierId]);
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const onSupplier = (id: string) => { setSupplierId(id); setReceiptId(""); setPreview(null); };
 
@@ -86,10 +89,12 @@ export function PurchaseInvoiceFromReceiptForm({
           </div>
           <div className="space-y-2">
             <Label>المورد</Label>
-            <select className={selectCls} value={supplierId} onChange={(e) => onSupplier(e.target.value)}>
-              <option value="">— اختر —</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
-            </select>
+            <CellCombobox
+              selectedLabel={supplierLabelById.get(supplierId) ?? ""}
+              options={supplierOptions}
+              onSelect={(id) => onSupplier(id)}
+              placeholder="ابحث عن المورد…"
+            />
           </div>
           <div className="space-y-2"><Label>تاريخ الفاتورة</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>

@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Supplier = { id: string; nameAr: string };
@@ -35,6 +36,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, newLine()]);
@@ -92,10 +95,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2">
             <Label>المورد</Label>
-            <select className={selectCls} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-              <option value="">— اختر —</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
-            </select>
+            <CellCombobox
+              selectedLabel={supplierLabelById.get(supplierId) ?? ""}
+              options={supplierOptions}
+              onSelect={(id) => setSupplierId(id)}
+              placeholder="ابحث عن المورد…"
+            />
           </div>
           <div className="space-y-2">
             <Label>الشركة</Label>
