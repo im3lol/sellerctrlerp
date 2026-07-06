@@ -13,7 +13,7 @@ export default async function NewSalesOrderPage({
   const { orgId } = await requireErpModule("sales.view");
   const sp = await searchParams;
   const [custList, itemList, org] = await Promise.all([
-    db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers)
+    db.select({ id: customers.id, nameAr: customers.nameAr, code: customers.code }).from(customers)
       .where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
     db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice }).from(items)
       .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
@@ -23,10 +23,15 @@ export default async function NewSalesOrderPage({
   // A customerId is only honoured if it belongs to this org's customer list.
   const defaultCustomerId = sp.customerId && custList.some((c) => c.id === sp.customerId) ? sp.customerId : undefined;
 
+  // Default customer per marketplace channel (auto-selected when that channel is picked).
+  const channelCustomerId: Partial<Record<string, string>> = {};
+  const amzn = custList.find((c) => c.code === "AMZN");
+  if (amzn) channelCustomerId.AMAZON = amzn.id;
+
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="ClipboardList" title="أمر بيع جديد" subtitle="التزام بيع — يُحوّل لفاتورة لاحقاً" backHref="/erp/sales/orders" />
-      <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} defaultCustomerId={defaultCustomerId} opportunityId={defaultCustomerId ? sp.opp : undefined} />
+      <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} defaultCustomerId={defaultCustomerId} opportunityId={defaultCustomerId ? sp.opp : undefined} channelCustomerId={channelCustomerId} />
     </div>
   );
 }

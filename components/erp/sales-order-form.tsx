@@ -25,7 +25,10 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, opportunityId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; opportunityId?: string }) {
+const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
+const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
+
+export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, opportunityId, channelCustomerId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; opportunityId?: string; channelCustomerId?: Partial<Record<string, string>> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -33,7 +36,17 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
   const [date, setDate] = useState(today);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [channel, setChannel] = useState("MANUAL");
+  const [externalOrderId, setExternalOrderId] = useState("");
+  const [shippingAmount, setShippingAmount] = useState(0);
   const [lines, setLines] = useState<Line[]>([newLine()]);
+
+  // Switching to a marketplace channel auto-selects its default customer (e.g. «أمازون مصر») if one exists.
+  const onChannel = (c: string) => {
+    setChannel(c);
+    const cid = channelCustomerId?.[c];
+    if (cid) setCustomerId(cid);
+  };
   const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
@@ -57,15 +70,17 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
     const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
     const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
-    return { subtotal, discount, tax, qty, total: round2(subtotal - discount + tax) };
-  }, [lines]);
+    return { subtotal, discount, tax, qty, total: round2(subtotal - discount + tax + (Number(shippingAmount) || 0)) };
+  }, [lines, shippingAmount]);
 
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
+    if (channel !== "MANUAL" && !externalOrderId.trim()) return toast.error("أدخل رقم الطلب");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createSalesOrderAction({
         customerId, date, dueDate: dueDate || undefined, notes, opportunityId,
+        channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
       });
       if (r.ok) { toast.success("تم حفظ أمر البيع (مسودة) — أكّده"); router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh(); }
@@ -101,6 +116,26 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="space-y-2">
+            <Label>القناة</Label>
+            <select className={selectCls} value={channel} onChange={(e) => onChannel(e.target.value)}>
+              {CHANNELS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          {channel !== "MANUAL" && (
+            <>
+              <div className="space-y-2">
+                <Label>رقم الطلب ({CHANNELS.find(([k]) => k === channel)?.[1]})</Label>
+                <Input value={externalOrderId} onChange={(e) => setExternalOrderId(e.target.value)} placeholder="مثال: 407-..." dir="ltr" />
+              </div>
+              <div className="space-y-2">
+                <Label>الشحن</Label>
+                <Input type="number" step="0.01" min="0" value={shippingAmount} onChange={(e) => setShippingAmount(Number(e.target.value))} />
+              </div>
+            </>
+          )}
         </div>
         <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
 
@@ -161,6 +196,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            {(Number(shippingAmount) || 0) > 0 && <div>الشحن: <span className="font-medium">{fmt(Number(shippingAmount) || 0)}</span></div>}
             <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
           </div>
         </div>

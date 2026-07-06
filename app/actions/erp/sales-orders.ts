@@ -26,6 +26,9 @@ const schema = z.object({
   dueDate: z.string().optional(),
   notes: z.string().optional(),
   opportunityId: z.string().optional(), // CRM pipeline: link + mark the opportunity won
+  channel: z.enum(["MANUAL", "AMAZON", "NOON"]).default("MANUAL"),
+  externalOrderId: z.string().optional(), // marketplace order number (Amazon/Noon)
+  shippingAmount: z.coerce.number().min(0).default(0),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 
@@ -42,17 +45,27 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { customerId, date, dueDate, notes, opportunityId, lines } = parsed.data;
+  const { customerId, date, dueDate, notes, opportunityId, channel, lines } = parsed.data;
+  const shippingAmount = round2(parsed.data.shippingAmount);
+  const externalOrderId = channel !== "MANUAL" ? (parsed.data.externalOrderId?.trim() || "") : "";
+  if (channel !== "MANUAL" && !externalOrderId) return { error: "أدخل رقم الطلب" };
 
   const [cust] = await db.select({ id: customers.id }).from(customers)
     .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
   if (!cust) return { error: "العميل غير موجود في هذه المؤسسة" };
 
+  // Reject a marketplace order number already recorded for this channel.
+  if (externalOrderId) {
+    const [dup] = await db.select({ id: salesOrders.id }).from(salesOrders)
+      .where(and(eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.channel, channel), eq(salesOrders.externalOrderId, externalOrderId))).limit(1);
+    if (dup) return { error: "رقم الطلب مسجّل مسبقاً لهذه القناة" };
+  }
+
   const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
   const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
   const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
   const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
-  const totalAmount = round2(subtotal - discountAmount + taxAmount);
+  const totalAmount = round2(subtotal - discountAmount + taxAmount + shippingAmount);
 
   const d = new Date(date);
   const number = await nextNumber(auth.orgId, d.getFullYear());
@@ -62,7 +75,8 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
       const [so] = await tx.insert(salesOrders).values({
         organizationId: auth.orgId, number, customerId, date: d, dueDate: dueDate ? new Date(dueDate) : null,
         status: "DRAFT", subtotal: String(subtotal), discountAmount: String(discountAmount),
-        taxAmount: String(taxAmount), totalAmount: String(totalAmount), notes: notes || null,
+        taxAmount: String(taxAmount), shippingAmount: String(shippingAmount), totalAmount: String(totalAmount),
+        channel, externalOrderId: externalOrderId || null, notes: notes || null,
       }).returning({ id: salesOrders.id });
       await tx.insert(salesOrderLines).values(computed.map((l) => ({
         salesOrderId: so.id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
