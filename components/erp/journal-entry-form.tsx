@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
+import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Option = { id: string; code: string; nameAr: string };
 type Line = { accountId: string; description: string; debit: string; credit: string; costCenterId: string };
@@ -33,6 +34,15 @@ export function JournalEntryForm({
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [lines, setLines] = useState<Line[]>([emptyLine(), emptyLine()]);
+
+  const accountOptions = useMemo(
+    () => accounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` })),
+    [accounts],
+  );
+  const accountLabel = useMemo(
+    () => new Map(accountOptions.map((o) => [o.id, o.label])),
+    [accountOptions],
+  );
 
   const totals = useMemo(() => {
     const debit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
@@ -119,16 +129,12 @@ export function JournalEntryForm({
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
-                    <select
-                      className={`${selectCls} min-w-48`}
-                      value={l.accountId}
-                      onChange={(e) => update(i, { accountId: e.target.value })}
-                    >
-                      <option value="">— اختر الحساب —</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>
-                      ))}
-                    </select>
+                    <CellCombobox
+                      selectedLabel={accountLabel.get(l.accountId) ?? ""}
+                      options={accountOptions}
+                      onSelect={(id) => update(i, { accountId: id })}
+                      placeholder="ابحث عن الحساب…"
+                    />
                   </TableCell>
                   <TableCell>
                     <Input value={l.description} onChange={(e) => update(i, { description: e.target.value })} placeholder="بيان" />
