@@ -5,6 +5,7 @@ import { db, pool } from "@/lib/db";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
 import { syncDocumentSequences } from "@/lib/erp/sequence";
+import { DEFAULT_COA } from "@/lib/erp/default-chart";
 import {
   users,
   workspaces,
@@ -155,31 +156,7 @@ async function main() {
   ]);
 
   // ── Chart of accounts (hierarchical tree, for the organization) ──
-  const coa: { code: string; nameAr: string; type: string; normalBalance: string; isLeaf: boolean; parent: string | null }[] = [
-    { code: "1", nameAr: "الأصول", type: "ASSET", normalBalance: "DEBIT", isLeaf: false, parent: null },
-    { code: "11", nameAr: "الأصول المتداولة", type: "ASSET", normalBalance: "DEBIT", isLeaf: false, parent: "1" },
-    { code: "1101", nameAr: "النقدية", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-    { code: "1102", nameAr: "البنك", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-    { code: "1103", nameAr: "العملاء (المدينون)", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-    { code: "1104", nameAr: "المخزون", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-    { code: "1107", nameAr: "ضريبة المدخلات", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-    { code: "2", nameAr: "الخصوم", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: null },
-    { code: "21", nameAr: "الخصوم المتداولة", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: "2" },
-    { code: "2101", nameAr: "الموردون (الدائنون)", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
-    { code: "2102", nameAr: "ضريبة المخرجات", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
-    { code: "2103", nameAr: "بضاعة مستلمة لم تُفوتر", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
-    { code: "3", nameAr: "حقوق الملكية", type: "EQUITY", normalBalance: "CREDIT", isLeaf: false, parent: null },
-    { code: "3101", nameAr: "رأس المال", type: "EQUITY", normalBalance: "CREDIT", isLeaf: true, parent: "3" },
-    { code: "4", nameAr: "الإيرادات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: false, parent: null },
-    { code: "4101", nameAr: "إيرادات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
-    { code: "4102", nameAr: "مردودات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
-    { code: "4201", nameAr: "فائض المخزون (أرباح جرد)", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
-    { code: "5", nameAr: "المصروفات", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: false, parent: null },
-    { code: "5101", nameAr: "تكلفة البضاعة المباعة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
-    { code: "5201", nameAr: "مصروفات عمومية وإدارية", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
-    { code: "5301", nameAr: "عجز وتالف المخزون (خسائر جرد)", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
-    { code: "5302", nameAr: "فروق أسعار مرتجعات الشراء", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
-  ];
+  const coa = DEFAULT_COA;
   const insertedAccs = await db.insert(accounts)
     .values(coa.map(({ parent, ...a }) => ({ ...a, organizationId: org.id })))
     .returning({ id: accounts.id, code: accounts.code });

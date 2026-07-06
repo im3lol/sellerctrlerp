@@ -5,7 +5,7 @@ import { useActionState, useEffect, useMemo, useState, useTransition } from "rea
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveAccountAction, deleteAccountAction, type ActionState } from "@/app/actions/erp/accounts";
+import { saveAccountAction, deleteAccountAction, initializeChartAction, type ActionState } from "@/app/actions/erp/accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +160,10 @@ export function AccountsTree({
     const r = await deleteAccountAction(a.id);
     if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
   });
+  const initialize = () => startTransition(async () => {
+    const r = await initializeChartAction();
+    if (r.ok) toast.success("تم إنشاء دليل الحسابات القياسي"); else toast.error(r.error ?? "تعذّرت التهيئة");
+  });
 
   const renderNode = (a: Account, depth: number): React.ReactNode => {
     const kids = childrenOf.get(a.id) ?? [];
@@ -229,7 +233,15 @@ export function AccountsTree({
       </CardHeader>
       <CardContent>
         {roots.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حسابات بعد.</div>
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-12 text-center text-muted-foreground">
+            <p>لا توجد حسابات بعد.</p>
+            {canManage && (
+              <Button onClick={initialize} disabled={pending}>
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                إنشاء دليل الحسابات القياسي
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="rounded-xl border">{roots.map((r) => renderNode(r, 0))}</div>
         )}

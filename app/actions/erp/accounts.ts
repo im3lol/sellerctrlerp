@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
 
 export type { ActionState };
 
@@ -58,6 +59,25 @@ export async function saveAccountAction(_prev: ActionState, formData: FormData):
   } catch (e) {
     return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
   }
+  revalidatePath("/erp/accounting");
+  return { ok: true };
+}
+
+/**
+ * Bootstrap the standard chart of accounts (plus default journals and an OPEN
+ * fiscal period) for the active organization. Idempotent — safe to run on an
+ * org that already has accounts. Used to initialize a freshly-provisioned tenant
+ * whose accounting was never seeded.
+ */
+export async function initializeChartAction(): Promise<ActionState> {
+  const auth = await authorizeErp("accounting.create");
+  if ("error" in auth) return auth;
+  try {
+    await initializeAccountingForOrg(auth.orgId);
+  } catch {
+    return { error: "تعذّرت تهيئة دليل الحسابات" };
+  }
+  revalidatePath("/erp/accounting/chart");
   revalidatePath("/erp/accounting");
   return { ok: true };
 }
