@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { previewAmazonImportAction, runAmazonImportAction, type AmazonPreview } from "@/app/actions/erp/amazon-import";
@@ -96,7 +97,7 @@ export function AmazonImport() {
           <CardHeader>
             <CardTitle className="text-base text-destructive">أصناف غير مربوطة ({preview.unmatched.length})</CardTitle>
             <CardDescription>
-              هذه الأكواد (SKU) غير مرتبطة بأي صنف في النظام، فطلباتها لن تُستورد. أنشئ الصنف أو اربط كوده (SKU/ASIN) من صفحة الأصناف، ثم أعد رفع الملف.
+              هذه الأكواد (SKU) غير مرتبطة بأي صنف في النظام، فطلباتها لن تُستورد. اربط الأكواد بالأصناف دفعة واحدة من الأداة أدناه، ثم أعد رفع الملف.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -120,6 +121,11 @@ export function AmazonImport() {
                 ))}
               </TableBody>
             </Table>
+            <div className="mt-4">
+              <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+                <Link href="/erp/sales/orders/import/link"><Icon name="Link" className="size-4" />اربط الأكواد بالأصناف</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
