@@ -6,24 +6,8 @@
 export type Role = "system_admin" | "ops_manager" | "team_lead" | "employee" | "client";
 
 export type Capability =
-  | "workspace.create"
-  | "workspace.manage"
-  | "workspace.viewAll"
-  | "client.manage"
-  | "employee.manage"
-  | "role.manage"
+  | "employee.manage" // manage OS users (admin)
   | "reports.view"
-  | "sheets.connect"
-  | "product.distribute"
-  | "product.review"
-  | "product.edit"
-  | "task.manage"
-  | "task.approve"
-  | "task.updateOwn"
-  | "attendance.self"
-  | "attendance.viewAll"
-  | "ai.use"
-  | "client.portal"
   // ERP module (المالية والمخزون) — global gate for nav/visibility.
   // Fine-grained, org-scoped enforcement happens in lib/erp/auth-guard.ts.
   | "erp.accounting.view"
@@ -45,11 +29,7 @@ export type Capability =
 const MATRIX: Record<Role, Capability[]> = {
   // مدير النظام — full access
   system_admin: [
-    "workspace.create", "workspace.manage", "workspace.viewAll",
-    "client.manage", "employee.manage", "role.manage", "reports.view",
-    "sheets.connect", "product.distribute", "product.review", "product.edit",
-    "task.manage", "task.approve", "task.updateOwn",
-    "attendance.self", "attendance.viewAll", "ai.use",
+    "employee.manage", "reports.view",
     // ERP — full access
     "erp.accounting.view", "erp.accounting.post", "erp.accounting.reverse",
     "erp.inventory.view", "erp.inventory.manage",
@@ -59,12 +39,9 @@ const MATRIX: Record<Role, Capability[]> = {
     "erp.reports.view", "erp.settings.manage",
     "erp.hr.view", "erp.hr.manage",
   ],
-  // مدير العمليات
+  // مدير العمليات — operational view + manage (no posting/reversal/settings)
   ops_manager: [
-    "workspace.viewAll", "reports.view", "product.distribute", "product.review",
-    "product.edit", "task.manage", "task.approve", "task.updateOwn",
-    "attendance.self", "attendance.viewAll", "ai.use", "sheets.connect",
-    // ERP — operational view + manage (no posting/reversal/settings)
+    "reports.view",
     "erp.accounting.view",
     "erp.inventory.view", "erp.inventory.manage",
     "erp.sales.view", "erp.sales.manage",
@@ -74,18 +51,11 @@ const MATRIX: Record<Role, Capability[]> = {
     "erp.hr.view",
   ],
   // قائد فريق
-  team_lead: [
-    "product.review", "product.edit", "task.manage", "task.approve",
-    "task.updateOwn", "attendance.self", "reports.view",
-  ],
+  team_lead: ["reports.view"],
   // موظف
-  employee: [
-    "product.edit", "task.updateOwn", "attendance.self",
-  ],
-  // عميل (Seller)
-  client: [
-    "client.portal",
-  ],
+  employee: [],
+  // عميل (سابقاً) — legacy role, no OS capabilities
+  client: [],
 };
 
 export function can(role: Role | undefined | null, capability: Capability): boolean {

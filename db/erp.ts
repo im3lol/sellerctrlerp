@@ -1389,14 +1389,6 @@ export const orgSubscriptions = pgTable(
   (t) => [uniqueIndex("org_subscriptions_org_idx").on(t.organizationId)],
 );
 
-// Desktop license tokens — long-lived API keys for SellerCtrl Desktop installs.
-// The token is stored as an HMAC-SHA256 hash; shown once at creation.
-// The desktop app calls /api/platform/desktop-license/validate with the raw token;
-// we hash it and look up the record. Returns enabled modules + expiry.
-// Activation codes are stored ONLY as an HMAC hash (never plaintext). The full
-// code is shown once at creation; redeeming activates/extends a tenant's
-// subscription with the code's interval + duration + modules. Single-use,
-// revocable, optionally time-limited.
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,
@@ -1481,11 +1473,3 @@ export const payrollLines = pgTable(
     index("payroll_lines_run_idx").on(t.payrollRunId),
   ],
 );
-
-/* ═══════════════ ON-PREMISES LICENSING ══════════════════════ */
-
-// Owner's server: one row per on-premises client deployment. licenseKey is a
-// UUID given to the client; the client sends it on every 24h heartbeat to prove
-// identity. Revoke by setting status='REVOKED'.
-// Client's server: single-row cache of last successful license check.
-// The app reads this on every request; the cron job updates it every 24h.

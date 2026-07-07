@@ -2,46 +2,34 @@ import { describe, it, expect } from "vitest";
 import { can, canAny, isStaff, ROLE_LABELS_AR } from "../rbac";
 
 describe("rbac.can", () => {
-  it("system_admin has full access", () => {
-    expect(can("system_admin", "workspace.manage")).toBe(true);
-    expect(can("system_admin", "product.distribute")).toBe(true);
-    expect(can("system_admin", "role.manage")).toBe(true);
+  it("system_admin has full ERP + admin access", () => {
+    expect(can("system_admin", "employee.manage")).toBe(true);
+    expect(can("system_admin", "erp.accounting.post")).toBe(true);
+    expect(can("system_admin", "erp.settings.manage")).toBe(true);
   });
 
-  it("employees can edit products but not assign/distribute/review", () => {
-    expect(can("employee", "product.edit")).toBe(true);
-    expect(can("employee", "product.review")).toBe(false);
-    expect(can("employee", "product.distribute")).toBe(false);
-    expect(can("employee", "workspace.manage")).toBe(false);
+  it("ops_manager can operate ERP but not post/reverse GL or manage users", () => {
+    expect(can("ops_manager", "erp.sales.manage")).toBe(true);
+    expect(can("ops_manager", "erp.accounting.view")).toBe(true);
+    expect(can("ops_manager", "erp.accounting.post")).toBe(false);
+    expect(can("ops_manager", "employee.manage")).toBe(false);
   });
 
-  it("team_lead can review but not distribute or manage workspaces", () => {
-    expect(can("team_lead", "product.review")).toBe(true);
-    expect(can("team_lead", "product.distribute")).toBe(false);
-    expect(can("team_lead", "workspace.manage")).toBe(false);
-  });
-
-  it("ops_manager can distribute and review", () => {
-    expect(can("ops_manager", "product.distribute")).toBe(true);
-    expect(can("ops_manager", "product.review")).toBe(true);
-  });
-
-  it("clients are confined to the portal", () => {
-    expect(can("client", "client.portal")).toBe(true);
-    expect(can("client", "product.edit")).toBe(false);
-    expect(can("client", "workspace.viewAll")).toBe(false);
+  it("employees have no OS capabilities (ERP access is org-scoped)", () => {
+    expect(can("employee", "reports.view")).toBe(false);
+    expect(can("employee", "erp.sales.view")).toBe(false);
   });
 
   it("null/undefined role has no capabilities", () => {
-    expect(can(null, "product.edit")).toBe(false);
-    expect(can(undefined, "product.edit")).toBe(false);
+    expect(can(null, "reports.view")).toBe(false);
+    expect(can(undefined, "erp.sales.view")).toBe(false);
   });
 });
 
 describe("rbac.canAny", () => {
   it("returns true if any capability is granted", () => {
-    expect(canAny("employee", ["workspace.manage", "product.edit"])).toBe(true);
-    expect(canAny("employee", ["workspace.manage", "role.manage"])).toBe(false);
+    expect(canAny("ops_manager", ["employee.manage", "erp.sales.view"])).toBe(true);
+    expect(canAny("employee", ["employee.manage", "reports.view"])).toBe(false);
   });
 });
 
