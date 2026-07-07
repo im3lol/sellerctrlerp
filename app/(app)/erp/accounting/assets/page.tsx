@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ilike, or } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { fixedAssets } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
+import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 
 const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,14 +24,26 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   DISPOSED:           { label: "مُستبعَد",     cls: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
 };
 
-export default async function FixedAssetsPage() {
+type SP = { q?: string; category?: string; status?: string };
+
+export default async function FixedAssetsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { orgId, role } = await requireErpModule("accounting.view");
   const canEdit = erpCan(role, "accounting.create");
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim();
+  const category = sp.category ?? "";
+  const status = sp.status ?? "";
+
+  const conds = [eq(fixedAssets.organizationId, orgId)];
+  if (category) conds.push(eq(fixedAssets.category, category));
+  if (status) conds.push(eq(fixedAssets.status, status));
+  if (q) conds.push(or(ilike(fixedAssets.code, `%${q}%`), ilike(fixedAssets.nameAr, `%${q}%`))!);
+  const hasFilters = !!(q || category || status);
 
   const assets = await db
     .select()
     .from(fixedAssets)
-    .where(eq(fixedAssets.organizationId, orgId))
+    .where(and(...conds))
     .orderBy(fixedAssets.category, fixedAssets.code);
 
   const summary = {
@@ -79,10 +93,33 @@ export default async function FixedAssetsPage() {
         ))}
       </div>
 
+      <FilterBar active={hasFilters} clearHref="/erp/accounting/assets">
+        <div className="space-y-2">
+          <Label htmlFor="q">بحث</Label>
+          <Input id="q" name="q" defaultValue={q} placeholder="الكود أو الاسم" className="min-w-56" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category">التصنيف</Label>
+          <select id="category" name="category" defaultValue={category} className={`${filterFieldCls} min-w-36`}>
+            <option value="">الكل</option>
+            {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="status">الحالة</Label>
+          <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-36`}>
+            <option value="">الكل</option>
+            {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </div>
+      </FilterBar>
+
       {assets.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-          لا توجد أصول مضافة.{" "}
-          {canEdit && <Link href="/erp/accounting/assets/new" className="text-primary underline underline-offset-2">إضافة أصل</Link>}
+          {hasFilters ? "لا توجد أصول مطابقة للتصفية." : (
+            <>لا توجد أصول مضافة.{" "}
+            {canEdit && <Link href="/erp/accounting/assets/new" className="text-primary underline underline-offset-2">إضافة أصل</Link>}</>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border">
