@@ -50,7 +50,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <div className="aspect-square w-full overflow-hidden rounded-xl border bg-muted/40">
               {item.image
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={item.image} alt={item.nameAr ?? item.code} className="size-full object-cover" />
+                ? <img src={item.image} alt={item.nameAr ?? item.code} className="size-full object-contain" />
                 : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-12" /></div>}
             </div>
           </CardContent>
@@ -59,7 +59,6 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <div className="space-y-4 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="الاسم">{item.nameAr ?? "—"}</Field>
-            <Field label="الاسم بالإنجليزية">{item.nameEn ?? "—"}</Field>
             <Field label="سعر البيع">{money(item.sellPrice)}</Field>
             <Field label="حد إعادة الطلب">{qf(item.minStock)}</Field>
             <Field label="المتاح الكلي">{qf(totalQty)}</Field>

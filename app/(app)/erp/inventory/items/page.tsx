@@ -151,7 +151,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                         <div className="size-9 overflow-hidden rounded-md border bg-muted/40">
                           {r.image
                             // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={r.image} alt="" className="size-full object-cover" />
+                            ? <img src={r.image} alt="" className="size-full object-contain" />
                             : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                         </div>
                       </TableCell>

@@ -161,7 +161,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                       <div className="size-10 shrink-0 overflow-hidden rounded-md border bg-muted/40">
                         {l.image
                           // eslint-disable-next-line @next/next/no-img-element
-                          ? <img src={l.image} alt="" className="size-full object-cover" />
+                          ? <img src={l.image} alt="" className="size-full object-contain" />
                           : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                       </div>
                       <div className="min-w-0">

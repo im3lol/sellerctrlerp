@@ -28,7 +28,6 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
 
   const [code, setCode] = useState(initial?.code ?? "");
   const [nameAr, setNameAr] = useState(initial?.nameAr ?? "");
-  const [nameEn, setNameEn] = useState(initial?.nameEn ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sellPrice, setSellPrice] = useState(String(initial?.sellPrice ?? "0"));
   const [minStock, setMinStock] = useState(String(initial?.minStock ?? "0"));
@@ -59,7 +58,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       if (!code.trim()) { toast.error("أدخل الكود الداخلي"); return; }
       if (nameAr.trim().length < 2) { toast.error("أدخل اسم الصنف"); return; }
       const r = await saveItemAction({
-        id: initial?.id, code, nameAr, nameEn, description,
+        id: initial?.id, code, nameAr, description,
         sellPrice: Number(sellPrice) || 0, minStock: Number(minStock) || 0, image,
         isPerishable, shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : undefined,
         codes: codes.filter((c) => c.code.trim()),
@@ -77,8 +76,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         <CardHeader><CardTitle>بيانات الصنف</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2"><Label>الكود الداخلي</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ITM-1001" /></div>
-          <div className="space-y-2"><Label>الاسم</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="اسم الصنف" /></div>
-          <div className="space-y-2"><Label>الاسم بالإنجليزية (اختياري)</Label><Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} /></div>
+          <div className="space-y-2"><Label>الاسم</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="اسم الصنف (عربي أو إنجليزي)" /></div>
           <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" min="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} /></div>
           <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" step="0.001" min="0" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
@@ -103,7 +101,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           <div className="size-32 shrink-0 overflow-hidden rounded-xl border bg-muted/40">
             {image
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={image} alt="" className="size-full object-cover" />
+              ? <img src={image} alt="" className="size-full object-contain" />
               : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-8" /></div>}
           </div>
           <div className="flex-1 space-y-2">
