@@ -173,8 +173,7 @@ Every lifecycle action writes to the append-only **audit log** (`lib/erp/audit.t
 
 ## Amazon / marketplace integration
 
-Sellers live on Amazon; the ERP ingests two Amazon reports. See
-[`marketplace-order-import`] notes for the full accounting trace.
+Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 1. **Orders report** → `app/actions/erp/amazon-import.ts` + `lib/erp/amazon-import.ts`.
    One sales order per Amazon order (`channel=AMAZON`, `external_order_id`, deduped). SKU/ASIN
@@ -238,4 +237,3 @@ Two supported targets:
 Env is validated at boot by `lib/env.ts` — `DATABASE_URL` + `AUTH_SECRET` are required;
 missing optional vars only warn.
 
-[`marketplace-order-import`]: ../README.md
