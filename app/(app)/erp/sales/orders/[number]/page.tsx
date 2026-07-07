@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,26 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
       if (inv) linked.push({ label: "فاتورة بيع", number: inv.number, href: `/erp/sales/invoices/${encodeURIComponent(inv.number)}` });
     }
   }
+
+  // Marketplace settlement detail (Amazon financials for this order).
+  const settleRows = so.externalOrderId
+    ? await db.select({
+        type: marketplaceSettlementTxns.type, productSales: marketplaceSettlementTxns.productSales,
+        shippingCredits: marketplaceSettlementTxns.shippingCredits, promotionalRebates: marketplaceSettlementTxns.promotionalRebates,
+        sellingFees: marketplaceSettlementTxns.sellingFees, fbaFees: marketplaceSettlementTxns.fbaFees,
+        otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees, other: marketplaceSettlementTxns.other,
+        total: marketplaceSettlementTxns.total, status: marketplaceSettlementTxns.status,
+      }).from(marketplaceSettlementTxns)
+        .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.orderId, so.externalOrderId)))
+    : [];
+  const settle = settleRows.map((r) => ({
+    type: r.type,
+    gross: Number(r.productSales) + Number(r.shippingCredits) + Number(r.promotionalRebates) + Number(r.other),
+    fees: -(Number(r.sellingFees) + Number(r.fbaFees) + Number(r.otherTransactionFees)),
+    net: Number(r.total), status: r.status,
+  }));
+  const settleNet = settle.reduce((s, r) => s + r.net, 0);
+  const settleFees = settle.reduce((s, r) => s + r.fees, 0);
 
   const audit = await getDocumentAudit(orgId, so.id);
   const st = STATUS[so.status] ?? { label: so.status, variant: "secondary" as const };
@@ -130,6 +150,48 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
           {so.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {so.notes}</p>}
         </CardContent>
       </Card>
+
+      {settle.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>التسوية المالية (أمازون)</CardTitle>
+            <CardDescription>تفصيل ما استلمته أمازون لهذا الطلب بعد الرسوم. القيود المحاسبية مُرحّلة مجمّعة وقت الإفراج.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-start">النوع</TableHead>
+                  <TableHead className="text-start">المبيعات</TableHead>
+                  <TableHead className="text-start">الرسوم</TableHead>
+                  <TableHead className="text-start">الصافي</TableHead>
+                  <TableHead className="text-start">الحالة</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {settle.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{r.type === "Order" ? "بيع" : r.type === "Refund" ? "مرتجع" : r.type}</TableCell>
+                    <TableCell>{fmt(r.gross)}</TableCell>
+                    <TableCell className="text-destructive">{fmt(-r.fees)}</TableCell>
+                    <TableCell className="font-medium">{fmt(r.net)}</TableCell>
+                    <TableCell><Badge variant={r.status === "Released" ? "default" : "secondary"}>{r.status === "Released" ? "مُفرج عنه" : "مؤجّل"}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow className="font-bold">
+                  <TableCell>الإجمالي</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell className="text-destructive">{fmt(-settleFees)}</TableCell>
+                  <TableCell>{fmt(settleNet)}</TableCell>
+                  <TableCell>—</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <LinkedDocsCard links={linked} />
       <DocAuditCard rows={audit} />

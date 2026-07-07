@@ -1233,6 +1233,46 @@ export const salesOrderLines = pgTable("sales_order_lines", {
   notes: text("notes"),
 });
 
+/* ═══════════════ MARKETPLACE SETTLEMENTS (Amazon/Noon) ═══════════════ */
+
+// One row per line of the marketplace transaction/settlement report. Kept for
+// per-order financial detail; released rows are aggregated into a summary GL
+// entry (deferred rows are held until a later import shows them released).
+export const marketplaceSettlementTxns = pgTable(
+  "marketplace_settlement_txns",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    settlementId: text("settlement_id"),
+    type: text("type").notNull(), // Order, Refund, Transfer, Service Fee, SAFE-T reimbursement, FBA Inventory Fee, …
+    orderId: text("order_id"),
+    sku: text("sku"),
+    description: text("description"),
+    quantity: money("quantity"),
+    postedAt: ts("posted_at"),
+    status: text("status").notNull().default("Released"), // Released | Deferred
+    releaseDate: ts("release_date"),
+    productSales: money("product_sales").notNull().default("0"),
+    shippingCredits: money("shipping_credits").notNull().default("0"),
+    promotionalRebates: money("promotional_rebates").notNull().default("0"),
+    sellingFees: money("selling_fees").notNull().default("0"),
+    fbaFees: money("fba_fees").notNull().default("0"),
+    otherTransactionFees: money("other_transaction_fees").notNull().default("0"),
+    other: money("other").notNull().default("0"),
+    total: money("total").notNull().default("0"),
+    dedupKey: text("dedup_key").notNull(),
+    journalEntryId: text("journal_entry_id"), // set once the (released) row is posted
+    salesOrderId: text("sales_order_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("mkt_settle_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("mkt_settle_order_idx").on(t.organizationId, t.orderId),
+    index("mkt_settle_status_idx").on(t.organizationId, t.channel, t.status),
+  ],
+);
+
 /* ════════════════════════ INVESTORS ═══════════════════════ */
 
 export const investors = pgTable(

@@ -114,6 +114,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
         subtitle={`${total} أمر`}
         action={canManage ? (
           <div className="flex gap-2">
+            <Button variant="outline" asChild><Link href="/erp/sales/orders/settlements"><Icon name="Landmark" className="size-4" />تسويات أمازون</Link></Button>
             <Button variant="outline" asChild><Link href="/erp/sales/orders/import"><Icon name="Upload" className="size-4" />استيراد أمازون</Link></Button>
             <Button asChild><Link href="/erp/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
           </div>
