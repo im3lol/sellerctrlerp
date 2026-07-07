@@ -48,3 +48,7 @@ next-env.d.ts
 
 # local editor/session config
 .claude/
+
+# stray local build logs
+build-log.txt
+*.log
