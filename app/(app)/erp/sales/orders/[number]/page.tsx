@@ -12,6 +12,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Icon } from "@/components/icon";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Copyable } from "@/components/erp/copyable";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,7 +50,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     : [undefined];
 
   const lines = await db
-    .select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr })
+    .select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
     .from(salesOrderLines)
     .leftJoin(items, eq(items.id, salesOrderLines.itemId))
     .where(eq(salesOrderLines.salesOrderId, so.id));
@@ -126,7 +127,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
           <Icon name="ShoppingCart" className="size-4 text-primary" />
           <span className="text-sm text-muted-foreground">رقم طلب {CHANNEL_LABEL[so.channel] ?? "المتجر"}:</span>
-          <span className="font-mono text-base font-semibold" dir="ltr">{so.externalOrderId}</span>
+          <Copyable text={so.externalOrderId} className="font-mono text-base font-semibold"><span dir="ltr">{so.externalOrderId}</span></Copyable>
           {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{CHANNEL_LABEL[so.channel]}</Badge>}
         </div>
       )}
@@ -155,16 +156,26 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.id}>
-                  <TableCell className="max-w-[340px]">
-                    <div className="truncate font-medium" title={l.name ?? ""}>{l.name}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      <span className="font-mono text-[11px] text-muted-foreground">{l.code}</span>
-                      {codesByItem.get(l.itemId ?? "")?.map((c) => (
-                        <Badge key={c.type + c.code} variant="outline" className="gap-1 text-[10px]">
-                          <span className="text-muted-foreground">{c.type}</span>
-                          <span className="font-mono" dir="ltr">{c.code}</span>
-                        </Badge>
-                      ))}
+                  <TableCell className="max-w-[360px]">
+                    <div className="flex items-center gap-2">
+                      <div className="size-10 shrink-0 overflow-hidden rounded-md border bg-muted/40">
+                        {l.image
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={l.image} alt="" className="size-full object-cover" />
+                          : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-start font-medium" dir="ltr" title={l.name ?? ""}>{l.name}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <span className="font-mono text-[11px] text-muted-foreground">{l.code}</span>
+                          {codesByItem.get(l.itemId ?? "")?.map((c) => (
+                            <Badge key={c.type + c.code} variant="outline" className="gap-1 text-[10px]">
+                              <span className="text-muted-foreground">{c.type}</span>
+                              <span className="font-mono" dir="ltr">{c.code}</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>{qty(l.qty)}</TableCell>
