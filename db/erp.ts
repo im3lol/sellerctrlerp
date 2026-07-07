@@ -999,53 +999,9 @@ export const receiptLines = pgTable("receipt_lines", {
 
 // Pipeline stages (Kanban columns). Org-scoped, ordered; a stage may be marked
 // won/lost (terminal). Odoo-style: New → Qualified → Proposition → Won/Lost.
-export const crmStages = pgTable(
-  "crm_stages",
-  {
-    id: pk(),
-    organizationId: orgId(),
-    name: text("name").notNull(),
-    sortOrder: integer("sort_order").notNull().default(0),
-    isWon: boolean("is_won").notNull().default(false),
-    isLost: boolean("is_lost").notNull().default(false),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex("crm_stages_org_name_idx").on(t.organizationId, t.name)],
-);
-
 // Opportunities = the pipeline cards. Linked to an ERP customer (the partner),
 // carry expected revenue + probability + salesperson, and convert to a sales
 // order once won (salesOrderId set).
-export const crmOpportunities = pgTable(
-  "crm_opportunities",
-  {
-    id: pk(),
-    organizationId: orgId(),
-    number: text("number").notNull(),
-    name: text("name").notNull(),
-    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
-    contactName: text("contact_name"),
-    phone: text("phone"),
-    email: text("email"),
-    stageId: text("stage_id").references(() => crmStages.id),
-    expectedRevenue: money("expected_revenue").notNull().default("0"),
-    probability: integer("probability").notNull().default(0), // 0–100
-    salespersonId: uuid("salesperson_id").references(() => users.id, { onDelete: "set null" }),
-    source: text("source"),
-    status: text("status").notNull().default("OPEN"), // OPEN, WON, LOST
-    lostReason: text("lost_reason"),
-    expectedCloseDate: ts("expected_close_date"),
-    salesOrderId: text("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
-    notes: text("notes"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    uniqueIndex("crm_opportunities_org_number_idx").on(t.organizationId, t.number),
-    index("crm_opportunities_org_stage_idx").on(t.organizationId, t.stageId),
-  ],
-);
-
 /* ════════════════════════ PURCHASES ═══════════════════════ */
 
 export const suppliers = pgTable(
@@ -1436,54 +1392,10 @@ export const orgSubscriptions = pgTable(
 // The token is stored as an HMAC-SHA256 hash; shown once at creation.
 // The desktop app calls /api/platform/desktop-license/validate with the raw token;
 // we hash it and look up the record. Returns enabled modules + expiry.
-export const desktopLicenses = pgTable(
-  "desktop_licenses",
-  {
-    id: pk(),
-    tokenHash: text("token_hash").notNull(),
-    tokenHint: text("token_hint").notNull(), // last 6 chars, e.g. "...Ab3X9Q"
-    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
-    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
-    status: text("status").notNull().default("ACTIVE"), // ACTIVE, REVOKED
-    expiresAt: ts("expires_at"),
-    lastHeartbeatAt: ts("last_heartbeat_at"),
-    notes: text("notes"),
-    createdById: text("created_by_id"),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    uniqueIndex("desktop_licenses_token_hash_idx").on(t.tokenHash),
-    index("desktop_licenses_org_idx").on(t.organizationId),
-    check("desktop_licenses_status_chk", sql`${t.status} IN ('ACTIVE','REVOKED')`),
-  ],
-);
-
 // Activation codes are stored ONLY as an HMAC hash (never plaintext). The full
 // code is shown once at creation; redeeming activates/extends a tenant's
 // subscription with the code's interval + duration + modules. Single-use,
 // revocable, optionally time-limited.
-export const activationCodes = pgTable(
-  "activation_codes",
-  {
-    id: pk(),
-    codeHash: text("code_hash").notNull(),
-    codeHint: text("code_hint").notNull(), // masked, e.g. "SCTL-••••-••••-7Q3X"
-    interval: text("interval").notNull().default("ANNUAL"), // MONTHLY, ANNUAL
-    durationMonths: integer("duration_months").notNull().default(12),
-    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
-    planName: text("plan_name"),
-    price: money("price").notNull().default("0"), // charged per interval
-    status: text("status").notNull().default("UNUSED"), // UNUSED, USED, REVOKED
-    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
-    redeemedAt: ts("redeemed_at"),
-    expiresAt: ts("expires_at"), // code validity window (optional)
-    notes: text("notes"),
-    createdById: text("created_by_id"),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex("activation_codes_hash_idx").on(t.codeHash)],
-);
-
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,
@@ -1574,34 +1486,5 @@ export const payrollLines = pgTable(
 // Owner's server: one row per on-premises client deployment. licenseKey is a
 // UUID given to the client; the client sends it on every 24h heartbeat to prove
 // identity. Revoke by setting status='REVOKED'.
-export const installationLicenses = pgTable(
-  "installation_licenses",
-  {
-    id: pk(),
-    licenseKey: text("license_key").notNull(),
-    customerName: text("customer_name").notNull(),
-    status: text("status").notNull().default("ACTIVE"), // ACTIVE, REVOKED, SUSPENDED
-    enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
-    expiresAt: ts("expires_at"),            // null = perpetual
-    gracePeriodDays: integer("grace_period_days").notNull().default(7),
-    lastHeartbeatAt: ts("last_heartbeat_at"),
-    installId: text("install_id"),          // set on client's first heartbeat
-    notes: text("notes"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [uniqueIndex("installation_licenses_key_idx").on(t.licenseKey)],
-);
-
 // Client's server: single-row cache of last successful license check.
 // The app reads this on every request; the cron job updates it every 24h.
-export const licenseHeartbeat = pgTable("license_heartbeat", {
-  singleton: text("singleton").primaryKey().default("1"),
-  installId: text("install_id").notNull(),
-  lastCheckedAt: ts("last_checked_at").notNull(),
-  validUntil: ts("valid_until"),
-  enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
-  status: text("status").notNull().default("UNCHECKED"), // UNCHECKED, VALID, GRACE, LOCKED
-  gracePeriodEndsAt: ts("grace_period_ends_at"),
-  updatedAt: updatedAt(),
-});
