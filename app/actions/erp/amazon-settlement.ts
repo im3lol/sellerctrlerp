@@ -274,7 +274,8 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
   if (toPost.length === 0) {
     const ret0 = await processSettlementRefunds(auth.orgId);
     revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/sales/returns");
+    revalidatePath("/erp/sales/invoices");
+    revalidatePath("/erp/sales/deliveries");
     return { ok: true, imported, updated, posted: 0, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
   }
 
@@ -318,7 +319,8 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
 
   const ret = await processSettlementRefunds(auth.orgId);
   revalidatePath("/erp/sales/orders");
-  revalidatePath("/erp/sales/returns");
+  revalidatePath("/erp/sales/invoices");
+  revalidatePath("/erp/sales/deliveries");
   revalidatePath("/erp/accounting");
   return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
 }

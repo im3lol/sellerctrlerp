@@ -11,12 +11,10 @@ const requiredSchema = z.object({
 
 // Present-only-when-the-feature-is-used. Missing → warn, don't crash.
 const OPTIONAL = [
-  "SUPABASE_URL",
+  "SUPABASE_URL", // item-image storage (Supabase Storage backend on Vercel)
   "SUPABASE_SERVICE_KEY",
   "SUPABASE_BUCKET",
-  "ANTHROPIC_API_KEY",
-  "SCRAPER_TOKEN",
-  "CRON_SECRET",
+  "CRON_SECRET", // Vercel cron endpoint auth
 ] as const;
 
 export function validateEnv(): void {
