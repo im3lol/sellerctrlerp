@@ -102,17 +102,22 @@ Double-entry, and **the general ledger is only ever written by one function**:
 Reports (`lib/erp/financials.ts`) aggregate posted lines: trial balance, income statement,
 balance sheet, plus AR/AP aging and the general ledger drill-down.
 
-### Standard chart of accounts (codes referenced throughout the code)
+### Chart of accounts (codes referenced throughout the code)
+
+The base chart a new tenant starts with is defined in `lib/erp/default-chart.ts`:
 
 | Code | Account | | Code | Account |
 |------|---------|-|------|---------|
 | 1101 | Cash              | | 2101 | Accounts payable (موردون) |
 | 1102 | Bank              | | 2102 | Output VAT |
-| 1103 | Accounts receivable (عملاء) | | 2103 | Goods received not invoiced (GRNI) |
+| 1103 | Accounts receivable (العملاء) | | 2103 | Goods received not invoiced (GRNI) |
 | 1104 | Inventory         | | 4101 | Sales revenue |
-| 1107 | Input VAT         | | 4102 | Sales returns |
-| 1108 | Amazon clearing (رصيد أمازون الوسيط) | | 5101 | COGS |
-| | | | 5203 | Amazon fees (رسوم أمازون) |
+| 1107 | Input VAT         | | 4102 | Sales returns (مردودات المبيعات) |
+| | | | 5101 | COGS |
+
+The Amazon module additionally **auto-creates on first use** (not part of the base chart):
+`1108` Amazon clearing (رصيد أمازون الوسيط) and `5203` Amazon fees (رسوم أمازون) — see
+`ensureAmazonAccounts` in `app/actions/erp/amazon-settlement.ts`.
 
 Account resolution goes through `lib/erp/accounting-config.ts::resolveAccountIds`, which lets
 a tenant remap the default code for any role (e.g. a different bank account) via
