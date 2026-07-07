@@ -39,7 +39,10 @@ export function SettlementImport() {
       const fd = new FormData(); fd.append("file", file);
       const r = await runAmazonSettlementAction(fd);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم: ${r.posted} معاملة مُرحّلة، ${r.imported} جديدة، ${r.deferredHeld} مؤجّلة محفوظة`);
+      toast.success(`تم: ${r.posted} معاملة مُرحّلة، ${r.imported} جديدة، ${r.deferredHeld} مؤجّلة محفوظة${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}`);
+      if (r.returnsUnmatched.length) {
+        toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length}): ${r.returnsUnmatched.slice(0, 5).join("؛ ")}${r.returnsUnmatched.length > 5 ? " …" : ""}`, { duration: 12000 });
+      }
       router.refresh();
       setPreview(null); setFile(null); if (inputRef.current) inputRef.current.value = "";
     });
@@ -55,6 +58,7 @@ export function SettlementImport() {
             ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب ويُرحّل قيداً محاسبياً مجمّعاً
             للمعاملات <b>المُفرج عنها</b> فقط. الإيراد يُعترف به مرة واحدة عند فاتورة البيع؛ التسوية <b>تُحصّل ذمم أمازون</b> فقط
             (لا تُكرّر الإيراد)، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
+            كل صف <b>Refund</b> يُنشئ دورة مرتجع كاملة تلقائياً: مرتجع فاتورة بيع (عكس الإيراد/الضريبة) + مرتجع إذن صرف (إرجاع المخزون وعكس التكلفة وتحديث حالة أمر البيع).
             المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر ولا تُرحّل مرتين.
           </CardDescription>
         </CardHeader>

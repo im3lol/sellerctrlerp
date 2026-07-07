@@ -1220,6 +1220,7 @@ export const marketplaceSettlementTxns = pgTable(
     dedupKey: text("dedup_key").notNull(),
     journalEntryId: text("journal_entry_id"), // set once the (released) row is posted
     salesOrderId: text("sales_order_id"),
+    salesReturnId: text("sales_return_id"), // set on a Refund row once its return cycle is generated
     createdAt: createdAt(),
   },
   (t) => [
