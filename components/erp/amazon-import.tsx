@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { previewAmazonImportAction, runAmazonImportAction, type AmazonPreview } from "@/app/actions/erp/amazon-import";
+import { previewAmazonImportAction, runAmazonImportAction, type AmazonPreview, type ImportResult } from "@/app/actions/erp/amazon-import";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +22,9 @@ export function AmazonImport() {
   const [preview, setPreview] = useState<Extract<AmazonPreview, { ok: true }> | null>(null);
   const [previewing, startPreview] = useTransition();
   const [importing, startImport] = useTransition();
+  const [result, setResult] = useState<Extract<ImportResult, { ok: true }> | null>(null);
 
-  const reset = () => { setPreview(null); };
+  const reset = () => { setPreview(null); setResult(null); };
 
   const doPreview = () => {
     if (!file) { toast.error("اختر ملف الطلبات أولاً"); return; }
@@ -38,15 +39,15 @@ export function AmazonImport() {
   };
 
   const doImport = () => {
-    if (!file || !preview || preview.toCreate.length === 0) return;
+    if (!file || !preview || (preview.toCreate.length === 0 && preview.transitions.length === 0)) return;
     startImport(async () => {
       const fd = new FormData();
       fd.append("file", file);
       const r = await runAmazonImportAction(fd);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم إنشاء ${r.created} أمر بيع من أمازون`);
-      router.push("/erp/sales/orders");
-      router.refresh();
+      toast.success(`تم: ${r.created} أمر جديد، ${r.fulfilled} دورة كاملة (صرف+فاتورة)، ${r.transitioned} حالة محدّثة`);
+      if (r.stockBlocked.length) toast.warning(`${r.stockBlocked.length} طلب محظور لنقص مخزون — راجع التقرير`, { duration: 8000 });
+      setPreview(null); setResult(r); router.refresh();
     });
   };
 
@@ -57,7 +58,8 @@ export function AmazonImport() {
           <CardTitle>استيراد طلبات أمازون</CardTitle>
           <CardDescription>
             ارفع تقرير الطلبات (Order Report) من Amazon Seller Central. كل طلب يُنشأ أمر بيع مستقل تحت عميل «أمازون مصر»
-            ومخزن «أمازون FBA». الطلبات المشحونة تُنشأ مؤكّدة، والمعلّقة كمسودة، والملغاة تُتجاهل. إعادة رفع نفس الملف لا تُكرّر.
+            ومخزن «أمازون FBA». الطلبات المشحونة → أمر مؤكّد + إذن صرف + فاتورة بيع تلقائياً؛ المعلّقة تبقى مسودة؛ والمعلّق الذي اكتمل يُحدَّث ويأخذ الدورة.
+            الملغاة تُتجاهل، وإعادة الرفع لا تُكرّر. أي طلب ينقص مخزونه يُدرَج في تقرير (بلا حركة مخزون خاطئة).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -73,10 +75,10 @@ export function AmazonImport() {
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
               معاينة
             </Button>
-            {preview && preview.toCreate.length > 0 && (
+            {preview && (preview.toCreate.length > 0 || preview.transitions.length > 0) && (
               <Button variant="default" onClick={doImport} disabled={importing} className="bg-emerald-600 hover:bg-emerald-700">
                 {importing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}
-                تنفيذ الاستيراد ({preview.toCreate.length})
+                تنفيذ الاستيراد والدورة ({preview.toCreate.length + preview.transitions.length})
               </Button>
             )}
           </div>
@@ -84,6 +86,7 @@ export function AmazonImport() {
           {preview && (
             <div className="flex flex-wrap gap-2 text-sm">
               <Badge className="bg-emerald-600">سيُنشأ: {preview.toCreate.length}</Badge>
+              {preview.transitions.length > 0 && <Badge className="bg-sky-600">تحديث حالة (معلّق→مكتمل): {preview.transitions.length}</Badge>}
               <Badge variant="secondary">مكرّر (مستورد سابقاً): {preview.duplicates.length}</Badge>
               <Badge variant="destructive">محظور (صنف غير مربوط): {preview.blocked.length}</Badge>
               <Badge variant="outline">ملغاة متجاهَلة: {preview.cancelledCount}</Badge>
@@ -91,6 +94,31 @@ export function AmazonImport() {
           )}
         </CardContent>
       </Card>
+
+      {result && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">نتيجة الاستيراد</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge className="bg-emerald-600">أوامر جديدة: {result.created}</Badge>
+              <Badge className="bg-sky-600">دورة كاملة (صرف+فاتورة): {result.fulfilled}</Badge>
+              <Badge variant="secondary">حالة محدّثة: {result.transitioned}</Badge>
+              <Badge variant="outline">مكرّر: {result.skippedDuplicate}</Badge>
+              {result.failed > 0 && <Badge variant="destructive">فشل: {result.failed}</Badge>}
+            </div>
+            {result.stockBlocked.length > 0 && (
+              <div className="rounded-lg border border-amber-400/50 bg-amber-50/50 p-3">
+                <p className="mb-2 text-sm font-medium text-amber-700">طلبات محظورة لنقص مخزون ({result.stockBlocked.length}) — أُنشئت كأوامر مؤكّدة بلا صرف؛ وفّر المخزون ثم أعد الرفع:</p>
+                <ul className="space-y-1 text-xs">
+                  {result.stockBlocked.slice(0, 50).map((b) => (
+                    <li key={b.orderId} className="flex gap-2"><span className="font-mono" dir="ltr">{b.orderId}</span><span className="text-muted-foreground">— {b.reason}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {preview && preview.unmatched.length > 0 && (
         <Card className="border-destructive/40">

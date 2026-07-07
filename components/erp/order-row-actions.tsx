@@ -9,6 +9,7 @@ import {
 import {
   confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction,
 } from "@/app/actions/erp/purchase-orders";
+import { fulfillOrderAction } from "@/app/actions/erp/fulfillment";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import {
@@ -92,7 +93,16 @@ export function OrderRowActions({
           إجراءات<Icon name="ChevronDown" className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-56">
+        {isSales && (
+          <>
+            <DropdownMenuItem className="font-medium text-emerald-700 focus:text-emerald-700"
+              onClick={() => run(() => fulfillOrderAction(orderId), "تم تنفيذ الدورة: إذن صرف + فاتورة مُرحّلة")}>
+              <Icon name="Zap" className="size-4" />الدورة الكاملة (صرف + فاتورة)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={() => router.push(fulfillPath)}>
           <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
           {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}

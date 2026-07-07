@@ -7,6 +7,8 @@ import { items, itemCodes, customers, warehouses, salesOrders, salesOrderLines }
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
+import { fulfillOrder } from "@/lib/erp/fulfillment";
 import { parseAmazonWorkbook, groupAmazonOrders, normalizeCode, type AmazonOrder } from "@/lib/erp/amazon-import";
 
 const CHANNEL = "AMAZON";
@@ -21,6 +23,8 @@ export type PreviewOrder = {
   orderId: string; date: string; status: string;
   subtotal: number; shippingTotal: number; total: number;
   lines: MatchedLine[];
+  existingId?: string; // set for a Shipped transition of an existing (unfulfilled) order
+  existingStatus?: string;
 };
 export type AmazonPreview =
   | {
@@ -29,6 +33,7 @@ export type AmazonPreview =
       cancelledCount: number;
       zeroQtyCount: number;
       toCreate: PreviewOrder[];
+      transitions: PreviewOrder[];
       duplicates: PreviewOrder[];
       blocked: PreviewOrder[];
       unmatched: { sku: string; asin: string; productName: string; sampleOrder: string }[];
@@ -36,7 +41,16 @@ export type AmazonPreview =
   | { ok: false; error: string };
 
 export type ImportResult =
-  | { ok: true; created: number; skippedDuplicate: number; skippedBlocked: number; failed: number }
+  | {
+      ok: true;
+      created: number;
+      transitioned: number;
+      fulfilled: number; // orders that went order→delivery→invoice
+      stockBlocked: { orderId: string; reason: string }[]; // shipped but not enough stock
+      skippedDuplicate: number;
+      skippedUnmatched: number;
+      failed: number;
+    }
   | { ok: false; error: string };
 
 async function readOrders(formData: FormData): Promise<{ orders: AmazonOrder[]; cancelledCount: number; zeroQtyCount: number } | { error: string }> {
@@ -87,14 +101,17 @@ async function buildMatcher(orgId: string, orders: AmazonOrder[]) {
   };
 }
 
-async function existingExternalIds(orgId: string): Promise<Set<string>> {
-  const rows = await db.select({ ext: salesOrders.externalOrderId }).from(salesOrders)
+async function existingOrders(orgId: string): Promise<Map<string, { id: string; status: string }>> {
+  const rows = await db.select({ ext: salesOrders.externalOrderId, id: salesOrders.id, status: salesOrders.status }).from(salesOrders)
     .where(and(eq(salesOrders.organizationId, orgId), eq(salesOrders.channel, CHANNEL)));
-  return new Set(rows.map((r) => r.ext).filter((x): x is string => !!x));
+  const m = new Map<string, { id: string; status: string }>();
+  for (const r of rows) if (r.ext) m.set(r.ext, { id: r.id, status: r.status });
+  return m;
 }
 
-function classify(orders: AmazonOrder[], resolve: (sku: string, asin: string) => { itemId: string | null; itemName: string | null }, existing: Set<string>) {
+function classify(orders: AmazonOrder[], resolve: (sku: string, asin: string) => { itemId: string | null; itemName: string | null }, existing: Map<string, { id: string; status: string }>) {
   const toCreate: PreviewOrder[] = [];
+  const transitions: PreviewOrder[] = [];
   const duplicates: PreviewOrder[] = [];
   const blocked: PreviewOrder[] = [];
   const unmatchedMap = new Map<string, { sku: string; asin: string; productName: string; sampleOrder: string }>();
@@ -106,7 +123,15 @@ function classify(orders: AmazonOrder[], resolve: (sku: string, asin: string) =>
     });
     const po: PreviewOrder = { orderId: o.orderId, date: o.date, status: o.status, subtotal: o.subtotal, shippingTotal: o.shippingTotal, total: o.total, lines };
     const fullyMatched = lines.every((l) => l.itemId);
-    if (existing.has(o.orderId)) { duplicates.push(po); continue; }
+    const ex = existing.get(o.orderId);
+    if (ex) {
+      // Existing order that is Shipped in the file but not yet fulfilled → run
+      // (or resume) its cycle. Covers Pending→Shipped and stock-blocked retries.
+      const done = ex.status === "CANCELLED" || ex.status === "DELIVERED" || ex.status === "INVOICED";
+      if (o.status === "Shipped" && fullyMatched && !done) transitions.push({ ...po, existingId: ex.id, existingStatus: ex.status });
+      else duplicates.push(po);
+      continue;
+    }
     if (!fullyMatched) {
       blocked.push(po);
       for (const l of lines) if (!l.itemId && l.sku && !unmatchedMap.has(l.sku)) {
@@ -116,7 +141,7 @@ function classify(orders: AmazonOrder[], resolve: (sku: string, asin: string) =>
     }
     toCreate.push(po);
   }
-  return { toCreate, duplicates, blocked, unmatched: [...unmatchedMap.values()] };
+  return { toCreate, transitions, duplicates, blocked, unmatched: [...unmatchedMap.values()] };
 }
 
 /** Parse + match, returning what WOULD be imported — no writes. */
@@ -128,15 +153,15 @@ export async function previewAmazonImportAction(formData: FormData): Promise<Ama
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
   const resolve = await buildMatcher(auth.orgId, parsed.orders);
-  const existing = await existingExternalIds(auth.orgId);
-  const { toCreate, duplicates, blocked, unmatched } = classify(parsed.orders, resolve, existing);
+  const existing = await existingOrders(auth.orgId);
+  const { toCreate, transitions, duplicates, blocked, unmatched } = classify(parsed.orders, resolve, existing);
 
   return {
     ok: true,
     totalOrders: parsed.orders.length,
     cancelledCount: parsed.cancelledCount,
     zeroQtyCount: parsed.zeroQtyCount,
-    toCreate, duplicates, blocked, unmatched,
+    toCreate, transitions, duplicates, blocked, unmatched,
   };
 }
 
@@ -157,7 +182,12 @@ async function ensureAmazonDefaults(orgId: string): Promise<{ customerId: string
   return { customerId: cust.id, warehouseId: wh.id };
 }
 
-/** Parse + match + create one sales order per eligible Amazon order. */
+/**
+ * Parse + match + create a sales order per eligible order, then drive the cycle:
+ * Shipped → confirm + delivery + posted invoice (revenue/AR). Pending stays a
+ * draft. Existing Pending orders now Shipped are transitioned + fulfilled.
+ * Orders short on stock are reported (never a negative movement).
+ */
 export async function runAmazonImportAction(formData: FormData): Promise<ImportResult> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return { ok: false, error: auth.error };
@@ -166,28 +196,23 @@ export async function runAmazonImportAction(formData: FormData): Promise<ImportR
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
   const resolve = await buildMatcher(auth.orgId, parsed.orders);
-  const existing = await existingExternalIds(auth.orgId);
-  const { toCreate, duplicates, blocked } = classify(parsed.orders, resolve, existing);
-  if (toCreate.length === 0) {
-    return { ok: true, created: 0, skippedDuplicate: duplicates.length, skippedBlocked: blocked.length, failed: 0 };
-  }
-
+  const existing = await existingOrders(auth.orgId);
+  const { toCreate, transitions, duplicates, blocked } = classify(parsed.orders, resolve, existing);
   const { customerId, warehouseId } = await ensureAmazonDefaults(auth.orgId);
 
-  let created = 0;
-  let failed = 0;
-  for (const o of toCreate) {
+  let created = 0, transitioned = 0, fulfilled = 0, failed = 0;
+  const stockBlocked: { orderId: string; reason: string }[] = [];
+
+  const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
-    const status = o.status === "Shipped" ? "CONFIRMED" : "DRAFT";
     try {
-      await db.transaction(async (tx) => {
+      return await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, auth.orgId, "SO", d.getFullYear());
         const [so] = await tx.insert(salesOrders).values({
           organizationId: auth.orgId, number, customerId, date: d, status,
           subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
           totalAmount: String(round2(o.subtotal + o.shippingTotal)),
-          channel: CHANNEL, externalOrderId: o.orderId,
-          notes: `طلب أمازون ${o.orderId}`,
+          channel: CHANNEL, externalOrderId: o.orderId, notes: `طلب أمازون ${o.orderId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
         await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId,
@@ -198,15 +223,42 @@ export async function runAmazonImportAction(formData: FormData): Promise<ImportR
           entityId: so.id, entityNumber: so.number,
           summary: `استيراد أمر بيع ${so.number} من أمازون (${o.orderId})`, metadata: { channel: CHANNEL, externalOrderId: o.orderId, total: o.total },
         });
+        return so.id;
       });
-      created++;
     } catch {
-      // Unique-collision (a concurrent import already inserted this order) or any
-      // per-order failure: skip it, keep importing the rest.
-      failed++;
+      return null; // unique collision (concurrent) or per-order failure
     }
+  };
+
+  const runCycle = async (orderId: string, extId: string) => {
+    const f = await fulfillOrder(auth.orgId, orderId);
+    if (f.ok) { if (!f.noop) fulfilled++; }
+    else if (f.blocked) stockBlocked.push({ orderId: extId, reason: f.error });
+    else failed++;
+  };
+
+  for (const o of toCreate) {
+    const shipped = o.status === "Shipped";
+    const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
+    if (!id) { failed++; continue; }
+    created++;
+    if (shipped) await runCycle(id, o.orderId);
+  }
+
+  for (const o of transitions) {
+    if (!o.existingId) continue;
+    if (o.existingStatus === "DRAFT") {
+      const c = await confirmSalesOrderAction(o.existingId);
+      if (!c.ok) { failed++; continue; }
+      transitioned++;
+    }
+    await runCycle(o.existingId, o.orderId);
   }
 
   revalidatePath("/erp/sales/orders");
-  return { ok: true, created, skippedDuplicate: duplicates.length, skippedBlocked: blocked.length, failed };
+  revalidatePath("/erp/accounting");
+  return {
+    ok: true, created, transitioned, fulfilled, stockBlocked,
+    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, failed,
+  };
 }
