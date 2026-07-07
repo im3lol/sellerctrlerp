@@ -1,6 +1,11 @@
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
 
+/**
+ * Proxy (formerly `middleware.ts`, renamed per Next 16). Runs on the nodejs
+ * runtime. Gates the whole app behind Auth.js and redirects already-authed
+ * users off the landing/login pages. A default export is a valid proxy handler.
+ */
 const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {

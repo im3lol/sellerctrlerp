@@ -1,8 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Edge-safe Auth.js config (no DB / bcrypt imports).
- * Used by middleware.ts. The full config (auth.ts) extends this with the
+ * Auth.js config with no DB / bcrypt imports (nodejs-safe for proxy.ts).
+ * Used by proxy.ts. The full config (auth.ts) extends this with the
  * Credentials provider whose authorize() touches Postgres.
  */
 export const authConfig = {
