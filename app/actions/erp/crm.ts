@@ -8,7 +8,6 @@ import { crmOpportunities, crmStages, customers } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
-export type { ActionState };
 export type SaveOppState = ActionState & { id?: string };
 
 const schema = z.object({

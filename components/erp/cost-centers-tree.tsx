@@ -4,7 +4,8 @@ import { useActionState, useEffect, useMemo, useState, useTransition } from "rea
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveCostCenterAction, deleteCostCenterAction, type ActionState } from "@/app/actions/erp/cost-centers";
+import { saveCostCenterAction, deleteCostCenterAction } from "@/app/actions/erp/cost-centers";
+import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

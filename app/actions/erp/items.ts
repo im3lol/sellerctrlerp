@@ -8,7 +8,6 @@ import { items, itemCodes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { putObject, publicUrl } from "@/lib/storage";
 
-export type { ActionState };
 
 const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 

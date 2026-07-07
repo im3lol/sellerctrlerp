@@ -8,7 +8,6 @@ import { accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
 
-export type { ActionState };
 
 const schema = z.object({
   code: z.string().min(1, "الكود مطلوب"),

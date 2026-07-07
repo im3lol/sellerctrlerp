@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { organizations, accountingConfigurations } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
-export type { ActionState };
 
 const profileSchema = z.object({
   nameAr: z.string().min(2, "اسم المنشأة قصير جداً"),

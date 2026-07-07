@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { investors } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
-export type { ActionState };
 
 const schema = z.object({
   code: z.string().min(1, "الكود مطلوب"),
