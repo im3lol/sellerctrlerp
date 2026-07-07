@@ -68,21 +68,44 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Investor | null>(null);
   const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const remove = (inv: Investor) => startTransition(async () => {
     const r = await deleteInvestorAction(inv.id);
     if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
   });
 
+  const q = query.trim().toLowerCase();
+  const filtered = investors.filter((inv) =>
+    (!statusFilter || inv.status === statusFilter) &&
+    (!q || inv.code.toLowerCase().includes(q) || inv.fullName.toLowerCase().includes(q) || (inv.phone ?? "").includes(q) || (inv.email ?? "").toLowerCase().includes(q)),
+  );
+  const activeCount = investors.filter((i) => i.status === "active").length;
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>قائمة المستثمرين</CardTitle><CardDescription>مستثمرو المؤسسة النشطة.</CardDescription></div>
+        <div><CardTitle>قائمة المستثمرين</CardTitle><CardDescription>{investors.length} مستثمر · {activeCount} نشط</CardDescription></div>
         {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مستثمر جديد</Button>}
       </CardHeader>
       <CardContent>
+        {investors.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالكود أو الاسم أو الهاتف…" className="max-w-xs" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm">
+              <option value="">كل الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+            </select>
+            {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} نتيجة</span>}
+          </div>
+        )}
         {investors.length === 0 ? (
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد مستثمرون بعد.</div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا نتائج مطابقة.</div>
         ) : (
           <Table>
             <TableHeader>
@@ -95,7 +118,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
               </TableRow>
             </TableHeader>
             <TableBody>
-              {investors.map((inv) => (
+              {filtered.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell className="font-mono">{inv.code}</TableCell>
                   <TableCell>{inv.fullName}</TableCell>

@@ -133,12 +133,44 @@ function EmployeeDialog({
 export function EmployeesManager({ members, orgId }: { members: Member[]; orgId: string }) {
   const [editing, setEditing] = useState<Member | null>(null);
   const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filtered = members.filter((m) => {
+    if (q && !(m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.title ?? "").toLowerCase().includes(q) || (m.employee?.department ?? "").toLowerCase().includes(q))) return false;
+    if (statusFilter === "active") return m.employee?.isActive === true;
+    if (statusFilter === "inactive") return !!m.employee && !m.employee.isActive;
+    if (statusFilter === "unregistered") return !m.employee;
+    return true;
+  });
+  const registered = members.filter((m) => m.employee).length;
+  const activeCount = members.filter((m) => m.employee?.isActive).length;
+  const monthlyBasic = members.reduce((s, m) => s + (m.employee?.isActive ? Number(m.employee.basicSalary) + Number(m.employee.allowances) : 0), 0);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. الموظفون المفعّلون يُدرَجون في مسير الرواتب تلقائيًا.
       </p>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">مسجّلون / الأعضاء</div><div className="text-lg font-bold tabular-nums">{registered} / {members.length}</div></div>
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">نشطون</div><div className="text-lg font-bold tabular-nums">{activeCount}</div></div>
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">إجمالي الأساسي+البدلات (نشط)</div><div className="text-lg font-bold tabular-nums">{money(monthlyBasic)}</div></div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالاسم أو البريد أو القسم…" className="max-w-xs" />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm">
+          <option value="">الكل</option>
+          <option value="active">نشط</option>
+          <option value="inactive">موقوف</option>
+          <option value="unregistered">غير مسجّل</option>
+        </select>
+        {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} نتيجة</span>}
+      </div>
 
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full text-sm">
@@ -154,7 +186,7 @@ export function EmployeesManager({ members, orgId }: { members: Member[]; orgId:
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => {
+            {filtered.map((m) => {
               const emp = m.employee;
               return (
                 <tr key={m.userId} className="border-t [&>td]:p-3 [&>td]:align-middle">
