@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, itemCodes, deliveryNotes, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CANCELLED: { label: "ملغى", variant: "destructive" },
 };
 
+const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون" };
+
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
   const { orgId, role } = await requireErpModule("sales.view");
@@ -47,10 +49,23 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     : [undefined];
 
   const lines = await db
-    .select({ id: salesOrderLines.id, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr })
+    .select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr })
     .from(salesOrderLines)
     .leftJoin(items, eq(items.id, salesOrderLines.itemId))
     .where(eq(salesOrderLines.salesOrderId, so.id));
+
+  // External codes (SKU/ASIN/barcode/…) per line item, shown in the table.
+  const lineItemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x))];
+  const codeRows = lineItemIds.length
+    ? await db.select({ itemId: itemCodes.itemId, type: itemCodes.codeType, code: itemCodes.code }).from(itemCodes)
+        .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
+    : [];
+  const codesByItem = new Map<string, { type: string; code: string }[]>();
+  for (const c of codeRows) {
+    const arr = codesByItem.get(c.itemId) ?? [];
+    arr.push({ type: c.type, code: c.code });
+    codesByItem.set(c.itemId, arr);
+  }
 
   // Linked documents in the cycle: delivery note → its invoice.
   const dns = await db.select({ id: deliveryNotes.id, number: deliveryNotes.number, invoiceId: deliveryNotes.salesInvoiceId })
@@ -107,6 +122,15 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         }
       />
 
+      {so.externalOrderId && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+          <Icon name="ShoppingCart" className="size-4 text-primary" />
+          <span className="text-sm text-muted-foreground">رقم طلب {CHANNEL_LABEL[so.channel] ?? "المتجر"}:</span>
+          <span className="font-mono text-base font-semibold" dir="ltr">{so.externalOrderId}</span>
+          {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{CHANNEL_LABEL[so.channel]}</Badge>}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
         <Field label="التاريخ">{dt(so.date)}</Field>
@@ -131,7 +155,18 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.id}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell className="max-w-[340px]">
+                    <div className="truncate font-medium" title={l.name ?? ""}>{l.name}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      <span className="font-mono text-[11px] text-muted-foreground">{l.code}</span>
+                      {codesByItem.get(l.itemId ?? "")?.map((c) => (
+                        <Badge key={c.type + c.code} variant="outline" className="gap-1 text-[10px]">
+                          <span className="text-muted-foreground">{c.type}</span>
+                          <span className="font-mono" dir="ltr">{c.code}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell>{qty(l.qty)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.discount)}</TableCell>
@@ -147,7 +182,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
               </TableRow>
             </TableFooter>
           </Table>
-          {so.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {so.notes}</p>}
+          {so.notes && !/^طلب (أمازون|نون)\s/.test(so.notes) && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {so.notes}</p>}
         </CardContent>
       </Card>
 
