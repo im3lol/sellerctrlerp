@@ -49,13 +49,6 @@ export function AuthShell({
             <Logo className="text-4xl text-primary" />
           </div>
           {children}
-          <div className="mt-6 flex items-center justify-center gap-3 text-xs text-muted-foreground">
-            <a href="/login" className="hover:text-foreground">الفريق</a>
-            <span>·</span>
-            <a href="/login/admin" className="hover:text-foreground">الإدارة</a>
-            <span>·</span>
-            <a href="/login/partner" className="hover:text-foreground">الشركاء</a>
-          </div>
         </div>
       </div>
     </div>
