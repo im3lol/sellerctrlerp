@@ -86,11 +86,11 @@ NOT_RETURNED → PARTIALLY_RETURNED → RETURNED
 ```text
 /erp/accounting/journal/JV-2026-0019
 /erp/purchases/orders/PO-2026-0021
-/erp/purchases/receipts/PR-2026-0014
+/erp/purchases/receipts/GRN-2026-0014
 /erp/purchases/invoices/PI-2026-0032
 /erp/purchases/payments/PV-2026-0025
 /erp/sales/orders/SO-2026-0045
-/erp/sales/deliveries/DN-2026-0028
+/erp/sales/deliveries/DLV-2026-0028
 /erp/sales/invoices/SI-2026-0051
 /erp/sales/receipts/RV-2026-0041
 ```
@@ -935,7 +935,7 @@ DRAFT → RECEIVED/ISSUED → DEPOSITED → CLEARED
 - ✅ **فصل الحفظ (Draft) عن التأكيد (Confirm)** في كل المستندات: أوامر البيع/الشراء، سندات القبض/الصرف، مرتجعات البيع/الشراء، التحويلات والتسويات المخزنية، والقيد اليدوي. (الفواتير وإذن الاستلام/الصرف تُنشأ مُرحّلة من إجراءات مخصّصة post-on-confirm.) كل تأكيد داخل Transaction واحدة، والمسودات لا تمسّ GL/المخزون/الأرصدة — متحقَّق على Docker مع بقاء الدفاتر متوازنة و GL 1104 = دفتر المخزون.
 - ✅ **منع التحويل التلقائي**: لا يُنشأ المستند التالي تلقائيًا؛ أزرار يدوية (تأكيد/تسليم/استلام/فاتورة)، والتحويل يتطلب مستندًا مؤكَّدًا.
 - ✅ **الترقيم Atomic**: `lib/erp/sequence.ts` (`nextDocumentNumber` = UPSERT ذرّي على `document_sequences`) لكل الأرقام (JV/DR/SO/PO/SI/PI/RV/PV/SR/PR/TR/AJ/DLV/GRN/SM)، يحلّ محلّ نمط «اقرأ آخر رقم + 1». مُتحقَّق: 50 تخصيصًا متوازيًا = أرقام فريدة متتالية بلا تكرار/فجوات. `syncDocumentSequences` يهيّئ التسلسل بعد البذر/الاستيراد.
-- ✅ **الروابط المقروءة + صفحات التفصيل**: لكل الأنواع — القيد + PO/SO/SI/PI/DN/GRN/مرتجعات البيع والشراء عبر `/erp/.../[number]` (resolve بالرقم + تحويل روابط UUID القديمة + notFound مقيّد بالشركة)؛ كل صفحة فيها بطاقات الرأس + البنود + المستندات المرتبطة (السابق/التالي في الدورة) + سجل تدقيق المستند + أزرار دورة الحياة. قوائم المستندات تربط الرقم بصفحته. (لا يزال ينقص: مسح باركود/searchable combobox للأصناف §7-8، تصميم الأقسام الكامل §6.)
+- ✅ **الروابط المقروءة + صفحات التفصيل**: لكل الأنواع — القيد + PO/SO/SI/PI/DLV/GRN/مرتجعات البيع والشراء عبر `/erp/.../[number]` (resolve بالرقم + تحويل روابط UUID القديمة + notFound مقيّد بالشركة)؛ كل صفحة فيها بطاقات الرأس + البنود + المستندات المرتبطة (السابق/التالي في الدورة) + سجل تدقيق المستند + أزرار دورة الحياة. قوائم المستندات تربط الرقم بصفحته. (لا يزال ينقص: مسح باركود/searchable combobox للأصناف §7-8، تصميم الأقسام الكامل §6.)
 - ❌ **حالات المستند المستقلة** (أبعاد منفصلة: سير/مخزني/فوترة/دفع/مرتجع): الحالي حقل `status` واحد لكل مستند. يُستكمل مع التنفيذ الجزئي (P3/P4).
 - ✅ **Document Links**: جدول `document_links` + `lib/erp/links.ts` (linkDocuments/getRelatedDocuments) يُملأ عند التنفيذ والفوترة (FULFILLS/INVOICES، يدعم فاتورة واحدة ← عدة أذون). (لا تزال صفحات التفصيل تعرض الروابط عبر FK؛ يمكن تبديلها للسجل لاحقًا.)
 - ✅ **Audit Log** (`audit_logs`): مُنفّذ — جدول append-only + `lib/erp/audit.ts` (`recordAudit`/`tryRecordAudit`) موصول بكل أحداث دورة المستند (CREATE/CONFIRM/POST/CANCEL/CONVERT/REVERSE)؛ عارض `/erp/audit` بفلاتر + ترقيم 20 صف. (حذف المسودات غير مُسجَّل بعد — متابعة صغيرة.)
