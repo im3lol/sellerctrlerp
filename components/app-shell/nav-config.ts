@@ -79,25 +79,10 @@ export const NAV: NavSection[] = [
     icon: "ShoppingCart",
     items: [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
-      { label: "خط الأنابيب (CRM)", href: "/erp/crm", icon: "Target", capability: "erp.sales.view" },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
       { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view" },
       { label: "تقرير الأصناف", href: "/erp/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view" },
-    ],
-  },
-  {
-    heading: "إدارة العملاء (CRM)",
-    moduleKey: "crm",
-    icon: "Headset",
-    items: [
-      { label: "مساحات العمل", href: "/workspaces", icon: "Briefcase" },
-      { label: "منتجات العملاء", href: "/products", icon: "Package" },
-      { label: "المهام", href: "/tasks/kanban", icon: "Columns3" },
-      { label: "قائمة المهام", href: "/tasks", icon: "ListChecks" },
-      { label: "المهام المتكررة", href: "/tasks/recurring", icon: "Repeat", capability: "task.manage" },
-      { label: "توزيع المنتجات", href: "/admin/distribution", icon: "Shuffle", capability: "product.distribute" },
-      { label: "السحب الذكي", href: "/admin/scraping", icon: "Bot", capability: "product.review" },
     ],
   },
   {
@@ -115,9 +100,6 @@ export const NAV: NavSection[] = [
     items: [
       { label: "الموظفون",    href: "/erp/hr/employees", icon: "UserCog",       capability: "erp.hr.view" },
       { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view" },
-      { label: "الحضور",      href: "/attendance",        icon: "Clock" },
-      { label: "المتصدرون",   href: "/leaderboard",       icon: "Trophy" },
-      { label: "الأكاديمية",  href: "/academy",           icon: "GraduationCap" },
     ],
   },
   {
@@ -130,9 +112,6 @@ export const NAV: NavSection[] = [
       { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale", capability: "erp.reports.view" },
       { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view" },
       { label: "ضريبة القيمة المضافة", href: "/erp/reports/vat", icon: "Percent", capability: "erp.reports.view" },
-      { label: "تقارير العمليات", href: "/reports", icon: "BarChart3", capability: "reports.view" },
-      { label: "متابعة الأداء", href: "/admin/monitoring", icon: "Activity", capability: "reports.view" },
-      { label: "المساعد الذكي", href: "/assistant", icon: "Sparkles", capability: "ai.use" },
     ],
   },
   {
@@ -146,9 +125,7 @@ export const NAV: NavSection[] = [
     heading: "الإدارة والإعدادات",
     icon: "ShieldCheck",
     items: [
-      { label: "الموظفون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
-      { label: "العملاء", href: "/admin/clients", icon: "Store", capability: "client.manage" },
-      { label: "سجل التدقيق", href: "/admin/audit", icon: "ShieldCheck", capability: "role.manage" },
+      { label: "المستخدمون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
       { label: "سجل تدقيق ERP", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
       { label: "إعدادات ERP", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
     ],

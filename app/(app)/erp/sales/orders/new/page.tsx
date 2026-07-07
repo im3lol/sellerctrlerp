@@ -8,7 +8,7 @@ import { SalesOrderForm } from "@/components/erp/sales-order-form";
 export default async function NewSalesOrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ customerId?: string; opp?: string }>;
+  searchParams: Promise<{ customerId?: string }>;
 }) {
   const { orgId } = await requireErpModule("sales.view");
   const sp = await searchParams;
@@ -31,7 +31,7 @@ export default async function NewSalesOrderPage({
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="ClipboardList" title="أمر بيع جديد" subtitle="التزام بيع — يُحوّل لفاتورة لاحقاً" backHref="/erp/sales/orders" />
-      <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} defaultCustomerId={defaultCustomerId} opportunityId={defaultCustomerId ? sp.opp : undefined} channelCustomerId={channelCustomerId} />
+      <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} defaultCustomerId={defaultCustomerId} channelCustomerId={channelCustomerId} />
     </div>
   );
 }

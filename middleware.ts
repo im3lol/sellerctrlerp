@@ -12,9 +12,8 @@ export default auth((req) => {
   const isPublic =
     path === "/" ||
     path === "/platform/login" || // standalone owner login (own audience)
-    path.startsWith("/login") || // /login, /login/admin, /login/client
+    path.startsWith("/login") ||
     path.startsWith("/api/auth") ||
-    path.startsWith("/api/scrape") || // token-authed (Edge extension + Docker worker); routes enforce auth
     path.startsWith("/api/platform/desktop-license") || // token-authed phone-home (desktop app activation + heartbeat)
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
     path.startsWith("/_next") ||
@@ -35,34 +34,9 @@ export default auth((req) => {
   }
 
   if (isLoggedIn) {
-    const isClient = role === "client";
-    const onPortal = path.startsWith("/portal");
-    const dest = isClient ? "/portal" : "/dashboard";
-
-    // Landing page → skip marketing, go straight to their area.
-    if (path === "/") {
-      return Response.redirect(new URL(dest, nextUrl));
-    }
-
-    // Clients are confined to the portal.
-    if (isClient && !onPortal && !isPublic) {
-      return Response.redirect(new URL("/portal", nextUrl));
-    }
-    // Staff hitting the portal get sent to their dashboard.
-    if (!isClient && onPortal) {
+    // Already-authed users on the landing or a login page → go to the app.
+    if (path === "/" || path.startsWith("/login")) {
       return Response.redirect(new URL("/dashboard", nextUrl));
-    }
-    // Already-authed users on a login page → send them to their area ONLY when
-    // their role matches that page's audience (remember them). If a different
-    // audience's login is opened (e.g. an admin visiting the partner login),
-    // show the form so they can sign in with the right account instead of being
-    // bounced into the wrong dashboard.
-    if (path.startsWith("/login")) {
-      const isPartnerPage = path.startsWith("/login/partner") || path.startsWith("/login/client");
-      const matchesAudience = isPartnerPage ? isClient : !isClient;
-      if (matchesAudience) {
-        return Response.redirect(new URL(dest, nextUrl));
-      }
     }
   }
 

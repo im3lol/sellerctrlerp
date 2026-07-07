@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { requireUser, requireCapability } from "@/lib/session";
-import { recordActivity, recordAudit } from "@/lib/activity";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -45,7 +44,6 @@ export async function createUserAction(_prev: ActionState, formData: FormData): 
     .values({ name: d.name, email: d.email, passwordHash, role: d.role, title: d.title })
     .returning();
 
-  await recordAudit({ actorId: actor.id, entityType: "user", entityId: u.id, action: "user.created", after: { email: d.email, role: d.role } });
   revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
   return { ok: true };
@@ -55,7 +53,6 @@ export async function setUserActiveAction(userId: string, isActive: boolean) {
   const actor = await requireCapability("employee.manage");
   if (userId === actor.id) throw new Error("لا يمكنك تعطيل حسابك");
   await db.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, userId));
-  await recordActivity({ actorId: actor.id, entityType: "user", entityId: userId, action: "user.active_changed", summaryAr: `${actor.name} ${isActive ? "فعّل" : "عطّل"} حساب موظف` });
   revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
 }
@@ -107,7 +104,6 @@ export async function updateUserAction(_prev: ActionState, formData: FormData): 
     update.passwordHash = await bcrypt.hash(d.password, 10);
   }
   await db.update(users).set(update).where(eq(users.id, d.userId));
-  await recordAudit({ actorId: actor.id, entityType: "user", entityId: d.userId, action: "user.updated", after: { email: d.email, role: d.role } });
   revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
   revalidatePath(`/admin/users/${d.userId}`);
@@ -124,7 +120,6 @@ export async function deleteUserAction(userId: string): Promise<ActionState> {
     return { error: "لا تملك صلاحية حذف هذا الحساب" };
   }
   await db.delete(users).where(eq(users.id, userId));
-  await recordAudit({ actorId: actor.id, entityType: "user", entityId: userId, action: "user.deleted" });
   revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
   return { ok: true };

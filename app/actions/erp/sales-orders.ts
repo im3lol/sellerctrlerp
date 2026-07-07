@@ -5,7 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers, items, deliveryNotes, crmOpportunities } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, deliveryNotes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { getAvailability } from "@/lib/erp/availability";
@@ -28,7 +28,6 @@ const schema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
-  opportunityId: z.string().optional(), // CRM pipeline: link + mark the opportunity won
   channel: z.enum(["MANUAL", "AMAZON", "NOON"]).default("MANUAL"),
   externalOrderId: z.string().optional(), // marketplace order number (Amazon/Noon)
   shippingAmount: z.coerce.number().min(0).default(0),
@@ -48,7 +47,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { customerId, date, dueDate, notes, opportunityId, channel, lines } = parsed.data;
+  const { customerId, date, dueDate, notes, channel, lines } = parsed.data;
   const shippingAmount = round2(parsed.data.shippingAmount);
   const externalOrderId = channel !== "MANUAL" ? (parsed.data.externalOrderId?.trim() || "") : "";
   if (channel !== "MANUAL" && !externalOrderId) return { error: "أدخل رقم الطلب" };
@@ -105,12 +104,6 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
       return so.id;
     });
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
-    // CRM: link the source opportunity and mark it won.
-    if (opportunityId) {
-      await db.update(crmOpportunities).set({ salesOrderId: id, status: "WON", updatedAt: new Date() })
-        .where(and(eq(crmOpportunities.id, opportunityId), eq(crmOpportunities.organizationId, auth.orgId)));
-      revalidatePath("/erp/crm");
-    }
     revalidatePath("/erp/sales/orders");
     return { ok: true, id, warning };
   } catch (e) {

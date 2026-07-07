@@ -5,24 +5,17 @@ import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
-import { NotificationBell } from "@/components/app-shell/notification-bell";
-import { AttendanceQuickToggle } from "@/components/attendance/attendance-quick-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import type { Role } from "@/lib/rbac";
-import type { AttendanceSnapshot } from "@/lib/attendance";
 
 export function Topbar({
   user,
-  unreadCount,
-  attendance,
   orgs,
   activeOrgId,
   modules,
 }: {
   user: { name: string; email: string; role: Role; title?: string | null; avatarUrl?: string | null };
-  unreadCount: number;
-  attendance: AttendanceSnapshot;
   orgs: { id: string; nameAr: string }[];
   activeOrgId: string | null;
   modules: string[];
@@ -52,8 +45,6 @@ export function Topbar({
       {/* Actions (pushed to the end / left in RTL) */}
       <div className="ms-auto flex items-center gap-2">
         <OrgSwitcher orgs={orgs} activeId={activeOrgId} />
-        <AttendanceQuickToggle initial={attendance} />
-        <NotificationBell initialCount={unreadCount} />
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
         <UserMenu
           name={user.name}

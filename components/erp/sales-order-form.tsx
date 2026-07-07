@@ -28,7 +28,7 @@ const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity:
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
-export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, opportunityId, channelCustomerId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; opportunityId?: string; channelCustomerId?: Partial<Record<string, string>> }) {
+export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, channelCustomerId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -79,7 +79,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createSalesOrderAction({
-        customerId, date, dueDate: dueDate || undefined, notes, opportunityId,
+        customerId, date, dueDate: dueDate || undefined, notes,
         channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
       });
