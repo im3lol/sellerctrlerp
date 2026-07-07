@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireErpModule } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,7 +121,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
               <TableBody>
                 {lines.map((l, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-mono">{l.code}</TableCell>
+                    <TableCell className="font-mono"><Link href={`/erp/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
                     <TableCell>{l.name}</TableCell>
                     <TableCell>{l.warehouse}</TableCell>
                     <TableCell>{qty(l.quantity)}</TableCell>

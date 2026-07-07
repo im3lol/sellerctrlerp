@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireErpModule } from "@/lib/erp/org";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,7 +145,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                     return (
                       <TableRow key={i}>
                         <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                        <TableCell><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</TableCell>
+                        <TableCell>{r.itemId ? <Link href={`/erp/inventory/items/${r.itemId}`} className="hover:underline"><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</Link> : <><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</>}</TableCell>
                         <TableCell><Badge variant={variant}>{t.label}</Badge></TableCell>
                         <TableCell>{MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}</TableCell>
                         <TableCell>{r.warehouse ?? "—"}</TableCell>

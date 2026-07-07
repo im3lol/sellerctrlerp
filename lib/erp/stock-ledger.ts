@@ -31,6 +31,7 @@ export type StockLedgerRow = {
   type: string;
   refType: string | null;
   reason: string | null;
+  itemId: string | null;
   itemCode: string | null;
   itemName: string | null;
   warehouse: string | null;
@@ -115,6 +116,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
       type: stockMovements.type,
       refType: stockMovements.referenceType,
       reason: stockMovements.reason,
+      itemId: stockMovements.itemId,
       itemCode: items.code,
       itemName: sql<string>`coalesce(${items.nameAr}, ${items.nameEn}, ${items.code})`,
       warehouse: warehouses.nameAr,
