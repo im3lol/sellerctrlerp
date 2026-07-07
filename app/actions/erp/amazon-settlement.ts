@@ -19,7 +19,7 @@ export type SettlementPreview =
       byType: Record<string, number>;
       released: number;
       deferred: number;
-      gl: { revenue: number; fees: number; bank: number; clearing: number; toPost: number };
+      gl: { receivable: number; fees: number; bank: number; clearing: number; toPost: number };
     }
   | { ok: false; error: string };
 
@@ -37,13 +37,18 @@ async function readTxns(formData: FormData): Promise<SettlementTxn[] | { error: 
   }
 }
 
-/** Aggregate released txns into the four GL movements (all balance to zero). */
+/**
+ * Aggregate released txns into the four GL movements (all balance to zero).
+ * The order value is booked against Amazon RECEIVABLE (not revenue) — revenue
+ * is recognized once, at the sales invoice; the settlement only collects that
+ * receivable, so posting it to revenue again would double-count sales.
+ */
 function aggregateGL(rows: { type: string; productSales: number; shippingCredits: number; promotionalRebates: number; sellingFees: number; fbaFees: number; otherTransactionFees: number; other: number; total: number }[]) {
-  let revenue = 0, fees = 0, bank = 0, clearing = 0;
+  let receivable = 0, fees = 0, bank = 0, clearing = 0;
   for (const t of rows) {
     clearing += t.total;
     if (t.type === "Order" || t.type === "Refund") {
-      revenue += t.productSales + t.shippingCredits + t.promotionalRebates + t.other;
+      receivable += t.productSales + t.shippingCredits + t.promotionalRebates + t.other;
       fees += -(t.sellingFees + t.fbaFees + t.otherTransactionFees);
     } else if (t.type === "Transfer") {
       bank += -t.total;
@@ -52,16 +57,16 @@ function aggregateGL(rows: { type: string; productSales: number; shippingCredits
       fees += -t.total;
     }
   }
-  return { revenue: r2(revenue), fees: r2(fees), bank: r2(bank), clearing: r2(clearing) };
+  return { receivable: r2(receivable), fees: r2(fees), bank: r2(bank), clearing: r2(clearing) };
 }
 
 /** Get-or-create the Amazon clearing (asset) + Amazon fees (expense) accounts. */
-async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; fees: string; revenue: string; bank: string } | { error: string }> {
+async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; fees: string; receivable: string; bank: string } | { error: string }> {
   const accs = await db.select({ id: accounts.id, code: accounts.code }).from(accounts).where(eq(accounts.organizationId, orgId));
   const byCode = new Map(accs.map((a) => [a.code, a.id]));
-  const revenue = byCode.get("4101");
+  const receivable = byCode.get("1103");
   const bank = byCode.get("1102");
-  if (!revenue || !bank) return { error: "أنشئ دليل الحسابات القياسي أولاً (حسابات المبيعات/البنك غير موجودة)" };
+  if (!receivable || !bank) return { error: "أنشئ دليل الحسابات القياسي أولاً (حسابات الذمم/البنك غير موجودة)" };
 
   let clearing = byCode.get("1108");
   if (!clearing) {
@@ -79,7 +84,7 @@ async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; 
     }).returning({ id: accounts.id });
     fees = r.id;
   }
-  return { clearing, fees, revenue, bank };
+  return { clearing, fees, receivable, bank };
 }
 
 /** Map order ids in the file to existing Amazon sales orders. */
@@ -194,7 +199,7 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     line(accs.clearing, gl.clearing, "صافي رصيد أمازون"),
     line(accs.fees, gl.fees, "رسوم أمازون (عمولة + FBA + أخرى)"),
     line(accs.bank, gl.bank, "تحويلات أمازون إلى البنك"),
-    line(accs.revenue, -gl.revenue, "مبيعات أمازون"),
+    line(accs.receivable, -gl.receivable, "تحصيل ذمم أمازون (مقابل فواتير البيع)"),
   ].filter((l) => l.debit !== 0 || l.credit !== 0);
 
   const entryDate = toPost.reduce<Date | null>((mx, r) => {

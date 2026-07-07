@@ -53,7 +53,8 @@ export function SettlementImport() {
           <CardTitle>استيراد تسويات أمازون</CardTitle>
           <CardDescription>
             ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب ويُرحّل قيداً محاسبياً مجمّعاً
-            للمعاملات <b>المُفرج عنها</b> فقط (المبيعات إيراد، والعمولة/FBA رسوم، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك).
+            للمعاملات <b>المُفرج عنها</b> فقط. الإيراد يُعترف به مرة واحدة عند فاتورة البيع؛ التسوية <b>تُحصّل ذمم أمازون</b> فقط
+            (لا تُكرّر الإيراد)، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
             المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر ولا تُرحّل مرتين.
           </CardDescription>
         </CardHeader>
@@ -101,7 +102,7 @@ export function SettlementImport() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Row label="إيرادات مبيعات أمازون (دائن)" value={gl.revenue} tone="pos" />
+              <Row label="تحصيل ذمم أمازون (دائن)" value={gl.receivable} tone="pos" />
               <Row label="رسوم أمازون — عمولة + FBA (مدين)" value={gl.fees} tone="neg" />
               <Row label="تحويلات إلى البنك (مدين)" value={gl.bank} tone="pos" />
               <Row label="صافي رصيد أمازون الوسيط" value={gl.clearing} tone={gl.clearing >= 0 ? "pos" : "neg"} />
