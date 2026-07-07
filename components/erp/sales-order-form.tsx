@@ -83,7 +83,11 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, o
         channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount })),
       });
-      if (r.ok) { toast.success("تم حفظ أمر البيع (مسودة) — أكّده"); router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh(); }
+      if (r.ok) {
+        toast.success("تم حفظ أمر البيع (مسودة) — أكّده");
+        if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
+        router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh();
+      }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };

@@ -1,16 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers, deliveryNotes, crmOpportunities } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, deliveryNotes, crmOpportunities } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
+import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveOrderState = ActionState & { id?: string };
+export type SaveOrderState = ActionState & { id?: string; warning?: string };
+
+const qf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
@@ -61,6 +64,23 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
     if (dup) return { error: "رقم الطلب مسجّل مسبقاً لهذه القناة" };
   }
 
+  // Reservation check — informative (does not block; the order still reserves,
+  // and delivery hard-blocks any negative stock). Warns which orders hold stock.
+  let warning: string | undefined;
+  const reqByItem = new Map<string, number>();
+  for (const l of lines) reqByItem.set(l.itemId, (reqByItem.get(l.itemId) ?? 0) + l.quantity);
+  const avail = await getAvailability(auth.orgId, [...reqByItem.keys()]);
+  const over = [...reqByItem.entries()].filter(([id, req]) => (avail.get(id)?.available ?? 0) < req - 1e-9);
+  if (over.length) {
+    const nameRows = await db.select({ id: items.id, name: items.nameAr, code: items.code }).from(items).where(inArray(items.id, over.map(([id]) => id)));
+    const nameById = new Map(nameRows.map((r) => [r.id, r.name || r.code]));
+    warning = over.map(([id, req]) => {
+      const a = avail.get(id)!;
+      const holders = a.reservedBy.slice(0, 3).map((h) => `${h.number} (${qf(h.qty)})`).join("، ");
+      return `«${nameById.get(id) ?? id}»: طلبت ${qf(req)} والمتاح ${qf(a.available)}${a.reserved > 0 ? ` — محجوز ${qf(a.reserved)} لأوامر: ${holders}` : ""}`;
+    }).join("؛ ");
+  }
+
   const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
   const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
   const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
@@ -92,7 +112,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
       revalidatePath("/erp/crm");
     }
     revalidatePath("/erp/sales/orders");
-    return { ok: true, id };
+    return { ok: true, id, warning };
   } catch (e) {
     return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
   }

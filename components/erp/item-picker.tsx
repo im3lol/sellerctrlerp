@@ -92,7 +92,10 @@ export function ItemPicker({
                       {it.codes.length ? " · " + it.codes.slice(0, 2).map((c) => c.code).join(" · ") : ""}
                     </div>
                   </div>
-                  <div className="shrink-0 text-end text-xs text-muted-foreground">متاح: {fmt(it.stock)}</div>
+                  <div className="shrink-0 text-end text-xs">
+                    <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>متاح: {fmt(it.available)}</div>
+                    {it.reserved > 0 && <div className="text-[10px] text-amber-600">محجوز: {fmt(it.reserved)} · رصيد: {fmt(it.stock)}</div>}
+                  </div>
                 </button>
               ))
             )}

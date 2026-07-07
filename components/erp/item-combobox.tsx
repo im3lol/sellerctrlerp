@@ -79,7 +79,8 @@ export function ItemCombobox({
                   </div>
                 </div>
                 <div className="shrink-0 text-end text-xs">
-                  <div className="text-muted-foreground">متاح: {fmt(it.stock)}</div>
+                  <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>متاح: {fmt(it.available)}</div>
+                  {it.reserved > 0 && <div className="text-[10px] text-amber-600">محجوز: {fmt(it.reserved)}</div>}
                   <div className="font-medium">{fmt(it.sellPrice)}</div>
                 </div>
               </button>

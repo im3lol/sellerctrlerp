@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Field } from "@/components/erp/document-detail";
+import { getAvailability } from "@/lib/erp/availability";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
 
 const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,6 +34,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
   const whName = new Map(whs.map((w) => [w.id, w.name]));
   const totalQty = stockRows.reduce((s, r) => s + Number(r.q), 0);
   const totalVal = stockRows.reduce((s, r) => s + Number(r.v), 0);
+  const av = (await getAvailability(orgId, [item.id])).get(item.id);
 
   return (
     <div className="space-y-6">
@@ -61,7 +63,9 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <Field label="الاسم">{item.nameAr ?? "—"}</Field>
             <Field label="سعر البيع">{money(item.sellPrice)}</Field>
             <Field label="حد إعادة الطلب">{qf(item.minStock)}</Field>
-            <Field label="المتاح الكلي">{qf(totalQty)}</Field>
+            <Field label="الرصيد الكلي">{qf(totalQty)}</Field>
+            <Field label="محجوز لأوامر">{qf(av?.reserved ?? 0)}</Field>
+            <Field label="المتاح للبيع"><span className={(av?.available ?? totalQty) <= 0 ? "text-destructive font-semibold" : "font-semibold"}>{qf(av?.available ?? totalQty)}</span></Field>
             <Field label="قيمة المخزون">{money(totalVal)}</Field>
           </div>
 

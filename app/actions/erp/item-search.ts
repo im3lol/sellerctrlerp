@@ -4,6 +4,7 @@ import { and, or, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
+import { getAvailability } from "@/lib/erp/availability";
 
 export type ItemSearchResult = {
   id: string;
@@ -11,7 +12,9 @@ export type ItemSearchResult = {
   name: string;
   sellPrice: number;
   image: string | null;
-  stock: number;
+  stock: number; // on-hand
+  reserved: number;
+  available: number; // on-hand − reserved
   codes: { type: string; code: string }[];
 };
 
@@ -55,6 +58,7 @@ export async function searchItemsAction(query: string): Promise<ItemSearchResult
   if (rows.length === 0) return [];
 
   const ids = rows.map((r) => r.id);
+  const avail = await getAvailability(auth.orgId, ids);
   const idList = sql.join(ids.map((id) => sql`${id}`), sql`, `);
 
   // On-hand stock = sum of the latest balance per warehouse for each item.
@@ -83,6 +87,8 @@ export async function searchItemsAction(query: string): Promise<ItemSearchResult
     sellPrice: Number(r.sellPrice),
     image: r.image,
     stock: stockBy.get(r.id) ?? 0,
+    reserved: avail.get(r.id)?.reserved ?? 0,
+    available: avail.get(r.id)?.available ?? (stockBy.get(r.id) ?? 0),
     codes: codesBy.get(r.id) ?? [],
   }));
 }
