@@ -14,9 +14,9 @@ const money = (v: unknown) =>
   Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 });
 
 type Member = {
-  userId: string;
+  userId: string | null;
   name: string;
-  email: string;
+  email: string | null;
   title: string | null;
   employee: {
     id: string;
@@ -39,9 +39,11 @@ function EmployeeDialog({
   onClose: () => void;
 }) {
   const emp = member.employee;
+  const isStandalone = !member.userId;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
 
+  const [name, setName]             = useState(member.name && member.name !== "—" ? member.name : "");
   const [payType, setPayType]       = useState<"MONTHLY" | "HOURLY">(emp?.payType === "HOURLY" ? "HOURLY" : "MONTHLY");
   const [basic, setBasic]           = useState(String(Number(emp?.basicSalary ?? 0)));
   const [allowances, setAllowances] = useState(String(Number(emp?.allowances ?? 0)));
@@ -53,9 +55,11 @@ function EmployeeDialog({
   function save() {
     setError(undefined);
     startTransition(async () => {
+      if (isStandalone && !name.trim()) { setError("أدخل اسم الموظف"); return; }
       const res = await upsertEmployeeAction({
         id: emp?.id,
         userId: member.userId,
+        fullName: isStandalone ? name.trim() : undefined,
         payType,
         basicSalary: Number(basic),
         allowances: Number(allowances),
@@ -72,10 +76,17 @@ function EmployeeDialog({
   return (
     <DialogContent className="max-w-lg" dir="rtl">
       <DialogHeader>
-        <DialogTitle>بيانات راتب — {member.name}</DialogTitle>
+        <DialogTitle>{isStandalone && !emp ? "موظف جديد (بدون حساب)" : `بيانات راتب — ${member.name}`}</DialogTitle>
       </DialogHeader>
 
       <div className="grid gap-4">
+        {isStandalone && (
+          <div className="space-y-1.5">
+            <Label>اسم الموظف</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="الاسم الكامل" />
+            <p className="text-xs text-muted-foreground">موظف على كشف الرواتب فقط — بدون حساب دخول للنظام.</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>نوع الراتب</Label>
@@ -138,7 +149,7 @@ export function EmployeesManager({ members, orgId }: { members: Member[]; orgId:
 
   const q = query.trim().toLowerCase();
   const filtered = members.filter((m) => {
-    if (q && !(m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.title ?? "").toLowerCase().includes(q) || (m.employee?.department ?? "").toLowerCase().includes(q))) return false;
+    if (q && !(m.name.toLowerCase().includes(q) || (m.email ?? "").toLowerCase().includes(q) || (m.title ?? "").toLowerCase().includes(q) || (m.employee?.department ?? "").toLowerCase().includes(q))) return false;
     if (statusFilter === "active") return m.employee?.isActive === true;
     if (statusFilter === "inactive") return !!m.employee && !m.employee.isActive;
     if (statusFilter === "unregistered") return !m.employee;
@@ -148,11 +159,16 @@ export function EmployeesManager({ members, orgId }: { members: Member[]; orgId:
   const activeCount = members.filter((m) => m.employee?.isActive).length;
   const monthlyBasic = members.reduce((s, m) => s + (m.employee?.isActive ? Number(m.employee.basicSalary) + Number(m.employee.allowances) : 0), 0);
 
+  const addStandalone = () => setEditing({ userId: null, name: "", email: null, title: null, employee: null });
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. الموظفون المفعّلون يُدرَجون في مسير الرواتب تلقائيًا.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. أو أضف موظفاً على كشف الرواتب فقط دون حساب دخول للنظام.
+        </p>
+        <Button onClick={addStandalone}><Plus className="me-1 size-4" />موظف بدون حساب</Button>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">مسجّلون / الأعضاء</div><div className="text-lg font-bold tabular-nums">{registered} / {members.length}</div></div>

@@ -18,8 +18,13 @@ export default async function EmployeesPage() {
     db.select().from(employees).where(eq(employees.organizationId, orgId)),
   ]);
 
-  const empByUserId = new Map(empRows.map((e) => [e.userId, e]));
-  const list = userRows.map((u) => ({ ...u, role: "", employee: empByUserId.get(u.userId) ?? null }));
+  const empByUserId = new Map(empRows.filter((e) => e.userId).map((e) => [e.userId, e]));
+  const list = [
+    // Users (each can be onboarded as an employee)
+    ...userRows.map((u) => ({ userId: u.userId as string | null, name: u.name, email: u.email, title: u.title, employee: empByUserId.get(u.userId) ?? null })),
+    // Payroll-only employees with no system user
+    ...empRows.filter((e) => !e.userId).map((e) => ({ userId: null, name: e.fullName ?? "—", email: null, title: e.position, employee: e })),
+  ];
 
   return (
     <div className="space-y-6">

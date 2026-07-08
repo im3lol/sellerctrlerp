@@ -44,7 +44,8 @@ async function ensureAccount(
 
 export type EmployeeInput = {
   id?: string;
-  userId: string;
+  userId?: string | null; // null → payroll-only employee with no system login
+  fullName?: string; // required when there is no userId
   employeeCode?: string;
   position?: string;
   department?: string;
@@ -61,9 +62,14 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
   const auth = await authorizeErp("hr.create");
   if ("error" in auth) return auth;
 
+  const userId = input.userId || null;
+  const fullName = input.fullName?.trim() || null;
+  if (!userId && !fullName) return { error: "أدخل اسم الموظف" };
+
   const values = {
     organizationId: auth.orgId,
-    userId: input.userId as `${string}-${string}-${string}-${string}-${string}`,
+    userId: userId as `${string}-${string}-${string}-${string}-${string}` | null,
+    fullName,
     employeeCode: input.employeeCode?.trim() || null,
     position: input.position?.trim() || null,
     department: input.department?.trim() || null,
@@ -82,14 +88,17 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
       .update(employees)
       .set(values)
       .where(and(eq(employees.id, input.id), eq(employees.organizationId, auth.orgId)));
+  } else if (!userId) {
+    // Payroll-only employee (no system user) — just insert the record.
+    await db.insert(employees).values(values);
   } else {
     // Onboarding a new employee: ensure the user is a member of this org first,
     // otherwise they wouldn't appear anywhere (HR requires org membership). Give
     // a minimal "viewer" ERP role; the admin can raise it from the user page.
     const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
-      .where(and(eq(organizationMembers.organizationId, auth.orgId), eq(organizationMembers.userId, values.userId))).limit(1);
+      .where(and(eq(organizationMembers.organizationId, auth.orgId), eq(organizationMembers.userId, userId))).limit(1);
     if (!member) {
-      await db.insert(organizationMembers).values({ organizationId: auth.orgId, userId: values.userId, role: "viewer" });
+      await db.insert(organizationMembers).values({ organizationId: auth.orgId, userId, role: "viewer" });
     }
     await db.insert(employees).values(values);
   }
@@ -145,7 +154,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
 
   // For HOURLY employees: sum totalSeconds from attendance in the period
   const attendanceMap = new Map<string, number>(); // userId → total seconds
-  const hourlyIds = emps.filter((e) => e.payType === "HOURLY").map((e) => e.userId);
+  const hourlyIds = emps.filter((e) => e.payType === "HOURLY").map((e) => e.userId).filter((id): id is string => !!id);
   if (hourlyIds.length > 0) {
     const { attendance } = await import("@/db/schema");
     const rows = await db
@@ -158,7 +167,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
         ),
       );
     for (const r of rows) {
-      if (hourlyIds.includes(r.userId as `${string}-${string}-${string}-${string}-${string}`)) {
+      if (r.userId && hourlyIds.includes(r.userId)) {
         attendanceMap.set(r.userId, (attendanceMap.get(r.userId) ?? 0) + r.totalSeconds);
       }
     }
@@ -170,7 +179,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     let hoursWorked: number | null = null;
 
     if (emp.payType === "HOURLY") {
-      const seconds = attendanceMap.get(emp.userId) ?? 0;
+      const seconds = (emp.userId ? attendanceMap.get(emp.userId) : 0) ?? 0;
       hoursWorked = seconds / 3600;
       basic = hoursWorked * n(emp.basicSalary); // basicSalary = hourly rate
     }
@@ -184,7 +193,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     return {
       organizationId: auth.orgId,
       employeeId: emp.id,
-      userId: emp.userId as `${string}-${string}-${string}-${string}-${string}`,
+      userId: emp.userId,
       basicSalary: String(basic),
       allowances: String(allowances),
       grossPay: String(grossPay),

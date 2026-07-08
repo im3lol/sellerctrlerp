@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
@@ -30,7 +30,7 @@ export default async function PayrollRunPage({ params }: { params: { id: string 
       netPay: payrollLines.netPay,
       hoursWorked: payrollLines.hoursWorked,
       notes: payrollLines.notes,
-      userName: users.name,
+      userName: sql<string>`coalesce(${users.name}, ${employees.fullName}, '—')`,
       position: employees.position,
       department: employees.department,
     })
