@@ -171,8 +171,8 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
 
       if (fromDelivery) {
         // Stock + COGS already posted at the delivery — settle the order, no stock here.
-        const [dn] = await tx.select().from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId!)).limit(1);
-        await tx.update(deliveryNotes).set({ salesInvoiceId: inv.id, status: "INVOICED" }).where(eq(deliveryNotes.id, inv.deliveryNoteId!));
+        const [dn] = await tx.select().from(deliveryNotes).where(and(eq(deliveryNotes.id, inv.deliveryNoteId!), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+        await tx.update(deliveryNotes).set({ salesInvoiceId: inv.id, status: "INVOICED" }).where(and(eq(deliveryNotes.id, inv.deliveryNoteId!), eq(deliveryNotes.organizationId, auth.orgId)));
         if (dn?.salesOrderId) {
           const dnLines = await tx.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
             .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));

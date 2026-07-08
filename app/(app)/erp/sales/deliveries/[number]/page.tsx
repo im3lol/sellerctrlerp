@@ -57,7 +57,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     db.select({ number: salesReturns.number, status: salesReturns.status }).from(salesReturns)
       .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.organizationId, orgId))),
     getDocumentAudit(orgId, dn.id),
-    db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true)),
+    db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.isPrimary, true))),
   ]);
 
   const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));

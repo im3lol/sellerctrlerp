@@ -76,7 +76,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
           .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
       : Promise.resolve([] as { itemId: string; type: string; code: string }[]),
     invoiceIds.length
-      ? db.select({ id: salesInvoices.id, number: salesInvoices.number }).from(salesInvoices).where(inArray(salesInvoices.id, invoiceIds))
+      ? db.select({ id: salesInvoices.id, number: salesInvoices.number }).from(salesInvoices).where(and(eq(salesInvoices.organizationId, orgId), inArray(salesInvoices.id, invoiceIds)))
       : Promise.resolve([] as { id: string; number: string }[]),
   ]);
 

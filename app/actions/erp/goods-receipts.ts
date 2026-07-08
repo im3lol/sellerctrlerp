@@ -151,7 +151,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
   if (grn.status !== "DRAFT") return { error: "تم تأكيد إذن الاستلام بالفعل" };
   if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
 
-  const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
+  const [po] = await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.id, grn.purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "أمر الشراء غير موجود" };
 
   const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
@@ -264,7 +264,7 @@ export type ReceiptInvoicePreview = { lines: ReceiptInvoiceLine[]; subtotal: num
  */
 async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$inferSelect): Promise<ReceiptInvoicePreview | { error: string }> {
   if (!grn.purchaseOrderId) return { error: "الاستلام غير مرتبط بأمر شراء" };
-  const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
+  const [po] = await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.id, grn.purchaseOrderId), eq(purchaseOrders.organizationId, orgId))).limit(1);
   if (!po) return { error: "أمر الشراء غير موجود" };
   const poLines = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
   const poByItem = new Map(poLines.map((l) => [l.itemId, l]));

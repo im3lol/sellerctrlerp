@@ -57,7 +57,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
       .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId))),
     getDocumentAudit(orgId, grn.id),
-    db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true)),
+    db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.isPrimary, true))),
   ]);
   const anyRejected = lines.some((l) => Number(l.rejected) > 0);
 

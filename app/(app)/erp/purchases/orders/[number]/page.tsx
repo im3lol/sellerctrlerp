@@ -56,7 +56,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
   // Phase 2 — linked invoices (need the GRN invoice ids) in a single query.
   const invoiceIds = [...new Set(grns.map((g) => g.invoiceId).filter((x): x is string => !!x))];
   const invRows = invoiceIds.length
-    ? await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number }).from(purchaseInvoices).where(inArray(purchaseInvoices.id, invoiceIds))
+    ? await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number }).from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, orgId), inArray(purchaseInvoices.id, invoiceIds)))
     : [];
   const invById = new Map(invRows.map((i) => [i.id, i.number]));
   const linked: DocLink[] = [];

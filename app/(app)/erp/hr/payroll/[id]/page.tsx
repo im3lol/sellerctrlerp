@@ -6,13 +6,14 @@ import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PayrollRunDetail } from "@/components/erp/payroll-run-detail";
 
-export default async function PayrollRunPage({ params }: { params: { id: string } }) {
+export default async function PayrollRunPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { orgId } = await requireErpModule("hr.view");
 
   const [run] = await db
     .select()
     .from(payrollRuns)
-    .where(and(eq(payrollRuns.id, params.id), eq(payrollRuns.organizationId, orgId)))
+    .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, orgId)))
     .limit(1);
 
   if (!run) notFound();

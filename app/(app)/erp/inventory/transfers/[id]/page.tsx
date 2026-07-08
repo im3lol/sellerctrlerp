@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -44,7 +44,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
 
   const lineItemIds = lines.map((l) => l.id).filter(Boolean) as string[];
   const barcodeRows = lineItemIds.length
-    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true))
+    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds), eq(itemCodes.isPrimary, true)))
     : [];
   const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
 

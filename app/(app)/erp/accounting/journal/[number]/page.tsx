@@ -66,7 +66,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
 
   let reversalNumber: string | null = null;
   if (entry.status === "REVERSED" && entry.reversedById) {
-    const [rev] = await db.select({ number: journalEntries.number }).from(journalEntries).where(eq(journalEntries.id, entry.reversedById)).limit(1);
+    const [rev] = await db.select({ number: journalEntries.number }).from(journalEntries).where(and(eq(journalEntries.id, entry.reversedById), eq(journalEntries.organizationId, orgId))).limit(1);
     reversalNumber = rev?.number ?? null;
   }
 
