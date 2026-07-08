@@ -71,24 +71,22 @@ async function pnlTrend(orgId: string): Promise<{ label: string; revenue: number
  */
 export async function getErpOverview(orgId: string): Promise<ErpOverview> {
   const since = monthStart();
-
-  const invRows = (await db.execute<{ name: string; min_stock: string; qty: string; val: string }>(sql`
-    SELECT COALESCE(i.name_ar, i.code) AS name, i.min_stock,
-           COALESCE(s.qty, 0) AS qty, COALESCE(s.val, 0) AS val
-    FROM items i
-    LEFT JOIN (
-      SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
-        SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
-        FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, number DESC
-      ) t GROUP BY item_id
-    ) s ON s.item_id = i.id
-    WHERE i.organization_id = ${orgId} AND i.is_active = true
-  `)).rows as { name: string; min_stock: string; qty: string; val: string }[];
-
   const today = new Date();
 
-  const [balances, [sm], [pm], expiry, trend, overdueSales, overduePurch, recentSales, recentPurchases] = await Promise.all([
+  const [invResult, balances, [sm], [pm], expiry, trend, overdueSales, overduePurch, recentSales, recentPurchases] = await Promise.all([
+    db.execute<{ name: string; min_stock: string; qty: string; val: string }>(sql`
+      SELECT COALESCE(i.name_ar, i.code) AS name, i.min_stock,
+             COALESCE(s.qty, 0) AS qty, COALESCE(s.val, 0) AS val
+      FROM items i
+      LEFT JOIN (
+        SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
+          SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
+          FROM stock_movements WHERE organization_id = ${orgId}
+          ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+        ) t GROUP BY item_id
+      ) s ON s.item_id = i.id
+      WHERE i.organization_id = ${orgId} AND i.is_active = true
+    `),
     accountBalances({ orgId }),
     db.select({ n: sql<number>`count(*)`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
       .from(salesInvoices)
@@ -118,6 +116,7 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
       .limit(5),
   ]);
 
+  const invRows = invResult.rows as { name: string; min_stock: string; qty: string; val: string }[];
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
   const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
   const byCode = Object.fromEntries(balances.map((b) => [b.code, b.balance]));

@@ -37,48 +37,43 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     .where(and(eq(purchaseReceipts.number, raw), eq(purchaseReceipts.organizationId, orgId))).limit(1);
   if (!grn) notFound();
 
-  const [sup] = grn.supplierId
-    ? await db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
-    : [undefined];
-  const [wh] = await db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1);
-
-  const lines = await db
-    .select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
-    .from(purchaseReceiptLines)
-    .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
-    .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
-    .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+  // All independent once `grn` is known — one round-trip.
+  const [[sup], [wh], lines, [po], [pi], retDocs, audit, barcodeRows] = await Promise.all([
+    grn.supplierId
+      ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1),
+    db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
+      .from(purchaseReceiptLines)
+      .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
+      .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
+      .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id)),
+    grn.purchaseOrderId
+      ? db.select({ number: purchaseOrders.number }).from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    grn.purchaseInvoiceId
+      ? db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, grn.purchaseInvoiceId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
+      .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId))),
+    getDocumentAudit(orgId, grn.id),
+    db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(eq(itemCodes.isPrimary, true)),
+  ]);
   const anyRejected = lines.some((l) => Number(l.rejected) > 0);
 
-  // Fetch primary barcode per item for label printing
-  const itemIds = lines.map((l) => l.itemId).filter(Boolean) as string[];
-  const barcodeRows = itemIds.length
-    ? await db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code })
-        .from(itemCodes)
-        .where(and(eq(itemCodes.isPrimary, true)))
-    : [];
   const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
   const barcodeItems = lines
     .filter((l) => l.itemId && barcodeMap[l.itemId])
     .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.code ?? "", itemName: l.name ?? "", quantity: Math.max(1, Math.round(Number(l.qty ?? 1))) }));
 
   const linked: DocLink[] = [];
-  if (grn.purchaseOrderId) {
-    const [po] = await db.select({ number: purchaseOrders.number }).from(purchaseOrders).where(eq(purchaseOrders.id, grn.purchaseOrderId)).limit(1);
-    if (po) linked.push({ label: "أمر شراء", number: po.number, href: `/erp/purchases/orders/${encodeURIComponent(po.number)}` });
-  }
-  if (grn.purchaseInvoiceId) {
-    const [pi] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, grn.purchaseInvoiceId)).limit(1);
-    if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
-  }
-  const retDocs = await db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
-    .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId)));
+  if (po) linked.push({ label: "أمر شراء", number: po.number, href: `/erp/purchases/orders/${encodeURIComponent(po.number)}` });
+  if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
   for (const rd of retDocs) {
     if (rd.status === "CANCELLED") continue;
     linked.push({ label: rd.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)", number: rd.number, href: `/erp/purchases/returns/${encodeURIComponent(rd.number)}` });
   }
 
-  const audit = await getDocumentAudit(orgId, grn.id);
   const st = STATUS[grn.status] ?? { label: grn.status, variant: "secondary" as const };
   const canManage = erpCan(role, "purchases.create");
 
