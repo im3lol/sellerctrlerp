@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "dr
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, salesReturns, salesReturnLines } from "@/db/schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,11 +120,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
         ) : undefined}
       />
       <Card>
-        <CardHeader>
-          <CardTitle>أوامر البيع</CardTitle>
-          <CardDescription>التزامات بيع تُحوّل إلى فواتير. حدّد عدّة أوامر لتأكيدها أو إلغائها أو حذفها دفعةً واحدة.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <details open={hasFilters} className="rounded-lg border">
             <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
               <Icon name="ListFilter" className="size-4" /> بحث وتصفية
