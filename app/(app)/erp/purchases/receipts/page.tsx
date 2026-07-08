@@ -110,7 +110,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
       />
       <Card>
         <CardHeader>
-          <CardTitle>إذون استلام البضاعة (GRN)</CardTitle>
+          <CardTitle>إذون استلام البضاعة</CardTitle>
           <CardDescription>إدخال البضاعة للمخزون يُرحّل عند الاستلام (مدين المخزون / دائن بضاعة لم تُفوتر)؛ الفاتورة تُسوّي الحساب مع المورد. حدّد عدّة إذون لتحويلها إلى فواتير دفعةً واحدة.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

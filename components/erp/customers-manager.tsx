@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErpPageHeader } from "@/components/erp/page-header";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -135,7 +136,7 @@ function PortalLinkDialog({
   );
 }
 
-export function CustomersManager({ customers, canManage }: { customers: Customer[]; canManage: boolean }) {
+export function CustomersManager({ customers, canManage, title, kpis }: { customers: Customer[]; canManage: boolean; title?: string; kpis?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [portalOpen, setPortalOpen] = useState(false);
@@ -152,19 +153,19 @@ export function CustomersManager({ customers, canManage }: { customers: Customer
       else toast.error(r.error ?? "تعذّر الحذف");
     });
 
+  const addBtn = canManage ? <Button onClick={openCreate}><Plus className="size-4" />عميل جديد</Button> : undefined;
+
   return (
-    <Card>
+    <div className="space-y-6">
+      {title && <ErpPageHeader icon="ShoppingCart" title={title} subtitle={`${customers.length.toLocaleString("ar-EG-u-nu-latn")} عميل`} action={addBtn} />}
+      {kpis}
+      <Card>
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle>العملاء</CardTitle>
           <CardDescription>عملاء المؤسسة النشطة وأرصدتهم.</CardDescription>
         </div>
-        {canManage && (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
-            عميل جديد
-          </Button>
-        )}
+        {!title && addBtn}
       </CardHeader>
       <CardContent>
         {customers.length === 0 ? (
@@ -233,5 +234,6 @@ export function CustomersManager({ customers, canManage }: { customers: Customer
       <CustomerDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />
       <PortalLinkDialog key={`portal-${portalCustomer?.id}`} open={portalOpen} onOpenChange={setPortalOpen} customer={portalCustomer} />
     </Card>
+    </div>
   );
 }

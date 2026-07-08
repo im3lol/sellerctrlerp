@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErpPageHeader } from "@/components/erp/page-header";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -57,7 +58,7 @@ function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
   );
 }
 
-export function SuppliersManager({ suppliers, canManage }: { suppliers: Supplier[]; canManage: boolean }) {
+export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppliers: Supplier[]; canManage: boolean; title?: string; kpis?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [pending, startTransition] = useTransition();
@@ -67,11 +68,16 @@ export function SuppliersManager({ suppliers, canManage }: { suppliers: Supplier
     if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
   });
 
+  const addBtn = canManage ? <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مورد جديد</Button> : undefined;
+
   return (
-    <Card>
+    <div className="space-y-6">
+      {title && <ErpPageHeader icon="Truck" title={title} subtitle={`${suppliers.length.toLocaleString("ar-EG-u-nu-latn")} مورد`} action={addBtn} />}
+      {kpis}
+      <Card>
       <CardHeader className="flex-row items-center justify-between">
         <div><CardTitle>الموردون</CardTitle><CardDescription>موردو المؤسسة النشطة وأرصدتهم.</CardDescription></div>
-        {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مورد جديد</Button>}
+        {!title && addBtn}
       </CardHeader>
       <CardContent>
         {suppliers.length === 0 ? (
@@ -118,5 +124,6 @@ export function SuppliersManager({ suppliers, canManage }: { suppliers: Supplier
       </CardContent>
       <SupplierDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />
     </Card>
+    </div>
   );
 }
