@@ -76,6 +76,9 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
         {Number(inv.shippingAmount) > 0 && <Field label="الشحن">{fmt(inv.shippingAmount)}</Field>}
         <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>
         <Field label="المدفوع / المتبقّي">{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
+        {inv.foreignAmount && inv.currencyCode && (
+          <Field label="بالعملة الأجنبية">{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
+        )}
       </div>
 
       <Card>

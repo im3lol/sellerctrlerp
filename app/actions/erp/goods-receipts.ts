@@ -10,6 +10,7 @@ import {
   purchaseInvoices, purchaseInvoiceLines, items, stockMovements, stockMovementBatches,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
@@ -312,7 +313,13 @@ export async function getReceiptInvoicePreviewAction(receiptId: string): Promise
  * capitalised and discount/tax pro-rated). No GL until the invoice is posted —
  * posting clears GRNI (2103) → AP (2101). `date`/`notes` are optional overrides.
  */
-export async function convertReceiptToInvoiceAction(receiptId: string, date?: string, notes?: string): Promise<ActionState & { invoiceId?: string }> {
+export async function convertReceiptToInvoiceAction(
+  receiptId: string,
+  date?: string,
+  notes?: string,
+  currencyCode?: string,
+  exchangeRate?: number,
+): Promise<ActionState & { invoiceId?: string }> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
@@ -333,6 +340,11 @@ export async function convertReceiptToInvoiceAction(receiptId: string, date?: st
   if ("error" in built) return built;
   if (built.total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
 
+  // Multi-currency: receipt amounts are in base currency; a foreign currency only
+  // records the display total (base ÷ rate). GL/AP stay in base.
+  const baseCode = await getBaseCurrencyCode(auth.orgId);
+  const cur = resolveCurrency(baseCode, currencyCode, exchangeRate, built.total);
+
   const invoiceDate = date ? new Date(date) : new Date(grn.date);
   const number = await nextNumber("PI", auth.orgId, invoiceDate.getFullYear());
   try {
@@ -342,6 +354,8 @@ export async function convertReceiptToInvoiceAction(receiptId: string, date?: st
         date: invoiceDate, status: "DRAFT", subtotal: String(built.subtotal), shippingAmount: String(built.shipping),
         discountAmount: String(built.discount), taxAmount: String(built.tax),
         totalAmount: String(built.total), paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة استلام ${grn.number}`,
+        currencyCode: cur.code, exchangeRate: String(cur.rate),
+        foreignAmount: cur.foreignAmount !== null ? String(cur.foreignAmount) : null,
       }).returning({ id: purchaseInvoices.id });
       await tx.insert(purchaseInvoiceLines).values(built.lines.map((l) => ({
         purchaseInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),

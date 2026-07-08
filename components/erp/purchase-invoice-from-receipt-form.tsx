@@ -14,17 +14,20 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Supplier = { id: string; nameAr: string };
 type BillableReceipt = { id: string; number: string; supplierId: string | null; dateLabel: string };
+type CurrencyOption = { code: string; nameAr: string; isBase: boolean; exchangeRate: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export function PurchaseInvoiceFromReceiptForm({
-  orgName, suppliers, receipts,
+  orgName, suppliers, receipts, currencies = [], latestRates = {},
 }: {
   orgName: string;
   suppliers: Supplier[];
   receipts: BillableReceipt[];
+  currencies?: CurrencyOption[];
+  latestRates?: Record<string, number>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -36,6 +39,18 @@ export function PurchaseInvoiceFromReceiptForm({
   const [notes, setNotes] = useState("");
   const [receiptId, setReceiptId] = useState("");
   const [preview, setPreview] = useState<ReceiptInvoicePreview | null>(null);
+
+  const baseCurrency = currencies.find((c) => c.isBase);
+  const baseCode = baseCurrency?.code ?? "SAR";
+  const foreignCurrencies = currencies.filter((c) => !c.isBase);
+  const [currencyCode, setCurrencyCode] = useState(baseCode);
+  const [exchangeRate, setExchangeRate] = useState<string>(String(latestRates[baseCode] ?? 1));
+
+  const onCurrencyChange = (code: string) => {
+    setCurrencyCode(code);
+    const cur = currencies.find((c) => c.code === code);
+    setExchangeRate(cur?.isBase ? "1" : (latestRates[code] ? String(latestRates[code]) : (cur?.exchangeRate ?? "")));
+  };
 
   const supplierReceipts = useMemo(() => receipts.filter((r) => r.supplierId === supplierId), [receipts, supplierId]);
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
@@ -55,12 +70,18 @@ export function PurchaseInvoiceFromReceiptForm({
     });
   };
 
+  const isForeign = currencyCode !== baseCode;
+  const rate = parseFloat(exchangeRate) || 1;
+  // For a foreign currency, the foreign display total = base ÷ rate.
+  const foreignTotal = preview && isForeign ? preview.total / rate : null;
+
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!receiptId) return toast.error("استدعِ إذن استلام أولاً");
     if (!preview || preview.lines.length === 0) return toast.error("لا توجد بنود للفوترة");
+    if (isForeign && (!exchangeRate || rate <= 0)) return toast.error("أدخل سعر الصرف");
     start(async () => {
-      const r = await convertReceiptToInvoiceAction(receiptId, date, notes || undefined);
+      const r = await convertReceiptToInvoiceAction(receiptId, date, notes || undefined, currencyCode, isForeign ? rate : undefined);
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — رحّلها لاعتمادها");
         router.push(r.invoiceId ? `/erp/purchases/invoices/${r.invoiceId}` : "/erp/purchases/invoices");
@@ -98,6 +119,33 @@ export function PurchaseInvoiceFromReceiptForm({
           </div>
           <div className="space-y-2"><Label>تاريخ الفاتورة</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
+
+        {/* Currency row — only shown when active non-base currencies are configured */}
+        {foreignCurrencies.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-dashed bg-muted/20 p-3">
+            <div className="space-y-2">
+              <Label>عملة الفاتورة</Label>
+              <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? " (أساسية)" : ""}</option>
+                ))}
+              </select>
+            </div>
+            {isForeign && (
+              <div className="space-y-2">
+                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCode})</Label>
+                <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder="مثال: 3.75" />
+              </div>
+            )}
+            {isForeign && foreignTotal !== null && (
+              <div className="flex flex-col justify-end text-sm text-muted-foreground">
+                <span>إجمالي بالعملة الأجنبية:</span>
+                <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {currencyCode}</span>
+                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Recall a confirmed, un-billed goods receipt for the chosen supplier */}
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
@@ -158,7 +206,12 @@ export function PurchaseInvoiceFromReceiptForm({
             <div>الشحن: <span className="font-medium">{fmt(preview.shipping)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(preview.total)}</div>
+            <div className="text-base font-bold text-primary">
+              الإجمالي: {fmt(preview.total)} {baseCode}
+              {isForeign && foreignTotal !== null && (
+                <span className="ms-2 text-sm font-normal text-muted-foreground">= {fmt(foreignTotal)} {currencyCode}</span>
+              )}
+            </div>
           </div>
         )}
 
