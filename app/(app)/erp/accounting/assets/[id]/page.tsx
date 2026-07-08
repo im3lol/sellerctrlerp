@@ -112,7 +112,7 @@ export default async function AssetDetailPage({ params }: Params) {
         <CardContent>
           {deprecLines.length === 0 ? (
             <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-              لم يُرحَّل إهلاك بعد. استخدم صفحة "ترحيل إهلاك" لتسجيل الإهلاك الشهري.
+              لم يُرحَّل إهلاك بعد. استخدم صفحة «ترحيل إهلاك» لتسجيل الإهلاك الشهري.
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
