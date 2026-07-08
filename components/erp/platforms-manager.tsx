@@ -153,7 +153,7 @@ export function PlatformsManager({
               {platforms.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <div className="font-medium">{p.name}</div>
+                    <Link href={`/erp/platforms/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                     <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
                   </TableCell>
                   <TableCell>{p.customerName ?? <span className="text-muted-foreground">—</span>}</TableCell>

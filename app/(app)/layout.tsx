@@ -1,6 +1,9 @@
+import { and, asc, eq } from "drizzle-orm";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
 import { requireUser } from "@/lib/session";
+import { db } from "@/lib/db";
+import { salesPlatforms } from "@/db/schema";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import type { Role } from "@/lib/rbac";
@@ -15,9 +18,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? [...ALL_MODULES]
     : activeOrg.org ? [...(await getEnabledModules(activeOrg.org.id))] : [];
 
+  // Live platforms listed under the "المنصات" nav group.
+  const platforms = activeOrg.org
+    ? await db.select({ id: salesPlatforms.id, name: salesPlatforms.name }).from(salesPlatforms)
+        .where(and(eq(salesPlatforms.organizationId, activeOrg.org.id), eq(salesPlatforms.isActive, true)))
+        .orderBy(asc(salesPlatforms.name))
+    : [];
+
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <Sidebar role={user.role as Role} modules={enabledModules} />
+      <Sidebar role={user.role as Role} modules={enabledModules} platforms={platforms} />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           user={{
@@ -30,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           orgs={activeOrg.orgs.map((o) => ({ id: o.id, nameAr: o.nameAr }))}
           activeOrgId={activeOrg.org?.id ?? null}
           modules={enabledModules}
+          platforms={platforms}
         />
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>

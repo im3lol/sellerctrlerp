@@ -17,15 +17,22 @@ function visibleItems(section: NavSection, role: Role) {
   return section.items.filter((it) => !it.capability || can(role, it.capability as Capability));
 }
 
-export function NavList({ role, modules, onNavigate }: { role: Role; modules?: string[]; onNavigate?: () => void }) {
+export function NavList({ role, modules, platforms, onNavigate }: { role: Role; modules?: string[]; platforms?: { id: string; name: string }[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+
+  // Merge live platform links into the dynamic "المنصات" group.
+  const withDynamic = (section: NavSection): NavSection =>
+    section.dynamicKey === "platforms" && platforms?.length
+      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/erp/platforms/${p.id}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
+      : section;
 
   // A module is open if it contains the active route. Users can toggle modules
   // open/closed; we seed the open set with whichever module is currently active.
   const initiallyOpen = () => {
     const open: Record<number, boolean> = {};
     NAV.forEach((section, i) => {
-      if (section.heading && visibleItems(section, role).some((it) => isActive(pathname, it.href, it.exact))) {
+      const sec = withDynamic(section);
+      if (sec.heading && visibleItems(sec, role).some((it) => isActive(pathname, it.href, it.exact))) {
         open[i] = true;
       }
     });
@@ -36,7 +43,8 @@ export function NavList({ role, modules, onNavigate }: { role: Role; modules?: s
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {NAV.map((section, i) => {
+      {NAV.map((rawSection, i) => {
+        const section = withDynamic(rawSection);
         // Subscription gate: hide a module the tenant doesn't have.
         if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
         const items = visibleItems(section, role);

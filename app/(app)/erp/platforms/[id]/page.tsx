@@ -1,0 +1,155 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { and, desc, eq, gte, or, sql } from "drizzle-orm";
+import { requireErpModule } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items } from "@/db/schema";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Icon } from "@/components/icon";
+import { PlatformActions } from "@/components/erp/platform-actions";
+
+const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const int = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn");
+const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const STATUS: Record<string, string> = { DRAFT: "مسودة", CONFIRMED: "مؤكّد", PARTIALLY_DELIVERED: "تسليم جزئي", DELIVERED: "مُسلّم", INVOICED: "مفوتر", CANCELLED: "ملغى" };
+
+function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "danger" | "ok" }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className={`text-2xl font-bold tabular-nums ${tone === "danger" ? "text-destructive" : tone === "ok" ? "text-emerald-600" : ""}`}>{value}</div>
+        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default async function PlatformDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { orgId } = await requireErpModule("sales.view");
+
+  const [platform] = await db
+    .select({
+      id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
+      integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive,
+      customerId: salesPlatforms.customerId, customerName: customers.nameAr, customerBalance: customers.balance,
+      warehouseName: warehouses.nameAr, bankName: bankAccounts.nameAr,
+    })
+    .from(salesPlatforms)
+    .leftJoin(customers, eq(customers.id, salesPlatforms.customerId))
+    .leftJoin(warehouses, eq(warehouses.id, salesPlatforms.defaultWarehouseId))
+    .leftJoin(bankAccounts, eq(bankAccounts.id, salesPlatforms.bankAccountId))
+    .where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, orgId)))
+    .limit(1);
+  if (!platform) notFound();
+
+  const isAmazon = platform.integrationType === "amazon";
+  const match = or(eq(salesOrders.platformId, platform.id), eq(salesOrders.channel, platform.code));
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const custId = platform.customerId;
+
+  const [[all], [month], statusRows, topItems, recent, [ret], [coll]] = await Promise.all([
+    db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)),
+    db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, monthStart))),
+    db.select({ status: salesOrders.status, n: sql<number>`count(*)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(salesOrders.status),
+    db.select({ name: items.nameAr, code: items.code, qty: sql<string>`sum(${salesOrderLines.quantity})`, total: sql<string>`sum(${salesOrderLines.totalAmount})` })
+      .from(salesOrderLines).innerJoin(salesOrders, eq(salesOrders.id, salesOrderLines.salesOrderId)).innerJoin(items, eq(items.id, salesOrderLines.itemId))
+      .where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(items.id).orderBy(desc(sql`sum(${salesOrderLines.totalAmount})`)).limit(5),
+    db.select({ number: salesOrders.number, date: salesOrders.date, status: salesOrders.status, ext: salesOrders.externalOrderId, total: salesOrders.totalAmount })
+      .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(8),
+    custId
+      ? db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.customerId, custId)))
+      : Promise.resolve([{ n: 0, total: "0" }]),
+    custId
+      ? db.select({ total: sql<string>`coalesce(sum(${receiptVouchers.amount}),0)` }).from(receiptVouchers).where(and(eq(receiptVouchers.organizationId, orgId), eq(receiptVouchers.customerId, custId), eq(receiptVouchers.status, "POSTED")))
+      : Promise.resolve([{ total: "0" }]),
+  ]);
+
+  const ordersCount = Number(all?.n ?? 0);
+  const salesTotal = Number(all?.total ?? 0);
+  const avgOrder = ordersCount > 0 ? salesTotal / ordersCount : 0;
+  const outstanding = Number(platform.customerBalance ?? 0);
+
+  return (
+    <div className="space-y-6">
+      <ErpPageHeader
+        icon="Store"
+        title={platform.name}
+        subtitle={`منصة ${isAmazon ? "أمازون" : "عامة"} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
+        backHref="/erp/platforms"
+        action={<PlatformActions platformId={platform.id} isAmazon={isAmazon} />}
+      />
+
+      {/* Config summary */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Users" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">العميل</div><div className="font-medium">{platform.customerName ?? "—"}</div></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Warehouse" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">المخزن</div><div className="font-medium">{platform.warehouseName ?? "—"}</div></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Landmark" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">الحساب البنكي</div><div className="font-medium">{platform.bankName ?? "—"}</div></div></CardContent></Card>
+      </div>
+
+      {/* Smart KPIs */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(month?.n ?? 0)} هذا الشهر`} />
+        <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(month?.total ?? 0)} هذا الشهر`} />
+        <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />
+        <Kpi label="المرتجعات" value={fmt(ret?.total ?? 0)} hint={`${int(ret?.n ?? 0)} مرتجع`} tone={Number(ret?.total ?? 0) > 0 ? "danger" : undefined} />
+        <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(coll?.total ?? 0)} tone="ok" />
+        <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top items */}
+        <Card>
+          <CardHeader><CardTitle>أعلى الأصناف مبيعًا</CardTitle><CardDescription>حسب قيمة المبيعات على المنصة.</CardDescription></CardHeader>
+          <CardContent>
+            {topItems.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">لا توجد مبيعات بعد.</div> : (
+              <Table>
+                <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-start">الكمية</TableHead><TableHead className="text-start">المبيعات</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {topItems.map((t, i) => (
+                    <TableRow key={i}><TableCell><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent orders */}
+        <Card>
+          <CardHeader><CardTitle>آخر الأوامر</CardTitle><CardDescription>أحدث ٨ أوامر مستوردة.</CardDescription></CardHeader>
+          <CardContent>
+            {recent.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">لا توجد أوامر بعد.</div> : (
+              <Table>
+                <TableHeader><TableRow><TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">التاريخ</TableHead><TableHead className="text-start">الحالة</TableHead><TableHead className="text-start">الإجمالي</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {recent.map((o) => (
+                    <TableRow key={o.number}>
+                      <TableCell><Link href={`/erp/sales/orders/${encodeURIComponent(o.number)}`} className="text-primary hover:underline">{o.number}</Link>{o.ext && <div className="font-mono text-[10px] text-muted-foreground">{o.ext}</div>}</TableCell>
+                      <TableCell>{dt(o.date)}</TableCell>
+                      <TableCell><Badge variant="outline">{STATUS[o.status] ?? o.status}</Badge></TableCell>
+                      <TableCell className="tabular-nums">{fmt(o.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {statusRows.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>توزيع حالات الأوامر</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {statusRows.map((s) => <Badge key={s.status} variant="secondary">{STATUS[s.status] ?? s.status}: {int(s.n)}</Badge>)}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

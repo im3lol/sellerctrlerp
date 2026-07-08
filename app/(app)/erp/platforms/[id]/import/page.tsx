@@ -10,8 +10,15 @@ import { PlatformPaymentsImport } from "@/components/erp/platform-payments-impor
 import { AmazonImport } from "@/components/erp/amazon-import";
 import { SettlementImport } from "@/components/erp/settlement-import";
 
-export default async function PlatformImportPage({ params }: { params: Promise<{ id: string }> }) {
+const soon = (msg: string) => (
+  <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{msg}</div>
+);
+
+export default async function PlatformImportPage({
+  params, searchParams,
+}: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const { orgId } = await requireErpModule("sales.create");
 
   const [platform] = await db.select().from(salesPlatforms)
@@ -19,39 +26,41 @@ export default async function PlatformImportPage({ params }: { params: Promise<{
   if (!platform) notFound();
 
   const isAmazon = platform.integrationType === "amazon";
+  const allowed = isAmazon ? ["orders", "settlement", "inventory"] : ["orders", "payments", "returns", "inventory"];
+  const defaultTab = tab && allowed.includes(tab) ? tab : "orders";
 
   return (
     <div className="space-y-6">
       <ErpPageHeader
         icon="Upload"
         title={`استيراد — ${platform.name}`}
-        subtitle="استيراد الأوامر والمرتجعات والمدفوعات والتسويات للمنصة"
-        backHref="/erp/platforms"
+        subtitle="استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة"
+        backHref={`/erp/platforms/${platform.id}`}
       />
 
       {isAmazon ? (
-        <Tabs defaultValue="orders">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
-            <TabsTrigger value="orders">الأوامر (المبيعات)</TabsTrigger>
-            <TabsTrigger value="settlement">التسويات (مرتجعات + مدفوعات + عمولات)</TabsTrigger>
+            <TabsTrigger value="orders">مبيعات</TabsTrigger>
+            <TabsTrigger value="settlement">تسويات (مرتجعات + مدفوعات + عمولات)</TabsTrigger>
+            <TabsTrigger value="inventory">مخزون</TabsTrigger>
           </TabsList>
           <TabsContent value="orders"><AmazonImport /></TabsContent>
           <TabsContent value="settlement"><SettlementImport /></TabsContent>
+          <TabsContent value="inventory">{soon("استيراد مستويات مخزون FBA قريبًا.")}</TabsContent>
         </Tabs>
       ) : (
-        <Tabs defaultValue="orders">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
-            <TabsTrigger value="orders">الأوامر (المبيعات)</TabsTrigger>
-            <TabsTrigger value="payments">المدفوعات</TabsTrigger>
-            <TabsTrigger value="returns">المرتجعات</TabsTrigger>
+            <TabsTrigger value="orders">مبيعات</TabsTrigger>
+            <TabsTrigger value="payments">مدفوعات</TabsTrigger>
+            <TabsTrigger value="returns">مرتجعات</TabsTrigger>
+            <TabsTrigger value="inventory">مخزون</TabsTrigger>
           </TabsList>
           <TabsContent value="orders"><PlatformImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="payments"><PlatformPaymentsImport platformId={platform.id} platformName={platform.name} hasBank={!!platform.bankAccountId} /></TabsContent>
-          <TabsContent value="returns">
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-              استيراد المرتجعات للمنصات العامة قريبًا. لأمازون، تُعالَج المرتجعات تلقائيًا ضمن تقرير التسويات.
-            </div>
-          </TabsContent>
+          <TabsContent value="returns">{soon("استيراد المرتجعات للمنصات العامة قريبًا. لأمازون تُعالَج ضمن التسويات.")}</TabsContent>
+          <TabsContent value="inventory">{soon("استيراد مستويات المخزون قريبًا.")}</TabsContent>
         </Tabs>
       )}
     </div>

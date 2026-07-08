@@ -12,6 +12,7 @@ export type NavSection = {
   heading?: string; // module name. When set, the group is collapsible (heading toggles it).
   icon?: string; // module (lucide) icon shown next to the heading
   moduleKey?: string; // subscription module gate; hidden when the tenant lacks it
+  dynamicKey?: "platforms"; // group whose items are augmented at render from live data
   items: NavItem[];
 };
 
@@ -26,9 +27,12 @@ export const NAV: NavSection[] = [
   },
   {
     // Cross-cutting hub: platforms/channels tie sales + inventory + accounts
-    // together, managed from one standalone area (not nested under Sales).
+    // together. A collapsible group whose live platforms are listed underneath.
+    heading: "المنصات",
+    icon: "Store",
+    dynamicKey: "platforms",
     items: [
-      { label: "المنصات", href: "/erp/platforms", icon: "Store", capability: "erp.sales.view" },
+      { label: "كل المنصات", href: "/erp/platforms", icon: "LayoutGrid", capability: "erp.sales.view", exact: true },
     ],
   },
   {
