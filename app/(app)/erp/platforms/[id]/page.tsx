@@ -8,7 +8,6 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Icon } from "@/components/icon";
 import { PlatformActions } from "@/components/erp/platform-actions";
 
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -83,13 +82,6 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
         backHref="/erp/platforms"
         action={<PlatformActions platformId={platform.id} isAmazon={isAmazon} />}
       />
-
-      {/* Config summary */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Users" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">العميل</div><div className="font-medium">{platform.customerName ?? "—"}</div></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Warehouse" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">المخزن</div><div className="font-medium">{platform.warehouseName ?? "—"}</div></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 pt-6"><Icon name="Landmark" className="size-5 text-muted-foreground" /><div><div className="text-xs text-muted-foreground">الحساب البنكي</div><div className="font-medium">{platform.bankName ?? "—"}</div></div></CardContent></Card>
-      </div>
 
       {/* Smart KPIs */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
