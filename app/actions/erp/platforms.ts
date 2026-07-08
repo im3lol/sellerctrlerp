@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { round2 } from "@/lib/erp/money";
@@ -198,6 +198,72 @@ export async function importPlatformOrdersAction(platformId: string, ordersInput
   revalidatePath("/erp/sales/orders");
   revalidatePath(`/erp/platforms/${platformId}/import`);
   return { ok: true, created, skippedDuplicate, unmatched: [...unmatched] };
+}
+
+// ── Generic payments (collections) import ────────────────────
+
+const paymentSchema = z.object({
+  reference: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  date: z.string().optional(),
+});
+
+export type PlatformPaymentsResult =
+  | { ok: true; created: number; skippedDuplicate: number }
+  | { ok: false; error: string };
+
+/**
+ * Import platform payouts/collections (generic CSV path). Each payment becomes a
+ * DRAFT receipt voucher for the platform's customer, deposited to the platform's
+ * bank account, deduplicated by (customer, reference). Confirming the voucher is a
+ * separate step (posts Dr bank · Cr AR).
+ */
+export async function importPlatformPaymentsAction(platformId: string, paymentsInput: unknown): Promise<PlatformPaymentsResult> {
+  const auth = await authorizeErp("sales.collect");
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  const [platform] = await db.select().from(salesPlatforms)
+    .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
+  if (!platform) return { ok: false, error: "المنصة غير موجودة" };
+  if (!platform.isActive) return { ok: false, error: "المنصة موقوفة" };
+  if (!platform.customerId) return { ok: false, error: "المنصة بلا عميل مرتبط" };
+  if (!platform.bankAccountId) return { ok: false, error: "اضبط الحساب البنكي للمنصة أولًا" };
+
+  const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
+    .where(and(eq(bankAccounts.id, platform.bankAccountId), eq(bankAccounts.organizationId, auth.orgId))).limit(1);
+  if (!ba?.gl) return { ok: false, error: "الحساب البنكي للمنصة غير مربوط بحساب أستاذ" };
+  const cashAccountId = ba.gl;
+
+  const parsed = z.array(paymentSchema).safeParse(paymentsInput);
+  if (!parsed.success) return { ok: false, error: "بيانات المدفوعات غير صالحة" };
+  const payments = parsed.data;
+  if (payments.length === 0) return { ok: false, error: "لا توجد مدفوعات في الملف" };
+
+  const existing = await db.select({ ref: receiptVouchers.reference }).from(receiptVouchers)
+    .where(and(eq(receiptVouchers.organizationId, auth.orgId), eq(receiptVouchers.customerId, platform.customerId)));
+  const seen = new Set(existing.map((e) => e.ref).filter(Boolean) as string[]);
+
+  let created = 0, skippedDuplicate = 0;
+  for (const p of payments) {
+    if (seen.has(p.reference)) { skippedDuplicate++; continue; }
+    const d = p.date ? new Date(p.date) : new Date();
+    const date = isNaN(d.getTime()) ? new Date() : d;
+    try {
+      await db.transaction(async (tx) => {
+        const number = await nextDocumentNumber(tx, auth.orgId, "RV", date.getFullYear());
+        await tx.insert(receiptVouchers).values({
+          organizationId: auth.orgId, number, customerId: platform.customerId!, cashAccountId,
+          status: "DRAFT", amount: String(round2(p.amount)), date, paymentMethod: "BANK",
+          reference: p.reference, notes: `تحصيل ${platform.name} (${p.reference})`,
+        });
+        await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: number, entityNumber: number, summary: `استيراد سند قبض ${number} من ${platform.name} (${p.reference})`, metadata: { platform: platform.code, reference: p.reference, amount: round2(p.amount) } });
+      });
+      seen.add(p.reference); created++;
+    } catch { /* skip a failed row, keep importing */ }
+  }
+  revalidatePath("/erp/sales/receipts");
+  revalidatePath(`/erp/platforms/${platformId}/import`);
+  return { ok: true, created, skippedDuplicate };
 }
 
 /** Toggle a platform active/inactive. */

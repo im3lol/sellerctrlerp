@@ -1,0 +1,51 @@
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { salesPlatforms, customers, warehouses } from "@/db/schema";
+
+export type AmazonPlatform = { platformId: string; customerId: string; warehouseId: string; bankAccountId: string | null };
+
+/**
+ * Resolve (get-or-create) the AMAZON sales platform and its customer + FBA
+ * warehouse. Unifies the previously hard-coded Amazon defaults under the managed
+ * platform: an existing AMAZON platform's customer/warehouse/bank win; otherwise
+ * the legacy AMZN customer / AMZN-FBA warehouse are provisioned and linked.
+ */
+export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatform> {
+  const [existing] = await db.select().from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, "AMAZON"))).limit(1);
+
+  // Customer: reuse the platform's, else get-or-create the legacy AMZN customer.
+  let customerId = existing?.customerId ?? null;
+  if (!customerId) {
+    let [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.organizationId, orgId), eq(customers.code, "AMZN"))).limit(1);
+    if (!cust) [cust] = await db.insert(customers)
+      .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون", nameEn: "Amazon" }).returning({ id: customers.id });
+    customerId = cust.id;
+  }
+
+  // Warehouse: platform default, else get-or-create the legacy AMZN-FBA warehouse.
+  let warehouseId = existing?.defaultWarehouseId ?? null;
+  if (!warehouseId) {
+    let [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.code, "AMZN-FBA"))).limit(1);
+    if (!wh) [wh] = await db.insert(warehouses)
+      .values({ organizationId: orgId, code: "AMZN-FBA", nameAr: "أمازون FBA", nameEn: "Amazon FBA" }).returning({ id: warehouses.id });
+    warehouseId = wh.id;
+  }
+
+  if (!existing) {
+    const [created] = await db.insert(salesPlatforms).values({
+      organizationId: orgId, name: "أمازون", code: "AMAZON", integrationType: "amazon",
+      customerId, defaultWarehouseId: warehouseId,
+    }).returning({ id: salesPlatforms.id });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId: null };
+  }
+
+  // Backfill any missing links on an existing platform.
+  if (!existing.customerId || !existing.defaultWarehouseId) {
+    await db.update(salesPlatforms).set({ customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() })
+      .where(eq(salesPlatforms.id, existing.id));
+  }
+  return { platformId: existing.id, customerId, warehouseId, bankAccountId: existing.bankAccountId ?? null };
+}

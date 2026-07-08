@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, customers, warehouses, salesOrders, salesOrderLines } from "@/db/schema";
+import { items, itemCodes, salesOrders, salesOrderLines } from "@/db/schema";
+import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -164,23 +165,6 @@ export async function previewAmazonImportAction(formData: FormData): Promise<Ama
   };
 }
 
-/** Get-or-create the fixed Amazon customer + Amazon FBA warehouse for the org. */
-async function ensureAmazonDefaults(orgId: string): Promise<{ customerId: string; warehouseId: string }> {
-  let [cust] = await db.select({ id: customers.id }).from(customers)
-    .where(and(eq(customers.organizationId, orgId), eq(customers.code, "AMZN"))).limit(1);
-  if (!cust) [cust] = await db.insert(customers)
-    .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون مصر", nameEn: "Amazon EG" })
-    .returning({ id: customers.id });
-
-  let [wh] = await db.select({ id: warehouses.id }).from(warehouses)
-    .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.code, "AMZN-FBA"))).limit(1);
-  if (!wh) [wh] = await db.insert(warehouses)
-    .values({ organizationId: orgId, code: "AMZN-FBA", nameAr: "أمازون FBA", nameEn: "Amazon FBA" })
-    .returning({ id: warehouses.id });
-
-  return { customerId: cust.id, warehouseId: wh.id };
-}
-
 /**
  * Parse + match + create a sales order per eligible order, then drive the cycle:
  * Shipped → confirm + delivery + posted invoice (revenue/AR). Pending stays a
@@ -197,7 +181,7 @@ export async function runAmazonImportAction(formData: FormData): Promise<ImportR
   const resolve = await buildMatcher(auth.orgId, parsed.orders);
   const existing = await existingOrders(auth.orgId);
   const { toCreate, transitions, duplicates, blocked } = classify(parsed.orders, resolve, existing);
-  const { customerId, warehouseId } = await ensureAmazonDefaults(auth.orgId);
+  const { platformId, customerId, warehouseId } = await ensureAmazonPlatform(auth.orgId);
 
   let created = 0, transitioned = 0, fulfilled = 0, failed = 0;
   const stockBlocked: { orderId: string; reason: string }[] = [];
@@ -211,7 +195,7 @@ export async function runAmazonImportAction(formData: FormData): Promise<ImportR
           organizationId: auth.orgId, number, customerId, date: d, status,
           subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
           totalAmount: String(round2(o.subtotal + o.shippingTotal)),
-          channel: CHANNEL, externalOrderId: o.orderId, notes: `طلب أمازون ${o.orderId}`,
+          channel: CHANNEL, platformId, externalOrderId: o.orderId, notes: `طلب أمازون ${o.orderId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
         await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId,

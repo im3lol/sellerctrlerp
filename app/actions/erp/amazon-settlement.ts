@@ -4,12 +4,13 @@ import { revalidatePath } from "next/cache";
 import { round2 as r2 } from "@/lib/erp/money";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements } from "@/db/schema";
+import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { returnFromSalesInvoiceAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
+import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { parseSettlementWorkbook, settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 
 const CHANNEL = "AMAZON";
@@ -224,6 +225,15 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
 
   const accs = await ensureAmazonAccounts(auth.orgId);
   if ("error" in accs) return { ok: false, error: accs.error };
+
+  // Unify under the AMAZON platform: route transfers to the platform's own bank
+  // account (its GL account) when one is configured; otherwise keep default 1102.
+  const plat = await ensureAmazonPlatform(auth.orgId);
+  if (plat.bankAccountId) {
+    const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts).where(eq(bankAccounts.id, plat.bankAccountId)).limit(1);
+    if (ba?.gl) accs.bank = ba.gl;
+  }
+
   const orderMap = await linkOrders(auth.orgId, txns);
 
   // Upsert every row (idempotent). On conflict, refresh status/release/link only.
