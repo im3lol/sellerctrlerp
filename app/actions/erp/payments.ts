@@ -87,7 +87,7 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
   let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
   if (v.purchaseInvoiceId) {
     [invoice] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
-      .from(purchaseInvoices).where(eq(purchaseInvoices.id, v.purchaseInvoiceId)).limit(1);
+      .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
     if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
       return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})` };
     }

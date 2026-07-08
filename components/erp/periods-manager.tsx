@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setPeriodStatusAction, previewYearClosingAction, runYearClosingAction } from "@/app/actions/erp/periods";
@@ -37,13 +37,16 @@ function YearClosingDialog({
   const [pending, startTransition] = useTransition();
 
   // Load preview on mount
-  useState(() => {
+  useEffect(() => {
+    let alive = true;
     previewYearClosingAction(period.id).then((res) => {
+      if (!alive) return;
       setLoading(false);
       if (!res.ok) setPreviewError(res.error);
       else setPreview(res.preview);
     });
-  });
+    return () => { alive = false; };
+  }, [period.id]);
 
   function run() {
     startTransition(async () => {

@@ -18,6 +18,11 @@ type Exec = typeof db | Tx;
  * allocation (a later failure leaves a harmless gap).
  */
 export async function nextDocumentNumber(exec: Exec, orgId: string, key: string, year: number): Promise<string> {
+  // Guard against an Invalid Date reaching here (year = NaN) — reject cleanly
+  // instead of erroring on the integer column with a cryptic Postgres message.
+  if (!Number.isInteger(year) || year < 1900 || year > 9999) {
+    throw new Error("تاريخ المستند غير صالح");
+  }
   const res = await exec.execute(sql`
     INSERT INTO document_sequences (organization_id, key, year, current_value)
     VALUES (${orgId}, ${key}, ${year}, 1)
