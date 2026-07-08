@@ -25,6 +25,13 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    // Cross-cutting hub: platforms/channels tie sales + inventory + accounts
+    // together, managed from one standalone area (not nested under Sales).
+    items: [
+      { label: "المنصات", href: "/erp/platforms", icon: "Store", capability: "erp.sales.view" },
+    ],
+  },
+  {
     heading: "المحاسبة",
     moduleKey: "accounting",
     icon: "Calculator",
@@ -79,7 +86,6 @@ export const NAV: NavSection[] = [
     icon: "ShoppingCart",
     items: [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
-      { label: "منصات البيع", href: "/erp/platforms", icon: "Store", capability: "erp.sales.view" },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
       { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view" },

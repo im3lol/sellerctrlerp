@@ -38,8 +38,8 @@ export default async function PlatformsPage() {
     <div className="space-y-6">
       <ErpPageHeader
         icon="Store"
-        title="منصات البيع"
-        subtitle="أمازون، نون، وغيرها — استيراد الأوامر والمرتجعات والتسويات لكل منصة"
+        title="المنصات والقنوات"
+        subtitle="أمازون، نون، وغيرها — تربط المبيعات والمخزون والحسابات، وتُدار كلها من هنا"
       />
       <PlatformsManager platforms={rows} warehouses={whRows} bankAccounts={bankRows} canManage={can("sales.create")} />
     </div>
