@@ -7,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PlatformImport } from "@/components/erp/platform-import";
 import { PlatformPaymentsImport } from "@/components/erp/platform-payments-import";
+import { PlatformInventoryImport } from "@/components/erp/platform-inventory-import";
 import { AmazonImport } from "@/components/erp/amazon-import";
 import { SettlementImport } from "@/components/erp/settlement-import";
 
@@ -47,7 +48,7 @@ export default async function PlatformImportPage({
           </TabsList>
           <TabsContent value="orders"><AmazonImport /></TabsContent>
           <TabsContent value="settlement"><SettlementImport /></TabsContent>
-          <TabsContent value="inventory">{soon("استيراد مستويات مخزون FBA قريبًا.")}</TabsContent>
+          <TabsContent value="inventory"><PlatformInventoryImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
         </Tabs>
       ) : (
         <Tabs defaultValue={defaultTab}>
@@ -60,7 +61,7 @@ export default async function PlatformImportPage({
           <TabsContent value="orders"><PlatformImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="payments"><PlatformPaymentsImport platformId={platform.id} platformName={platform.name} hasBank={!!platform.bankAccountId} /></TabsContent>
           <TabsContent value="returns">{soon("استيراد المرتجعات للمنصات العامة قريبًا. لأمازون تُعالَج ضمن التسويات.")}</TabsContent>
-          <TabsContent value="inventory">{soon("استيراد مستويات المخزون قريبًا.")}</TabsContent>
+          <TabsContent value="inventory"><PlatformInventoryImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
         </Tabs>
       )}
     </div>
