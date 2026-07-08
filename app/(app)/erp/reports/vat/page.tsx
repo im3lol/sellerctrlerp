@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Params = { searchParams: Promise<{ from?: string; to?: string }> };
@@ -172,6 +174,11 @@ export default async function VatReportPage({ searchParams }: Params) {
         icon="Percent"
         title="تقرير ضريبة القيمة المضافة"
         subtitle="ملخّص الضريبة المحصّلة على المبيعات والضريبة المدفوعة على المشتريات"
+        action={
+          <Button asChild variant="outline">
+            <a href={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        }
       />
       <ReportTabs active="/erp/reports/vat" />
 
