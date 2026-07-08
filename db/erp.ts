@@ -1161,7 +1161,10 @@ export const salesOrders = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     // Sales channel + the marketplace's own order id (Amazon/Noon). Lets imported
     // orders be deduplicated and shown alongside their platform order number.
+    // `channel` mirrors the sales platform's code (kept for backward compat);
+    // `platformId` is the first-class link to the managed sales platform.
     channel: text("channel").notNull().default("MANUAL"), // MANUAL, AMAZON, NOON
+    platformId: text("platform_id").references(() => salesPlatforms.id),
     externalOrderId: text("external_order_id"),
     notes: text("notes"),
     createdAt: createdAt(),
@@ -1190,6 +1193,29 @@ export const salesOrderLines = pgTable("sales_order_lines", {
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
 });
+
+/* ═══════════════ SALES PLATFORMS (منصات البيع) ═══════════════ */
+
+// A user-managed sales channel (Amazon, Noon, …). Anchors marketplace imports:
+// each platform owns a customer (auto-created), a default fulfilment warehouse,
+// and a settlement bank account. `code` mirrors sales_orders.channel.
+export const salesPlatforms = pgTable(
+  "sales_platforms",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    code: text("code").notNull(), // uppercase slug, e.g. AMAZON, NOON — mirrors sales_orders.channel
+    integrationType: text("integration_type").notNull().default("generic"), // amazon | generic
+    customerId: text("customer_id").references(() => customers.id),
+    defaultWarehouseId: text("default_warehouse_id").references(() => warehouses.id),
+    bankAccountId: text("bank_account_id").references(() => bankAccounts.id),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("sales_platforms_org_code_idx").on(t.organizationId, t.code)],
+);
 
 /* ═══════════════ MARKETPLACE SETTLEMENTS (Amazon/Noon) ═══════════════ */
 

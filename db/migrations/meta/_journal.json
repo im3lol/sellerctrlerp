@@ -141,6 +141,13 @@
       "when": 1783540894336,
       "tag": "0019_base_currency_egp",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783542075272,
+      "tag": "0020_sales_platforms",
+      "breakpoints": true
     }
   ]
 }
