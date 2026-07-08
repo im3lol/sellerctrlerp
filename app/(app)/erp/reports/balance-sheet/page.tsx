@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
 
@@ -49,7 +50,13 @@ export default async function BalanceSheetPage({
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Scale" title="الميزانية العمومية" subtitle={`كما في ${to} — من القيود المُرحّلة`} />
+      <ErpPageHeader icon="Scale" title="الميزانية العمومية" subtitle={`كما في ${to} — من القيود المُرحّلة`}
+        action={
+          <Button asChild variant="outline">
+            <a href={`/api/erp/reports/balance-sheet/export?to=${to}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        }
+      />
       <ReportTabs active="/erp/reports/balance-sheet" />
 
       <Card>
