@@ -134,6 +134,13 @@
       "when": 1783524309108,
       "tag": "0018_member_permission_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783540894336,
+      "tag": "0019_base_currency_egp",
+      "breakpoints": true
     }
   ]
 }

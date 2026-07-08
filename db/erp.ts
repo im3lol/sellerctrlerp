@@ -943,7 +943,7 @@ export const salesInvoices = pgTable(
     balanceDue: money("balance_due").notNull().default("0"),
     // Multi-currency: GL always stores base-currency amounts; these fields preserve
     // the original foreign currency for display and FX reconciliation.
-    currencyCode: text("currency_code").notNull().default("SAR"),
+    currencyCode: text("currency_code").notNull().default("EGP"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
     foreignAmount: money("foreign_amount"),   // totalAmount in the invoice currency
     notes: text("notes"),
@@ -1049,7 +1049,7 @@ export const purchaseInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
-    currencyCode: text("currency_code").notNull().default("SAR"),
+    currencyCode: text("currency_code").notNull().default("EGP"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
     foreignAmount: money("foreign_amount"),
     notes: text("notes"),

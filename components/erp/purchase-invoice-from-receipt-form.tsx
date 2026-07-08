@@ -41,7 +41,7 @@ export function PurchaseInvoiceFromReceiptForm({
   const [preview, setPreview] = useState<ReceiptInvoicePreview | null>(null);
 
   const baseCurrency = currencies.find((c) => c.isBase);
-  const baseCode = baseCurrency?.code ?? "SAR";
+  const baseCode = baseCurrency?.code ?? "EGP";
   const foreignCurrencies = currencies.filter((c) => !c.isBase);
   const [currencyCode, setCurrencyCode] = useState(baseCode);
   const [exchangeRate, setExchangeRate] = useState<string>(String(latestRates[baseCode] ?? 1));

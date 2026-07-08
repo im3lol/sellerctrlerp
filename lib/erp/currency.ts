@@ -9,14 +9,14 @@ import { currencies } from "@/db/schema";
  * `exchangeRate` means: 1 unit of the foreign currency = `rate` units of base.
  */
 
-/** The org's base-currency code (falls back to "SAR" when none is flagged). */
+/** The org's base-currency code (falls back to "EGP" when none is flagged). */
 export async function getBaseCurrencyCode(orgId: string): Promise<string> {
   const [base] = await db
     .select({ code: currencies.code })
     .from(currencies)
     .where(and(eq(currencies.organizationId, orgId), eq(currencies.isBase, true)))
     .limit(1);
-  return base?.code ?? "SAR";
+  return base?.code ?? "EGP";
 }
 
 /**

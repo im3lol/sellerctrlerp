@@ -35,12 +35,12 @@ type Rate = {
 };
 
 const PRESETS = [
-  { code: "SAR", nameAr: "ريال سعودي",   symbol: "﷼" },
+  { code: "EGP", nameAr: "جنيه مصري",     symbol: "ج.م" },
   { code: "USD", nameAr: "دولار أمريكي",  symbol: "$" },
   { code: "EUR", nameAr: "يورو",           symbol: "€" },
+  { code: "SAR", nameAr: "ريال سعودي",   symbol: "﷼" },
   { code: "GBP", nameAr: "جنيه إسترليني", symbol: "£" },
   { code: "AED", nameAr: "درهم إماراتي",  symbol: "د.إ" },
-  { code: "EGP", nameAr: "جنيه مصري",     symbol: "ج.م" },
   { code: "KWD", nameAr: "دينار كويتي",   symbol: "د.ك" },
   { code: "QAR", nameAr: "ريال قطري",     symbol: "ر.ق" },
 ];
@@ -201,7 +201,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
                   <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>1 {currCode} = كم {baseCurrency?.code ?? "SAR"}</Label>
+                  <Label>1 {currCode} = كم {baseCurrency?.code ?? "EGP"}</Label>
                   <Input
                     type="number"
                     min="0.000001"
@@ -260,7 +260,7 @@ export function CurrenciesManager({
         <CardContent>
           {currList.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground text-sm">
-              لا توجد عملات — أضف العملة الأساسية أولًا (مثلًا SAR).
+              لا توجد عملات — أضف العملة الأساسية أولًا (الجنيه المصري EGP).
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">

@@ -42,7 +42,7 @@ export function SalesInvoiceFromDeliveryForm({
 
   const baseCurrency = currencies.find((c) => c.isBase);
   const foreignCurrencies = currencies.filter((c) => !c.isBase);
-  const [currencyCode, setCurrencyCode] = useState(baseCurrency?.code ?? "SAR");
+  const [currencyCode, setCurrencyCode] = useState(baseCurrency?.code ?? "EGP");
   const [exchangeRate, setExchangeRate] = useState<string>(String(latestRates[currencyCode] ?? 1));
 
   const onCurrencyChange = (code: string) => {
@@ -69,7 +69,7 @@ export function SalesInvoiceFromDeliveryForm({
     });
   };
 
-  const isForeign = currencyCode !== (baseCurrency?.code ?? "SAR");
+  const isForeign = currencyCode !== (baseCurrency?.code ?? "EGP");
   const rate = parseFloat(exchangeRate) || 1;
   // For foreign currency: foreign display = base ÷ rate
   const foreignTotal = preview && isForeign ? preview.total / rate : null;
@@ -134,7 +134,7 @@ export function SalesInvoiceFromDeliveryForm({
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCurrency?.code ?? "SAR"})</Label>
+                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCurrency?.code ?? "EGP"})</Label>
                 <Input
                   type="number"
                   min="0.000001"
@@ -149,7 +149,7 @@ export function SalesInvoiceFromDeliveryForm({
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
                 <span>إجمالي بالعملة الأجنبية:</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {currencyCode}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCurrency?.code ?? "SAR"})</span>
+                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCurrency?.code ?? "EGP"})</span>
               </div>
             )}
           </div>
@@ -210,7 +210,7 @@ export function SalesInvoiceFromDeliveryForm({
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
             <div className="text-base font-bold text-primary">
-              الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "SAR"}
+              الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "EGP"}
               {isForeign && foreignTotal !== null && (
                 <span className="ms-2 text-sm font-normal text-muted-foreground">
                   = {fmt(foreignTotal)} {currencyCode}
