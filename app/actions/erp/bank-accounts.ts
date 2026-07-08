@@ -1,10 +1,10 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
-import { bankAccounts, bankStatementLines } from "@/db/schema";
+import { bankAccounts, bankStatementLines, salesPlatforms } from "@/db/schema";
 import { parseDate } from "@/lib/erp/dates";
 import type { ActionState } from "@/lib/erp/action-auth";
 
@@ -58,6 +58,37 @@ export async function toggleBankAccountActiveAction(id: string): Promise<ActionS
     .update(bankAccounts)
     .set({ isActive: !ba.isActive, updatedAt: new Date() })
     .where(eq(bankAccounts.id, id));
+  revalidatePath("/erp/accounting/banks");
+  return { ok: true };
+}
+
+/* ── Delete bank account (guarded by linked data) ──────────── */
+export async function deleteBankAccountAction(id: string): Promise<ActionState> {
+  const { orgId } = await requireErpModule("accounting.create");
+  const [ba] = await db
+    .select({ id: bankAccounts.id })
+    .from(bankAccounts)
+    .where(and(eq(bankAccounts.id, id), eq(bankAccounts.organizationId, orgId)));
+  if (!ba) return { error: "الحساب البنكي غير موجود" };
+
+  // Refuse deletion while the account is still referenced — the user must unlink first.
+  const [{ n: stmtCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(bankStatementLines)
+    .where(and(eq(bankStatementLines.bankAccountId, id), eq(bankStatementLines.organizationId, orgId)));
+  const platformRows = await db
+    .select({ name: salesPlatforms.name })
+    .from(salesPlatforms)
+    .where(and(eq(salesPlatforms.bankAccountId, id), eq(salesPlatforms.organizationId, orgId)));
+
+  const linked: string[] = [];
+  if (Number(stmtCount) > 0) linked.push(`${Number(stmtCount)} حركة كشف بنكي`);
+  if (platformRows.length) linked.push(`منصات مرتبطة: ${platformRows.map((p) => p.name).join("، ")}`);
+  if (linked.length) {
+    return { error: `لا يمكن الحذف — الحساب مرتبط بـ: ${linked.join(" · ")}. أزِل الارتباط أولًا ثم أعد المحاولة.` };
+  }
+
+  await db.delete(bankAccounts).where(and(eq(bankAccounts.id, id), eq(bankAccounts.organizationId, orgId)));
   revalidatePath("/erp/accounting/banks");
   return { ok: true };
 }
