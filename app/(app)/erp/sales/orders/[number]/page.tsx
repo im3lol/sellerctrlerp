@@ -45,22 +45,41 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     .where(and(eq(salesOrders.number, raw), eq(salesOrders.organizationId, orgId))).limit(1);
   if (!so) notFound();
 
-  const [cust] = so.customerId
-    ? await db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, so.customerId)).limit(1)
-    : [undefined];
+  // Phase 1 — everything that depends only on `so`, in one round-trip.
+  const [[cust], lines, dns, settleRows, audit] = await Promise.all([
+    so.customerId
+      ? db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, so.customerId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
+      .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId)).where(eq(salesOrderLines.salesOrderId, so.id)),
+    db.select({ id: deliveryNotes.id, number: deliveryNotes.number, invoiceId: deliveryNotes.salesInvoiceId })
+      .from(deliveryNotes).where(eq(deliveryNotes.salesOrderId, so.id)),
+    so.externalOrderId
+      ? db.select({
+          type: marketplaceSettlementTxns.type, productSales: marketplaceSettlementTxns.productSales,
+          shippingCredits: marketplaceSettlementTxns.shippingCredits, promotionalRebates: marketplaceSettlementTxns.promotionalRebates,
+          sellingFees: marketplaceSettlementTxns.sellingFees, fbaFees: marketplaceSettlementTxns.fbaFees,
+          otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees, other: marketplaceSettlementTxns.other,
+          total: marketplaceSettlementTxns.total, status: marketplaceSettlementTxns.status,
+        }).from(marketplaceSettlementTxns)
+          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.orderId, so.externalOrderId)))
+      : Promise.resolve([] as { type: string; productSales: string; shippingCredits: string; promotionalRebates: string; sellingFees: string; fbaFees: string; otherTransactionFees: string; other: string; total: string; status: string }[]),
+    getDocumentAudit(orgId, so.id),
+  ]);
 
-  const lines = await db
-    .select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discount: salesOrderLines.discountAmount, tax: salesOrderLines.taxAmount, total: salesOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
-    .from(salesOrderLines)
-    .leftJoin(items, eq(items.id, salesOrderLines.itemId))
-    .where(eq(salesOrderLines.salesOrderId, so.id));
-
-  // External codes (SKU/ASIN/barcode/…) per line item, shown in the table.
+  // Phase 2 — codes (need line item ids) + linked invoices (need delivery ids), in parallel.
   const lineItemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x))];
-  const codeRows = lineItemIds.length
-    ? await db.select({ itemId: itemCodes.itemId, type: itemCodes.codeType, code: itemCodes.code }).from(itemCodes)
-        .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
-    : [];
+  const invoiceIds = [...new Set(dns.map((d) => d.invoiceId).filter((x): x is string => !!x))];
+  const [codeRows, invRows] = await Promise.all([
+    lineItemIds.length
+      ? db.select({ itemId: itemCodes.itemId, type: itemCodes.codeType, code: itemCodes.code }).from(itemCodes)
+          .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
+      : Promise.resolve([] as { itemId: string; type: string; code: string }[]),
+    invoiceIds.length
+      ? db.select({ id: salesInvoices.id, number: salesInvoices.number }).from(salesInvoices).where(inArray(salesInvoices.id, invoiceIds))
+      : Promise.resolve([] as { id: string; number: string }[]),
+  ]);
+
   const codesByItem = new Map<string, { type: string; code: string }[]>();
   for (const c of codeRows) {
     const arr = codesByItem.get(c.itemId) ?? [];
@@ -68,29 +87,13 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     codesByItem.set(c.itemId, arr);
   }
 
-  // Linked documents in the cycle: delivery note → its invoice.
-  const dns = await db.select({ id: deliveryNotes.id, number: deliveryNotes.number, invoiceId: deliveryNotes.salesInvoiceId })
-    .from(deliveryNotes).where(eq(deliveryNotes.salesOrderId, so.id));
+  const invById = new Map(invRows.map((i) => [i.id, i.number]));
   const linked: DocLink[] = [];
   for (const dn of dns) {
     linked.push({ label: "إذن صرف", number: dn.number, href: `/erp/sales/deliveries/${encodeURIComponent(dn.number)}` });
-    if (dn.invoiceId) {
-      const [inv] = await db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, dn.invoiceId)).limit(1);
-      if (inv) linked.push({ label: "فاتورة بيع", number: inv.number, href: `/erp/sales/invoices/${encodeURIComponent(inv.number)}` });
-    }
+    const invNum = dn.invoiceId ? invById.get(dn.invoiceId) : undefined;
+    if (invNum) linked.push({ label: "فاتورة بيع", number: invNum, href: `/erp/sales/invoices/${encodeURIComponent(invNum)}` });
   }
-
-  // Marketplace settlement detail (Amazon financials for this order).
-  const settleRows = so.externalOrderId
-    ? await db.select({
-        type: marketplaceSettlementTxns.type, productSales: marketplaceSettlementTxns.productSales,
-        shippingCredits: marketplaceSettlementTxns.shippingCredits, promotionalRebates: marketplaceSettlementTxns.promotionalRebates,
-        sellingFees: marketplaceSettlementTxns.sellingFees, fbaFees: marketplaceSettlementTxns.fbaFees,
-        otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees, other: marketplaceSettlementTxns.other,
-        total: marketplaceSettlementTxns.total, status: marketplaceSettlementTxns.status,
-      }).from(marketplaceSettlementTxns)
-        .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.orderId, so.externalOrderId)))
-    : [];
   const settle = settleRows.map((r) => ({
     type: r.type,
     gross: Number(r.productSales) + Number(r.shippingCredits) + Number(r.promotionalRebates) + Number(r.other),
@@ -100,7 +103,6 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
   const settleNet = settle.reduce((s, r) => s + r.net, 0);
   const settleFees = settle.reduce((s, r) => s + r.fees, 0);
 
-  const audit = await getDocumentAudit(orgId, so.id);
   const st = STATUS[so.status] ?? { label: so.status, variant: "secondary" as const };
   const canManage = erpCan(role, "sales.create");
 
