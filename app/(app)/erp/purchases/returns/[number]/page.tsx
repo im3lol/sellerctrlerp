@@ -36,28 +36,25 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
     .where(and(eq(purchaseReturns.number, raw), eq(purchaseReturns.organizationId, orgId))).limit(1);
   if (!ret) notFound();
 
-  const [sup] = ret.supplierId
-    ? await db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, ret.supplierId)).limit(1)
-    : [undefined];
-
-  const lines = await db
-    .select({ id: purchaseReturnLines.id, qty: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice, total: purchaseReturnLines.totalAmount, code: items.code, name: items.nameAr })
-    .from(purchaseReturnLines)
-    .leftJoin(items, eq(items.id, purchaseReturnLines.itemId))
-    .where(eq(purchaseReturnLines.purchaseReturnId, ret.id));
+  const [[sup], lines, [pi], [grn], audit] = await Promise.all([
+    ret.supplierId
+      ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, ret.supplierId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ id: purchaseReturnLines.id, qty: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice, total: purchaseReturnLines.totalAmount, code: items.code, name: items.nameAr })
+      .from(purchaseReturnLines).leftJoin(items, eq(items.id, purchaseReturnLines.itemId)).where(eq(purchaseReturnLines.purchaseReturnId, ret.id)),
+    ret.purchaseInvoiceId
+      ? db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, ret.purchaseInvoiceId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    ret.purchaseReceiptId
+      ? db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, ret.purchaseReceiptId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    getDocumentAudit(orgId, ret.id),
+  ]);
 
   const linked: DocLink[] = [];
   let backHref = "/erp/purchases/invoices";
-  if (ret.purchaseInvoiceId) {
-    const [pi] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, ret.purchaseInvoiceId)).limit(1);
-    if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
-  }
-  if (ret.purchaseReceiptId) {
-    const [grn] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, ret.purchaseReceiptId)).limit(1);
-    if (grn) { const href = `/erp/purchases/receipts/${encodeURIComponent(grn.number)}`; linked.push({ label: "إذن استلام", number: grn.number, href }); backHref = href; }
-  }
-
-  const audit = await getDocumentAudit(orgId, ret.id);
+  if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
+  if (grn) { const href = `/erp/purchases/receipts/${encodeURIComponent(grn.number)}`; linked.push({ label: "إذن استلام", number: grn.number, href }); backHref = href; }
   const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
   const canManage = erpCan(role, "purchases.create");
 

@@ -39,26 +39,22 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
     .where(and(eq(salesInvoices.number, raw), eq(salesInvoices.organizationId, orgId))).limit(1);
   if (!inv) notFound();
 
-  const [cust] = inv.customerId
-    ? await db.select({ code: customers.code, name: customers.nameAr, phone: customers.phone, email: customers.email }).from(customers).where(eq(customers.id, inv.customerId)).limit(1)
-    : [undefined];
-
-  const lines = await db
-    .select({ id: salesInvoiceLines.id, qty: salesInvoiceLines.quantity, unitPrice: salesInvoiceLines.unitPrice, discount: salesInvoiceLines.discountAmount, tax: salesInvoiceLines.taxAmount, total: salesInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
-    .from(salesInvoiceLines)
-    .leftJoin(items, eq(items.id, salesInvoiceLines.itemId))
-    .where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
+  const [[cust], lines, [dn], rets, audit] = await Promise.all([
+    inv.customerId
+      ? db.select({ code: customers.code, name: customers.nameAr, phone: customers.phone, email: customers.email }).from(customers).where(eq(customers.id, inv.customerId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string; phone: string | null; email: string | null }[] | [undefined]),
+    db.select({ id: salesInvoiceLines.id, qty: salesInvoiceLines.quantity, unitPrice: salesInvoiceLines.unitPrice, discount: salesInvoiceLines.discountAmount, tax: salesInvoiceLines.taxAmount, total: salesInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
+      .from(salesInvoiceLines).leftJoin(items, eq(items.id, salesInvoiceLines.itemId)).where(eq(salesInvoiceLines.salesInvoiceId, inv.id)),
+    inv.deliveryNoteId
+      ? db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    db.select({ status: salesReturns.status }).from(salesReturns).where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.organizationId, orgId))),
+    getDocumentAudit(orgId, inv.id),
+  ]);
 
   const linked: DocLink[] = [];
-  if (inv.deliveryNoteId) {
-    const [dn] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, inv.deliveryNoteId)).limit(1);
-    if (dn) linked.push({ label: "إذن صرف", number: dn.number, href: `/erp/sales/deliveries/${encodeURIComponent(dn.number)}` });
-  }
-  const rets = await db.select({ status: salesReturns.status }).from(salesReturns)
-    .where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.organizationId, orgId)));
+  if (dn) linked.push({ label: "إذن صرف", number: dn.number, href: `/erp/sales/deliveries/${encodeURIComponent(dn.number)}` });
   const hasReturn = rets.some((r) => r.status === "POSTED");
-
-  const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
   const canPost = erpCan(role, "accounting.post");
   const canManage = erpCan(role, "sales.create");

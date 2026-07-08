@@ -36,28 +36,25 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
     .where(and(eq(salesReturns.number, raw), eq(salesReturns.organizationId, orgId))).limit(1);
   if (!ret) notFound();
 
-  const [cust] = ret.customerId
-    ? await db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, ret.customerId)).limit(1)
-    : [undefined];
-
-  const lines = await db
-    .select({ id: salesReturnLines.id, qty: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice, total: salesReturnLines.totalAmount, code: items.code, name: items.nameAr })
-    .from(salesReturnLines)
-    .leftJoin(items, eq(items.id, salesReturnLines.itemId))
-    .where(eq(salesReturnLines.salesReturnId, ret.id));
+  const [[cust], lines, [si], [dn], audit] = await Promise.all([
+    ret.customerId
+      ? db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, ret.customerId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ id: salesReturnLines.id, qty: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice, total: salesReturnLines.totalAmount, code: items.code, name: items.nameAr })
+      .from(salesReturnLines).leftJoin(items, eq(items.id, salesReturnLines.itemId)).where(eq(salesReturnLines.salesReturnId, ret.id)),
+    ret.salesInvoiceId
+      ? db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, ret.salesInvoiceId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    ret.deliveryNoteId
+      ? db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    getDocumentAudit(orgId, ret.id),
+  ]);
 
   const linked: DocLink[] = [];
   let backHref = "/erp/sales/invoices";
-  if (ret.salesInvoiceId) {
-    const [si] = await db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, ret.salesInvoiceId)).limit(1);
-    if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
-  }
-  if (ret.deliveryNoteId) {
-    const [dn] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1);
-    if (dn) { const href = `/erp/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
-  }
-
-  const audit = await getDocumentAudit(orgId, ret.id);
+  if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
+  if (dn) { const href = `/erp/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
   const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
   const canManage = erpCan(role, "sales.create");
 

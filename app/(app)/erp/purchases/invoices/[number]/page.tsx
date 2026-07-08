@@ -39,27 +39,23 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
     .where(and(eq(purchaseInvoices.number, raw), eq(purchaseInvoices.organizationId, orgId))).limit(1);
   if (!inv) notFound();
 
-  const [sup] = inv.supplierId
-    ? await db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, inv.supplierId)).limit(1)
-    : [undefined];
-
-  const lines = await db
-    .select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, shipping: purchaseInvoiceLines.shippingPerUnit, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
-    .from(purchaseInvoiceLines)
-    .leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId))
-    .where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
+  const [[sup], lines, [grn], rets, audit] = await Promise.all([
+    inv.supplierId
+      ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, inv.supplierId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, shipping: purchaseInvoiceLines.shippingPerUnit, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
+      .from(purchaseInvoiceLines).leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId)).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id)),
+    inv.goodsReceiptId
+      ? db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1)
+      : Promise.resolve([] as { number: string }[]),
+    db.select({ status: purchaseReturns.status }).from(purchaseReturns).where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.organizationId, orgId))),
+    getDocumentAudit(orgId, inv.id),
+  ]);
   const anyShipping = lines.some((l) => Number(l.shipping) > 0);
 
   const linked: DocLink[] = [];
-  if (inv.goodsReceiptId) {
-    const [grn] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1);
-    if (grn) linked.push({ label: "إذن استلام", number: grn.number, href: `/erp/purchases/receipts/${encodeURIComponent(grn.number)}` });
-  }
-  const rets = await db.select({ status: purchaseReturns.status }).from(purchaseReturns)
-    .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.organizationId, orgId)));
+  if (grn) linked.push({ label: "إذن استلام", number: grn.number, href: `/erp/purchases/receipts/${encodeURIComponent(grn.number)}` });
   const hasReturn = rets.some((r) => r.status === "POSTED");
-
-  const audit = await getDocumentAudit(orgId, inv.id);
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
   const canPost = erpCan(role, "accounting.post");
   const canManage = erpCan(role, "purchases.create");

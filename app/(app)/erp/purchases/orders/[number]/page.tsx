@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { requireErpModule, erpCan } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices } from "@/db/schema";
@@ -41,28 +41,30 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
     .where(and(eq(purchaseOrders.number, raw), eq(purchaseOrders.organizationId, orgId))).limit(1);
   if (!po) notFound();
 
-  const [sup] = po.supplierId
-    ? await db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
-    : [undefined];
+  // Phase 1 — independent of each other once `po` is known.
+  const [[sup], lines, grns, audit] = await Promise.all([
+    po.supplierId
+      ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
+      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+    db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
+      .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
+    db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, invoiceId: purchaseReceipts.purchaseInvoiceId })
+      .from(purchaseReceipts).where(eq(purchaseReceipts.purchaseOrderId, po.id)),
+    getDocumentAudit(orgId, po.id),
+  ]);
 
-  const lines = await db
-    .select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
-    .from(purchaseOrderLines)
-    .leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
-    .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
-
-  const grns = await db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, invoiceId: purchaseReceipts.purchaseInvoiceId })
-    .from(purchaseReceipts).where(eq(purchaseReceipts.purchaseOrderId, po.id));
+  // Phase 2 — linked invoices (need the GRN invoice ids) in a single query.
+  const invoiceIds = [...new Set(grns.map((g) => g.invoiceId).filter((x): x is string => !!x))];
+  const invRows = invoiceIds.length
+    ? await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number }).from(purchaseInvoices).where(inArray(purchaseInvoices.id, invoiceIds))
+    : [];
+  const invById = new Map(invRows.map((i) => [i.id, i.number]));
   const linked: DocLink[] = [];
   for (const grn of grns) {
     linked.push({ label: "إذن استلام", number: grn.number, href: `/erp/purchases/receipts/${encodeURIComponent(grn.number)}` });
-    if (grn.invoiceId) {
-      const [inv] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, grn.invoiceId)).limit(1);
-      if (inv) linked.push({ label: "فاتورة شراء", number: inv.number, href: `/erp/purchases/invoices/${encodeURIComponent(inv.number)}` });
-    }
+    const invNum = grn.invoiceId ? invById.get(grn.invoiceId) : undefined;
+    if (invNum) linked.push({ label: "فاتورة شراء", number: invNum, href: `/erp/purchases/invoices/${encodeURIComponent(invNum)}` });
   }
-
-  const audit = await getDocumentAudit(orgId, po.id);
   const st = STATUS[po.status] ?? { label: po.status, variant: "secondary" as const };
   const canManage = erpCan(role, "purchases.create");
 
