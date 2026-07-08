@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
@@ -50,14 +50,18 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
   if (!(await belongsToOrg(auth.orgId, defaultWarehouseId, warehouses))) return { error: "المخزن غير موجود" };
   if (!(await belongsToOrg(auth.orgId, bankAccountId, bankAccounts))) return { error: "الحساب البنكي غير موجود" };
 
+  // Amazon adopts the legacy AMZN customer so it inherits existing Amazon sales;
+  // generic platforms key their customer by the platform code.
+  const custCode = integrationType === "amazon" ? "AMZN" : code;
+
   try {
     const id = await db.transaction(async (tx) => {
-      // Auto-create (or reuse) the platform's customer, keyed by the platform code.
+      // Auto-create (or reuse) the platform's customer.
       let [cust] = await tx.select({ id: customers.id }).from(customers)
-        .where(and(eq(customers.organizationId, auth.orgId), eq(customers.code, code))).limit(1);
+        .where(and(eq(customers.organizationId, auth.orgId), eq(customers.code, custCode))).limit(1);
       if (!cust) {
         [cust] = await tx.insert(customers)
-          .values({ organizationId: auth.orgId, code, nameAr: name })
+          .values({ organizationId: auth.orgId, code: custCode, nameAr: name })
           .returning({ id: customers.id });
       }
 
@@ -70,6 +74,12 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
         defaultWarehouseId: defaultWarehouseId || null,
         bankAccountId: bankAccountId || null,
       }).returning({ id: salesPlatforms.id });
+
+      // Adopt any existing sales for this channel (e.g. Amazon orders already
+      // imported under channel = code) by linking them to the new platform.
+      await tx.update(salesOrders).set({ platformId: platform.id })
+        .where(and(eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.channel, code), isNull(salesOrders.platformId)));
+
       return platform.id;
     });
     revalidatePath("/erp/platforms");
