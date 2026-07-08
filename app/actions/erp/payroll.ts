@@ -83,10 +83,19 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
       .set(values)
       .where(and(eq(employees.id, input.id), eq(employees.organizationId, auth.orgId)));
   } else {
+    // Onboarding a new employee: ensure the user is a member of this org first,
+    // otherwise they wouldn't appear anywhere (HR requires org membership). Give
+    // a minimal "viewer" ERP role; the admin can raise it from the user page.
+    const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
+      .where(and(eq(organizationMembers.organizationId, auth.orgId), eq(organizationMembers.userId, values.userId))).limit(1);
+    if (!member) {
+      await db.insert(organizationMembers).values({ organizationId: auth.orgId, userId: values.userId, role: "viewer" });
+    }
     await db.insert(employees).values(values);
   }
 
   revalidatePath("/erp/hr/employees");
+  revalidatePath("/admin/users");
   return { ok: true };
 }
 

@@ -58,7 +58,7 @@ export default async function ErpSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Settings" title="إعدادات ERP" subtitle="إعداد المنشأة والضبط المحاسبي" />
+      <ErpPageHeader icon="Settings" title="الإعدادات" subtitle="إعداد المنشأة والضبط المحاسبي" />
 
       <SettingsForm profile={profile} config={accountingConfig} accounts={accountOptions} canEdit={canEdit} />
 

@@ -118,7 +118,7 @@ export const NAV: NavSection[] = [
     heading: "الأدوات",
     icon: "Wrench",
     items: [
-      { label: "استيراد البيانات (CSV)", href: "/erp/imports", icon: "Upload", capability: "erp.sales.view" },
+      { label: "استيراد البيانات", href: "/erp/imports", icon: "Upload", capability: "erp.sales.view" },
     ],
   },
   {
@@ -126,8 +126,8 @@ export const NAV: NavSection[] = [
     icon: "ShieldCheck",
     items: [
       { label: "المستخدمون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
-      { label: "سجل تدقيق ERP", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
-      { label: "إعدادات ERP", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
+      { label: "سجل التدقيق", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
+      { label: "الإعدادات", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
     ],
   },
 ];

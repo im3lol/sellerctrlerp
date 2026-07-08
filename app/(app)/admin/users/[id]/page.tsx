@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
 import { requireCapability } from "@/lib/session";
+import { getActiveOrg } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { users, organizationMembers, organizations } from "@/db/schema";
 import { ROLE_LABELS_AR, type Role } from "@/lib/rbac";
@@ -10,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDateAr } from "@/lib/format";
+import { OrgMembershipManager } from "@/components/erp/org-membership-manager";
 
 const ERP_ROLE_AR: Record<string, string> = {
   super_admin: "مدير النظام", admin: "مدير", accountant: "محاسب", inventory: "مخزون", sales: "مبيعات", purchases: "مشتريات", viewer: "مشاهد",
@@ -27,6 +29,11 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     .from(organizationMembers)
     .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
     .where(eq(organizationMembers.userId, id));
+
+  const { org: activeOrg } = await getActiveOrg();
+  const activeRole = u.role === "system_admin"
+    ? "super_admin"
+    : memberships.find((m) => m.id === activeOrg?.id)?.role ?? null;
 
   const init = u.name.split(" ").slice(0, 2).map((p) => p[0]).join("");
 
@@ -62,11 +69,11 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 font-semibold">المؤسسات وأدوار ERP</h2>
+            <h2 className="mb-3 font-semibold">المؤسسات وأدوار الوصول</h2>
             {memberships.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">غير مضاف لأي مؤسسة.</p>
+              <p className="mb-3 text-sm text-muted-foreground">هذا المستخدم غير مضاف لأي مؤسسة بعد — أضِفه ليتمكّن من الدخول للنظام أو ليصبح موظفاً.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="mb-3 space-y-2">
                 {memberships.map((m) => (
                   <div key={m.id} className="flex items-center justify-between rounded-xl border p-3 text-sm">
                     <span className="font-medium">{m.nameAr}</span>
@@ -75,6 +82,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
                 ))}
               </div>
             )}
+            {activeOrg && <OrgMembershipManager userId={u.id} orgName={activeOrg.nameAr} currentRole={activeRole} />}
           </Card>
         </div>
       </div>
