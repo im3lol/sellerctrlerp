@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { round2 } from "@/lib/erp/money";
 
 /**
  * Parsing helpers for the Amazon "Order Report" flat file (one row per order
@@ -41,8 +42,6 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 const str = (v: unknown): string => String(v ?? "").trim();
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /** Canonical code form for exact match: uppercase, alphanumerics only. */
 export function normalizeCode(s: string): string {
   return s.toUpperCase().replace(/[^A-Z0-9]/g, "");

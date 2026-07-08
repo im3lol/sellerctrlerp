@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -28,9 +29,6 @@ const schema = z.object({
   notes: z.string().optional(),
   lines: z.array(lineSchema).min(1, "أضف صنفاً واحداً على الأقل"),
 });
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /**
  * Create a multi-line stock adjustment as a DRAFT document — header + lines only.
  * No stock movement and no GL until confirmed. Per-line delta/value are stored as

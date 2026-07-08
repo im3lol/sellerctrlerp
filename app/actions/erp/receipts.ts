@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -23,9 +24,6 @@ const schema = z.object({
   reference: z.string().optional(),
   notes: z.string().optional(),
 });
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 async function nextNumber(orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(db, orgId, "RV", year);
 }

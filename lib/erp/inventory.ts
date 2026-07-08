@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { round4 } from "@/lib/erp/money";
 import { db } from "@/lib/db";
 import { stockMovements, stockBatches, stockMovementBatches, items } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -47,9 +48,6 @@ export type StockResult = {
   /** Which batches this movement touched (signed quantity per batch). */
   batchAllocations: BatchAllocation[];
 };
-
-const round4 = (n: number) => Math.round(n * 10000) / 10000;
-
 /** Next stock-movement number SM-YYYY-NNNN for the org (atomic). */
 async function nextNumber(tx: Tx, orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(tx, orgId, "SM", year);

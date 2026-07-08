@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -15,8 +16,6 @@ import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const EPS = 1e-6;
 
 async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {

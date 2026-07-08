@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes, customers, warehouses, salesOrders, salesOrderLines } from "@/db/schema";
@@ -12,8 +13,6 @@ import { fulfillOrder } from "@/lib/erp/fulfillment";
 import { parseAmazonWorkbook, groupAmazonOrders, normalizeCode, type AmazonOrder } from "@/lib/erp/amazon-import";
 
 const CHANNEL = "AMAZON";
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 type MatchedLine = {
   sku: string; asin: string; productName: string;
   qty: number; unitPrice: number; lineTotal: number; shippingPrice: number;

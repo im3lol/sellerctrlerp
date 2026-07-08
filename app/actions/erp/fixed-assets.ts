@@ -1,15 +1,13 @@
 "use server";
 
 import { and, eq, lte } from "drizzle-orm";
+import { round2 } from "@/lib/erp/money";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
 import { fixedAssets, assetDepreciationLines } from "@/db/schema";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /* ── Create asset ──────────────────────────────────────────── */
 export async function createAssetAction(input: {
   code: string;

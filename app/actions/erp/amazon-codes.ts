@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
@@ -11,9 +12,6 @@ export type SkuLinkRow = { sku: string; asin: string; productName: string; sellP
 export type SkuLinkPreview =
   | { ok: true; rows: SkuLinkRow[]; items: { id: string; label: string }[]; alreadyLinked: number; totalSkus: number }
   | { ok: false; error: string };
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 type SkuInfo = { sku: string; asin: string; productName: string; sellPrice: number };
 
 /** Distinct SKUs from the report with a suggested unit sell price (from a priced line). */

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 as r2 } from "@/lib/erp/money";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements } from "@/db/schema";
@@ -12,8 +13,6 @@ import { normalizeCode } from "@/lib/erp/amazon-import";
 import { parseSettlementWorkbook, settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 
 const CHANNEL = "AMAZON";
-const r2 = (n: number) => Math.round(n * 100) / 100;
-
 export type SettlementPreview =
   | {
       ok: true;

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -33,9 +34,6 @@ const schema = z.object({
   shippingAmount: z.coerce.number().min(0).default(0),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 async function nextNumber(orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(db, orgId, "SO", year);
 }
