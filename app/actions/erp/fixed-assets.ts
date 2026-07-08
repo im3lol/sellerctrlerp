@@ -29,12 +29,20 @@ export async function createAssetAction(input: {
   const cost = input.purchaseCost;
   const salvage = input.salvageValue ?? 0;
 
+  // Validate — a zero/negative life divides to Infinity (∞/NaN in the UI) and an
+  // invalid date throws on insert into the NOT NULL timestamp column.
+  if (!(input.usefulLifeYears > 0)) return { error: "العمر الإنتاجي يجب أن يكون أكبر من صفر" };
+  const purchaseDate = new Date(input.purchaseDate);
+  if (Number.isNaN(purchaseDate.getTime())) return { error: "تاريخ الشراء غير صالح" };
+  if (!(cost >= 0)) return { error: "تكلفة الشراء غير صالحة" };
+  if (salvage < 0 || salvage > cost) return { error: "قيمة الخردة يجب أن تكون بين صفر والتكلفة" };
+
   const [row] = await db.insert(fixedAssets).values({
     organizationId: orgId,
     code: input.code.trim(),
     nameAr: input.nameAr.trim(),
     category: input.category,
-    purchaseDate: new Date(input.purchaseDate),
+    purchaseDate,
     purchaseCost: String(cost),
     salvageValue: String(salvage),
     usefulLifeYears: input.usefulLifeYears,

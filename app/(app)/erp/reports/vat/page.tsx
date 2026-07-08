@@ -84,8 +84,14 @@ export default async function VatReportPage({ searchParams }: Params) {
   const now = new Date();
   const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
   const quarterEnd   = new Date(quarterStart.getFullYear(), quarterStart.getMonth() + 3, 0);
-  const fromDate = sp.from ? new Date(sp.from) : quarterStart;
-  const toDate   = sp.to   ? new Date(sp.to)   : quarterEnd;
+  // Guard against a malformed ?from=/?to= URL param (Invalid Date → .toISOString() throws).
+  const okDate = (s: string | undefined, fallback: Date) => {
+    if (!s) return fallback;
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? fallback : d;
+  };
+  const fromDate = okDate(sp.from, quarterStart);
+  const toDate   = okDate(sp.to, quarterEnd);
   const fromISO  = fromDate.toISOString().slice(0, 10);
   const toISO    = toDate.toISOString().slice(0, 10);
 

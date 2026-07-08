@@ -31,8 +31,14 @@ export async function accountBalances(opts: {
     eq(journalEntries.organizationId, opts.orgId),
     eq(journalEntries.status, "POSTED"),
   ];
-  if (opts.from) filters.push(gte(journalEntries.date, opts.from));
-  if (opts.to) filters.push(lte(journalEntries.date, opts.to));
+  // Guard against Invalid Date (e.g. a malformed ?from=/?to= URL param): an
+  // invalid Date serializes via .toISOString() inside Drizzle and throws
+  // "RangeError: Invalid time value", 500-ing the whole report. Ignore it.
+  const valid = (d?: Date) => (d && !Number.isNaN(d.getTime()) ? d : undefined);
+  const from = valid(opts.from);
+  const to = valid(opts.to);
+  if (from) filters.push(gte(journalEntries.date, from));
+  if (to) filters.push(lte(journalEntries.date, to));
 
   const rows = await db
     .select({

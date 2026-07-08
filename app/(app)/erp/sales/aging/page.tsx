@@ -6,6 +6,7 @@ import { buildAging, type OpenDoc } from "@/lib/erp/aging";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AgingTable } from "@/components/erp/aging-table";
 
@@ -41,7 +42,13 @@ export default async function ArAgingPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Users" title="أعمار ذمم العملاء" subtitle="أرصدة مستحقة من فواتير البيع المُرحّلة" backHref="/erp/sales" />
+      <ErpPageHeader icon="Users" title="أعمار ذمم العملاء" subtitle="أرصدة مستحقة من فواتير البيع المُرحّلة" backHref="/erp/sales"
+        action={grand > 0 ? (
+          <Button asChild variant="outline">
+            <a href={`/api/erp/sales/aging/export?asOf=${asOf}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        ) : undefined}
+      />
 
       <Card>
         <CardHeader>

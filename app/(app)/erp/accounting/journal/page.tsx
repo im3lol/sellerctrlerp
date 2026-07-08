@@ -105,11 +105,18 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         title="القيود اليومية"
         subtitle={`${num(total)} قيد`}
         action={
-          erpCan(role, "accounting.create") ? (
-            <Button asChild>
-              <Link href="/erp/accounting/journal/new"><Icon name="Plus" className="size-4" />قيد جديد</Link>
-            </Button>
-          ) : undefined
+          <div className="flex gap-2">
+            {total > 0 && (
+              <Button asChild variant="outline">
+                <a href={`/api/erp/accounting/journal/export?${new URLSearchParams({ q, status, source, from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
+              </Button>
+            )}
+            {erpCan(role, "accounting.create") && (
+              <Button asChild>
+                <Link href="/erp/accounting/journal/new"><Icon name="Plus" className="size-4" />قيد جديد</Link>
+              </Button>
+            )}
+          </div>
         }
       />
 

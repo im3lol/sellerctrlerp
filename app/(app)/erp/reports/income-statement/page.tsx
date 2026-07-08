@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
 
@@ -49,6 +50,11 @@ export default async function IncomeStatementPage({
         icon="TrendingUp"
         title="قائمة الدخل"
         subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        action={
+          <Button asChild variant="outline">
+            <a href={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        }
       />
       <ReportTabs active="/erp/reports/income-statement" />
 
