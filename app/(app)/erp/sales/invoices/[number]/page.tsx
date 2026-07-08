@@ -62,6 +62,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
   const canPost = erpCan(role, "accounting.post");
   const canManage = erpCan(role, "sales.create");
+  const canCollect = erpCan(role, "sales.collect");
 
   return (
     <div className="space-y-6">
@@ -70,7 +71,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
         title={`فاتورة بيع ${inv.number}`}
         subtitle={cust ? `${cust.code} — ${cust.name}` : "فاتورة بيع"}
         backHref="/erp/sales/invoices"
-        action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} totalAmount={String(inv.totalAmount)} customerPhone={cust?.phone ?? null} customerEmail={cust?.email ?? null} />}
+        action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} canCollect={canCollect} balanceDue={String(inv.balanceDue)} totalAmount={String(inv.totalAmount)} customerPhone={cust?.phone ?? null} customerEmail={cust?.email ?? null} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

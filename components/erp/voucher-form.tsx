@@ -22,21 +22,28 @@ export function VoucherForm({
   parties,
   invoices,
   cashAccounts,
+  defaultPartyId,
+  defaultInvoiceId,
 }: {
   mode: "receipt" | "payment";
   parties: Party[];
   invoices: OpenInvoice[];
   cashAccounts: Account[];
+  defaultPartyId?: string;
+  defaultInvoiceId?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
   const isReceipt = mode === "receipt";
 
-  const [partyId, setPartyId] = useState("");
-  const [invoiceId, setInvoiceId] = useState("");
+  const [partyId, setPartyId] = useState(defaultPartyId ?? "");
+  const [invoiceId, setInvoiceId] = useState(defaultInvoiceId ?? "");
   const [cashAccountId, setCashAccountId] = useState(cashAccounts[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() => {
+    const inv = invoices.find((i) => i.id === defaultInvoiceId);
+    return inv ? String(inv.balanceDue) : "";
+  });
   const [date, setDate] = useState(today);
   const [method, setMethod] = useState("CASH");
   const [reference, setReference] = useState("");

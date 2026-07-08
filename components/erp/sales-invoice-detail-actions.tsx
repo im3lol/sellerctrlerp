@@ -14,9 +14,11 @@ import { confirm } from "@/components/erp/confirm";
 export function SalesInvoiceDetailActions({
   id, number, status, canPost, canManage,
   totalAmount, customerPhone, customerEmail,
+  balanceDue, canCollect,
 }: {
   id: string; number: string; status: string; canPost: boolean; canManage: boolean;
   totalAmount?: string | null; customerPhone?: string | null; customerEmail?: string | null;
+  balanceDue?: string | null; canCollect?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -82,13 +84,21 @@ export function SalesInvoiceDetailActions({
     );
   }
 
-  // Posted (not cancelled): allow creating a return from this invoice.
-  if (status !== "CANCELLED" && canManage) {
+  // Posted (not cancelled): allow collecting payment (if any balance due) + creating a return.
+  if (status !== "CANCELLED" && (canManage || canCollect)) {
+    const hasBalance = Number(balanceDue ?? 0) > 0;
     return (
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" asChild>
-          <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
-        </Button>
+        {canCollect && hasBalance && (
+          <Button size="sm" asChild>
+            <Link href={`/erp/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
+          </Button>
+        )}
+        {canManage && (
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+          </Button>
+        )}
         {printBtn}
         {waBtn}
         {emailBtn}

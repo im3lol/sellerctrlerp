@@ -5,8 +5,9 @@ import { customers, salesInvoices, accounts } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherForm } from "@/components/erp/voucher-form";
 
-export default async function NewReceiptPage() {
+export default async function NewReceiptPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   const { orgId } = await requireErpModule("sales.view");
+  const { invoice: invoiceParam } = await searchParams;
 
   const [parties, invoices, cashAccs] = await Promise.all([
     db.select({ id: customers.id, code: customers.code, name: customers.nameAr })
@@ -25,6 +26,8 @@ export default async function NewReceiptPage() {
       .orderBy(asc(accounts.code)),
   ]);
 
+  const preInvoice = invoiceParam ? invoices.find((i) => i.number === invoiceParam || i.id === invoiceParam) : undefined;
+
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="HandCoins" title="سند قبض جديد" subtitle="تحصيل من عميل" backHref="/erp/sales/receipts" />
@@ -33,6 +36,8 @@ export default async function NewReceiptPage() {
         parties={parties}
         invoices={invoices.map((i) => ({ ...i, balanceDue: Number(i.balanceDue) }))}
         cashAccounts={cashAccs}
+        defaultPartyId={preInvoice?.partyId ?? undefined}
+        defaultInvoiceId={preInvoice?.id ?? undefined}
       />
     </div>
   );
