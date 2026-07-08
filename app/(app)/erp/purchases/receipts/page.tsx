@@ -138,7 +138,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
               <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
               <div className="flex gap-2 sm:col-span-5">
                 <Button type="submit">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/purchases/receipts">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/purchases/receipts">مسح</Link></Button>}
               </div>
             </form>
           </details>

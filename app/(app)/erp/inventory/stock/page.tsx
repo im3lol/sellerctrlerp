@@ -102,7 +102,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
               </div>
               <div className="flex gap-2 sm:col-span-4">
                 <Button type="submit">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/inventory/stock">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/inventory/stock">مسح</Link></Button>}
               </div>
             </form>
           </details>

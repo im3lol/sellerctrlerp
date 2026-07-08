@@ -1,4 +1,5 @@
 import { requireErpModule } from "@/lib/erp/org";
+import Link from "next/link";
 import { getSalesLedger } from "@/lib/erp/sales-ledger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
               <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
               <div className="flex gap-2 sm:col-span-5">
                 <Button type="submit">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/sales/reports/ledger">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/sales/reports/ledger">مسح</Link></Button>}
               </div>
             </form>
           </details>

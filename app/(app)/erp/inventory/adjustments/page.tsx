@@ -113,7 +113,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
               <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
               <div className="flex gap-2 sm:col-span-4">
                 <Button type="submit">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/inventory/adjustments">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/inventory/adjustments">مسح</Link></Button>}
               </div>
             </form>
           </details>

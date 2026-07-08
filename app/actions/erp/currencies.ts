@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { currencies, exchangeRates } from "@/db/schema";
+import { parseDate } from "@/lib/erp/dates";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
 /* ── Currencies ──────────────────────────────────────────── */
@@ -93,6 +94,8 @@ export async function upsertExchangeRateAction(input: RateInput): Promise<Action
   if ("error" in auth) return auth;
 
   if (input.rate <= 0) return { error: "سعر الصرف يجب أن يكون أكبر من صفر" };
+  const date = parseDate(input.date);
+  if (!date) return { error: "التاريخ غير صالح" };
 
   const code = input.currencyCode.toUpperCase();
 
@@ -102,7 +105,7 @@ export async function upsertExchangeRateAction(input: RateInput): Promise<Action
       .values({
         organizationId: auth.orgId,
         currencyCode: code,
-        date: new Date(input.date),
+        date,
         rate: String(input.rate),
         createdById: auth.userId,
       })

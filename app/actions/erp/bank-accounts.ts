@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
 import { bankAccounts, bankStatementLines } from "@/db/schema";
+import { parseDate } from "@/lib/erp/dates";
 import type { ActionState } from "@/lib/erp/action-auth";
 
 /* ── Create / Update bank account ─────────────────────────── */
@@ -81,11 +82,13 @@ export async function addStatementLineAction(input: {
   const debit = input.debit ?? 0;
   const credit = input.credit ?? 0;
   if (debit === 0 && credit === 0) return { error:"يجب إدخال مبلغ واحد على الأقل" };
+  const date = parseDate(input.date);
+  if (!date) return { error: "التاريخ غير صالح" };
 
   await db.insert(bankStatementLines).values({
     organizationId: orgId,
     bankAccountId: input.bankAccountId,
-    date: new Date(input.date),
+    date,
     description: input.description?.trim() || null,
     reference: input.reference?.trim() || null,
     debit: String(debit),

@@ -134,6 +134,18 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
   if (!inv) return { error: "الفاتورة غير موجودة" };
   if (inv.status !== "DRAFT") return { error: "الفاتورة مُرحّلة بالفعل" };
 
+  // Credit-limit guard: posting adds `totalAmount` to the customer's receivable
+  // balance — block it if that would exceed a set limit (0 = no limit).
+  const [cust] = await db
+    .select({ balance: customers.balance, creditLimit: customers.creditLimit, name: customers.nameAr })
+    .from(customers)
+    .where(and(eq(customers.id, inv.customerId), eq(customers.organizationId, auth.orgId)))
+    .limit(1);
+  const creditLimit = Number(cust?.creditLimit ?? 0);
+  if (creditLimit > 0 && Number(cust?.balance ?? 0) + Number(inv.totalAmount) > creditLimit + 1e-6) {
+    return { error: `يتجاوز هذا الترحيل حد ائتمان العميل «${cust?.name ?? ""}» (${creditLimit.toLocaleString("ar-EG-u-nu-latn")}).` };
+  }
+
   const byCode = await resolveAccountIds(auth.orgId, ["1103", "4101", "2102", "5101", "1104"]);
   if (!byCode["1103"] || !byCode["4101"]) {
     return { error: "حسابات الترحيل غير مكتملة (العملاء/المبيعات). أضِفها في دليل الحسابات." };

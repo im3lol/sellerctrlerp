@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -81,7 +82,7 @@ export default async function NewBankAccountPage() {
             <div className="flex gap-2 pt-2">
               <Button type="submit">حفظ</Button>
               <Button type="button" variant="ghost" asChild>
-                <a href="/erp/accounting/banks">إلغاء</a>
+                <Link href="/erp/accounting/banks">إلغاء</Link>
               </Button>
             </div>
           </form>

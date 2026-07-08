@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +33,7 @@ export default function AppError({
       </div>
       <div className="flex gap-2">
         <Button onClick={reset}>إعادة المحاولة</Button>
-        <Button variant="outline" asChild><a href="/dashboard">لوحة التحكم</a></Button>
+        <Button variant="outline" asChild><Link href="/dashboard">لوحة التحكم</Link></Button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { requireErpModule } from "@/lib/erp/org";
+import Link from "next/link";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +84,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
               <div className="space-y-1"><Label htmlFor="within">حد التنبيه (أيام)</Label><Input id="within" name="within" type="number" min="1" defaultValue={String(withinDays)} /></div>
               <div className="flex gap-2 sm:col-span-4">
                 <Button type="submit">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/inventory/expiry">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/inventory/expiry">مسح</Link></Button>}
               </div>
             </form>
           </details>

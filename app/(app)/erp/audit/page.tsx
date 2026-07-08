@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, sql, count } from "drizzle-orm";
+import Link from "next/link";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { auditLogs, users } from "@/db/schema";
@@ -117,7 +118,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1">تطبيق</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><a href="/erp/audit">مسح</a></Button>}
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/audit">مسح</Link></Button>}
               </div>
             </form>
           </details>
