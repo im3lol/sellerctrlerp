@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2 } from "lucide-react";
-import { addUserToOrgAction, removeUserFromOrgAction, ERP_ROLES } from "@/app/actions/erp/members";
+import { addUserToOrgAction, removeUserFromOrgAction } from "@/app/actions/erp/members";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+const ERP_ROLES = ["admin", "accountant", "inventory", "sales", "purchases", "viewer"];
 const ROLE_AR: Record<string, string> = {
   admin: "مدير", accountant: "محاسب", inventory: "مخزون", sales: "مبيعات", purchases: "مشتريات", viewer: "مشاهد",
 };
