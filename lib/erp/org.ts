@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
@@ -12,8 +13,9 @@ export const ACTIVE_ORG_COOKIE = "erp_org";
 
 export type OrgSummary = { id: string; nameAr: string; nameEn: string };
 
-/** Organizations the user may access: all (system_admin) or active memberships. */
-export async function getUserOrganizations(user: SessionUser): Promise<OrgSummary[]> {
+/** Organizations the user may access: all (system_admin) or active memberships.
+ *  Cached per request — resolved on every ERP page via requireErpModule. */
+export const getUserOrganizations = cache(async (user: SessionUser): Promise<OrgSummary[]> => {
   if (user.role === "system_admin") {
     return db
       .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
@@ -26,21 +28,22 @@ export async function getUserOrganizations(user: SessionUser): Promise<OrgSummar
     .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
     .where(and(eq(organizationMembers.userId, user.id), eq(organizationMembers.isActive, true)))
     .orderBy(asc(organizations.createdAt));
-}
+});
 
-/** Resolve the active organization from the cookie (falling back to the first). */
-export async function getActiveOrg(): Promise<{
+/** Resolve the active organization from the cookie (falling back to the first).
+ *  Cached per request — called by the layout + every page's requireErpModule. */
+export const getActiveOrg = cache(async (): Promise<{
   user: SessionUser | null;
   org: OrgSummary | null;
   orgs: OrgSummary[];
-}> {
+}> => {
   const user = await getCurrentUser();
   if (!user) return { user: null, org: null, orgs: [] };
   const orgs = await getUserOrganizations(user);
   const cid = (await cookies()).get(ACTIVE_ORG_COOKIE)?.value;
   const org = orgs.find((o) => o.id === cid) ?? orgs[0] ?? null;
   return { user, org, orgs };
-}
+});
 
 /**
  * Page-level guard for ERP modules: resolves the active org and enforces an ERP

@@ -10,6 +10,7 @@
  * Every ported ERP route calls `requireErpCapability(orgId, "<permission>")`
  * with the same permission string the legacy `requirePermission` used.
  */
+import { cache } from "react";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizationMembers } from "@/db/schema";
@@ -31,8 +32,9 @@ export interface ErpAuthUser extends SessionUser {
   erpRole: string;
 }
 
-/** The caller's effective ERP role in an org, or null if not a member. */
-export async function getErpRole(orgId: string, user: SessionUser): Promise<string | null> {
+/** The caller's effective ERP role in an org, or null if not a member.
+ *  Cached per request — hit by requireErpModule + erpCan on every page/action. */
+export const getErpRole = cache(async (orgId: string, user: SessionUser): Promise<string | null> => {
   if (user.role === "system_admin") return "super_admin";
   const [m] = await db
     .select({ role: organizationMembers.role, isActive: organizationMembers.isActive })
@@ -41,7 +43,7 @@ export async function getErpRole(orgId: string, user: SessionUser): Promise<stri
     .limit(1);
   if (!m || !m.isActive) return null;
   return m.role;
-}
+});
 
 /** Require an authenticated user who belongs to the given org. */
 export async function requireErpAuth(orgId: string): Promise<ErpAuthUser> {
