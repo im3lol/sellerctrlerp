@@ -9,6 +9,7 @@ import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
+import { Pagination } from "@/components/erp/pagination";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -34,6 +35,10 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
   });
 
   const hasFilters = Boolean(fProduct || fWarehouse || fStatus || one(sp.within));
+  const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+  const PAGE_SIZE = 50;
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -86,6 +91,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
           {rows.length === 0 ? (
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد دفعات مطابقة." : "لا توجد دفعات لها تاريخ صلاحية."}</div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -100,7 +106,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {pageRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</TableCell>
                     <TableCell>{r.warehouse}</TableCell>
@@ -118,6 +124,8 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                 ))}
               </TableBody>
             </Table>
+            <Pagination page={page} pages={pages} total={rows.length} unit="دفعة" basePath="/erp/inventory/expiry" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus, within: one(sp.within) }} />
+            </>
           )}
         </CardContent>
       </Card>

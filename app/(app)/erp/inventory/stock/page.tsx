@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireErpModule } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
+import { Pagination } from "@/components/erp/pagination";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,14 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
   const fProduct = one(sp.product).trim();
   const fWarehouse = one(sp.warehouse);
   const fStatus = one(sp.status);
+  const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+  const PAGE_SIZE = 50;
 
-  const { lines, totals, warehouses: whList, productSuggestions: productOptions } = await getStockBalances(orgId, {
+  const { lines: allLines, totals, warehouses: whList, productSuggestions: productOptions } = await getStockBalances(orgId, {
     product: fProduct, warehouse: fWarehouse, status: fStatus,
   });
+  const pages = Math.max(1, Math.ceil(allLines.length / PAGE_SIZE));
+  const lines = allLines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const hasFilters = Boolean(fProduct || fWarehouse || fStatus);
   const filterQs = () => {
@@ -102,9 +107,10 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
             </form>
           </details>
 
-          {lines.length === 0 ? (
+          {allLines.length === 0 ? (
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد أرصدة مطابقة." : "لا توجد حركات مخزون بعد."}</div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -138,7 +144,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={3}>الإجمالي</TableCell>
+                  <TableCell colSpan={3}>الإجمالي (كل الصفحات)</TableCell>
                   <TableCell>{qty(totals.quantity)}</TableCell>
                   <TableCell />
                   <TableCell>{fmt(totals.value)}</TableCell>
@@ -147,6 +153,8 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                 </TableRow>
               </TableFooter>
             </Table>
+            <Pagination page={page} pages={pages} total={allLines.length} unit="صنف/مستودع" basePath="/erp/inventory/stock" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus }} />
+            </>
           )}
         </CardContent>
       </Card>
