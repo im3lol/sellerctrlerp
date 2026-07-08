@@ -126,6 +126,7 @@ export const NAV: NavSection[] = [
     icon: "ShieldCheck",
     items: [
       { label: "المستخدمون", href: "/admin/users", icon: "Users", capability: "employee.manage" },
+      { label: "صلاحيات المستخدمين", href: "/erp/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.manage" },
       { label: "سجل التدقيق", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
       { label: "الإعدادات", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
     ],

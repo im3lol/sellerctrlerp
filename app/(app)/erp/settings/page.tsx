@@ -14,6 +14,7 @@ const MANAGE_LINKS = [
   { label: "مراكز التكلفة",        href: "/erp/accounting/cost-centers", icon: "Target" },
   { label: "المستودعات والأصناف",  href: "/erp/inventory/items",        icon: "Warehouse" },
   { label: "العملات وأسعار الصرف", href: "/erp/settings/currencies",    icon: "BadgeDollarSign" },
+  { label: "صلاحيات المستخدمين",   href: "/erp/settings/permissions",   icon: "ShieldCheck" },
 ] as const;
 
 export default async function ErpSettingsPage() {
