@@ -5,7 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, organizationMembers } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/session";
-import { getErpRole } from "@/lib/erp/auth-guard";
+import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
 import { orgHasModule, moduleOfPermission } from "@/lib/erp/entitlements";
 
@@ -51,20 +51,20 @@ export const getActiveOrg = cache(async (): Promise<{
  */
 export async function requireErpModule(
   permission: ErpPermission,
-): Promise<{ orgId: string; role: string }> {
+): Promise<{ orgId: string; role: string; can: (p: ErpPermission) => boolean }> {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
   if (!org) redirect("/dashboard");
-  const role = await getErpRole(org.id, user);
-  if (!role) redirect("/dashboard");
-  if (role !== "super_admin" && !erpRoleHasPermission(role, permission)) redirect("/dashboard");
+  const access = await getMemberAccess(org.id, user);
+  if (!access.role) redirect("/dashboard");
+  if (!access.permissions.has(permission)) redirect("/dashboard");
   // Subscription entitlement: the tenant must have the module enabled. The
   // platform owner (system_admin) bypasses so they can support any account.
   if (user.role !== "system_admin") {
     const mod = moduleOfPermission(permission);
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/dashboard?locked=${mod}`);
   }
-  return { orgId: org.id, role };
+  return { orgId: org.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
 }
 
 /** Whether an ERP role may perform an action (super_admin bypasses). */

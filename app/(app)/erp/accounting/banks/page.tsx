@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, eq, ilike, or, sql } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { bankAccounts, bankStatementLines, accounts } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -18,7 +18,7 @@ const fmt = (n: number) =>
 type SP = { q?: string; active?: string };
 
 export default async function BankAccountsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const active = sp.active ?? "";
@@ -56,7 +56,7 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
     .groupBy(bankAccounts.id, accounts.id)
     .orderBy(bankAccounts.nameAr);
 
-  const canEdit = erpCan(role, "accounting.create");
+  const canEdit = can("accounting.create");
   const totalBalance = rows.reduce((s, r) => s + (Number(r.stmtIn) - Number(r.stmtOut)), 0);
 
   return (

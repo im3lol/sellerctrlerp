@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers } from "@/db/schema";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function ErpSalesPage() {
-  const { orgId, role } = await requireErpModule("sales.view");
+  const { orgId, role, can } = await requireErpModule("sales.view");
   const rows = await db
     .select({
       id: customers.id,
@@ -39,5 +39,5 @@ export default async function ErpSalesPage() {
     </div>
   );
 
-  return <CustomersManager customers={rows} canManage={erpCan(role, "sales.edit")} title="المبيعات — العملاء" kpis={kpis} />;
+  return <CustomersManager customers={rows} canManage={can("sales.edit")} title="المبيعات — العملاء" kpis={kpis} />;
 }

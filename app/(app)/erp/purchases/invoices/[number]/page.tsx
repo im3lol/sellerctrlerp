@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts, purchaseReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function PurchaseInvoiceDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("purchases.view");
+  const { orgId, role, can } = await requireErpModule("purchases.view");
 
   if (UUID_RE.test(raw)) {
     const [byId] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices)
@@ -57,8 +57,8 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
   if (grn) linked.push({ label: "إذن استلام", number: grn.number, href: `/erp/purchases/receipts/${encodeURIComponent(grn.number)}` });
   const hasReturn = rets.some((r) => r.status === "POSTED");
   const st = STATUS[inv.status] ?? { label: inv.status, variant: "secondary" as const };
-  const canPost = erpCan(role, "accounting.post");
-  const canManage = erpCan(role, "purchases.create");
+  const canPost = can("accounting.post");
+  const canManage = can("purchases.create");
 
   return (
     <div className="space-y-6">

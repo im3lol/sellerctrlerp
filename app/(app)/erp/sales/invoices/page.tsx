@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, customers, salesReturns } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,9 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesInvoicesPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { orgId, role } = await requireErpModule("sales.view");
-  const canManage = erpCan(role, "sales.create");
-  const canPost = erpCan(role, "accounting.post");
+  const { orgId, role, can } = await requireErpModule("sales.view");
+  const canManage = can("sales.create");
+  const canPost = can("accounting.post");
   const sp = await searchParams;
   const q = one(sp.q).trim();
   const fStatus = one(sp.status);

@@ -39,7 +39,7 @@ export default async function PermissionsPage() {
   const canManage = can(user.role, "employee.manage");
 
   const [memberRows, allUsers] = await Promise.all([
-    db.select({ userId: organizationMembers.userId, role: organizationMembers.role, name: users.name, email: users.email, osRole: users.role })
+    db.select({ userId: organizationMembers.userId, role: organizationMembers.role, overrides: organizationMembers.permissionOverrides, name: users.name, email: users.email, osRole: users.role })
       .from(organizationMembers)
       .innerJoin(users, eq(users.id, organizationMembers.userId))
       .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
@@ -50,6 +50,7 @@ export default async function PermissionsPage() {
 
   const members: Member[] = memberRows.map((m) => ({
     userId: m.userId, name: m.name, email: m.email, role: m.role, isSystemAdmin: m.osRole === "system_admin",
+    grant: m.overrides?.grant ?? [], revoke: m.overrides?.revoke ?? [],
   }));
   const memberIds = new Set(members.map((m) => m.userId));
   const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
@@ -66,7 +67,7 @@ export default async function PermissionsPage() {
     <div className="space-y-6">
       <ErpPageHeader icon="ShieldCheck" title="صلاحيات المستخدمين" subtitle="تعيين أدوار الأعضاء ومعرفة تفاصيل ما يسمح به كل دور" backHref="/erp/settings" />
 
-      <PermissionsMembers members={members} nonMembers={nonMembers} roleOptions={roleOptions} roleLabels={ROLE_LABELS} canManage={canManage} />
+      <PermissionsMembers members={members} nonMembers={nonMembers} roleOptions={roleOptions} roleLabels={ROLE_LABELS} canManage={canManage} rolePerms={rolePerms} catalog={groups} />
 
       <Card>
         <CardHeader>

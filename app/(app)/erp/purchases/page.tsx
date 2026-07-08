@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers } from "@/db/schema";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function ErpPurchasesPage() {
-  const { orgId, role } = await requireErpModule("purchases.view");
+  const { orgId, role, can } = await requireErpModule("purchases.view");
   const rows = await db
     .select({
       id: suppliers.id,
@@ -34,5 +34,5 @@ export default async function ErpPurchasesPage() {
     </div>
   );
 
-  return <SuppliersManager suppliers={rows} canManage={erpCan(role, "purchases.edit")} title="المشتريات — الموردون" kpis={kpis} />;
+  return <SuppliersManager suppliers={rows} canManage={can("purchases.edit")} title="المشتريات — الموردون" kpis={kpis} />;
 }

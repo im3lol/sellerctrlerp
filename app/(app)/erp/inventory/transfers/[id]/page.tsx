@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { stockTransfers, stockTransferLines, items, warehouses, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +16,8 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year
 
 export default async function TransferDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { orgId, role } = await requireErpModule("inventory.view");
-  const canManage = erpCan(role, "inventory.create");
+  const { orgId, role, can } = await requireErpModule("inventory.view");
+  const canManage = can("inventory.create");
 
   const [tr] = await db.select().from(stockTransfers)
     .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);

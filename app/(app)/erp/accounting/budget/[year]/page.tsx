@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBudgets, accounts } from "@/db/schema";
 import { BudgetEntryClient } from "@/components/erp/budget-entry-client";
@@ -9,8 +9,8 @@ type Params = { params: Promise<{ year: string }> };
 
 export default async function BudgetEntryPage({ params }: Params) {
   const year = parseInt((await params).year, 10);
-  const { orgId, role } = await requireErpModule("accounting.view");
-  const canEdit = erpCan(role, "accounting.create");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
+  const canEdit = can("accounting.create");
 
   // Load all leaf P&L accounts
   const accs = await db

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReturns, purchaseReturnLines, suppliers, items, purchaseInvoices, purchaseReceipts } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function PurchaseReturnDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("purchases.view");
+  const { orgId, role, can } = await requireErpModule("purchases.view");
 
   if (UUID_RE.test(raw)) {
     const [byId] = await db.select({ number: purchaseReturns.number }).from(purchaseReturns)
@@ -56,7 +56,7 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
   if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/erp/purchases/invoices/${encodeURIComponent(pi.number)}` });
   if (grn) { const href = `/erp/purchases/receipts/${encodeURIComponent(grn.number)}`; linked.push({ label: "إذن استلام", number: grn.number, href }); backHref = href; }
   const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
-  const canManage = erpCan(role, "purchases.create");
+  const canManage = can("purchases.create");
 
   return (
     <div className="space-y-6">

@@ -2,30 +2,112 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2 } from "lucide-react";
-import { addUserToOrgAction, removeUserFromOrgAction } from "@/app/actions/erp/members";
+import { Plus, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
+import { addUserToOrgAction, removeUserFromOrgAction, setMemberOverridesAction } from "@/app/actions/erp/members";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-export type Member = { userId: string; name: string; email: string; role: string; isSystemAdmin: boolean };
+export type Member = { userId: string; name: string; email: string; role: string; isSystemAdmin: boolean; grant: string[]; revoke: string[] };
 export type Assignable = { id: string; name: string; email: string };
+type Catalog = { key: string; label: string; perms: { key: string; action: string }[] }[];
 
 const selectCls = "flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+type OverrideState = "inherit" | "grant" | "revoke";
+
+function OverridesDialog({
+  member, rolePerms, catalog, roleLabels, onClose,
+}: {
+  member: Member; rolePerms: Record<string, string[]>; catalog: Catalog; roleLabels: Record<string, string>; onClose: () => void;
+}) {
+  const [pending, start] = useTransition();
+  const base = new Set(rolePerms[member.role] ?? []);
+  const [state, setState] = useState<Record<string, OverrideState>>(() => {
+    const s: Record<string, OverrideState> = {};
+    for (const p of member.grant) s[p] = "grant";
+    for (const p of member.revoke) s[p] = "revoke";
+    return s;
+  });
+
+  const setOne = (perm: string, v: OverrideState) => setState((s) => ({ ...s, [perm]: v }));
+  const effective = (perm: string) => {
+    const st = state[perm] ?? "inherit";
+    if (st === "grant") return true;
+    if (st === "revoke") return false;
+    return base.has(perm);
+  };
+  const overrideCount = Object.values(state).filter((v) => v !== "inherit").length;
+
+  const save = () => start(async () => {
+    const grant = Object.keys(state).filter((p) => state[p] === "grant");
+    const revoke = Object.keys(state).filter((p) => state[p] === "revoke");
+    const r = await setMemberOverridesAction(member.userId, grant, revoke);
+    if (r.ok) { toast.success("تم حفظ الصلاحيات المخصّصة"); onClose(); } else toast.error(r.error ?? "تعذّر الحفظ");
+  });
+
+  return (
+    <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto" dir="rtl">
+      <DialogHeader>
+        <DialogTitle>صلاحيات مخصّصة — {member.name}</DialogTitle>
+        <DialogDescription>
+          الدور: <b>{roleLabels[member.role] ?? member.role}</b>. «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها. {overrideCount > 0 && <span>({overrideCount} تخصيص)</span>}
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        {catalog.map((g) => (
+          <div key={g.key} className="rounded-xl border">
+            <div className="border-b bg-muted/30 px-3 py-2 text-sm font-bold text-primary">{g.label}</div>
+            <div className="divide-y">
+              {g.perms.map((p) => {
+                const st = state[p.key] ?? "inherit";
+                const eff = effective(p.key);
+                const roleHas = base.has(p.key);
+                return (
+                  <div key={p.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span>{p.action}</span>
+                      <span className="text-xs text-muted-foreground">(الدور: {roleHas ? "مسموح" : "لا"})</span>
+                      <Badge variant={eff ? "default" : "outline"} className="text-[10px]">{eff ? "الفعلي: مسموح" : "الفعلي: ممنوع"}</Badge>
+                    </div>
+                    <select value={st} onChange={(e) => setOne(p.key, e.target.value as OverrideState)} className={`${selectCls} h-8 text-xs`}>
+                      <option value="inherit">موروث من الدور</option>
+                      <option value="grant">سماح دائم</option>
+                      <option value="revoke">منع دائم</option>
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
 
 export function PermissionsMembers({
-  members, nonMembers, roleOptions, roleLabels, canManage,
+  members, nonMembers, roleOptions, roleLabels, canManage, rolePerms, catalog,
 }: {
   members: Member[];
   nonMembers: Assignable[];
   roleOptions: { value: string; label: string }[];
   roleLabels: Record<string, string>;
   canManage: boolean;
+  rolePerms: Record<string, string[]>;
+  catalog: Catalog;
 }) {
   const [pending, start] = useTransition();
   const [addUser, setAddUser] = useState("");
   const [addRole, setAddRole] = useState("viewer");
+  const [customizing, setCustomizing] = useState<Member | null>(null);
 
   const setRole = (userId: string, role: string) => start(async () => {
     const r = await addUserToOrgAction(userId, role);
@@ -47,7 +129,7 @@ export function PermissionsMembers({
     <Card>
       <CardHeader>
         <CardTitle>أعضاء المؤسسة وأدوارهم</CardTitle>
-        <CardDescription>يحدّد دور كل مستخدم ما يمكنه فعله. راجع مصفوفة الصلاحيات أدناه لمعرفة تفاصيل كل دور.</CardDescription>
+        <CardDescription>يحدّد دور كل مستخدم ما يمكنه فعله. استخدم «تخصيص» لمنح أو منع صلاحيات فردية فوق الدور.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {canManage && nonMembers.length > 0 && (
@@ -73,42 +155,65 @@ export function PermissionsMembers({
           <TableHeader>
             <TableRow>
               <TableHead className="text-start">المستخدم</TableHead>
-              <TableHead className="text-start">الدور (الصلاحيات)</TableHead>
+              <TableHead className="text-start">الدور</TableHead>
+              <TableHead className="text-start">تخصيصات</TableHead>
               {canManage && <TableHead className="text-start">إجراءات</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {members.map((m) => (
-              <TableRow key={m.userId}>
-                <TableCell>
-                  <div className="font-medium">{m.name}</div>
-                  <div className="text-xs text-muted-foreground" dir="ltr">{m.email}</div>
-                </TableCell>
-                <TableCell>
-                  {m.isSystemAdmin ? (
-                    <Badge>مدير النظام — كل الصلاحيات</Badge>
-                  ) : canManage ? (
-                    <select value={m.role} onChange={(e) => setRole(m.userId, e.target.value)} disabled={pending} className={selectCls}>
-                      {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                    </select>
-                  ) : (
-                    <Badge variant="outline">{roleLabels[m.role] ?? m.role}</Badge>
-                  )}
-                </TableCell>
-                {canManage && (
+            {members.map((m) => {
+              const overrides = m.grant.length + m.revoke.length;
+              return (
+                <TableRow key={m.userId}>
                   <TableCell>
-                    {!m.isSystemAdmin && (
-                      <Button variant="ghost" size="icon" disabled={pending} onClick={() => remove(m.userId)} aria-label="إزالة من المؤسسة">
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                    <div className="font-medium">{m.name}</div>
+                    <div className="text-xs text-muted-foreground" dir="ltr">{m.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    {m.isSystemAdmin ? (
+                      <Badge>مدير النظام — كل الصلاحيات</Badge>
+                    ) : canManage ? (
+                      <select value={m.role} onChange={(e) => setRole(m.userId, e.target.value)} disabled={pending} className={selectCls}>
+                        {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                    ) : (
+                      <Badge variant="outline">{roleLabels[m.role] ?? m.role}</Badge>
                     )}
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                  <TableCell>
+                    {m.isSystemAdmin ? <span className="text-xs text-muted-foreground">—</span> : overrides > 0 ? (
+                      <div className="flex gap-1">
+                        {m.grant.length > 0 && <Badge variant="default" className="text-[10px]">+{m.grant.length} سماح</Badge>}
+                        {m.revoke.length > 0 && <Badge variant="destructive" className="text-[10px]">−{m.revoke.length} منع</Badge>}
+                      </div>
+                    ) : <span className="text-xs text-muted-foreground">لا شيء</span>}
+                  </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {!m.isSystemAdmin && (
+                          <>
+                            <Button variant="ghost" size="sm" disabled={pending} onClick={() => setCustomizing(m)}>
+                              <SlidersHorizontal className="me-1 size-4" />تخصيص
+                            </Button>
+                            <Button variant="ghost" size="icon" disabled={pending} onClick={() => remove(m.userId)} aria-label="إزالة من المؤسسة">
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!customizing} onOpenChange={(o) => !o && setCustomizing(null)}>
+        {customizing && <OverridesDialog key={customizing.userId} member={customizing} rolePerms={rolePerms} catalog={catalog} roleLabels={roleLabels} onClose={() => setCustomizing(null)} />}
+      </Dialog>
     </Card>
   );
 }

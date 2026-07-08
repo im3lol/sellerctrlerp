@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { receiptVouchers, customers, salesInvoices } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +23,8 @@ const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل ب�
 type SP = { q?: string; status?: string; method?: string; from?: string; to?: string; page?: string };
 
 export default async function ReceiptsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { orgId, role } = await requireErpModule("sales.view");
-  const canManage = erpCan(role, "sales.collect");
+  const { orgId, role, can } = await requireErpModule("sales.view");
+  const canManage = can("sales.collect");
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const status = sp.status ?? "";
@@ -73,7 +73,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
         title="سندات القبض"
         subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} سند — محصّل (مرحّل) ${fmt(posted)}`}
         action={
-          erpCan(role, "sales.collect") ? (
+          can("sales.collect") ? (
             <Button asChild>
               <Link href="/erp/sales/receipts/new"><Icon name="Plus" className="size-4" />سند قبض</Link>
             </Button>

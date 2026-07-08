@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { organizations, accounts, accountingConfigurations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -18,8 +18,8 @@ const MANAGE_LINKS = [
 ] as const;
 
 export default async function ErpSettingsPage() {
-  const { orgId, role } = await requireErpModule("settings.view");
-  const canEdit = erpCan(role, "settings.edit");
+  const { orgId, role, can } = await requireErpModule("settings.view");
+  const canEdit = can("settings.edit");
 
   const [[org], accs, [config]] = await Promise.all([
     db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1),

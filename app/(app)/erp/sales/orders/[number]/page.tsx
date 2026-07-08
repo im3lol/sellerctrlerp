@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, items, itemCodes, deliveryNotes, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
 import Link from "next/link";
@@ -32,7 +32,7 @@ const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "�
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("sales.view");
+  const { orgId, role, can } = await requireErpModule("sales.view");
 
   if (UUID_RE.test(raw)) {
     const [byId] = await db.select({ number: salesOrders.number }).from(salesOrders)
@@ -104,7 +104,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
   const settleFees = settle.reduce((s, r) => s + r.fees, 0);
 
   const st = STATUS[so.status] ?? { label: so.status, variant: "secondary" as const };
-  const canManage = erpCan(role, "sales.create");
+  const canManage = can("sales.create");
 
   return (
     <div className="space-y-6">

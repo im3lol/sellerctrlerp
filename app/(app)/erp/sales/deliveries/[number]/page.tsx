@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices, salesReturns, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("sales.view");
+  const { orgId, role, can } = await requireErpModule("sales.view");
 
   if (UUID_RE.test(raw)) {
     const [byId] = await db.select({ number: deliveryNotes.number }).from(deliveryNotes)
@@ -74,7 +74,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
   }
 
   const st = STATUS[dn.status] ?? { label: dn.status, variant: "secondary" as const };
-  const canManage = erpCan(role, "sales.create");
+  const canManage = can("sales.create");
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -25,9 +25,9 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ id: string }> };
 
 export default async function AssetDetailPage({ params }: Params) {
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
   const { id } = await params;
-  const canEdit = erpCan(role, "accounting.create");
+  const canEdit = can("accounting.create");
 
   const [asset] = await db
     .select({

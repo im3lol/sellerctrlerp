@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizationMembers } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/session";
-import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
+import { erpRoleHasPermission, erpRolePermissions, allErpPermissions, type ErpPermission } from "@/lib/erp/permissions";
 
 export class ErpAuthError extends Error {
   status: number;
@@ -43,6 +43,29 @@ export const getErpRole = cache(async (orgId: string, user: SessionUser): Promis
     .limit(1);
   if (!m || !m.isActive) return null;
   return m.role;
+});
+
+export type MemberAccess = { role: string | null; permissions: Set<string> };
+
+/**
+ * The caller's EFFECTIVE ERP permissions in an org = role permissions, plus any
+ * per-user `grant` overrides, minus any `revoke` overrides. A global system_admin
+ * gets everything. Cached per request. This is the single source of truth for
+ * both page guards and action authorization.
+ */
+export const getMemberAccess = cache(async (orgId: string, user: SessionUser): Promise<MemberAccess> => {
+  if (user.role === "system_admin") return { role: "super_admin", permissions: new Set(allErpPermissions) };
+  const [m] = await db
+    .select({ role: organizationMembers.role, isActive: organizationMembers.isActive, overrides: organizationMembers.permissionOverrides })
+    .from(organizationMembers)
+    .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, user.id)))
+    .limit(1);
+  if (!m || !m.isActive) return { role: null, permissions: new Set() };
+  const perms = new Set<string>(erpRolePermissions[m.role] ?? []);
+  const ov = m.overrides ?? null;
+  for (const p of ov?.grant ?? []) perms.add(p);
+  for (const p of ov?.revoke ?? []) perms.delete(p);
+  return { role: m.role, permissions: perms };
 });
 
 /** Require an authenticated user who belongs to the given org. */

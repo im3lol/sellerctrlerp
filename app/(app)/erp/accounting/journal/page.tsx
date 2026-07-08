@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +42,7 @@ const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent
 type SP = { q?: string; status?: string; source?: string; from?: string; to?: string; page?: string };
 
 export default async function JournalPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const status = sp.status ?? "";
@@ -111,7 +111,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                 <a href={`/api/erp/accounting/journal/export?${new URLSearchParams({ q, status, source, from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
               </Button>
             )}
-            {erpCan(role, "accounting.create") && (
+            {can("accounting.create") && (
               <Button asChild>
                 <Link href="/erp/accounting/journal/new"><Icon name="Plus" className="size-4" />قيد جديد</Link>
               </Button>

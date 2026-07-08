@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { bankAccounts, bankStatementLines, accounts, journalEntryLines, journalEntries } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -12,9 +12,9 @@ const fmt = (n: number) =>
 type Params = { params: Promise<{ id: string }> };
 
 export default async function BankAccountDetailPage({ params }: Params) {
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
   const { id } = await params;
-  const canEdit = erpCan(role, "accounting.create");
+  const canEdit = can("accounting.create");
 
   const [ba] = await db
     .select({

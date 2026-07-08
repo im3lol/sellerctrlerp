@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { stockAdjustments, stockAdjustmentLines, items, warehouses } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +15,8 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year
 
 export default async function AdjustmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { orgId, role } = await requireErpModule("inventory.view");
-  const canManage = erpCan(role, "inventory.create");
+  const { orgId, role, can } = await requireErpModule("inventory.view");
+  const canManage = can("inventory.create");
 
   const [adj] = await db.select().from(stockAdjustments)
     .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);

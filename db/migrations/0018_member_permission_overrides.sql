@@ -1,0 +1,1 @@
+ALTER TABLE "organization_members" ADD COLUMN IF NOT EXISTS "permission_overrides" jsonb;

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, accounts, costCenters } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,7 @@ const SOURCE: Record<string, string> = {
 
 export default async function JournalEntryDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
 
   // Public URLs use the readable document number; old UUID links redirect to it.
   if (UUID_RE.test(raw)) {
@@ -88,9 +88,9 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
             entryId={entry.id}
             status={entry.status}
             isReversal={isReversal}
-            canPost={erpCan(role, "accounting.post")}
-            canReverse={erpCan(role, "accounting.reverse")}
-            canDelete={erpCan(role, "accounting.create")}
+            canPost={can("accounting.post")}
+            canReverse={can("accounting.reverse")}
+            canDelete={can("accounting.create")}
           />
         }
       />

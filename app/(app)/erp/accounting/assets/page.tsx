@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, eq, ilike, or } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { fixedAssets } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -27,8 +27,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 type SP = { q?: string; category?: string; status?: string };
 
 export default async function FixedAssetsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { orgId, role } = await requireErpModule("accounting.view");
-  const canEdit = erpCan(role, "accounting.create");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
+  const canEdit = can("accounting.create");
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const category = sp.category ?? "";

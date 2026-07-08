@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices, purchaseReturns, itemCodes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role } = await requireErpModule("purchases.view");
+  const { orgId, role, can } = await requireErpModule("purchases.view");
 
   if (UUID_RE.test(raw)) {
     const [byId] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts)
@@ -75,7 +75,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
   }
 
   const st = STATUS[grn.status] ?? { label: grn.status, variant: "secondary" as const };
-  const canManage = erpCan(role, "purchases.create");
+  const canManage = can("purchases.create");
 
   return (
     <div className="space-y-6">

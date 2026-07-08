@@ -80,6 +80,8 @@ export const organizationMembers = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").notNull().default("viewer"),
+    // Per-user ERP permission overrides on top of the role: force-grant / force-revoke.
+    permissionOverrides: jsonb("permission_overrides").$type<{ grant: string[]; revoke: string[] }>(),
     isActive: boolean("is_active").notNull().default(true),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },

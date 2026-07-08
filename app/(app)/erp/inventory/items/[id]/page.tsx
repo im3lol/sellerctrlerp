@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, itemCodes, warehouses } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { orgId, role } = await requireErpModule("inventory.view");
+  const { orgId, role, can } = await requireErpModule("inventory.view");
 
   const [item] = await db.select().from(items).where(and(eq(items.id, id), eq(items.organizationId, orgId))).limit(1);
   if (!item) notFound();
@@ -43,7 +43,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         title={item.nameAr ?? item.code}
         subtitle={`الكود: ${item.code}`}
         backHref="/erp/inventory/items"
-        action={<ItemDetailActions itemId={item.id} canEdit={erpCan(role, "inventory.edit")} canDelete={erpCan(role, "inventory.delete")} />}
+        action={<ItemDetailActions itemId={item.id} canEdit={can("inventory.edit")} canDelete={can("inventory.delete")} />}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

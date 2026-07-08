@@ -1,12 +1,12 @@
 import { asc, eq } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { investors } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { InvestorsManager } from "@/components/erp/investors-manager";
 
 export default async function ErpInvestorsPage() {
-  const { orgId, role } = await requireErpModule("investors.view");
+  const { orgId, role, can } = await requireErpModule("investors.view");
   const rows = await db
     .select({
       id: investors.id,
@@ -24,7 +24,7 @@ export default async function ErpInvestorsPage() {
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="Coins" title="المستثمرون" subtitle={`${rows.length} مستثمر`} />
-      <InvestorsManager investors={rows} canManage={erpCan(role, "investors.edit")} />
+      <InvestorsManager investors={rows} canManage={can("investors.edit")} />
     </div>
   );
 }

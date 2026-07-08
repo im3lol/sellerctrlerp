@@ -127,6 +127,13 @@
       "when": 1783503543124,
       "tag": "0017_employee_optional_user",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783524309108,
+      "tag": "0018_member_permission_overrides",
+      "breakpoints": true
     }
   ]
 }

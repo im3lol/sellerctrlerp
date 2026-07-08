@@ -1,12 +1,12 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { requireErpModule, erpCan } from "@/lib/erp/org";
+import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, journalEntries, journalEntryLines } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AccountsTree } from "@/components/erp/accounts-tree";
 
 export default async function ChartOfAccountsPage() {
-  const { orgId, role } = await requireErpModule("accounting.view");
+  const { orgId, role, can } = await requireErpModule("accounting.view");
 
   const [rows, balRows] = await Promise.all([
     db
@@ -52,7 +52,7 @@ export default async function ChartOfAccountsPage() {
         subtitle={`${rows.length} حساب (${leafCount} تفصيلي)`}
         backHref="/erp/accounting"
       />
-      <AccountsTree accounts={rows} balances={balances} canManage={erpCan(role, "accounting.create")} />
+      <AccountsTree accounts={rows} balances={balances} canManage={can("accounting.create")} />
     </div>
   );
 }
