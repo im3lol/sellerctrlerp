@@ -4,14 +4,9 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";
-import { requireUser } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 
 type Res = { ok: true } | { error: string };
-async function owner(): Promise<string | null> {
-  const u = await requireUser();
-  return u.role === "system_admin" ? "غير مصرح" : null; // returns error string if NOT owner
-}
-// note: owner() returns the error message when the caller is NOT an owner, null when ok.
 
 export type CouponInput = {
   id?: string;
@@ -25,7 +20,7 @@ export type CouponInput = {
 };
 
 export async function upsertCouponAction(input: CouponInput): Promise<Res & { id?: string }> {
-  const err = await owner(); if (err) return { error: err };
+  await requireCapability("employee.manage");
   const code = input.code.trim().toUpperCase();
   if (!/^[A-Z0-9_-]{3,24}$/.test(code)) return { error: "الكود بحروف/أرقام إنجليزية (3-24)" };
   if (!["PERCENT", "FIXED"].includes(input.discountType)) return { error: "نوع خصم غير صحيح" };
@@ -52,7 +47,7 @@ export async function upsertCouponAction(input: CouponInput): Promise<Res & { id
 }
 
 export async function toggleCouponAction(id: string): Promise<Res> {
-  const err = await owner(); if (err) return { error: err };
+  await requireCapability("employee.manage");
   const [c] = await db.select({ isActive: discountCoupons.isActive }).from(discountCoupons).where(eq(discountCoupons.id, id)).limit(1);
   if (!c) return { error: "الكوبون غير موجود" };
   await db.update(discountCoupons).set({ isActive: !c.isActive, updatedAt: new Date() }).where(eq(discountCoupons.id, id));
@@ -60,7 +55,7 @@ export async function toggleCouponAction(id: string): Promise<Res> {
 }
 
 export async function deleteCouponAction(id: string): Promise<Res> {
-  const err = await owner(); if (err) return { error: err };
+  await requireCapability("employee.manage");
   await db.delete(discountCoupons).where(eq(discountCoupons.id, id));
   revalidatePath("/admin/coupons"); return { ok: true };
 }

@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 import { Logo } from "@/components/brand/logo";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 
-// Standalone admin panel — its own shell, no ERP nav. System admins only.
+// Standalone admin panel — its own shell, no ERP nav. Guarded like the rest of the
+// admin area (employee.manage — system_admin only).
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
-  if (user.role !== "system_admin") redirect("/dashboard");
+  const user = await requireCapability("employee.manage");
 
   return (
     <div className="flex min-h-screen bg-muted/30">

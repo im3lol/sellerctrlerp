@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, orgSubscriptions } from "@/db/schema";
+import { PageHeader } from "@/components/page-header";
 import { LicensingManager } from "@/components/admin/licensing-manager";
 
 // (admin) layout already restricts to system_admin.
@@ -23,10 +24,7 @@ export default async function LicensingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">التراخيص والتفعيل</h1>
-        <p className="text-muted-foreground">إدارة اشتراك كل مؤسسة والوحدات المفعّلة لها.</p>
-      </div>
+      <PageHeader title="التراخيص والتفعيل" description="إدارة اشتراك كل مؤسسة والوحدات المفعّلة لها." />
       <LicensingManager orgs={orgs} />
     </div>
   );

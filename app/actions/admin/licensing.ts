@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { orgSubscriptions } from "@/db/schema";
-import { requireUser } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 import { findRedeemableCoupon, applyDiscount, incrementRedemption } from "@/lib/erp/coupons";
 
@@ -23,8 +23,7 @@ export type SubInput = {
 /** Owner-only: set an organization's subscription/entitlement (activation),
  *  optionally applying a discount coupon to the price. */
 export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true; discounted?: number } | { error: string }> {
-  const user = await requireUser();
-  if (user.role !== "system_admin") return { error: "غير مصرح" };
+  await requireCapability("employee.manage");
   if (!input.organizationId) return { error: "مؤسسة غير محددة" };
   if (!STATUSES.includes(input.status)) return { error: "حالة غير صحيحة" };
 

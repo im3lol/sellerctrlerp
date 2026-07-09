@@ -2,6 +2,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { Icon } from "@/components/icon";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 
 const int = (n: number) => n.toLocaleString("ar-EG");
@@ -33,10 +34,7 @@ export default async function AdminHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">لوحة الإدارة</h1>
-        <p className="text-muted-foreground">إدارة المؤسسات والاشتراكات والمستخدمين — منفصلة عن الاستخدام اليومي للـ ERP.</p>
-      </div>
+      <PageHeader title="لوحة الإدارة" description="إدارة المؤسسات والاشتراكات والمستخدمين — منفصلة عن الاستخدام اليومي للـ ERP." />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         {stats.map((s) => (

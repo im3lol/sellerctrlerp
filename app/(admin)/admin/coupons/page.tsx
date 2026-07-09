@@ -1,6 +1,7 @@
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";
+import { PageHeader } from "@/components/page-header";
 import { CouponsManager } from "@/components/admin/coupons-manager";
 
 export default async function CouponsPage() {
@@ -12,10 +13,7 @@ export default async function CouponsPage() {
   }));
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">كوبونات الخصم</h1>
-        <p className="text-muted-foreground">أكواد خصم تُطبَّق على سعر الاشتراك عند التفعيل.</p>
-      </div>
+      <PageHeader title="كوبونات الخصم" description="أكواد خصم تُطبَّق على سعر الاشتراك عند التفعيل." />
       <CouponsManager coupons={coupons} />
     </div>
   );
