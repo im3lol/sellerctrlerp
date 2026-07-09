@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv } from "@/lib/erp/csv";
+import { parseCsv, detectHeaderRow, parseCsvWithHeader } from "@/lib/erp/csv";
 
 describe("parseCsv", () => {
   it("parses a simple header + rows", () => {
@@ -24,5 +24,31 @@ describe("parseCsv", () => {
 
   it("preserves embedded newlines inside quoted fields", () => {
     expect(parseCsv('a,b\n"line1\nline2",x')).toEqual([["a", "b"], ["line1\nline2", "x"]]);
+  });
+});
+
+describe("detectHeaderRow / parseCsvWithHeader (Amazon preamble)", () => {
+  const amazon = [
+    '"Includes Amazon Marketplace, Fulfillment by Amazon (FBA)..."',
+    '"All amounts in local currency, unless specified"',
+    '"Definitions:"',
+    '"date/time","settlement id","type","order id","total"',
+    '"1 Jan 2026","262","Order","405-1","218.45"',
+    '"2 Jan 2026","262","Transfer","","-500.00"',
+  ].join("\n");
+
+  it("finds the real header row past the preamble", () => {
+    const rows = parseCsv(amazon);
+    expect(detectHeaderRow(rows)).toBe(3); // the wide "date/time,..." row
+  });
+
+  it("parseCsvWithHeader drops the preamble so row 0 is the header", () => {
+    const rows = parseCsvWithHeader(amazon);
+    expect(rows[0]).toEqual(["date/time", "settlement id", "type", "order id", "total"]);
+    expect(rows).toHaveLength(3); // header + 2 data rows
+  });
+
+  it("returns row 0 for a normal CSV with no preamble", () => {
+    expect(detectHeaderRow(parseCsv("a,b,c\n1,2,3"))).toBe(0);
   });
 });

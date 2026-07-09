@@ -20,3 +20,24 @@ export function parseCsv(text: string): string[][] {
   if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
   return rows.filter((r) => r.some((c) => c.trim() !== ""));
 }
+
+/**
+ * Find the header row in a CSV that may start with preamble lines (Amazon reports
+ * put ~8 single-cell description lines before the real header). Heuristic: among
+ * the first rows, the header is the first one as wide as the widest row — preamble
+ * lines are 1 cell, the header + data are many. Returns 0 for a normal CSV.
+ */
+export function detectHeaderRow(rows: string[][]): number {
+  const scan = rows.slice(0, 25);
+  if (scan.length === 0) return 0;
+  const maxW = Math.max(...scan.map((r) => r.length));
+  if (maxW <= 1) return 0;
+  const idx = scan.findIndex((r) => r.length === maxW);
+  return idx < 0 ? 0 : idx;
+}
+
+/** Parse a CSV and drop any leading preamble, returning rows from the header down. */
+export function parseCsvWithHeader(text: string): string[][] {
+  const rows = parseCsv(text);
+  return rows.slice(detectHeaderRow(rows));
+}

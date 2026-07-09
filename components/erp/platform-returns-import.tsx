@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformReturnsAction, type PlatformReturnsResult } from "@/app/actions/erp/platform-returns";
-import { parseCsv } from "@/lib/erp/csv";
+import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +32,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     setResult(null);
     const reader = new FileReader();
     reader.onload = () => {
-      const parsed = parseCsv(String(reader.result ?? ""));
+      const parsed = parseCsvWithHeader(String(reader.result ?? ""));
       if (parsed.length < 2) { toast.error("الملف فارغ أو بلا بيانات"); return; }
       setRows(parsed); setFileName(file.name);
       const h = parsed[0];
