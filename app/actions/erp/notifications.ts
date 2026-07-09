@@ -4,6 +4,7 @@ import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
+import { countPendingDrafts } from "@/lib/erp/drafts";
 
 export type Activity = { action: string; summary: string | null; number: string | null; at: string; href: string | null };
 export type Notifications = {
@@ -13,6 +14,7 @@ export type Notifications = {
   overdueTotal: number;  // their total outstanding
   overdueAP: number;     // past-due purchase invoices with a balance
   overdueAPTotal: number;
+  pendingDrafts: number; // documents in DRAFT waiting for confirmation
   newActivity: number;   // documents created/confirmed since the caller's `since`
   total: number;         // badge = alerts + new activity
   recent: Activity[];    // last documents created/confirmed
@@ -28,13 +30,13 @@ const ENTITY_PATH: Record<string, string> = {
 // ponytail: counts + links to the existing alert pages — no notifications table,
 // no read/unread state. Add persistence when users need to dismiss individual ones.
 export async function getNotificationsAction(sinceIso?: string): Promise<Notifications> {
-  const empty: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, newActivity: 0, total: 0, recent: [] };
+  const empty: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, pendingDrafts: 0, newActivity: 0, total: 0, recent: [] };
   const { org } = await getActiveOrg();
   if (!org) return empty;
   const orgId = org.id;
   const since = sinceIso ? new Date(sinceIso) : null;
 
-  const [low, exp, ar, ap, activity, since_] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, drafts] = await Promise.all([
     db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id
@@ -70,6 +72,7 @@ export async function getNotificationsAction(sinceIso?: string): Promise<Notific
       ? db.select({ n: sql<number>`count(*)::int` }).from(auditLogs)
           .where(and(eq(auditLogs.organizationId, orgId), inArray(auditLogs.action, ["CREATE", "CONFIRM", "POST"]), gt(auditLogs.createdAt, since)))
       : Promise.resolve([{ n: 0 }]),
+    countPendingDrafts(orgId),
   ]);
 
   const lowStock = Number(low.rows[0]?.n ?? 0);
@@ -83,5 +86,5 @@ export async function getNotificationsAction(sinceIso?: string): Promise<Notific
     const base = ENTITY_PATH[a.entityType];
     return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
   });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, newActivity, total: lowStock + expiring + overdueAR + overdueAP + newActivity, recent };
+  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, newActivity, total: lowStock + expiring + overdueAR + overdueAP + drafts + newActivity, recent };
 }

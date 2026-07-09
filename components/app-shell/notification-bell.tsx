@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2 } from "lucide-react";
+import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, FileClock } from "lucide-react";
 import { getNotificationsAction, type Notifications } from "@/app/actions/erp/notifications";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ export function NotificationBell() {
 
   const total = n?.total ?? 0;
   const rows = [
+    { show: !!n?.pendingDrafts, icon: <FileClock className="size-4 text-amber-600" />, label: "مسودات بانتظار التأكيد", count: n?.pendingDrafts ?? 0, href: "/erp/drafts" },
     { show: !!n?.newActivity, icon: <FilePlus2 className="size-4 text-primary" />, label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/erp/audit" },
     { show: !!n?.lowStock, icon: <PackageX className="size-4 text-amber-600" />, label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/erp/inventory/reorder" },
     { show: !!n?.expiring, icon: <CalendarClock className="size-4 text-amber-600" />, label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/erp/inventory/expiry" },
