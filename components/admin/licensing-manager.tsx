@@ -31,14 +31,15 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
   const [interval, setInterval] = useState(org.interval);
   const [price, setPrice] = useState(String(org.price));
   const [expiresAt, setExpiresAt] = useState(org.expiresAt);
+  const [couponCode, setCouponCode] = useState("");
   const [modules, setModules] = useState<string[]>(org.enabledModules);
 
   const toggle = (m: string) => setModules((s) => s.includes(m) ? s.filter((x) => x !== m) : [...s, m]);
   const allOn = () => setModules([...ALL_MODULES]);
 
   const save = () => start(async () => {
-    const r = await setSubscriptionAction({ organizationId: org.id, status, planName, interval: interval || null, price: Number(price) || 0, expiresAt: expiresAt || null, enabledModules: modules });
-    if ("ok" in r) { toast.success("تم حفظ الاشتراك"); onClose(); router.refresh(); }
+    const r = await setSubscriptionAction({ organizationId: org.id, status, planName, interval: interval || null, price: Number(price) || 0, expiresAt: expiresAt || null, enabledModules: modules, couponCode: couponCode || null });
+    if ("ok" in r) { toast.success(r.discounted != null ? `تم — بعد الخصم: ${r.discounted.toLocaleString("ar-EG")}` : "تم حفظ الاشتراك"); onClose(); router.refresh(); }
     else toast.error(r.error);
   });
 
@@ -65,6 +66,7 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
             </select>
           </div>
           <div className="space-y-1.5"><Label>السعر / الدورة</Label><Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>كوبون خصم</Label><Input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="اختياري" className="font-mono" /></div>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between"><Label>الوحدات المفعّلة</Label><button type="button" onClick={allOn} className="text-xs text-primary hover:underline">تفعيل الكل</button></div>

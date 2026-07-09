@@ -1417,6 +1417,25 @@ export const orgSubscriptions = pgTable(
   (t) => [uniqueIndex("org_subscriptions_org_idx").on(t.organizationId)],
 );
 
+// Platform-owner discount coupons, applied when activating a subscription.
+export const discountCoupons = pgTable(
+  "discount_coupons",
+  {
+    id: pk(),
+    code: text("code").notNull(),
+    description: text("description"),
+    discountType: text("discount_type").notNull().default("PERCENT"), // PERCENT | FIXED
+    value: money("value").notNull().default("0"),
+    isActive: boolean("is_active").notNull().default(true),
+    maxRedemptions: integer("max_redemptions"), // null = unlimited
+    redemptions: integer("redemptions").notNull().default(0),
+    expiresAt: ts("expires_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("discount_coupons_code_idx").on(t.code)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,

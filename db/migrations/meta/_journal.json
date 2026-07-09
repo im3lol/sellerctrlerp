@@ -148,6 +148,13 @@
       "when": 1783542075272,
       "tag": "0020_sales_platforms",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783600766416,
+      "tag": "0021_discount_coupons",
+      "breakpoints": true
     }
   ]
 }
