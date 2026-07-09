@@ -4,7 +4,7 @@ import {
   Boxes,
   ShoppingCart,
   ReceiptText,
-  Target,
+  Store,
   LayoutDashboard,
   FileSpreadsheet,
   PackageX,
@@ -26,10 +26,20 @@ import {
   Mail,
   Share2,
   Check,
+  HardDrive,
+  UserCog,
 } from "lucide-react";
+import { asc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { plans } from "@/db/schema";
+import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// Static marketing page; refresh plan pricing at most hourly (ISR) so the DB
+// query doesn't run per request.
+export const revalidate = 3600;
 
 // Pain points the unified system removes.
 const PAINS = [
@@ -45,7 +55,7 @@ const MODULES = [
   { icon: Boxes, title: "مخزون دقيق", desc: "متعدد المستودعات، تكلفة بالدفعة (FIFO)، تتبّع الدفعات وتاريخ الصلاحية (FEFO)، تسويات وتحويلات، وتنبيهات النواقص والانتهاء." },
   { icon: ShoppingCart, title: "دورة شراء كاملة", desc: "أمر شراء ← إذن استلام ← فاتورة ← دفعة، مع المرتجعات وأعمار ذمم الموردين." },
   { icon: ReceiptText, title: "دورة بيع كاملة", desc: "أمر بيع ← تسليم ← فاتورة ← تحصيل، مع المرتجعات وأعمار ذمم العملاء." },
-  { icon: Target, title: "CRM وخط أنابيب مبيعات", desc: "أدِر العملاء والفرص بأسلوب Kanban — من عميل محتمل إلى صفقة مكسوبة تتحوّل لأمر بيع بضغطة." },
+  { icon: Store, title: "منصات البيع", desc: "اربط أمازون ونون — استورد الطلبات والتسويات والمرتجعات، وكل عملية تترحّل لمخزونك وحساباتك تلقائياً." },
   { icon: LayoutDashboard, title: "لوحة تحكم لحظية", desc: "الأرباح والنقدية والذمم وقيمة المخزون — صورة كاملة لتجارتك في شاشة واحدة." },
 ];
 
@@ -73,7 +83,15 @@ const FAQS = [
 
 const MARKETPLACES = ["amazon", "noon", "Trendyol", "جرير", "سوق"];
 
-export default function Home() {
+export default async function Home() {
+  // Degrade to the empty-state pricing card if the DB is unreachable at build/runtime.
+  const catalog = await db.select().from(plans).where(eq(plans.isActive, true))
+    .orderBy(asc(plans.sortOrder), asc(plans.priceMonthly)).catch(() => []);
+  const pricing = catalog.map((p) => ({
+    name: p.name, priceMonthly: Number(p.priceMonthly), priceAnnual: Number(p.priceAnnual),
+    maxUsers: p.maxUsers, storageGb: p.storageGb, modules: p.enabledModules ?? [],
+  }));
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
@@ -83,6 +101,7 @@ export default function Home() {
           <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
             <a href="#modules" className="hover:text-foreground">الموديولات</a>
             <a href="#why" className="hover:text-foreground">لماذا نحن</a>
+            <a href="#pricing" className="hover:text-foreground">الأسعار</a>
             <a href="#how" className="hover:text-foreground">كيف يعمل</a>
             <a href="#faq" className="hover:text-foreground">الأسئلة</a>
           </nav>
@@ -102,14 +121,14 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-4 py-16 text-center md:py-24 md:px-6">
           <span className="inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
             <ShieldCheck className="size-4 text-primary" />
-            منصة ERP + CRM عربية متكاملة للبائعين
+            نظام ERP عربي متكامل للبائعين
           </span>
           <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
             نظام واحد يدير تجارتك
             <span className="text-primary"> بالكامل</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
-            منصة متكاملة تجمع المحاسبة والمخزون ودورة البيع والشراء وإدارة العملاء —
+            منصة متكاملة تجمع المحاسبة والمخزون ودورة البيع والشراء وتكامل منصات البيع —
             مصمّمة خصيصاً لبائعي أمازون ونون والعلامات التجارية.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -232,6 +251,17 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing / plans */}
+      <section id="pricing" className="py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 md:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">باقات تناسب حجم تجارتك</h2>
+            <p className="mt-3 text-muted-foreground">ابدأ بتجربة مجانية ١٤ يوماً — بدون بطاقة ائتمان. اختر باقتك بعد كده.</p>
+          </div>
+          <Pricing plans={pricing} />
+        </div>
+      </section>
+
       {/* FAQ */}
       <section id="faq" className="py-16 md:py-24">
         <div className="mx-auto max-w-3xl px-4 md:px-6">
@@ -279,7 +309,7 @@ export default function Home() {
             <div className="space-y-3">
               <Logo className="text-2xl text-primary-foreground" />
               <p className="text-sm text-primary-foreground/70">
-                SellerCtrl — نظام ERP و CRM موحّد يدير تجارتك بالكامل من مكان واحد.
+                SellerCtrl — نظام ERP موحّد يدير تجارتك بالكامل من مكان واحد.
               </p>
             </div>
             <FooterCol title="المنتج" links={["الموديولات", "لماذا نحن", "الأسعار", "الأمان"]} />
@@ -307,10 +337,11 @@ export default function Home() {
 const PREVIEW_NAV = [
   { label: "لوحة التحكم", icon: LayoutDashboard, active: true },
   { label: "المحاسبة", icon: Calculator },
-  { label: "المخزون", icon: Boxes },
   { label: "المبيعات", icon: ReceiptText },
   { label: "المشتريات", icon: ShoppingCart },
-  { label: "الفرص (CRM)", icon: Target },
+  { label: "المخزون", icon: Boxes },
+  { label: "منصات البيع", icon: Store },
+  { label: "الموارد البشرية", icon: UserCog },
   { label: "التقارير", icon: ChartPie },
   { label: "الإعدادات", icon: Settings },
 ] as const;
@@ -329,11 +360,11 @@ function DashboardPreview() {
   const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"];
   const revenue = "10,28 66,32 122,24 178,34 234,40 290,50";
   const expense = "10,60 66,58 122,62 178,56 234,60 290,64";
-  const stages = [
-    { name: "جديد", count: "8", val: "92,000" },
-    { name: "عرض سعر", count: "5", val: "61,000" },
-    { name: "تفاوض", count: "3", val: "38,000" },
-    { name: "مكسوب", count: "6", val: "120,000" },
+  const alerts = [
+    { text: "ذمم متأخرة: 18,400", tone: "text-destructive", bg: "border-destructive/30 bg-destructive/5" },
+    { text: "أصناف نافدة: 3", tone: "text-destructive", bg: "border-destructive/30 bg-destructive/5" },
+    { text: "مخزون منخفض: 7", tone: "text-amber-700", bg: "border-amber-500/30 bg-amber-500/5" },
+    { text: "قرب انتهاء الصلاحية: 5", tone: "text-amber-700", bg: "border-amber-500/30 bg-amber-500/5" },
   ];
   return (
     <div className="flex" dir="rtl">
@@ -361,6 +392,12 @@ function DashboardPreview() {
           <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px] text-muted-foreground sm:flex"><Search className="size-3" /> ابحث…</div>
           <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">أ م</span>
         </div>
+      </div>
+
+      {/* Trial banner */}
+      <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-1.5 text-[10px] font-medium text-amber-700">
+        <span>الفترة التجريبية — متبقٍ ١٤ يوم</span>
+        <span className="underline">اشترك الآن ←</span>
       </div>
 
       {/* KPI strip */}
@@ -408,19 +445,52 @@ function DashboardPreview() {
         </div>
       </div>
 
-      {/* CRM pipeline strip */}
-      <div className="mt-3 rounded-xl border bg-card p-3">
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><Target className="size-3.5 text-primary" /> خط أنابيب المبيعات (CRM)</div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {stages.map((s) => (
-            <div key={s.name} className="rounded-lg bg-muted/40 p-2">
-              <div className="flex items-center justify-between text-[10px]"><span className="font-medium">{s.name}</span><span className="rounded-full bg-card px-1.5 text-muted-foreground tabular-nums">{s.count}</span></div>
-              <div className="mt-1 text-xs font-bold tabular-nums text-emerald-600">{s.val}</div>
-            </div>
-          ))}
+      {/* Alerts strip — matches the live dashboard */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {alerts.map((a) => (
+          <span key={a.text} className={cn("rounded-lg border px-2.5 py-1.5 text-[10px] font-medium", a.bg, a.tone)}>{a.text}</span>
+        ))}
+      </div>
+      </div>
+    </div>
+  );
+}
+
+type PlanCard = { name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
+
+function Pricing({ plans }: { plans: PlanCard[] }) {
+  const egp = (n: number) => n.toLocaleString("ar-EG");
+  if (plans.length === 0) {
+    return (
+      <div className="mt-10 rounded-3xl border bg-card p-10 text-center">
+        <p className="text-lg font-semibold">خطط مرنة تناسب كل حجم</p>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">ابدأ تجربتك المجانية الآن، وتواصل معنا لاختيار الباقة المناسبة لعدد مستخدميك وحجم تخزينك.</p>
+        <Button asChild className="mt-6"><Link href="/login">ابدأ التجربة المجانية <ArrowLeft className="size-4" /></Link></Button>
+      </div>
+    );
+  }
+  const popular = plans.length >= 3 ? Math.floor(plans.length / 2) : -1;
+  return (
+    <div className={cn("mt-12 grid gap-6", plans.length >= 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 max-w-3xl mx-auto")}>
+      {plans.map((p, i) => (
+        <div key={p.name} className={cn("relative flex flex-col rounded-2xl border bg-card p-6", i === popular && "border-primary shadow-lg ring-1 ring-primary")}>
+          {i === popular && <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">الأكثر شيوعاً</span>}
+          <h3 className="text-lg font-bold">{p.name}</h3>
+          <div className="mt-3 flex items-end gap-1">
+            <span className="text-3xl font-black tabular-nums">{p.priceMonthly > 0 ? egp(p.priceMonthly) : "مجاناً"}</span>
+            {p.priceMonthly > 0 && <span className="pb-1 text-sm text-muted-foreground">ج.م / شهر</span>}
+          </div>
+          {p.priceAnnual > 0 && <div className="mt-1 text-xs text-muted-foreground">أو {egp(p.priceAnnual)} ج.م سنوياً</div>}
+          <ul className="mt-5 flex-1 space-y-2 text-sm">
+            <li className="flex items-center gap-2"><Users className="size-4 text-primary" />حتى {p.maxUsers == null ? "عدد غير محدود من المستخدمين" : `${egp(p.maxUsers)} مستخدم`}</li>
+            <li className="flex items-center gap-2"><HardDrive className="size-4 text-primary" />تخزين {p.storageGb == null ? "غير محدود" : `${egp(p.storageGb)} جيجابايت`}</li>
+            {p.modules.map((m) => (
+              <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{MODULE_LABELS[m] ?? m}</li>
+            ))}
+          </ul>
+          <Button asChild variant={i === popular ? "default" : "outline"} className="mt-6 w-full"><Link href="/login">ابدأ التجربة</Link></Button>
         </div>
-      </div>
-      </div>
+      ))}
     </div>
   );
 }
