@@ -51,25 +51,43 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const custId = platform.customerId;
 
-  const [[all], [month], statusRows, topItems, recent, [ret], [coll]] = await Promise.all([
-    db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)),
-    db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, monthStart))),
-    db.select({ status: salesOrders.status, n: sql<number>`count(*)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(salesOrders.status),
-    db.select({ name: items.nameAr, code: items.code, qty: sql<string>`sum(${salesOrderLines.quantity})`, total: sql<string>`sum(${salesOrderLines.totalAmount})` })
-      .from(salesOrderLines).innerJoin(salesOrders, eq(salesOrders.id, salesOrderLines.salesOrderId)).innerJoin(items, eq(items.id, salesOrderLines.itemId))
-      .where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(items.id).orderBy(desc(sql`sum(${salesOrderLines.totalAmount})`)).limit(5),
-    db.select({ number: salesOrders.number, date: salesOrders.date, status: salesOrders.status, ext: salesOrders.externalOrderId, total: salesOrders.totalAmount })
-      .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(8),
-    custId
-      ? db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.customerId, custId)))
-      : Promise.resolve([{ n: 0, total: "0" }]),
-    custId
-      ? db.select({ total: sql<string>`coalesce(sum(${receiptVouchers.amount}),0)` }).from(receiptVouchers).where(and(eq(receiptVouchers.organizationId, orgId), eq(receiptVouchers.customerId, custId), eq(receiptVouchers.status, "POSTED")))
-      : Promise.resolve([{ total: "0" }]),
-  ]);
+  // Analytics are best-effort: a slow/failed query (e.g. DB connection pressure on
+  // serverless) degrades this section instead of crashing the whole page. Split
+  // into small batches to keep the concurrent-connection burst low.
+  let ordersCount = 0, salesTotal = 0, monthN = 0, monthTotal = 0, retN = 0, retTotal = 0, collTotal = 0;
+  let statusRows: { status: string; n: number }[] = [];
+  let topItems: { name: string | null; code: string; qty: string; total: string }[] = [];
+  let recent: { number: string; date: Date; status: string; ext: string | null; total: string }[] = [];
+  let analyticsFailed = false;
+  try {
+    const [[all], [month], statusR] = await Promise.all([
+      db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)),
+      db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, monthStart))),
+      db.select({ status: salesOrders.status, n: sql<number>`count(*)` }).from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(salesOrders.status),
+    ]);
+    ordersCount = Number(all?.n ?? 0); salesTotal = Number(all?.total ?? 0);
+    monthN = Number(month?.n ?? 0); monthTotal = Number(month?.total ?? 0);
+    statusRows = statusR;
 
-  const ordersCount = Number(all?.n ?? 0);
-  const salesTotal = Number(all?.total ?? 0);
+    const [top, rec, [ret], [coll]] = await Promise.all([
+      db.select({ name: items.nameAr, code: items.code, qty: sql<string>`sum(${salesOrderLines.quantity})`, total: sql<string>`sum(${salesOrderLines.totalAmount})` })
+        .from(salesOrderLines).innerJoin(salesOrders, eq(salesOrders.id, salesOrderLines.salesOrderId)).innerJoin(items, eq(items.id, salesOrderLines.itemId))
+        .where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(items.id).orderBy(desc(sql`sum(${salesOrderLines.totalAmount})`)).limit(5),
+      db.select({ number: salesOrders.number, date: salesOrders.date, status: salesOrders.status, ext: salesOrders.externalOrderId, total: salesOrders.totalAmount })
+        .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(8),
+      custId
+        ? db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.customerId, custId)))
+        : Promise.resolve([{ n: 0, total: "0" }]),
+      custId
+        ? db.select({ total: sql<string>`coalesce(sum(${receiptVouchers.amount}),0)` }).from(receiptVouchers).where(and(eq(receiptVouchers.organizationId, orgId), eq(receiptVouchers.customerId, custId), eq(receiptVouchers.status, "POSTED")))
+        : Promise.resolve([{ total: "0" }]),
+    ]);
+    topItems = top; recent = rec;
+    retN = Number(ret?.n ?? 0); retTotal = Number(ret?.total ?? 0); collTotal = Number(coll?.total ?? 0);
+  } catch {
+    analyticsFailed = true;
+  }
+
   const avgOrder = ordersCount > 0 ? salesTotal / ordersCount : 0;
   const outstanding = Number(platform.customerBalance ?? 0);
 
@@ -83,13 +101,19 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
         action={<PlatformActions platformId={platform.id} isAmazon={isAmazon} />}
       />
 
+      {analyticsFailed && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
+          تعذّر تحميل التحليلات مؤقتًا — أعد تحميل الصفحة. (بقية الصفحة تعمل بشكل طبيعي.)
+        </div>
+      )}
+
       {/* Smart KPIs */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(month?.n ?? 0)} هذا الشهر`} />
-        <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(month?.total ?? 0)} هذا الشهر`} />
+        <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
+        <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
         <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />
-        <Kpi label="المرتجعات" value={fmt(ret?.total ?? 0)} hint={`${int(ret?.n ?? 0)} مرتجع`} tone={Number(ret?.total ?? 0) > 0 ? "danger" : undefined} />
-        <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(coll?.total ?? 0)} tone="ok" />
+        <Kpi label="المرتجعات" value={fmt(retTotal)} hint={`${int(retN)} مرتجع`} tone={retTotal > 0 ? "danger" : undefined} />
+        <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(collTotal)} tone="ok" />
         <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
       </div>
 
