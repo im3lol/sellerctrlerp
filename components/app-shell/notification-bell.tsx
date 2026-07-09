@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, FileClock } from "lucide-react";
-import { getNotificationsAction, type Notifications } from "@/app/actions/erp/notifications";
+import { getNotificationsAction } from "@/app/actions/erp/notifications";
+import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
