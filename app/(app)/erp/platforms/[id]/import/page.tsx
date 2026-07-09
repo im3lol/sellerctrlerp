@@ -7,13 +7,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PlatformImport } from "@/components/erp/platform-import";
 import { PlatformPaymentsImport } from "@/components/erp/platform-payments-import";
+import { PlatformReturnsImport } from "@/components/erp/platform-returns-import";
 import { PlatformInventoryImport } from "@/components/erp/platform-inventory-import";
 import { AmazonImport } from "@/components/erp/amazon-import";
 import { SettlementImport } from "@/components/erp/settlement-import";
-
-const soon = (msg: string) => (
-  <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{msg}</div>
-);
 
 export default async function PlatformImportPage({
   params, searchParams,
@@ -60,7 +57,7 @@ export default async function PlatformImportPage({
           </TabsList>
           <TabsContent value="orders"><PlatformImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="payments"><PlatformPaymentsImport platformId={platform.id} platformName={platform.name} hasBank={!!platform.bankAccountId} /></TabsContent>
-          <TabsContent value="returns">{soon("استيراد المرتجعات للمنصات العامة قريبًا. لأمازون تُعالَج ضمن التسويات.")}</TabsContent>
+          <TabsContent value="returns"><PlatformReturnsImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="inventory"><PlatformInventoryImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
         </Tabs>
       )}
