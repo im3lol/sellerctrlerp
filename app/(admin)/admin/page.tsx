@@ -3,6 +3,7 @@ import { Icon } from "@/components/icon";
 
 const SECTIONS = [
   { label: "المستخدمون", desc: "إنشاء مستخدمي النظام وتعيين أدوارهم وربطهم بالمؤسسات.", href: "/admin/users", icon: "Users" },
+  { label: "التراخيص والتفعيل", desc: "اشتراك كل مؤسسة، الوحدات المفعّلة، وتاريخ الانتهاء.", href: "/admin/licensing", icon: "KeyRound" },
 ] as const;
 
 export default function AdminHome() {

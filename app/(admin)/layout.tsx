@@ -17,6 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <nav className="ms-4 flex gap-1 text-sm">
           <Link href="/admin" className="rounded-lg px-3 py-2 transition-colors hover:bg-white/10">الرئيسية</Link>
           <Link href="/admin/users" className="rounded-lg px-3 py-2 transition-colors hover:bg-white/10">المستخدمون</Link>
+          <Link href="/admin/licensing" className="rounded-lg px-3 py-2 transition-colors hover:bg-white/10">التراخيص</Link>
         </nav>
         <div className="ms-auto flex items-center gap-3">
           <Link href="/dashboard" className="text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground hover:underline">← الرجوع للنظام</Link>
