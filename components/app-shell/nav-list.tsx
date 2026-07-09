@@ -17,13 +17,13 @@ function visibleItems(section: NavSection, role: Role) {
   return section.items.filter((it) => !it.capability || can(role, it.capability as Capability));
 }
 
-export function NavList({ role, modules, platforms, onNavigate }: { role: Role; modules?: string[]; platforms?: { id: string; name: string }[]; onNavigate?: () => void }) {
+export function NavList({ role, modules, platforms, onNavigate }: { role: Role; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   // Merge live platform links into the dynamic "المنصات" group.
   const withDynamic = (section: NavSection): NavSection =>
     section.dynamicKey === "platforms" && platforms?.length
-      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/erp/platforms/${p.id}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
+      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/erp/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
       : section;
 
   // A module is open if it contains the active route. Users can toggle modules

@@ -15,13 +15,13 @@ import { SettlementImport } from "@/components/erp/settlement-import";
 
 export default async function PlatformImportPage({
   params, searchParams,
-}: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
-  const { id } = await params;
+}: { params: Promise<{ code: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const { code: codeParam } = await params;
   const { tab } = await searchParams;
   const { orgId } = await requireErpModule("sales.create");
 
   const [platform] = await db.select().from(salesPlatforms)
-    .where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, orgId))).limit(1);
+    .where(and(eq(salesPlatforms.code, codeParam.toUpperCase()), eq(salesPlatforms.organizationId, orgId))).limit(1);
   if (!platform) notFound();
 
   const isAmazon = platform.integrationType === "amazon";
@@ -34,7 +34,7 @@ export default async function PlatformImportPage({
         icon="Upload"
         title={`استيراد — ${platform.name}`}
         subtitle="استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة"
-        backHref={`/erp/platforms/${platform.id}`}
+        backHref={`/erp/platforms/${platform.code.toLowerCase()}`}
       />
 
       {isAmazon ? (

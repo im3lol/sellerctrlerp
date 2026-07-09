@@ -20,7 +20,7 @@ export function Topbar({
   orgs: { id: string; nameAr: string }[];
   activeOrgId: string | null;
   modules: string[];
-  platforms?: { id: string; name: string }[];
+  platforms?: { id: string; name: string; code: string }[];
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">

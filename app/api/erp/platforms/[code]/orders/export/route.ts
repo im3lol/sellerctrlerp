@@ -12,12 +12,12 @@ const STATUS: Record<string, string> = {
 };
 
 /** Excel export of a platform's sales orders. */
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
+  const { code: codeParam } = await params;
   const { orgId } = await requireErpModule("sales.view");
 
   const [platform] = await db.select().from(salesPlatforms)
-    .where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, orgId))).limit(1);
+    .where(and(eq(salesPlatforms.code, codeParam.toUpperCase()), eq(salesPlatforms.organizationId, orgId))).limit(1);
   if (!platform) return new Response("Not found", { status: 404 });
 
   const rows = await db

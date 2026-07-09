@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Live platforms listed under the "المنصات" nav group.
   const platforms = activeOrg.org
-    ? await db.select({ id: salesPlatforms.id, name: salesPlatforms.name }).from(salesPlatforms)
+    ? await db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
         .where(and(eq(salesPlatforms.organizationId, activeOrg.org.id), eq(salesPlatforms.isActive, true)))
         .orderBy(asc(salesPlatforms.name))
     : [];

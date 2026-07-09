@@ -27,8 +27,8 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
   );
 }
 
-export default async function PlatformDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function PlatformDetailPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code: codeParam } = await params;
   const { orgId } = await requireErpModule("sales.view");
 
   const [platform] = await db
@@ -42,7 +42,7 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
     .leftJoin(customers, eq(customers.id, salesPlatforms.customerId))
     .leftJoin(warehouses, eq(warehouses.id, salesPlatforms.defaultWarehouseId))
     .leftJoin(bankAccounts, eq(bankAccounts.id, salesPlatforms.bankAccountId))
-    .where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, orgId)))
+    .where(and(eq(salesPlatforms.code, codeParam.toUpperCase()), eq(salesPlatforms.organizationId, orgId)))
     .limit(1);
   if (!platform) notFound();
 
@@ -98,7 +98,7 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
         title={platform.name}
         subtitle={`منصة ${isAmazon ? "أمازون" : "عامة"} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
         backHref="/erp/platforms"
-        action={<PlatformActions platformId={platform.id} isAmazon={isAmazon} />}
+        action={<PlatformActions code={platform.code.toLowerCase()} isAmazon={isAmazon} />}
       />
 
       {analyticsFailed && (

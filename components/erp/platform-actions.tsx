@@ -23,10 +23,10 @@ function OptionCard({ href, download, onClick, icon, title, subtitle, disabled }
   return <button type="button" onClick={onClick} className={cls}>{body}</button>;
 }
 
-export function PlatformActions({ platformId, isAmazon }: { platformId: string; isAmazon: boolean }) {
+export function PlatformActions({ code, isAmazon }: { code: string; isAmazon: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Choice>("choose");
-  const base = `/erp/platforms/${platformId}`;
+  const base = `/erp/platforms/${code}`;
   const paymentsTab = isAmazon ? "settlement" : "payments";
   const close = () => { setOpen(false); setMode("choose"); };
 
@@ -66,7 +66,7 @@ export function PlatformActions({ platformId, isAmazon }: { platformId: string; 
 
           {mode === "export" && (
             <div className="grid gap-3">
-              <OptionCard href={`/api/erp/platforms/${platformId}/orders/export`} download onClick={close} icon={<ShoppingCart className="size-5" />} title="مبيعات (Excel)" subtitle="تنزيل كل أوامر المنصة" />
+              <OptionCard href={`/api/erp/platforms/${code}/orders/export`} download onClick={close} icon={<ShoppingCart className="size-5" />} title="مبيعات (Excel)" subtitle="تنزيل كل أوامر المنصة" />
               <OptionCard icon={<Banknote className="size-5" />} title="مدفوعات (قريبًا)" subtitle="تصدير المدفوعات — قيد التطوير" disabled />
               <OptionCard icon={<Boxes className="size-5" />} title="مخزون (قريبًا)" subtitle="تصدير المخزون — قيد التطوير" disabled />
               <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">→ رجوع</button>

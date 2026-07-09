@@ -206,7 +206,7 @@ export async function importPlatformOrdersAction(platformId: string, ordersInput
   }
 
   revalidatePath("/erp/sales/orders");
-  revalidatePath(`/erp/platforms/${platformId}/import`);
+  revalidatePath("/erp/platforms/[code]/import", "page");
   return { ok: true, created, skippedDuplicate, unmatched: [...unmatched] };
 }
 
@@ -272,7 +272,7 @@ export async function importPlatformPaymentsAction(platformId: string, paymentsI
     } catch { /* skip a failed row, keep importing */ }
   }
   revalidatePath("/erp/sales/receipts");
-  revalidatePath(`/erp/platforms/${platformId}/import`);
+  revalidatePath("/erp/platforms/[code]/import", "page");
   return { ok: true, created, skippedDuplicate };
 }
 
