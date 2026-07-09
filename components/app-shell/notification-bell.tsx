@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2 } from "lucide-react";
 import { getNotificationsAction, type Notifications } from "@/app/actions/erp/notifications";
@@ -19,20 +19,32 @@ function ago(iso: string): string {
 
 export function NotificationBell() {
   const [n, setN] = useState<Notifications | null>(null);
+  const seenRef = useRef<string>("");
 
-  // ponytail: fetch once on mount for the badge; refetch on open. No polling.
-  const load = () => getNotificationsAction().then(setN).catch(() => {});
-  useEffect(() => { load(); }, []);
+  // ponytail: "seen" marker in localStorage (no per-user DB); the badge counts
+  // documents created since it. Poll every 60s so it lights up without a reload —
+  // swap for SSE/websocket if a minute's latency ever matters.
+  const load = () => getNotificationsAction(seenRef.current || undefined).then(setN).catch(() => {});
+  useEffect(() => {
+    seenRef.current = localStorage.getItem("notif_seen_at") ?? new Date().toISOString();
+    localStorage.setItem("notif_seen_at", seenRef.current);
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const markSeen = () => { const now = new Date().toISOString(); seenRef.current = now; localStorage.setItem("notif_seen_at", now); load(); };
 
   const total = n?.total ?? 0;
   const rows = [
+    { show: !!n?.newActivity, icon: <FilePlus2 className="size-4 text-primary" />, label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/erp/audit" },
     { show: !!n?.lowStock, icon: <PackageX className="size-4 text-amber-600" />, label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/erp/inventory/reorder" },
     { show: !!n?.expiring, icon: <CalendarClock className="size-4 text-amber-600" />, label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/erp/inventory/expiry" },
-    { show: !!n?.overdueAR, icon: <Clock className="size-4 text-destructive" />, label: `فواتير متأخرة السداد${n?.overdueTotal ? ` (${int(n.overdueTotal)})` : ""}`, count: n?.overdueAR ?? 0, href: "/erp/accounting/aging" },
+    { show: !!n?.overdueAR, icon: <Clock className="size-4 text-destructive" />, label: `فواتير بيع متأخرة${n?.overdueTotal ? ` (${int(n.overdueTotal)})` : ""}`, count: n?.overdueAR ?? 0, href: "/erp/accounting/aging" },
+    { show: !!n?.overdueAP, icon: <Clock className="size-4 text-destructive" />, label: `فواتير شراء متأخرة${n?.overdueAPTotal ? ` (${int(n.overdueAPTotal)})` : ""}`, count: n?.overdueAP ?? 0, href: "/erp/accounting/aging" },
   ].filter((r) => r.show);
 
   return (
-    <Popover onOpenChange={(o) => o && load()}>
+    <Popover onOpenChange={(o) => o && markSeen()}>
       <PopoverTrigger className="relative grid size-10 place-items-center rounded-lg hover:bg-accent" aria-label="الإشعارات">
         <Bell className="size-5" />
         {total > 0 && (
