@@ -4,6 +4,7 @@ import { Menu, Search } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ export function Topbar({
 
       {/* Actions (pushed to the end / left in RTL) */}
       <div className="ms-auto flex items-center gap-2">
+        <NotificationBell />
         <OrgSwitcher orgs={orgs} activeId={activeOrgId} />
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
         <UserMenu
