@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { documentAttachments } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
+import { storageLimitError } from "@/lib/erp/plans";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -60,6 +61,9 @@ export async function addAttachmentAction(
   // Rough byte size: base64 is ~4/3 ratio
   const fileSize = Math.round((base64Content.length * 3) / 4);
   if (fileSize > MAX_FILE_SIZE) return { error: "حجم الملف أكبر من 10 ميجابايت" };
+
+  const storageError = await storageLimitError(auth.orgId, fileSize);
+  if (storageError) return { error: storageError };
 
   const [row] = await db
     .insert(documentAttachments)

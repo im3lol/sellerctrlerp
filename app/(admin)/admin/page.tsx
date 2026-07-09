@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const int = (n: number) => n.toLocaleString("ar-EG");
 
 const SECTIONS = [
+  { label: "الباقات", desc: "خطط الاشتراك: الوحدات وحدود المستخدمين والتخزين والأسعار.", href: "/admin/plans", icon: "Package" },
   { label: "المؤسسات والاشتراكات", desc: "الاشتراكات، الوحدات المفعّلة، التفعيل والانتهاء.", href: "/admin/licensing", icon: "Building2" },
   { label: "المستخدمون", desc: "إنشاء مستخدمي النظام وأدوارهم وربطهم بالمؤسسات.", href: "/admin/users", icon: "Users" },
   { label: "كوبونات الخصم", desc: "أكواد خصم تُطبَّق على سعر الاشتراك.", href: "/admin/coupons", icon: "Ticket" },

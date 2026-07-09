@@ -1395,9 +1395,28 @@ export const salesReturnLines = pgTable("sales_return_lines", {
 
 /* ═══════════════ PLATFORM / LICENSING (SaaS) ══════════════ */
 
+// Subscription plans (باقات) — fixed tiers the owner defines. A plan bundles the
+// enabled modules with usage caps (users, storage). Subscribing an org to a plan
+// snapshots these onto its org_subscriptions row so editing a plan later doesn't
+// silently re-gate live tenants. null cap = unlimited.
+export const plans = pgTable("plans", {
+  id: pk(),
+  name: text("name").notNull(),
+  priceMonthly: money("price_monthly").notNull().default("0"),
+  priceAnnual: money("price_annual").notNull().default("0"),
+  enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+  maxUsers: integer("max_users"),   // null = unlimited
+  storageGb: integer("storage_gb"), // null = unlimited
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
 // One subscription/entitlement record per customer organization. `enabledModules`
 // is the source of truth for which ERP modules the tenant may access; the page
-// guards + nav read it. Managed by the platform owner (system_admin).
+// guards + nav read it. maxUsers/storageGb are the enforced caps (snapshot from
+// the plan at activation). Managed by the platform owner (system_admin).
 export const orgSubscriptions = pgTable(
   "org_subscriptions",
   {
@@ -1405,9 +1424,12 @@ export const orgSubscriptions = pgTable(
     organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("NONE"), // NONE, TRIAL, ACTIVE, EXPIRED, CANCELLED
     interval: text("interval"), // MONTHLY, ANNUAL
+    planId: text("plan_id").references(() => plans.id, { onDelete: "set null" }),
     planName: text("plan_name"),
     price: money("price").notNull().default("0"), // charged per interval (for MRR/ARR)
     enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
+    maxUsers: integer("max_users"),   // snapshot; null = unlimited
+    storageGb: integer("storage_gb"), // snapshot; null = unlimited
     startedAt: ts("started_at"),
     expiresAt: ts("expires_at"),
     activatedByCodeId: text("activated_by_code_id"),

@@ -14,7 +14,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-export type OrgSub = { id: string; name: string; status: string; planName: string; interval: string; price: number; enabledModules: string[]; expiresAt: string };
+export type OrgSub = { id: string; name: string; status: string; planId: string; planName: string; interval: string; price: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null; expiresAt: string };
+export type PlanOpt = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -23,13 +24,16 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   NONE: { label: "بلا اشتراك", variant: "outline" },
 };
 
-function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
+function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [status, setStatus] = useState(org.status);
+  const [planId, setPlanId] = useState(org.planId);
   const [planName, setPlanName] = useState(org.planName);
   const [interval, setInterval] = useState(org.interval);
   const [price, setPrice] = useState(String(org.price));
+  const [maxUsers, setMaxUsers] = useState(org.maxUsers != null ? String(org.maxUsers) : "");
+  const [storageGb, setStorageGb] = useState(org.storageGb != null ? String(org.storageGb) : "");
   const [expiresAt, setExpiresAt] = useState(org.expiresAt);
   const [couponCode, setCouponCode] = useState("");
   const [modules, setModules] = useState<string[]>(org.enabledModules);
@@ -37,8 +41,20 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
   const toggle = (m: string) => setModules((s) => s.includes(m) ? s.filter((x) => x !== m) : [...s, m]);
   const allOn = () => setModules([...ALL_MODULES]);
 
+  // Picking a plan snapshots its modules/caps/price into the form (still editable as an override).
+  const pickPlan = (id: string) => {
+    setPlanId(id);
+    const p = plans.find((x) => x.id === id);
+    if (!p) return;
+    setPlanName(p.name);
+    setModules(p.enabledModules);
+    setMaxUsers(p.maxUsers != null ? String(p.maxUsers) : "");
+    setStorageGb(p.storageGb != null ? String(p.storageGb) : "");
+    setPrice(String(interval === "ANNUAL" ? p.priceAnnual : p.priceMonthly));
+  };
+
   const save = () => start(async () => {
-    const r = await setSubscriptionAction({ organizationId: org.id, status, planName, interval: interval || null, price: Number(price) || 0, expiresAt: expiresAt || null, enabledModules: modules, couponCode: couponCode || null });
+    const r = await setSubscriptionAction({ organizationId: org.id, status, planId: planId || null, planName, interval: interval || null, price: Number(price) || 0, expiresAt: expiresAt || null, enabledModules: modules, maxUsers: maxUsers ? Number(maxUsers) : null, storageGb: storageGb ? Number(storageGb) : null, couponCode: couponCode || null });
     if ("ok" in r) { toast.success(r.discounted != null ? `تم — بعد الخصم: ${r.discounted.toLocaleString("ar-EG")}` : "تم حفظ الاشتراك"); onClose(); router.refresh(); }
     else toast.error(r.error);
   });
@@ -47,9 +63,18 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
     <DialogContent dir="rtl">
       <DialogHeader>
         <DialogTitle>ترخيص — {org.name}</DialogTitle>
-        <DialogDescription>الحالة والوحدات المفعّلة وتاريخ الانتهاء. «مفعّل» بلا تاريخ انتهاء = دائم.</DialogDescription>
+        <DialogDescription>اختر باقة لملء الحدود تلقائياً، أو عدّلها يدوياً. «مفعّل» بلا تاريخ انتهاء = دائم.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
+        {plans.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>الباقة</Label>
+            <select className={selectCls} value={planId} onChange={(e) => pickPlan(e.target.value)}>
+              <option value="">— مخصّص —</option>
+              {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>الحالة</Label>
@@ -58,7 +83,6 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
             </select>
           </div>
           <div className="space-y-1.5"><Label>تاريخ الانتهاء</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>اسم الباقة</Label><Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Pro" /></div>
           <div className="space-y-1.5">
             <Label>الدورة</Label>
             <select className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value)}>
@@ -66,6 +90,8 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
             </select>
           </div>
           <div className="space-y-1.5"><Label>السعر / الدورة</Label><Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>أقصى مستخدمين</Label><Input type="number" min="1" value={maxUsers} onChange={(e) => setMaxUsers(e.target.value)} placeholder="بلا حد" /></div>
+          <div className="space-y-1.5"><Label>التخزين (جيجابايت)</Label><Input type="number" min="1" value={storageGb} onChange={(e) => setStorageGb(e.target.value)} placeholder="بلا حد" /></div>
           <div className="space-y-1.5"><Label>كوبون خصم</Label><Input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="اختياري" className="font-mono" /></div>
         </div>
         <div className="space-y-2">
@@ -88,7 +114,7 @@ function EditDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
   );
 }
 
-export function LicensingManager({ orgs }: { orgs: OrgSub[] }) {
+export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
   const [editing, setEditing] = useState<OrgSub | null>(null);
   return (
     <Card>
@@ -122,7 +148,7 @@ export function LicensingManager({ orgs }: { orgs: OrgSub[] }) {
         </Table>
       </CardContent>
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        {editing && <EditDialog key={editing.id} org={editing} onClose={() => setEditing(null)} />}
+        {editing && <EditDialog key={editing.id} org={editing} plans={plans} onClose={() => setEditing(null)} />}
       </Dialog>
     </Card>
   );

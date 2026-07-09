@@ -12,11 +12,14 @@ const STATUSES = ["NONE", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"];
 export type SubInput = {
   organizationId: string;
   status: string;
+  planId?: string | null;
   planName?: string | null;
   interval?: string | null;
   price?: number;
   expiresAt?: string | null; // yyyy-mm-dd
   enabledModules: string[];
+  maxUsers?: number | null;   // null = unlimited
+  storageGb?: number | null;  // null = unlimited
   couponCode?: string | null;
 };
 
@@ -43,10 +46,13 @@ export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true
   const values = {
     organizationId: input.organizationId,
     status: input.status,
+    planId: input.planId || null,
     planName: input.planName?.trim() || null,
     interval: input.interval || null,
     price: String(price),
     enabledModules: modules,
+    maxUsers: input.maxUsers != null && input.maxUsers > 0 ? Math.floor(input.maxUsers) : null,
+    storageGb: input.storageGb != null && input.storageGb > 0 ? Math.floor(input.storageGb) : null,
     expiresAt,
     activatedByCodeId: couponId,
     startedAt: input.status === "ACTIVE" || input.status === "TRIAL" ? new Date() : null,

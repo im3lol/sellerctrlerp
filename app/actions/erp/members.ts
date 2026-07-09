@@ -7,6 +7,7 @@ import { organizationMembers } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { allErpPermissions } from "@/lib/erp/permissions";
+import { seatLimitError } from "@/lib/erp/plans";
 import type { ActionState } from "@/lib/erp/action-auth";
 
 // A "use server" file may only export async functions — keep the role list local.
@@ -19,8 +20,13 @@ export async function addUserToOrgAction(userId: string, role: string): Promise<
   if (!org) return { error: "لا توجد مؤسسة نشطة" };
   if (!ERP_ROLES.includes(role)) return { error: "دور غير صالح" };
 
-  const [existing] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
+  const [existing] = await db.select({ id: organizationMembers.id, isActive: organizationMembers.isActive }).from(organizationMembers)
     .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId))).limit(1);
+  // Enforce the plan seat cap only when this op adds an active seat (new member or reactivation).
+  if (!existing || !existing.isActive) {
+    const capError = await seatLimitError(org.id);
+    if (capError) return { error: capError };
+  }
   if (existing) {
     await db.update(organizationMembers).set({ role, isActive: true }).where(eq(organizationMembers.id, existing.id));
   } else {
