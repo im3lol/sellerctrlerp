@@ -35,11 +35,16 @@ export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatfor
   }
 
   if (!existing) {
+    // Upsert on the (organizationId, code) unique index so two concurrent imports
+    // can't collide — the loser reuses the winner's row instead of throwing.
     const [created] = await db.insert(salesPlatforms).values({
       organizationId: orgId, name: "أمازون", code: "AMAZON", integrationType: "amazon",
       customerId, defaultWarehouseId: warehouseId,
-    }).returning({ id: salesPlatforms.id });
-    return { platformId: created.id, customerId, warehouseId, bankAccountId: null };
+    }).onConflictDoUpdate({
+      target: [salesPlatforms.organizationId, salesPlatforms.code],
+      set: { customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() },
+    }).returning({ id: salesPlatforms.id, bankAccountId: salesPlatforms.bankAccountId });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId: created.bankAccountId ?? null };
   }
 
   // Backfill any missing links on an existing platform.

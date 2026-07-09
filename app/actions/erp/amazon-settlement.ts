@@ -230,7 +230,8 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
   // account (its GL account) when one is configured; otherwise keep default 1102.
   const plat = await ensureAmazonPlatform(auth.orgId);
   if (plat.bankAccountId) {
-    const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts).where(eq(bankAccounts.id, plat.bankAccountId)).limit(1);
+    const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
+      .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, auth.orgId))).limit(1);
     if (ba?.gl) accs.bank = ba.gl;
   }
 

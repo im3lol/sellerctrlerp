@@ -24,6 +24,7 @@ export type PlatformReturnsResult =
       skippedDuplicate: number;
       // reasons a row couldn't be turned into a return, with a small sample each
       noOrder: number; noInvoice: number; notOnInvoice: number; unmatchedSku: number; failed: number;
+      restockFailed: number; // money credited but stock restock failed — needs manual restock
       unmatchedSkus: string[];
     }
   | { ok: false; error: string };
@@ -63,7 +64,7 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
   for (const it of itemRows) byItemCode.set(normalizeCode(it.code), it.id);
   const matchItem = (sku: string) => { const n = normalizeCode(sku); return byNorm.get(n) ?? byItemCode.get(n) ?? null; };
 
-  let created = 0, skippedDuplicate = 0, noOrder = 0, noInvoice = 0, notOnInvoice = 0, unmatchedSku = 0, failed = 0;
+  let created = 0, skippedDuplicate = 0, noOrder = 0, noInvoice = 0, notOnInvoice = 0, unmatchedSku = 0, failed = 0, restockFailed = 0;
   const unmatchedSkus = new Set<string>();
 
   for (const rf of returns) {
@@ -99,11 +100,14 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
       .where(and(eq(stockMovements.organizationId, orgId), eq(stockMovements.referenceId, dn.id), eq(stockMovements.itemId, itemId), eq(stockMovements.type, "OUT"))).limit(1);
     const restockCost = outMove ? Number(outMove.unitCost) : (await currentStock(orgId, itemId, dn.warehouseId)).avgCost;
     const stockRet = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: [{ itemId, quantity: rf.quantity, unitPrice: restockCost }] });
-    if (stockRet.ok && stockRet.id) await confirmSalesReturnAction(stockRet.id);
+    let restocked = false;
+    if (stockRet.ok && stockRet.id) { const conf = await confirmSalesReturnAction(stockRet.id); restocked = !!conf.ok; }
     created++;
+    // Money credit posted but the stock restock failed — surface it (don't hide a half-done return).
+    if (!restocked) restockFailed++;
   }
 
   revalidatePath("/erp/sales/returns");
   revalidatePath(`/erp/platforms/${platformId}/import`);
-  return { ok: true, created, skippedDuplicate, noOrder, noInvoice, notOnInvoice, unmatchedSku, failed, unmatchedSkus: [...unmatchedSkus].slice(0, 30) };
+  return { ok: true, created, skippedDuplicate, noOrder, noInvoice, notOnInvoice, unmatchedSku, failed, restockFailed, unmatchedSkus: [...unmatchedSkus].slice(0, 30) };
 }
