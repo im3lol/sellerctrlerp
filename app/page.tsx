@@ -16,11 +16,9 @@ import {
   Zap,
   ShieldCheck,
   ArrowLeft,
-  TrendingUp,
   Users,
   Truck,
   Search,
-  Settings,
   ChartPie,
   Globe,
   Mail,
@@ -28,6 +26,13 @@ import {
   Check,
   HardDrive,
   UserCog,
+  Warehouse,
+  Coins,
+  UsersRound,
+  ChartColumn,
+  Wrench,
+  ChevronDown,
+  Bell,
 } from "lucide-react";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -336,121 +341,111 @@ export default async function Home() {
 
 const PREVIEW_NAV = [
   { label: "لوحة التحكم", icon: LayoutDashboard, active: true },
+  { label: "المنصات", icon: Store },
   { label: "المحاسبة", icon: Calculator },
-  { label: "المبيعات", icon: ReceiptText },
-  { label: "المشتريات", icon: ShoppingCart },
-  { label: "المخزون", icon: Boxes },
-  { label: "منصات البيع", icon: Store },
-  { label: "الموارد البشرية", icon: UserCog },
-  { label: "التقارير", icon: ChartPie },
-  { label: "الإعدادات", icon: Settings },
+  { label: "المشتريات", icon: Truck },
+  { label: "المخزون", icon: Warehouse },
+  { label: "المبيعات", icon: ShoppingCart },
+  { label: "المستثمرون", icon: Coins },
+  { label: "الموارد البشرية", icon: UsersRound },
+  { label: "التقارير والتحليلات", icon: ChartColumn },
+  { label: "الأدوات", icon: Wrench },
+  { label: "الإدارة والإعدادات", icon: ShieldCheck },
 ] as const;
 
 function DashboardPreview() {
+  // Demo (filler) figures so the marketing board reads as a live business, not zeros.
   const kpis = [
-    { label: "صافي الربح", value: "124,500", icon: TrendingUp, tone: "text-emerald-600" },
-    { label: "النقدية والبنوك", value: "86,200", icon: Wallet, tone: "text-foreground" },
-    { label: "ذمم مدينة", value: "42,300", icon: Users, tone: "text-foreground" },
-    { label: "ذمم دائنة", value: "31,800", icon: Truck, tone: "text-foreground" },
-    { label: "قيمة المخزون", value: "76,733", icon: Boxes, tone: "text-emerald-600" },
+    { label: "صافي الربح", value: "124,500", tone: "text-emerald-600" },
+    { label: "النقدية والبنك", value: "86,200", tone: "text-foreground" },
+    { label: "ذمم مدينة (عملاء)", value: "42,300", tone: "text-foreground" },
+    { label: "ذمم دائنة (موردون)", value: "31,800", tone: "text-foreground" },
+    { label: "قيمة المخزون", value: "76,733", tone: "text-foreground" },
+    { label: "مبيعات هذا الشهر", value: "312,000", tone: "text-foreground" },
   ];
-  // Two trend lines over the last 6 months. Points are ordered left→right in SVG
-  // space; since the board is RTL the right edge reads as the earliest month, so
-  // a line that climbs toward the left reads as growth over time.
-  const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"];
-  const revenue = "10,28 66,32 122,24 178,34 234,40 290,50";
-  const expense = "10,60 66,58 122,62 178,56 234,60 290,64";
   const alerts = [
     { text: "ذمم متأخرة: 18,400", tone: "text-destructive", bg: "border-destructive/30 bg-destructive/5" },
     { text: "أصناف نافدة: 3", tone: "text-destructive", bg: "border-destructive/30 bg-destructive/5" },
     { text: "مخزون منخفض: 7", tone: "text-amber-700", bg: "border-amber-500/30 bg-amber-500/5" },
-    { text: "قرب انتهاء الصلاحية: 5", tone: "text-amber-700", bg: "border-amber-500/30 bg-amber-500/5" },
+  ];
+  const tiles = [
+    { title: "المحاسبة", desc: "دليل الحسابات، القيود، التقارير المالية", icon: Calculator },
+    { title: "المبيعات", desc: "العملاء، أوامر البيع، الفواتير، أمازون", icon: ShoppingCart },
+    { title: "المشتريات", desc: "الموردون، أوامر الشراء، الفواتير", icon: Truck },
+    { title: "المخزون", desc: "الأصناف، الأرصدة، الحركة، التسويات", icon: Boxes },
+    { title: "الموارد البشرية", desc: "الموظفون ومسير الرواتب", icon: UserCog },
+    { title: "المستثمرون", desc: "المستثمرون وحصصهم", icon: Coins },
+    { title: "التقارير", desc: "ميزان المراجعة، الدخل، الميزانية، الضريبة", icon: ChartPie },
   ];
   return (
     <div className="flex" dir="rtl">
-      {/* Sidebar (القائمة الجانبية) — right side in RTL */}
-      <aside className="hidden w-44 shrink-0 flex-col bg-card p-3 md:flex">
-        <div className="mb-4 px-2 pt-1"><Logo className="text-lg text-primary" /></div>
-        <nav className="space-y-1">
+      {/* Sidebar — dark blue, right side in RTL (matches the live shell) */}
+      <aside className="hidden w-52 shrink-0 flex-col bg-primary p-3 text-primary-foreground md:flex">
+        <div className="mb-4 px-2 pt-1"><Logo className="text-lg text-primary-foreground" /></div>
+        <nav className="space-y-0.5">
           {PREVIEW_NAV.map((it) => (
-            <div key={it.label} className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium", "active" in it && it.active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}>
-              <it.icon className="size-4 shrink-0" /> {it.label}
+            <div key={it.label} className={cn("flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium", "active" in it && it.active ? "bg-white text-primary shadow-sm" : "text-primary-foreground/80")}>
+              <span className="flex items-center gap-2.5"><it.icon className="size-4 shrink-0" />{it.label}</span>
+              {!("active" in it && it.active) && <ChevronDown className="size-3 opacity-50" />}
             </div>
           ))}
         </nav>
+        <div className="mt-auto pt-3 text-[9px] text-primary-foreground/50">SellerCtrl Workspace OS · v1.0</div>
       </aside>
 
       {/* Main */}
-      <div className="flex-1 border-s bg-muted/20 p-4 sm:p-5">
-      {/* Top bar */}
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="text-sm font-bold">لوحة التحكم</div>
-          <div className="text-[10px] text-muted-foreground">نظرة شاملة على تجارتك</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px] text-muted-foreground sm:flex"><Search className="size-3" /> ابحث…</div>
-          <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">أ م</span>
-        </div>
-      </div>
-
-      {/* Trial banner */}
-      <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-1.5 text-[10px] font-medium text-amber-700">
-        <span>الفترة التجريبية — متبقٍ ١٤ يوم</span>
-        <span className="underline">اشترك الآن ←</span>
-      </div>
-
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
-        {kpis.map((k) => (
-          <div key={k.label} className="rounded-xl border bg-card p-3">
-            <div className="flex items-center justify-between gap-1">
-              <span className="truncate text-[10px] text-muted-foreground">{k.label}</span>
-              <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><k.icon className="size-3" /></span>
-            </div>
-            <div className={cn("mt-1 text-base font-bold tabular-nums", k.tone)}>{k.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* P&L + month */}
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <div className="rounded-xl border bg-card p-3 lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-semibold text-muted-foreground">الأرباح والخسائر</div>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-rose-400" /> الإيرادات</span>
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> المصروفات</span>
-            </div>
-          </div>
-          <svg viewBox="0 0 300 80" preserveAspectRatio="none" className="mt-3 h-24 w-full">
-            <line x1="0" y1="78" x2="300" y2="78" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            <polyline points={revenue} fill="none" className="stroke-rose-400" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <polyline points={expense} fill="none" className="stroke-blue-500" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          </svg>
-          <div className="mt-1 flex justify-between px-1 text-[10px] text-muted-foreground">
-            {months.map((m) => <span key={m}>{m}</span>)}
+      <div className="min-w-0 flex-1 bg-muted/20">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-2 border-b bg-card px-4 py-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground"><Search className="size-3 shrink-0" /> بحث…</div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <span className="relative grid size-7 place-items-center rounded-lg bg-muted">
+              <Bell className="size-3.5 text-muted-foreground" />
+              <span className="absolute -left-1.5 -top-1.5 rounded-full bg-destructive px-1 text-[8px] font-bold leading-4 text-white">+99</span>
+            </span>
+            <span className="hidden items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1 text-[11px] font-medium sm:flex"><Building2 className="size-3 text-primary" />سيلر كنترول</span>
+            <span className="flex items-center gap-1.5"><span className="grid size-7 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">ما</span><span className="hidden text-[11px] font-medium lg:block">مدير النظام</span></span>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-3">
-          <div className="text-[11px] font-semibold text-muted-foreground">حركة الشهر</div>
-          <div className="mt-2">
-            <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1 text-muted-foreground"><ReceiptText className="size-3 text-emerald-600" /> مبيعات</span><span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">24</span></div>
-            <div className="text-lg font-bold tabular-nums text-emerald-600">312,000</div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-5">
+          <div className="mb-4">
+            <div className="text-base font-bold">مرحباً، مدير النظام</div>
+            <div className="text-[11px] text-muted-foreground">نظام سيلر كنترول — نظرة عامة سريعة.</div>
           </div>
-          <div className="mt-2 border-t pt-2">
-            <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1 text-muted-foreground"><ShoppingCart className="size-3 text-primary" /> مشتريات</span><span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">11</span></div>
-            <div className="text-lg font-bold tabular-nums text-primary">148,500</div>
+
+          {/* KPI strip */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
+            {kpis.map((k) => (
+              <div key={k.label} className="rounded-xl border bg-card p-3">
+                <div className="truncate text-[10px] text-muted-foreground">{k.label}</div>
+                <div className={cn("mt-1 text-base font-bold tabular-nums", k.tone)}>{k.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Alerts */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {alerts.map((a) => (
+              <span key={a.text} className={cn("rounded-lg border px-2.5 py-1.5 text-[10px] font-medium", a.bg, a.tone)}>{a.text}</span>
+            ))}
+          </div>
+
+          {/* Modules */}
+          <div className="mt-4 mb-2 text-[11px] font-semibold text-muted-foreground">الوحدات</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {tiles.map((t) => (
+              <div key={t.title} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">{t.title}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">{t.desc}</div>
+                </div>
+                <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><t.icon className="size-4" /></div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Alerts strip — matches the live dashboard */}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {alerts.map((a) => (
-          <span key={a.text} className={cn("rounded-lg border px-2.5 py-1.5 text-[10px] font-medium", a.bg, a.tone)}>{a.text}</span>
-        ))}
-      </div>
       </div>
     </div>
   );
