@@ -9,6 +9,7 @@ import { PlatformImport } from "@/components/erp/platform-import";
 import { PlatformPaymentsImport } from "@/components/erp/platform-payments-import";
 import { PlatformReturnsImport } from "@/components/erp/platform-returns-import";
 import { PlatformInventoryImport } from "@/components/erp/platform-inventory-import";
+import { PlatformRemovalsImport } from "@/components/erp/platform-removals-import";
 import { AmazonImport } from "@/components/erp/amazon-import";
 import { SettlementImport } from "@/components/erp/settlement-import";
 
@@ -24,7 +25,7 @@ export default async function PlatformImportPage({
   if (!platform) notFound();
 
   const isAmazon = platform.integrationType === "amazon";
-  const allowed = isAmazon ? ["orders", "settlement", "inventory"] : ["orders", "payments", "returns", "inventory"];
+  const allowed = isAmazon ? ["orders", "settlement", "inventory", "removals"] : ["orders", "payments", "returns", "inventory", "removals"];
   const defaultTab = tab && allowed.includes(tab) ? tab : "orders";
 
   return (
@@ -42,10 +43,12 @@ export default async function PlatformImportPage({
             <TabsTrigger value="orders">مبيعات</TabsTrigger>
             <TabsTrigger value="settlement">تسويات (مرتجعات + مدفوعات + عمولات)</TabsTrigger>
             <TabsTrigger value="inventory">مخزون</TabsTrigger>
+            <TabsTrigger value="removals">إزالات</TabsTrigger>
           </TabsList>
           <TabsContent value="orders"><AmazonImport /></TabsContent>
           <TabsContent value="settlement"><SettlementImport /></TabsContent>
           <TabsContent value="inventory"><PlatformInventoryImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
+          <TabsContent value="removals"><PlatformRemovalsImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
         </Tabs>
       ) : (
         <Tabs defaultValue={defaultTab}>
@@ -54,11 +57,13 @@ export default async function PlatformImportPage({
             <TabsTrigger value="payments">مدفوعات</TabsTrigger>
             <TabsTrigger value="returns">مرتجعات</TabsTrigger>
             <TabsTrigger value="inventory">مخزون</TabsTrigger>
+            <TabsTrigger value="removals">إزالات</TabsTrigger>
           </TabsList>
           <TabsContent value="orders"><PlatformImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="payments"><PlatformPaymentsImport platformId={platform.id} platformName={platform.name} hasBank={!!platform.bankAccountId} /></TabsContent>
           <TabsContent value="returns"><PlatformReturnsImport platformId={platform.id} platformName={platform.name} /></TabsContent>
           <TabsContent value="inventory"><PlatformInventoryImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
+          <TabsContent value="removals"><PlatformRemovalsImport platformId={platform.id} platformName={platform.name} hasWarehouse={!!platform.defaultWarehouseId} /></TabsContent>
         </Tabs>
       )}
     </div>

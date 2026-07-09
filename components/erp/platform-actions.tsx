@@ -58,7 +58,8 @@ export function PlatformActions({ platformId, isAmazon }: { platformId: string; 
             <div className="grid gap-3">
               <OptionCard href={`${base}/import?tab=orders`} onClick={close} icon={<ShoppingCart className="size-5" />} title="مبيعات" subtitle="استيراد أوامر البيع من ملف المنصة" />
               <OptionCard href={`${base}/import?tab=${paymentsTab}`} onClick={close} icon={<Banknote className="size-5" />} title="مدفوعات" subtitle={isAmazon ? "من تقرير التسويات" : "سندات قبض على حساب المنصة البنكي"} />
-              <OptionCard href={`${base}/import?tab=inventory`} onClick={close} icon={<Boxes className="size-5" />} title="مخزون" subtitle="مستويات المخزون في مستودع المنصة" />
+              <OptionCard href={`${base}/import?tab=inventory`} onClick={close} icon={<Boxes className="size-5" />} title="مخزون" subtitle="مطابقة مستويات المخزون" />
+              <OptionCard href={`${base}/import?tab=removals`} onClick={close} icon={<Boxes className="size-5" />} title="إزالات وإتلاف" subtitle="الوحدات المُتلَفة/المُرتجَعة من المخزن" />
               <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">→ رجوع</button>
             </div>
           )}
