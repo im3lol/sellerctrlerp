@@ -1458,6 +1458,31 @@ export const discountCoupons = pgTable(
   (t) => [uniqueIndex("discount_coupons_code_idx").on(t.code)],
 );
 
+// A tenant's request to subscribe to a plan. Payment is offline for now
+// (InstaPay/wallet/bank; Paymob/Visa later) — the customer submits the request
+// with a payment reference, and the owner approves it in the admin panel, which
+// activates their org_subscriptions row. status: PENDING | APPROVED | REJECTED.
+export const subscriptionRequests = pgTable(
+  "subscription_requests",
+  {
+    id: pk(),
+    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    planId: text("plan_id").references(() => plans.id, { onDelete: "set null" }),
+    planName: text("plan_name").notNull(),
+    interval: text("interval").notNull().default("MONTHLY"), // MONTHLY | ANNUAL
+    price: money("price").notNull().default("0"),
+    paymentMethod: text("payment_method").notNull(), // INSTAPAY | BANK | VISA
+    paymentReference: text("payment_reference"), // wallet/transfer txn no. the customer entered
+    status: text("status").notNull().default("PENDING"),
+    note: text("note"),
+    requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: ts("reviewed_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscription_requests_org_idx").on(t.organizationId), index("subscription_requests_status_idx").on(t.status)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,

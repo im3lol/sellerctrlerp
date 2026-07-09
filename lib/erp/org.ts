@@ -62,7 +62,9 @@ export async function requireErpModule(
   // platform owner (system_admin) bypasses so they can support any account.
   if (user.role !== "system_admin") {
     const mod = moduleOfPermission(permission);
-    if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/dashboard?locked=${mod}`);
+    // Locked (trial lapsed / no active plan) or module not in the plan → send to
+    // the in-app subscription page to pick a plan.
+    if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/erp/settings/subscription?locked=${mod}`);
   }
   return { orgId: org.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
 }

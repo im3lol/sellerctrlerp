@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules } from "@/lib/erp/entitlements";
+import { getSubscriptionState } from "@/lib/erp/subscription";
 import { getErpOverview } from "@/lib/erp/overview";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
@@ -24,6 +25,12 @@ export default async function DashboardPage() {
   const { org } = await getActiveOrg();
   const enabled = user.role === "system_admin" || !org ? null : await getEnabledModules(org.id);
   const tiles = TILES.filter((t) => !enabled || enabled.has(t.module));
+  const sub = org && user.role !== "system_admin" ? await getSubscriptionState(org.id) : null;
+  const subBanner = sub && sub.isTrial
+    ? { cls: "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400", text: `الفترة التجريبية — متبقٍ ${sub.daysLeft} يوم. اشترك الآن للاستمرار.` }
+    : sub && !sub.live
+    ? { cls: "border-destructive/40 bg-destructive/5 text-destructive", text: "انتهت فترة وصولك — اختر باقة لتفعيل النظام." }
+    : null;
   const ov = org ? await getErpOverview(org.id) : null;
 
   const kpis = ov
@@ -43,6 +50,13 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold">مرحباً، {user.name}</h1>
         <p className="text-muted-foreground">نظام {org?.nameAr ?? "الإدارة"} — نظرة عامة سريعة.</p>
       </div>
+
+      {subBanner && (
+        <Link href="/erp/settings/subscription" className={`flex items-center justify-between rounded-2xl border p-4 ${subBanner.cls}`}>
+          <span className="text-sm font-medium">{subBanner.text}</span>
+          <span className="text-sm underline">إدارة الاشتراك ←</span>
+        </Link>
+      )}
 
       {ov && (
         <>

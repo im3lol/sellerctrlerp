@@ -9,16 +9,16 @@ const int = (n: number) => n.toLocaleString("ar-EG");
 
 const SECTIONS = [
   { label: "الباقات", desc: "خطط الاشتراك: الوحدات وحدود المستخدمين والتخزين والأسعار.", href: "/admin/plans", icon: "Package" },
-  { label: "المؤسسات والاشتراكات", desc: "الاشتراكات، الوحدات المفعّلة، التفعيل والانتهاء.", href: "/admin/licensing", icon: "Building2" },
-  { label: "المستخدمون", desc: "إنشاء مستخدمي النظام وأدوارهم وربطهم بالمؤسسات.", href: "/admin/users", icon: "Users" },
+  { label: "المؤسسات والاشتراكات", desc: "الاشتراكات، الاستهلاك، طلبات التفعيل والانتهاء.", href: "/admin/licensing", icon: "Building2" },
   { label: "كوبونات الخصم", desc: "أكواد خصم تُطبَّق على سعر الاشتراك.", href: "/admin/coupons", icon: "Ticket" },
+  { label: "أدوات النظام", desc: "حالة الخادم وقاعدة البيانات والتخزين المستهلك.", href: "/admin/system", icon: "Server" },
 ] as const;
 
 export default async function AdminHome() {
-  const [row] = await db.execute<{ orgs: number; usr: number; active: number; trial: number; revenue: string; coupons: number }>(sql`
+  const [row] = await db.execute<{ orgs: number; pending: number; active: number; trial: number; revenue: string; coupons: number }>(sql`
     SELECT
       (SELECT count(*)::int FROM organizations) AS orgs,
-      (SELECT count(*)::int FROM users WHERE is_active) AS usr,
+      (SELECT count(*)::int FROM subscription_requests WHERE status='PENDING') AS pending,
       (SELECT count(*)::int FROM org_subscriptions WHERE status='ACTIVE') AS active,
       (SELECT count(*)::int FROM org_subscriptions WHERE status='TRIAL') AS trial,
       (SELECT coalesce(sum(price),0) FROM org_subscriptions WHERE status='ACTIVE') AS revenue,
@@ -29,7 +29,7 @@ export default async function AdminHome() {
     { label: "المؤسسات", value: int(Number(row?.orgs ?? 0)), icon: "Building2" },
     { label: "اشتراكات مفعّلة", value: int(Number(row?.active ?? 0)), icon: "BadgeCheck", hint: `${int(Number(row?.trial ?? 0))} تجريبي` },
     { label: "إيراد الاشتراكات", value: Number(row?.revenue ?? 0).toLocaleString("ar-EG"), icon: "Coins" },
-    { label: "المستخدمون", value: int(Number(row?.usr ?? 0)), icon: "Users" },
+    { label: "طلبات معلّقة", value: int(Number(row?.pending ?? 0)), icon: "Clock", hint: Number(row?.pending ?? 0) > 0 ? "تحتاج مراجعة" : undefined },
     { label: "كوبونات فعّالة", value: int(Number(row?.coupons ?? 0)), icon: "Ticket" },
   ];
 

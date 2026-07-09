@@ -1,8 +1,5 @@
-import { cache } from "react";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orgSubscriptions } from "@/db/schema";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
+import { getSubscriptionState } from "@/lib/erp/subscription";
 
 // Re-export so existing imports from this file keep working.
 export { ALL_MODULES, MODULE_LABELS };
@@ -14,19 +11,13 @@ export function moduleOfPermission(permission: string): string {
 }
 
 /**
- * Modules the org may access. No subscription row → ALL enabled (existing tenants
- * are grandfathered). A live subscription (ACTIVE/TRIAL, not past expiry) → its
- * `enabledModules`. Expired/cancelled → nothing.
+ * Modules the org may access — delegates to the subscription engine. No row →
+ * 14-day trial from creation (all modules) then locked; a live subscription →
+ * its `enabledModules`; expired/cancelled → nothing. See {@link getSubscriptionState}.
  */
-// cache() deduplicates repeated calls within the same request (React Server
-// Components may call requireErpModule + orgHasModule for the same org).
-export const getEnabledModules = cache(async (orgId: string): Promise<Set<string>> => {
-  const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, orgId)).limit(1);
-  if (!sub) return new Set(ALL_MODULES);
-  const live = (sub.status === "ACTIVE" || sub.status === "TRIAL") && (!sub.expiresAt || new Date(sub.expiresAt) > new Date());
-  if (!live) return new Set();
-  return new Set(sub.enabledModules ?? []);
-});
+export async function getEnabledModules(orgId: string): Promise<Set<string>> {
+  return new Set((await getSubscriptionState(orgId)).modules);
+}
 
 /** Whether the org's subscription includes a module (`settings` is always core). */
 export async function orgHasModule(orgId: string, moduleKey: string): Promise<boolean> {

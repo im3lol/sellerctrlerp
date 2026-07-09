@@ -9,8 +9,8 @@ const NAV = [
   { label: "نظرة عامة", href: "/admin", icon: "LayoutDashboard", exact: true },
   { label: "الباقات", href: "/admin/plans", icon: "Package" },
   { label: "المؤسسات والاشتراكات", href: "/admin/licensing", icon: "Building2" },
-  { label: "المستخدمون", href: "/admin/users", icon: "Users" },
   { label: "كوبونات الخصم", href: "/admin/coupons", icon: "Ticket" },
+  { label: "أدوات النظام", href: "/admin/system", icon: "Server" },
 ];
 
 export function AdminSidebar() {

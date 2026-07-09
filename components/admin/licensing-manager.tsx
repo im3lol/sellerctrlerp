@@ -14,10 +14,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-export type OrgSub = { id: string; name: string; status: string; planId: string; planName: string; interval: string; price: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null; expiresAt: string };
+export type OrgSub = { id: string; name: string; status: string; planId: string; planName: string; interval: string; price: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null; members: number; storageBytes: number; expiresAt: string };
 export type PlanOpt = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
+const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} م.ب` : `${(b / 1024 ** 3).toFixed(2)} ج.ب`);
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ACTIVE: { label: "مفعّل", variant: "default" }, TRIAL: { label: "تجريبي", variant: "secondary" },
   EXPIRED: { label: "منتهٍ", variant: "destructive" }, CANCELLED: { label: "ملغى", variant: "destructive" },
@@ -125,6 +126,8 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
               <TableHead className="text-start">المؤسسة</TableHead>
               <TableHead className="text-start">الحالة</TableHead>
               <TableHead className="text-start">الباقة</TableHead>
+              <TableHead className="text-start">المستخدمون</TableHead>
+              <TableHead className="text-start">التخزين</TableHead>
               <TableHead className="text-start">الانتهاء</TableHead>
               <TableHead className="text-start">الوحدات</TableHead>
               <TableHead className="text-start">إجراءات</TableHead>
@@ -138,6 +141,8 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
                   <TableCell className="font-medium">{o.name}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                   <TableCell>{o.planName || <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="text-sm tabular-nums">{o.members.toLocaleString("ar-EG")}{o.maxUsers != null ? ` / ${o.maxUsers}` : ""}</TableCell>
+                  <TableCell className="text-sm tabular-nums">{fmtBytes(o.storageBytes)}{o.storageGb != null ? ` / ${o.storageGb} ج.ب` : ""}</TableCell>
                   <TableCell className="text-sm">{o.expiresAt || <span className="text-muted-foreground">بلا انتهاء</span>}</TableCell>
                   <TableCell className="text-sm">{o.status === "NONE" ? "الكل (افتراضي)" : `${o.enabledModules.length}/${ALL_MODULES.length}`}</TableCell>
                   <TableCell><Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button></TableCell>
