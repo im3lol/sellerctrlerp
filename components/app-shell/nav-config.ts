@@ -82,6 +82,7 @@ export const NAV: NavSection[] = [
       { label: "تسويات المخزون", href: "/erp/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view" },
       { label: "التحويلات المخزنية", href: "/erp/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view" },
       { label: "تنبيهات إعادة الطلب", href: "/erp/inventory/reorder", icon: "TriangleAlert", capability: "erp.inventory.view" },
+      { label: "المخزون الراكد", href: "/erp/inventory/dead-stock", icon: "PackageX", capability: "erp.inventory.view" },
       { label: "تنبيهات انتهاء الصلاحية", href: "/erp/inventory/expiry", icon: "CalendarClock", capability: "erp.inventory.view" },
     ],
   },
