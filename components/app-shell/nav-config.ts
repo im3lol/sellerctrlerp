@@ -155,13 +155,15 @@ export const NAV: NavSection[] = [
     icon: "ChartColumn",
     items: [
       { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie", capability: "erp.reports.view", exact: true },
-      { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view" },
-      { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale", capability: "erp.reports.view" },
-      { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view" },
-      { label: "أرباح مراكز التكلفة", href: "/erp/reports/cost-centers", icon: "Target", capability: "erp.reports.view" },
-      { label: "المؤشرات المالية", href: "/erp/reports/ratios", icon: "Activity", capability: "erp.reports.view" },
-      { label: "ضريبة القيمة المضافة", href: "/erp/reports/vat", icon: "Percent", capability: "erp.reports.view" },
-      { label: "إعادة تقييم العملات", href: "/erp/reports/fx-revaluation", icon: "BadgeDollarSign", capability: "erp.reports.view" },
+
+      { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view", group: "القوائم المالية" },
+      { label: "الميزانية العمومية", href: "/erp/reports/balance-sheet", icon: "Scale", capability: "erp.reports.view", group: "القوائم المالية" },
+      { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view", group: "القوائم المالية" },
+      { label: "ضريبة القيمة المضافة", href: "/erp/reports/vat", icon: "Percent", capability: "erp.reports.view", group: "القوائم المالية" },
+
+      { label: "المؤشرات المالية", href: "/erp/reports/ratios", icon: "Activity", capability: "erp.reports.view", group: "التحليلات" },
+      { label: "أرباح مراكز التكلفة", href: "/erp/reports/cost-centers", icon: "Target", capability: "erp.reports.view", group: "التحليلات" },
+      { label: "إعادة تقييم العملات", href: "/erp/reports/fx-revaluation", icon: "BadgeDollarSign", capability: "erp.reports.view", group: "التحليلات" },
     ],
   },
   {
