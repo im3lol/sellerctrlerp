@@ -32,6 +32,22 @@ export type ErpOverview = {
 
 const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
+export type PendingWork = { jeDraft: number; siDraft: number; piDraft: number; soAwaiting: number; poAwaiting: number };
+
+/** All open document-workflow counts in one round-trip (kept out of getErpOverview
+ *  to avoid widening its parallel fan-out on the session pooler). */
+export async function getPendingWork(orgId: string): Promise<PendingWork> {
+  const [row] = (await db.execute<Record<keyof PendingWork, number>>(sql`
+    SELECT
+      (SELECT count(*) FROM journal_entries  WHERE organization_id = ${orgId} AND status = 'DRAFT')::int AS "jeDraft",
+      (SELECT count(*) FROM sales_invoices   WHERE organization_id = ${orgId} AND status = 'DRAFT')::int AS "siDraft",
+      (SELECT count(*) FROM purchase_invoices WHERE organization_id = ${orgId} AND status = 'DRAFT')::int AS "piDraft",
+      (SELECT count(*) FROM sales_orders     WHERE organization_id = ${orgId} AND status = 'CONFIRMED')::int AS "soAwaiting",
+      (SELECT count(*) FROM purchase_orders  WHERE organization_id = ${orgId} AND status IN ('CONFIRMED','PARTIALLY_RECEIVED'))::int AS "poAwaiting"
+  `)).rows as Record<keyof PendingWork, number>[];
+  return { jeDraft: row?.jeDraft ?? 0, siDraft: row?.siDraft ?? 0, piDraft: row?.piDraft ?? 0, soAwaiting: row?.soAwaiting ?? 0, poAwaiting: row?.poAwaiting ?? 0 };
+}
+
 function monthStart(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);

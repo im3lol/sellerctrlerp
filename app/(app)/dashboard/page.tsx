@@ -3,8 +3,9 @@ import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules } from "@/lib/erp/entitlements";
 import { getSubscriptionState } from "@/lib/erp/subscription";
-import { getErpOverview } from "@/lib/erp/overview";
+import { getErpOverview, getPendingWork } from "@/lib/erp/overview";
 import { Card, CardContent } from "@/components/ui/card";
+import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 
 const TILES: { label: string; href: string; icon: string; module: string; desc: string }[] = [
@@ -35,6 +36,19 @@ export default async function DashboardPage() {
   // transient pooler hiccup) still render the module tiles instead of crashing.
   let ov: Awaited<ReturnType<typeof getErpOverview>> | null = null;
   try { ov = org ? await getErpOverview(org.id) : null; } catch { ov = null; }
+
+  // Consolidated cross-module workflow inbox (one query, fail-safe).
+  let pending: Awaited<ReturnType<typeof getPendingWork>> | null = null;
+  try { pending = org ? await getPendingWork(org.id) : null; } catch { pending = null; }
+  const pendingTiles = pending
+    ? [
+        { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/erp/accounting/journal", icon: "BookText" },
+        { label: "فواتير بيع مسودة", hint: "المبيعات", count: pending.siDraft, href: "/erp/sales/invoices", icon: "ReceiptText" },
+        { label: "فواتير شراء مسودة", hint: "المشتريات", count: pending.piDraft, href: "/erp/purchases/invoices", icon: "ReceiptText" },
+        { label: "أوامر بيع بانتظار الشحن", hint: "المبيعات", count: pending.soAwaiting, href: "/erp/sales/orders", icon: "ClipboardList" },
+        { label: "أوامر شراء بانتظار الاستلام", hint: "المشتريات", count: pending.poAwaiting, href: "/erp/purchases/orders", icon: "PackageCheck" },
+      ]
+    : [];
 
   const kpis = ov
     ? [
@@ -85,6 +99,13 @@ export default async function DashboardPage() {
             </div>
           )}
         </>
+      )}
+
+      {pendingTiles.some((t) => t.count > 0) && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">بحاجة إلى إجراء</h2>
+          <NeedsAttention tiles={pendingTiles} />
+        </div>
       )}
 
       <div>
