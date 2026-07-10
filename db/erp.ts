@@ -61,6 +61,8 @@ export const organizations = pgTable(
     baseCurrencyId: text("base_currency_id"),
     fiscalYearStart: text("fiscal_year_start"),
     vatRate: money("vat_rate").notNull().default("14"),
+    // Purchase orders above this amount require approval before confirming (0 = off).
+    poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1342,6 +1344,10 @@ export const purchaseOrders = pgTable(
     taxPercent: money("tax_percent").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
     notes: text("notes"),
+    // Approval control: POs above the org's poApprovalThreshold must be approved
+    // before they can be confirmed.
+    approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+    approvedAt: ts("approved_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -7,7 +7,7 @@ import {
   confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction, revertSalesOrderToDraftAction,
 } from "@/app/actions/erp/sales-orders";
 import {
-  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction,
+  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
 } from "@/app/actions/erp/purchase-orders";
 import { fulfillOrderAction } from "@/app/actions/erp/fulfillment";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,15 @@ export function OrderRowActions({
   type,
   status,
   canManage,
+  poNeedsApproval,
+  poApproved,
 }: {
   orderId: string;
   type: "sales" | "purchase";
   status: string;
   canManage: boolean;
+  poNeedsApproval?: boolean;
+  poApproved?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -57,14 +61,23 @@ export function OrderRowActions({
     );
   }
 
-  // DRAFT: confirm or cancel (delete the draft) — no stock/GL yet.
+  // DRAFT: confirm or cancel (delete the draft) — no stock/GL yet. A purchase
+  // order above the approval threshold must be approved before it can be confirmed.
   if (status === "DRAFT") {
+    const needApprove = type === "purchase" && poNeedsApproval && !poApproved;
     return (
       <div className="flex flex-wrap gap-1">
-        <Button size="sm" disabled={pending}
-          onClick={() => run(() => isSales ? confirmSalesOrderAction(orderId) : confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
-          <Icon name="Check" className="size-4" />تأكيد
-        </Button>
+        {needApprove ? (
+          <Button size="sm" disabled={pending}
+            onClick={() => run(() => approvePurchaseOrderAction(orderId), "تم اعتماد الأمر")}>
+            <Icon name="ShieldCheck" className="size-4" />اعتماد
+          </Button>
+        ) : (
+          <Button size="sm" disabled={pending}
+            onClick={() => run(() => isSales ? confirmSalesOrderAction(orderId) : confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
+            <Icon name="Check" className="size-4" />تأكيد
+          </Button>
+        )}
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
           <Icon name="X" className="size-4 text-destructive" />إلغاء

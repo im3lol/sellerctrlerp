@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -76,16 +76,40 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
   }
 }
 
-/** Confirm a DRAFT purchase order (approval only — no stock/GL). */
+/** Confirm a DRAFT purchase order (approval only — no stock/GL). Above the org's
+ *  approval threshold the order must be approved first. */
 export async function confirmPurchaseOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
-  const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
+  const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, total: purchaseOrders.totalAmount, approvedAt: purchaseOrders.approvedAt }).from(purchaseOrders)
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "الأمر غير موجود" };
   if (po.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
+
+  const [org] = await db.select({ threshold: organizations.poApprovalThreshold }).from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+  const threshold = Number(org?.threshold ?? 0);
+  if (threshold > 0 && Number(po.total) > threshold && !po.approvedAt) {
+    return { error: `أمر شراء بقيمة تتجاوز حد الاعتماد (${threshold.toLocaleString("ar-EG")}) — يجب اعتماده أولاً` };
+  }
+
   await db.update(purchaseOrders).set({ status: "CONFIRMED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
   await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
+  revalidatePath("/erp/purchases/orders");
+  revalidatePath(`/erp/purchases/orders/${id}`);
+  return { ok: true };
+}
+
+/** Approve a DRAFT purchase order so it can be confirmed (spending control). */
+export async function approvePurchaseOrderAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, approvedAt: purchaseOrders.approvedAt }).from(purchaseOrders)
+    .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+  if (!po) return { error: "الأمر غير موجود" };
+  if (po.status !== "DRAFT") return { error: "لا يمكن اعتماد أمر مؤكّد" };
+  if (po.approvedAt) return { error: "الأمر معتمد بالفعل" };
+  await db.update(purchaseOrders).set({ approvedBy: auth.userId, approvedAt: new Date() }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `اعتماد أمر شراء ${po.number}` });
   revalidatePath("/erp/purchases/orders");
   revalidatePath(`/erp/purchases/orders/${id}`);
   return { ok: true };

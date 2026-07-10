@@ -17,6 +17,7 @@ const profileSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("بريد غير صالح").optional().or(z.literal("")),
   vatRate: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة"),
+  poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
   fiscalYearStart: z.string().optional(),
 });
 
@@ -33,6 +34,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
     phone: formData.get("phone") || undefined,
     email: formData.get("email") || "",
     vatRate: formData.get("vatRate"),
+    poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
     fiscalYearStart: formData.get("fiscalYearStart") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -48,6 +50,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       phone: d.phone || null,
       email: d.email || null,
       vatRate: String(d.vatRate),
+      poApprovalThreshold: String(d.poApprovalThreshold),
       fiscalYearStart: d.fiscalYearStart || null,
       updatedAt: new Date(),
     }).where(eq(organizations.id, auth.orgId));

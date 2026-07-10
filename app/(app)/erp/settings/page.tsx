@@ -42,6 +42,7 @@ export default async function ErpSettingsPage() {
     email: org?.email ?? null,
     vatRate: org?.vatRate ?? "14",
     fiscalYearStart: org?.fiscalYearStart ?? null,
+    poApprovalThreshold: org?.poApprovalThreshold ?? "0",
   };
   const accountOptions: AccountOption[] = accs;
   const accountingConfig: AccountingConfig = config

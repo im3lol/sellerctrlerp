@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, organizations } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,11 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
   const st = STATUS[po.status] ?? { label: po.status, variant: "secondary" as const };
   const canManage = can("purchases.create");
 
+  // Approval control: POs above the org threshold need approval before confirming.
+  const [orgRow] = await db.select({ threshold: organizations.poApprovalThreshold }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const threshold = Number(orgRow?.threshold ?? 0);
+  const poNeedsApproval = threshold > 0 && Number(po.totalAmount) > threshold;
+
   return (
     <div className="space-y-6">
       <ErpPageHeader
@@ -77,7 +82,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
         backHref="/erp/purchases/orders"
         action={
           <div className="flex gap-2">
-            <OrderRowActions orderId={po.id} type="purchase" status={po.status} canManage={canManage} />
+            <OrderRowActions orderId={po.id} type="purchase" status={po.status} canManage={canManage} poNeedsApproval={poNeedsApproval} poApproved={!!po.approvedAt} />
             <Button size="sm" variant="outline" asChild>
               <a href={`/erp/purchases/orders/${encodeURIComponent(po.number)}/print`} target="_blank" rel="noopener">
                 <Icon name="Printer" className="size-4" />طباعة

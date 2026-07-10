@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
   address: string | null; phone: string | null; email: string | null;
-  vatRate: string; fiscalYearStart: string | null;
+  vatRate: string; fiscalYearStart: string | null; poApprovalThreshold: string;
 };
 
 export type AccountOption = { id: string; code: string; nameAr: string; type: string };
@@ -78,6 +78,7 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="legalName">الاسم القانوني</Label><Input id="legalName" name="legalName" defaultValue={profile.legalName ?? ""} /></div>
                 <div className="space-y-2"><Label htmlFor="taxNumber">الرقم الضريبي</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="vatRate">نسبة ضريبة القيمة المضافة (%)</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
+                <div className="space-y-2"><Label htmlFor="poApprovalThreshold">حد اعتماد أوامر الشراء</Label><Input id="poApprovalThreshold" name="poApprovalThreshold" type="number" step="0.01" min="0" defaultValue={profile.poApprovalThreshold} dir="ltr" placeholder="0 = بدون اعتماد" /></div>
                 <div className="space-y-2"><Label htmlFor="fiscalYearStart">بداية السنة المالية</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="phone">الهاتف</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="email">البريد الإلكتروني</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>
