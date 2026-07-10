@@ -31,7 +31,10 @@ export default async function DashboardPage() {
     : sub && !sub.live
     ? { cls: "border-destructive/40 bg-destructive/5 text-destructive", text: "انتهت فترة وصولك — اختر باقة لتفعيل النظام." }
     : null;
-  const ov = org ? await getErpOverview(org.id) : null;
+  // Degrade gracefully: the overview fans out many queries; if it fails (e.g. a
+  // transient pooler hiccup) still render the module tiles instead of crashing.
+  let ov: Awaited<ReturnType<typeof getErpOverview>> | null = null;
+  try { ov = org ? await getErpOverview(org.id) : null; } catch { ov = null; }
 
   const kpis = ov
     ? [
