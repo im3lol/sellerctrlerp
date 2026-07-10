@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
-import { generateDueRecurringExpenses, generateDueRecurringJournals } from "@/lib/erp/recurring";
+import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
 import { sendEmail } from "@/lib/erp/email";
 
 export const runtime = "nodejs";
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
   for (const org of orgs) {
     try { generated += await generateDueRecurringExpenses(org.id, now); } catch { /* skip org on error */ }
     try { generated += await generateDueRecurringJournals(org.id, now); } catch { /* skip org on error */ }
+    try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
   }
 
   // 2) Daily reminder digest — only when email is configured.

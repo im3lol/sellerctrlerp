@@ -1,8 +1,9 @@
 import { randomUUID } from "crypto";
 import { and, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { recurringExpenses, expenses, recurringJournals, recurringJournalLines, journalEntries, journalEntryLines } from "@/db/schema";
+import { recurringExpenses, expenses, recurringJournals, recurringJournalLines, journalEntries, journalEntryLines, recurringSalesInvoices, recurringSalesInvoiceLines, salesInvoices, salesInvoiceLines } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+import { round2 } from "@/lib/erp/money";
 import { advance, type Frequency } from "@/lib/erp/recurring-shared";
 
 // Re-export the pure helpers so server-side callers can keep importing from here.
@@ -66,6 +67,52 @@ export async function generateDueRecurringJournals(orgId: string, now: Date): Pr
     await db.update(recurringJournals)
       .set({ lastRunDate: new Date(t.nextRunDate), nextRunDate: advance(new Date(t.nextRunDate), t.frequency as Frequency), updatedAt: now })
       .where(eq(recurringJournals.id, t.id));
+  }
+  return created;
+}
+
+/**
+ * Materialise a DRAFT sales invoice for each due recurring-invoice template
+ * (subscription/retainer billing), advancing the schedule. DRAFT only — a human
+ * posts it (no AR/GL/stock until then). Returns the count created.
+ */
+export async function generateDueRecurringSalesInvoices(orgId: string, now: Date): Promise<number> {
+  const due = await db.select().from(recurringSalesInvoices).where(and(
+    eq(recurringSalesInvoices.organizationId, orgId),
+    eq(recurringSalesInvoices.isActive, true),
+    lte(recurringSalesInvoices.nextRunDate, now),
+  ));
+
+  let created = 0;
+  for (const t of due) {
+    const lines = await db.select().from(recurringSalesInvoiceLines).where(eq(recurringSalesInvoiceLines.recurringId, t.id));
+    if (lines.length) {
+      const runDate = new Date(t.nextRunDate);
+      const number = await nextDocumentNumber(db, orgId, "SI", runDate.getFullYear());
+      const computed = lines.map((l) => ({
+        itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice),
+        discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount),
+        totalAmount: round2(Number(l.quantity) * Number(l.unitPrice) - Number(l.discountAmount) + Number(l.taxAmount)),
+      }));
+      const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+      const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
+      const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
+      const totalAmount = round2(subtotal - discountAmount + taxAmount);
+      const [inv] = await db.insert(salesInvoices).values({
+        organizationId: orgId, number, customerId: t.customerId, date: runDate, status: "DRAFT",
+        subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
+        totalAmount: String(totalAmount), paidAmount: "0", balanceDue: String(totalAmount),
+        notes: t.notes ? `${t.notes} (متكرر)` : "فاتورة متكررة",
+      }).returning({ id: salesInvoices.id });
+      await db.insert(salesInvoiceLines).values(computed.map((l) => ({
+        salesInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+      })));
+      created++;
+    }
+    await db.update(recurringSalesInvoices)
+      .set({ lastRunDate: new Date(t.nextRunDate), nextRunDate: advance(new Date(t.nextRunDate), t.frequency as Frequency), updatedAt: now })
+      .where(eq(recurringSalesInvoices.id, t.id));
   }
   return created;
 }

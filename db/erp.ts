@@ -1295,6 +1295,35 @@ export const apiKeys = pgTable(
   (t) => [uniqueIndex("api_keys_hash_idx").on(t.keyHash), index("api_keys_org_idx").on(t.organizationId)],
 );
 
+// Recurring sales-invoice template (subscription/retainer billing). The daily
+// cron materialises a DRAFT sales invoice each time it's due; a human posts it.
+export const recurringSalesInvoices = pgTable(
+  "recurring_sales_invoices",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    customerId: text("customer_id").notNull().references(() => customers.id),
+    frequency: text("frequency").notNull().default("MONTHLY"),
+    nextRunDate: ts("next_run_date").notNull(),
+    lastRunDate: ts("last_run_date"),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("recurring_sales_invoices_org_idx").on(t.organizationId)],
+);
+
+export const recurringSalesInvoiceLines = pgTable("recurring_sales_invoice_lines", {
+  id: pk(),
+  recurringId: text("recurring_id").notNull().references(() => recurringSalesInvoices.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  quantity: money("quantity").notNull(),
+  unitPrice: money("unit_price").notNull().default("0"),
+  discountAmount: money("discount_amount").notNull().default("0"),
+  taxAmount: money("tax_amount").notNull().default("0"),
+});
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {
