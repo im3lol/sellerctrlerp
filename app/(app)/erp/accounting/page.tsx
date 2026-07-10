@@ -34,13 +34,23 @@ const SHORTCUTS = [
 export default async function AccountingDashboardPage() {
   const { orgId } = await requireErpModule("accounting.view");
 
-  const [balances, [acc], [je], [si], [pi]] = await Promise.all([
+  const [balances, [acc], [je], [si], [pi], [jeDraft], [siDraft], [piDraft]] = await Promise.all([
     accountBalances({ orgId }),
     db.select({ n: sql<number>`count(*)` }).from(accounts).where(eq(accounts.organizationId, orgId)),
     db.select({ n: sql<number>`count(*)` }).from(journalEntries).where(eq(journalEntries.organizationId, orgId)),
     db.select({ n: sql<number>`count(*)` }).from(salesInvoices).where(and(eq(salesInvoices.organizationId, orgId))),
     db.select({ n: sql<number>`count(*)` }).from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, orgId))),
+    db.select({ n: sql<number>`count(*)` }).from(journalEntries).where(and(eq(journalEntries.organizationId, orgId), eq(journalEntries.status, "DRAFT"))),
+    db.select({ n: sql<number>`count(*)` }).from(salesInvoices).where(and(eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "DRAFT"))),
+    db.select({ n: sql<number>`count(*)` }).from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "DRAFT"))),
   ]);
+
+  // Odoo-style "needs attention": draft documents awaiting posting. Only shown when > 0.
+  const todos = [
+    { label: "قيود غير مُرحّلة", count: Number(jeDraft.n), href: "/erp/accounting/journal", icon: "BookText" },
+    { label: "فواتير بيع مسودة", count: Number(siDraft.n), href: "/erp/sales/invoices", icon: "ReceiptText" },
+    { label: "فواتير شراء مسودة", count: Number(piDraft.n), href: "/erp/purchases/invoices", icon: "ReceiptText" },
+  ].filter((t) => t.count > 0);
 
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
   const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
@@ -72,6 +82,21 @@ export default async function AccountingDashboardPage() {
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="Calculator" title="المحاسبة" subtitle="نظرة عامة على الأداء المالي" />
+
+      {todos.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {todos.map((t) => (
+            <Link key={t.href} href={t.href} className="flex items-center gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600"><Icon name={t.icon} className="size-5" /></div>
+              <div className="flex-1">
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="text-xs text-muted-foreground">بانتظار الترحيل</div>
+              </div>
+              <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-sm font-bold text-white tabular-nums">{intf(t.count)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Profit & Loss chart */}
