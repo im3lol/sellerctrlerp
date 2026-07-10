@@ -6,6 +6,7 @@ import { accounts, journalEntries, salesInvoices, purchaseInvoices } from "@/db/
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
@@ -45,12 +46,12 @@ export default async function AccountingDashboardPage() {
     db.select({ n: sql<number>`count(*)` }).from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "DRAFT"))),
   ]);
 
-  // Odoo-style "needs attention": draft documents awaiting posting. Only shown when > 0.
+  // Odoo-style "needs attention": draft documents awaiting posting.
   const todos = [
-    { label: "قيود غير مُرحّلة", count: Number(jeDraft.n), href: "/erp/accounting/journal", icon: "BookText" },
-    { label: "فواتير بيع مسودة", count: Number(siDraft.n), href: "/erp/sales/invoices", icon: "ReceiptText" },
-    { label: "فواتير شراء مسودة", count: Number(piDraft.n), href: "/erp/purchases/invoices", icon: "ReceiptText" },
-  ].filter((t) => t.count > 0);
+    { label: "قيود غير مُرحّلة", hint: "بانتظار الترحيل", count: Number(jeDraft.n), href: "/erp/accounting/journal", icon: "BookText" },
+    { label: "فواتير بيع مسودة", hint: "بانتظار الترحيل", count: Number(siDraft.n), href: "/erp/sales/invoices", icon: "ReceiptText" },
+    { label: "فواتير شراء مسودة", hint: "بانتظار الترحيل", count: Number(piDraft.n), href: "/erp/purchases/invoices", icon: "ReceiptText" },
+  ];
 
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
   const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
@@ -83,20 +84,7 @@ export default async function AccountingDashboardPage() {
     <div className="space-y-6">
       <ErpPageHeader icon="Calculator" title="المحاسبة" subtitle="نظرة عامة على الأداء المالي" />
 
-      {todos.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {todos.map((t) => (
-            <Link key={t.href} href={t.href} className="flex items-center gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600"><Icon name={t.icon} className="size-5" /></div>
-              <div className="flex-1">
-                <div className="text-sm font-medium">{t.label}</div>
-                <div className="text-xs text-muted-foreground">بانتظار الترحيل</div>
-              </div>
-              <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-sm font-bold text-white tabular-nums">{intf(t.count)}</span>
-            </Link>
-          ))}
-        </div>
-      )}
+      <NeedsAttention tiles={todos} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Profit & Loss chart */}

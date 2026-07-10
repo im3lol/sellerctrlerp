@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { items } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,19 @@ export default async function InventoryDashboardPage() {
   const outOfStock = rows.filter((r) => Number(r.qty) <= 0).length;
   const counts: Record<string, number> = { items: totalItems };
 
+  // Batches expiring within 30 days (still on hand) → expiry alert tile.
+  const [nearExp] = (await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM stock_batches
+    WHERE organization_id = ${orgId} AND remaining_quantity > 0
+      AND expiry_date IS NOT NULL AND expiry_date <= now() + interval '30 days'
+  `)).rows as { n: number }[];
+
+  const todos = [
+    { label: "أصناف تحت حد الطلب", hint: "تحتاج إعادة طلب", count: lowStock, href: "/erp/inventory/reorder", icon: "TriangleAlert" },
+    { label: "أصناف نافدة", hint: "رصيد صفر", count: outOfStock, href: "/erp/inventory/stock?status=OUT", icon: "PackageX" },
+    { label: "قرب انتهاء الصلاحية", hint: "خلال 30 يوماً", count: Number(nearExp?.n ?? 0), href: "/erp/inventory/expiry", icon: "CalendarClock" },
+  ];
+
   const topItems = [...rows].sort((a, b) => Number(b.val) - Number(a.val)).slice(0, 6);
   const maxVal = Math.max(...topItems.map((r) => Number(r.val)), 1);
 
@@ -60,6 +74,8 @@ export default async function InventoryDashboardPage() {
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="Warehouse" title="المخزون" subtitle="نظرة عامة وتحليل المخزون" />
+
+      <NeedsAttention tiles={todos} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {kpis.map((k) => (
