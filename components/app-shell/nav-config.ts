@@ -154,6 +154,7 @@ export const NAV: NavSection[] = [
     moduleKey: "reports",
     icon: "ChartColumn",
     items: [
+      { label: "مركز التقارير", href: "/erp/reports/center", icon: "ChartColumn", capability: "erp.reports.view" },
       { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie", capability: "erp.reports.view", exact: true },
 
       { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view", group: "القوائم المالية" },
