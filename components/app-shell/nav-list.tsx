@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { NAV, type NavSection } from "@/components/app-shell/nav-config";
 import { can, type Role, type Capability } from "@/lib/rbac";
@@ -19,6 +19,7 @@ function visibleItems(section: NavSection, role: Role) {
 
 export function NavList({ role, modules, platforms, onNavigate }: { role: Role; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Merge live platform links into the dynamic "المنصات" group.
   const withDynamic = (section: NavSection): NavSection =>
@@ -40,8 +41,14 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
     return open;
   };
   const [openMap, setOpenMap] = useState<Record<number, boolean>>(initiallyOpen);
-  const toggle = (i: number) => setOpenMap((m) => ({ ...m, [i]: !m[i] }));
-  const openModule = (i: number) => setOpenMap((m) => ({ ...m, [i]: true }));
+  const setOpen = (i: number, v: boolean) => setOpenMap((m) => ({ ...m, [i]: v }));
+  // Click the whole heading to toggle; opening a module with a landing page also
+  // navigates there. No need to hit the chevron (which is now just an indicator).
+  const onHeadingClick = (i: number, open: boolean, href?: string) => {
+    const willOpen = !open;
+    setOpen(i, willOpen);
+    if (willOpen && href) { router.push(href); onNavigate?.(); }
+  };
 
   // Collapsed sub-groups within a module, keyed "moduleIndex:groupName". A group
   // auto-opens when it contains the active route; otherwise it stays collapsed so
@@ -91,30 +98,18 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
 
         return (
           <div key={i} className="space-y-1">
-            {/* Heading: the label navigates to the module overview; the chevron
-                toggles the module open/closed. Falls back to a plain toggle when
-                the module has no landing href. */}
-            {section.href ? (
-              <div className={cn(headingCls, "w-full pe-1", hActive && "bg-sidebar-accent")}>
-                <Link
-                  href={section.href}
-                  onClick={() => { openModule(i); onNavigate?.(); }}
-                  className="flex flex-1 items-center gap-3 text-start"
-                >
-                  {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-                  <span className="flex-1">{section.heading}</span>
-                </Link>
-                <button type="button" onClick={() => toggle(i)} aria-expanded={open} aria-label="طي/فتح" className="grid size-6 place-items-center rounded-md hover:bg-sidebar-accent">
-                  {chevron}
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
-                {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-                <span className="flex-1 text-start">{section.heading}</span>
-                {chevron}
-              </button>
-            )}
+            {/* Whole heading toggles open/closed on click; opening a module that has
+                a landing page also navigates there. The chevron is only an indicator. */}
+            <button
+              type="button"
+              onClick={() => onHeadingClick(i, open, section.href)}
+              aria-expanded={open}
+              className={cn(headingCls, "w-full", hActive && "bg-sidebar-accent")}
+            >
+              {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+              <span className="flex-1 text-start">{section.heading}</span>
+              {chevron}
+            </button>
 
             {open && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
