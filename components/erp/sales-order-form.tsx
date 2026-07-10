@@ -28,7 +28,7 @@ const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity:
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
-export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, channelCustomerId }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>> }) {
+export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -39,7 +39,11 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
   const [channel, setChannel] = useState("MANUAL");
   const [externalOrderId, setExternalOrderId] = useState("");
   const [shippingAmount, setShippingAmount] = useState(0);
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [lines, setLines] = useState<Line[]>(
+    initialLines?.length
+      ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: l.taxAmount }))
+      : [newLine()],
+  );
 
   // Switching to a marketplace channel auto-selects its default customer (e.g. «أمازون مصر») if one exists.
   const onChannel = (c: string) => {

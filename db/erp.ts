@@ -1189,6 +1189,35 @@ export const stockAssemblies = pgTable(
   (t) => [uniqueIndex("stock_assemblies_org_number_idx").on(t.organizationId, t.number)],
 );
 
+// Pre-sale price quotation to a customer. No GL/stock effect — a document that
+// converts to a sales order once accepted.
+export const salesQuotations = pgTable(
+  "sales_quotations",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    customerId: text("customer_id").notNull().references(() => customers.id),
+    date: ts("date").notNull(),
+    validUntil: ts("valid_until"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT, SENT, ACCEPTED, REJECTED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("sales_quotations_org_number_idx").on(t.organizationId, t.number), index("sales_quotations_customer_idx").on(t.customerId)],
+);
+
+export const salesQuotationLines = pgTable("sales_quotation_lines", {
+  id: pk(),
+  quotationId: text("quotation_id").notNull().references(() => salesQuotations.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  quantity: money("quantity").notNull(),
+  unitPrice: money("unit_price").notNull().default("0"),
+  discountAmount: money("discount_amount").notNull().default("0"),
+  taxAmount: money("tax_amount").notNull().default("0"),
+});
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {
