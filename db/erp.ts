@@ -1126,6 +1126,29 @@ export const expenses = pgTable(
   (t) => [uniqueIndex("expenses_org_number_idx").on(t.organizationId, t.number)],
 );
 
+// Recurring expense template — the daily cron materialises a DRAFT expense each
+// time `nextRunDate` comes due (human still confirms it to post to the GL).
+export const recurringExpenses = pgTable(
+  "recurring_expenses",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),
+    amount: money("amount").notNull(),
+    payee: text("payee"),
+    paymentMethod: text("payment_method").notNull().default("CASH"),
+    notes: text("notes"),
+    frequency: text("frequency").notNull().default("MONTHLY"), // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+    nextRunDate: ts("next_run_date").notNull(),
+    lastRunDate: ts("last_run_date"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("recurring_expenses_org_idx").on(t.organizationId)],
+);
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {

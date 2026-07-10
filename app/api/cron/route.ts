@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
+import { generateDueRecurringExpenses } from "@/lib/erp/recurring";
 import { sendEmail } from "@/lib/erp/email";
 
 export const runtime = "nodejs";
@@ -22,11 +23,19 @@ export async function GET(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, skipped: "REMINDER_EMAIL_TO not set" });
-
   const origin = process.env.APP_URL || new URL(req.url).origin;
   const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations);
+  const now = new Date();
+
+  // 1) Materialise due recurring expenses as DRAFTs (runs regardless of email config).
+  let generated = 0;
+  for (const org of orgs) {
+    try { generated += await generateDueRecurringExpenses(org.id, now); } catch { /* skip org on error */ }
+  }
+
+  // 2) Daily reminder digest — only when email is configured.
+  const to = process.env.REMINDER_EMAIL_TO;
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -48,5 +57,5 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, sent });
 }

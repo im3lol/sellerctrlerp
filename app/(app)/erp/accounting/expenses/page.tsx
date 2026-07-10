@@ -66,7 +66,12 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         icon="Wallet"
         title="المصروفات"
         subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} مصروف — مُرحّل ${fmt(posted)}`}
-        action={canManage ? <Button asChild><Link href="/erp/accounting/expenses/new"><Icon name="Plus" className="size-4" />مصروف جديد</Link></Button> : undefined}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" asChild><Link href="/erp/accounting/expenses/recurring"><Icon name="Repeat" className="size-4" />المتكررة</Link></Button>
+            {canManage && <Button asChild><Link href="/erp/accounting/expenses/new"><Icon name="Plus" className="size-4" />مصروف جديد</Link></Button>}
+          </div>
+        }
       />
 
       <FilterBar active={hasFilters} clearHref="/erp/accounting/expenses">
