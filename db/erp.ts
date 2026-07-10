@@ -1250,6 +1250,34 @@ export const expenseClaimLines = pgTable("expense_claim_lines", {
   description: text("description"),
 });
 
+// Recurring journal template (accruals, prepaid amortisation, allocations…). The
+// daily cron materialises a DRAFT journal entry each time it's due; a human posts it.
+export const recurringJournals = pgTable(
+  "recurring_journals",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    description: text("description"), // used as the generated entry's description
+    frequency: text("frequency").notNull().default("MONTHLY"), // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+    nextRunDate: ts("next_run_date").notNull(),
+    lastRunDate: ts("last_run_date"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("recurring_journals_org_idx").on(t.organizationId)],
+);
+
+export const recurringJournalLines = pgTable("recurring_journal_lines", {
+  id: pk(),
+  recurringJournalId: text("recurring_journal_id").notNull().references(() => recurringJournals.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull().references(() => accounts.id),
+  debit: money("debit").notNull().default("0"),
+  credit: money("credit").notNull().default("0"),
+  description: text("description"),
+});
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {

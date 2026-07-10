@@ -43,6 +43,7 @@ export const NAV: NavSection[] = [
       { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
       { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator", capability: "erp.accounting.view" },
       { label: "القيود اليومية", href: "/erp/accounting/journal", icon: "BookText", capability: "erp.accounting.view" },
+      { label: "القيود المتكررة", href: "/erp/accounting/recurring-journals", icon: "Repeat", capability: "erp.accounting.view" },
       { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view" },
       { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target", capability: "erp.accounting.view" },
       { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock", capability: "erp.accounting.view" },

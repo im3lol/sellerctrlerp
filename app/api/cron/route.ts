@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
-import { generateDueRecurringExpenses } from "@/lib/erp/recurring";
+import { generateDueRecurringExpenses, generateDueRecurringJournals } from "@/lib/erp/recurring";
 import { sendEmail } from "@/lib/erp/email";
 
 export const runtime = "nodejs";
@@ -27,10 +27,11 @@ export async function GET(req: Request) {
   const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations);
   const now = new Date();
 
-  // 1) Materialise due recurring expenses as DRAFTs (runs regardless of email config).
+  // 1) Materialise due recurring expenses + journals as DRAFTs (regardless of email config).
   let generated = 0;
   for (const org of orgs) {
     try { generated += await generateDueRecurringExpenses(org.id, now); } catch { /* skip org on error */ }
+    try { generated += await generateDueRecurringJournals(org.id, now); } catch { /* skip org on error */ }
   }
 
   // 2) Daily reminder digest — only when email is configured.

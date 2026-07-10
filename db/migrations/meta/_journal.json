@@ -211,6 +211,13 @@
       "when": 1783679852671,
       "tag": "0029_curved_valeria_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1783680780780,
+      "tag": "0030_zippy_overlord",
+      "breakpoints": true
     }
   ]
 }
