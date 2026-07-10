@@ -75,11 +75,14 @@ export const NAV: NavSection[] = [
     icon: "Truck",
     items: [
       { label: "الموردون", href: "/erp/purchases", icon: "Users", capability: "erp.purchases.view", exact: true },
-      { label: "طلبات المواد", href: "/erp/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view" },
-      { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view" },
-      { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view" },
-      { label: "تقرير الدفتر", href: "/erp/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view" },
-      { label: "ترتيب الموردين", href: "/erp/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view" },
+
+      { label: "طلبات المواد", href: "/erp/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "إذون الاستلام", href: "/erp/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
+
+      { label: "تقرير الدفتر", href: "/erp/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view", group: "التقارير" },
+      { label: "ترتيب الموردين", href: "/erp/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view", group: "التقارير" },
     ],
   },
   {
@@ -88,19 +91,22 @@ export const NAV: NavSection[] = [
     icon: "Warehouse",
     items: [
       { label: "نظرة عامة", href: "/erp/inventory", icon: "LayoutDashboard", capability: "erp.inventory.view", exact: true },
-      { label: "الأصناف", href: "/erp/inventory/items", icon: "Package", capability: "erp.inventory.view" },
-      { label: "إذون الاستلام", href: "/erp/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view" },
-      { label: "إذون الصرف", href: "/erp/sales/deliveries", icon: "Truck", capability: "erp.sales.view" },
-      { label: "أرصدة المخزون", href: "/erp/inventory/stock", icon: "Boxes", capability: "erp.inventory.view" },
-      { label: "مطابقة قيمة المخزون", href: "/erp/inventory/valuation", icon: "Scale", capability: "erp.reports.view" },
-      { label: "دفتر حركة المخزون", href: "/erp/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view" },
-      { label: "تسويات المخزون", href: "/erp/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view" },
-      { label: "التحويلات المخزنية", href: "/erp/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view" },
-      { label: "الحزم والمجموعات", href: "/erp/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view" },
-      { label: "تنبيهات إعادة الطلب", href: "/erp/inventory/reorder", icon: "TriangleAlert", capability: "erp.inventory.view" },
-      { label: "المخزون الراكد", href: "/erp/inventory/dead-stock", icon: "PackageX", capability: "erp.inventory.view" },
-      { label: "ملصقات الباركود", href: "/erp/inventory/labels", icon: "Barcode", capability: "erp.inventory.view" },
-      { label: "تنبيهات انتهاء الصلاحية", href: "/erp/inventory/expiry", icon: "CalendarClock", capability: "erp.inventory.view" },
+
+      { label: "الأصناف", href: "/erp/inventory/items", icon: "Package", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "أرصدة المخزون", href: "/erp/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "دفتر حركة المخزون", href: "/erp/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "مطابقة قيمة المخزون", href: "/erp/inventory/valuation", icon: "Scale", capability: "erp.reports.view", group: "الأصناف والأرصدة" },
+
+      { label: "إذون الاستلام", href: "/erp/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "العمليات" },
+      { label: "إذون الصرف", href: "/erp/sales/deliveries", icon: "Truck", capability: "erp.sales.view", group: "العمليات" },
+      { label: "تسويات المخزون", href: "/erp/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "التحويلات المخزنية", href: "/erp/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "الحزم والمجموعات", href: "/erp/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view", group: "العمليات" },
+
+      { label: "تنبيهات إعادة الطلب", href: "/erp/inventory/reorder", icon: "TriangleAlert", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
+      { label: "المخزون الراكد", href: "/erp/inventory/dead-stock", icon: "PackageX", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
+      { label: "تنبيهات انتهاء الصلاحية", href: "/erp/inventory/expiry", icon: "CalendarClock", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
+      { label: "ملصقات الباركود", href: "/erp/inventory/labels", icon: "Barcode", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
     ],
   },
   {
@@ -109,14 +115,16 @@ export const NAV: NavSection[] = [
     icon: "ShoppingCart",
     items: [
       { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
-      { label: "عروض الأسعار", href: "/erp/sales/quotations", icon: "FileText", capability: "erp.sales.view" },
-      { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view" },
-      { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view" },
-      { label: "الفواتير الدورية", href: "/erp/sales/recurring", icon: "Repeat", capability: "erp.sales.view" },
-      { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view" },
-      { label: "تقرير الأصناف", href: "/erp/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view" },
-      { label: "ربحية المنتجات", href: "/erp/sales/reports/profitability", icon: "TrendingUp", capability: "erp.reports.view" },
-      { label: "ترتيب العملاء", href: "/erp/sales/reports/customers", icon: "Users", capability: "erp.sales.view" },
+
+      { label: "عروض الأسعار", href: "/erp/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
+      { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
+      { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
+      { label: "الفواتير الدورية", href: "/erp/sales/recurring", icon: "Repeat", capability: "erp.sales.view", group: "دورة البيع" },
+
+      { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view", group: "التقارير" },
+      { label: "تقرير الأصناف", href: "/erp/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view", group: "التقارير" },
+      { label: "ربحية المنتجات", href: "/erp/sales/reports/profitability", icon: "TrendingUp", capability: "erp.reports.view", group: "التقارير" },
+      { label: "ترتيب العملاء", href: "/erp/sales/reports/customers", icon: "Users", capability: "erp.sales.view", group: "التقارير" },
     ],
   },
   {
@@ -133,10 +141,12 @@ export const NAV: NavSection[] = [
     icon: "UsersRound",
     items: [
       { label: "الموظفون",    href: "/erp/hr/employees", icon: "UserCog",       capability: "erp.hr.view" },
-      { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view" },
-      { label: "الإجازات",     href: "/erp/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view" },
-      { label: "تقويم العطلات", href: "/erp/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view" },
-      { label: "مطالبات المصروفات", href: "/erp/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view" },
+
+      { label: "الإجازات",     href: "/erp/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view", group: "الحضور والإجازات" },
+      { label: "تقويم العطلات", href: "/erp/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
+
+      { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view", group: "المالية" },
+      { label: "مطالبات المصروفات", href: "/erp/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view", group: "المالية" },
     ],
   },
   {
