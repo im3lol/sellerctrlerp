@@ -115,7 +115,7 @@ export default async function Home() {
               <Link href="/login">تسجيل الدخول</Link>
             </Button>
             <Button asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
-              <Link href="/login">ابدأ الآن</Link>
+              <Link href="/signup">ابدأ الآن</Link>
             </Button>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default async function Home() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild className="text-base">
-              <Link href="/login">
+              <Link href="/signup">
                 ابدأ مجاناً الآن
                 <ArrowLeft className="size-4" />
               </Link>
@@ -296,7 +296,7 @@ export default async function Home() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base">
-              <Link href="/login">ابدأ الآن مجاناً</Link>
+              <Link href="/signup">ابدأ الآن مجاناً</Link>
             </Button>
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-primary-foreground/80">
@@ -460,7 +460,7 @@ function Pricing({ plans }: { plans: PlanCard[] }) {
       <div className="mt-10 rounded-3xl border bg-card p-10 text-center">
         <p className="text-lg font-semibold">خطط مرنة تناسب كل حجم</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">ابدأ تجربتك المجانية الآن، وتواصل معنا لاختيار الباقة المناسبة لعدد مستخدميك وحجم تخزينك.</p>
-        <Button asChild className="mt-6"><Link href="/login">ابدأ التجربة المجانية <ArrowLeft className="size-4" /></Link></Button>
+        <Button asChild className="mt-6"><Link href="/signup">ابدأ التجربة المجانية <ArrowLeft className="size-4" /></Link></Button>
       </div>
     );
   }
@@ -483,7 +483,7 @@ function Pricing({ plans }: { plans: PlanCard[] }) {
               <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{MODULE_LABELS[m] ?? m}</li>
             ))}
           </ul>
-          <Button asChild variant={i === popular ? "default" : "outline"} className="mt-6 w-full"><Link href="/login">ابدأ التجربة</Link></Button>
+          <Button asChild variant={i === popular ? "default" : "outline"} className="mt-6 w-full"><Link href={`/signup?plan=${encodeURIComponent(p.name)}`}>ابدأ التجربة</Link></Button>
         </div>
       ))}
     </div>

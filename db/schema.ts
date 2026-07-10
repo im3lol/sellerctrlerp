@@ -17,6 +17,7 @@ import {
 
 export const userRoleEnum = pgEnum("user_role", [
   "system_admin", // مدير النظام
+  "org_admin", // مدير/صاحب المؤسسة (عميل SaaS)
   "ops_manager", // مدير العمليات
   "team_lead", // قائد فريق
   "employee", // موظف

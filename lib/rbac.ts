@@ -3,7 +3,7 @@
  * Capability matrix per role. Server actions and middleware both consult this.
  */
 
-export type Role = "system_admin" | "ops_manager" | "team_lead" | "employee" | "client";
+export type Role = "system_admin" | "org_admin" | "ops_manager" | "team_lead" | "employee" | "client";
 
 export type Capability =
   | "employee.manage" // manage OS users (admin)
@@ -31,6 +31,17 @@ const MATRIX: Record<Role, Capability[]> = {
   system_admin: [
     "employee.manage", "reports.view",
     // ERP — full access
+    "erp.accounting.view", "erp.accounting.post", "erp.accounting.reverse",
+    "erp.inventory.view", "erp.inventory.manage",
+    "erp.sales.view", "erp.sales.manage",
+    "erp.purchases.view", "erp.purchases.manage",
+    "erp.investors.view", "erp.investors.manage",
+    "erp.reports.view", "erp.settings.manage",
+    "erp.hr.view", "erp.hr.manage",
+  ],
+  // مدير/صاحب المؤسسة (عميل SaaS) — تحكم كامل في مؤسسته، بلا إدارة منصة (employee.manage)
+  org_admin: [
+    "reports.view",
     "erp.accounting.view", "erp.accounting.post", "erp.accounting.reverse",
     "erp.inventory.view", "erp.inventory.manage",
     "erp.sales.view", "erp.sales.manage",
@@ -69,6 +80,7 @@ export function canAny(role: Role | undefined | null, caps: Capability[]): boole
 
 export const ROLE_LABELS_AR: Record<Role, string> = {
   system_admin: "مدير النظام",
+  org_admin: "مدير المؤسسة",
   ops_manager: "مدير العمليات",
   team_lead: "قائد فريق",
   employee: "موظف",

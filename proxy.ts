@@ -16,6 +16,7 @@ export default auth((req) => {
   const isPublic =
     path === "/" ||
     path.startsWith("/login") ||
+    path.startsWith("/signup") ||
     path.startsWith("/api/auth") ||
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
     path.startsWith("/_next") ||
@@ -29,7 +30,7 @@ export default auth((req) => {
   }
 
   // Already-authed users on the landing or a login page → go to the app.
-  if (isLoggedIn && (path === "/" || path.startsWith("/login"))) {
+  if (isLoggedIn && (path === "/" || path.startsWith("/login") || path.startsWith("/signup"))) {
     return Response.redirect(new URL("/dashboard", nextUrl));
   }
 
