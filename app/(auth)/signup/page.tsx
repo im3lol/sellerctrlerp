@@ -13,7 +13,7 @@ export default async function SignupPage() {
   const rows = await db.select().from(plans).where(eq(plans.isActive, true))
     .orderBy(asc(plans.sortOrder), asc(plans.priceMonthly)).catch(() => []);
   const catalog = rows.map((p) => ({
-    name: p.name, priceMonthly: Number(p.priceMonthly), priceAnnual: Number(p.priceAnnual),
+    id: p.id, name: p.name, priceMonthly: Number(p.priceMonthly), priceAnnual: Number(p.priceAnnual),
     maxUsers: p.maxUsers, storageGb: p.storageGb, modules: p.enabledModules ?? [],
   }));
 

@@ -6,9 +6,11 @@ import { eq } from "drizzle-orm";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
 import { db } from "@/lib/db";
-import { users, organizations, organizationMembers, orgSubscriptions } from "@/db/schema";
+import { eq as _eq } from "drizzle-orm";
+import { users, organizations, organizationMembers, orgSubscriptions, plans, subscriptionRequests } from "@/db/schema";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 import { TRIAL_DAYS } from "@/lib/erp/subscription";
+import { PAYMENT_METHODS } from "@/lib/erp/payment-info";
 import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
 
 export type SignupInput = {
@@ -20,6 +22,9 @@ export type SignupInput = {
   taxNumber?: string;
   password: string;
   modules: string[];
+  // When the user picks a plan on the last step, a PENDING subscription request
+  // is filed alongside the trial (owner activates it after confirming payment).
+  subscribe?: { planId: string; interval: string; paymentMethod: string; paymentReference?: string } | null;
 };
 
 const schema = z.object({
@@ -31,6 +36,12 @@ const schema = z.object({
   taxNumber: z.string().trim().optional(),
   password: z.string().min(8, "كلمة المرور 8 أحرف على الأقل"),
   modules: z.array(z.string()),
+  subscribe: z.object({
+    planId: z.string(),
+    interval: z.enum(["MONTHLY", "ANNUAL"]),
+    paymentMethod: z.string(),
+    paymentReference: z.string().trim().optional(),
+  }).nullish(),
 });
 
 /**
@@ -70,6 +81,22 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
       enabledModules: enabled, startedAt: now,
       expiresAt: new Date(now.getTime() + TRIAL_DAYS * 86_400_000),
     });
+
+    // Optional: file a PENDING subscription request for the chosen plan. The trial
+    // above still grants immediate access while the owner confirms the payment.
+    if (d.subscribe) {
+      const method = PAYMENT_METHODS.find((m) => m.key === d.subscribe!.paymentMethod);
+      const [plan] = await db.select().from(plans).where(_eq(plans.id, d.subscribe.planId)).limit(1);
+      if (plan && plan.isActive && method?.enabled) {
+        const price = d.subscribe.interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
+        await db.insert(subscriptionRequests).values({
+          organizationId: orgId, planId: plan.id, planName: plan.name,
+          interval: d.subscribe.interval, price: String(price),
+          paymentMethod: d.subscribe.paymentMethod, paymentReference: d.subscribe.paymentReference?.trim() || null,
+          requestedBy: user.id,
+        });
+      }
+    }
   } catch {
     return { error: "تعذّر إنشاء الحساب — حاول مرة أخرى" };
   }

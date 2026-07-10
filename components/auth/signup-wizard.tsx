@@ -3,17 +3,19 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, Check, ArrowLeft, ArrowRight, Copy } from "lucide-react";
 import { signupAction } from "@/app/(auth)/signup/actions";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
+import { PAYMENT_METHODS, WALLET_NUMBER } from "@/lib/erp/payment-info";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export type PlanCard = { name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
+export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
 
 const egp = (n: number) => n.toLocaleString("ar-EG");
+const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const STEPS = ["بيانات الشركة", "الوحدات", "الباقة والتجربة"];
 
 export function SignupWizard({ plans }: { plans: PlanCard[] }) {
@@ -30,6 +32,15 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
   const [confirm, setConfirm] = useState("");
   const [modules, setModules] = useState<string[]>([...ALL_MODULES]);
 
+  // Step 3: pick a plan to subscribe now (with payment), or leave null for trial-only.
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [interval, setInterval] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
+  const [payMethod, setPayMethod] = useState<string>(PAYMENT_METHODS.find((m) => m.enabled)!.key);
+  const [payReference, setPayReference] = useState("");
+  const selectedPlan = plans.find((p) => p.id === planId) ?? null;
+  const chosenMethod = PAYMENT_METHODS.find((m) => m.key === payMethod)!;
+  const planPrice = selectedPlan ? (interval === "ANNUAL" ? selectedPlan.priceAnnual : selectedPlan.priceMonthly) : 0;
+
   const toggle = (m: string) => setModules((s) => (s.includes(m) ? s.filter((x) => x !== m) : [...s, m]));
 
   const step1Valid = companyName.trim().length >= 2 && personName.trim().length >= 2 && /.+@.+\..+/.test(email) && password.length >= 8 && password === confirm;
@@ -43,8 +54,11 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
     setStep((s) => Math.min(2, s + 1));
   };
 
-  const submit = () => start(async () => {
-    const r = await signupAction({ companyName, personName, email, phone, address, taxNumber, password, modules });
+  const submit = (withSubscription: boolean) => start(async () => {
+    const subscribe = withSubscription && selectedPlan
+      ? { planId: selectedPlan.id, interval, paymentMethod: payMethod, paymentReference: payReference }
+      : null;
+    const r = await signupAction({ companyName, personName, email, phone, address, taxNumber, password, modules, subscribe });
     // Success redirects; only errors return here.
     if (r?.error) toast.error(r.error);
   });
@@ -106,24 +120,68 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
       {step === 2 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h1 className="text-xl font-bold">جاهز للانطلاق</h1>
-            <p className="text-sm text-muted-foreground">ابدأ تجربتك المجانية الآن — واختر باقتك في أي وقت من الإعدادات.</p>
+            <h1 className="text-xl font-bold">اختر باقتك أو ابدأ بالتجربة</h1>
+            <p className="text-sm text-muted-foreground">اشترك الآن في باقة، أو ابدأ بتجربة مجانية ١٤ يوماً وقرّر لاحقاً.</p>
           </div>
+
           {plans.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-3">
-              {plans.map((p) => (
-                <div key={p.name} className="rounded-xl border bg-card p-4 text-center">
-                  <div className="font-bold">{p.name}</div>
-                  <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly)} ج.م` : "مجاناً"}</div>
-                  <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? "/ شهر" : ""}</div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? "مستخدمون بلا حد" : `${egp(p.maxUsers)} مستخدم`} · {p.storageGb == null ? "تخزين بلا حد" : `${egp(p.storageGb)} ج.ب`}</div>
-                </div>
-              ))}
+              {plans.map((p) => {
+                const on = p.id === planId;
+                return (
+                  <button type="button" key={p.id} onClick={() => setPlanId(on ? null : p.id)}
+                    className={cn("rounded-xl border bg-card p-4 text-center transition-colors", on ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50")}>
+                    <div className="font-bold">{p.name}</div>
+                    <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly)} ج.م` : "مجاناً"}</div>
+                    <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? "/ شهر" : ""}</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? "مستخدمون بلا حد" : `${egp(p.maxUsers)} مستخدم`} · {p.storageGb == null ? "تخزين بلا حد" : `${egp(p.storageGb)} ج.ب`}</div>
+                    {on && <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary"><Check className="size-3" />مختارة</div>}
+                  </button>
+                );
+              })}
             </div>
           )}
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center text-sm">
-            تبدأ بـ <b>تجربة مجانية ١٤ يوماً</b> بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.
-          </div>
+
+          {selectedPlan ? (
+            <div className="space-y-3 rounded-xl border p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">الاشتراك في باقة {selectedPlan.name}</span>
+                <button type="button" onClick={() => setPlanId(null)} className="text-xs text-muted-foreground hover:underline">أو ابدأ بتجربة مجانية</button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>الدورة</Label>
+                  <select className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value as "MONTHLY" | "ANNUAL")}>
+                    <option value="MONTHLY">شهري — {egp(selectedPlan.priceMonthly)} ج.م</option>
+                    <option value="ANNUAL">سنوي — {egp(selectedPlan.priceAnnual)} ج.م</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5"><Label>طريقة الدفع</Label>
+                  <select className={selectCls} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                    {PAYMENT_METHODS.filter((m) => m.enabled).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <div className="mb-1 font-medium">المبلغ: {egp(planPrice)} ج.م</div>
+                <p className="text-muted-foreground">{chosenMethod.detail}</p>
+                {payMethod === "INSTAPAY" && (
+                  <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 font-mono text-base font-semibold hover:bg-accent" dir="ltr">
+                    {WALLET_NUMBER}<Copy className="size-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>
+                <Input value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="رقم التحويل من إنستا باي أو البنك" />
+              </div>
+              <p className="text-xs text-muted-foreground">تبدأ التجربة فوراً، ويُفعّل اشتراكك بعد مراجعة الدفع.</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center text-sm">
+              تبدأ بـ <b>تجربة مجانية ١٤ يوماً</b> بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.
+            </div>
+          )}
         </div>
       )}
 
@@ -134,8 +192,12 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
         </Button>
         {step < 2 ? (
           <Button onClick={next} disabled={pending}>التالي <ArrowLeft className="size-4" /></Button>
+        ) : selectedPlan ? (
+          <Button onClick={() => submit(true)} disabled={pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}اشترك الآن — {egp(planPrice)} ج.م
+          </Button>
         ) : (
-          <Button onClick={submit} disabled={pending} className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
+          <Button onClick={() => submit(false)} disabled={pending} className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
             {pending && <Loader2 className="size-4 animate-spin" />}ابدأ التجربة المجانية
           </Button>
         )}
