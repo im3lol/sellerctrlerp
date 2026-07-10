@@ -70,6 +70,7 @@ export const NAV: NavSection[] = [
       { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view" },
       { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view" },
       { label: "تقرير الدفتر", href: "/erp/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view" },
+      { label: "ترتيب الموردين", href: "/erp/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view" },
     ],
   },
   {
