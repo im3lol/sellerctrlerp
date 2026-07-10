@@ -56,6 +56,7 @@ export const NAV: NavSection[] = [
       { label: "كشف حساب المورّد",       href: "/erp/accounting/supplier-statement",  icon: "ScrollText",    capability: "erp.accounting.view" },
       { label: "الحسابات البنكية",       href: "/erp/accounting/banks",               icon: "Landmark",      capability: "erp.accounting.view" },
       { label: "المطابقة البنكية",        href: "/erp/accounting/reconciliation",      icon: "ListChecks",    capability: "erp.accounting.view" },
+      { label: "مطابقة حسابات المراقبة",  href: "/erp/accounting/control-reconciliation", icon: "Scale",      capability: "erp.reports.view" },
       { label: "الأصول الثابتة",         href: "/erp/accounting/assets",              icon: "Building2",     capability: "erp.accounting.view" },
       { label: "الميزانية التقديرية",    href: "/erp/accounting/budget",              icon: "Target",        capability: "erp.accounting.view" },
     ],
