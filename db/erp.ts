@@ -753,6 +753,10 @@ export const journalEntryLines = pgTable(
     credit: money("credit").notNull().default("0"),
     description: text("description"),
     reference: text("reference"),
+    // Bank reconciliation: marked cleared against a bank statement (flag only,
+    // no GL effect).
+    reconciled: boolean("reconciled").notNull().default(false),
+    reconciledAt: ts("reconciled_at"),
   },
   (t) => [
     index("journal_entry_lines_account_idx").on(t.accountId),
