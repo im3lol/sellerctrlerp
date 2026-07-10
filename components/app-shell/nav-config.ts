@@ -6,6 +6,7 @@ export type NavItem = {
   icon: string; // lucide icon name
   capability?: Capability; // if set, only shown when the user has it
   exact?: boolean;
+  group?: string; // optional sub-header within a module (Odoo-style grouping)
 };
 
 export type NavSection = {
@@ -41,24 +42,31 @@ export const NAV: NavSection[] = [
     icon: "Calculator",
     items: [
       { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
-      { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator", capability: "erp.accounting.view" },
-      { label: "القيود اليومية", href: "/erp/accounting/journal", icon: "BookText", capability: "erp.accounting.view" },
-      { label: "القيود المتكررة", href: "/erp/accounting/recurring-journals", icon: "Repeat", capability: "erp.accounting.view" },
-      { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view" },
-      { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target", capability: "erp.accounting.view" },
-      { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock", capability: "erp.accounting.view" },
-      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view" },
-      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view" },
-      { label: "المصروفات", href: "/erp/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view" },
-      { label: "تحليل الديون المتأخرة",  href: "/erp/accounting/aging",               icon: "CalendarClock", capability: "erp.accounting.view" },
-      { label: "توقّع التدفق النقدي",    href: "/erp/accounting/cashflow-forecast",   icon: "TrendingUp",    capability: "erp.reports.view" },
-      { label: "كشف حساب العميل",        href: "/erp/accounting/customer-statement",  icon: "ScrollText",    capability: "erp.accounting.view" },
-      { label: "كشف حساب المورّد",       href: "/erp/accounting/supplier-statement",  icon: "ScrollText",    capability: "erp.accounting.view" },
-      { label: "الحسابات البنكية",       href: "/erp/accounting/banks",               icon: "Landmark",      capability: "erp.accounting.view" },
-      { label: "المطابقة البنكية",        href: "/erp/accounting/reconciliation",      icon: "ListChecks",    capability: "erp.accounting.view" },
-      { label: "مطابقة حسابات المراقبة",  href: "/erp/accounting/control-reconciliation", icon: "Scale",      capability: "erp.reports.view" },
-      { label: "الأصول الثابتة",         href: "/erp/accounting/assets",              icon: "Building2",     capability: "erp.accounting.view" },
-      { label: "الميزانية التقديرية",    href: "/erp/accounting/budget",              icon: "Target",        capability: "erp.accounting.view" },
+
+      { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator", capability: "erp.accounting.view", group: "القيود والأستاذ" },
+      { label: "القيود اليومية", href: "/erp/accounting/journal", icon: "BookText", capability: "erp.accounting.view", group: "القيود والأستاذ" },
+      { label: "القيود المتكررة", href: "/erp/accounting/recurring-journals", icon: "Repeat", capability: "erp.accounting.view", group: "القيود والأستاذ" },
+      { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view", group: "القيود والأستاذ" },
+
+      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view", group: "العملاء" },
+      { label: "كشف حساب العميل", href: "/erp/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "العملاء" },
+
+      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الموردون" },
+      { label: "كشف حساب المورّد", href: "/erp/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الموردون" },
+
+      { label: "المصروفات", href: "/erp/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view", group: "المصروفات والأصول" },
+      { label: "الأصول الثابتة", href: "/erp/accounting/assets", icon: "Building2", capability: "erp.accounting.view", group: "المصروفات والأصول" },
+
+      { label: "الحسابات البنكية", href: "/erp/accounting/banks", icon: "Landmark", capability: "erp.accounting.view", group: "البنوك والخزينة" },
+      { label: "المطابقة البنكية", href: "/erp/accounting/reconciliation", icon: "ListChecks", capability: "erp.accounting.view", group: "البنوك والخزينة" },
+
+      { label: "تحليل الديون المتأخرة", href: "/erp/accounting/aging", icon: "CalendarClock", capability: "erp.accounting.view", group: "التقارير والمطابقات" },
+      { label: "توقّع التدفق النقدي", href: "/erp/accounting/cashflow-forecast", icon: "TrendingUp", capability: "erp.reports.view", group: "التقارير والمطابقات" },
+      { label: "مطابقة حسابات المراقبة", href: "/erp/accounting/control-reconciliation", icon: "Scale", capability: "erp.reports.view", group: "التقارير والمطابقات" },
+
+      { label: "مراكز التكلفة", href: "/erp/accounting/cost-centers", icon: "Target", capability: "erp.accounting.view", group: "الإعداد" },
+      { label: "الفترات المالية", href: "/erp/accounting/periods", icon: "Lock", capability: "erp.accounting.view", group: "الإعداد" },
+      { label: "الميزانية التقديرية", href: "/erp/accounting/budget", icon: "PieChart", capability: "erp.accounting.view", group: "الإعداد" },
     ],
   },
   {

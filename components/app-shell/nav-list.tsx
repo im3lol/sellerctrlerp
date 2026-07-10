@@ -82,9 +82,19 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
             </button>
             {open && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
-                {items.map((item) => (
-                  <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
-                ))}
+                {items.map((item, idx) => {
+                  // Insert a sub-header divider whenever the group changes (Odoo-style).
+                  const prev = idx > 0 ? items[idx - 1].group : undefined;
+                  const showGroup = item.group && item.group !== prev;
+                  return (
+                    <div key={item.href} className="space-y-1">
+                      {showGroup && (
+                        <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">{item.group}</div>
+                      )}
+                      <NavLink item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
