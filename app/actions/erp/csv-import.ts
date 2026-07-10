@@ -2,7 +2,7 @@
 
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { customers, items } from "@/db/schema";
+import { customers, items, suppliers } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
 
@@ -13,7 +13,7 @@ export type ImportResult = {
   total: number;
 };
 
-async function authorize(_perm: "sales.create" | "inventory.create"): Promise<{ error: string } | { orgId: string }> {
+async function authorize(_perm: "sales.create" | "inventory.create" | "purchases.create"): Promise<{ error: string } | { orgId: string }> {
   const { user, org } = await getActiveOrg();
   if (!user) return { error: "غير مصرح" };
   if (!org)  return { error: "لم يتم تحديد المؤسسة" };
@@ -93,6 +93,53 @@ export async function importCustomersCSV(csvText: string): Promise<ImportResult 
     }
   }
 
+  return result;
+}
+
+export async function importSuppliersCSV(csvText: string): Promise<ImportResult | { error: string }> {
+  const auth = await authorize("purchases.create");
+  if ("error" in auth) return auth;
+  const { orgId } = auth;
+
+  const rows = parseCSV(csvText);
+  if (rows.length === 0) return { inserted: 0, updated: 0, errors: [], total: 0 };
+
+  const header = rows[0].map((h) => h.toLowerCase().replace(/\s+/g, ""));
+  const dataRows = header.includes("code") || header.includes("الكود") ? rows.slice(1) : rows;
+  const col = (row: string[], names: string[]) => {
+    for (const n of names) { const idx = header.indexOf(n); if (idx !== -1) return row[idx] ?? ""; }
+    return row[0] ?? "";
+  };
+
+  const result: ImportResult = { inserted: 0, updated: 0, errors: [], total: dataRows.length };
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const rowNum = i + 2;
+    const code = col(row, ["code", "الكود", "كود"]).trim();
+    const nameAr = col(row, ["namear", "name_ar", "الاسم", "اسم"]).trim();
+    if (!code) { result.errors.push({ row: rowNum, message: "الكود مطلوب" }); continue; }
+    if (!nameAr) { result.errors.push({ row: rowNum, message: "الاسم مطلوب" }); continue; }
+
+    const phone = col(row, ["phone", "هاتف", "الهاتف"]).trim() || null;
+    const email = col(row, ["email", "بريد", "البريد"]).trim() || null;
+    const address = col(row, ["address", "عنوان", "العنوان"]).trim() || null;
+    const paymentTerms = parseInt(col(row, ["paymentterms", "مدةالسداد", "مدة"])) || 30;
+
+    try {
+      const existing = await db.select({ id: suppliers.id }).from(suppliers)
+        .where(and(eq(suppliers.organizationId, orgId), eq(suppliers.code, code))).limit(1);
+      if (existing.length > 0) {
+        await db.update(suppliers).set({ nameAr, phone, email, address, paymentTerms, updatedAt: new Date() })
+          .where(and(eq(suppliers.organizationId, orgId), eq(suppliers.code, code)));
+        result.updated++;
+      } else {
+        await db.insert(suppliers).values({ organizationId: orgId, code, nameAr, phone, email, address, paymentTerms });
+        result.inserted++;
+      }
+    } catch (e: unknown) {
+      result.errors.push({ row: rowNum, message: e instanceof Error ? e.message : "خطأ في الاستيراد" });
+    }
+  }
   return result;
 }
 

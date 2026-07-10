@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import { toast } from "sonner";
-import { importCustomersCSV, importItemsCSV, type ImportResult } from "@/app/actions/erp/csv-import";
+import { importCustomersCSV, importItemsCSV, importSuppliersCSV, type ImportResult } from "@/app/actions/erp/csv-import";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,10 @@ C002,مؤسسة النجاح,0551234567,,10000,15`;
 const ITEMS_TEMPLATE = `code,nameAr,nameEn,sellPrice,minStock,description,isActive
 ITM001,كرسي مكتبي,Office Chair,250.00,5,كرسي دوار مريح,true
 ITM002,طاولة اجتماعات,Meeting Table,1200.00,2,,true`;
+
+const SUPPLIERS_TEMPLATE = `code,nameAr,phone,email,address,paymentTerms
+S001,مورد الشرق,0501112222,info@east.sa,الرياض,30
+S002,شركة الإمداد,0553334444,,جدة,45`;
 
 function ResultBadge({ result }: { result: ImportResult }) {
   return (
@@ -120,8 +124,27 @@ export function CsvImportClient() {
     <Tabs defaultValue="customers">
       <TabsList>
         <TabsTrigger value="customers">العملاء</TabsTrigger>
+        <TabsTrigger value="suppliers">الموردون</TabsTrigger>
         <TabsTrigger value="items">الأصناف</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="suppliers">
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>استيراد الموردين</CardTitle>
+            <CardDescription>الأعمدة: code, nameAr, phone, email, address, paymentTerms</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImportPane
+              title="الموردون"
+              description="استيراد أو تحديث بيانات الموردين. الموجود (بنفس الكود) سيتم تحديثه دون المساس بالأرصدة."
+              template={SUPPLIERS_TEMPLATE}
+              templateName="suppliers-template.csv"
+              onImport={importSuppliersCSV}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
 
       <TabsContent value="customers">
         <Card className="mt-4">
