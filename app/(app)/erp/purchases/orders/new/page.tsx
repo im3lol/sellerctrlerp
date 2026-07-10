@@ -21,6 +21,18 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
   ]);
 
+  // Last unit price paid per item (any supplier) — suggested on the PO line.
+  // ponytail: last price across all suppliers; make it per-supplier if negotiated price lists are needed.
+  const lastPriceRows = (await db.execute<{ item_id: string; unit_price: string }>(sql`
+    SELECT DISTINCT ON (pol.item_id) pol.item_id, pol.unit_price
+    FROM purchase_order_lines pol
+    JOIN purchase_orders po ON po.id = pol.purchase_order_id
+    WHERE po.organization_id = ${orgId} AND pol.unit_price > 0
+    ORDER BY pol.item_id, po.date DESC, po.created_at DESC
+  `)).rows as { item_id: string; unit_price: string }[];
+  const lastPrices: Record<string, number> = {};
+  for (const r of lastPriceRows) lastPrices[r.item_id] = Number(r.unit_price);
+
   let initialLines: { itemId: string; quantity: number }[] | undefined;
 
   // Prefill from an approved purchase requisition's lines.
@@ -57,7 +69,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/erp/purchases/orders" />
-      <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} initialLines={initialLines} />
+      <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} initialLines={initialLines} lastPrices={lastPrices} />
     </div>
   );
 }

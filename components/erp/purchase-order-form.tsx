@@ -28,7 +28,7 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
 const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + l.taxAmount);
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initialLines }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; initialLines?: { itemId: string; quantity: number }[] }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initialLines, lastPrices = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -37,7 +37,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(
-    initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity })) : [newLine()],
+    initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 })) : [newLine()],
   );
   // Landed costs: total import charges auto-allocated onto each line's shipping/unit.
   const [lc, setLc] = useState({ shipping: "", customs: "", insurance: "", other: "" });
@@ -68,7 +68,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
       return [...ls, line];
@@ -159,7 +159,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
-                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} />
+                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })} />
                   </TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
