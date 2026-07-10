@@ -28,11 +28,12 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
 
   // A module is open if it contains the active route. Users can toggle modules
   // open/closed; we seed the open set with whichever module is currently active.
+  const headingActive = (section: NavSection) => !!section.href && isActive(pathname, section.href, true);
   const initiallyOpen = () => {
     const open: Record<number, boolean> = {};
     NAV.forEach((section, i) => {
       const sec = withDynamic(section);
-      if (sec.heading && visibleItems(sec, role).some((it) => isActive(pathname, it.href, it.exact))) {
+      if (sec.heading && (headingActive(sec) || visibleItems(sec, role).some((it) => isActive(pathname, it.href, it.exact)))) {
         open[i] = true;
       }
     });
@@ -40,6 +41,13 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
   };
   const [openMap, setOpenMap] = useState<Record<number, boolean>>(initiallyOpen);
   const toggle = (i: number) => setOpenMap((m) => ({ ...m, [i]: !m[i] }));
+  const openModule = (i: number) => setOpenMap((m) => ({ ...m, [i]: true }));
+
+  // Collapsed sub-groups within a module, keyed "moduleIndex:groupName". A group
+  // auto-opens when it contains the active route; otherwise it stays collapsed so
+  // the sidebar stays short until the user drills in.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = (key: string) => setOpenGroups((m) => ({ ...m, [key]: !m[key] }));
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -61,37 +69,81 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
           );
         }
 
-        // Collapsible module group (auto-open when it contains the active route).
-        const groupActive = items.some((it) => isActive(pathname, it.href, it.exact));
+        // Collapsible module (auto-open when it contains the active route).
+        const hActive = headingActive(section);
+        const groupActive = hActive || items.some((it) => isActive(pathname, it.href, it.exact));
         const open = openMap[i] ?? groupActive;
         const headingCls = cn(
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
           groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         );
-        const chevron = (
-          <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />
-        );
+        const chevron = <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />;
+
+        // Split items into ungrouped (shown directly) + ordered sub-groups (collapsible).
+        const ungrouped = items.filter((it) => !it.group);
+        const groupOrder: string[] = [];
+        const grouped: Record<string, typeof items> = {};
+        for (const it of items) {
+          if (!it.group) continue;
+          if (!grouped[it.group]) { grouped[it.group] = []; groupOrder.push(it.group); }
+          grouped[it.group].push(it);
+        }
+
         return (
           <div key={i} className="space-y-1">
-            {/* Whole heading toggles the group open/closed (the module landing is
-                reachable via the "نظرة عامة" item inside). Consistent across all modules. */}
-            <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
-              {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-              <span className="flex-1 text-start">{section.heading}</span>
-              {chevron}
-            </button>
+            {/* Heading: the label navigates to the module overview; the chevron
+                toggles the module open/closed. Falls back to a plain toggle when
+                the module has no landing href. */}
+            {section.href ? (
+              <div className={cn(headingCls, "w-full pe-1", hActive && "bg-sidebar-accent")}>
+                <Link
+                  href={section.href}
+                  onClick={() => { openModule(i); onNavigate?.(); }}
+                  className="flex flex-1 items-center gap-3 text-start"
+                >
+                  {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+                  <span className="flex-1">{section.heading}</span>
+                </Link>
+                <button type="button" onClick={() => toggle(i)} aria-expanded={open} aria-label="طي/فتح" className="grid size-6 place-items-center rounded-md hover:bg-sidebar-accent">
+                  {chevron}
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => toggle(i)} aria-expanded={open} className={cn(headingCls, "w-full")}>
+                {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+                <span className="flex-1 text-start">{section.heading}</span>
+                {chevron}
+              </button>
+            )}
+
             {open && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
-                {items.map((item, idx) => {
-                  // Insert a sub-header divider whenever the group changes (Odoo-style).
-                  const prev = idx > 0 ? items[idx - 1].group : undefined;
-                  const showGroup = item.group && item.group !== prev;
+                {ungrouped.map((item) => (
+                  <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                ))}
+                {groupOrder.map((g) => {
+                  const gItems = grouped[g];
+                  const key = `${i}:${g}`;
+                  const gActive = gItems.some((it) => isActive(pathname, it.href, it.exact));
+                  const gOpen = openGroups[key] ?? gActive;
                   return (
-                    <div key={item.href} className="space-y-1">
-                      {showGroup && (
-                        <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">{item.group}</div>
+                    <div key={g} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(key)}
+                        aria-expanded={gOpen}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/70"
+                      >
+                        <span className="flex-1 text-start">{g}</span>
+                        <Icon name="ChevronDown" className={cn("size-3.5 shrink-0 transition-transform", gOpen ? "rotate-180" : "")} />
+                      </button>
+                      {gOpen && (
+                        <div className="space-y-1">
+                          {gItems.map((item) => (
+                            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                          ))}
+                        </div>
                       )}
-                      <NavLink item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
                     </div>
                   );
                 })}

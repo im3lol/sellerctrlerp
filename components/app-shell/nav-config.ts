@@ -11,6 +11,7 @@ export type NavItem = {
 
 export type NavSection = {
   heading?: string; // module name. When set, the group is collapsible (heading toggles it).
+  href?: string; // module overview/landing — clicking the heading label navigates here
   icon?: string; // module (lucide) icon shown next to the heading
   moduleKey?: string; // subscription module gate; hidden when the tenant lacks it
   dynamicKey?: "platforms"; // group whose items are augmented at render from live data
@@ -30,6 +31,7 @@ export const NAV: NavSection[] = [
     // Cross-cutting hub: platforms/channels tie sales + inventory + accounts
     // together. A collapsible group whose live platforms are listed underneath.
     heading: "المنصات",
+    href: "/erp/platforms",
     icon: "Store",
     dynamicKey: "platforms",
     items: [
@@ -38,11 +40,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المحاسبة",
+    href: "/erp/accounting",
     moduleKey: "accounting",
     icon: "Calculator",
     items: [
-      { label: "نظرة عامة", href: "/erp/accounting", icon: "LayoutDashboard", capability: "erp.accounting.view", exact: true },
-
       { label: "دليل الحسابات", href: "/erp/accounting/chart", icon: "Calculator", capability: "erp.accounting.view", group: "القيود والأستاذ" },
       { label: "القيود اليومية", href: "/erp/accounting/journal", icon: "BookText", capability: "erp.accounting.view", group: "القيود والأستاذ" },
       { label: "القيود المتكررة", href: "/erp/accounting/recurring-journals", icon: "Repeat", capability: "erp.accounting.view", group: "القيود والأستاذ" },
@@ -71,11 +72,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المشتريات",
+    href: "/erp/purchases",
     moduleKey: "purchases",
     icon: "Truck",
     items: [
-      { label: "الموردون", href: "/erp/purchases", icon: "Users", capability: "erp.purchases.view", exact: true },
-
       { label: "طلبات المواد", href: "/erp/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/erp/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
@@ -87,11 +87,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المخزون",
+    href: "/erp/inventory",
     moduleKey: "inventory",
     icon: "Warehouse",
     items: [
-      { label: "نظرة عامة", href: "/erp/inventory", icon: "LayoutDashboard", capability: "erp.inventory.view", exact: true },
-
       { label: "الأصناف", href: "/erp/inventory/items", icon: "Package", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "أرصدة المخزون", href: "/erp/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "دفتر حركة المخزون", href: "/erp/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
@@ -111,11 +110,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المبيعات",
+    href: "/erp/sales",
     moduleKey: "sales",
     icon: "ShoppingCart",
     items: [
-      { label: "العملاء", href: "/erp/sales", icon: "Users", capability: "erp.sales.view", exact: true },
-
       { label: "عروض الأسعار", href: "/erp/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
@@ -129,6 +127,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المستثمرون",
+    href: "/erp/investors",
     moduleKey: "investors",
     icon: "Coins",
     items: [
@@ -137,11 +136,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "الموارد البشرية",
+    href: "/erp/hr/employees",
     moduleKey: "hr",
     icon: "UsersRound",
     items: [
-      { label: "الموظفون",    href: "/erp/hr/employees", icon: "UserCog",       capability: "erp.hr.view" },
-
       { label: "الإجازات",     href: "/erp/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقويم العطلات", href: "/erp/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
 
@@ -151,10 +149,10 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "التقارير والتحليلات",
+    href: "/erp/reports/center",
     moduleKey: "reports",
     icon: "ChartColumn",
     items: [
-      { label: "مركز التقارير", href: "/erp/reports/center", icon: "ChartColumn", capability: "erp.reports.view" },
       { label: "ميزان المراجعة", href: "/erp/reports", icon: "ChartPie", capability: "erp.reports.view", exact: true },
 
       { label: "قائمة الدخل", href: "/erp/reports/income-statement", icon: "TrendingUp", capability: "erp.reports.view", group: "القوائم المالية" },
