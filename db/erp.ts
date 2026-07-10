@@ -1770,6 +1770,20 @@ export const leaveRequests = pgTable(
   ],
 );
 
+// Company public-holiday calendar (org reference data). Used to compute net
+// working days for leave/payroll. No GL.
+export const holidays = pgTable(
+  "holidays",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    date: ts("date").notNull(),
+    nameAr: text("name_ar").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("holidays_org_date_idx").on(t.organizationId, t.date)],
+);
+
 // One payroll batch per period (usually monthly). Confirmed → posts GL entry.
 export const payrollRuns = pgTable(
   "payroll_runs",
