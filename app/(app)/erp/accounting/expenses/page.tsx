@@ -1,0 +1,142 @@
+import Link from "next/link";
+import { aliasedTable, and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import { requireErpModule } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { expenses, accounts } from "@/db/schema";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Icon } from "@/components/icon";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
+import { Pagination } from "@/components/erp/pagination";
+import { ExpenseRowActions } from "@/components/erp/expense-row-actions";
+
+const PAGE_SIZE = 20;
+const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+type SP = { q?: string; status?: string; from?: string; to?: string; page?: string };
+
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const { orgId, can } = await requireErpModule("accounting.view");
+  const canManage = can("accounting.create");
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim();
+  const status = sp.status ?? "";
+  const from = sp.from ?? "";
+  const to = sp.to ?? "";
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+
+  const cat = aliasedTable(accounts, "cat");
+  const cash = aliasedTable(accounts, "cash");
+
+  const conds = [eq(expenses.organizationId, orgId)];
+  if (status) conds.push(eq(expenses.status, status));
+  if (from) conds.push(gte(expenses.date, new Date(from)));
+  if (to) conds.push(lte(expenses.date, new Date(`${to}T23:59:59`)));
+  if (q) conds.push(or(ilike(expenses.number, `%${q}%`), ilike(expenses.payee, `%${q}%`), ilike(cat.nameAr, `%${q}%`))!);
+  const where = and(...conds);
+
+  const base = db
+    .select({
+      id: expenses.id, number: expenses.number, date: expenses.date, amount: expenses.amount,
+      status: expenses.status, payee: expenses.payee, category: cat.nameAr, paidFrom: cash.nameAr,
+    })
+    .from(expenses)
+    .leftJoin(cat, eq(cat.id, expenses.expenseAccountId))
+    .leftJoin(cash, eq(cash.id, expenses.cashAccountId));
+
+  const [[{ count }], [{ posted }], rows] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(expenses).leftJoin(cat, eq(cat.id, expenses.expenseAccountId)).where(where),
+    db.select({ posted: sql<string>`coalesce(sum(${expenses.amount}) filter (where ${expenses.status} = 'POSTED'), 0)` }).from(expenses).leftJoin(cat, eq(cat.id, expenses.expenseAccountId)).where(where),
+    base.where(where).orderBy(desc(expenses.date), desc(expenses.number)).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE),
+  ]);
+
+  const total = Number(count);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilters = !!(q || status || from || to);
+
+  return (
+    <div className="space-y-6">
+      <ErpPageHeader
+        icon="Wallet"
+        title="المصروفات"
+        subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} مصروف — مُرحّل ${fmt(posted)}`}
+        action={canManage ? <Button asChild><Link href="/erp/accounting/expenses/new"><Icon name="Plus" className="size-4" />مصروف جديد</Link></Button> : undefined}
+      />
+
+      <FilterBar active={hasFilters} clearHref="/erp/accounting/expenses">
+        <div className="space-y-2">
+          <Label htmlFor="q">بحث</Label>
+          <Input id="q" name="q" defaultValue={q} placeholder="الرقم أو البند أو المستفيد" className="min-w-56" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="status">الحالة</Label>
+          <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-32`}>
+            <option value="">الكل</option>
+            <option value="POSTED">مرحّل</option>
+            <option value="DRAFT">مسودة</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="from">من</Label>
+          <input id="from" name="from" type="date" defaultValue={from} className={filterFieldCls} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="to">إلى</Label>
+          <input id="to" name="to" type="date" defaultValue={to} className={filterFieldCls} />
+        </div>
+      </FilterBar>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>المصروفات التشغيلية</CardTitle>
+          <CardDescription>مصروفات عامة تُدفع من النقدية/البنك (Dr المصروف · Cr نقدية/بنك).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
+              {hasFilters ? "لا توجد مصروفات مطابقة للتصفية." : "لا توجد مصروفات بعد."}
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-start">الرقم</TableHead>
+                    <TableHead className="text-start">التاريخ</TableHead>
+                    <TableHead className="text-start">البند</TableHead>
+                    <TableHead className="text-start">المستفيد</TableHead>
+                    <TableHead className="text-start">الدفع من</TableHead>
+                    <TableHead className="text-start">المبلغ</TableHead>
+                    <TableHead className="text-start">الحالة</TableHead>
+                    {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-mono">{r.number}</TableCell>
+                      <TableCell>{dt(r.date)}</TableCell>
+                      <TableCell>{r.category ?? "—"}</TableCell>
+                      <TableCell>{r.payee ?? "—"}</TableCell>
+                      <TableCell>{r.paidFrom ?? "—"}</TableCell>
+                      <TableCell>{fmt(r.amount)}</TableCell>
+                      <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                      {canManage && <TableCell><ExpenseRowActions id={r.id} status={r.status} canManage={canManage} /></TableCell>}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Pagination page={page} pages={pages} total={total} unit="مصروف" basePath="/erp/accounting/expenses" params={{ q, status, from, to }} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

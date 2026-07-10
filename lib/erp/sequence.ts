@@ -40,6 +40,7 @@ const NUMBERED_TABLES = [
   "journal_entries", "sales_orders", "purchase_orders", "sales_invoices", "purchase_invoices",
   "receipt_vouchers", "payment_vouchers", "sales_returns", "purchase_returns",
   "stock_transfers", "stock_adjustments", "delivery_notes", "purchase_receipts", "stock_movements",
+  "expenses",
 ] as const;
 
 /**

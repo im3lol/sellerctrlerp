@@ -1103,6 +1103,29 @@ export const paymentLines = pgTable("payment_lines", {
   amount: money("amount").notNull(),
 });
 
+// General operating expense (not tied to a supplier invoice): pay from cash/bank
+// against an expense category. Confirming posts Dr expense · Cr cash/bank.
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT, POSTED
+    expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id), // the category (EXPENSE leaf)
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),        // paid from (ASSET leaf)
+    amount: money("amount").notNull(),
+    paymentMethod: text("payment_method").notNull().default("CASH"),
+    payee: text("payee"),        // who was paid (free text)
+    reference: text("reference"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("expenses_org_number_idx").on(t.organizationId, t.number)],
+);
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {

@@ -26,6 +26,7 @@ const SHORTCUTS = [
   { label: "فواتير الشراء", href: "/erp/purchases/invoices", icon: "ReceiptText", key: "purchases" },
   { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins" },
   { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote" },
+  { label: "المصروفات", href: "/erp/accounting/expenses", icon: "Wallet" },
   { label: "استيراد طلبات أمازون", href: "/erp/sales/orders/import", icon: "Upload" },
   { label: "تسويات أمازون", href: "/erp/sales/orders/settlements", icon: "Landmark" },
 ] as const;

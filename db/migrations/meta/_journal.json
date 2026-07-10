@@ -169,6 +169,13 @@
       "when": 1783637495433,
       "tag": "0023_regular_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1783647164666,
+      "tag": "0024_black_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }
