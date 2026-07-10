@@ -1149,6 +1149,46 @@ export const recurringExpenses = pgTable(
   (t) => [index("recurring_expenses_org_idx").on(t.organizationId)],
 );
 
+// Bill of materials for a kit/bundle item: one row per component. Assembling the
+// kit consumes these components and produces the kit as sellable stock.
+export const itemComponents = pgTable(
+  "item_components",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    parentItemId: text("parent_item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    componentItemId: text("component_item_id").notNull().references(() => items.id, { onDelete: "restrict" }),
+    quantity: money("quantity").notNull().default("1"),
+  },
+  (t) => [
+    uniqueIndex("item_components_parent_comp_idx").on(t.parentItemId, t.componentItemId),
+    index("item_components_org_idx").on(t.organizationId),
+  ],
+);
+
+// A posted assembly event: consumed the kit's components (stock OUT at cost) and
+// produced `quantity` kit units (stock IN at the summed component cost) — value
+// neutral, so no GL entry (mirrors stock transfers). Movements carry
+// referenceType ASSEMBLY for audit/reversal.
+export const stockAssemblies = pgTable(
+  "stock_assemblies",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    kitItemId: text("kit_item_id").notNull().references(() => items.id),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    quantity: money("quantity").notNull(),
+    totalCost: money("total_cost").notNull().default("0"),
+    status: text("status").notNull().default("POSTED"),
+    date: ts("date").notNull(),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("stock_assemblies_org_number_idx").on(t.organizationId, t.number)],
+);
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {
