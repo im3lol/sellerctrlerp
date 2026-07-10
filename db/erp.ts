@@ -1743,6 +1743,33 @@ export const employees = pgTable(
   ],
 );
 
+// Employee leave requests. Purely operational — no GL. DRAFT → APPROVED / REJECTED.
+export const leaveRequests = pgTable(
+  "leave_requests",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+    employeeName: text("employee_name").notNull(), // snapshot for display
+    leaveType: text("leave_type").notNull().default("ANNUAL"), // ANNUAL | SICK | UNPAID | OTHER
+    startDate: ts("start_date").notNull(),
+    endDate: ts("end_date").notNull(),
+    days: integer("days").notNull().default(1), // inclusive calendar days
+    reason: text("reason"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | APPROVED | REJECTED
+    submittedBy: uuid("submitted_by").references(() => users.id, { onDelete: "set null" }),
+    approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+    approvedAt: ts("approved_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("leave_requests_org_number_idx").on(t.organizationId, t.number),
+    index("leave_requests_org_emp_idx").on(t.organizationId, t.employeeId),
+  ],
+);
+
 // One payroll batch per period (usually monthly). Confirmed → posts GL entry.
 export const payrollRuns = pgTable(
   "payroll_runs",

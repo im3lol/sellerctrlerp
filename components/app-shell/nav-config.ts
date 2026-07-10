@@ -124,6 +124,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: "الموظفون",    href: "/erp/hr/employees", icon: "UserCog",       capability: "erp.hr.view" },
       { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view" },
+      { label: "الإجازات",     href: "/erp/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view" },
       { label: "مطالبات المصروفات", href: "/erp/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view" },
     ],
   },
