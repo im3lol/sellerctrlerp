@@ -23,7 +23,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
   const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });
   const lines = balances
     .filter((b) => b.debit !== 0 || b.credit !== 0)
-    .map((b) => ({ code: b.code, nameAr: b.nameAr, debit: b.balance > 0 ? b.balance : 0, credit: b.balance < 0 ? -b.balance : 0 }));
+    .map((b) => ({ id: b.id, code: b.code, nameAr: b.nameAr, debit: b.balance > 0 ? b.balance : 0, credit: b.balance < 0 ? -b.balance : 0 }));
   const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
   const balanced = Math.abs(totalDebit - totalCredit) < 0.01;
@@ -88,7 +88,9 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.code}>
-                    <TableCell className="font-mono">{l.code}</TableCell>
+                    <TableCell className="font-mono">
+                      <a href={`/erp/accounting/ledger?${new URLSearchParams({ account: l.id, from, to }).toString()}`} className="hover:text-primary hover:underline">{l.code}</a>
+                    </TableCell>
                     <TableCell>{l.nameAr}</TableCell>
                     <TableCell>{l.debit ? fmt(l.debit) : "—"}</TableCell>
                     <TableCell>{l.credit ? fmt(l.credit) : "—"}</TableCell>
