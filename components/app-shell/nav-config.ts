@@ -134,6 +134,7 @@ export const NAV: NavSection[] = [
       { label: "التدفق النقدي", href: "/erp/reports/cash-flow", icon: "ArrowLeftRight", capability: "erp.reports.view" },
       { label: "أرباح مراكز التكلفة", href: "/erp/reports/cost-centers", icon: "Target", capability: "erp.reports.view" },
       { label: "ضريبة القيمة المضافة", href: "/erp/reports/vat", icon: "Percent", capability: "erp.reports.view" },
+      { label: "إعادة تقييم العملات", href: "/erp/reports/fx-revaluation", icon: "BadgeDollarSign", capability: "erp.reports.view" },
     ],
   },
   {
