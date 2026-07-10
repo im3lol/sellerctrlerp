@@ -28,7 +28,12 @@ export default async function LeaveRequestsPage() {
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="CalendarDays" title="إجازات الموظفين" subtitle={`${rows.length} طلب`} backHref="/erp/hr/employees"
-        action={can("hr.create") ? <Button asChild><Link href="/erp/hr/leaves/new"><Icon name="Plus" className="size-4" />طلب إجازة</Link></Button> : undefined} />
+        action={
+          <div className="flex gap-2">
+            <Button asChild variant="outline"><Link href="/erp/hr/leaves/report"><Icon name="BarChart3" className="size-4" />التقرير</Link></Button>
+            {can("hr.create") && <Button asChild><Link href="/erp/hr/leaves/new"><Icon name="Plus" className="size-4" />طلب إجازة</Link></Button>}
+          </div>
+        } />
       <Card>
         <CardContent className="p-0">
           {rows.length === 0 ? (
