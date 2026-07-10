@@ -1278,6 +1278,23 @@ export const recurringJournalLines = pgTable("recurring_journal_lines", {
   description: text("description"),
 });
 
+// Per-tenant API keys for the read-only public REST API (/api/v1/*). Only the
+// SHA-256 hash is stored; the plaintext key is shown once at creation.
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(),
+    keyHint: text("key_hint").notNull(), // masked display, e.g. sk_ab…yz
+    isActive: boolean("is_active").notNull().default(true),
+    lastUsedAt: ts("last_used_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("api_keys_hash_idx").on(t.keyHash), index("api_keys_org_idx").on(t.organizationId)],
+);
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {

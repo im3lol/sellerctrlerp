@@ -16,6 +16,7 @@ const MANAGE_LINKS = [
   { label: "العملات وأسعار الصرف", href: "/erp/settings/currencies",    icon: "BadgeDollarSign" },
   { label: "صلاحيات المستخدمين",   href: "/erp/settings/permissions",   icon: "ShieldCheck" },
   { label: "الاشتراك والباقة",     href: "/erp/settings/subscription",  icon: "CreditCard" },
+  { label: "مفاتيح الـ API",       href: "/erp/settings/api-keys",      icon: "KeyRound" },
 ] as const;
 
 export default async function ErpSettingsPage() {

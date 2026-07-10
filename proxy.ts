@@ -18,6 +18,7 @@ export default auth((req) => {
     path.startsWith("/login") ||
     path.startsWith("/signup") ||
     path.startsWith("/api/auth") ||
+    path.startsWith("/api/v1") || // public REST API — authed per-request by API key, not session
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
     path.startsWith("/_next") ||
     path.startsWith("/brand");
