@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Supplier = { id: string; nameAr: string };
@@ -36,12 +37,30 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([newLine()]);
+  // Landed costs: total import charges auto-allocated onto each line's shipping/unit.
+  const [lc, setLc] = useState({ shipping: "", customs: "", insurance: "", other: "" });
+  const [lcMethod, setLcMethod] = useState<"value" | "qty">("value");
+  const lcTotal = round2((Number(lc.shipping) || 0) + (Number(lc.customs) || 0) + (Number(lc.insurance) || 0) + (Number(lc.other) || 0));
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
+
+  // Spread the total landed cost onto each line's shipping/unit (by value or by quantity).
+  const distributeLanded = () => {
+    if (lcTotal <= 0) return toast.error("أدخل قيمة تكاليف الاستيراد أولاً");
+    if (!lines.some((l) => l.itemId && l.quantity > 0)) return toast.error("أضف بنوداً بكميات أولاً");
+    const perUnit = allocateLandedPerUnit(
+      lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, eligible: !!l.itemId })),
+      lcTotal,
+      lcMethod,
+    );
+    if (perUnit.every((p) => p === 0)) return toast.error("تعذّر التوزيع — جرّب التوزيع بالكمية");
+    setLines((ls) => ls.map((l, i) => ({ ...l, shippingPerUnit: perUnit[i] })));
+    toast.success(`تم توزيع ${fmt(lcTotal)} على الشحن لكل وحدة`);
+  };
 
   const addOrBumpItem = (item: ItemSearchResult) =>
     setLines((ls) => {
@@ -153,6 +172,31 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
           </Table>
         </div>
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
+
+        {/* Landed costs — allocate freight/customs/insurance into per-unit inventory cost */}
+        <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">تكاليف الاستيراد (تُرسمَل في تكلفة المخزون)</Label>
+            {lcTotal > 0 && <span className="text-sm text-muted-foreground">الإجمالي: <span className="font-medium">{fmt(lcTotal)}</span></span>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5"><Label className="text-xs">الشحن</Label><Input type="number" step="0.01" min="0" value={lc.shipping} onChange={(e) => setLc((s) => ({ ...s, shipping: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">الجمارك</Label><Input type="number" step="0.01" min="0" value={lc.customs} onChange={(e) => setLc((s) => ({ ...s, customs: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">التأمين</Label><Input type="number" step="0.01" min="0" value={lc.insurance} onChange={(e) => setLc((s) => ({ ...s, insurance: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">أخرى</Label><Input type="number" step="0.01" min="0" value={lc.other} onChange={(e) => setLc((s) => ({ ...s, other: e.target.value }))} placeholder="0" /></div>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">طريقة التوزيع</Label>
+              <select className={`${selectCls} min-w-40`} value={lcMethod} onChange={(e) => setLcMethod(e.target.value as "value" | "qty")}>
+                <option value="value">حسب القيمة</option>
+                <option value="qty">حسب الكمية</option>
+              </select>
+            </div>
+            <Button type="button" variant="secondary" onClick={distributeLanded}>توزيع على الشحن/وحدة</Button>
+            <span className="text-xs text-muted-foreground">يعيد حساب عمود «شحن/وحدة» لكل بند؛ يُرسمَل في المخزون عند الاستلام.</span>
+          </div>
+        </div>
 
         <div className="flex items-start justify-between gap-4 text-sm">
           <div className="flex flex-col items-start gap-1">
