@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { LEAVE_TYPES } from "@/lib/erp/leave";
 
@@ -50,7 +51,12 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="CalendarDays" title="تقرير أرصدة الإجازات" subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`} backHref="/erp/hr/leaves" />
+      <ErpPageHeader icon="CalendarDays" title="تقرير أرصدة الإجازات" subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`} backHref="/erp/hr/leaves"
+        action={
+          <Button asChild variant="outline">
+            <a href={`/api/erp/hr/leaves/report/export?${new URLSearchParams({ from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        } />
 
       <Card>
         <CardHeader><CardTitle>الفترة</CardTitle><CardDescription>تُحتسب الطلبات المعتمدة التي تبدأ ضمن الفترة.</CardDescription></CardHeader>
