@@ -28,7 +28,7 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
 const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + l.taxAmount);
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initialLines }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; initialLines?: { itemId: string; quantity: number }[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -36,7 +36,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName }: { s
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [lines, setLines] = useState<Line[]>(
+    initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity })) : [newLine()],
+  );
   // Landed costs: total import charges auto-allocated onto each line's shipping/unit.
   const [lc, setLc] = useState({ shipping: "", customs: "", insurance: "", other: "" });
   const [lcMethod, setLcMethod] = useState<"value" | "qty">("value");

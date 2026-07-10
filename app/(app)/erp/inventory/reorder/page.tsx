@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 
@@ -11,7 +14,7 @@ const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDi
 type Row = { code: string; name: string; min_stock: string; max_stock: string | null; on_hand: string };
 
 export default async function ReorderPage() {
-  const { orgId } = await requireErpModule("inventory.view");
+  const { orgId, can } = await requireErpModule("inventory.view");
 
   // On-hand per item (sum of latest balance across warehouses) vs reorder level.
   const res = await db.execute<Row>(sql`
@@ -36,7 +39,15 @@ export default async function ReorderPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="TriangleAlert" title="تنبيهات إعادة الطلب" subtitle={`${rows.length} صنف يحتاج إعادة طلب`} backHref="/erp/inventory" />
+      <ErpPageHeader
+        icon="TriangleAlert"
+        title="تنبيهات إعادة الطلب"
+        subtitle={`${rows.length} صنف يحتاج إعادة طلب`}
+        backHref="/erp/inventory"
+        action={rows.length > 0 && can("purchases.create") ? (
+          <Button asChild><Link href="/erp/purchases/orders/new?reorder=1"><Icon name="ClipboardList" className="size-4" />أنشئ أمر شراء بالنواقص</Link></Button>
+        ) : undefined}
+      />
       <Card>
         <CardHeader>
           <CardTitle>أصناف عند/تحت حد الطلب</CardTitle>
