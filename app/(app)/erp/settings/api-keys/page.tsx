@@ -25,6 +25,7 @@ export default async function ApiKeysPage() {
           <ul className="space-y-1 font-mono text-xs" dir="ltr">
             <li><Badge>GET</Badge> /api/v1/items — الأصناف (كود، اسم، سعر البيع، حد الطلب)</li>
             <li><Badge>GET</Badge> /api/v1/stock — الأرصدة (المتوفّر + القيمة لكل صنف)</li>
+            <li><Badge variant="secondary">POST</Badge> /api/v1/sales-orders — إنشاء أمر بيع مسودة (customer + lines بالـ code أو id)</li>
           </ul>
         </CardContent>
       </Card>
