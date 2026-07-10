@@ -1218,6 +1218,34 @@ export const salesQuotationLines = pgTable("sales_quotation_lines", {
   taxAmount: money("tax_amount").notNull().default("0"),
 });
 
+// Employee expense claim: an employee submits multiple expense lines; approving it
+// posts Dr each expense category / Cr cash/bank (reimbursement) via the engine.
+export const expenseClaims = pgTable(
+  "expense_claims",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    employeeName: text("employee_name").notNull(),
+    submittedBy: uuid("submitted_by").references(() => users.id, { onDelete: "set null" }),
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id), // reimbursed from
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT, APPROVED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("expense_claims_org_number_idx").on(t.organizationId, t.number)],
+);
+
+export const expenseClaimLines = pgTable("expense_claim_lines", {
+  id: pk(),
+  claimId: text("claim_id").notNull().references(() => expenseClaims.id, { onDelete: "cascade" }),
+  expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
+  amount: money("amount").notNull(),
+  description: text("description"),
+});
+
 export const purchaseOrders = pgTable(
   "purchase_orders",
   {
