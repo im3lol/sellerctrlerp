@@ -1,50 +1,67 @@
-import { and, asc, eq, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
-import { db } from "@/lib/db";
-import { accounts, journalEntries, journalEntryLines } from "@/db/schema";
+import { accountBalances } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-export default async function ErpReportsPage() {
+export default async function ErpReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   const { orgId } = await requireErpModule("reports.view");
+  const sp = await searchParams;
+  const now = new Date();
+  const from = sp.from || `${now.getFullYear()}-01-01`;
+  const to = sp.to || iso(now);
 
-  const rows = await db
-    .select({
-      code: accounts.code,
-      nameAr: accounts.nameAr,
-      debit: sql<string>`coalesce(sum(${journalEntryLines.debit}), 0)`,
-      credit: sql<string>`coalesce(sum(${journalEntryLines.credit}), 0)`,
-    })
-    .from(journalEntryLines)
-    .innerJoin(
-      journalEntries,
-      and(
-        eq(journalEntries.id, journalEntryLines.journalEntryId),
-        eq(journalEntries.organizationId, orgId),
-        eq(journalEntries.status, "POSTED"),
-      ),
-    )
-    .innerJoin(accounts, eq(accounts.id, journalEntryLines.accountId))
-    .groupBy(accounts.id)
-    .orderBy(asc(accounts.code));
-
-  const lines = rows.map((r) => {
-    const bal = Number(r.debit) - Number(r.credit);
-    return { code: r.code, nameAr: r.nameAr, debit: bal > 0 ? bal : 0, credit: bal < 0 ? -bal : 0 };
-  });
+  const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });
+  const lines = balances
+    .filter((b) => b.debit !== 0 || b.credit !== 0)
+    .map((b) => ({ code: b.code, nameAr: b.nameAr, debit: b.balance > 0 ? b.balance : 0, credit: b.balance < 0 ? -b.balance : 0 }));
   const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
   const balanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="BarChart3" title="التقارير المالية — ميزان المراجعة" subtitle="من القيود المُرحّلة" />
+      <ErpPageHeader
+        icon="BarChart3"
+        title="التقارير المالية — ميزان المراجعة"
+        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        action={
+          <Button asChild variant="outline">
+            <a href={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
+          </Button>
+        }
+      />
       <ReportTabs active="/erp/reports" />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>الفترة</CardTitle>
+          <CardDescription>اختر فترة ميزان المراجعة.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-wrap items-end gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="from">من تاريخ</Label>
+              <input id="from" name="from" type="date" defaultValue={from} className={selectCls} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="to">إلى تاريخ</Label>
+              <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
+            </div>
+            <Button type="submit">عرض</Button>
+          </form>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <div>
@@ -56,7 +73,7 @@ export default async function ErpReportsPage() {
         <CardContent>
           {lines.length === 0 ? (
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-              لا توجد قيود مُرحّلة بعد — رحّل فاتورة لرؤية الأرصدة.
+              لا توجد قيود مُرحّلة في هذه الفترة.
             </div>
           ) : (
             <Table>
