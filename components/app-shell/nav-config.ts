@@ -104,6 +104,7 @@ export const NAV: NavSection[] = [
       { label: "تقرير الدفتر", href: "/erp/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view" },
       { label: "تقرير الأصناف", href: "/erp/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view" },
       { label: "ربحية المنتجات", href: "/erp/sales/reports/profitability", icon: "TrendingUp", capability: "erp.reports.view" },
+      { label: "ترتيب العملاء", href: "/erp/sales/reports/customers", icon: "Users", capability: "erp.sales.view" },
     ],
   },
   {
