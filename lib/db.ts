@@ -20,21 +20,23 @@ const remoteSsl =
     : { ca: SUPABASE_CA, rejectUnauthorized: true };
 
 // Serverless (Vercel) runs many short-lived instances against the shared Supabase
-// pooler, so keep a small per-instance pool and release idle sockets quickly to
-// avoid exhausting the pooler's connection budget. A long-running server (Docker)
-// can hold a larger pool.
+// pooler. In SESSION mode the pooler holds one server connection per client for
+// its whole life (budget ~15), so a single busy page (the dashboard fans out
+// ~13 queries) plus a couple of warm instances can exhaust it (EMAXCONNSESSION).
+// Keep the per-instance pool tiny and release idle sockets fast. The durable fix
+// is to point DATABASE_URL at the TRANSACTION-mode pooler (port 6543).
 const onVercel = !!process.env.VERCEL;
 
 export const pool =
   globalForDb.__pgPool ??
   new Pool({
     connectionString,
-    max: onVercel ? 4 : 10,
+    max: onVercel ? 2 : 10,
     ssl: isLocal ? undefined : remoteSsl,
     // Keep pooled sockets alive; avoids ECONNRESET on idle connections
     // (local Docker Postgres drops idle sockets).
     keepAlive: true,
-    idleTimeoutMillis: onVercel ? 10_000 : 30_000,
+    idleTimeoutMillis: onVercel ? 3_000 : 30_000,
     connectionTimeoutMillis: 15_000,
   });
 
