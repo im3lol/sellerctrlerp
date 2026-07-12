@@ -134,7 +134,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                     <div className="font-bold">{p.name}</div>
                     <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly)} ج.م` : "مجاناً"}</div>
                     <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? "/ شهر" : ""}</div>
-                    <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? "مستخدمون بلا حد" : `${egp(p.maxUsers)} مستخدم`} · {p.storageGb == null ? "تخزين بلا حد" : `${egp(p.storageGb)} ج.ب`}</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? "مستخدمون بلا حد" : `${egp(p.maxUsers)} مستخدم`} · {p.storageGb == null ? "تخزين بلا حد" : `${egp(p.storageGb)} جيجا تخزين`}</div>
                     {on && <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary"><Check className="size-3" />مختارة</div>}
                   </button>
                 );
