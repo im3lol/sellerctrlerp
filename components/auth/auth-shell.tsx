@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 
@@ -20,7 +21,9 @@ export function AuthShell({
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
       <div className="relative hidden flex-col justify-between bg-primary p-12 text-primary-foreground lg:flex">
-        <Logo className="text-4xl text-primary-foreground" />
+        <Link href="/" title="الصفحة الرئيسية" className="w-fit transition-opacity hover:opacity-80">
+          <Logo className="text-4xl text-primary-foreground" />
+        </Link>
         <div className="space-y-5">
           <h2 className="text-3xl font-bold leading-tight">{heading}</h2>
           <p className="text-primary-foreground/80">{text}</p>
@@ -46,7 +49,9 @@ export function AuthShell({
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex justify-center lg:hidden">
-            <Logo className="text-4xl text-primary" />
+            <Link href="/" title="الصفحة الرئيسية" className="transition-opacity hover:opacity-80">
+              <Logo className="text-4xl text-primary" />
+            </Link>
           </div>
           {children}
         </div>
