@@ -47,6 +47,7 @@ import {
   deliveryNoteLines,
   purchaseReceipts,
   purchaseReceiptLines,
+  plans,
 } from "@/db/schema";
 
 /**
@@ -98,6 +99,18 @@ async function main() {
   await db.delete(organizationMembers);
   await db.delete(organizations);
   await db.delete(users);
+
+  // Platform subscription plans (global, not org-scoped, not truncated above).
+  // Idempotent: only seed the defaults when none exist, so re-seeding demo data
+  // never duplicates or wipes plans the owner has customised.
+  if ((await db.select({ id: plans.id }).from(plans).limit(1)).length === 0) {
+    await db.insert(plans).values([
+      { name: "الأساسية", priceMonthly: "499", priceAnnual: "4990", enabledModules: ["sales", "inventory", "purchases"], maxUsers: 3, storageGb: 5, sortOrder: 1 },
+      { name: "الاحترافية", priceMonthly: "999", priceAnnual: "9990", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports"], maxUsers: 10, storageGb: 25, sortOrder: 2 },
+      { name: "المتقدمة", priceMonthly: "1999", priceAnnual: "19990", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "investors", "hr"], maxUsers: null, storageGb: null, sortOrder: 3 },
+    ]);
+    console.log("  ✓ seeded 3 subscription plans");
+  }
 
   const pw = await bcrypt.hash("password123", 10);
   const mk = (name: string, email: string, role: "system_admin" | "ops_manager" | "team_lead" | "employee" | "client", title?: string) =>
