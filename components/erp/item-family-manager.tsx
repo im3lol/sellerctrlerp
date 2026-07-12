@@ -79,12 +79,22 @@ export function ItemFamilyManager({
                 return (
                   <TableRow key={m.id} className={isCurrent ? "bg-primary/5" : undefined}>
                     <TableCell>
-                      {m.isHead && <Badge variant="secondary" className="me-2">أب</Badge>}
-                      {isCurrent ? (
-                        <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
-                      ) : (
-                        <Link href={`/erp/inventory/items/${m.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <div className="size-10 shrink-0 overflow-hidden rounded-lg border bg-muted/40">
+                          {m.image
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={m.image} alt={m.name} className="size-full object-contain" />
+                            : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
+                        </div>
+                        <div className="min-w-0">
+                          {m.isHead && <Badge variant="secondary" className="mb-0.5 block w-fit">أب</Badge>}
+                          {isCurrent ? (
+                            <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
+                          ) : (
+                            <Link href={`/erp/inventory/items/${m.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{m.variationValue ?? (m.isHead ? "—" : "")}</TableCell>
                     <TableCell className="text-xs">
