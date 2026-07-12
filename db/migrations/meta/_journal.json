@@ -253,6 +253,13 @@
       "when": 1783693242242,
       "tag": "0035_abandoned_apocalypse",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1783876509271,
+      "tag": "0036_narrow_ultimatum",
+      "breakpoints": true
     }
   ]
 }

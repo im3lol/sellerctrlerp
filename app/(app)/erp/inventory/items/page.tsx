@@ -63,7 +63,9 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
     .select({
       id: items.id, code: items.code, nameAr: items.nameAr, image: items.image,
       sellPrice: items.sellPrice, isActive: items.isActive,
+      parentItemId: items.parentItemId,
       codeCount: sql<number>`count(${itemCodes.id})`,
+      childCount: sql<number>`(SELECT count(*) FROM items c WHERE c.parent_item_id = ${items.id})`,
     })
     .from(items)
     .leftJoin(itemCodes, eq(itemCodes.itemId, items.id))
@@ -158,7 +160,14 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                       <TableCell className="font-mono">
                         <Link href={`/erp/inventory/items/${r.id}`} className="text-primary underline">{r.code}</Link>
                       </TableCell>
-                      <TableCell className="max-w-[360px]"><div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div></TableCell>
+                      <TableCell className="max-w-[360px]">
+                        <div className="flex items-center gap-2">
+                          <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>
+                          {Number(r.childCount) > 0
+                            ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />أب · {Number(r.childCount).toLocaleString("ar-EG-u-nu-latn")}</Badge>
+                            : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">تنويعة</Badge> : null}
+                        </div>
+                      </TableCell>
                       <TableCell>{Number(r.codeCount) > 0 ? <Badge variant="secondary">{Number(r.codeCount).toLocaleString("ar-EG-u-nu-latn")}</Badge> : "—"}</TableCell>
                       <TableCell>{money(r.sellPrice)}</TableCell>
                       <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "نشط" : "متوقف"}</Badge></TableCell>

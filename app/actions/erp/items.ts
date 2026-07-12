@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { validateParentLink } from "@/lib/erp/item-family-core";
 import { putObject, publicUrl } from "@/lib/storage";
 
 
@@ -26,6 +28,8 @@ const schema = z.object({
   isPerishable: z.coerce.boolean().default(false),
   shelfLifeDays: z.coerce.number().int().min(0).optional(),
   image: z.string().optional(),
+  parentItemId: z.string().optional(), // variation family: link this item under a parent
+  variationValue: z.string().optional(), // the child's variation label (e.g. "أحمر - L")
   codes: z.array(codeSchema).default([]),
 });
 
@@ -43,6 +47,28 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
     .map((c) => ({ codeType: c.codeType, code: c.code.trim(), normalizedCode: normalizeCode(c.code) }))
     .filter((c) => c.code && c.normalizedCode && !seen.has(c.normalizedCode) && seen.add(c.normalizedCode));
 
+  // Variation family: validate the parent link (one level, no cycles, same org).
+  const rawParent = d.parentItemId?.trim() || "";
+  let parentItemId: string | null = null;
+  let variationValue: string | null = null;
+  if (rawParent && rawParent !== d.id) {
+    const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
+      .where(and(eq(items.id, rawParent), eq(items.organizationId, auth.orgId))).limit(1);
+    let childHasChildren = false;
+    if (d.id) {
+      const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
+        .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, d.id)));
+      childHasChildren = Number(c?.n ?? 0) > 0;
+    }
+    const err = validateParentLink({
+      childId: d.id ?? "__new__", parentId: rawParent,
+      parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren,
+    });
+    if (err) return { error: err };
+    parentItemId = rawParent;
+    variationValue = d.variationValue?.trim() || null;
+  }
+
   const data = {
     code: d.code.trim(),
     nameAr: d.nameAr.trim(),
@@ -53,6 +79,8 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
     isPerishable: d.isPerishable,
     shelfLifeDays: d.isPerishable ? (d.shelfLifeDays ?? null) : null,
     image: d.image?.trim() || null,
+    parentItemId,
+    variationValue,
   };
 
   try {

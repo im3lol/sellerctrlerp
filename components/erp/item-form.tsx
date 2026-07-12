@@ -7,8 +7,9 @@ import { saveItemAction, uploadItemImageAction } from "@/app/actions/erp/items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
+import { ItemCombobox } from "@/components/erp/item-combobox";
 
 const CODE_TYPES = ["BARCODE", "SKU", "ASIN", "UPC", "EAN", "FNSKU", "AMAZON", "NOON", "OTHER"] as const;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
@@ -18,6 +19,7 @@ export type ItemFormInitial = {
   id?: string; code?: string; nameAr?: string; nameEn?: string; description?: string;
   sellPrice?: string | number; minStock?: string | number; image?: string; codes?: CodeRow[];
   isPerishable?: boolean; shelfLifeDays?: string | number | null;
+  parentItemId?: string | null; parentLabel?: string | null; variationValue?: string | null;
 };
 
 export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
@@ -35,6 +37,9 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
   const [shelfLifeDays, setShelfLifeDays] = useState(initial?.shelfLifeDays != null ? String(initial.shelfLifeDays) : "");
   const [image, setImage] = useState(initial?.image ?? "");
   const [codes, setCodes] = useState<CodeRow[]>(initial?.codes?.length ? initial.codes : [{ codeType: "BARCODE", code: "" }]);
+  const [parentItemId, setParentItemId] = useState(initial?.parentItemId ?? "");
+  const [parentLabel, setParentLabel] = useState(initial?.parentLabel ?? "");
+  const [variationValue, setVariationValue] = useState(initial?.variationValue ?? "");
 
   const setCodeRow = (i: number, patch: Partial<CodeRow>) => setCodes((c) => c.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const addCode = () => setCodes((c) => [...c, { codeType: "SKU", code: "" }]);
@@ -61,6 +66,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         id: initial?.id, code, nameAr, description,
         sellPrice: Number(sellPrice) || 0, minStock: Number(minStock) || 0, image,
         isPerishable, shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : undefined,
+        parentItemId: parentItemId || undefined, variationValue: variationValue || undefined,
         codes: codes.filter((c) => c.code.trim()),
       });
       if (r.ok) {
@@ -115,6 +121,42 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
               {image && <Button type="button" variant="ghost" size="sm" onClick={() => setImage("")}>إزالة</Button>}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>عائلة التنويعات (اختياري)</CardTitle>
+          <CardDescription>اربط هذا الصنف كتنويعة (Child) تحت منتج أب (Parent) — مثل نظام أمازون.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {parentItemId ? (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+              <Icon name="Boxes" className="size-4 text-primary" />
+              <span className="flex-1 text-sm">المنتج الأب: <span className="font-medium">{parentLabel || parentItemId}</span></span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setParentItemId(""); setParentLabel(""); setVariationValue(""); }}>
+                <Icon name="X" className="size-4" />فك الربط
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label>المنتج الأب</Label>
+              <ItemCombobox
+                placeholder="ابحث عن المنتج الأب بالاسم أو الكود أو الـ ASIN…"
+                onSelect={(it) => {
+                  if (it.id === initial?.id) { toast.error("لا يمكن ربط الصنف بنفسه"); return; }
+                  setParentItemId(it.id);
+                  setParentLabel(`${it.code} — ${it.name}`);
+                }}
+              />
+            </div>
+          )}
+          {parentItemId && (
+            <div className="space-y-2">
+              <Label>قيمة التنويعة</Label>
+              <Input value={variationValue} onChange={(e) => setVariationValue(e.target.value)} placeholder="مثال: أحمر - L" />
+            </div>
+          )}
         </CardContent>
       </Card>
 

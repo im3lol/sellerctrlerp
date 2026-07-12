@@ -197,6 +197,11 @@ export const items = pgTable(
     sellPrice: money("sell_price").notNull().default("0"),
     minStock: money("min_stock").notNull().default("0"),
     maxStock: money("max_stock"),
+    // Amazon-style variation family: a child points to its parent item (one level
+    // only). The parent is a normal item flagged implicitly by having children.
+    // On parent delete, children are unlinked (not deleted).
+    parentItemId: text("parent_item_id").references((): AnyPgColumn => items.id, { onDelete: "set null" }),
+    variationValue: text("variation_value"), // e.g. "أحمر - L" — the child's variation label
     isPerishable: boolean("is_perishable").notNull().default(false),
     shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),

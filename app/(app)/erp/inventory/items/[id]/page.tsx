@@ -10,7 +10,9 @@ import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Field } from "@/components/erp/document-detail";
 import { getAvailability } from "@/lib/erp/availability";
+import { getItemFamily } from "@/lib/erp/item-family";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
+import Link from "next/link";
 
 const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -35,6 +37,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
   const totalQty = stockRows.reduce((s, r) => s + Number(r.q), 0);
   const totalVal = stockRows.reduce((s, r) => s + Number(r.v), 0);
   const av = (await getAvailability(orgId, [item.id])).get(item.id);
+  const family = await getItemFamily(orgId, item);
 
   return (
     <div className="space-y-6">
@@ -87,6 +90,49 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
           </Card>
         </div>
       </div>
+
+      {family && (
+        <Card>
+          <CardHeader>
+            <CardTitle>التنويعات / عائلة المنتج</CardTitle>
+            <CardDescription>المنتج الأب وكل التنويعات المرتبطة به (على طراز Parent / Child ASIN).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-start">الصنف</TableHead>
+                  <TableHead className="text-start">التنويعة</TableHead>
+                  <TableHead className="text-start">ASIN</TableHead>
+                  <TableHead className="text-start">السعر</TableHead>
+                  <TableHead className="text-start">المتوفّر</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[family.head, ...family.children].map((m) => {
+                  const isCurrent = m.id === item.id;
+                  return (
+                    <TableRow key={m.id} className={isCurrent ? "bg-primary/5" : undefined}>
+                      <TableCell>
+                        {m.isHead && <Badge variant="secondary" className="me-2">أب</Badge>}
+                        {isCurrent ? (
+                          <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
+                        ) : (
+                          <Link href={`/erp/inventory/items/${m.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{m.variationValue ?? (m.isHead ? "—" : "")}</TableCell>
+                      <TableCell className="font-mono text-xs">{m.asin ?? "—"}</TableCell>
+                      <TableCell>{money(m.sellPrice)}</TableCell>
+                      <TableCell>{qf(m.stock)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {item.description && (
         <Card>

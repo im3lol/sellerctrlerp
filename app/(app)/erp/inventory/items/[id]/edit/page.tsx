@@ -14,6 +14,13 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
   if (!item) notFound();
   const codes = await db.select({ codeType: itemCodes.codeType, code: itemCodes.code }).from(itemCodes).where(eq(itemCodes.itemId, item.id));
 
+  // Label for the current parent (if this item is a variation).
+  let parentLabel: string | null = null;
+  if (item.parentItemId) {
+    const [p] = await db.select({ code: items.code, nameAr: items.nameAr }).from(items).where(eq(items.id, item.parentItemId)).limit(1);
+    if (p) parentLabel = `${p.code} — ${p.nameAr ?? p.code}`;
+  }
+
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="Package" title={`تعديل ${item.code}`} subtitle="تعديل بيانات الصنف وأكواده وصورته" backHref={`/erp/inventory/items/${item.id}`} />
@@ -22,6 +29,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
         description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",
         isPerishable: item.isPerishable, shelfLifeDays: item.shelfLifeDays,
         image: item.image ?? "", codes,
+        parentItemId: item.parentItemId, parentLabel, variationValue: item.variationValue,
       }} />
     </div>
   );
