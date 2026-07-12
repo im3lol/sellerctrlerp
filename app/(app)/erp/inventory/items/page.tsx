@@ -28,6 +28,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
   const fStatus = one(sp.status); // active | inactive | ""
   const fCategory = one(sp.category);
   const fMissing = one(sp.missing); // image | codes | ""
+  const showChildren = one(sp.children) === "1"; // also list the variations of matched items
   const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
   const conds = [eq(items.organizationId, orgId)];
@@ -50,7 +51,13 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
       .where(eq(itemCodes.organizationId, orgId))).map((r) => r.id))];
     if (withCodes.length) conds.push(notInArray(items.id, withCodes));
   }
-  const where = and(...conds);
+  // "إظهار الأبناء": also pull in the child variations of any matched item, so
+  // searching a parent code reveals its variations alongside it.
+  let where = and(...conds);
+  if (showChildren) {
+    const matchedIds = (await db.select({ id: items.id }).from(items).where(where)).map((r) => r.id);
+    if (matchedIds.length) where = or(and(...conds)!, inArray(items.parentItemId, matchedIds))!;
+  }
 
   const [cats, [{ total }]] = await Promise.all([
     db.select({ id: itemCategories.id, nameAr: itemCategories.nameAr }).from(itemCategories).where(eq(itemCategories.organizationId, orgId)).orderBy(asc(itemCategories.code)),
@@ -75,13 +82,14 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
 
-  const hasFilters = Boolean(q || fStatus || fCategory || fMissing);
+  const hasFilters = Boolean(q || fStatus || fCategory || fMissing || showChildren);
   const qs = (p: number) => {
     const u = new URLSearchParams();
     if (q) u.set("q", q);
     if (fStatus) u.set("status", fStatus);
     if (fCategory) u.set("category", fCategory);
     if (fMissing) u.set("missing", fMissing);
+    if (showChildren) u.set("children", "1");
     u.set("page", String(p));
     return `?${u.toString()}`;
   };
@@ -125,9 +133,13 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                 <option value="codes">بدون أكواد</option>
               </select>
             </div>
-            <div className="flex gap-2 sm:col-span-5">
+            <div className="flex flex-wrap items-center gap-3 sm:col-span-5">
               <Button type="submit"><Icon name="Search" className="size-4" />بحث</Button>
               {hasFilters && <Button type="button" variant="outline" asChild><Link href="/erp/inventory/items">مسح</Link></Button>}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" name="children" value="1" defaultChecked={showChildren} className="size-4 rounded border-input" />
+                إظهار الأبناء (التنويعات)
+              </label>
             </div>
           </form>
 
