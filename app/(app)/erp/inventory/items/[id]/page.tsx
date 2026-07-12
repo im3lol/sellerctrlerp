@@ -12,7 +12,7 @@ import { Field } from "@/components/erp/document-detail";
 import { getAvailability } from "@/lib/erp/availability";
 import { getItemFamily } from "@/lib/erp/item-family";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
-import Link from "next/link";
+import { ItemFamilyManager } from "@/components/erp/item-family-manager";
 
 const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -91,47 +91,14 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {family && (
-        <Card>
-          <CardHeader>
-            <CardTitle>التنويعات / عائلة المنتج</CardTitle>
-            <CardDescription>المنتج الأب وكل التنويعات المرتبطة به — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">التنويعة</TableHead>
-                  <TableHead className="text-start">الكود الخارجي</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">المتوفّر</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[family.head, ...family.children].map((m) => {
-                  const isCurrent = m.id === item.id;
-                  return (
-                    <TableRow key={m.id} className={isCurrent ? "bg-primary/5" : undefined}>
-                      <TableCell>
-                        {m.isHead && <Badge variant="secondary" className="me-2">أب</Badge>}
-                        {isCurrent ? (
-                          <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
-                        ) : (
-                          <Link href={`/erp/inventory/items/${m.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.variationValue ?? (m.isHead ? "—" : "")}</TableCell>
-                      <TableCell className="text-xs">{m.extCode ? <><Badge variant="secondary" className="me-1">{m.extCode.type}</Badge><span className="font-mono">{m.extCode.value}</span></> : "—"}</TableCell>
-                      <TableCell>{money(m.sellPrice)}</TableCell>
-                      <TableCell>{qf(m.stock)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {(family || (!item.parentItemId && can("inventory.edit"))) && (
+        <ItemFamilyManager
+          currentItemId={item.id}
+          isChild={!!item.parentItemId}
+          canEdit={can("inventory.edit")}
+          head={family?.head ?? null}
+          variations={family?.children ?? []}
+        />
       )}
 
       {item.description && (

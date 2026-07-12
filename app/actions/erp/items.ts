@@ -110,6 +110,40 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
   }
 }
 
+/**
+ * Link an item as a variation under a parent, or unlink it (parentId = null).
+ * Used by the family manager on the item detail page. Same one-level guard as the
+ * form path. Pure metadata — no GL/stock effect.
+ */
+export async function setItemParentAction(childId: string, parentId: string | null, variationValue?: string): Promise<ActionState> {
+  const auth = await authorizeErp("inventory.edit");
+  if ("error" in auth) return auth;
+
+  const [child] = await db.select({ id: items.id }).from(items)
+    .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId))).limit(1);
+  if (!child) return { error: "الصنف غير موجود" };
+
+  if (parentId) {
+    const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
+      .where(and(eq(items.id, parentId), eq(items.organizationId, auth.orgId))).limit(1);
+    const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
+      .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, childId)));
+    const err = validateParentLink({
+      childId, parentId,
+      parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren: Number(c?.n ?? 0) > 0,
+    });
+    if (err) return { error: err };
+  }
+
+  await db.update(items)
+    .set({ parentItemId: parentId, variationValue: parentId ? (variationValue?.trim() || null) : null })
+    .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId)));
+  revalidatePath("/erp/inventory/items");
+  revalidatePath(`/erp/inventory/items/${childId}`);
+  if (parentId) revalidatePath(`/erp/inventory/items/${parentId}`);
+  return { ok: true };
+}
+
 export async function deleteItemAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("inventory.delete");
   if ("error" in auth) return auth;
