@@ -66,7 +66,10 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
         // Subscription gate: hide a module the tenant doesn't have.
         if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
         const items = visibleItems(section, role);
-        if (items.length === 0) return null;
+        // Hide only if there's nothing to show AND no landing page. A module with a
+        // href but no items (e.g. المنصات before any platform is added) still shows
+        // its heading as a direct link.
+        if (items.length === 0 && !section.href) return null;
 
         // Top group with no heading (e.g. Dashboard): render items directly.
         if (!section.heading) {
@@ -111,10 +114,10 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
             >
               {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
               <span className="flex-1 text-start">{section.heading}</span>
-              {chevron}
+              {items.length > 0 && chevron}
             </button>
 
-            {open && (
+            {open && items.length > 0 && (
               <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
                 {ungrouped.map((item) => (
                   <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />

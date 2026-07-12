@@ -34,9 +34,9 @@ export const NAV: NavSection[] = [
     href: "/erp/platforms",
     icon: "Store",
     dynamicKey: "platforms",
-    items: [
-      { label: "كل المنصات", href: "/erp/platforms", icon: "LayoutGrid", capability: "erp.sales.view", exact: true },
-    ],
+    // The heading itself opens the all-platforms page; the added platforms are
+    // listed underneath (appended dynamically). No separate "كل المنصات" item.
+    items: [],
   },
   {
     heading: "المحاسبة",
