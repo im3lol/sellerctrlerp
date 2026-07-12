@@ -22,6 +22,7 @@ export default async function LoginPage({
         title="دخول الفريق"
         subtitle="تسجيل دخول الموظفين وفريق العمليات"
         welcome="👋 أهلاً بفريق SellerCtrl — سجّل الدخول لمتابعة مهامك ومنتجاتك."
+        signupHref="/signup"
       />
     </AuthShell>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -25,12 +26,14 @@ export function LoginForm({
   subtitle = "أدخل بياناتك للوصول إلى مساحة العمل",
   welcome,
   hint,
+  signupHref,
 }: {
   callbackUrl?: string;
   title?: string;
   subtitle?: string;
   welcome?: string;
   hint?: string;
+  signupHref?: string; // when set, shows a "create an account" link instead of the "no self-registration" note
 }) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
 
@@ -84,9 +87,16 @@ export function LoginForm({
       <SubmitButton />
 
       {hint && <p className="text-center text-xs text-muted-foreground">{hint}</p>}
-      <p className="text-center text-xs text-muted-foreground">
-        لا يوجد تسجيل ذاتي — للحصول على حساب تواصل مع الإدارة.
-      </p>
+      {signupHref ? (
+        <p className="text-center text-sm text-muted-foreground">
+          ليس لديك حساب؟{" "}
+          <Link href={signupHref} className="font-medium text-primary hover:underline">أنشئ حساب مؤسستك الآن</Link>
+        </p>
+      ) : (
+        <p className="text-center text-xs text-muted-foreground">
+          لا يوجد تسجيل ذاتي — للحصول على حساب تواصل مع الإدارة.
+        </p>
+      )}
     </form>
   );
 }
