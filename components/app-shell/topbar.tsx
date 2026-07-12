@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Menu, Search } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
@@ -23,19 +24,21 @@ export function Topbar({
   modules: string[];
   platforms?: { id: string; name: string; code: string }[];
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
       {/* Mobile menu */}
-      <Sheet>
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetTrigger className="grid size-10 place-items-center rounded-lg hover:bg-accent lg:hidden">
           <Menu className="size-5" />
         </SheetTrigger>
-        <SheetContent side="right" className="w-72 bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent side="right" className="w-72 overflow-y-auto bg-sidebar p-0 text-sidebar-foreground">
           <SheetTitle className="sr-only">القائمة</SheetTitle>
           <div className="flex h-16 items-center px-6">
             <Logo className="text-2xl text-sidebar-foreground" />
           </div>
-          <NavList role={user.role} modules={modules} platforms={platforms} />
+          {/* Close the drawer when a link/heading navigates. */}
+          <NavList role={user.role} modules={modules} platforms={platforms} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
       </Sheet>
 

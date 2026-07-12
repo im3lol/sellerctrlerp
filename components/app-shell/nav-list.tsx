@@ -44,10 +44,13 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
   const setOpen = (i: number, v: boolean) => setOpenMap((m) => ({ ...m, [i]: v }));
   // Click the whole heading to toggle; opening a module with a landing page also
   // navigates there. No need to hit the chevron (which is now just an indicator).
+  // Note: we deliberately do NOT call onNavigate here — on mobile the drawer stays
+  // open after a heading tap so the user can expand its groups and pick a sub-item;
+  // only a leaf link (NavLink) closes the drawer.
   const onHeadingClick = (i: number, open: boolean, href?: string) => {
     const willOpen = !open;
     setOpen(i, willOpen);
-    if (willOpen && href) { router.push(href); onNavigate?.(); }
+    if (willOpen && href) router.push(href);
   };
 
   // Collapsed sub-groups within a module, keyed "moduleIndex:groupName". A group
