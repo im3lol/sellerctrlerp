@@ -11,6 +11,7 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
+  const role = (req.auth?.user as { role?: string } | undefined)?.role;
   const path = nextUrl.pathname;
 
   const isPublic =
@@ -23,6 +24,16 @@ export default auth((req) => {
     path.startsWith("/_next") ||
     path.startsWith("/brand");
 
+  // The admin panel is a fully separate surface: ONLY the platform owner
+  // (system_admin) may enter. Anyone else — unauthenticated OR a signed-in tenant
+  // user — is sent to the dedicated admin login, never into the tenant workspace.
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    if (role !== "system_admin") {
+      return Response.redirect(new URL("/login/admin", nextUrl));
+    }
+    return undefined;
+  }
+
   // Unauthenticated → bounce to login, preserving the intended destination.
   if (!isLoggedIn && !isPublic) {
     const url = new URL("/login", nextUrl);
@@ -30,8 +41,13 @@ export default auth((req) => {
     return Response.redirect(url);
   }
 
-  // Already-authed users on the landing or a login page → go to the app.
+  // Already-authed users on the landing or a login page → go to the app. The
+  // admin login is special: a system_admin lands in /admin; a signed-in tenant
+  // user stays on it so they can authenticate as an admin instead.
   if (isLoggedIn && (path === "/" || path.startsWith("/login") || path.startsWith("/signup"))) {
+    if (path === "/login/admin") {
+      return role === "system_admin" ? Response.redirect(new URL("/admin", nextUrl)) : undefined;
+    }
     return Response.redirect(new URL("/dashboard", nextUrl));
   }
 

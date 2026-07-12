@@ -1,13 +1,17 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { requireCapability } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
 import { Logo } from "@/components/brand/logo";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 
-// Standalone admin panel — its own shell, no ERP nav. Guarded like the rest of the
-// admin area (employee.manage — system_admin only).
+// Standalone admin panel — its own shell, no ERP nav, system_admin ONLY. Anyone
+// else is bounced to the dedicated admin login (never the tenant workspace), so
+// the panel stays fully separated. Middleware enforces the same; this is defence
+// in depth in case the panel is reached without passing through it.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireCapability("employee.manage");
+  const user = await getCurrentUser();
+  if (user?.role !== "system_admin") redirect("/login/admin");
 
   return (
     <div className="flex min-h-screen bg-muted/30">
