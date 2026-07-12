@@ -10,7 +10,7 @@ export type FamilyMember = {
   variationValue: string | null;
   sellPrice: number;
   stock: number; // on-hand
-  extCode: { type: string; value: string } | null; // primary external code, any platform (ASIN/SKU/NOON/…)
+  codes: { type: string; value: string }[]; // ALL external codes, any platform (ASIN/SKU/NOON/…), primary first
   isHead: boolean; // the parent of the family
 };
 
@@ -44,13 +44,15 @@ export async function getItemFamily(
     ) t GROUP BY item_id`)).rows as { item_id: string; qty: string }[];
   const stockBy = new Map(stockRows.map((r) => [r.item_id, Number(r.qty)]));
 
-  // A representative external code per item — primary if flagged, else the first
-  // one, of ANY type. Platform-agnostic (ASIN / SKU / NOON / barcode / …).
+  // ALL external codes per item, of ANY type. Platform-agnostic (ASIN / SKU /
+  // NOON / barcode / …); primary codes listed first.
   const codeRows = await db.select({ itemId: itemCodes.itemId, type: itemCodes.codeType, code: itemCodes.code, isPrimary: itemCodes.isPrimary })
     .from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, ids)));
-  const codeBy = new Map<string, { type: string; value: string }>();
+  const codeBy = new Map<string, { type: string; value: string; isPrimary: boolean }[]>();
   for (const c of codeRows) {
-    if (!codeBy.has(c.itemId) || c.isPrimary) codeBy.set(c.itemId, { type: c.type, value: c.code });
+    const list = codeBy.get(c.itemId) ?? [];
+    list.push({ type: c.type, value: c.code, isPrimary: c.isPrimary });
+    codeBy.set(c.itemId, list);
   }
 
   const toMember = (r: (typeof rows)[number]): FamilyMember => ({
@@ -60,7 +62,9 @@ export async function getItemFamily(
     variationValue: r.variationValue,
     sellPrice: Number(r.sellPrice),
     stock: stockBy.get(r.id) ?? 0,
-    extCode: codeBy.get(r.id) ?? null,
+    codes: (codeBy.get(r.id) ?? [])
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
+      .map(({ type, value }) => ({ type, value })),
     isHead: r.id === headId,
   });
 

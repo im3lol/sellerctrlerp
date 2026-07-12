@@ -67,7 +67,7 @@ export function ItemFamilyManager({
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
                 <TableHead className="text-start">التنويعة</TableHead>
-                <TableHead className="text-start">الكود الخارجي</TableHead>
+                <TableHead className="text-start">الأكواد</TableHead>
                 <TableHead className="text-start">السعر</TableHead>
                 <TableHead className="text-start">المتوفّر</TableHead>
                 {canEdit && <TableHead className="text-start"></TableHead>}
@@ -87,7 +87,18 @@ export function ItemFamilyManager({
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{m.variationValue ?? (m.isHead ? "—" : "")}</TableCell>
-                    <TableCell className="text-xs">{m.extCode ? <><Badge variant="secondary" className="me-1">{m.extCode.type}</Badge><span className="font-mono">{m.extCode.value}</span></> : "—"}</TableCell>
+                    <TableCell className="text-xs">
+                      {m.codes.length === 0 ? "—" : (
+                        <div className="flex flex-wrap gap-1">
+                          {m.codes.map((c, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 rounded border bg-muted/40 px-1.5 py-0.5">
+                              <Badge variant="secondary" className="px-1 py-0 text-[10px]">{c.type}</Badge>
+                              <span className="font-mono">{c.value}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{money(m.sellPrice)}</TableCell>
                     <TableCell>{qf(m.stock)}</TableCell>
                     {canEdit && (
