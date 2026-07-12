@@ -8,7 +8,10 @@ services:
       POSTGRES_PASSWORD: sellerctrl
       POSTGRES_DB: sellerctrl
     ports:
-      - "5432:5432"
+      # Host 5433 → container 5432 (5432 is used by another local project).
+      # The app connects internally via postgres:5432, so this only affects
+      # external tools (psql/adminer from the host).
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -75,7 +78,8 @@ services:
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      # Host 3001 → container 3000 (3000 is used by another local project).
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
