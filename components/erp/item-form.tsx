@@ -127,7 +127,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       <Card>
         <CardHeader>
           <CardTitle>عائلة التنويعات (اختياري)</CardTitle>
-          <CardDescription>اربط هذا الصنف كتنويعة (Child) تحت منتج أب (Parent) — مثل نظام أمازون.</CardDescription>
+          <CardDescription>اربط هذا الصنف كتنويعة تحت منتج أب — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {parentItemId ? (
@@ -142,7 +142,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
             <div className="space-y-1">
               <Label>المنتج الأب</Label>
               <ItemCombobox
-                placeholder="ابحث عن المنتج الأب بالاسم أو الكود أو الـ ASIN…"
+                placeholder="ابحث عن المنتج الأب بالاسم أو الكود…"
                 onSelect={(it) => {
                   if (it.id === initial?.id) { toast.error("لا يمكن ربط الصنف بنفسه"); return; }
                   setParentItemId(it.id);

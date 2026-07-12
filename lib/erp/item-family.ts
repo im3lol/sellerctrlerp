@@ -10,7 +10,7 @@ export type FamilyMember = {
   variationValue: string | null;
   sellPrice: number;
   stock: number; // on-hand
-  asin: string | null;
+  extCode: { type: string; value: string } | null; // primary external code, any platform (ASIN/SKU/NOON/…)
   isHead: boolean; // the parent of the family
 };
 
@@ -44,9 +44,14 @@ export async function getItemFamily(
     ) t GROUP BY item_id`)).rows as { item_id: string; qty: string }[];
   const stockBy = new Map(stockRows.map((r) => [r.item_id, Number(r.qty)]));
 
-  const asinRows = await db.select({ itemId: itemCodes.itemId, code: itemCodes.code }).from(itemCodes)
-    .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, "ASIN"), inArray(itemCodes.itemId, ids)));
-  const asinBy = new Map(asinRows.map((r) => [r.itemId, r.code]));
+  // A representative external code per item — primary if flagged, else the first
+  // one, of ANY type. Platform-agnostic (ASIN / SKU / NOON / barcode / …).
+  const codeRows = await db.select({ itemId: itemCodes.itemId, type: itemCodes.codeType, code: itemCodes.code, isPrimary: itemCodes.isPrimary })
+    .from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, ids)));
+  const codeBy = new Map<string, { type: string; value: string }>();
+  for (const c of codeRows) {
+    if (!codeBy.has(c.itemId) || c.isPrimary) codeBy.set(c.itemId, { type: c.type, value: c.code });
+  }
 
   const toMember = (r: (typeof rows)[number]): FamilyMember => ({
     id: r.id,
@@ -55,7 +60,7 @@ export async function getItemFamily(
     variationValue: r.variationValue,
     sellPrice: Number(r.sellPrice),
     stock: stockBy.get(r.id) ?? 0,
-    asin: asinBy.get(r.id) ?? null,
+    extCode: codeBy.get(r.id) ?? null,
     isHead: r.id === headId,
   });
 

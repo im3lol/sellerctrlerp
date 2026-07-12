@@ -95,7 +95,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <Card>
           <CardHeader>
             <CardTitle>التنويعات / عائلة المنتج</CardTitle>
-            <CardDescription>المنتج الأب وكل التنويعات المرتبطة به (على طراز Parent / Child ASIN).</CardDescription>
+            <CardDescription>المنتج الأب وكل التنويعات المرتبطة به — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -103,7 +103,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                 <TableRow>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">التنويعة</TableHead>
-                  <TableHead className="text-start">ASIN</TableHead>
+                  <TableHead className="text-start">الكود الخارجي</TableHead>
                   <TableHead className="text-start">السعر</TableHead>
                   <TableHead className="text-start">المتوفّر</TableHead>
                 </TableRow>
@@ -122,7 +122,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{m.variationValue ?? (m.isHead ? "—" : "")}</TableCell>
-                      <TableCell className="font-mono text-xs">{m.asin ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{m.extCode ? <><Badge variant="secondary" className="me-1">{m.extCode.type}</Badge><span className="font-mono">{m.extCode.value}</span></> : "—"}</TableCell>
                       <TableCell>{money(m.sellPrice)}</TableCell>
                       <TableCell>{qf(m.stock)}</TableCell>
                     </TableRow>
