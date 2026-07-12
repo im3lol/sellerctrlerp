@@ -169,7 +169,7 @@ export const NAV: NavSection[] = [
     heading: "الأدوات",
     icon: "Wrench",
     items: [
-      { label: "استيراد البيانات", href: "/erp/imports", icon: "Upload", capability: "erp.sales.view" },
+      { label: "الاستيراد والتصدير", href: "/erp/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
     ],
   },
   {
