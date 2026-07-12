@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthError } from "next-auth";
+import { unstable_rethrow } from "next/navigation";
 import { signIn } from "@/auth";
 
 export type LoginState = { error?: string };
@@ -17,11 +17,12 @@ export async function loginAction(
       redirectTo: callbackUrl,
     });
   } catch (error) {
-    // signIn throws NEXT_REDIRECT on success — must rethrow it.
-    if (error instanceof AuthError) {
-      return { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" };
-    }
-    throw error;
+    // On success signIn throws Next's redirect — rethrow ONLY that (framework
+    // errors). Everything else (rejected credentials — whose `instanceof
+    // AuthError` is unreliable in the prod bundle — or a transient failure) is
+    // surfaced inline instead of crashing to the error boundary.
+    unstable_rethrow(error);
+    return { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" };
   }
   return {};
 }
