@@ -15,12 +15,14 @@ export function Topbar({
   user,
   orgs,
   activeOrgId,
+  erpPermissions,
   modules,
   platforms,
 }: {
   user: { name: string; email: string; role: Role; title?: string | null; avatarUrl?: string | null };
   orgs: { id: string; nameAr: string }[];
   activeOrgId: string | null;
+  erpPermissions: string[];
   modules: string[];
   platforms?: { id: string; name: string; code: string }[];
 }) {
@@ -38,7 +40,7 @@ export function Topbar({
             <Logo className="text-2xl text-sidebar-foreground" />
           </div>
           {/* Close the drawer when a link/heading navigates. */}
-          <NavList role={user.role} modules={modules} platforms={platforms} onNavigate={() => setMenuOpen(false)} />
+          <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
       </Sheet>
 

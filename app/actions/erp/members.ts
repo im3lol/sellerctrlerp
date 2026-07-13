@@ -2,16 +2,63 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { organizationMembers } from "@/db/schema";
+import { organizationMembers, users } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
-import { allErpPermissions } from "@/lib/erp/permissions";
+import { authorizeErp } from "@/lib/erp/action-auth";
+import { allErpPermissions, erpRoleLabels } from "@/lib/erp/permissions";
 import { seatLimitError } from "@/lib/erp/plans";
+import { tryRecordAudit } from "@/lib/erp/audit";
 import type { ActionState } from "@/lib/erp/action-auth";
 
 // A "use server" file may only export async functions — keep the role list local.
-const ERP_ROLES = ["admin", "accountant", "inventory", "sales", "purchases", "viewer"];
+// These are the assignable ERP org roles (must match erpRoleLabels keys).
+const ERP_ROLES = ["admin", "accountant", "inventory", "sales", "purchase", "viewer"];
+
+/**
+ * Invite a NEW team member to the CURRENT org (org-admin self-service). Creates
+ * the user with an initial password and adds them to this org with an ERP role —
+ * scoped to the caller's org only (no cross-tenant linking). Their sidebar/access
+ * follow the chosen role. Guarded by the org-level `users.create` permission.
+ */
+export async function inviteMemberAction(input: { name: string; email: string; role: string; password: string }): Promise<ActionState> {
+  const auth = await authorizeErp("users.create");
+  if ("error" in auth) return auth;
+  const { orgId, userId: actorId } = auth;
+
+  const name = (input.name ?? "").trim();
+  const email = (input.email ?? "").trim().toLowerCase();
+  const role = input.role;
+  const password = input.password ?? "";
+  if (name.length < 2) return { error: "الاسم مطلوب" };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "بريد إلكتروني غير صالح" };
+  if (!ERP_ROLES.includes(role)) return { error: "دور غير صالح" };
+  if (password.length < 6) return { error: "كلمة المرور 6 أحرف على الأقل" };
+
+  const capError = await seatLimitError(orgId);
+  if (capError) return { error: capError };
+
+  // Only create brand-new users here — never silently attach an existing account
+  // (which could belong to another tenant).
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (existing) return { error: "هذا البريد مستخدم بالفعل — استخدم بريدًا آخر" };
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const newUserId = await db.transaction(async (tx) => {
+      const [u] = await tx.insert(users).values({ name, email, passwordHash, role: "employee", title: erpRoleLabels[role] ?? role }).returning({ id: users.id });
+      await tx.insert(organizationMembers).values({ organizationId: orgId, userId: u.id, role });
+      return u.id;
+    });
+    await tryRecordAudit({ orgId, userId: actorId, action: "CREATE", entityType: "MEMBER", entityId: newUserId, entityNumber: email, summary: `دعوة عضو ${name} (${erpRoleLabels[role] ?? role})` });
+    revalidatePath("/erp/settings/permissions");
+    return { ok: true };
+  } catch {
+    return { error: "تعذّر إنشاء العضو" };
+  }
+}
 
 /** Add a user to the active organization with an ERP role (or reactivate + update role). */
 export async function addUserToOrgAction(userId: string, role: string): Promise<ActionState> {
@@ -42,9 +89,9 @@ export async function addUserToOrgAction(userId: string, role: string): Promise<
  * `grant` force-adds permissions, `revoke` force-removes them. Empty → cleared.
  */
 export async function setMemberOverridesAction(userId: string, grant: string[], revoke: string[]): Promise<ActionState> {
-  await requireCapability("employee.manage");
-  const { org } = await getActiveOrg();
-  if (!org) return { error: "لا توجد مؤسسة نشطة" };
+  const auth = await authorizeErp("users.edit");
+  if ("error" in auth) return auth;
+  const org = { id: auth.orgId };
   const valid = new Set<string>(allErpPermissions);
   const g = [...new Set(grant.filter((p) => valid.has(p)))];
   const r = [...new Set(revoke.filter((p) => valid.has(p)))].filter((p) => !g.includes(p)); // grant wins over revoke
@@ -58,9 +105,9 @@ export async function setMemberOverridesAction(userId: string, grant: string[], 
 
 /** Remove a user from the active organization. */
 export async function removeUserFromOrgAction(userId: string): Promise<ActionState> {
-  await requireCapability("employee.manage");
-  const { org } = await getActiveOrg();
-  if (!org) return { error: "لا توجد مؤسسة نشطة" };
+  const auth = await authorizeErp("users.delete");
+  if ("error" in auth) return auth;
+  const org = { id: auth.orgId };
   await db.delete(organizationMembers)
     .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId)));
   revalidatePath(`/admin/users/${userId}`);

@@ -2,7 +2,6 @@ import { Fragment } from "react";
 import { and, eq, ne } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
-import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { organizationMembers, users } from "@/db/schema";
 import { allErpPermissions, erpRolePermissions, erpRoleLabels } from "@/lib/erp/permissions";
@@ -34,9 +33,12 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function PermissionsPage() {
-  const { orgId } = await requireErpModule("settings.view");
+  const { orgId, can: erpCan } = await requireErpModule("settings.view");
   const user = await requireUser();
-  const canManage = can(user.role, "employee.manage");
+  // Org admins (users.create) manage their own org's members via invite; only the
+  // platform owner may link EXISTING accounts (which span all tenants).
+  const canManage = erpCan("users.create");
+  const isSystemAdmin = user.role === "system_admin";
 
   const [memberRows, allUsers] = await Promise.all([
     db.select({ userId: organizationMembers.userId, role: organizationMembers.role, overrides: organizationMembers.permissionOverrides, name: users.name, email: users.email, osRole: users.role })
@@ -44,8 +46,11 @@ export default async function PermissionsPage() {
       .innerJoin(users, eq(users.id, organizationMembers.userId))
       .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
       .orderBy(users.name),
-    db.select({ id: users.id, name: users.name, email: users.email })
-      .from(users).where(and(eq(users.isActive, true), ne(users.role, "client"))).orderBy(users.name),
+    // The "link existing user" pool is global — only expose it to the platform owner.
+    isSystemAdmin
+      ? db.select({ id: users.id, name: users.name, email: users.email })
+          .from(users).where(and(eq(users.isActive, true), ne(users.role, "client"))).orderBy(users.name)
+      : Promise.resolve([] as { id: string; name: string; email: string }[]),
   ]);
 
   const members: Member[] = memberRows.map((m) => ({

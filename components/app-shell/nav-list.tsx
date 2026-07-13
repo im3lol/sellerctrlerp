@@ -13,11 +13,20 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function visibleItems(section: NavSection, role: Role) {
-  return section.items.filter((it) => !it.capability || can(role, it.capability as Capability));
+// Nav capabilities are `erp.<module>.<action>` — checked against the member's ERP
+// org permissions (`<module>.<action>`), so the sidebar reflects their org role.
+// Any non-`erp.` capability falls back to the platform OS role.
+function navAllows(cap: string, role: Role, erpPerms: Set<string>): boolean {
+  if (cap.startsWith("erp.")) return erpPerms.has(cap.slice(4));
+  return can(role, cap as Capability);
 }
 
-export function NavList({ role, modules, platforms, onNavigate }: { role: Role; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
+function visibleItems(section: NavSection, role: Role, erpPerms: Set<string>) {
+  return section.items.filter((it) => !it.capability || navAllows(it.capability, role, erpPerms));
+}
+
+export function NavList({ role, erpPermissions, modules, platforms, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
+  const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -34,7 +43,7 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
     const open: Record<number, boolean> = {};
     NAV.forEach((section, i) => {
       const sec = withDynamic(section);
-      if (sec.heading && (headingActive(sec) || visibleItems(sec, role).some((it) => isActive(pathname, it.href, it.exact)))) {
+      if (sec.heading && (headingActive(sec) || visibleItems(sec, role, erpPerms).some((it) => isActive(pathname, it.href, it.exact)))) {
         open[i] = true;
       }
     });
@@ -65,11 +74,14 @@ export function NavList({ role, modules, platforms, onNavigate }: { role: Role; 
         const section = withDynamic(rawSection);
         // Subscription gate: hide a module the tenant doesn't have.
         if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
-        const items = visibleItems(section, role);
-        // Hide only if there's nothing to show AND no landing page. A module with a
-        // href but no items (e.g. المنصات before any platform is added) still shows
-        // its heading as a direct link.
-        if (items.length === 0 && !section.href) return null;
+        const items = visibleItems(section, role, erpPerms);
+        // Show a module when it has visible items, OR it has a landing page the
+        // member is allowed to open (section.capability). This keeps a module with
+        // a href but no items (e.g. المنصات before any platform is added) visible to
+        // members who have the module, while hiding it entirely from members whose
+        // role doesn't grant it.
+        const sectionAllowed = !section.capability || navAllows(section.capability, role, erpPerms);
+        if (items.length === 0 && !(section.href && sectionAllowed)) return null;
 
         // Top group with no heading (e.g. Dashboard): render items directly.
         if (!section.heading) {

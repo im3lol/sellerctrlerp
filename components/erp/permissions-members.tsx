@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
-import { addUserToOrgAction, removeUserFromOrgAction, setMemberOverridesAction } from "@/app/actions/erp/members";
+import { addUserToOrgAction, removeUserFromOrgAction, setMemberOverridesAction, inviteMemberAction } from "@/app/actions/erp/members";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,6 +108,18 @@ export function PermissionsMembers({
   const [addUser, setAddUser] = useState("");
   const [addRole, setAddRole] = useState("viewer");
   const [customizing, setCustomizing] = useState<Member | null>(null);
+  const [inv, setInv] = useState({ name: "", email: "", role: "viewer", password: "" });
+
+  const invite = () => {
+    if (inv.name.trim().length < 2) { toast.error("أدخل اسم العضو"); return; }
+    if (!inv.email.trim()) { toast.error("أدخل البريد الإلكتروني"); return; }
+    if (inv.password.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
+    start(async () => {
+      const r = await inviteMemberAction(inv);
+      if (r.ok) { toast.success("تمت إضافة العضو"); setInv({ name: "", email: "", role: "viewer", password: "" }); }
+      else toast.error(r.error ?? "تعذّر التنفيذ");
+    });
+  };
 
   const setRole = (userId: string, role: string) => start(async () => {
     const r = await addUserToOrgAction(userId, role);
@@ -132,6 +144,24 @@ export function PermissionsMembers({
         <CardDescription>يحدّد دور كل مستخدم ما يمكنه فعله. استخدم «تخصيص» لمنح أو منع صلاحيات فردية فوق الدور.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {canManage && (
+          <div className="space-y-3 rounded-xl border p-3">
+            <div className="text-sm font-medium">دعوة عضو جديد للفريق</div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <input className={`${selectCls} w-full`} placeholder="الاسم" value={inv.name} onChange={(e) => setInv({ ...inv, name: e.target.value })} />
+              <input className={`${selectCls} w-full`} placeholder="البريد الإلكتروني" type="email" dir="ltr" value={inv.email} onChange={(e) => setInv({ ...inv, email: e.target.value })} />
+              <select className={`${selectCls} w-full`} value={inv.role} onChange={(e) => setInv({ ...inv, role: e.target.value })}>
+                {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+              <input className={`${selectCls} w-full`} placeholder="كلمة مرور مبدئية" type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={invite} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}إضافة العضو</Button>
+              <span className="text-xs text-muted-foreground">يدخل العضو بالبريد وكلمة المرور المبدئية، ويشوف الوحدات حسب دوره فقط.</span>
+            </div>
+          </div>
+        )}
+
         {canManage && nonMembers.length > 0 && (
           <div className="flex flex-wrap items-end gap-3 rounded-xl border p-3">
             <div className="space-y-1">

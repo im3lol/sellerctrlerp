@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { getActiveOrg } from "@/lib/erp/org";
+import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -19,6 +20,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? [...ALL_MODULES]
     : activeOrg.org ? [...(await getEnabledModules(activeOrg.org.id))] : [];
 
+  // Nav visibility is driven by the member's ERP permissions in the active org
+  // (their org role), NOT the platform OS role — so an invited team member sees
+  // only the modules their role grants. Owners/system_admin have all perms → full nav.
+  const access = activeOrg.org ? await getMemberAccess(activeOrg.org.id, user) : { role: null, permissions: new Set<string>() };
+  const erpPermissions = [...access.permissions];
+
   // Live platforms listed under the "المنصات" nav group.
   const platforms = activeOrg.org
     ? await db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
@@ -28,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <Sidebar role={user.role as Role} modules={enabledModules} platforms={platforms} />
+      <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           user={{
@@ -40,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }}
           orgs={activeOrg.orgs.map((o) => ({ id: o.id, nameAr: o.nameAr }))}
           activeOrgId={activeOrg.org?.id ?? null}
+          erpPermissions={erpPermissions}
           modules={enabledModules}
           platforms={platforms}
         />

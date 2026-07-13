@@ -1,10 +1,10 @@
-import type { Capability } from "@/lib/rbac";
-
 export type NavItem = {
   label: string;
   href: string;
   icon: string; // lucide icon name
-  capability?: Capability; // if set, only shown when the user has it
+  // `erp.<module>.<action>` → checked against the member's ERP org permissions;
+  // any other value → the platform OS capability. Interpreted by NavList.navAllows.
+  capability?: string;
   exact?: boolean;
   group?: string; // optional sub-header within a module (Odoo-style grouping)
 };
@@ -12,6 +12,7 @@ export type NavItem = {
 export type NavSection = {
   heading?: string; // module name. When set, the group is collapsible (heading toggles it).
   href?: string; // module overview/landing — clicking the heading label navigates here
+  capability?: string; // gates the whole module (heading) — hidden when the member lacks it
   icon?: string; // module (lucide) icon shown next to the heading
   moduleKey?: string; // subscription module gate; hidden when the tenant lacks it
   dynamicKey?: "platforms"; // group whose items are augmented at render from live data
@@ -32,6 +33,7 @@ export const NAV: NavSection[] = [
     // together. A collapsible group whose live platforms are listed underneath.
     heading: "المنصات",
     href: "/erp/platforms",
+    capability: "erp.sales.view",
     icon: "Store",
     dynamicKey: "platforms",
     // The heading itself opens the all-platforms page; the added platforms are
@@ -41,6 +43,7 @@ export const NAV: NavSection[] = [
   {
     heading: "المحاسبة",
     href: "/erp/accounting",
+    capability: "erp.accounting.view",
     moduleKey: "accounting",
     icon: "Calculator",
     items: [
@@ -73,6 +76,7 @@ export const NAV: NavSection[] = [
   {
     heading: "المشتريات",
     href: "/erp/purchases",
+    capability: "erp.purchases.view",
     moduleKey: "purchases",
     icon: "Truck",
     items: [
@@ -88,6 +92,7 @@ export const NAV: NavSection[] = [
   {
     heading: "المخزون",
     href: "/erp/inventory",
+    capability: "erp.inventory.view",
     moduleKey: "inventory",
     icon: "Warehouse",
     items: [
@@ -111,6 +116,7 @@ export const NAV: NavSection[] = [
   {
     heading: "المبيعات",
     href: "/erp/sales",
+    capability: "erp.sales.view",
     moduleKey: "sales",
     icon: "ShoppingCart",
     items: [
@@ -128,6 +134,7 @@ export const NAV: NavSection[] = [
   {
     heading: "المستثمرون",
     href: "/erp/investors",
+    capability: "erp.investors.view",
     moduleKey: "investors",
     icon: "Coins",
     items: [
@@ -137,6 +144,7 @@ export const NAV: NavSection[] = [
   {
     heading: "الموارد البشرية",
     href: "/erp/hr/employees",
+    capability: "erp.hr.view",
     moduleKey: "hr",
     icon: "UsersRound",
     items: [
@@ -150,6 +158,7 @@ export const NAV: NavSection[] = [
   {
     heading: "التقارير والتحليلات",
     href: "/erp/reports/center",
+    capability: "erp.reports.view",
     moduleKey: "reports",
     icon: "ChartColumn",
     items: [
@@ -179,9 +188,9 @@ export const NAV: NavSection[] = [
       // Platform admin panel (/admin) is deliberately NOT linked from the tenant
       // workspace — it's a separate SaaS surface reached via its own login
       // (/login/admin) and stays server-guarded by employee.manage (system_admin).
-      { label: "صلاحيات المستخدمين", href: "/erp/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.manage" },
-      { label: "سجل التدقيق", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.manage" },
-      { label: "الإعدادات", href: "/erp/settings", icon: "Settings", capability: "erp.settings.manage" },
+      { label: "صلاحيات المستخدمين", href: "/erp/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
+      { label: "سجل التدقيق", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.edit" },
+      { label: "الإعدادات", href: "/erp/settings", icon: "Settings", capability: "erp.settings.edit" },
     ],
   },
 ];
