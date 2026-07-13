@@ -1,0 +1,2 @@
+ALTER TABLE "platform_credentials" ADD COLUMN "auto_sync" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "platform_credentials" ADD COLUMN "products_synced_at" timestamp with time zone;

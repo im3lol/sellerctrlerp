@@ -1476,6 +1476,8 @@ export const platformCredentials = pgTable(
     connectedAt: createdAt(),
     lastSyncAt: ts("last_sync_at"),
     lastSyncStatus: text("last_sync_status"),
+    autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
+    productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],

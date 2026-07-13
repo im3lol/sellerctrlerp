@@ -6,7 +6,7 @@ import { Plug, PlugZap, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { disconnectMarketplaceAction } from "@/app/actions/erp/marketplace-connect";
+import { disconnectMarketplaceAction, setAutoSyncAction } from "@/app/actions/erp/marketplace-connect";
 import { SyncProgress } from "@/components/erp/sync-progress";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
@@ -25,12 +25,22 @@ export function MarketplaceConnect({
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [pending, start] = useTransition();
   const [syncOpen, setSyncOpen] = useState(false);
+  const [autoSync, setAutoSync] = useState(conn.autoSync);
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
     if (r.ok) toast.success(`تم فصل حساب ${label}`);
     else toast.error(r.error);
   });
+
+  const toggleAuto = (next: boolean) => {
+    setAutoSync(next);
+    start(async () => {
+      const r = await setAutoSyncAction(provider, next);
+      if (r.ok) toast.success(next ? "تم تفعيل المزامنة التلقائية" : "تم إيقاف المزامنة التلقائية");
+      else { setAutoSync(!next); toast.error(r.error); }
+    });
+  };
 
   if (conn.connected) {
     const market = marketplaces.find((m) => m.marketplaceId === conn.marketplaceId);
@@ -50,7 +60,11 @@ export function MarketplaceConnect({
           <Button variant="outline" onClick={disconnect} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
           </Button>
-          <span className="text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والمبيعات (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا.</span>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4 rounded border-input" checked={autoSync} onChange={(e) => toggleAuto(e.target.checked)} disabled={pending} />
+            مزامنة تلقائية (كل دقيقة)
+          </label>
+          <span className="w-full text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والمبيعات (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا. المزامنة التلقائية تجيب المبيعات الجديدة أول بأول.</span>
           <SyncProgress code={provider} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
         </CardContent>
       </Card>

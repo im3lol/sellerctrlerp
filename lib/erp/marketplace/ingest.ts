@@ -92,7 +92,7 @@ export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "chann
  * transitioned + fulfilled. Orders short on stock are reported, never a negative
  * movement. Idempotent via (org, channel, externalId).
  */
-export async function ingestOrders(orgId: string, userId: string, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
+export async function ingestOrders(orgId: string, userId: string | null, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
   const resolve = await buildMatcher(orgId, orders);
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, duplicates, blocked } = classifyOrders(orders, resolve, existing);
@@ -115,7 +115,7 @@ export async function ingestOrders(orgId: string, userId: string, ctx: PlatformC
           salesOrderId: so.id, itemId: l.itemId!, warehouseId: ctx.warehouseId,
           quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
         })));
-        await tryRecordAudit({
+        if (userId) await tryRecordAudit({
           orgId, userId, action: "CREATE", entityType: "SALES_ORDER",
           entityId: so.id, entityNumber: so.number,
           summary: `استيراد أمر بيع ${so.number} من ${ctx.label} (${o.externalId})`, metadata: { channel: ctx.channel, externalOrderId: o.externalId, total: o.total },
