@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { materialRequests, materialRequestLines, items, users } from "@/db/schema";
@@ -19,7 +19,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
   const [mr] = await db.select({
     id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status,
     notes: materialRequests.notes, requester: users.name,
-  }).from(materialRequests).leftJoin(users, eq(users.id, materialRequests.requestedBy))
+  }).from(materialRequests).leftJoin(users, sql`${users.id}::text = ${materialRequests.requestedBy}`)
     .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, orgId))).limit(1);
   if (!mr) notFound();
 

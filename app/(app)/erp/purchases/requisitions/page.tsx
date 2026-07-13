@@ -20,7 +20,7 @@ export default async function RequisitionsPage() {
       lineCount: sql<number>`(select count(*) from ${materialRequestLines} where ${materialRequestLines.materialRequestId} = ${materialRequests.id})`,
     })
     .from(materialRequests)
-    .leftJoin(users, eq(users.id, materialRequests.requestedBy))
+    .leftJoin(users, sql`${users.id}::text = ${materialRequests.requestedBy}`)
     .where(eq(materialRequests.organizationId, orgId))
     .orderBy(desc(materialRequests.date), desc(materialRequests.number));
 
