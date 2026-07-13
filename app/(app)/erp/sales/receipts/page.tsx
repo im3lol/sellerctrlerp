@@ -5,19 +5,16 @@ import { db } from "@/lib/db";
 import { receiptVouchers, customers, salesInvoices } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 import { Pagination } from "@/components/erp/pagination";
-import { VoucherRowActions } from "@/components/erp/voucher-row-actions";
+import { VouchersTable } from "@/components/erp/vouchers-table";
 
 const PAGE_SIZE = 20;
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل بنكي", CARD: "بطاقة", CHEQUE: "شيك" };
 
 type SP = { q?: string; status?: string; method?: string; from?: string; to?: string; page?: string };
@@ -123,42 +120,11 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">العميل</TableHead>
-                    <TableHead className="text-start">الفاتورة</TableHead>
-                    <TableHead className="text-start">الطريقة</TableHead>
-                    <TableHead className="text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                    <TableHead />
-                    {canManage && <TableHead className="text-start">إجراءات</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-mono">{r.number}</TableCell>
-                      <TableCell>{dt(r.date)}</TableCell>
-                      <TableCell>{r.customer ?? "—"}</TableCell>
-                      <TableCell className="font-mono">{r.invoice ? <Link href={`/erp/sales/invoices/${encodeURIComponent(r.invoice)}`} className="text-primary hover:underline">{r.invoice}</Link> : "تحت الحساب"}</TableCell>
-                      <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
-                      <TableCell>{fmt(r.amount)}</TableCell>
-                      <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-                      <TableCell>
-                        <Button size="icon" variant="ghost" asChild>
-                          <a href={`/erp/sales/receipts/${encodeURIComponent(r.number)}/print`} target="_blank" rel="noopener" title="طباعة">
-                            <Icon name="Printer" className="size-4" />
-                          </a>
-                        </Button>
-                      </TableCell>
-                      {canManage && <TableCell><VoucherRowActions voucherId={r.id} type="receipt" status={r.status} canManage={canManage} /></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <VouchersTable
+                type="receipt"
+                canManage={canManage}
+                rows={rows.map((r) => ({ id: r.id, number: r.number, date: r.date, party: r.customer, invoice: r.invoice, method: r.method, amount: r.amount, status: r.status }))}
+              />
               <Pagination page={page} pages={pages} total={total} unit="سند" basePath="/erp/sales/receipts" params={{ q, status, method, from, to }} />
             </>
           )}

@@ -7,6 +7,7 @@ import { requireErpModule } from "@/lib/erp/org";
 import { bankAccounts, bankStatementLines, salesPlatforms } from "@/db/schema";
 import { parseDate } from "@/lib/erp/dates";
 import type { ActionState } from "@/lib/erp/action-auth";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 /* ── Create / Update bank account ─────────────────────────── */
 export async function upsertBankAccountAction(input: {
@@ -160,4 +161,9 @@ export async function deleteStatementLineAction(lineId: string): Promise<ActionS
   await db.delete(bankStatementLines).where(eq(bankStatementLines.id, lineId));
   revalidatePath(`/erp/accounting/banks/${line.bankAccountId}`);
   return { ok: true };
+}
+
+/** Bulk-delete bank accounts; each runs the guarded single-item delete (linked ones blocked). */
+export async function bulkDeleteBanksAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteBankAccountAction);
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { bulkDeleteMaterialRequestsAction } from "@/app/actions/erp/material-requests";
+import { bulkMaterialRequestsAction } from "@/app/actions/erp/material-requests";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BulkDeleteBar, SelectBox, useSelection } from "@/components/erp/bulk-select";
+import { BulkBar, SelectBox, useSelection } from "@/components/erp/bulk-select";
 import { RequisitionRowActions } from "@/components/erp/requisition-row-actions";
 
 type Row = { id: string; number: string; date: unknown; status: string; notes: string | null; requester: string | null; lineCount: number };
@@ -20,8 +20,8 @@ export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDel
 
   return (
     <div>
-      {canDelete && sel.size > 0 && (
-        <BulkDeleteBar ids={sel.ids} action={bulkDeleteMaterialRequestsAction} onDone={sel.clear} entity="طلب مواد" />
+      {canDelete && (
+        <BulkBar ids={sel.ids} ops={[{ op: "approve", label: "اعتماد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkMaterialRequestsAction} onDone={sel.clear} entity="طلب" />
       )}
       <Table>
         <TableHeader>

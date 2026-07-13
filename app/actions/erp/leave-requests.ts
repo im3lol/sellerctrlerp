@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { leaveRequests, employees } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { leaveDays, LEAVE_TYPES } from "@/lib/erp/leave";
 
@@ -84,4 +85,10 @@ export async function deleteLeaveRequestAction(id: string): Promise<ActionState>
   await db.delete(leaveRequests).where(and(eq(leaveRequests.id, id), eq(leaveRequests.organizationId, auth.orgId)));
   revalidatePath("/erp/hr/leaves");
   return { ok: true };
+}
+
+/** Bulk approve/reject/delete DRAFT leave requests; ineligible rows skipped. */
+export async function bulkLeaveRequestsAction(op: "approve" | "reject" | "delete", ids: string[]): Promise<BulkOpResult> {
+  const fn = op === "approve" ? approveLeaveRequestAction : op === "reject" ? rejectLeaveRequestAction : deleteLeaveRequestAction;
+  return bulkOp(ids, fn);
 }

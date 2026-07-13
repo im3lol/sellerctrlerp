@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { expenseClaims, expenseClaimLines, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { round2 } from "@/lib/erp/money";
@@ -114,4 +115,9 @@ export async function deleteExpenseClaimAction(id: string): Promise<ActionState>
   await db.delete(expenseClaims).where(and(eq(expenseClaims.id, id), eq(expenseClaims.organizationId, auth.orgId)));
   revalidatePath("/erp/hr/expense-claims");
   return { ok: true };
+}
+
+/** Bulk approve/delete DRAFT expense claims; ineligible rows skipped. */
+export async function bulkExpenseClaimsAction(op: "approve" | "delete", ids: string[]): Promise<BulkOpResult> {
+  return bulkOp(ids, op === "approve" ? approveExpenseClaimAction : deleteExpenseClaimAction);
 }

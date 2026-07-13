@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { items, warehouses, stockAdjustments, stockAdjustmentLines } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
@@ -183,4 +184,9 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
   await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
   revalidatePath("/erp/inventory/adjustments");
   return { ok: true };
+}
+
+/** Bulk confirm(post)/delete DRAFT stock adjustments; ineligible rows skipped. */
+export async function bulkStockAdjustmentsAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+  return bulkOp(ids, op === "confirm" ? confirmStockAdjustmentAction : deleteStockAdjustmentAction);
 }

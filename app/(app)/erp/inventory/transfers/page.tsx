@@ -5,17 +5,14 @@ import { db } from "@/lib/db";
 import { stockTransfers, stockTransferLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { TransfersTable } from "@/components/erp/transfers-table";
 
 const PER_PAGE = 10;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
-const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["POSTED", "مرحّل"]];
 
@@ -115,34 +112,10 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد تحويلات مطابقة." : "لا توجد تحويلات بعد."}</div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">عدد الأصناف</TableHead>
-                    <TableHead className="text-start">ملاحظات</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                    <TableHead className="text-start"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {heads.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell><Link href={`/erp/inventory/transfers/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
-                      <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                      <TableCell>{intl(Number(aggMap.get(r.id)?.c ?? 0))}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{r.notes ?? "—"}</TableCell>
-                      <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-                      <TableCell>
-                        <Link href={`/erp/inventory/transfers/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-                          {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <TransfersTable
+                canManage={can("inventory.confirm") || can("inventory.create")}
+                rows={heads.map((r) => ({ ...r, count: Number(aggMap.get(r.id)?.c ?? 0) }))}
+              />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

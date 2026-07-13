@@ -9,7 +9,7 @@ import { expenses, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
-import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
 export type SaveExpenseState = ActionState & { id?: string };
 
@@ -104,7 +104,7 @@ export async function deleteExpenseAction(id: string): Promise<ActionState> {
   return { ok: true };
 }
 
-/** Bulk-delete DRAFT expenses (posted/missing ones are counted as blocked). */
-export async function bulkDeleteExpensesAction(ids: string[]): Promise<BulkResult> {
-  return bulkRun(ids, deleteExpenseAction);
+/** Bulk confirm(post)/delete DRAFT expenses; non-DRAFT rows are skipped. */
+export async function bulkExpensesAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+  return bulkOp(ids, op === "confirm" ? confirmExpenseAction : deleteExpenseAction);
 }

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, Pencil, Trash2, FileText } from "lucide-react";
-import { upsertBankAccountAction, toggleBankAccountActiveAction, deleteBankAccountAction } from "@/app/actions/erp/bank-accounts";
+import { upsertBankAccountAction, toggleBankAccountActiveAction, deleteBankAccountAction, bulkDeleteBanksAction } from "@/app/actions/erp/bank-accounts";
+import { useSelection, SelectBox, BulkDeleteBar } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,8 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<BankRow | null>(null);
   const [confirmDel, setConfirmDel] = useState<BankRow | null>(null);
+  const sel = useSelection();
+  const ids = rows.map((r) => r.id);
 
   const toggle = (id: string) => start(async () => {
     const r = await toggleBankAccountActiveAction(id);
@@ -89,9 +92,11 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
   return (
     <Card>
       <CardContent className="p-0">
+        {canEdit && <div className="p-3 pb-0"><BulkDeleteBar ids={sel.ids} action={bulkDeleteBanksAction} onDone={sel.clear} entity="حساب بنكي" /></div>}
         <Table>
           <TableHeader>
             <TableRow>
+              {canEdit && <TableHead className="w-10"><SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد الكل" /></TableHead>}
               <TableHead className="text-start">الحساب</TableHead>
               <TableHead className="text-start">رقم الحساب / IBAN</TableHead>
               <TableHead className="text-start">حساب الأستاذ</TableHead>
@@ -102,7 +107,8 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} data-state={canEdit && sel.has(r.id) ? "selected" : undefined}>
+                {canEdit && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" /></TableCell>}
                 <TableCell>
                   <div className="font-medium">{r.nameAr}</div>
                   {r.bankName && <div className="text-xs text-muted-foreground">{r.bankName}</div>}

@@ -5,18 +5,14 @@ import { db } from "@/lib/db";
 import { stockAdjustments, stockAdjustmentLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AdjustmentsTable } from "@/components/erp/adjustments-table";
 
 const PER_PAGE = 10;
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
-const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["POSTED", "مرحّل"]];
 
@@ -122,44 +118,13 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد تسويات مطابقة." : "لا توجد تسويات بعد."}</div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">الوصف</TableHead>
-                    <TableHead className="text-start">عدد الأصناف</TableHead>
-                    <TableHead className="text-start">صافي الفرق</TableHead>
-                    <TableHead className="text-start">القيمة</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                    <TableHead className="text-start"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {heads.map((r) => {
-                    const a = aggMap.get(r.id);
-                    const delta = Number(a?.delta ?? 0);
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell>
-                          <Link href={`/erp/inventory/adjustments/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                        <TableCell><Badge variant="secondary">{r.reason ?? "—"}</Badge></TableCell>
-                        <TableCell>{intl(Number(a?.c ?? 0))}</TableCell>
-                        <TableCell className={delta < 0 ? "text-destructive" : delta > 0 ? "text-emerald-600" : ""}>{delta > 0 ? "+" : ""}{intl(delta)}</TableCell>
-                        <TableCell>{fmt(r.totalValue)}</TableCell>
-                        <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-                        <TableCell>
-                          <Link href={`/erp/inventory/adjustments/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-                            {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <AdjustmentsTable
+                canManage={can("inventory.confirm") || can("inventory.create")}
+                rows={heads.map((r) => {
+                  const a = aggMap.get(r.id);
+                  return { ...r, count: Number(a?.c ?? 0), delta: Number(a?.delta ?? 0) };
+                })}
+              />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

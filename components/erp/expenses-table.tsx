@@ -3,8 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExpenseRowActions } from "@/components/erp/expense-row-actions";
-import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
-import { bulkDeleteExpensesAction } from "@/app/actions/erp/expenses";
+import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
+import { bulkExpensesAction } from "@/app/actions/erp/expenses";
 
 type Row = { id: string; number: string; date: Date; amount: string | null; status: string; payee: string | null; category: string | null; paidFrom: string | null };
 
@@ -17,7 +17,7 @@ export function ExpensesTable({ rows, canDelete }: { rows: Row[]; canDelete: boo
 
   return (
     <>
-      {canDelete && <BulkDeleteBar ids={sel.ids} action={bulkDeleteExpensesAction} onDone={sel.clear} entity="مصروف" />}
+      {canDelete && <BulkBar ids={sel.ids} ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkExpensesAction} onDone={sel.clear} entity="مصروف" />}
       <Table>
         <TableHeader>
           <TableRow>

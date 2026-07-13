@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { bulkDeleteDraftEntriesAction } from "@/app/actions/erp/journal";
+import { bulkJournalAction } from "@/app/actions/erp/journal";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
+import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
 
 type Row = { id: string; number: string; date: Date; description: string | null; status: string; sourceType: string | null; total: string };
 
@@ -38,7 +38,7 @@ export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: bool
 
   return (
     <>
-      {showSelect && <BulkDeleteBar ids={sel.ids} action={bulkDeleteDraftEntriesAction} onDone={sel.clear} entity="قيد مسودة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "post", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkJournalAction} onDone={sel.clear} entity="قيد" />}
       <Table>
         <TableHeader>
           <TableRow>

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { bulkDeleteQuotationsAction } from "@/app/actions/erp/quotations";
+import { bulkQuotationsAction } from "@/app/actions/erp/quotations";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
+import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
 import { QuotationRowActions } from "@/components/erp/quotation-row-actions";
 
 type Row = { id: string; number: string; date: unknown; validUntil: unknown; status: string; customer: string | null; total: string };
@@ -22,7 +22,7 @@ export function QuotationsTable({ rows, canDelete }: { rows: Row[]; canDelete: b
 
   return (
     <div>
-      {canDelete && <BulkDeleteBar ids={sel.ids} action={bulkDeleteQuotationsAction} onDone={sel.clear} entity="عرض سعر" />}
+      {canDelete && <BulkBar ids={sel.ids} ops={[{ op: "accept", label: "قبول", icon: "Check" }, { op: "reject", label: "رفض", icon: "X" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkQuotationsAction} onDone={sel.clear} entity="عرض" />}
       <Table>
         <TableHeader><TableRow>
           {canDelete && (

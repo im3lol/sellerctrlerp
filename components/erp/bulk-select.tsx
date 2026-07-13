@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/icon";
 import type { BulkResult } from "@/lib/erp/bulk-delete";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -72,6 +73,64 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر" }: {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    </div>
+  );
+}
+
+/** One bulk op button config. `danger` styles the confirm dialog + button. */
+export type BulkOp<T extends string = string> = { op: T; label: string; icon?: string; danger?: boolean };
+
+/**
+ * Multi-op bulk toolbar for documents (confirm/post/cancel/delete…). Each op
+ * runs the entity's `action(op, ids)` — which reuses the guarded single-item
+ * action per row, so ineligible rows are skipped and reported via `count`.
+ * Generic over the op union so a narrowly-typed `action` (e.g. "confirm"|"delete")
+ * stays assignable.
+ */
+export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "عنصر" }: {
+  ids: string[];
+  ops: BulkOp<T>[];
+  action: (op: T, ids: string[]) => Promise<{ ok?: boolean; count?: number; error?: string }>;
+  onDone: () => void;
+  entity?: string;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [ask, setAsk] = useState<BulkOp<T> | null>(null);
+  if (ids.length === 0) return null;
+
+  const run = (o: BulkOp<T>) => start(async () => {
+    setAsk(null);
+    const r = await action(o.op, ids);
+    if (!r.ok) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+    toast.success(`تم ${o.label}: ${int(r.count ?? 0)} ${entity}`);
+    onDone();
+    router.refresh();
+  });
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      <span className="font-medium">{int(ids.length)} محدّد</span>
+      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>إلغاء التحديد</button>
+      <div className="ms-auto flex flex-wrap gap-2">
+        {ops.map((o) => (
+          <Button key={o.op} size="sm" variant={o.danger ? "ghost" : "outline"} disabled={pending} onClick={() => setAsk(o)}>
+            {o.icon && <Icon name={o.icon} className={`size-4 ${o.danger ? "text-destructive" : ""}`} />}{o.label}
+          </Button>
+        ))}
+      </div>
+      <AlertDialog open={!!ask} onOpenChange={(o) => !o && setAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{ask?.label} {int(ids.length)} {entity}؟</AlertDialogTitle>
+            <AlertDialogDescription>الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={() => ask && run(ask)} className={ask?.danger ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}>{ask?.label}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

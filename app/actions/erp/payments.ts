@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { paymentVouchers, suppliers, purchaseInvoices, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
@@ -136,4 +137,9 @@ export async function deletePaymentVoucherAction(id: string): Promise<ActionStat
   await db.delete(paymentVouchers).where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId)));
   revalidatePath("/erp/purchases/payments");
   return { ok: true };
+}
+
+/** Bulk confirm(post)/delete DRAFT payment vouchers; ineligible rows skipped. */
+export async function bulkPaymentVouchersAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+  return bulkOp(ids, op === "confirm" ? confirmPaymentVoucherAction : deletePaymentVoucherAction);
 }

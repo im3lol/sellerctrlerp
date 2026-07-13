@@ -10,7 +10,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, postDraft, reverseEntry } from "@/lib/erp/posting";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
-import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
+import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
 export type SaveEntryState = ActionState & { id?: string };
 
@@ -194,6 +194,7 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
   }
 }
 
-export async function bulkDeleteDraftEntriesAction(ids: string[]): Promise<BulkResult> {
-  return bulkRun(ids, deleteDraftEntryAction);
+/** Bulk post/delete DRAFT entries; each id runs the guarded single-item action. */
+export async function bulkJournalAction(op: "post" | "delete", ids: string[]): Promise<BulkOpResult> {
+  return bulkOp(ids, op === "post" ? postDraftEntryAction : deleteDraftEntryAction);
 }
