@@ -4,8 +4,9 @@
 > وخطوات الاكتشاف والاحتواء والمعالجة والتعافي، وتُلزم بإخطار أمازون خلال **٢٤ ساعة**
 > على `security@amazon.com` عند أي حادث يمسّ بيانات أمازون، وتُراجَع **كل ٦ أشهر**.
 
-**Owner:** Security Lead · **Version:** 1.0 · **Last reviewed:** 2026-07-13 ·
-**Next review due:** 2027-01-13 (reviewed at least every 6 months)
+**Organization:** SellerCtrl · **Owner:** Security Lead · **Version:** 1.0 ·
+**Last reviewed:** 2026-07-13 · **Next review due:** 2027-01-13 (reviewed at
+least every 6 months)
 
 This plan governs how SellerCtrl detects, responds to, and reports security
 incidents — with specific procedures for incidents involving **Amazon
@@ -46,9 +47,11 @@ misconfiguration exposing data, or loss/theft of a device with production access
 | **Communications Owner** | Drafts and sends notifications (Amazon, affected customers, internal). |
 | **Executive Sponsor** | Legal/regulatory decisions, external counsel, final sign-off on SEV-1. |
 
-> Fill in the named person + contact for each role in the internal copy:
-> Security Lead: `__________ / __________` · Eng On-call: `__________` ·
-> Comms: `__________` · Exec: `__________`.
+> **Named contacts (SellerCtrl):**
+> - Security Lead / Incident Commander: **Ahmed** — `ahmed@sellerctrl.com`
+> - Engineering On-call: **Mostafa** — `mostafa@sellerctrl.com`
+> - Communications Owner: **Security team** — `security@sellerctrl.com`
+> - Executive Sponsor: **Ali Hassan Mostafa** — `ali@sellerctrl.com`, +20 155 825 3938
 
 ## 4. Detection & reporting (how incidents are found)
 - **Automated:** application error/runtime logs (Vercel), database logs
@@ -86,6 +89,8 @@ Target: begin triage **within 1 hour** of detection for SEV-1/2.
   potentially affected, containment actions taken, and a point of contact. Send an
   initial notice within 24 hours even if the investigation is ongoing, then follow
   up with updates.
+  - **SellerCtrl point of contact for Amazon:** **Ali Hassan Mostafa** —
+    `ali@sellerctrl.com`, +20 155 825 3938.
 - **Affected customers/tenants:** notify without undue delay per applicable law
   and contractual terms once impact is understood.
 - **Internal:** Security Lead → Executive Sponsor immediately for SEV-1/2.
@@ -126,6 +131,7 @@ The controls that reduce incident likelihood and support this plan:
 
 ---
 
-*Internal document. Fill the bracketed contacts before circulating. This copy is
-the source of truth for the Amazon SP-API security questionnaire answers on
-incident response and 24-hour notification.*
+*Internal document — SellerCtrl. Contacts filled. This copy is the source of
+truth for the Amazon SP-API security questionnaire answers on incident response
+and 24-hour notification. Keep contacts current and re-review at least every 6
+months.*
