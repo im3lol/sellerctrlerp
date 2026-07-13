@@ -1,7 +1,9 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations } from "@/db/schema";
+import { organizations, platformCredentials } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
+import { prepareSync, markSync, syncProductsCore } from "@/lib/erp/marketplace/sync-core";
 import { sendEmail } from "@/lib/erp/email";
 
 export const runtime = "nodejs";
@@ -35,9 +37,24 @@ export async function GET(req: Request) {
     try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
   }
 
+  // 1b) Daily marketplace product/catalog refresh (heavy — kept OUT of the
+  // per-minute cron so it never starves normal requests of DB connections).
+  let productsRun = 0;
+  const conns = await db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider })
+    .from(platformCredentials).where(eq(platformCredentials.autoSync, true));
+  for (const c of conns) {
+    try {
+      const prep = await prepareSync(c.orgId, c.provider.toUpperCase());
+      if ("error" in prep || !prep.flags.products || !prep.connector.fetchProducts) continue;
+      const r = await syncProductsCore(prep);
+      productsRun++;
+      if (r.ok) await markSync(c.orgId, c.provider, { productsSyncedAt: now });
+    } catch { /* skip a connection on error */ }
+  }
+
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -59,5 +76,5 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, sent });
 }
