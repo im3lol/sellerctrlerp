@@ -49,11 +49,15 @@ export async function markSync(orgId: string, provider: string, patch: Partial<{
     .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider)));
 }
 
-/** Products: link/create + catalog enrichment (image/brand/dims/barcodes/families). */
-export async function syncProductsCore(p: SyncPrep): Promise<ProductsSync> {
+/**
+ * Products: link/create + catalog enrichment (image/brand/dims/barcodes/families).
+ * Pass `since` for an incremental pull (only listings changed since then) — fast,
+ * and doesn't re-run the whole catalog; omit it for a full sync/reconciliation.
+ */
+export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<ProductsSync> {
   if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
   try {
-    const products = await p.connector.fetchProducts(p.cred);
+    const products = await p.connector.fetchProducts(p.cred, since);
     const r = await ingestProducts(p.orgId, products, p.mode);
 
     let images = 0, barcodes = 0, fields = 0, families = 0;

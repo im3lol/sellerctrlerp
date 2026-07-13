@@ -41,7 +41,7 @@ export interface MarketplaceConnector {
     authorizeUrl(state: string, marketplaceCode: string): string | null;
     exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
   };
-  fetchProducts?(cred: Credential): Promise<MarketplaceProduct[]>;
+  fetchProducts?(cred: Credential, since?: Date): Promise<MarketplaceProduct[]>;
   fetchCatalog?(cred: Credential, asins: string[]): Promise<CatalogRecord[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;

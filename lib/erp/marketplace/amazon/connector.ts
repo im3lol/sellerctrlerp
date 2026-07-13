@@ -37,8 +37,8 @@ export const amazonConnector: MarketplaceConnector = {
     },
   },
   // Direct SP-API endpoints (JSON, synchronous) — no async report polling.
-  fetchProducts(cred) {
-    return fetchListings(cred);
+  fetchProducts(cred, since) {
+    return fetchListings(cred, since);
   },
   fetchCatalog(cred, asins) {
     return fetchCatalog(cred, asins);

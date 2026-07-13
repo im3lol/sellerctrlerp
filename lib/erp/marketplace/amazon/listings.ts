@@ -35,12 +35,18 @@ export function listingToProduct(item: ListingItem): MarketplaceProduct | null {
   return { code: item.sku, altCode: s?.asin, name: s?.itemName || item.sku, sellPrice: priceOf(item) };
 }
 
-export async function fetchListings(cred: Credential): Promise<MarketplaceProduct[]> {
+/**
+ * Fetch the seller's listings. Pass `lastUpdatedAfter` for an incremental sync —
+ * Amazon returns only listings created/changed since then, so a new product is
+ * picked up fast without re-scanning the whole catalog. Omit it for a full sync.
+ */
+export async function fetchListings(cred: Credential, lastUpdatedAfter?: Date): Promise<MarketplaceProduct[]> {
   if (!cred.sellerId || !cred.marketplaceId) return [];
   const out: MarketplaceProduct[] = [];
   let pageToken: string | undefined;
   for (let page = 0; page < 100; page++) {
     const qs = new URLSearchParams({ marketplaceIds: cred.marketplaceId, includedData: "summaries,offers,attributes", pageSize: "20" });
+    if (lastUpdatedAfter) qs.set("lastUpdatedAfter", lastUpdatedAfter.toISOString());
     if (pageToken) qs.set("pageToken", pageToken);
     const res = await spJson<ListingsResponse>(cred, `/listings/2021-08-01/items/${encodeURIComponent(cred.sellerId)}?${qs}`);
     for (const it of res.items ?? []) { const p = listingToProduct(it); if (p) out.push(p); }
