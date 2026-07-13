@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { materialRequests, materialRequestLines, items } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 export type SaveState = ActionState & { id?: string };
 
@@ -76,4 +77,8 @@ export async function deleteMaterialRequestAction(id: string): Promise<ActionSta
   await db.delete(materialRequests).where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
   revalidatePath("/erp/purchases/requisitions");
   return { ok: true };
+}
+
+export async function bulkDeleteMaterialRequestsAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteMaterialRequestAction);
 }

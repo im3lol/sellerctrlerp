@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { recurringJournals, recurringJournalLines, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { FREQUENCIES } from "@/lib/erp/recurring-shared";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 type Res = ActionState & { id?: string };
 const cents = (n: number) => Math.round((Number(n) || 0) * 100);
@@ -89,4 +90,8 @@ export async function deleteRecurringJournalAction(id: string): Promise<ActionSt
   await db.delete(recurringJournals).where(and(eq(recurringJournals.id, id), eq(recurringJournals.organizationId, auth.orgId)));
   revalidatePath("/erp/accounting/recurring-journals");
   return { ok: true };
+}
+
+export async function bulkDeleteRecurringJournalsAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteRecurringJournalAction);
 }

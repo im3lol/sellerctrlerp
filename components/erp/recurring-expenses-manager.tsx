@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
-import { upsertRecurringExpenseAction, toggleRecurringExpenseAction, deleteRecurringExpenseAction } from "@/app/actions/erp/recurring-expenses";
+import { upsertRecurringExpenseAction, toggleRecurringExpenseAction, deleteRecurringExpenseAction, bulkDeleteRecurringExpensesAction } from "@/app/actions/erp/recurring-expenses";
 import { FREQUENCY_LABELS, type Frequency } from "@/lib/erp/recurring-shared";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,8 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; rec: Recurring | null }>({ open: false, rec: null });
   const [confirmDel, setConfirmDel] = useState<Recurring | null>(null);
+  const sel = useSelection();
+  const allIds = items.map((r) => r.id);
 
   const toggle = (id: string) => start(async () => { const r = await toggleRecurringExpenseAction(id); if (r.ok) router.refresh(); else toast.error(r.error ?? ""); });
   const del = (rec: Recurring) => start(async () => { const r = await deleteRecurringExpenseAction(rec.id); if (r.ok) { toast.success("تم الحذف"); setConfirmDel(null); router.refresh(); } else toast.error(r.error ?? ""); });
@@ -98,9 +101,12 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
           <span className="text-sm text-muted-foreground">{items.length} قالب — تُولَّد كمسودة تلقائياً عند حلول موعدها</span>
           <Button size="sm" onClick={() => setDialog({ open: true, rec: null })}><Plus className="size-4" />قالب جديد</Button>
         </div>
+        <>
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringExpensesAction} onDone={sel.clear} entity="قالب" />
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
               <TableHead className="text-start">البند</TableHead>
               <TableHead className="text-start">المبلغ</TableHead>
               <TableHead className="text-start">التكرار</TableHead>
@@ -112,9 +118,10 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
           </TableHeader>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">لا توجد قوالب متكررة — أنشئ أول قالب.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">لا توجد قوالب متكررة — أنشئ أول قالب.</TableCell></TableRow>
             ) : items.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
+                <TableCell><SelectBox label="تحديد" checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.category}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
                 <TableCell className="tabular-nums">{egp(r.amount)}</TableCell>
                 <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
@@ -132,6 +139,7 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
             ))}
           </TableBody>
         </Table>
+        </>
       </CardContent>
 
       <Dialog open={dialog.open} onOpenChange={(o) => !o && setDialog({ open: false, rec: null })}>

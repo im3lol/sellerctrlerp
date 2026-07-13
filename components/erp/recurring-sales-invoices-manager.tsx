@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
-import { upsertRecurringSalesInvoiceAction, toggleRecurringSalesInvoiceAction, deleteRecurringSalesInvoiceAction } from "@/app/actions/erp/recurring-sales-invoices";
+import { upsertRecurringSalesInvoiceAction, toggleRecurringSalesInvoiceAction, deleteRecurringSalesInvoiceAction, bulkDeleteRecurringSalesInvoicesAction } from "@/app/actions/erp/recurring-sales-invoices";
 import { FREQUENCY_LABELS, type Frequency } from "@/lib/erp/recurring-shared";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,8 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; rsi: RSI | null }>({ open: false, rsi: null });
   const [confirmDel, setConfirmDel] = useState<RSI | null>(null);
+  const sel = useSelection();
+  const allIds = templates.map((r) => r.id);
 
   const toggle = (id: string) => start(async () => { const r = await toggleRecurringSalesInvoiceAction(id); if (r.ok) router.refresh(); else toast.error(r.error ?? ""); });
   const del = (rsi: RSI) => start(async () => { const r = await deleteRecurringSalesInvoiceAction(rsi.id); if (r.ok) { toast.success("تم الحذف"); setConfirmDel(null); router.refresh(); } else toast.error(r.error ?? ""); });
@@ -104,17 +107,21 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
           <span className="text-sm text-muted-foreground">{templates.length} قالب — يولّد فاتورة بيع كمسودة تلقائياً في موعده</span>
           <Button size="sm" onClick={() => setDialog({ open: true, rsi: null })}><Plus className="size-4" />قالب جديد</Button>
         </div>
+        <>
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringSalesInvoicesAction} onDone={sel.clear} entity="قالب" />
         <Table>
           <TableHeader><TableRow>
+            <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
             <TableHead className="text-start">العميل</TableHead><TableHead className="text-start">التكرار</TableHead>
             <TableHead className="text-start">التنفيذ القادم</TableHead><TableHead className="text-end">الإجمالي</TableHead>
             <TableHead className="text-start">الحالة</TableHead><TableHead className="text-start">إجراءات</TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {templates.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">لا توجد قوالب — أنشئ أول قالب.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">لا توجد قوالب — أنشئ أول قالب.</TableCell></TableRow>
             ) : templates.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
+                <TableCell><SelectBox label="تحديد" checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.customer}</TableCell>
                 <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
@@ -131,6 +138,7 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
             ))}
           </TableBody>
         </Table>
+        </>
       </CardContent>
 
       <Dialog open={dialog.open} onOpenChange={(o) => !o && setDialog({ open: false, rsi: null })}>

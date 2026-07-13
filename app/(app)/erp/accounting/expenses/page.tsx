@@ -5,19 +5,16 @@ import { db } from "@/lib/db";
 import { expenses, accounts } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 import { Pagination } from "@/components/erp/pagination";
-import { ExpenseRowActions } from "@/components/erp/expense-row-actions";
+import { ExpensesTable } from "@/components/erp/expenses-table";
 
 const PAGE_SIZE = 20;
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 type SP = { q?: string; status?: string; from?: string; to?: string; page?: string };
 
@@ -109,34 +106,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">البند</TableHead>
-                    <TableHead className="text-start">المستفيد</TableHead>
-                    <TableHead className="text-start">الدفع من</TableHead>
-                    <TableHead className="text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                    {canManage && <TableHead className="text-start">إجراءات</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-mono">{r.number}</TableCell>
-                      <TableCell>{dt(r.date)}</TableCell>
-                      <TableCell>{r.category ?? "—"}</TableCell>
-                      <TableCell>{r.payee ?? "—"}</TableCell>
-                      <TableCell>{r.paidFrom ?? "—"}</TableCell>
-                      <TableCell>{fmt(r.amount)}</TableCell>
-                      <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-                      {canManage && <TableCell><ExpenseRowActions id={r.id} status={r.status} canManage={canManage} /></TableCell>}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ExpensesTable rows={rows} canDelete={canManage} />
               <Pagination page={page} pages={pages} total={total} unit="مصروف" basePath="/erp/accounting/expenses" params={{ q, status, from, to }} />
             </>
           )}

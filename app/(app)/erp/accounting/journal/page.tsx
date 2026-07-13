@@ -8,16 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { JournalTable } from "@/components/erp/journal-table";
 
 const PAGE_SIZE = 20;
-const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  DRAFT: { label: "مسودة", variant: "secondary" },
-  POSTED: { label: "مرحّل", variant: "default" },
-  REVERSED: { label: "معكوس", variant: "destructive" },
-};
 const SOURCE: Record<string, string> = {
   MANUAL: "قيد يدوي",
   SALES_INVOICE: "فاتورة بيع",
@@ -34,8 +29,6 @@ const SOURCE: Record<string, string> = {
 };
 const SOURCE_FILTER = ["MANUAL", "SALES_INVOICE", "PURCHASE_INVOICE", "RECEIPT_VOUCHER", "PAYMENT_VOUCHER", "SALES_RETURN", "PURCHASE_RETURN", "REVERSAL", "STOCK_ADJUSTMENT"];
 
-const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
@@ -181,35 +174,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">البيان</TableHead>
-                    <TableHead className="text-start">المصدر</TableHead>
-                    <TableHead className="text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r) => {
-                    const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
-                    return (
-                      <TableRow key={r.id} className="hover:bg-muted/50">
-                        <TableCell className="font-mono">
-                          <Link href={`/erp/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
-                        </TableCell>
-                        <TableCell>{dt(r.date)}</TableCell>
-                        <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">{SOURCE[r.sourceType ?? ""] ?? "—"}</TableCell>
-                        <TableCell className="tabular-nums">{fmt(r.total)}</TableCell>
-                        <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <JournalTable rows={rows} canDelete={can("accounting.create")} />
 
               <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {num(page)} من {num(pages)} · {num(total)} قيد</span>

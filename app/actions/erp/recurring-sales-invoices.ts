@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { recurringSalesInvoices, recurringSalesInvoiceLines, customers, items } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { FREQUENCIES } from "@/lib/erp/recurring-shared";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 type Res = ActionState & { id?: string };
 
@@ -83,4 +84,8 @@ export async function deleteRecurringSalesInvoiceAction(id: string): Promise<Act
   await db.delete(recurringSalesInvoices).where(and(eq(recurringSalesInvoices.id, id), eq(recurringSalesInvoices.organizationId, auth.orgId)));
   revalidatePath("/erp/sales/recurring");
   return { ok: true };
+}
+
+export async function bulkDeleteRecurringSalesInvoicesAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteRecurringSalesInvoiceAction);
 }

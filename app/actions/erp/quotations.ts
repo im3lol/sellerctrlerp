@@ -8,6 +8,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesQuotations, salesQuotationLines, customers, items } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 export type SaveState = ActionState & { id?: string };
 
@@ -88,4 +89,8 @@ export async function deleteQuotationAction(id: string): Promise<ActionState> {
   await db.delete(salesQuotations).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
   revalidatePath("/erp/sales/quotations");
   return { ok: true };
+}
+
+export async function bulkDeleteQuotationsAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteQuotationAction);
 }

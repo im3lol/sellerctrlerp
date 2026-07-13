@@ -10,6 +10,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry, postDraft, reverseEntry } from "@/lib/erp/posting";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 export type SaveEntryState = ActionState & { id?: string };
 
@@ -191,4 +192,8 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
   } catch {
     return { error: "تعذّر حذف القيد" };
   }
+}
+
+export async function bulkDeleteDraftEntriesAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteDraftEntryAction);
 }

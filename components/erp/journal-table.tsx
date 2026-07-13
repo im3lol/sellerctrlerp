@@ -1,0 +1,84 @@
+"use client";
+
+import Link from "next/link";
+import { bulkDeleteDraftEntriesAction } from "@/app/actions/erp/journal";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
+
+type Row = { id: string; number: string; date: Date; description: string | null; status: string; sourceType: string | null; total: string };
+
+const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+  DRAFT: { label: "مسودة", variant: "secondary" },
+  POSTED: { label: "مرحّل", variant: "default" },
+  REVERSED: { label: "معكوس", variant: "destructive" },
+};
+const SOURCE: Record<string, string> = {
+  MANUAL: "قيد يدوي",
+  SALES_INVOICE: "فاتورة بيع",
+  PURCHASE_INVOICE: "فاتورة شراء",
+  RECEIPT_VOUCHER: "سند قبض",
+  PAYMENT_VOUCHER: "سند صرف",
+  SALES_RETURN: "مرتجع مبيعات",
+  PURCHASE_RETURN: "مرتجع مشتريات",
+  REVERSAL: "قيد عكسي",
+  STOCK_ADJUSTMENT: "تسوية مخزون",
+  GOODS_RECEIPT: "استلام بضاعة",
+  DELIVERY_COGS: "ت.ب.م تسليم",
+  OPENING_BALANCE: "رصيد افتتاحي",
+};
+const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+// Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
+export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: boolean }) {
+  const sel = useSelection();
+  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
+  const showSelect = canDelete && draftIds.length > 0;
+
+  return (
+    <>
+      {showSelect && <BulkDeleteBar ids={sel.ids} action={bulkDeleteDraftEntriesAction} onDone={sel.clear} entity="قيد مسودة" />}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {showSelect && (
+              <TableHead className="w-10">
+                <SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" />
+              </TableHead>
+            )}
+            <TableHead className="text-start">الرقم</TableHead>
+            <TableHead className="text-start">التاريخ</TableHead>
+            <TableHead className="text-start">البيان</TableHead>
+            <TableHead className="text-start">المصدر</TableHead>
+            <TableHead className="text-start">المبلغ</TableHead>
+            <TableHead className="text-start">الحالة</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => {
+            const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
+            const selectable = showSelect && r.status === "DRAFT";
+            return (
+              <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined} className="hover:bg-muted/50">
+                {showSelect && (
+                  <TableCell>
+                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}
+                  </TableCell>
+                )}
+                <TableCell className="font-mono">
+                  <Link href={`/erp/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
+                </TableCell>
+                <TableCell>{dt(r.date)}</TableCell>
+                <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{SOURCE[r.sourceType ?? ""] ?? "—"}</TableCell>
+                <TableCell className="tabular-nums">{fmt(r.total)}</TableCell>
+                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </>
+  );
+}
