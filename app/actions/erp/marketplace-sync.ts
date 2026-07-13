@@ -8,7 +8,7 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
-import { ingestOrders, ingestProducts, reconcileInventory, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
+import { ingestOrders, ingestProducts, reconcileInventory, setItemImagesByCode, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -46,7 +46,7 @@ async function markSync(orgId: string, provider: string, status: string) {
     .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider)));
 }
 
-export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number } | { ok: false; error: string };
+export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number } | { ok: false; error: string };
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
@@ -58,8 +58,21 @@ export async function syncProductsAction(code: string): Promise<ProductsSync> {
   try {
     const products = await p.connector.fetchProducts(p.cred);
     const r = await ingestProducts(p.orgId, products, p.mode);
+
+    // Enrich with catalog image URLs (best-effort; only fills empty images).
+    let images = 0;
+    if (p.connector.fetchImages) {
+      const asins = [...new Set(products.map((x) => x.altCode).filter((a): a is string => !!a))];
+      if (asins.length) {
+        try {
+          const found = await p.connector.fetchImages(p.cred, asins);
+          images = await setItemImagesByCode(p.orgId, found.map((f) => ({ code: f.asin, imageUrl: f.imageUrl })));
+        } catch { /* image enrichment is optional */ }
+      }
+    }
+
     revalidatePath("/erp/inventory/items");
-    return { ok: true, ...r };
+    return { ok: true, ...r, images };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المنتجات" };
   }

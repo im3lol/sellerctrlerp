@@ -21,13 +21,14 @@ export type OAuthExchange = { refreshToken: string } | { error: string };
 export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
-  capabilities: { products: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+  capabilities: { products: boolean; images: boolean; orders: boolean; inventory: boolean; settlements: boolean };
   oauth?: {
     marketplaces: ConnectorMarketplace[];
     authorizeUrl(state: string, marketplaceCode: string): string | null;
     exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
   };
   fetchProducts?(cred: Credential): Promise<MarketplaceProduct[]>;
+  fetchImages?(cred: Credential, asins: string[]): Promise<{ asin: string; imageUrl: string }[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
   fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;

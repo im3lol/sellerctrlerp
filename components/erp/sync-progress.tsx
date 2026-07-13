@@ -35,7 +35,7 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
   async function run() {
     set("products", "running");
     const pr = await syncProductsAction(code);
-    set("products", pr.ok ? "done" : "error", pr.ok ? `${pr.created} جديد · ${pr.linked} مربوط · ${pr.alreadyLinked} موجود` : pr.error);
+    set("products", pr.ok ? "done" : "error", pr.ok ? `${pr.created} جديد · ${pr.linked} مربوط · ${pr.images} صورة` : pr.error);
 
     set("orders", "running");
     const or = await syncOrdersAction(code);

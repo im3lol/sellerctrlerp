@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes, salesOrders, salesOrderLines, warehouses } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
@@ -294,4 +294,36 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   });
 
   return result;
+}
+
+/**
+ * Set item images from a marketplace catalog, matched by code (ASIN/SKU). Only
+ * fills an item whose image is still empty — never overwrites one the user set.
+ * Returns how many items got an image.
+ */
+export async function setItemImagesByCode(orgId: string, images: { code: string; imageUrl: string }[]): Promise<number> {
+  const byNorm = new Map<string, string>();
+  for (const im of images) { const n = normalizeCode(im.code); if (n && im.imageUrl) byNorm.set(n, im.imageUrl); }
+  if (byNorm.size === 0) return 0;
+
+  const norms = [...byNorm.keys()];
+  const codeRows: { itemId: string; norm: string | null }[] = [];
+  for (let i = 0; i < norms.length; i += 800) {
+    const rows = await db.select({ itemId: itemCodes.itemId, norm: itemCodes.normalizedCode }).from(itemCodes)
+      .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.normalizedCode, norms.slice(i, i + 800))));
+    codeRows.push(...rows);
+  }
+  const itemImage = new Map<string, string>();
+  for (const r of codeRows) { if (r.norm && byNorm.has(r.norm) && !itemImage.has(r.itemId)) itemImage.set(r.itemId, byNorm.get(r.norm)!); }
+
+  // ponytail: one update per item (guarded to empty images). Catalogs are modest;
+  // switch to a single CASE/unnest update if this ever gets hot.
+  let updated = 0;
+  for (const [itemId, url] of itemImage) {
+    const res = await db.update(items).set({ image: url, updatedAt: new Date() })
+      .where(and(eq(items.id, itemId), eq(items.organizationId, orgId), or(isNull(items.image), eq(items.image, ""))))
+      .returning({ id: items.id });
+    updated += res.length;
+  }
+  return updated;
 }
