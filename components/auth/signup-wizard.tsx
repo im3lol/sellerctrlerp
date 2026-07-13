@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Check, ArrowLeft, ArrowRight, Copy } from "lucide-react";
 import { signupAction } from "@/app/(auth)/signup/actions";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
+import { validatePassword, isPasswordValid, PASSWORD_RULE_AR } from "@/lib/auth/password-policy";
 import { PAYMENT_METHODS, WALLET_NUMBER } from "@/lib/erp/payment-info";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,12 +44,12 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
 
   const toggle = (m: string) => setModules((s) => (s.includes(m) ? s.filter((x) => x !== m) : [...s, m]));
 
-  const step1Valid = companyName.trim().length >= 2 && personName.trim().length >= 2 && /.+@.+\..+/.test(email) && password.length >= 8 && password === confirm;
+  const step1Valid = companyName.trim().length >= 2 && personName.trim().length >= 2 && /.+@.+\..+/.test(email) && isPasswordValid(password) && password === confirm;
 
   const next = () => {
     if (step === 0 && !step1Valid) {
       if (password !== confirm) return toast.error("كلمتا المرور غير متطابقتين");
-      if (password.length < 8) return toast.error("كلمة المرور 8 أحرف على الأقل");
+      { const e = validatePassword(password); if (e) return toast.error(e); }
       return toast.error("أكمل بيانات الشركة والمسؤول");
     }
     setStep((s) => Math.min(2, s + 1));
@@ -91,7 +92,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
             <div className="space-y-1.5"><Label>رقم الهاتف</Label><Input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
             <div className="space-y-1.5"><Label>الرقم الضريبي</Label><Input value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="اختياري" /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label>العنوان</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="اختياري" /></div>
-            <div className="space-y-1.5"><Label>كلمة المرور *</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="٨ أحرف على الأقل" /></div>
+            <div className="space-y-1.5"><Label>كلمة المرور *</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
             <div className="space-y-1.5"><Label>تأكيد كلمة المرور *</Label><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           </div>
         </div>

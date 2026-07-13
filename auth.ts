@@ -6,6 +6,7 @@ import { authConfig } from "./auth.config";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { isErpLegacyHash, verifyErpPassword } from "@/lib/erp/password";
+import { BCRYPT_COST } from "@/lib/auth/password-policy";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -47,7 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // the stored hash to bcrypt on first successful login.
           ok = await verifyErpPassword(password, user.passwordHash);
           if (ok) {
-            const upgraded = await bcrypt.hash(password, 10);
+            const upgraded = await bcrypt.hash(password, BCRYPT_COST);
             await db.update(users).set({ passwordHash: upgraded }).where(eq(users.id, user.id));
           }
         }

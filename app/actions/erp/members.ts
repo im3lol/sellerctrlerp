@@ -11,6 +11,7 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import { allErpPermissions, erpRoleLabels } from "@/lib/erp/permissions";
 import { seatLimitError } from "@/lib/erp/plans";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 import type { ActionState } from "@/lib/erp/action-auth";
 
 // A "use server" file may only export async functions — keep the role list local.
@@ -35,7 +36,8 @@ export async function inviteMemberAction(input: { name: string; email: string; r
   if (name.length < 2) return { error: "الاسم مطلوب" };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "بريد إلكتروني غير صالح" };
   if (!ERP_ROLES.includes(role)) return { error: "دور غير صالح" };
-  if (password.length < 6) return { error: "كلمة المرور 6 أحرف على الأقل" };
+  const pwErr = validatePassword(password);
+  if (pwErr) return { error: pwErr };
 
   const capError = await seatLimitError(orgId);
   if (capError) return { error: capError };
@@ -46,7 +48,7 @@ export async function inviteMemberAction(input: { name: string; email: string; r
   if (existing) return { error: "هذا البريد مستخدم بالفعل — استخدم بريدًا آخر" };
 
   try {
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
     const newUserId = await db.transaction(async (tx) => {
       const [u] = await tx.insert(users).values({ name, email, passwordHash, role: "employee", title: erpRoleLabels[role] ?? role }).returning({ id: users.id });
       await tx.insert(organizationMembers).values({ organizationId: orgId, userId: u.id, role });

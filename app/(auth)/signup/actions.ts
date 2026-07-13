@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
+import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
 import { eq as _eq } from "drizzle-orm";
 import { users, organizations, organizationMembers, orgSubscriptions, plans, subscriptionRequests } from "@/db/schema";
@@ -34,7 +35,7 @@ const schema = z.object({
   phone: z.string().trim().optional(),
   address: z.string().trim().optional(),
   taxNumber: z.string().trim().optional(),
-  password: z.string().min(8, "كلمة المرور 8 أحرف على الأقل"),
+  password: z.string().superRefine((p, ctx) => { const e = validatePassword(p); if (e) ctx.addIssue({ code: z.ZodIssueCode.custom, message: e }); }),
   modules: z.array(z.string()),
   subscribe: z.object({
     planId: z.string(),
@@ -68,7 +69,7 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
     }).returning({ id: organizations.id });
     orgId = org.id;
 
-    const passwordHash = await bcrypt.hash(d.password, 10);
+    const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
     const [user] = await db.insert(users).values({
       name: d.personName, email: d.email, passwordHash, role: "org_admin", title: "مدير المؤسسة",
     }).returning({ id: users.id });

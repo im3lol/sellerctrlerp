@@ -7,13 +7,14 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { requireUser, requireCapability } from "@/lib/session";
+import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 
 export type ActionState = { error?: string; ok?: boolean };
 
 const createSchema = z.object({
   name: z.string().min(2, "الاسم قصير جداً"),
   email: z.string().email("بريد غير صالح"),
-  password: z.string().min(6, "كلمة المرور 6 أحرف على الأقل"),
+  password: z.string().superRefine((p, ctx) => { const e = validatePassword(p); if (e) ctx.addIssue({ code: z.ZodIssueCode.custom, message: e }); }),
   role: z.enum(["system_admin", "ops_manager", "team_lead", "employee", "client"]),
   title: z.string().optional(),
 });
@@ -38,7 +39,7 @@ export async function createUserAction(_prev: ActionState, formData: FormData): 
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, d.email)).limit(1);
   if (existing.length) return { error: "البريد مستخدم بالفعل" };
 
-  const passwordHash = await bcrypt.hash(d.password, 10);
+  const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
   const [u] = await db
     .insert(users)
     .values({ name: d.name, email: d.email, passwordHash, role: d.role, title: d.title })
@@ -100,8 +101,9 @@ export async function updateUserAction(_prev: ActionState, formData: FormData): 
     updatedAt: new Date(),
   };
   if (d.password) {
-    if (d.password.length < 6) return { error: "كلمة المرور 6 أحرف على الأقل" };
-    update.passwordHash = await bcrypt.hash(d.password, 10);
+    const pwErr = validatePassword(d.password);
+    if (pwErr) return { error: pwErr };
+    update.passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
   }
   await db.update(users).set(update).where(eq(users.id, d.userId));
   revalidatePath("/admin/users");
