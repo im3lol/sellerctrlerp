@@ -19,7 +19,7 @@ export default async function NewAdjustmentPage() {
     db.execute<StockRow>(sql`
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity, balance_value
       FROM stock_movements WHERE organization_id = ${orgId}
-      ORDER BY item_id, warehouse_id, created_at DESC, id DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
     `),
   ]);
 

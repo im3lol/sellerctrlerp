@@ -45,28 +45,34 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
   const fWarehouse = filters.warehouse ?? "";
   const fStatus = filters.status ?? "";
 
-  const whList = await db
-    .select({ id: warehouses.id, code: warehouses.code, nameAr: warehouses.nameAr })
-    .from(warehouses)
-    .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
-    .orderBy(asc(warehouses.code));
-
-  const result = await db.execute<Raw>(sql`
-    SELECT DISTINCT ON (sm.item_id, sm.warehouse_id)
-      sm.item_id AS item_id,
-      i.code AS item_code,
-      coalesce(i.name_ar, i.name_en, i.code) AS item_name,
-      sm.warehouse_id AS warehouse_id,
-      coalesce(w.name_ar, w.name_en, w.code) AS warehouse_name,
-      coalesce(i.min_stock, 0) AS min_stock,
-      sm.balance_quantity,
-      sm.balance_value
-    FROM stock_movements sm
-    JOIN items i ON i.id = sm.item_id
-    JOIN warehouses w ON w.id = sm.warehouse_id
-    WHERE sm.organization_id = ${orgId}
-    ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.id DESC
-  `);
+  // The three queries are independent — run them in parallel (1 round-trip).
+  const [whList, result, exp] = await Promise.all([
+    db
+      .select({ id: warehouses.id, code: warehouses.code, nameAr: warehouses.nameAr })
+      .from(warehouses)
+      .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
+      .orderBy(asc(warehouses.code)),
+    db.execute<Raw>(sql`
+      SELECT DISTINCT ON (sm.item_id, sm.warehouse_id)
+        sm.item_id AS item_id,
+        i.code AS item_code,
+        coalesce(i.name_ar, i.name_en, i.code) AS item_name,
+        sm.warehouse_id AS warehouse_id,
+        coalesce(w.name_ar, w.name_en, w.code) AS warehouse_name,
+        coalesce(i.min_stock, 0) AS min_stock,
+        sm.balance_quantity,
+        sm.balance_value
+      FROM stock_movements sm
+      JOIN items i ON i.id = sm.item_id
+      JOIN warehouses w ON w.id = sm.warehouse_id
+      WHERE sm.organization_id = ${orgId}
+      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.number DESC
+    `),
+    db.execute<{ item_id: string; warehouse_id: string; nearest: string }>(sql`
+      SELECT item_id, warehouse_id, min(expiry_date) AS nearest FROM stock_batches
+      WHERE organization_id = ${orgId} AND remaining_quantity > 0 AND expiry_date IS NOT NULL
+      GROUP BY item_id, warehouse_id`),
+  ]);
 
   let lines: StockBalanceLine[] = (result.rows ?? []).map((r) => {
     const quantity = Number(r.balance_quantity);
@@ -92,11 +98,7 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
   // Keep only non-empty balances (matches the prior page behaviour).
   lines = lines.filter((l) => Math.abs(l.quantity) > 1e-9 || Math.abs(l.value) > 1e-9);
 
-  // Nearest expiry per (item, warehouse) from live batches (perishables only).
-  const exp = await db.execute<{ item_id: string; warehouse_id: string; nearest: string }>(sql`
-    SELECT item_id, warehouse_id, min(expiry_date) AS nearest FROM stock_batches
-    WHERE organization_id = ${orgId} AND remaining_quantity > 0 AND expiry_date IS NOT NULL
-    GROUP BY item_id, warehouse_id`);
+  // Nearest expiry per (item, warehouse) from live batches (perishables only) — fetched above.
   const expMap = new Map((exp.rows ?? []).map((r) => [`${r.item_id}|${r.warehouse_id}`, r.nearest]));
   const now = Date.now();
   for (const l of lines) {

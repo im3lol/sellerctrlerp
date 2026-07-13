@@ -35,7 +35,7 @@ async function books(orgId: string) {
   const rows = await db.execute<{ v: string }>(sql`
     SELECT DISTINCT ON (item_id, warehouse_id) balance_value AS v
     FROM stock_movements WHERE organization_id = ${orgId}
-    ORDER BY item_id, warehouse_id, created_at DESC, id DESC`);
+    ORDER BY item_id, warehouse_id, created_at DESC, number DESC`);
   const ledger = (rows.rows as { v: string }[]).reduce((s, r) => s + Number(r.v), 0);
   const gl1104 = await acctBalance(orgId, "1104");
   return { d: Number(bal.d), c: Number(bal.c), ledger, gl1104 };

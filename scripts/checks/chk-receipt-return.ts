@@ -30,7 +30,7 @@ async function ledger(x: Tx, orgId: string) {
     SELECT coalesce(sum(t.balance_value),0) v FROM (
       SELECT DISTINCT ON (sm.item_id, sm.warehouse_id) sm.balance_value
       FROM stock_movements sm WHERE sm.organization_id = ${orgId}
-      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.id DESC) t`);
+      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.number DESC) t`);
   return Number(r.rows[0].v);
 }
 

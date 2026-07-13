@@ -34,7 +34,7 @@ export default async function InventoryDashboardPage() {
       SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, id DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, number DESC
       ) t GROUP BY item_id
     ) s ON s.item_id = i.id
     WHERE i.organization_id = ${orgId} AND i.is_active = true

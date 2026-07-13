@@ -28,7 +28,7 @@ async function acctBalance(orgId: string, code: string) {
 async function books(orgId: string) {
   const [bal] = await db.select({ d: sql<string>`coalesce(sum(${journalEntryLines.debit}),0)`, c: sql<string>`coalesce(sum(${journalEntryLines.credit}),0)` })
     .from(journalEntryLines).innerJoin(journalEntries, and(eq(journalEntries.id, journalEntryLines.journalEntryId), eq(journalEntries.organizationId, orgId), eq(journalEntries.status, "POSTED")));
-  const rows = await db.execute<{ v: string }>(sql`SELECT DISTINCT ON (item_id, warehouse_id) balance_value v FROM stock_movements WHERE organization_id=${orgId} ORDER BY item_id, warehouse_id, created_at DESC, id DESC`);
+  const rows = await db.execute<{ v: string }>(sql`SELECT DISTINCT ON (item_id, warehouse_id) balance_value v FROM stock_movements WHERE organization_id=${orgId} ORDER BY item_id, warehouse_id, created_at DESC, number DESC`);
   const ledger = (rows.rows as { v: string }[]).reduce((s, r) => s + Number(r.v), 0);
   return { d: Number(bal.d), c: Number(bal.c), ledger, gl1104: await acctBalance(orgId, "1104") };
 }

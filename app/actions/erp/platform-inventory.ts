@@ -9,7 +9,6 @@ import { reconcileInventory, type InventoryReconResult } from "@/lib/erp/marketp
 import type { MarketplaceInventory } from "@/lib/erp/marketplace/dto";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 
-export type { InventoryReconRow, InventoryReconResult } from "@/lib/erp/marketplace/ingest";
 export type InventoryReconActionResult = ({ ok: true } & InventoryReconResult) | { ok: false; error: string };
 
 /**

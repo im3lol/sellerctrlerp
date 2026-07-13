@@ -49,7 +49,7 @@ export async function setBundleComponentsAction(input: unknown): Promise<ActionS
 
 /** Remove a kit's BOM entirely (it stops being a bundle). */
 export async function deleteBundleAction(parentItemId: string): Promise<ActionState> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.delete");
   if ("error" in auth) return auth;
   await db.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
   revalidatePath("/erp/inventory/bundles");

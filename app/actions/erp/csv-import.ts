@@ -3,8 +3,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, items, suppliers } from "@/db/schema";
-import { getActiveOrg } from "@/lib/erp/org";
-import { getErpRole } from "@/lib/erp/auth-guard";
+import { authorizeErp } from "@/lib/erp/action-auth";
 
 export type ImportResult = {
   inserted: number;
@@ -13,13 +12,10 @@ export type ImportResult = {
   total: number;
 };
 
-async function authorize(_perm: "sales.create" | "inventory.create" | "purchases.create"): Promise<{ error: string } | { orgId: string }> {
-  const { user, org } = await getActiveOrg();
-  if (!user) return { error: "غير مصرح" };
-  if (!org)  return { error: "لم يتم تحديد المؤسسة" };
-  const role = await getErpRole(org.id, user);
-  if (!role) return { error: "غير مصرح بالوصول" };
-  return { orgId: org.id };
+// Enforce the specific create permission (not just org membership) — a viewer
+// must not be able to bulk-insert/overwrite master data.
+async function authorize(perm: "sales.create" | "inventory.create" | "purchases.create"): Promise<{ error: string } | { orgId: string }> {
+  return authorizeErp(perm);
 }
 
 function parseCSV(text: string): string[][] {

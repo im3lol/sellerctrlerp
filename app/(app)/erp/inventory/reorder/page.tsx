@@ -21,7 +21,7 @@ export default async function ReorderPage() {
     WITH latest AS (
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
       FROM stock_movements WHERE organization_id = ${orgId}
-      ORDER BY item_id, warehouse_id, created_at DESC, id DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
     )
     SELECT i.code, coalesce(i.name_ar, i.name_en, i.code) AS name,
            coalesce(i.min_stock, 0) AS min_stock, i.max_stock,

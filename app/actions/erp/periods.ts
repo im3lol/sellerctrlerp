@@ -11,7 +11,7 @@ const STATUSES = ["OPEN", "SOFT_CLOSED", "CLOSED"] as const;
 
 /** Lock / soft-close / reopen a fiscal period. CLOSED blocks posting in it. */
 export async function setPeriodStatusAction(id: string, status: string): Promise<ActionState> {
-  const auth = await authorizeErp("accounting.create");
+  const auth = await authorizeErp("accounting.post");
   if ("error" in auth) return auth;
   if (!STATUSES.includes(status as (typeof STATUSES)[number])) return { error: "حالة غير صحيحة" };
 

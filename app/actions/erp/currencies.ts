@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { currencies, exchangeRates } from "@/db/schema";
 import { parseDate } from "@/lib/erp/dates";
@@ -124,42 +124,4 @@ export async function upsertExchangeRateAction(input: RateInput): Promise<Action
   }
   revalidatePath("/erp/settings/currencies");
   return { ok: true };
-}
-
-/**
- * Returns the exchange rate for a currency on or before `date`.
- * Falls back to the snapshot on the currencies row, then to 1.
- * Always returns 1 for the base currency.
- */
-export async function getExchangeRate(
-  orgId: string,
-  currencyCode: string,
-  date: Date,
-): Promise<number> {
-  const code = currencyCode.toUpperCase();
-
-  // Check if it's the base currency
-  const [cur] = await db
-    .select({ isBase: currencies.isBase, exchangeRate: currencies.exchangeRate })
-    .from(currencies)
-    .where(and(eq(currencies.organizationId, orgId), eq(currencies.code, code)))
-    .limit(1);
-  if (!cur || cur.isBase) return 1;
-
-  // Try historical rate first
-  const [hist] = await db
-    .select({ rate: exchangeRates.rate })
-    .from(exchangeRates)
-    .where(
-      and(
-        eq(exchangeRates.organizationId, orgId),
-        eq(exchangeRates.currencyCode, code),
-        lte(exchangeRates.date, date),
-      ),
-    )
-    .orderBy(desc(exchangeRates.date))
-    .limit(1);
-
-  if (hist) return Number(hist.rate);
-  return Number(cur.exchangeRate) || 1;
 }

@@ -7,7 +7,6 @@ import {
   type ProductsSync, type OrdersSync, type InventorySync,
 } from "@/lib/erp/marketplace/sync-core";
 
-export type { ProductsSync, OrdersSync, InventorySync } from "@/lib/erp/marketplace/sync-core";
 
 const LOOKBACK_DAYS = 30;
 

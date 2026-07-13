@@ -31,7 +31,7 @@ export async function getAvailability(orgId: string, itemIds: string[]): Promise
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bal
       FROM stock_movements
       WHERE organization_id = ${orgId} AND item_id IN (${idList})
-      ORDER BY item_id, warehouse_id, created_at DESC, id DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
     ) t GROUP BY item_id`);
   const onHand = new Map((onHandRows.rows as { item_id: string; qty: string }[]).map((r) => [r.item_id, Number(r.qty)]));
 

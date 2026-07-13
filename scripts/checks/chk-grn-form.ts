@@ -33,14 +33,14 @@ async function ledgerValue(x: Tx, orgId: string) {
     SELECT coalesce(sum(t.balance_value),0) v FROM (
       SELECT DISTINCT ON (sm.item_id, sm.warehouse_id) sm.balance_value
       FROM stock_movements sm WHERE sm.organization_id = ${orgId}
-      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.id DESC) t`);
+      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.number DESC) t`);
   return Number(r.rows[0].v);
 }
 async function onHand(x: Tx, orgId: string, itemId: string, whId: string) {
   const r = await x.execute<{ q: string }>(sql`
     SELECT balance_quantity q FROM stock_movements
     WHERE organization_id = ${orgId} AND item_id = ${itemId} AND warehouse_id = ${whId}
-    ORDER BY created_at DESC, id DESC LIMIT 1`);
+    ORDER BY created_at DESC, number DESC LIMIT 1`);
   return Number(r.rows[0]?.q ?? 0);
 }
 async function rq(x: Tx, lineId: string) {

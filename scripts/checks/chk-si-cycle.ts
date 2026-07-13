@@ -28,7 +28,7 @@ async function bal(x: Tx, orgId: string, accId: string) {
 async function onHand(x: Tx, orgId: string, itemId: string, whId: string) {
   const r = await x.execute<{ q: string }>(sql`
     SELECT balance_quantity q FROM stock_movements WHERE organization_id=${orgId} AND item_id=${itemId} AND warehouse_id=${whId}
-    ORDER BY created_at DESC, id DESC LIMIT 1`);
+    ORDER BY created_at DESC, number DESC LIMIT 1`);
   return Number(r.rows[0]?.q ?? 0);
 }
 
@@ -51,7 +51,7 @@ async function main() {
   for (const l of soLines) {
     const remaining = round2(Number(l.quantity) - Number(l.deliveredQty));
     if (remaining < 1) continue;
-    const oh = await db.execute<{ q: string }>(sql`SELECT balance_quantity q FROM stock_movements WHERE organization_id=${orgId} AND item_id=${l.itemId} AND warehouse_id=${wh.id} ORDER BY created_at DESC, id DESC LIMIT 1`);
+    const oh = await db.execute<{ q: string }>(sql`SELECT balance_quantity q FROM stock_movements WHERE organization_id=${orgId} AND item_id=${l.itemId} AND warehouse_id=${wh.id} ORDER BY created_at DESC, number DESC LIMIT 1`);
     if (Number(oh.rows[0]?.q ?? 0) >= 1) { target = l; break; }
   }
   if (!target) { console.log("no SO line with stock — skip"); process.exit(0); }
