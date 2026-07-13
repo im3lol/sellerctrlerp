@@ -50,7 +50,7 @@ export async function inviteMemberAction(input: { name: string; email: string; r
   try {
     const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
     const newUserId = await db.transaction(async (tx) => {
-      const [u] = await tx.insert(users).values({ name, email, passwordHash, role: "employee", title: erpRoleLabels[role] ?? role }).returning({ id: users.id });
+      const [u] = await tx.insert(users).values({ name, email, passwordHash, passwordChangedAt: new Date(), role: "employee", title: erpRoleLabels[role] ?? role }).returning({ id: users.id });
       await tx.insert(organizationMembers).values({ organizationId: orgId, userId: u.id, role });
       return u.id;
     });

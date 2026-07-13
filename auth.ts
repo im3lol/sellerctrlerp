@@ -5,8 +5,10 @@ import { eq, sql } from "drizzle-orm";
 import { authConfig } from "./auth.config";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
+import { authenticator } from "otplib";
 import { isErpLegacyHash, verifyErpPassword } from "@/lib/erp/password";
 import { BCRYPT_COST } from "@/lib/auth/password-policy";
+import { decryptSecret } from "@/lib/crypto";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -16,6 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Accepts an email OR a username (migrated ERP users have no email).
         email: { label: "البريد الإلكتروني أو اسم المستخدم", type: "text" },
         password: { label: "كلمة المرور", type: "password" },
+        token: { label: "رمز المصادقة الثنائية", type: "text" },
       },
       async authorize(creds) {
         const identifier = String(creds?.email ?? "").toLowerCase().trim();
@@ -53,6 +56,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
         if (!ok) return null;
+
+        // Second factor: if the user enabled MFA, require a valid TOTP code or a
+        // one-time backup code (consumed on use).
+        if (user.mfaEnabled) {
+          const otp = String(creds?.token ?? "").trim();
+          if (!otp) return null;
+          const secret = user.mfaSecret ? decryptSecret(user.mfaSecret) : null;
+          let mfaOk = secret ? authenticator.check(otp, secret) : false;
+          if (!mfaOk && Array.isArray(user.mfaBackupCodes)) {
+            for (const h of user.mfaBackupCodes) {
+              if (await bcrypt.compare(otp, h)) {
+                mfaOk = true;
+                await db.update(users).set({ mfaBackupCodes: user.mfaBackupCodes.filter((x) => x !== h) }).where(eq(users.id, user.id));
+                break;
+              }
+            }
+          }
+          if (!mfaOk) return null;
+        }
 
         return {
           id: user.id,

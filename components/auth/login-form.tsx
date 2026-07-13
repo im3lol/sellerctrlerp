@@ -84,6 +84,19 @@ export function LoginForm({
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="token">رمز المصادقة الثنائية</Label>
+        <Input
+          id="token"
+          name="token"
+          type="text"
+          inputMode="numeric"
+          dir="ltr"
+          autoComplete="one-time-code"
+          placeholder="إن كانت مفعّلة — من تطبيق المصادقة"
+        />
+      </div>
+
       <SubmitButton />
 
       {hint && <p className="text-center text-xs text-muted-foreground">{hint}</p>}

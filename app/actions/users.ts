@@ -42,7 +42,7 @@ export async function createUserAction(_prev: ActionState, formData: FormData): 
   const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
   const [u] = await db
     .insert(users)
-    .values({ name: d.name, email: d.email, passwordHash, role: d.role, title: d.title })
+    .values({ name: d.name, email: d.email, passwordHash, passwordChangedAt: new Date(), role: d.role, title: d.title })
     .returning();
 
   revalidatePath("/admin/users");
@@ -104,6 +104,7 @@ export async function updateUserAction(_prev: ActionState, formData: FormData): 
     const pwErr = validatePassword(d.password);
     if (pwErr) return { error: pwErr };
     update.passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
+    update.passwordChangedAt = new Date();
   }
   await db.update(users).set(update).where(eq(users.id, d.userId));
   revalidatePath("/admin/users");

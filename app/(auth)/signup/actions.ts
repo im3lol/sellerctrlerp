@@ -71,7 +71,7 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
 
     const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
     const [user] = await db.insert(users).values({
-      name: d.personName, email: d.email, passwordHash, role: "org_admin", title: "مدير المؤسسة",
+      name: d.personName, email: d.email, passwordHash, passwordChangedAt: new Date(), role: "org_admin", title: "مدير المؤسسة",
     }).returning({ id: users.id });
 
     await db.insert(organizationMembers).values({ organizationId: orgId, userId: user.id, role: "admin" });

@@ -1,11 +1,9 @@
 /**
- * Legacy Ctrl ERP password verification, ported verbatim for the migration
- * bridge. ERP stored passwords as either:
- *   - `scrypt$<salt>$<hex-key>`  (scrypt), or
- *   - base64(plaintext)          (insecure legacy format)
- *
- * Auth.js (auth.ts) tries bcrypt first; for migrated users whose hash is still
- * in one of these formats it falls back here, and on success rehashes to bcrypt.
+ * Legacy Ctrl ERP password verification (migration bridge). Supports only the
+ * one-way `scrypt$<salt>$<hex-key>` format. The old reversible base64(plaintext)
+ * fallback was REMOVED — no user in any environment uses it, and accepting it
+ * meant credentials could be recovered from the hash. auth.ts tries bcrypt first
+ * and rehashes any scrypt user to bcrypt on next successful login.
  */
 import { scrypt as scryptCallback, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -20,15 +18,9 @@ export function isErpLegacyHash(stored: string): boolean {
 
 export async function verifyErpPassword(password: string, storedPassword: string): Promise<boolean> {
   const [algorithm, salt, storedKey] = storedPassword.split("$");
+  if (algorithm !== "scrypt" || !salt || !storedKey) return false; // no base64 fallback
 
-  if (algorithm === "scrypt" && salt && storedKey) {
-    const derivedKey = (await scrypt(password, salt, KEY_LENGTH)) as Buffer;
-    const expectedKey = Buffer.from(storedKey, "hex");
-    return expectedKey.length === derivedKey.length && timingSafeEqual(expectedKey, derivedKey);
-  }
-
-  // Legacy: stored = base64(plaintext)
-  const legacy = Buffer.from(Buffer.from(password).toString("base64"));
-  const stored = Buffer.from(storedPassword);
-  return legacy.length === stored.length && timingSafeEqual(legacy, stored);
+  const derivedKey = (await scrypt(password, salt, KEY_LENGTH)) as Buffer;
+  const expectedKey = Buffer.from(storedKey, "hex");
+  return expectedKey.length === derivedKey.length && timingSafeEqual(expectedKey, derivedKey);
 }

@@ -35,6 +35,13 @@ export const users = pgTable(
     // Optional login alias — migrated ERP users sign in by username (no email).
     username: varchar("username", { length: 255 }),
     passwordHash: text("password_hash").notNull(),
+    // Set whenever the password changes — drives 365-day rotation enforcement.
+    passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
+    // TOTP two-factor auth. secret is AES-256-GCM encrypted at rest; backup codes
+    // are stored as bcrypt hashes (one-time use).
+    mfaEnabled: boolean("mfa_enabled").notNull().default(false),
+    mfaSecret: text("mfa_secret"),
+    mfaBackupCodes: jsonb("mfa_backup_codes").$type<string[]>(),
     role: userRoleEnum("role").notNull().default("employee"),
     avatarUrl: text("avatar_url"),
     title: text("title"), // المسمى الوظيفي
@@ -47,6 +54,18 @@ export const users = pgTable(
     uniqueIndex("users_email_idx").on(t.email),
     uniqueIndex("users_username_idx").on(t.username),
   ],
+);
+
+// Recent password hashes per user, to block reuse of the last few passwords.
+export const passwordHistory = pgTable(
+  "password_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("password_history_user_idx").on(t.userId)],
 );
 
 /* ───────── Attendance (ERP HR — feeds hourly payroll) ───────── */
