@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Boxes, Hammer } from "lucide-react";
-import { setBundleComponentsAction, deleteBundleAction, assembleAction } from "@/app/actions/erp/bundles";
+import { setBundleComponentsAction, deleteBundleAction, assembleAction, bulkDeleteBundlesAction } from "@/app/actions/erp/bundles";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 
 type ItemOpt = { id: string; code: string | null; name: string | null };
 type Wh = { id: string; name: string };
@@ -128,11 +129,14 @@ export function BundlesManager({ bundles, items, warehouses, assemblies, canMana
   const [bom, setBom] = useState<{ open: boolean; bundle: Bundle | null }>({ open: false, bundle: null });
   const [assemble, setAssemble] = useState<Bundle | null>(null);
   const [confirmDel, setConfirmDel] = useState<Bundle | null>(null);
+  const sel = useSelection();
+  const allIds = bundles.map((b) => b.parentItemId);
 
   const del = (b: Bundle) => start(async () => { const r = await deleteBundleAction(b.parentItemId); if (r.ok) { toast.success("تم حذف الحزمة"); setConfirmDel(null); router.refresh(); } else toast.error(r.error ?? ""); });
 
   return (
     <>
+      {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteBundlesAction} onDone={sel.clear} entity="حزمة" />}
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between p-4">
@@ -142,6 +146,7 @@ export function BundlesManager({ bundles, items, warehouses, assemblies, canMana
           <Table>
             <TableHeader>
               <TableRow>
+                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
                 <TableHead className="text-start">الحزمة</TableHead>
                 <TableHead className="text-start">المكوّنات</TableHead>
                 {canManage && <TableHead className="text-start">إجراءات</TableHead>}
@@ -149,9 +154,10 @@ export function BundlesManager({ bundles, items, warehouses, assemblies, canMana
             </TableHeader>
             <TableBody>
               {bundles.length === 0 ? (
-                <TableRow><TableCell colSpan={canManage ? 3 : 2} className="py-10 text-center text-muted-foreground">لا توجد حزم — عرّف أول حزمة بمكوّناتها.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canManage ? 4 : 2} className="py-10 text-center text-muted-foreground">لا توجد حزم — عرّف أول حزمة بمكوّناتها.</TableCell></TableRow>
               ) : bundles.map((b) => (
-                <TableRow key={b.parentItemId}>
+                <TableRow key={b.parentItemId} data-state={sel.has(b.parentItemId) ? "selected" : undefined}>
+                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(b.parentItemId)} onChange={() => sel.toggle(b.parentItemId)} /></TableCell>}
                   <TableCell className="font-medium"><span className="font-mono text-xs text-muted-foreground">{b.code}</span> {b.name}</TableCell>
                   <TableCell><div className="flex flex-wrap gap-1">{b.components.map((c) => <Badge key={c.id} variant="secondary" className="font-normal">{c.name} ×{c.quantity}</Badge>)}</div></TableCell>
                   {canManage && (

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { suppliers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 
 const schema = z.object({
@@ -61,4 +62,8 @@ export async function deleteSupplierAction(id: string): Promise<ActionState> {
   }
   revalidatePath("/erp/purchases");
   return { ok: true };
+}
+
+export async function bulkDeleteSuppliersAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteSupplierAction);
 }

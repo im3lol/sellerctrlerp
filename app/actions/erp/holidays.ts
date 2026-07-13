@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { holidays } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 const schema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
@@ -36,4 +37,8 @@ export async function deleteHolidayAction(id: string): Promise<ActionState> {
   await db.delete(holidays).where(and(eq(holidays.id, id), eq(holidays.organizationId, auth.orgId)));
   revalidatePath("/erp/hr/holidays");
   return { ok: true };
+}
+
+export async function bulkDeleteHolidaysAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteHolidayAction);
 }

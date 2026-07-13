@@ -10,6 +10,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { round2 } from "@/lib/erp/money";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
@@ -53,6 +54,10 @@ export async function deleteBundleAction(parentItemId: string): Promise<ActionSt
   await db.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
   revalidatePath("/erp/inventory/bundles");
   return { ok: true };
+}
+
+export async function bulkDeleteBundlesAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteBundleAction);
 }
 
 const assembleSchema = z.object({

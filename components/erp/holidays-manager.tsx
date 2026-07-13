@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createHolidayAction, deleteHolidayAction } from "@/app/actions/erp/holidays";
+import { createHolidayAction, deleteHolidayAction, bulkDeleteHolidaysAction } from "@/app/actions/erp/holidays";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,8 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [nameAr, setNameAr] = useState("");
+  const sel = useSelection();
+  const allIds = holidays.map((h) => h.id);
 
   const add = () => {
     if (!nameAr.trim()) return toast.error("أدخل اسم العطلة");
@@ -55,14 +58,18 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
           {holidays.length === 0 ? (
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد عطلات مُسجّلة.</div>
           ) : (
+            <>
+            {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteHolidaysAction} onDone={sel.clear} entity="إجازة" />}
             <Table>
               <TableHeader><TableRow>
+                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
                 <TableHead className="text-start">التاريخ</TableHead><TableHead className="text-start">العطلة</TableHead>
                 {canManage && <TableHead className="w-10" />}
               </TableRow></TableHeader>
               <TableBody>
                 {holidays.map((h) => (
-                  <TableRow key={h.id}>
+                  <TableRow key={h.id} data-state={sel.has(h.id) ? "selected" : undefined}>
+                    {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(h.id)} onChange={() => sel.toggle(h.id)} /></TableCell>}
                     <TableCell className="tabular-nums">{dt(h.date)}</TableCell>
                     <TableCell>{h.nameAr}</TableCell>
                     {canManage && <TableCell><Button variant="ghost" size="icon" disabled={pending} aria-label="حذف" onClick={() => remove(h.id)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></TableCell>}
@@ -70,6 +77,7 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>

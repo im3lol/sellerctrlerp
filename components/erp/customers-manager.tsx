@@ -4,7 +4,8 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveCustomerAction, deleteCustomerAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
+import { saveCustomerAction, deleteCustomerAction, bulkDeleteCustomersAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,6 +143,8 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
   const [portalOpen, setPortalOpen] = useState(false);
   const [portalCustomer, setPortalCustomer] = useState<Customer | null>(null);
   const [pending, startTransition] = useTransition();
+  const sel = useSelection();
+  const allIds = customers.map((c) => c.id);
 
   const openCreate = () => { setEditing(null); setOpen(true); };
   const openEdit = (c: Customer) => { setEditing(c); setOpen(true); };
@@ -171,9 +174,12 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
         {customers.length === 0 ? (
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد عملاء بعد.</div>
         ) : (
+          <>
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteCustomersAction} onDone={sel.clear} entity="عميل" />}
           <Table>
             <TableHeader>
               <TableRow>
+                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
                 <TableHead className="text-start">الكود</TableHead>
                 <TableHead className="text-start">الاسم</TableHead>
                 <TableHead className="text-start">الهاتف</TableHead>
@@ -184,7 +190,8 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
             </TableHeader>
             <TableBody>
               {customers.map((c) => (
-                <TableRow key={c.id}>
+                <TableRow key={c.id} data-state={sel.has(c.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></TableCell>}
                   <TableCell className="font-mono">{c.code}</TableCell>
                   <TableCell>{c.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{c.phone ?? "—"}</TableCell>
@@ -228,6 +235,7 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </CardContent>
       {/* key forces fresh form state per create/edit target */}

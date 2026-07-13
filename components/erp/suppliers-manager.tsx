@@ -4,7 +4,8 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveSupplierAction, deleteSupplierAction } from "@/app/actions/erp/suppliers";
+import { saveSupplierAction, deleteSupplierAction, bulkDeleteSuppliersAction } from "@/app/actions/erp/suppliers";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,8 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [pending, startTransition] = useTransition();
+  const sel = useSelection();
+  const allIds = suppliers.map((s) => s.id);
 
   const remove = (s: Supplier) => startTransition(async () => {
     const r = await deleteSupplierAction(s.id);
@@ -83,9 +86,12 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
         {suppliers.length === 0 ? (
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد موردون بعد.</div>
         ) : (
+          <>
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteSuppliersAction} onDone={sel.clear} entity="مورد" />}
           <Table>
             <TableHeader>
               <TableRow>
+                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
                 <TableHead className="text-start">الكود</TableHead>
                 <TableHead className="text-start">الاسم</TableHead>
                 <TableHead className="text-start">الهاتف</TableHead>
@@ -96,7 +102,8 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
             </TableHeader>
             <TableBody>
               {suppliers.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} data-state={sel.has(s.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
                   <TableCell className="font-mono">{s.code}</TableCell>
                   <TableCell>{s.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
@@ -120,6 +127,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </CardContent>
       <SupplierDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />

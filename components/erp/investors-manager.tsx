@@ -4,8 +4,9 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveInvestorAction, deleteInvestorAction } from "@/app/actions/erp/investors";
+import { saveInvestorAction, deleteInvestorAction, bulkDeleteInvestorsAction } from "@/app/actions/erp/investors";
 import type { ActionState } from "@/lib/erp/action-auth";
+import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,6 +71,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const sel = useSelection();
 
   const remove = (inv: Investor) => startTransition(async () => {
     const r = await deleteInvestorAction(inv.id);
@@ -82,6 +84,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
     (!q || inv.code.toLowerCase().includes(q) || inv.fullName.toLowerCase().includes(q) || (inv.phone ?? "").includes(q) || (inv.email ?? "").toLowerCase().includes(q)),
   );
   const activeCount = investors.filter((i) => i.status === "active").length;
+  const allIds = filtered.map((x) => x.id);
 
   return (
     <Card>
@@ -107,9 +110,12 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا نتائج مطابقة.</div>
         ) : (
+          <>
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteInvestorsAction} onDone={sel.clear} entity="مستثمر" />}
           <Table>
             <TableHeader>
               <TableRow>
+                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
                 <TableHead className="text-start">الكود</TableHead>
                 <TableHead className="text-start">الاسم</TableHead>
                 <TableHead className="text-start">الهاتف</TableHead>
@@ -119,7 +125,8 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
             </TableHeader>
             <TableBody>
               {filtered.map((inv) => (
-                <TableRow key={inv.id}>
+                <TableRow key={inv.id} data-state={sel.has(inv.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(inv.id)} onChange={() => sel.toggle(inv.id)} /></TableCell>}
                   <TableCell className="font-mono">{inv.code}</TableCell>
                   <TableCell>{inv.fullName}</TableCell>
                   <TableCell dir="ltr" className="text-start">{inv.phone ?? "—"}</TableCell>
@@ -142,6 +149,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </CardContent>
       <InvestorDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />

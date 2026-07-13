@@ -8,6 +8,7 @@ import { customers, users } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getErpRole } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
+import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -111,4 +112,8 @@ export async function deleteCustomerAction(id: string): Promise<ActionState> {
   }
   revalidatePath("/erp/sales");
   return { ok: true };
+}
+
+export async function bulkDeleteCustomersAction(ids: string[]): Promise<BulkResult> {
+  return bulkRun(ids, deleteCustomerAction);
 }
