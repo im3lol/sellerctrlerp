@@ -32,22 +32,25 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
   const set = (key: string, status: Status, detail = "") =>
     setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, status, detail } : s)));
 
+  // Run a step and update its row as it resolves. Each source pulls its own
+  // Amazon report, so we fire them concurrently — the reports generate in
+  // parallel instead of back-to-back (roughly 3× faster wall time).
+  async function step<T extends { ok: boolean; error?: string }>(key: string, fn: () => Promise<T>, ok: (r: Extract<T, { ok: true }>) => string) {
+    set(key, "running");
+    try {
+      const r = await fn();
+      set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? "فشل"));
+    } catch {
+      set(key, "error", "انقطع الاتصال — التقرير قد يكون كبيرًا ويحتاج وقتًا. جرّب مرة أخرى.");
+    }
+  }
+
   async function run() {
-    set("products", "running");
-    const pr = await syncProductsAction(code);
-    set("products", pr.ok ? "done" : "error",
-      pr.ok
-        ? `${pr.created} جديد · ${pr.linked} مربوط\n${pr.images} صورة · ${pr.barcodes} باركود · ${pr.families} عائلة`
-        : pr.error);
-
-    set("orders", "running");
-    const or = await syncOrdersAction(code);
-    set("orders", or.ok ? "done" : "error", or.ok ? `${or.created} أمر · ${or.fulfilled} دورة كاملة` : or.error);
-
-    set("inventory", "running");
-    const ir = await syncInventoryAction(code);
-    set("inventory", ir.ok ? "done" : "error", ir.ok ? `${ir.matched} مطابَق · ${ir.withDiff} فرق` : ir.error);
-
+    await Promise.allSettled([
+      step("products", () => syncProductsAction(code), (r) => `${r.created} جديد · ${r.linked} مربوط\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`),
+      step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة`),
+      step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`),
+    ]);
     setRunning(false);
     router.refresh();
   }

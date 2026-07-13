@@ -13,6 +13,10 @@ import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { getConnection } from "@/lib/erp/marketplace/connection";
 
+// Marketplace sync (server actions on this route) polls Amazon's async reports —
+// allow a longer function budget on Vercel (needs a Pro/Fluid plan for >60s).
+export const maxDuration = 300;
+
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const int = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });

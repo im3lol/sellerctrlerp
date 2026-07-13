@@ -39,16 +39,17 @@ export async function requestReport(cred: Credential, reportType: string, range:
     }),
   });
 
-  // Poll for completion (SP-API reports are async).
+  // Poll for completion (SP-API reports are async — Amazon generates them in the
+  // background, usually within ~1 min). Poll every 2s up to ~90s.
   let documentId: string | undefined;
-  for (let i = 0; i < 30; i++) {
-    await sleep(i === 0 ? 3000 : 5000);
+  for (let i = 0; i < 45; i++) {
+    await sleep(2000);
     const st = await spJson<StatusResp>(cred, `${RP}/reports/${created.reportId}`);
     if (st.processingStatus === "DONE") { documentId = st.reportDocumentId; break; }
     if (st.processingStatus === "CANCELLED") throw new Error("ألغت أمازون التقرير (لا بيانات في الفترة غالبًا)");
     if (st.processingStatus === "FATAL") throw new Error("فشل توليد التقرير لدى أمازون (FATAL)");
   }
-  if (!documentId) throw new Error("انتهت مهلة انتظار التقرير من أمازون");
+  if (!documentId) throw new Error("التقرير لا يزال قيد التوليد لدى أمازون — جرّب المزامنة مرة أخرى بعد قليل");
 
   const doc = await spJson<DocResp>(cred, `${RP}/documents/${documentId}`);
   const res = await fetch(doc.url, { cache: "no-store" });
