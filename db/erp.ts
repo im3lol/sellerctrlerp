@@ -1449,6 +1449,10 @@ export const salesPlatforms = pgTable(
     // Product sync behaviour: "create" = link existing items by ASIN/SKU AND
     // create new items for unmatched listings; "link" = link existing only.
     productSyncMode: text("product_sync_mode").notNull().default("create"),
+    // Which sources "مزامنة الآن" pulls for this platform.
+    syncProducts: boolean("sync_products").notNull().default(true),
+    syncOrders: boolean("sync_orders").notNull().default(true),
+    syncInventory: boolean("sync_inventory").notNull().default(true),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

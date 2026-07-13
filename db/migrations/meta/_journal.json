@@ -288,6 +288,13 @@
       "when": 1783948439666,
       "tag": "0040_puzzling_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783954969744,
+      "tag": "0041_public_trauma",
+      "breakpoints": true
     }
   ]
 }

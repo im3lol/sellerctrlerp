@@ -2,9 +2,10 @@ import "server-only";
 import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "../connector";
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
-import { requestReport, REPORT_TYPE } from "./reports";
-import { parseOrdersReport, parseInventoryReport, parseListingsReport } from "./mappers";
 import { fetchCatalog } from "./catalog";
+import { fetchListings } from "./listings";
+import { fetchOrders } from "./orders";
+import { fetchInventory } from "./inventory";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
   code: m.code, name: m.name, region: m.region, marketplaceId: m.marketplaceId,
@@ -35,22 +36,17 @@ export const amazonConnector: MarketplaceConnector = {
       return { refreshToken: tok.refresh_token };
     },
   },
-  async fetchProducts(cred) {
-    // The listings report ignores the date window; pass a wide range.
-    const to = new Date();
-    const from = new Date(to.getTime() - 365 * 24 * 60 * 60 * 1000);
-    return parseListingsReport(await requestReport(cred, REPORT_TYPE.LISTINGS, { from, to }));
+  // Direct SP-API endpoints (JSON, synchronous) — no async report polling.
+  fetchProducts(cred) {
+    return fetchListings(cred);
   },
   fetchCatalog(cred, asins) {
     return fetchCatalog(cred, asins);
   },
-  async fetchOrders(cred, range) {
-    return parseOrdersReport(await requestReport(cred, REPORT_TYPE.ORDERS, range));
+  fetchOrders(cred, range) {
+    return fetchOrders(cred, range);
   },
-  async fetchInventory(cred) {
-    // FBA ledger uses a date window; look back 30 days for the ending balance.
-    const to = new Date();
-    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
-    return parseInventoryReport(await requestReport(cred, REPORT_TYPE.FBA_INVENTORY_LEDGER, { from, to }));
+  fetchInventory(cred) {
+    return fetchInventory(cred);
   },
 };

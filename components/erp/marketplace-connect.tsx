@@ -14,11 +14,13 @@ export type ConnectMarketplace = { code: string; name: string; marketplaceId: st
 
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "—");
 
+export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean };
+
 export function MarketplaceConnect({
-  provider, label, marketplaces, conn, justConnected, error,
+  provider, label, marketplaces, conn, syncFlags, justConnected, error,
 }: {
   provider: string; label: string; marketplaces: ConnectMarketplace[];
-  conn: MarketplaceConnection; justConnected?: boolean; error?: string;
+  conn: MarketplaceConnection; syncFlags: SyncFlags; justConnected?: boolean; error?: string;
 }) {
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [pending, start] = useTransition();
@@ -48,8 +50,8 @@ export function MarketplaceConnect({
           <Button variant="outline" onClick={disconnect} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
           </Button>
-          <span className="text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والأوامر (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا.</span>
-          <SyncProgress code={provider} open={syncOpen} onClose={() => setSyncOpen(false)} />
+          <span className="text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والمبيعات (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا.</span>
+          <SyncProgress code={provider} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
         </CardContent>
       </Card>
     );

@@ -43,6 +43,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     .select({
       id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
       integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive,
+      syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory,
       customerId: salesPlatforms.customerId, customerName: customers.nameAr, customerBalance: customers.balance,
       warehouseName: warehouses.nameAr, bankName: bankAccounts.nameAr,
     })
@@ -121,6 +122,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           label={connector!.label}
           marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
           conn={conn}
+          syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
           justConnected={connected === "1"}
           error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
         />

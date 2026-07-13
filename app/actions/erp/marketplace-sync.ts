@@ -13,7 +13,8 @@ import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/con
 
 const DEFAULT_LOOKBACK_DAYS = 30;
 
-type Prepared = { orgId: string; userId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string };
+type Flags = { products: boolean; orders: boolean; inventory: boolean };
+type Prepared = { orgId: string; userId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: Flags };
 
 /** Authorize + load the connector, decrypted credential, platform ctx and settings. */
 async function prepare(code: string): Promise<Prepared | { error: string }> {
@@ -33,12 +34,13 @@ async function prepare(code: string): Promise<Prepared | { error: string }> {
 
   // Ensure the platform exists (Amazon), then read its settings row.
   if (connector.code === "AMAZON") await ensureAmazonPlatform(auth.orgId);
-  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode })
+  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory })
     .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.code, connector.code))).limit(1);
   if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
   const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name };
-  return { orgId: auth.orgId, userId: auth.userId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider };
+  const flags: Flags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory };
+  return { orgId: auth.orgId, userId: auth.userId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags };
 }
 
 async function markSync(orgId: string, provider: string, status: string) {
@@ -54,6 +56,7 @@ export type InventorySync = { ok: true; matched: number; withDiff: number; unmat
 export async function syncProductsAction(code: string): Promise<ProductsSync> {
   const p = await prepare(code);
   if ("error" in p) return { ok: false, error: p.error };
+  if (!p.flags.products) return { ok: false, error: "مزامنة المنتجات موقوفة لهذه المنصّة" };
   if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
   try {
     const products = await p.connector.fetchProducts(p.cred);
@@ -92,6 +95,7 @@ export async function syncProductsAction(code: string): Promise<ProductsSync> {
 export async function syncOrdersAction(code: string): Promise<OrdersSync> {
   const p = await prepare(code);
   if ("error" in p) return { ok: false, error: p.error };
+  if (!p.flags.orders) return { ok: false, error: "مزامنة المبيعات موقوفة لهذه المنصّة" };
   if (!p.connector.fetchOrders) return { ok: false, error: "المنصة لا تدعم مزامنة الأوامر" };
   try {
     const to = new Date();
@@ -109,6 +113,7 @@ export async function syncOrdersAction(code: string): Promise<OrdersSync> {
 export async function syncInventoryAction(code: string): Promise<InventorySync> {
   const p = await prepare(code);
   if ("error" in p) return { ok: false, error: p.error };
+  if (!p.flags.inventory) return { ok: false, error: "مزامنة المخزون موقوفة لهذه المنصّة" };
   if (!p.connector.fetchInventory || !p.ctx.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
   try {
     const inv = await p.connector.fetchInventory(p.cred);

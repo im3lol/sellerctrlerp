@@ -7,16 +7,17 @@ import { syncProductsAction, syncOrdersAction, syncInventoryAction } from "@/app
 
 type Status = "pending" | "running" | "done" | "error";
 type Step = { key: string; label: string; icon: React.ReactNode; status: Status; detail: string };
+type Flags = { products: boolean; orders: boolean; inventory: boolean };
 
-const initial = (): Step[] => [
-  { key: "products", label: "المنتجات", icon: <Boxes className="size-4" />, status: "pending", detail: "" },
-  { key: "orders", label: "الأوامر", icon: <ShoppingCart className="size-4" />, status: "pending", detail: "" },
-  { key: "inventory", label: "المخزون", icon: <Warehouse className="size-4" />, status: "pending", detail: "" },
-];
+const initial = (flags: Flags): Step[] => [
+  flags.products && { key: "products", label: "المنتجات", icon: <Boxes className="size-4" />, status: "pending" as Status, detail: "" },
+  flags.orders && { key: "orders", label: "المبيعات", icon: <ShoppingCart className="size-4" />, status: "pending" as Status, detail: "" },
+  flags.inventory && { key: "inventory", label: "المخزون", icon: <Warehouse className="size-4" />, status: "pending" as Status, detail: "" },
+].filter(Boolean) as Step[];
 
-export function SyncProgress({ code, open, onClose }: { code: string; open: boolean; onClose: () => void }) {
+export function SyncProgress({ code, flags, open, onClose }: { code: string; flags: Flags; open: boolean; onClose: () => void }) {
   const router = useRouter();
-  const [steps, setSteps] = useState<Step[]>(initial);
+  const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
   const started = useRef(false);
 
@@ -24,7 +25,7 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
     if (!open || started.current) return;
     started.current = true;
     setRunning(true);
-    setSteps(initial());
+    setSteps(initial(flags));
     void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -46,11 +47,11 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
   }
 
   async function run() {
-    await Promise.allSettled([
-      step("products", () => syncProductsAction(code), (r) => `${r.created} جديد · ${r.linked} مربوط\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`),
-      step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة`),
-      step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`),
-    ]);
+    const jobs: Promise<unknown>[] = [];
+    if (flags.products) jobs.push(step("products", () => syncProductsAction(code), (r) => `${r.created} جديد · ${r.linked} مربوط\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`));
+    if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة`));
+    if (flags.inventory) jobs.push(step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
+    await Promise.allSettled(jobs);
     setRunning(false);
     router.refresh();
   }

@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
+  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean;
   customerName: string | null; customerId: string | null;
   warehouseId: string | null; warehouseName: string | null;
   bankAccountId: string | null; bankName: string | null;
@@ -38,6 +39,9 @@ function PlatformDialog({
   const [code, setCode] = useState(platform?.code ?? "");
   const [integrationType, setIntegrationType] = useState(platform?.integrationType ?? "generic");
   const [productSyncMode, setProductSyncMode] = useState(platform?.productSyncMode ?? "create");
+  const [syncProducts, setSyncProducts] = useState(platform?.syncProducts ?? true);
+  const [syncOrders, setSyncOrders] = useState(platform?.syncOrders ?? true);
+  const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
 
   // Pre-fill from a known connector so the new platform's code matches the
   // registry → its page shows the official "ربط" (connect) card after creation.
@@ -51,7 +55,7 @@ function PlatformDialog({
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
     if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, productSyncMode, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
+      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
       const r = isEdit
         ? await updatePlatformAction(platform!.id, payload)
         : await createPlatformAction({ ...payload, code });
@@ -104,6 +108,18 @@ function PlatformDialog({
             <option value="link">ربط المنتجات الموجودة فقط</option>
           </select>
           <p className="text-xs text-muted-foreground">عند «مزامنة الآن»: يربط منتجات المنصّة بأصنافك عبر SKU/ASIN، والمنتج غير الموجود يُنشأ صنفًا جديدًا (أو يُتجاهَل في وضع الربط فقط).</p>
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label>مصادر المزامنة</Label>
+          <div className="flex flex-wrap gap-4">
+            {([["المنتجات", syncProducts, setSyncProducts], ["المبيعات", syncOrders, setSyncOrders], ["المخزون", syncInventory, setSyncInventory]] as const).map(([label, val, setter]) => (
+              <label key={label} className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" className="size-4 rounded border-input" checked={val} onChange={(e) => setter(e.target.checked)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">اختر ما يسحبه زر «مزامنة الآن» لهذه المنصّة.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
