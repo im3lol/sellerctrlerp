@@ -5,14 +5,12 @@ import { db } from "@/lib/db";
 import { items, itemCodes, itemCategories } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ItemsTable } from "@/components/erp/items-table";
 
-const money = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const PER_PAGE = 20;
@@ -155,46 +153,12 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أصناف بعد."}</div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-start w-14">الصورة</TableHead>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">الاسم</TableHead>
-                    <TableHead className="text-start">الأكواد</TableHead>
-                    <TableHead className="text-start">سعر البيع</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>
-                        <div className="size-9 overflow-hidden rounded-md border bg-muted/40">
-                          {r.image
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={r.image} alt="" className="size-full object-contain" />
-                            : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        <Link href={`/erp/inventory/items/${r.id}`} className="text-primary underline">{r.code}</Link>
-                      </TableCell>
-                      <TableCell className="max-w-[360px]">
-                        <div className="flex items-center gap-2">
-                          <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>
-                          {Number(r.childCount) > 0
-                            ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />أب · {Number(r.childCount).toLocaleString("ar-EG-u-nu-latn")}</Badge>
-                            : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">تنويعة</Badge> : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>{Number(r.codeCount) > 0 ? <Badge variant="secondary">{Number(r.codeCount).toLocaleString("ar-EG-u-nu-latn")}</Badge> : "—"}</TableCell>
-                      <TableCell>{money(r.sellPrice)}</TableCell>
-                      <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "نشط" : "متوقف"}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ItemsTable
+                rows={rows.map((r) => ({ ...r, codeCount: Number(r.codeCount), childCount: Number(r.childCount) }))}
+                total={Number(total)}
+                canDelete={can("inventory.delete")}
+                filter={{ q, status: fStatus, category: fCategory, missing: fMissing }}
+              />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>صفحة {safePage} من {pages}</span>
                 <div className="flex gap-2">

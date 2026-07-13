@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, ilike, inArray, isNull, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -160,6 +160,76 @@ export async function deleteItemAction(id: string): Promise<ActionState> {
   }
   revalidatePath("/erp/inventory/items");
   return { ok: true };
+}
+
+export type ItemsFilter = { q?: string; status?: string; category?: string; missing?: string };
+
+/** Item ids matching the list filter (base conditions — no family expansion). */
+async function matchingItemIds(orgId: string, f: ItemsFilter): Promise<string[]> {
+  const conds = [eq(items.organizationId, orgId)];
+  const q = (f.q ?? "").trim();
+  if (q) {
+    const norm = normalizeCode(q);
+    const codeItemIds = norm
+      ? (await db.select({ id: itemCodes.itemId }).from(itemCodes)
+          .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`)))).map((r) => r.id)
+      : [];
+    const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`), ilike(items.nameEn, `%${q}%`)];
+    if (codeItemIds.length) search.push(inArray(items.id, [...new Set(codeItemIds)]));
+    conds.push(or(...search)!);
+  }
+  if (f.status === "active") conds.push(eq(items.isActive, true));
+  if (f.status === "inactive") conds.push(eq(items.isActive, false));
+  if (f.category) conds.push(eq(items.categoryId, f.category));
+  if (f.missing === "image") conds.push(isNull(items.image));
+  if (f.missing === "codes") {
+    const withCodes = [...new Set((await db.select({ id: itemCodes.itemId }).from(itemCodes)
+      .where(eq(itemCodes.organizationId, orgId))).map((r) => r.id))];
+    if (withCodes.length) conds.push(notInArray(items.id, withCodes));
+  }
+  return (await db.select({ id: items.id }).from(items).where(and(...conds))).map((r) => r.id);
+}
+
+/**
+ * Bulk-delete items — by explicit ids, or every item matching a filter (for
+ * "select all across pages"). Items referenced by movements/orders can't be
+ * deleted (FK); those are skipped and reported as blocked rather than failing
+ * the whole batch.
+ */
+export async function bulkDeleteItemsAction(input: { ids?: string[]; all?: ItemsFilter }): Promise<{ ok: true; deleted: number; blocked: number } | { ok: false; error: string }> {
+  const auth = await authorizeErp("inventory.delete");
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  let ids: string[];
+  if (input.ids?.length) {
+    ids = (await db.select({ id: items.id }).from(items)
+      .where(and(eq(items.organizationId, auth.orgId), inArray(items.id, input.ids)))).map((r) => r.id);
+  } else if (input.all) {
+    ids = await matchingItemIds(auth.orgId, input.all);
+  } else {
+    return { ok: false, error: "لم تحدّد أصنافًا" };
+  }
+  if (!ids.length) return { ok: false, error: "لا توجد أصناف للحذف" };
+
+  let deleted = 0, blocked = 0;
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    try {
+      const res = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), inArray(items.id, chunk))).returning({ id: items.id });
+      deleted += res.length;
+    } catch {
+      // A referenced item aborts the chunk's transaction — retry per item to
+      // delete the deletable ones and skip the blocked (referenced) ones.
+      for (const id of chunk) {
+        try {
+          const r = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), eq(items.id, id))).returning({ id: items.id });
+          if (r.length) deleted++; else blocked++;
+        } catch { blocked++; }
+      }
+    }
+  }
+  revalidatePath("/erp/inventory/items");
+  return { ok: true, deleted, blocked };
 }
 
 /** Upload an item image to object storage; returns its public URL. */
