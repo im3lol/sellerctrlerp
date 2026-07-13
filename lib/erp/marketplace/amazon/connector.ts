@@ -2,6 +2,8 @@ import "server-only";
 import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "../connector";
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
+import { requestReport, REPORT_TYPE } from "./reports";
+import { parseOrdersReport, parseInventoryReport } from "./mappers";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
   code: m.code, name: m.name, region: m.region, marketplaceId: m.marketplaceId,
@@ -32,5 +34,13 @@ export const amazonConnector: MarketplaceConnector = {
       return { refreshToken: tok.refresh_token };
     },
   },
-  // fetchOrders/fetchInventory wired in Phase 3 (SP-API Reports client).
+  async fetchOrders(cred, range) {
+    return parseOrdersReport(await requestReport(cred, REPORT_TYPE.ORDERS, range));
+  },
+  async fetchInventory(cred) {
+    // FBA ledger uses a date window; look back 30 days for the ending balance.
+    const to = new Date();
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return parseInventoryReport(await requestReport(cred, REPORT_TYPE.FBA_INVENTORY_LEDGER, { from, to }));
+  },
 };
