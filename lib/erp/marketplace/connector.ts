@@ -11,6 +11,20 @@ export type Credential = {
 // A marketplace the seller can pick when connecting (region decides the API + OAuth domain).
 export type ConnectorMarketplace = { code: string; name: string; region: string; marketplaceId: string };
 
+// Enrichment data for one product, pulled from a marketplace catalog by ASIN.
+export type CatalogIdentifier = { type: string; code: string }; // e.g. { type: "UPC", code: "..." }
+export type CatalogRecord = {
+  asin: string;
+  imageUrl?: string;
+  brand?: string;
+  weight?: string;       // display string, e.g. "0.5 kg"
+  dimensions?: string;   // display string, e.g. "10 × 5 × 3 cm"
+  name?: string;
+  identifiers: CatalogIdentifier[];
+  parentAsin?: string;   // set on a variation child
+  variationValue?: string; // e.g. "Red / L"
+};
+
 export type OAuthExchange = { refreshToken: string } | { error: string };
 
 /**
@@ -21,14 +35,14 @@ export type OAuthExchange = { refreshToken: string } | { error: string };
 export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
-  capabilities: { products: boolean; images: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+  capabilities: { products: boolean; catalog: boolean; orders: boolean; inventory: boolean; settlements: boolean };
   oauth?: {
     marketplaces: ConnectorMarketplace[];
     authorizeUrl(state: string, marketplaceCode: string): string | null;
     exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
   };
   fetchProducts?(cred: Credential): Promise<MarketplaceProduct[]>;
-  fetchImages?(cred: Credential, asins: string[]): Promise<{ asin: string; imageUrl: string }[]>;
+  fetchCatalog?(cred: Credential, asins: string[]): Promise<CatalogRecord[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
   fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;

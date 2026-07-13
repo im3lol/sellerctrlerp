@@ -1,22 +1,35 @@
 import { describe, it, expect } from "vitest";
-import { parseCatalogImages } from "../catalog";
+import { parseCatalog } from "../catalog";
 
-describe("Catalog Items → image URLs", () => {
-  it("prefers the MAIN variant, falls back to the first, skips items with no images", () => {
+describe("Catalog Items → CatalogRecord", () => {
+  it("extracts image, brand, barcodes, dimensions, variation parent + value", () => {
     const res = {
       items: [
-        { asin: "ASIN1", images: [{ marketplaceId: "X", images: [{ variant: "PT01", link: "https://x/pt01.jpg" }, { variant: "MAIN", link: "https://x/main.jpg" }] }] },
-        { asin: "ASIN2", images: [{ images: [{ variant: "PT01", link: "https://x/a2.jpg" }] }] },
-        { asin: "ASIN3" },
+        {
+          asin: "ASINCHILD",
+          summaries: [{ itemName: "Widget Red L", brand: "Acme", color: "Red", size: "L" }],
+          identifiers: [{ identifiers: [{ identifierType: "UPC", identifier: "012345678905" }, { identifierType: "EAN", identifier: "4006381333931" }] }],
+          images: [{ images: [{ variant: "PT01", link: "https://x/pt.jpg" }, { variant: "MAIN", link: "https://x/main.jpg" }] }],
+          dimensions: [{ item: { length: { value: 10, unit: "centimeters" }, width: { value: 5, unit: "centimeters" }, height: { value: 3, unit: "centimeters" }, weight: { value: 0.5, unit: "kilograms" } } }],
+          relationships: [{ relationships: [{ parentAsins: ["ASINPARENT"] }] }],
+        },
       ],
     };
-    const out = parseCatalogImages(res);
-    expect(out).toHaveLength(2);
-    expect(out).toContainEqual({ asin: "ASIN1", imageUrl: "https://x/main.jpg" });
-    expect(out).toContainEqual({ asin: "ASIN2", imageUrl: "https://x/a2.jpg" });
+    const out = parseCatalog(res);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      asin: "ASINCHILD", imageUrl: "https://x/main.jpg", brand: "Acme",
+      weight: "0.5 kilograms", dimensions: "10 × 5 × 3 centimeters",
+      parentAsin: "ASINPARENT", variationValue: "Red / L", name: "Widget Red L",
+    });
+    expect(out[0].identifiers).toEqual([{ type: "UPC", code: "012345678905" }, { type: "EAN", code: "4006381333931" }]);
   });
 
-  it("handles an empty response", () => {
-    expect(parseCatalogImages({})).toEqual([]);
+  it("handles a bare item (no enrichment data) and an empty response", () => {
+    expect(parseCatalog({})).toEqual([]);
+    const out = parseCatalog({ items: [{ asin: "A" }] });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ asin: "A", identifiers: [] });
+    expect(out[0].parentAsin).toBeUndefined();
   });
 });

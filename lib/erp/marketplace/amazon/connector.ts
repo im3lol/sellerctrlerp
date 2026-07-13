@@ -4,7 +4,7 @@ import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
 import { requestReport, REPORT_TYPE } from "./reports";
 import { parseOrdersReport, parseInventoryReport, parseListingsReport } from "./mappers";
-import { fetchImages } from "./catalog";
+import { fetchCatalog } from "./catalog";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
   code: m.code, name: m.name, region: m.region, marketplaceId: m.marketplaceId,
@@ -14,7 +14,7 @@ const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
 export const amazonConnector: MarketplaceConnector = {
   code: "AMAZON",
   label: "أمازون",
-  capabilities: { products: true, images: true, orders: true, inventory: true, settlements: true },
+  capabilities: { products: true, catalog: true, orders: true, inventory: true, settlements: true },
   oauth: {
     marketplaces,
     authorizeUrl(state, marketplaceCode) {
@@ -41,8 +41,8 @@ export const amazonConnector: MarketplaceConnector = {
     const from = new Date(to.getTime() - 365 * 24 * 60 * 60 * 1000);
     return parseListingsReport(await requestReport(cred, REPORT_TYPE.LISTINGS, { from, to }));
   },
-  fetchImages(cred, asins) {
-    return fetchImages(cred, asins);
+  fetchCatalog(cred, asins) {
+    return fetchCatalog(cred, asins);
   },
   async fetchOrders(cred, range) {
     return parseOrdersReport(await requestReport(cred, REPORT_TYPE.ORDERS, range));

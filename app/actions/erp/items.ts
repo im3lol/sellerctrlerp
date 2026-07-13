@@ -28,6 +28,9 @@ const schema = z.object({
   isPerishable: z.coerce.boolean().default(false),
   shelfLifeDays: z.coerce.number().int().min(0).optional(),
   image: z.string().optional(),
+  brand: z.string().optional(),
+  weight: z.string().optional(),
+  dimensions: z.string().optional(),
   parentItemId: z.string().optional(), // variation family: link this item under a parent
   variationValue: z.string().optional(), // the child's variation label (e.g. "أحمر - L")
   codes: z.array(codeSchema).default([]),
@@ -79,6 +82,9 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
     isPerishable: d.isPerishable,
     shelfLifeDays: d.isPerishable ? (d.shelfLifeDays ?? null) : null,
     image: d.image?.trim() || null,
+    brand: d.brand?.trim() || null,
+    weight: d.weight?.trim() || null,
+    dimensions: d.dimensions?.trim() || null,
     parentItemId,
     variationValue,
   };

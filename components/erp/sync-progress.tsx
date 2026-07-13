@@ -35,7 +35,10 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
   async function run() {
     set("products", "running");
     const pr = await syncProductsAction(code);
-    set("products", pr.ok ? "done" : "error", pr.ok ? `${pr.created} جديد · ${pr.linked} مربوط · ${pr.images} صورة` : pr.error);
+    set("products", pr.ok ? "done" : "error",
+      pr.ok
+        ? `${pr.created} جديد · ${pr.linked} مربوط\n${pr.images} صورة · ${pr.barcodes} باركود · ${pr.families} عائلة`
+        : pr.error);
 
     set("orders", "running");
     const or = await syncOrdersAction(code);
@@ -78,7 +81,7 @@ export function SyncProgress({ code, open, onClose }: { code: string; open: bool
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">{s.label}</div>
-              {s.detail && <div className={`truncate text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`} title={s.detail}>{s.detail}</div>}
+              {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{s.detail}</div>}
             </div>
           </li>
         ))}

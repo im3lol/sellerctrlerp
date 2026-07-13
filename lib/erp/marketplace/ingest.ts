@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes, salesOrders, salesOrderLines, warehouses } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
@@ -9,7 +9,9 @@ import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { fulfillOrder } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, type PreviewOrder, type OrdersPreview } from "./classify";
+import { validateParentLink } from "@/lib/erp/item-family-core";
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
+import type { CatalogRecord } from "./connector";
 
 export { classifyOrders };
 export type { OrdersPreview };
@@ -296,34 +298,130 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   return result;
 }
 
-/**
- * Set item images from a marketplace catalog, matched by code (ASIN/SKU). Only
- * fills an item whose image is still empty — never overwrites one the user set.
- * Returns how many items got an image.
- */
-export async function setItemImagesByCode(orgId: string, images: { code: string; imageUrl: string }[]): Promise<number> {
-  const byNorm = new Map<string, string>();
-  for (const im of images) { const n = normalizeCode(im.code); if (n && im.imageUrl) byNorm.set(n, im.imageUrl); }
-  if (byNorm.size === 0) return 0;
+// ── Catalog enrichment (barcodes, brand/dimensions, variation families) ──
 
-  const norms = [...byNorm.keys()];
-  const codeRows: { itemId: string; norm: string | null }[] = [];
+export type EnrichResult = { images: number; barcodes: number; fields: number };
+
+/** ASIN (normalized) → itemId map for the given catalog records. */
+async function itemsByAsin(orgId: string, records: CatalogRecord[]): Promise<Map<string, string>> {
+  const norms = [...new Set(records.map((r) => normalizeCode(r.asin)).filter(Boolean))];
+  const byAsin = new Map<string, string>(); // normalized ASIN → itemId
   for (let i = 0; i < norms.length; i += 800) {
     const rows = await db.select({ itemId: itemCodes.itemId, norm: itemCodes.normalizedCode }).from(itemCodes)
       .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.normalizedCode, norms.slice(i, i + 800))));
-    codeRows.push(...rows);
+    for (const r of rows) if (r.norm && !byAsin.has(r.norm)) byAsin.set(r.norm, r.itemId);
   }
-  const itemImage = new Map<string, string>();
-  for (const r of codeRows) { if (r.norm && byNorm.has(r.norm) && !itemImage.has(r.itemId)) itemImage.set(r.itemId, byNorm.get(r.norm)!); }
+  return byAsin;
+}
 
-  // ponytail: one update per item (guarded to empty images). Catalogs are modest;
-  // switch to a single CASE/unnest update if this ever gets hot.
-  let updated = 0;
-  for (const [itemId, url] of itemImage) {
-    const res = await db.update(items).set({ image: url, updatedAt: new Date() })
-      .where(and(eq(items.id, itemId), eq(items.organizationId, orgId), or(isNull(items.image), eq(items.image, ""))))
-      .returning({ id: items.id });
-    updated += res.length;
+/**
+ * Fill item image / brand / weight / dimensions from catalog records (only when
+ * the field is empty — never overwrites manual data) and attach barcode
+ * item_codes (UPC/EAN/…). Matched by ASIN. Returns per-kind counts.
+ */
+export async function enrichItems(orgId: string, records: CatalogRecord[]): Promise<EnrichResult> {
+  const result: EnrichResult = { images: 0, barcodes: 0, fields: 0 };
+  if (records.length === 0) return result;
+  const byAsin = await itemsByAsin(orgId, records);
+
+  const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
+  const seen = new Set<string>();
+  for (const r of records) {
+    const itemId = byAsin.get(normalizeCode(r.asin));
+    if (!itemId) continue;
+
+    // Fill empty fields only.
+    const set: Record<string, string> = {};
+    if (r.imageUrl) set.image = r.imageUrl;
+    if (r.brand) set.brand = r.brand;
+    if (r.weight) set.weight = r.weight;
+    if (r.dimensions) set.dimensions = r.dimensions;
+    // Update each field independently so a non-empty one doesn't block the others.
+    for (const [col, val] of Object.entries(set)) {
+      const c = col as "image" | "brand" | "weight" | "dimensions";
+      const res = await db.update(items).set({ [c]: val, updatedAt: new Date() })
+        .where(and(eq(items.id, itemId), eq(items.organizationId, orgId), or(isNull(items[c]), eq(items[c], ""))))
+        .returning({ id: items.id });
+      if (res.length && c === "image") result.images++;
+      else if (res.length) result.fields++;
+    }
+
+    for (const idf of r.identifiers) {
+      const code = idf.code.trim(); const norm = normalizeCode(code);
+      const key = `${itemId}|${idf.type}|${code}`;
+      if (!code || !norm || seen.has(key)) continue;
+      seen.add(key);
+      codeValues.push({ itemId, organizationId: orgId, codeType: idf.type, code, normalizedCode: norm });
+    }
   }
-  return updated;
+
+  if (codeValues.length) {
+    const inserted = await db.insert(itemCodes).values(codeValues)
+      .onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] })
+      .returning({ id: itemCodes.id });
+    result.barcodes = inserted.length;
+  }
+  return result;
+}
+
+export type FamilyResult = { familiesLinked: number; parentsCreated: number };
+
+/**
+ * Build variation families from catalog relationships: each child ASIN with a
+ * parentAsin is linked to its parent item (created if missing, since parent ASINs
+ * usually aren't sellable listings). Only links a child that has no parent yet,
+ * and only through the shared validateParentLink guard (one level, no cycle).
+ */
+export async function linkVariationFamilies(
+  orgId: string,
+  records: CatalogRecord[],
+  fetchParentNames: (asins: string[]) => Promise<Map<string, { name?: string; imageUrl?: string }>>,
+): Promise<FamilyResult> {
+  const result: FamilyResult = { familiesLinked: 0, parentsCreated: 0 };
+  const children = records.filter((r) => r.parentAsin && r.parentAsin !== r.asin);
+  if (children.length === 0) return result;
+
+  const byAsin = await itemsByAsin(orgId, records);
+  const parentAsins = [...new Set(children.map((c) => c.parentAsin!))];
+  const parentByAsin = await itemsByAsin(orgId, parentAsins.map((a) => ({ asin: a } as CatalogRecord)));
+
+  // Create any missing parent items (fetch their names first).
+  const missing = parentAsins.filter((a) => !parentByAsin.has(normalizeCode(a)));
+  if (missing.length) {
+    const names = await fetchParentNames(missing);
+    const codes = await nextItemCodes(orgId, missing.length);
+    for (let i = 0; i < missing.length; i++) {
+      const asin = missing[i]; const info = names.get(asin);
+      const [it] = await db.insert(items).values({
+        organizationId: orgId, code: codes[i], nameAr: (info?.name || asin).trim(), image: info?.imageUrl || null,
+      }).returning({ id: items.id });
+      await db.insert(itemCodes).values({ itemId: it.id, organizationId: orgId, codeType: "ASIN", code: asin, normalizedCode: normalizeCode(asin) })
+        .onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
+      parentByAsin.set(normalizeCode(asin), it.id);
+      result.parentsCreated++;
+    }
+  }
+
+  for (const child of children) {
+    const childId = byAsin.get(normalizeCode(child.asin));
+    const parentId = parentByAsin.get(normalizeCode(child.parentAsin!));
+    if (!childId || !parentId || childId === parentId) continue;
+
+    const [childRow] = await db.select({ parentItemId: items.parentItemId }).from(items).where(and(eq(items.id, childId), eq(items.organizationId, orgId))).limit(1);
+    if (!childRow || childRow.parentItemId) continue; // already in a family — don't override
+
+    const [parentRow] = await db.select({ parentItemId: items.parentItemId }).from(items).where(and(eq(items.id, parentId), eq(items.organizationId, orgId))).limit(1);
+    const [{ n: childKids }] = await db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.parentItemId, childId)));
+
+    const err = validateParentLink({
+      childId, parentId, parentExists: !!parentRow,
+      parentHasParent: !!parentRow?.parentItemId, childHasChildren: Number(childKids) > 0,
+    });
+    if (err) continue;
+
+    await db.update(items).set({ parentItemId: parentId, variationValue: child.variationValue ?? null, updatedAt: new Date() })
+      .where(and(eq(items.id, childId), eq(items.organizationId, orgId)));
+    result.familiesLinked++;
+  }
+  return result;
 }

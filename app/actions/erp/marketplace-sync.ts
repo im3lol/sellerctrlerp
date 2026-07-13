@@ -8,7 +8,7 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
-import { ingestOrders, ingestProducts, reconcileInventory, setItemImagesByCode, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
+import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -46,7 +46,7 @@ async function markSync(orgId: string, provider: string, status: string) {
     .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider)));
 }
 
-export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number } | { ok: false; error: string };
+export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
@@ -59,20 +59,30 @@ export async function syncProductsAction(code: string): Promise<ProductsSync> {
     const products = await p.connector.fetchProducts(p.cred);
     const r = await ingestProducts(p.orgId, products, p.mode);
 
-    // Enrich with catalog image URLs (best-effort; only fills empty images).
-    let images = 0;
-    if (p.connector.fetchImages) {
+    // Enrich from the catalog (best-effort; each field only filled when empty):
+    // image, brand, weight, dimensions, barcodes (UPC/EAN), and variation families.
+    let images = 0, barcodes = 0, fields = 0, families = 0;
+    const fetchCatalog = p.connector.fetchCatalog;
+    if (fetchCatalog) {
       const asins = [...new Set(products.map((x) => x.altCode).filter((a): a is string => !!a))];
       if (asins.length) {
         try {
-          const found = await p.connector.fetchImages(p.cred, asins);
-          images = await setItemImagesByCode(p.orgId, found.map((f) => ({ code: f.asin, imageUrl: f.imageUrl })));
-        } catch { /* image enrichment is optional */ }
+          const records = await fetchCatalog(p.cred, asins);
+          const e = await enrichItems(p.orgId, records);
+          images = e.images; barcodes = e.barcodes; fields = e.fields;
+          const fam = await linkVariationFamilies(p.orgId, records, async (parentAsins) => {
+            const precs = await fetchCatalog(p.cred, parentAsins);
+            const m = new Map<string, { name?: string; imageUrl?: string }>();
+            for (const pr of precs) m.set(pr.asin, { name: pr.name, imageUrl: pr.imageUrl });
+            return m;
+          });
+          families = fam.familiesLinked;
+        } catch { /* enrichment is optional */ }
       }
     }
 
     revalidatePath("/erp/inventory/items");
-    return { ok: true, ...r, images };
+    return { ok: true, ...r, images, barcodes, fields, families };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المنتجات" };
   }

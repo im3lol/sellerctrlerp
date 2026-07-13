@@ -205,6 +205,10 @@ export const items = pgTable(
     isPerishable: boolean("is_perishable").notNull().default(false),
     shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),
+    // Catalog enrichment (display strings; filled from a marketplace catalog if empty).
+    brand: text("brand"),
+    weight: text("weight"),      // e.g. "0.5 kg"
+    dimensions: text("dimensions"), // e.g. "10 × 5 × 3 cm"
     image: text("image"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),

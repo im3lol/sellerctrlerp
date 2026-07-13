@@ -70,6 +70,9 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <Field label="محجوز لأوامر">{qf(av?.reserved ?? 0)}</Field>
             <Field label="المتاح للبيع"><span className={(av?.available ?? totalQty) <= 0 ? "text-destructive font-semibold" : "font-semibold"}>{qf(av?.available ?? totalQty)}</span></Field>
             <Field label="قيمة المخزون">{money(totalVal)}</Field>
+            {item.brand && <Field label="العلامة التجارية">{item.brand}</Field>}
+            {item.weight && <Field label="الوزن">{item.weight}</Field>}
+            {item.dimensions && <Field label="الأبعاد">{item.dimensions}</Field>}
           </div>
 
           <Card>

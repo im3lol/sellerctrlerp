@@ -18,6 +18,7 @@ type CodeRow = { codeType: string; code: string };
 export type ItemFormInitial = {
   id?: string; code?: string; nameAr?: string; nameEn?: string; description?: string;
   sellPrice?: string | number; minStock?: string | number; image?: string; codes?: CodeRow[];
+  brand?: string | null; weight?: string | null; dimensions?: string | null;
   isPerishable?: boolean; shelfLifeDays?: string | number | null;
   parentItemId?: string | null; parentLabel?: string | null; variationValue?: string | null;
 };
@@ -36,6 +37,9 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
   const [isPerishable, setIsPerishable] = useState(Boolean(initial?.isPerishable));
   const [shelfLifeDays, setShelfLifeDays] = useState(initial?.shelfLifeDays != null ? String(initial.shelfLifeDays) : "");
   const [image, setImage] = useState(initial?.image ?? "");
+  const [brand, setBrand] = useState(initial?.brand ?? "");
+  const [weight, setWeight] = useState(initial?.weight ?? "");
+  const [dimensions, setDimensions] = useState(initial?.dimensions ?? "");
   const [codes, setCodes] = useState<CodeRow[]>(initial?.codes?.length ? initial.codes : [{ codeType: "BARCODE", code: "" }]);
   const [parentItemId, setParentItemId] = useState(initial?.parentItemId ?? "");
   const [parentLabel, setParentLabel] = useState(initial?.parentLabel ?? "");
@@ -65,6 +69,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       const r = await saveItemAction({
         id: initial?.id, code, nameAr, description,
         sellPrice: Number(sellPrice) || 0, minStock: Number(minStock) || 0, image,
+        brand, weight, dimensions,
         isPerishable, shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : undefined,
         parentItemId: parentItemId || undefined, variationValue: variationValue || undefined,
         codes: codes.filter((c) => c.code.trim()),
@@ -85,6 +90,11 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           <div className="space-y-2"><Label>الاسم</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="اسم الصنف (عربي أو إنجليزي)" /></div>
           <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" min="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} /></div>
           <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" step="0.001" min="0" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
+          <div className="space-y-2"><Label>العلامة التجارية</Label><Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="مثال: Logitech" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2"><Label>الوزن</Label><Input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.5 kg" /></div>
+            <div className="space-y-2"><Label>الأبعاد</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder="10 × 5 × 3 cm" /></div>
+          </div>
           <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
             <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصنف…" />
           </div>
