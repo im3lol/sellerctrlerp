@@ -2,13 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { Plug, PlugZap, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { disconnectMarketplaceAction } from "@/app/actions/erp/marketplace-connect";
-import { syncPlatformAction } from "@/app/actions/erp/marketplace-sync";
+import { SyncProgress } from "@/components/erp/sync-progress";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
@@ -21,26 +20,14 @@ export function MarketplaceConnect({
   provider: string; label: string; marketplaces: ConnectMarketplace[];
   conn: MarketplaceConnection; justConnected?: boolean; error?: string;
 }) {
-  const router = useRouter();
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [pending, start] = useTransition();
-  const [syncing, startSync] = useTransition();
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
     if (r.ok) toast.success(`تم فصل حساب ${label}`);
     else toast.error(r.error);
-  });
-
-  const sync = () => startSync(async () => {
-    const r = await syncPlatformAction(provider);
-    if (!r.ok) { toast.error(r.error); return; }
-    const parts: string[] = [];
-    if (r.orders) parts.push(`أوامر: ${r.orders.created} جديد · ${r.orders.fulfilled} دورة كاملة`);
-    if (r.inventory) parts.push(`مخزون: ${r.inventory.matched} مطابَق · ${r.inventory.withDiff} فرق`);
-    toast.success(parts.join(" — ") || "اكتملت المزامنة");
-    if (r.errors.length) toast.warning(r.errors.join(" · "), { duration: 8000 });
-    router.refresh();
   });
 
   if (conn.connected) {
@@ -55,13 +42,14 @@ export function MarketplaceConnect({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
-          <Button onClick={sync} disabled={syncing} className="bg-emerald-600 hover:bg-emerald-700">
-            {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
+          <Button onClick={() => setSyncOpen(true)} disabled={syncOpen} className="bg-emerald-600 hover:bg-emerald-700">
+            {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
           </Button>
           <Button variant="outline" onClick={disconnect} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
           </Button>
-          <span className="text-xs text-muted-foreground">تسحب آخر ٣٠ يوم: الأوامر (دورة بيع) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا.</span>
+          <span className="text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والأوامر (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا.</span>
+          <SyncProgress code={provider} open={syncOpen} onClose={() => setSyncOpen(false)} />
         </CardContent>
       </Card>
     );

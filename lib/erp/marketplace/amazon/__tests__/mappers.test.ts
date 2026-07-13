@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseOrdersReport, parseInventoryReport } from "../mappers";
+import { parseOrdersReport, parseInventoryReport, parseListingsReport } from "../mappers";
 
 // Synthetic SP-API flat-file reports (tab-separated) to pin the column mapping
 // the connector relies on. If Amazon's real report columns differ, these fail
@@ -32,5 +32,16 @@ describe("Amazon report → DTO mappers", () => {
     const inv = parseInventoryReport(Buffer.from(ledgerTsv, "utf8"));
     expect(inv).toHaveLength(1);
     expect(inv[0]).toMatchObject({ code: "SKU1", title: "Widget", onHand: 7 });
+  });
+
+  it("parses the merchant listings report → products (sku, asin, name, price)", () => {
+    const listingsTsv = [
+      "item-name\tseller-sku\tprice\tquantity\tasin1",
+      "Widget Red\tSKU1\t120.50\t5\tASIN1",
+      "Widget Blue\tSKU2\t99\t0\tASIN2",
+    ].join("\n");
+    const products = parseListingsReport(Buffer.from(listingsTsv, "utf8"));
+    expect(products).toHaveLength(2);
+    expect(products[0]).toMatchObject({ code: "SKU1", altCode: "ASIN1", name: "Widget Red", sellPrice: 120.5 });
   });
 });

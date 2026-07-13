@@ -8,88 +8,93 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
-import { ingestOrders, reconcileInventory, type PlatformCtx } from "@/lib/erp/marketplace/ingest";
-import type { Credential } from "@/lib/erp/marketplace/connector";
-
-export type SyncSummary =
-  | {
-      ok: true;
-      orders?: { created: number; fulfilled: number; transitioned: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number };
-      inventory?: { matched: number; withDiff: number; unmatched: number };
-      errors: string[];
-    }
-  | { ok: false; error: string };
+import { ingestOrders, ingestProducts, reconcileInventory, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
+import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
 
-/** Resolve the platform write-context for a connector code. */
-async function resolveCtx(orgId: string, code: string): Promise<PlatformCtx | { error: string }> {
-  if (code === "AMAZON") {
-    const p = await ensureAmazonPlatform(orgId);
-    return { platformId: p.platformId, customerId: p.customerId, warehouseId: p.warehouseId, channel: "AMAZON", label: "طلب أمازون" };
-  }
-  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name })
-    .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code))).limit(1);
-  if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
-  return { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: code, label: p.name };
-}
+type Prepared = { orgId: string; userId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string };
 
-/**
- * Pull from a connected marketplace and ingest via the shared core: orders →
- * sales-order cycle; inventory → a read-only reconciliation (the user still
- * confirms the DRAFT adjustment). Best-effort per source — one failing source is
- * reported but doesn't block the other. Records last-sync status on the connection.
- */
-export async function syncPlatformAction(code: string): Promise<SyncSummary> {
+/** Authorize + load the connector, decrypted credential, platform ctx and settings. */
+async function prepare(code: string): Promise<Prepared | { error: string }> {
   const auth = await authorizeErp("sales.create");
-  if ("error" in auth) return { ok: false, error: auth.error };
+  if ("error" in auth) return { error: auth.error };
 
-  const provider = code.toLowerCase();
   const connector = getConnector(code);
-  if (!connector) return { ok: false, error: "لا يوجد موصّل لهذه المنصة" };
+  if (!connector) return { error: "لا يوجد موصّل لهذه المنصة" };
+  const provider = connector.code.toLowerCase();
 
   const [row] = await db.select().from(platformCredentials)
     .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider))).limit(1);
-  if (!row) return { ok: false, error: "المنصة غير مربوطة — اربط الحساب أولًا" };
-
+  if (!row) return { error: "المنصة غير مربوطة — اربط الحساب أولًا" };
   const refreshToken = decryptSecret(row.refreshToken);
-  if (!refreshToken) return { ok: false, error: "تعذّر فك تشفير التوكن — أعد ربط الحساب" };
+  if (!refreshToken) return { error: "تعذّر فك تشفير التوكن — أعد ربط الحساب" };
   const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
-  const ctx = await resolveCtx(auth.orgId, connector.code);
-  if ("error" in ctx) return { ok: false, error: ctx.error };
+  // Ensure the platform exists (Amazon), then read its settings row.
+  if (connector.code === "AMAZON") await ensureAmazonPlatform(auth.orgId);
+  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode })
+    .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.code, connector.code))).limit(1);
+  if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-  const to = new Date();
-  const from = new Date(to.getTime() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  const errors: string[] = [];
-  const out: Extract<SyncSummary, { ok: true }> = { ok: true, errors };
+  const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name };
+  return { orgId: auth.orgId, userId: auth.userId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider };
+}
 
-  if (connector.fetchOrders) {
-    try {
-      const orders = await connector.fetchOrders(cred, { from, to });
-      const r = await ingestOrders(auth.orgId, auth.userId, ctx, orders);
-      out.orders = { created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
-    } catch (e) {
-      errors.push(`الأوامر: ${e instanceof Error ? e.message : "فشل السحب"}`);
-    }
+async function markSync(orgId: string, provider: string, status: string) {
+  await db.update(platformCredentials).set({ lastSyncAt: new Date(), lastSyncStatus: status, updatedAt: new Date() })
+    .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider)));
+}
+
+export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
+export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
+
+/** Step 1 — sync the product catalog (link existing + create new per platform setting). */
+export async function syncProductsAction(code: string): Promise<ProductsSync> {
+  const p = await prepare(code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
+  try {
+    const products = await p.connector.fetchProducts(p.cred);
+    const r = await ingestProducts(p.orgId, products, p.mode);
+    revalidatePath("/erp/inventory/items");
+    return { ok: true, ...r };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المنتجات" };
   }
+}
 
-  if (connector.fetchInventory && ctx.warehouseId) {
-    try {
-      const inv = await connector.fetchInventory(cred);
-      const rec = await reconcileInventory(auth.orgId, { defaultWarehouseId: ctx.warehouseId }, inv);
-      if (rec.ok) out.inventory = { matched: rec.result.matched, withDiff: rec.result.withDiff, unmatched: rec.result.unmatched };
-      else errors.push(`المخزون: ${rec.error}`);
-    } catch (e) {
-      errors.push(`المخزون: ${e instanceof Error ? e.message : "فشل السحب"}`);
-    }
+/** Step 2 — sync orders (last 30 days) through the sales-order cycle. */
+export async function syncOrdersAction(code: string): Promise<OrdersSync> {
+  const p = await prepare(code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchOrders) return { ok: false, error: "المنصة لا تدعم مزامنة الأوامر" };
+  try {
+    const to = new Date();
+    const from = new Date(to.getTime() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const orders = await p.connector.fetchOrders(p.cred, { from, to });
+    const r = await ingestOrders(p.orgId, p.userId, p.ctx, orders);
+    revalidatePath("/erp/sales/orders");
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
   }
+}
 
-  await db.update(platformCredentials)
-    .set({ lastSyncAt: new Date(), lastSyncStatus: errors.length ? errors.join(" · ") : "ok", updatedAt: new Date() })
-    .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider)));
-
-  revalidatePath("/erp/sales/orders");
-  revalidatePath(`/erp/platforms/${provider}`);
-  return out;
+/** Step 3 — reconcile inventory (read-only preview; a DRAFT adjustment is confirmed separately). */
+export async function syncInventoryAction(code: string): Promise<InventorySync> {
+  const p = await prepare(code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchInventory || !p.ctx.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
+  try {
+    const inv = await p.connector.fetchInventory(p.cred);
+    const rec = await reconcileInventory(p.orgId, { defaultWarehouseId: p.ctx.warehouseId }, inv);
+    await markSync(p.orgId, p.provider, "ok");
+    revalidatePath(`/erp/platforms/${p.provider}`);
+    if (!rec.ok) return { ok: false, error: rec.error };
+    return { ok: true, matched: rec.result.matched, withDiff: rec.result.withDiff, unmatched: rec.result.unmatched };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المخزون" };
+  }
 }

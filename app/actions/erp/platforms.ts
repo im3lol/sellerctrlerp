@@ -20,6 +20,7 @@ const schema = z.object({
   integrationType: z.enum(["amazon", "generic"]).default("generic"),
   defaultWarehouseId: z.string().optional().nullable(),
   bankAccountId: z.string().optional().nullable(),
+  productSyncMode: z.enum(["create", "link"]).optional(),
 });
 
 /** Validate that an optional FK id belongs to the active org (or is empty). */
@@ -73,6 +74,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
         customerId: cust.id,
         defaultWarehouseId: defaultWarehouseId || null,
         bankAccountId: bankAccountId || null,
+        ...(parsed.data.productSyncMode ? { productSyncMode: parsed.data.productSyncMode } : {}),
       }).returning({ id: salesPlatforms.id });
 
       // Adopt any existing sales for this channel (e.g. Amazon orders already
@@ -108,6 +110,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
   await db.update(salesPlatforms).set({
     ...(name !== undefined ? { name } : {}),
     ...(integrationType !== undefined ? { integrationType } : {}),
+    ...(parsed.data.productSyncMode !== undefined ? { productSyncMode: parsed.data.productSyncMode } : {}),
     defaultWarehouseId: defaultWarehouseId || null,
     bankAccountId: bankAccountId || null,
     updatedAt: new Date(),

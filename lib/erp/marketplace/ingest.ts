@@ -9,7 +9,7 @@ import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { fulfillOrder } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, type PreviewOrder, type OrdersPreview } from "./classify";
-import type { MarketplaceOrder, MarketplaceInventory } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
 
 export { classifyOrders };
 export type { OrdersPreview };
@@ -213,4 +213,85 @@ export async function reconcileInventory(
       warehouseName: wh.nameAr, warehouseId: wh.id, rows: rows.slice(0, 300), unmatchedSample,
     },
   };
+}
+
+// ── Product catalog sync ─────────────────────────────────────
+
+export type ProductSyncMode = "create" | "link";
+export type ProductsResult = { total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number };
+
+/** Generate `count` unique internal item codes (P-00001…) that don't collide. */
+async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
+  const existing = await db.select({ code: items.code }).from(items).where(eq(items.organizationId, orgId));
+  const taken = new Set(existing.map((r) => r.code));
+  let max = 0;
+  for (const c of taken) { const m = /^P-(\d+)$/.exec(c); if (m) max = Math.max(max, parseInt(m[1], 10)); }
+  const out: string[] = [];
+  let n = max;
+  while (out.length < count) { n++; const code = `P-${String(n).padStart(5, "0")}`; if (!taken.has(code)) { out.push(code); taken.add(code); } }
+  return out;
+}
+
+/**
+ * Sync a marketplace's listings into the item catalog (mirrors the two manual
+ * flows in amazon-codes.ts):
+ *   • existing item matched by SKU/ASIN → attach its SKU + ASIN item_codes (link).
+ *   • unmatched listing → create a new item (auto code P-xxxxx, name, price) +
+ *     its codes — only when mode = "create"; "link" skips it.
+ * Idempotent: listings whose SKU/ASIN is already a code are counted alreadyLinked.
+ */
+export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode): Promise<ProductsResult> {
+  const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0 };
+  if (products.length === 0) return result;
+
+  const [codeRows, itemRows] = await Promise.all([
+    db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
+    db.select({ id: items.id, code: items.code }).from(items).where(eq(items.organizationId, orgId)),
+  ]);
+  const linked = new Set(codeRows.map((r) => r.norm).filter((x): x is string => !!x));
+  const itemByCode = new Map<string, string>();
+  for (const it of itemRows) itemByCode.set(normalizeCode(it.code), it.id);
+
+  const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
+  const seen = new Set<string>();
+  const pushCode = (itemId: string, codeType: string, code: string) => {
+    const c = code.trim(); const norm = normalizeCode(c);
+    if (!c || !norm) return;
+    const key = `${itemId}|${codeType}|${c}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
+  };
+
+  const toCreate: MarketplaceProduct[] = [];
+  for (const p of products) {
+    const nSku = normalizeCode(p.code), nAsin = normalizeCode(p.altCode || "");
+    if (linked.has(nSku) || (nAsin && linked.has(nAsin))) { result.alreadyLinked++; continue; }
+    const matchId = itemByCode.get(nSku) ?? (nAsin ? itemByCode.get(nAsin) : undefined);
+    if (matchId) {
+      pushCode(matchId, "SKU", p.code);
+      if (p.altCode) pushCode(matchId, "ASIN", p.altCode);
+      result.linked++;
+    } else if (mode === "create") {
+      toCreate.push(p);
+    } else {
+      result.skippedUnmatched++;
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    if (toCreate.length) {
+      const codes = await nextItemCodes(orgId, toCreate.length);
+      const inserted = await tx.insert(items).values(toCreate.map((p, i) => ({
+        organizationId: orgId, code: codes[i], nameAr: (p.name || p.code).trim(), sellPrice: String(round2(p.sellPrice || 0)),
+      }))).returning({ id: items.id });
+      inserted.forEach((it, i) => { pushCode(it.id, "SKU", toCreate[i].code); if (toCreate[i].altCode) pushCode(it.id, "ASIN", toCreate[i].altCode!); });
+      result.created = inserted.length;
+    }
+    if (codeValues.length) {
+      await tx.insert(itemCodes).values(codeValues).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
+    }
+  });
+
+  return result;
 }

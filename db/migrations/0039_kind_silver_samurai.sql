@@ -1,0 +1,1 @@
+ALTER TABLE "sales_platforms" ADD COLUMN "product_sync_mode" text DEFAULT 'create' NOT NULL;

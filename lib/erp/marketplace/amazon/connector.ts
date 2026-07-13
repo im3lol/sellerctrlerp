@@ -3,7 +3,7 @@ import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
 import { requestReport, REPORT_TYPE } from "./reports";
-import { parseOrdersReport, parseInventoryReport } from "./mappers";
+import { parseOrdersReport, parseInventoryReport, parseListingsReport } from "./mappers";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
   code: m.code, name: m.name, region: m.region, marketplaceId: m.marketplaceId,
@@ -13,7 +13,7 @@ const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
 export const amazonConnector: MarketplaceConnector = {
   code: "AMAZON",
   label: "أمازون",
-  capabilities: { orders: true, inventory: true, settlements: true },
+  capabilities: { products: true, orders: true, inventory: true, settlements: true },
   oauth: {
     marketplaces,
     authorizeUrl(state, marketplaceCode) {
@@ -33,6 +33,12 @@ export const amazonConnector: MarketplaceConnector = {
       if (!tok.refresh_token) return { error: "لم يصل refresh token من أمازون" };
       return { refreshToken: tok.refresh_token };
     },
+  },
+  async fetchProducts(cred) {
+    // The listings report ignores the date window; pass a wide range.
+    const to = new Date();
+    const from = new Date(to.getTime() - 365 * 24 * 60 * 60 * 1000);
+    return parseListingsReport(await requestReport(cred, REPORT_TYPE.LISTINGS, { from, to }));
   },
   async fetchOrders(cred, range) {
     return parseOrdersReport(await requestReport(cred, REPORT_TYPE.ORDERS, range));

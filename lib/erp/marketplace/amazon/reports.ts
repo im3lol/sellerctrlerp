@@ -10,6 +10,7 @@ import type { DateRange } from "../dto";
 export const REPORT_TYPE = {
   ORDERS: "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_GENERAL",
   FBA_INVENTORY_LEDGER: "GET_LEDGER_DETAIL_VIEW_DATA",
+  LISTINGS: "GET_MERCHANT_LISTINGS_ALL_DATA",
 } as const;
 
 const RP = "/reports/2021-06-30";

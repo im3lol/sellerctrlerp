@@ -1,4 +1,4 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceSettlement, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceSettlement, MarketplaceProduct, DateRange } from "./dto";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
 export type Credential = {
@@ -21,12 +21,13 @@ export type OAuthExchange = { refreshToken: string } | { error: string };
 export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
-  capabilities: { orders: boolean; inventory: boolean; settlements: boolean };
+  capabilities: { products: boolean; orders: boolean; inventory: boolean; settlements: boolean };
   oauth?: {
     marketplaces: ConnectorMarketplace[];
     authorizeUrl(state: string, marketplaceCode: string): string | null;
     exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
   };
+  fetchProducts?(cred: Credential): Promise<MarketplaceProduct[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
   fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;

@@ -15,6 +15,7 @@ export default async function PlatformsPage() {
       name: salesPlatforms.name,
       code: salesPlatforms.code,
       integrationType: salesPlatforms.integrationType,
+      productSyncMode: salesPlatforms.productSyncMode,
       isActive: salesPlatforms.isActive,
       customerName: customers.nameAr,
       customerId: salesPlatforms.customerId,

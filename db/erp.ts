@@ -1442,6 +1442,9 @@ export const salesPlatforms = pgTable(
     customerId: text("customer_id").references(() => customers.id),
     defaultWarehouseId: text("default_warehouse_id").references(() => warehouses.id),
     bankAccountId: text("bank_account_id").references(() => bankAccounts.id),
+    // Product sync behaviour: "create" = link existing items by ASIN/SKU AND
+    // create new items for unmatched listings; "link" = link existing only.
+    productSyncMode: text("product_sync_mode").notNull().default("create"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

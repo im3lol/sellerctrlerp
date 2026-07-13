@@ -31,6 +31,14 @@ export type MarketplaceInventory = {
   onHand: number;
 };
 
+/** A marketplace listing — matched to an item by `code` (SKU) or `altCode` (ASIN). */
+export type MarketplaceProduct = {
+  code: string;      // seller SKU
+  altCode?: string;  // ASIN
+  name: string;
+  sellPrice: number;
+};
+
 // Neutral settlement row. v1 Amazon settlement stays report-fed via the existing
 // action; this type exists for the connector contract + future generalization.
 export type MarketplaceSettlement = {

@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Platform = {
-  id: string; name: string; code: string; integrationType: string; isActive: boolean;
+  id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
   customerName: string | null; customerId: string | null;
   warehouseId: string | null; warehouseName: string | null;
   bankAccountId: string | null; bankName: string | null;
@@ -37,6 +37,7 @@ function PlatformDialog({
   const [name, setName] = useState(platform?.name ?? "");
   const [code, setCode] = useState(platform?.code ?? "");
   const [integrationType, setIntegrationType] = useState(platform?.integrationType ?? "generic");
+  const [productSyncMode, setProductSyncMode] = useState(platform?.productSyncMode ?? "create");
 
   // Pre-fill from a known connector so the new platform's code matches the
   // registry → its page shows the official "ربط" (connect) card after creation.
@@ -50,7 +51,7 @@ function PlatformDialog({
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
     if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
+      const payload = { name, integrationType, productSyncMode, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
       const r = isEdit
         ? await updatePlatformAction(platform!.id, payload)
         : await createPlatformAction({ ...payload, code });
@@ -95,6 +96,14 @@ function PlatformDialog({
             <option value="generic">{TYPE_LABEL.generic}</option>
             <option value="amazon">{TYPE_LABEL.amazon}</option>
           </select>
+        </div>
+        <div className="space-y-2">
+          <Label>مزامنة المنتجات (للمنصات المربوطة)</Label>
+          <select className={selectCls} value={productSyncMode} onChange={(e) => setProductSyncMode(e.target.value)}>
+            <option value="create">ربط الموجود + إنشاء المنتجات الجديدة</option>
+            <option value="link">ربط المنتجات الموجودة فقط</option>
+          </select>
+          <p className="text-xs text-muted-foreground">عند «مزامنة الآن»: يربط منتجات المنصّة بأصنافك عبر SKU/ASIN، والمنتج غير الموجود يُنشأ صنفًا جديدًا (أو يُتجاهَل في وضع الربط فقط).</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
