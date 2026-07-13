@@ -21,14 +21,15 @@ type Platform = {
   bankAccountId: string | null; bankName: string | null;
 };
 type Option = { id: string; nameAr: string };
+type ConnectorInfo = { code: string; label: string };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
 function PlatformDialog({
-  platform, warehouses, bankAccounts, onClose,
+  platform, warehouses, bankAccounts, connectors, onClose,
 }: {
-  platform: Platform | null; warehouses: Option[]; bankAccounts: Option[]; onClose: () => void;
+  platform: Platform | null; warehouses: Option[]; bankAccounts: Option[]; connectors: ConnectorInfo[]; onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -36,6 +37,12 @@ function PlatformDialog({
   const [name, setName] = useState(platform?.name ?? "");
   const [code, setCode] = useState(platform?.code ?? "");
   const [integrationType, setIntegrationType] = useState(platform?.integrationType ?? "generic");
+
+  // Pre-fill from a known connector so the new platform's code matches the
+  // registry → its page shows the official "ربط" (connect) card after creation.
+  const pickConnector = (c: ConnectorInfo) => {
+    setName(c.label); setCode(c.code); setIntegrationType(c.code === "AMAZON" ? "amazon" : "generic");
+  };
   const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
 
@@ -65,6 +72,16 @@ function PlatformDialog({
       </DialogHeader>
 
       <div className="space-y-4">
+        {!isEdit && connectors.length > 0 && (
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">تكاملات رسمية (ربط تلقائي بعد الإنشاء):</div>
+            <div className="flex flex-wrap gap-2">
+              {connectors.map((c) => (
+                <Button key={c.code} type="button" size="sm" variant="outline" onClick={() => pickConnector(c)}>{c.label}</Button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2"><Label>اسم المنصة</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أمازون" /></div>
           <div className="space-y-2">
@@ -106,9 +123,9 @@ function PlatformDialog({
 }
 
 export function PlatformsManager({
-  platforms, warehouses, bankAccounts, canManage,
+  platforms, warehouses, bankAccounts, canManage, connectors,
 }: {
-  platforms: Platform[]; warehouses: Option[]; bankAccounts: Option[]; canManage: boolean;
+  platforms: Platform[]; warehouses: Option[]; bankAccounts: Option[]; canManage: boolean; connectors: ConnectorInfo[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -181,7 +198,7 @@ export function PlatformsManager({
       </CardContent>
 
       <Dialog open={dialog.open} onOpenChange={(o) => !o && setDialog({ open: false, platform: null })}>
-        {dialog.open && <PlatformDialog platform={dialog.platform} warehouses={warehouses} bankAccounts={bankAccounts} onClose={() => setDialog({ open: false, platform: null })} />}
+        {dialog.open && <PlatformDialog platform={dialog.platform} warehouses={warehouses} bankAccounts={bankAccounts} connectors={connectors} onClose={() => setDialog({ open: false, platform: null })} />}
       </Dialog>
     </Card>
   );

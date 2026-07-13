@@ -1449,6 +1449,27 @@ export const salesPlatforms = pgTable(
   (t) => [uniqueIndex("sales_platforms_org_code_idx").on(t.organizationId, t.code)],
 );
 
+// Per-tenant SP-API (or other provider) connection. The refresh token is stored
+// encrypted (AES-256-GCM via lib/crypto). One connection per (org, provider).
+export const platformCredentials = pgTable(
+  "platform_credentials",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    platformId: text("platform_id").references(() => salesPlatforms.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("amazon"), // amazon | ...
+    refreshToken: text("refresh_token").notNull(), // encrypted "iv:tag:ciphertext"
+    sellerId: text("seller_id"),
+    marketplaceId: text("marketplace_id"),
+    region: text("region").notNull().default("eu"), // na | eu | fe
+    connectedAt: createdAt(),
+    lastSyncAt: ts("last_sync_at"),
+    lastSyncStatus: text("last_sync_status"),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],
+);
+
 /* ═══════════════ MARKETPLACE SETTLEMENTS (Amazon/Noon) ═══════════════ */
 
 // One row per line of the marketplace transaction/settlement report. Kept for

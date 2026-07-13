@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PlatformActions } from "@/components/erp/platform-actions";
+import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
+import { getConnector } from "@/lib/erp/marketplace/registry";
+import { getConnection } from "@/lib/erp/marketplace/connection";
 
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const int = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn");
@@ -27,8 +30,9 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
   );
 }
 
-export default async function PlatformDetailPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
   const { code: codeParam } = await params;
+  const { connected, err } = await searchParams;
   const { orgId } = await requireErpModule("sales.view");
 
   const [platform] = await db
@@ -91,6 +95,12 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
   const avgOrder = ordersCount > 0 ? salesTotal / ordersCount : 0;
   const outstanding = Number(platform.customerBalance ?? 0);
 
+  // Any platform whose code has a connector with OAuth gets an official-connect
+  // card; others stay manual-import only.
+  const connector = getConnector(platform.code);
+  const connectable = connector?.oauth;
+  const conn = connectable ? await getConnection(orgId, connector.code) : null;
+
   return (
     <div className="space-y-6">
       <ErpPageHeader
@@ -100,6 +110,17 @@ export default async function PlatformDetailPage({ params }: { params: Promise<{
         backHref="/erp/platforms"
         action={<PlatformActions code={platform.code.toLowerCase()} isAmazon={isAmazon} />}
       />
+
+      {connectable && conn && (
+        <MarketplaceConnect
+          provider={connector!.code.toLowerCase()}
+          label={connector!.label}
+          marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
+          conn={conn}
+          justConnected={connected === "1"}
+          error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
+        />
+      )}
 
       {analyticsFailed && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">

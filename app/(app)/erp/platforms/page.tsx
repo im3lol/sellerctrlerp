@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformsManager } from "@/components/erp/platforms-manager";
+import { connectableConnectors } from "@/lib/erp/marketplace/registry";
 
 export default async function PlatformsPage() {
   const { orgId, can } = await requireErpModule("sales.view");
@@ -41,7 +42,13 @@ export default async function PlatformsPage() {
         title="المنصات والقنوات"
         subtitle="أمازون، نون، وغيرها — تربط المبيعات والمخزون والحسابات، وتُدار كلها من هنا"
       />
-      <PlatformsManager platforms={rows} warehouses={whRows} bankAccounts={bankRows} canManage={can("sales.create")} />
+      <PlatformsManager
+        platforms={rows}
+        warehouses={whRows}
+        bankAccounts={bankRows}
+        canManage={can("sales.create")}
+        connectors={connectableConnectors().map((c) => ({ code: c.code, label: c.label }))}
+      />
     </div>
   );
 }

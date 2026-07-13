@@ -111,7 +111,7 @@ export function AmazonImport() {
                 <p className="mb-2 text-sm font-medium text-amber-700">طلبات محظورة لنقص مخزون ({result.stockBlocked.length}) — أُنشئت كأوامر مؤكّدة بلا صرف؛ وفّر المخزون ثم أعد الرفع:</p>
                 <ul className="space-y-1 text-xs">
                   {result.stockBlocked.slice(0, 50).map((b) => (
-                    <li key={b.orderId} className="flex gap-2"><span className="font-mono" dir="ltr">{b.orderId}</span><span className="text-muted-foreground">— {b.reason}</span></li>
+                    <li key={b.externalId} className="flex gap-2"><span className="font-mono" dir="ltr">{b.externalId}</span><span className="text-muted-foreground">— {b.reason}</span></li>
                   ))}
                 </ul>
               </div>
@@ -140,10 +140,10 @@ export function AmazonImport() {
               </TableHeader>
               <TableBody>
                 {preview.unmatched.map((u) => (
-                  <TableRow key={u.sku}>
-                    <TableCell className="font-mono" dir="ltr">{u.sku}</TableCell>
-                    <TableCell className="font-mono" dir="ltr">{u.asin}</TableCell>
-                    <TableCell className="max-w-md truncate" title={u.productName}>{u.productName}</TableCell>
+                  <TableRow key={u.code}>
+                    <TableCell className="font-mono" dir="ltr">{u.code}</TableCell>
+                    <TableCell className="font-mono" dir="ltr">{u.altCode}</TableCell>
+                    <TableCell className="max-w-md truncate" title={u.name}>{u.name}</TableCell>
                     <TableCell className="font-mono text-muted-foreground" dir="ltr">{u.sampleOrder}</TableCell>
                   </TableRow>
                 ))}
@@ -176,11 +176,11 @@ export function AmazonImport() {
               </TableHeader>
               <TableBody>
                 {preview.toCreate.slice(0, 100).map((o) => (
-                  <TableRow key={o.orderId}>
-                    <TableCell className="font-mono text-xs" dir="ltr">{o.orderId}</TableCell>
+                  <TableRow key={o.externalId}>
+                    <TableCell className="font-mono text-xs" dir="ltr">{o.externalId}</TableCell>
                     <TableCell>{dt(o.date)}</TableCell>
                     <TableCell><Badge variant={o.status === "Shipped" ? "default" : "secondary"}>{STATUS_AR[o.status] ?? o.status}</Badge></TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{o.lines.map((l) => `${l.itemName ?? l.sku} ×${l.qty}`).join("، ")}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{o.lines.map((l) => `${l.itemName ?? l.code} ×${l.qty}`).join("، ")}</TableCell>
                     <TableCell>{fmt(o.total)}</TableCell>
                   </TableRow>
                 ))}

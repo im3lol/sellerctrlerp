@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 // module (some pure functions live in files that also import "@/lib/db").
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL(".", import.meta.url)),
+      // `server-only` throws outside an RSC bundler; no-op it so server modules
+      // with pure logic (crypto, oauth state) stay unit-testable.
+      "server-only": fileURLToPath(new URL("./test/server-only-stub.ts", import.meta.url)),
+    },
   },
   test: {
     environment: "node",

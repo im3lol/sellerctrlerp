@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
-import { reconcilePlatformInventoryAction, applyInventoryReconciliationAction, type InventoryReconResult } from "@/app/actions/erp/platform-inventory";
+import { reconcilePlatformInventoryAction, applyInventoryReconciliationAction, type InventoryReconActionResult } from "@/app/actions/erp/platform-inventory";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,7 +21,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
   const [pending, start] = useTransition();
   const [applying, startApply] = useTransition();
   const [fileName, setFileName] = useState("");
-  const [result, setResult] = useState<InventoryReconResult | null>(null);
+  const [result, setResult] = useState<InventoryReconActionResult | null>(null);
 
   const onFile = (file: File) => {
     setFileName(file.name);
@@ -36,7 +36,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
 
   const apply = () => {
     if (!result?.ok) return;
-    const entries = result.rows.filter((r) => Math.abs(r.diff) > 0.001).map((r) => ({ itemId: r.itemId, amazonQty: r.amazonQty }));
+    const entries = result.rows.filter((r) => Math.abs(r.diff) > 0.001).map((r) => ({ itemId: r.itemId, qty: r.marketplaceQty }));
     if (entries.length === 0) return toast.error("لا توجد فروق للمطابقة");
     startApply(async () => {
       const r = await applyInventoryReconciliationAction(platformId, entries);
@@ -84,8 +84,8 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
                   <TableBody>
                     {result.rows.map((r) => (
                       <TableRow key={r.itemId}>
-                        <TableCell><span className="font-mono text-muted-foreground">{r.sku}</span> {r.itemName}</TableCell>
-                        <TableCell className="tabular-nums">{int(r.amazonQty)}</TableCell>
+                        <TableCell><span className="font-mono text-muted-foreground">{r.code}</span> {r.itemName}</TableCell>
+                        <TableCell className="tabular-nums">{int(r.marketplaceQty)}</TableCell>
                         <TableCell className="tabular-nums">{int(r.erpQty)}</TableCell>
                         <TableCell className={`tabular-nums font-medium ${r.diff !== 0 ? "text-destructive" : "text-muted-foreground"}`}>{r.diff > 0 ? "+" : ""}{int(r.diff)}</TableCell>
                       </TableRow>
