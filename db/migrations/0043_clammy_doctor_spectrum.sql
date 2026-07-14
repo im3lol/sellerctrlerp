@@ -1,0 +1,1 @@
+ALTER TABLE "sales_platforms" ADD COLUMN "fulfillment_type" text;

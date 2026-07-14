@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Loader2, Upload, Pencil } from "lucide-react";
-import { createPlatformAction, updatePlatformAction, togglePlatformActiveAction } from "@/app/actions/erp/platforms";
+import { Plus, Loader2, Upload, Pencil, PlugZap } from "lucide-react";
+import { createPlatformAction, updatePlatformAction, togglePlatformActiveAction, provisionMarketplaceAction } from "@/app/actions/erp/platforms";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,20 @@ type ConnectorInfo = { code: string; label: string };
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
+// Brand tiles for the automatic picker (colored monograms, not official logos).
+const BRANDS: { code: string; label: string; color: string }[] = [
+  { code: "AMAZON", label: "أمازون", color: "#FF9900" },
+  { code: "NOON", label: "نون", color: "#FEDD00" },
+  { code: "JUMIA", label: "جوميا", color: "#F68B1E" },
+  { code: "SHOPIFY", label: "شوبيفاي", color: "#5E8E3E" },
+];
+const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean }[] = [
+  { code: "FBA", label: "FBA", hint: "أمازون يخزّن ويشحن", active: true },
+  { code: "FBM", label: "FBM", hint: "أنت تشحن — قريبًا", active: false },
+  { code: "FLEX", label: "Flex", hint: "قريبًا", active: false },
+];
+const tileCls = "flex items-center gap-3 rounded-xl border p-3 text-start transition-colors";
+
 function PlatformDialog({
   platform, warehouses, bankAccounts, connectors, onClose,
 }: {
@@ -35,6 +49,9 @@ function PlatformDialog({
   const router = useRouter();
   const [pending, start] = useTransition();
   const isEdit = !!platform;
+  const [mode, setMode] = useState<"choose" | "manual" | "auto">(isEdit ? "manual" : "choose");
+  const [autoConnector, setAutoConnector] = useState<string | null>(null);
+  const activeCodes = new Set(connectors.map((c) => c.code)); // connectors with an official integration
   const [name, setName] = useState(platform?.name ?? "");
   const [code, setCode] = useState(platform?.code ?? "");
   const [integrationType, setIntegrationType] = useState(platform?.integrationType ?? "generic");
@@ -42,14 +59,15 @@ function PlatformDialog({
   const [syncProducts, setSyncProducts] = useState(platform?.syncProducts ?? true);
   const [syncOrders, setSyncOrders] = useState(platform?.syncOrders ?? true);
   const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
-
-  // Pre-fill from a known connector so the new platform's code matches the
-  // registry → its page shows the official "ربط" (connect) card after creation.
-  const pickConnector = (c: ConnectorInfo) => {
-    setName(c.label); setCode(c.code); setIntegrationType(c.code === "AMAZON" ? "amazon" : "generic");
-  };
   const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
+
+  // Automatic setup: provision everything (platform + customer + FBA warehouse + Amazon Wallet bank).
+  const provision = (fulfillment: string) => start(async () => {
+    const r = await provisionMarketplaceAction({ connector: autoConnector!, fulfillment });
+    if (r.ok) { toast.success("تم تجهيز أمازون: عميل + مخزن FBA + محفظة Amazon Wallet"); onClose(); router.push(`/erp/platforms/${r.code ?? "amazon"}`); }
+    else toast.error(r.error ?? "تعذّر التجهيز");
+  });
 
   const save = () => {
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
@@ -67,26 +85,73 @@ function PlatformDialog({
     });
   };
 
+  const showForm = isEdit || mode === "manual";
+
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
-        <DialogTitle>{isEdit ? `تعديل ${platform!.name}` : "منصة بيع جديدة"}</DialogTitle>
+        <DialogTitle>{isEdit ? `تعديل ${platform!.name}` : mode === "auto" ? "ربط آلي" : mode === "manual" ? "منصة يدوية" : "منصة بيع جديدة"}</DialogTitle>
         <DialogDescription>
-          {isEdit ? "الكود غير قابل للتعديل بعد الإنشاء." : "سيُنشأ عميل تلقائيًا بنفس اسم المنصة وتُسجَّل مبيعاتها باسمه."}
+          {isEdit ? "الكود غير قابل للتعديل بعد الإنشاء."
+            : mode === "choose" ? "اختر طريقة الإضافة."
+            : mode === "auto" ? "اختر المنصة ونوع التنفيذ — يتم التجهيز تلقائيًا."
+            : "سيُنشأ عميل تلقائيًا بنفس اسم المنصة وتُسجَّل مبيعاتها باسمه."}
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-4">
-        {!isEdit && connectors.length > 0 && (
-          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-            <div className="text-xs text-muted-foreground">تكاملات رسمية (ربط تلقائي بعد الإنشاء):</div>
-            <div className="flex flex-wrap gap-2">
-              {connectors.map((c) => (
-                <Button key={c.code} type="button" size="sm" variant="outline" onClick={() => pickConnector(c)}>{c.label}</Button>
-              ))}
-            </div>
+      {!isEdit && mode === "choose" && (
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setMode("auto")} className={`${tileCls} flex-col items-start gap-1.5 p-4 hover:border-primary`}>
+            <PlugZap className="size-6 text-primary" />
+            <span className="font-semibold">ربط آلي</span>
+            <span className="text-xs text-muted-foreground">اختر منصة معروفة (أمازون) ويتم التجهيز تلقائيًا: عميل + مخزن + بنك.</span>
+          </button>
+          <button type="button" onClick={() => setMode("manual")} className={`${tileCls} flex-col items-start gap-1.5 p-4 hover:border-primary`}>
+            <Pencil className="size-6 text-muted-foreground" />
+            <span className="font-semibold">ربط يدوي</span>
+            <span className="text-xs text-muted-foreground">تحدّد كل البيانات بنفسك (لأي منصة أو ملف CSV).</span>
+          </button>
+        </div>
+      )}
+
+      {mode === "auto" && !autoConnector && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {BRANDS.map((b) => {
+              const on = activeCodes.has(b.code);
+              return (
+                <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`${tileCls} ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg text-xs font-bold text-black" style={{ backgroundColor: b.color }}>{b.label.slice(0, 2)}</span>
+                  <span className="flex-1 font-medium">{b.label}</span>
+                  {!on && <Badge variant="secondary">قريبًا</Badge>}
+                </button>
+              );
+            })}
           </div>
-        )}
+          <Button variant="ghost" size="sm" onClick={() => setMode("choose")}>رجوع</Button>
+        </div>
+      )}
+
+      {mode === "auto" && autoConnector && (
+        <div className="space-y-3">
+          <div className="text-sm text-muted-foreground">نوع التنفيذ لأمازون:</div>
+          <div className="grid gap-2">
+            {FULFILLMENTS.map((f) => (
+              <button key={f.code} type="button" disabled={!f.active || pending} onClick={() => f.active && provision(f.code)} className={`${tileCls} ${f.active ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
+                <span className="font-mono text-base font-bold">{f.label}</span>
+                <span className="flex-1 text-sm text-muted-foreground">{f.hint}</span>
+                {!f.active && <Badge variant="secondary">قريبًا</Badge>}
+                {f.active && pending && <Loader2 className="size-4 animate-spin" />}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">سيُنشأ: منصة أمازون + عميل + مخزن «أمازون FBA» + بنك «Amazon Wallet» — كلها قابلة للتعديل لاحقًا.</p>
+          <Button variant="ghost" size="sm" onClick={() => setAutoConnector(null)}>رجوع</Button>
+        </div>
+      )}
+
+      {showForm && (<>
+      <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2"><Label>اسم المنصة</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أمازون" /></div>
           <div className="space-y-2">
@@ -104,10 +169,10 @@ function PlatformDialog({
         <div className="space-y-2">
           <Label>مزامنة المنتجات (للمنصات المربوطة)</Label>
           <select className={selectCls} value={productSyncMode} onChange={(e) => setProductSyncMode(e.target.value)}>
-            <option value="create">ربط الموجود + إنشاء المنتجات الجديدة</option>
-            <option value="link">ربط المنتجات الموجودة فقط</option>
+            <option value="create">ربط بالـASIN + إنشاء الجديد (كامل)</option>
+            <option value="link">ربط بالـASIN فقط (إثراء البيانات)</option>
           </select>
-          <p className="text-xs text-muted-foreground">عند «مزامنة الآن»: يربط منتجات المنصّة بأصنافك عبر SKU/ASIN، والمنتج غير الموجود يُنشأ صنفًا جديدًا (أو يُتجاهَل في وضع الربط فقط).</p>
+          <p className="text-xs text-muted-foreground">الربط يتم فقط لو الـASIN مضاف في أكواد الصنف عندك. «ربط فقط»: يكمّل بيانات المطابق ويتجاهل غير المطابق (يظهر «محتاج ASIN»). «ربط + إنشاء»: ينشئ صنفًا كاملًا لغير المطابق.</p>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label>مصادر المزامنة</Label>
@@ -143,6 +208,7 @@ function PlatformDialog({
         <Button variant="outline" onClick={onClose}>إلغاء</Button>
         <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
       </DialogFooter>
+      </>)}
     </DialogContent>
   );
 }

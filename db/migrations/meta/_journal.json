@@ -302,6 +302,13 @@
       "when": 1783956938530,
       "tag": "0042_dizzy_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1784015894951,
+      "tag": "0043_clammy_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

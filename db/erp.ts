@@ -1446,8 +1446,10 @@ export const salesPlatforms = pgTable(
     customerId: text("customer_id").references(() => customers.id),
     defaultWarehouseId: text("default_warehouse_id").references(() => warehouses.id),
     bankAccountId: text("bank_account_id").references(() => bankAccounts.id),
-    // Product sync behaviour: "create" = link existing items by ASIN/SKU AND
-    // create new items for unmatched listings; "link" = link existing only.
+    // Amazon fulfillment channel — FBA (live) | FBM | FLEX. null for generic/manual.
+    fulfillmentType: text("fulfillment_type"),
+    // Product sync behaviour: "create" = link existing items by ASIN AND create
+    // new items for unmatched listings; "link" = link existing (by ASIN) only.
     productSyncMode: text("product_sync_mode").notNull().default("create"),
     // Which sources "مزامنة الآن" pulls for this platform.
     syncProducts: boolean("sync_products").notNull().default(true),

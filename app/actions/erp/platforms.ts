@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { round2 } from "@/lib/erp/money";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -21,6 +22,7 @@ const schema = z.object({
   defaultWarehouseId: z.string().optional().nullable(),
   bankAccountId: z.string().optional().nullable(),
   productSyncMode: z.enum(["create", "link"]).optional(),
+  fulfillmentType: z.enum(["FBA", "FBM", "FLEX"]).optional().nullable(),
   syncProducts: z.boolean().optional(),
   syncOrders: z.boolean().optional(),
   syncInventory: z.boolean().optional(),
@@ -78,6 +80,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
         defaultWarehouseId: defaultWarehouseId || null,
         bankAccountId: bankAccountId || null,
         ...(parsed.data.productSyncMode ? { productSyncMode: parsed.data.productSyncMode } : {}),
+        ...(parsed.data.fulfillmentType !== undefined ? { fulfillmentType: parsed.data.fulfillmentType } : {}),
         ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
         ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
         ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
@@ -94,6 +97,25 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
     return { ok: true, id };
   } catch {
     return { error: "تعذّر إنشاء المنصة" };
+  }
+}
+
+/**
+ * One-click automatic setup for a connector-backed platform: provisions the
+ * platform + its customer + fulfillment warehouse + settlement bank (all
+ * overridable later). Amazon/FBA is the only live path today.
+ */
+export async function provisionMarketplaceAction(input: { connector: string; fulfillment: string }): Promise<ActionState & { code?: string }> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  if (input.connector !== "AMAZON") return { error: "الربط الآلي متاح لأمازون فقط حاليًا" };
+  if (input.fulfillment !== "FBA") return { error: "نوع التنفيذ المتاح حاليًا هو FBA فقط" };
+  try {
+    await ensureAmazonPlatform(auth.orgId); // creates platform + customer + FBA warehouse + Amazon Wallet bank
+    revalidatePath("/erp/platforms");
+    return { ok: true, code: "amazon" };
+  } catch {
+    return { error: "تعذّر التجهيز التلقائي" };
   }
 }
 
@@ -117,6 +139,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
     ...(name !== undefined ? { name } : {}),
     ...(integrationType !== undefined ? { integrationType } : {}),
     ...(parsed.data.productSyncMode !== undefined ? { productSyncMode: parsed.data.productSyncMode } : {}),
+    ...(parsed.data.fulfillmentType !== undefined ? { fulfillmentType: parsed.data.fulfillmentType } : {}),
     ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
     ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
     ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),

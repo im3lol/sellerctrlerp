@@ -8,7 +8,7 @@ import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { fulfillOrder } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
-import { classifyOrders, type PreviewOrder, type OrdersPreview } from "./classify";
+import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
 import type { CatalogRecord } from "./connector";
@@ -235,24 +235,30 @@ async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
 }
 
 /**
- * Sync a marketplace's listings into the item catalog (mirrors the two manual
- * flows in amazon-codes.ts):
- *   • existing item matched by SKU/ASIN → attach its SKU + ASIN item_codes (link).
- *   • unmatched listing → create a new item (auto code P-xxxxx, name, price) +
- *     its codes — only when mode = "create"; "link" skips it.
- * Idempotent: listings whose SKU/ASIN is already a code are counted alreadyLinked.
+ * Sync a marketplace's listings into the item catalog. Linking to an existing
+ * item REQUIRES the listing's ASIN to already be an `ASIN` item_code on that item
+ * (the customer tags their catalog with ASINs); a matched item is only enriched
+ * later (fill-only), never overwritten.
+ *   • `link`   — match by existing ASIN item_code only. Unmatched listings are
+ *                skipped and reported (`skippedUnmatched` = "needs an ASIN code").
+ *   • `create` — same ASIN match; unmatched listings become new items (auto code
+ *                P-xxxxx + name + price + SKU/ASIN codes), enriched right after.
+ * Idempotent: a matched item already carrying the SKU code counts as alreadyLinked.
  */
 export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode): Promise<ProductsResult> {
   const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0 };
   if (products.length === 0) return result;
 
-  const [codeRows, itemRows] = await Promise.all([
+  // Linking is keyed on ASIN item_codes ONLY (codeType-filtered). `known` = every
+  // existing normalized code (any type), used to detect an already-attached SKU.
+  const [asinRows, allCodeRows] = await Promise.all([
+    db.select({ itemId: itemCodes.itemId, norm: itemCodes.normalizedCode }).from(itemCodes)
+      .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, "ASIN"))),
     db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
-    db.select({ id: items.id, code: items.code }).from(items).where(eq(items.organizationId, orgId)),
   ]);
-  const linked = new Set(codeRows.map((r) => r.norm).filter((x): x is string => !!x));
-  const itemByCode = new Map<string, string>();
-  for (const it of itemRows) itemByCode.set(normalizeCode(it.code), it.id);
+  const itemByAsin = new Map<string, string>();
+  for (const r of asinRows) if (r.norm && !itemByAsin.has(r.norm)) itemByAsin.set(r.norm, r.itemId);
+  const known = new Set(allCodeRows.map((r) => r.norm).filter((x): x is string => !!x));
 
   const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
   const seen = new Set<string>();
@@ -265,21 +271,12 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
     codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
   };
 
-  const toCreate: MarketplaceProduct[] = [];
-  for (const p of products) {
-    const nSku = normalizeCode(p.code), nAsin = normalizeCode(p.altCode || "");
-    if (linked.has(nSku) || (nAsin && linked.has(nAsin))) { result.alreadyLinked++; continue; }
-    const matchId = itemByCode.get(nSku) ?? (nAsin ? itemByCode.get(nAsin) : undefined);
-    if (matchId) {
-      pushCode(matchId, "SKU", p.code);
-      if (p.altCode) pushCode(matchId, "ASIN", p.altCode);
-      result.linked++;
-    } else if (mode === "create") {
-      toCreate.push(p);
-    } else {
-      result.skippedUnmatched++;
-    }
-  }
+  const plan = classifyProducts(products, itemByAsin, known, mode);
+  for (const l of plan.toLink) pushCode(l.itemId, "SKU", l.sku);
+  result.linked = plan.toLink.length;
+  result.alreadyLinked = plan.alreadyLinked;
+  result.skippedUnmatched = plan.skippedUnmatched;
+  const toCreate = plan.toCreate;
 
   await db.transaction(async (tx) => {
     if (toCreate.length) {

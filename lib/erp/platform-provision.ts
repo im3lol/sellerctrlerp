@@ -1,8 +1,25 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts, accounts } from "@/db/schema";
 
 export type AmazonPlatform = { platformId: string; customerId: string; warehouseId: string; bankAccountId: string | null };
+
+/**
+ * Get-or-create the "Amazon Wallet" settlement bank. Linked to the org's bank GL
+ * account (1102, a leaf) as a sub-ledger when present; unlinked otherwise (the
+ * user can attach a GL account later from the bank screen).
+ */
+async function ensureAmazonBank(orgId: string): Promise<string> {
+  const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
+    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "Amazon Wallet"))).limit(1);
+  if (existing) return existing.id;
+  const [gl] = await db.select({ id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "1102"), eq(accounts.isLeaf, true))).limit(1);
+  const [row] = await db.insert(bankAccounts)
+    .values({ organizationId: orgId, nameAr: "Amazon Wallet", bankName: "Amazon", glAccountId: gl?.id ?? null })
+    .returning({ id: bankAccounts.id });
+  return row.id;
+}
 
 /**
  * Resolve (get-or-create) the AMAZON sales platform and its customer + FBA
@@ -34,23 +51,29 @@ export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatfor
     warehouseId = wh.id;
   }
 
+  // Settlement bank (Amazon Wallet) — provisioned once, reused thereafter.
+  const bankAccountId = existing?.bankAccountId ?? await ensureAmazonBank(orgId);
+
   if (!existing) {
     // Upsert on the (organizationId, code) unique index so two concurrent imports
     // can't collide — the loser reuses the winner's row instead of throwing.
     const [created] = await db.insert(salesPlatforms).values({
       organizationId: orgId, name: "أمازون", code: "AMAZON", integrationType: "amazon",
-      customerId, defaultWarehouseId: warehouseId,
+      customerId, defaultWarehouseId: warehouseId, bankAccountId, fulfillmentType: "FBA",
     }).onConflictDoUpdate({
       target: [salesPlatforms.organizationId, salesPlatforms.code],
       set: { customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() },
-    }).returning({ id: salesPlatforms.id, bankAccountId: salesPlatforms.bankAccountId });
-    return { platformId: created.id, customerId, warehouseId, bankAccountId: created.bankAccountId ?? null };
+    }).returning({ id: salesPlatforms.id });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId };
   }
 
-  // Backfill any missing links on an existing platform.
-  if (!existing.customerId || !existing.defaultWarehouseId) {
-    await db.update(salesPlatforms).set({ customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() })
-      .where(eq(salesPlatforms.id, existing.id));
+  // Backfill any missing links/defaults on an existing platform (never overrides
+  // a value the user already set — bank/warehouse/fulfillment stay theirs).
+  if (!existing.customerId || !existing.defaultWarehouseId || !existing.bankAccountId || !existing.fulfillmentType) {
+    await db.update(salesPlatforms).set({
+      customerId, defaultWarehouseId: warehouseId, bankAccountId,
+      fulfillmentType: existing.fulfillmentType ?? "FBA", updatedAt: new Date(),
+    }).where(eq(salesPlatforms.id, existing.id));
   }
-  return { platformId: existing.id, customerId, warehouseId, bankAccountId: existing.bankAccountId ?? null };
+  return { platformId: existing.id, customerId, warehouseId, bankAccountId };
 }

@@ -1,4 +1,4 @@
-import type { MarketplaceOrder } from "./dto";
+import type { MarketplaceOrder, MarketplaceProduct } from "./dto";
 
 // Pure order-routing logic (no DB/action imports) so it stays unit-testable.
 // Given a resolver (code→item) and the set of already-imported orders, sort each
@@ -58,4 +58,44 @@ export function classifyOrders(
     toCreate.push(po);
   }
   return { totalOrders: orders.length, toCreate, transitions, duplicates, blocked, unmatched: [...unmatchedMap.values()] };
+}
+
+// ── Product routing (pure) ──
+// Same upper+alnum normalization as lib/erp/amazon-import.normalizeCode, inlined
+// to keep this module DB-free (unit-testable).
+const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+export type ProductPlan = {
+  toLink: { itemId: string; sku: string }[]; // matched item — attach its SKU code
+  toCreate: MarketplaceProduct[];
+  alreadyLinked: number;
+  skippedUnmatched: number;
+};
+
+/**
+ * Decide link/create/skip per listing. Linking REQUIRES the listing's ASIN to be
+ * in `itemByAsin` (normalized ASIN item_code → itemId). `known` = every existing
+ * normalized code, to tell an already-attached SKU from a new one. `link` skips
+ * unmatched (needs ASIN); `create` queues them for a new item.
+ */
+export function classifyProducts(
+  products: MarketplaceProduct[],
+  itemByAsin: Map<string, string>,
+  known: Set<string>,
+  mode: "create" | "link",
+): ProductPlan {
+  const plan: ProductPlan = { toLink: [], toCreate: [], alreadyLinked: 0, skippedUnmatched: 0 };
+  for (const p of products) {
+    const nSku = norm(p.code), nAsin = norm(p.altCode || "");
+    const matchId = nAsin ? itemByAsin.get(nAsin) : undefined;
+    if (matchId) {
+      if (nSku && !known.has(nSku)) plan.toLink.push({ itemId: matchId, sku: p.code });
+      else plan.alreadyLinked++;
+    } else if (mode === "create") {
+      plan.toCreate.push(p);
+    } else {
+      plan.skippedUnmatched++;
+    }
+  }
+  return plan;
 }
