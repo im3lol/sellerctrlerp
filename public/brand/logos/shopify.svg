@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 100" fill="#000">
+  <path d="M26 36 h46 l7 46 a5 5 0 0 1 -5 6 h-50 a5 5 0 0 1 -5 -6 z" fill="#000"/>
+  <path d="M37 36 a12 12 0 0 1 24 0" fill="none" stroke="#000" stroke-width="6"/>
+  <text x="94" y="70" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="700">shopify</text>
+</svg>

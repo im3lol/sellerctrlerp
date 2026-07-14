@@ -27,12 +27,12 @@ type ConnectorInfo = { code: string; label: string };
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
-// Brand tiles for the automatic picker (colored monograms, not official logos).
-const BRANDS: { code: string; label: string; color: string }[] = [
-  { code: "AMAZON", label: "أمازون", color: "#FF9900" },
-  { code: "NOON", label: "نون", color: "#FEDD00" },
-  { code: "JUMIA", label: "جوميا", color: "#F68B1E" },
-  { code: "SHOPIFY", label: "شوبيفاي", color: "#5E8E3E" },
+// Brand tiles for the automatic picker. Monochrome logos in /public/logos —
+// swap those files to change the artwork; the box size normalizes any aspect ratio.
+const BRANDS: { code: string; label: string; logo: string }[] = [
+  { code: "AMAZON", label: "أمازون", logo: "/brand/logos/amazon.svg" },
+  { code: "NOON", label: "نون", logo: "/brand/logos/noon.svg" },
+  { code: "SHOPIFY", label: "شوبيفاي", logo: "/brand/logos/shopify.svg" },
 ];
 const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean }[] = [
   { code: "FBA", label: "FBA", hint: "أمازون يخزّن ويشحن", active: true },
@@ -121,9 +121,9 @@ function PlatformDialog({
             {BRANDS.map((b) => {
               const on = activeCodes.has(b.code);
               return (
-                <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`${tileCls} ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg text-xs font-bold text-black" style={{ backgroundColor: b.color }}>{b.label.slice(0, 2)}</span>
-                  <span className="flex-1 font-medium">{b.label}</span>
+                <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`${tileCls} justify-between ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={b.logo} alt={b.label} className="h-7 w-24 shrink-0 object-contain object-right dark:invert" />
                   {!on && <Badge variant="secondary">قريبًا</Badge>}
                 </button>
               );
