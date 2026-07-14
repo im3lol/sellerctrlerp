@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User as UserIcon, ShieldCheck } from "lucide-react";
+import { LogOut, User as UserIcon, ShieldCheck, CreditCard } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -54,6 +54,12 @@ export function UserMenu({
           <a href="/profile" className="cursor-pointer">
             <UserIcon className="size-4" />
             الملف الشخصي
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href="/erp/settings/subscription" className="cursor-pointer">
+            <CreditCard className="size-4" />
+            الاشتراك والباقة
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

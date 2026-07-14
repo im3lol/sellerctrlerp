@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Check, Copy } from "lucide-react";
+import { Loader2, Check, Copy, MessageCircle } from "lucide-react";
 import { requestSubscriptionAction } from "@/app/actions/erp/subscription";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
-import { PAYMENT_METHODS, WALLET_NUMBER } from "@/lib/erp/payment-info";
+import { PAYMENT_METHODS, WALLET_NUMBER, SUPPORT_WHATSAPP } from "@/lib/erp/payment-info";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
+export type Account = { orgName: string; userName: string; email: string };
 
 const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
 const cap = (n: number | null, unit: string) => (n == null ? "بلا حد" : `${n.toLocaleString("ar-EG")} ${unit}`);
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 
-function SubscribeDialog({ plan, onClose }: { plan: PlanCard; onClose: () => void }) {
+function SubscribeDialog({ plan, account, onClose }: { plan: PlanCard; account: Account; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [interval, setInterval] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
@@ -29,17 +30,36 @@ function SubscribeDialog({ plan, onClose }: { plan: PlanCard; onClose: () => voi
   const price = interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
   const chosen = PAYMENT_METHODS.find((m) => m.key === method)!;
 
+  // Open WhatsApp support prefilled with the account + plan details for the
+  // post-transfer handoff (payment is verified manually by support).
+  const openWhatsApp = () => {
+    const lines = [
+      "مرحبًا، أرغب في تفعيل اشتراك SellerCtrl بعد التحويل 👇",
+      `• الشركة: ${account.orgName}`,
+      `• الاسم: ${account.userName}`,
+      `• البريد: ${account.email}`,
+      `• الباقة: ${plan.name} — ${interval === "ANNUAL" ? "سنوي" : "شهري"}`,
+      `• المبلغ: ${egp(price)}`,
+      `• طريقة الدفع: ${chosen.label}`,
+      `• مرجع التحويل: ${reference.trim() || "—"}`,
+    ];
+    window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
+  };
+
   const submit = () => start(async () => {
     const r = await requestSubscriptionAction({ planId: plan.id, interval, paymentMethod: method, paymentReference: reference });
-    if ("ok" in r) { toast.success("تم إرسال طلب الاشتراك — سيتم تفعيله بعد مراجعة الدفع"); onClose(); router.refresh(); }
-    else toast.error(r.error);
+    if ("ok" in r) {
+      openWhatsApp();
+      toast.success("تم إرسال الطلب — أكمل مع الدعم على واتساب لتفعيل الاشتراك");
+      onClose(); router.refresh();
+    } else toast.error(r.error);
   });
 
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
         <DialogTitle>الاشتراك في باقة {plan.name}</DialogTitle>
-        <DialogDescription>اختر الدورة وطريقة الدفع، ثم أرسل الطلب ليتم تفعيله بعد مراجعة الدفع.</DialogDescription>
+        <DialogDescription>حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -76,13 +96,16 @@ function SubscribeDialog({ plan, onClose }: { plan: PlanCard; onClose: () => voi
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>إلغاء</Button>
-        <Button onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}إرسال الطلب</Button>
+        <Button onClick={submit} disabled={pending} className="bg-[#25D366] text-white hover:bg-[#20bd5a]">
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}
+          متابعة عبر واتساب
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
-export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPending }: { plans: PlanCard[]; currentPlanId: string | null; canSubscribe: boolean; hasPending: boolean }) {
+export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPending, account }: { plans: PlanCard[]; currentPlanId: string | null; canSubscribe: boolean; hasPending: boolean; account: Account }) {
   const [chosen, setChosen] = useState<PlanCard | null>(null);
   if (plans.length === 0) return <p className="text-sm text-muted-foreground">لا توجد باقات متاحة حالياً — تواصل مع الدعم.</p>;
 
@@ -118,7 +141,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
       {!canSubscribe && <p className="mt-3 text-sm text-muted-foreground">صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك.</p>}
       {hasPending && <p className="mt-3 text-sm text-amber-600">لديك طلب قيد المراجعة — لا يمكن إرسال طلب جديد حتى تتم مراجعته.</p>}
       <Dialog open={!!chosen} onOpenChange={(o) => !o && setChosen(null)}>
-        {chosen && <SubscribeDialog plan={chosen} onClose={() => setChosen(null)} />}
+        {chosen && <SubscribeDialog plan={chosen} account={account} onClose={() => setChosen(null)} />}
       </Dialog>
     </>
   );

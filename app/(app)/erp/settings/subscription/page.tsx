@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { requireErpModule } from "@/lib/erp/org";
+import { requireErpModule, getActiveOrg } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { plans } from "@/db/schema";
 import { getSubscriptionState } from "@/lib/erp/subscription";
@@ -21,6 +21,8 @@ const fmtBytes = (b: number) => {
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ locked?: string }> }) {
   const { orgId, role } = await requireErpModule("settings.view");
   const { locked } = await searchParams;
+  const { user, org } = await getActiveOrg();
+  const account = { orgName: org?.nameAr ?? "", userName: user?.name ?? "", email: user?.email ?? "" };
 
   const [state, members, storageBytes, catalog, latest] = await Promise.all([
     getSubscriptionState(orgId),
@@ -82,7 +84,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">الباقات المتاحة</h2>
-        <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} />
+        <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} />
       </div>
     </div>
   );
