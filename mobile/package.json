@@ -5,6 +5,7 @@
   "description": "SellerCtrl Android shell (Capacitor) — opens the live web app + native barcode scanner",
   "scripts": {
     "add:android": "cap add android",
+    "assets": "capacitor-assets generate --android",
     "sync": "cap sync",
     "open:android": "cap open android",
     "run:android": "cap run android"
@@ -15,6 +16,7 @@
     "@capacitor-mlkit/barcode-scanning": "^8.1.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.1"
   }
 }

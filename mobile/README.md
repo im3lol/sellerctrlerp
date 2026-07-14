@@ -13,8 +13,11 @@
 cd mobile
 npm install
 npx cap add android      # يولّد مجلد android/ (native project — مش مرفوع على git)
+npm run assets           # يولّد أيقونة التطبيق + السبلاش من mobile/assets/ لكل الكثافات
 npx cap sync
 ```
+أصول البراند جاهزة في `mobile/assets/` (`icon.png`, `icon-foreground.png`,
+`icon-background.png`, `splash.png`, `splash-dark.png`). عدّلها لو حبيت وأعد `npm run assets`.
 
 ## البناء والتشغيل
 ```bash
