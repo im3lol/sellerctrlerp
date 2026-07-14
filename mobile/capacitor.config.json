@@ -1,0 +1,9 @@
+{
+  "appId": "com.sellerctrl.app",
+  "appName": "SellerCtrl",
+  "webDir": "www",
+  "server": {
+    "url": "https://sellerctrl.com",
+    "androidScheme": "https"
+  }
+}
