@@ -3,7 +3,12 @@
   "appName": "SellerCtrl",
   "webDir": "www",
   "server": {
-    "url": "https://sellerctrl.com",
-    "androidScheme": "https"
+    "url": "https://www.sellerctrl.com",
+    "androidScheme": "https",
+    "allowNavigation": ["www.sellerctrl.com", "sellerctrl.com"]
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": false },
+    "CapacitorCookies": { "enabled": false }
   }
 }
