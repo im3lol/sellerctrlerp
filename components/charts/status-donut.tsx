@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 type Slice = { name: string; value: number; color: string };
 
-export function StatusDonut({ data }: { data: Slice[] }) {
+export function StatusDonut({ data, unit = "عنصر" }: { data: Slice[]; unit?: string }) {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   if (total === 0) {
@@ -28,8 +28,8 @@ export function StatusDonut({ data }: { data: Slice[] }) {
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold tabular-nums">{total}</span>
-          <span className="text-xs text-muted-foreground">منتج</span>
+          <span className="text-2xl font-bold tabular-nums">{total.toLocaleString("ar-EG-u-nu-latn")}</span>
+          <span className="text-xs text-muted-foreground">{unit}</span>
         </div>
       </div>
       <ul className="flex-1 space-y-1.5">

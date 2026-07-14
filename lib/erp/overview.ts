@@ -171,3 +171,18 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     recentPurchases: recentPurchases.map((r) => ({ number: r.number, supplier: r.supplier ?? "—", amount: Number(r.amount), date: r.date })),
   };
 }
+
+/** Daily POSTED sales-invoice totals for the last `days` days (continuous 0-filled series). */
+export async function getSalesTrend(orgId: string, days = 30): Promise<{ label: string; value: number }[]> {
+  const since = new Date(Date.now() - days * 864e5);
+  const rows = await db
+    .select({ d: sql<string>`to_char(${salesInvoices.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
+    .from(salesInvoices)
+    .where(and(eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "POSTED"), gte(salesInvoices.date, since)))
+    .groupBy(sql`to_char(${salesInvoices.date}, 'YYYY-MM-DD')`);
+  const byDay = new Map(rows.map((r) => [r.d, Number(r.t)]));
+  return Array.from({ length: days }, (_, i) => {
+    const day = new Date(Date.now() - (days - 1 - i) * 864e5);
+    return { label: day.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }), value: byDay.get(day.toISOString().slice(0, 10)) ?? 0 };
+  });
+}

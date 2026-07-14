@@ -3,9 +3,10 @@ import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules } from "@/lib/erp/entitlements";
 import { getSubscriptionState } from "@/lib/erp/subscription";
-import { getErpOverview, getPendingWork } from "@/lib/erp/overview";
-import { Card, CardContent } from "@/components/ui/card";
+import { getErpOverview, getPendingWork, getSalesTrend } from "@/lib/erp/overview";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { NeedsAttention } from "@/components/erp/needs-attention";
+import { TrendChart } from "@/components/charts/trend-chart";
 import { Icon } from "@/components/icon";
 
 const TILES: { label: string; href: string; icon: string; module: string; desc: string }[] = [
@@ -40,6 +41,10 @@ export default async function DashboardPage() {
   // Consolidated cross-module workflow inbox (one query, fail-safe).
   let pending: Awaited<ReturnType<typeof getPendingWork>> | null = null;
   try { pending = org ? await getPendingWork(org.id) : null; } catch { pending = null; }
+
+  // 30-day sales trend (fail-safe — degrades to no chart).
+  let salesTrend: { label: string; value: number }[] = [];
+  try { salesTrend = org ? await getSalesTrend(org.id, 30) : []; } catch { salesTrend = []; }
   const pendingTiles = pending
     ? [
         { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/erp/accounting/journal", icon: "BookText" },
@@ -97,6 +102,12 @@ export default async function DashboardPage() {
               {ov.lowStock > 0 && <Link href="/erp/inventory/reorder" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">مخزون منخفض: {intl(ov.lowStock)}</Link>}
               {ov.nearExpiryCount > 0 && <Link href="/erp/inventory/expiry" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">قرب انتهاء الصلاحية: {intl(ov.nearExpiryCount)}</Link>}
             </div>
+          )}
+          {salesTrend.some((s) => s.value > 0) && (
+            <Card>
+              <CardHeader><CardTitle>اتجاه المبيعات</CardTitle><CardDescription>مبيعات مُرحّلة يوميًا — آخر ٣٠ يومًا.</CardDescription></CardHeader>
+              <CardContent><TrendChart data={salesTrend} valueLabel="المبيعات" money id="dashboard-sales" /></CardContent>
+            </Card>
           )}
         </>
       )}

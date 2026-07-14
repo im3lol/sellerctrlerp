@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PlatformActions } from "@/components/erp/platform-actions";
 import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
+import { TrendChart } from "@/components/charts/trend-chart";
+import { StatusDonut } from "@/components/charts/status-donut";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { getConnection } from "@/lib/erp/marketplace/connection";
 
@@ -20,7 +22,15 @@ export const maxDuration = 300;
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const int = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
-const STATUS: Record<string, string> = { DRAFT: "مسودة", CONFIRMED: "مؤكّد", PARTIALLY_DELIVERED: "تسليم جزئي", DELIVERED: "مُسلّم", INVOICED: "مفوتر", CANCELLED: "ملغى" };
+// Fixed categorical colors (dataviz reference palette, validated order) — labels + hue per status.
+const STATUS: Record<string, { label: string; color: string }> = {
+  DRAFT: { label: "مسودة", color: "#2a78d6" },
+  CONFIRMED: { label: "مؤكّد", color: "#1baf7a" },
+  PARTIALLY_DELIVERED: { label: "تسليم جزئي", color: "#eda100" },
+  DELIVERED: { label: "مُسلّم", color: "#008300" },
+  INVOICED: { label: "مفوتر", color: "#4a3aa7" },
+  CANCELLED: { label: "ملغى", color: "#e34948" },
+};
 
 function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "danger" | "ok" }) {
   return (
@@ -44,6 +54,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
       id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
       integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive,
       syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory,
+      defaultWarehouseId: salesPlatforms.defaultWarehouseId,
       customerId: salesPlatforms.customerId, customerName: customers.nameAr, customerBalance: customers.balance,
       warehouseName: warehouses.nameAr, bankName: bankAccounts.nameAr,
     })
@@ -64,6 +75,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
   // serverless) degrades this section instead of crashing the whole page. Split
   // into small batches to keep the concurrent-connection burst low.
   let ordersCount = 0, salesTotal = 0, monthN = 0, monthTotal = 0, retN = 0, retTotal = 0, collTotal = 0;
+  let productCount = 0, invQty = 0;
+  let salesSeries: { label: string; value: number }[] = [];
   let statusRows: { status: string; n: number }[] = [];
   let topItems: { name: string | null; code: string; qty: string; total: string }[] = [];
   let recent: { number: string; date: Date; status: string; ext: string | null; total: string }[] = [];
@@ -93,6 +106,32 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     ]);
     topItems = top; recent = rec;
     retN = Number(ret?.n ?? 0); retTotal = Number(ret?.total ?? 0); collTotal = Number(coll?.total ?? 0);
+
+    // Catalog size, on-hand for the platform's warehouse, and a 30-day sales trend.
+    const whId = platform.defaultWarehouseId;
+    const since = new Date(Date.now() - 30 * 864e5);
+    const [[pc], invRes, trendR] = await Promise.all([
+      db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
+      db.execute<{ q: string }>(sql`
+        SELECT COALESCE(SUM(bq), 0) AS q FROM (
+          SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
+          FROM stock_movements
+          WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
+          ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+        ) t`),
+      db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
+        .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, since)))
+        .groupBy(sql`to_char(${salesOrders.date}, 'YYYY-MM-DD')`),
+    ]);
+    productCount = Number(pc?.n ?? 0);
+    invQty = Number((invRes.rows?.[0] as { q?: string })?.q ?? 0);
+    // Fill a continuous 30-day series (0 on days with no sales) so the line is unbroken.
+    const byDay = new Map(trendR.map((r) => [r.d, Number(r.t)]));
+    salesSeries = Array.from({ length: 30 }, (_, i) => {
+      const day = new Date(Date.now() - (29 - i) * 864e5);
+      const key = day.toISOString().slice(0, 10);
+      return { label: day.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }), value: byDay.get(key) ?? 0 };
+    });
   } catch {
     analyticsFailed = true;
   }
@@ -136,6 +175,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
       {/* Smart KPIs */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Kpi label="عدد المنتجات" value={int(productCount)} hint="أصناف الكتالوج النشطة" />
+        <Kpi label="كمية المخزون" value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
         <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
         <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
         <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />
@@ -143,6 +184,16 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(collTotal)} tone="ok" />
         <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
       </div>
+
+      {/* Sales trend — last 30 days */}
+      <Card>
+        <CardHeader><CardTitle>اتجاه المبيعات</CardTitle><CardDescription>إجمالي المبيعات اليومية على المنصة — آخر ٣٠ يومًا.</CardDescription></CardHeader>
+        <CardContent>
+          {salesSeries.some((s) => s.value > 0)
+            ? <TrendChart data={salesSeries} valueLabel="المبيعات" money id="platform-sales" />
+            : <div className="py-10 text-center text-sm text-muted-foreground">لا توجد مبيعات في آخر ٣٠ يومًا.</div>}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top items */}
@@ -174,7 +225,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                     <TableRow key={o.number}>
                       <TableCell><Link href={`/erp/sales/orders/${encodeURIComponent(o.number)}`} className="text-primary hover:underline">{o.number}</Link>{o.ext && <div className="font-mono text-[10px] text-muted-foreground">{o.ext}</div>}</TableCell>
                       <TableCell>{dt(o.date)}</TableCell>
-                      <TableCell><Badge variant="outline">{STATUS[o.status] ?? o.status}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{STATUS[o.status]?.label ?? o.status}</Badge></TableCell>
                       <TableCell className="tabular-nums">{fmt(o.total)}</TableCell>
                     </TableRow>
                   ))}
@@ -187,9 +238,12 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
       {statusRows.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>توزيع حالات الأوامر</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {statusRows.map((s) => <Badge key={s.status} variant="secondary">{STATUS[s.status] ?? s.status}: {int(s.n)}</Badge>)}
+          <CardHeader><CardTitle>توزيع حالات الأوامر</CardTitle><CardDescription>عدد الأوامر حسب الحالة.</CardDescription></CardHeader>
+          <CardContent>
+            <StatusDonut
+              unit="أمر"
+              data={statusRows.map((s) => ({ name: STATUS[s.status]?.label ?? s.status, value: Number(s.n), color: STATUS[s.status]?.color ?? "#94a3b8" }))}
+            />
           </CardContent>
         </Card>
       )}
