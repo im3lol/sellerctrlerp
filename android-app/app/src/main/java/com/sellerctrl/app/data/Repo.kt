@@ -1,0 +1,40 @@
+package com.sellerctrl.app.data
+
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.create
+
+class Repo(val store: TokenStore) {
+    private val json = Json { ignoreUnknownKeys = true }
+    private val client = OkHttpClient.Builder()
+        .addInterceptor(AuthInterceptor(store))
+        .build()
+    private val api: Api = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(client)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+        .create()
+
+    fun isLoggedIn(): Boolean = !store.token.isNullOrEmpty()
+    fun orgName(): String = store.orgName ?: ""
+    fun userName(): String = store.userName ?: ""
+
+    suspend fun login(username: String, password: String): LoginResp {
+        val r = api.login(LoginReq(username.trim(), password))
+        val org = r.orgs.firstOrNull()
+        store.save(r.token, org?.id ?: "", org?.name ?: "", r.user.name)
+        return r
+    }
+
+    suspend fun search(q: String): List<ItemDto> = api.search(q).data
+    suspend fun scan(code: String): ItemDto = api.scan(code).data
+    suspend fun logout() = store.clear()
+
+    companion object {
+        const val BASE_URL = "https://www.sellerctrl.com/"
+    }
+}
