@@ -35,6 +35,8 @@ class Repo(val store: TokenStore) {
     suspend fun logout() = store.clear()
 
     companion object {
-        const val BASE_URL = "https://www.sellerctrl.com/"
+        // Local test build: talks to the Docker app via `adb reverse tcp:3001`.
+        // For production, switch to "https://www.sellerctrl.com/".
+        const val BASE_URL = "http://localhost:3001/"
     }
 }
