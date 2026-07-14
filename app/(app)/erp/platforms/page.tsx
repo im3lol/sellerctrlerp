@@ -7,7 +7,7 @@ import { PlatformsManager } from "@/components/erp/platforms-manager";
 import { connectableConnectors } from "@/lib/erp/marketplace/registry";
 
 export default async function PlatformsPage() {
-  const { orgId, can } = await requireErpModule("sales.view");
+  const { orgId, can } = await requireErpModule("sales.view", "marketplace");
 
   const [rows, whRows, bankRows] = await Promise.all([
     db.select({

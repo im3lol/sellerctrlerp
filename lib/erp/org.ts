@@ -51,6 +51,7 @@ export const getActiveOrg = cache(async (): Promise<{
  */
 export async function requireErpModule(
   permission: ErpPermission,
+  moduleOverride?: string,
 ): Promise<{ orgId: string; role: string; can: (p: ErpPermission) => boolean }> {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
@@ -60,8 +61,10 @@ export async function requireErpModule(
   if (!access.permissions.has(permission)) redirect("/dashboard");
   // Subscription entitlement: the tenant must have the module enabled. The
   // platform owner (system_admin) bypasses so they can support any account.
+  // `moduleOverride` gates on a different module than the permission's own
+  // (e.g. platforms pages use sales.* RBAC but gate on the "marketplace" plan).
   if (user.role !== "system_admin") {
-    const mod = moduleOfPermission(permission);
+    const mod = moduleOverride ?? moduleOfPermission(permission);
     // Locked (trial lapsed / no active plan) or module not in the plan → send to
     // the in-app subscription page to pick a plan.
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/erp/settings/subscription?locked=${mod}`);

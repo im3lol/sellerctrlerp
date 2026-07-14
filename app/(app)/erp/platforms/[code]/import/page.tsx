@@ -18,7 +18,7 @@ export default async function PlatformImportPage({
 }: { params: Promise<{ code: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { code: codeParam } = await params;
   const { tab } = await searchParams;
-  const { orgId } = await requireErpModule("sales.create");
+  const { orgId } = await requireErpModule("sales.create", "marketplace");
 
   const [platform] = await db.select().from(salesPlatforms)
     .where(and(eq(salesPlatforms.code, codeParam.toUpperCase()), eq(salesPlatforms.organizationId, orgId))).limit(1);

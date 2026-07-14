@@ -12,7 +12,7 @@ const LOOKBACK_DAYS = 30;
 
 /** Step 1 — sync the product catalog (link existing + create new + enrichment). */
 export async function syncProductsAction(code: string): Promise<ProductsSync> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   const p = await prepareSync(auth.orgId, code);
   if ("error" in p) return { ok: false, error: p.error };
@@ -25,7 +25,7 @@ export async function syncProductsAction(code: string): Promise<ProductsSync> {
 
 /** Step 2 — sync sales (orders, last 30 days) through the sales-order cycle. */
 export async function syncOrdersAction(code: string): Promise<OrdersSync> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   const p = await prepareSync(auth.orgId, code);
   if ("error" in p) return { ok: false, error: p.error };
@@ -40,7 +40,7 @@ export async function syncOrdersAction(code: string): Promise<OrdersSync> {
 
 /** Step 3 — reconcile inventory (read-only preview; confirmed separately). */
 export async function syncInventoryAction(code: string): Promise<InventorySync> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   const p = await prepareSync(auth.orgId, code);
   if ("error" in p) return { ok: false, error: p.error };

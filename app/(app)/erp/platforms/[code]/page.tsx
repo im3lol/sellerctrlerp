@@ -47,7 +47,7 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
   const { code: codeParam } = await params;
   const { connected, err } = await searchParams;
-  const { orgId } = await requireErpModule("sales.view");
+  const { orgId } = await requireErpModule("sales.view", "marketplace");
 
   const [platform] = await db
     .select({

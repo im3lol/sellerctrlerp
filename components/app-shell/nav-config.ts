@@ -34,6 +34,7 @@ export const NAV: NavSection[] = [
     heading: "المنصات",
     href: "/erp/platforms",
     capability: "erp.sales.view",
+    moduleKey: "marketplace",
     icon: "Store",
     dynamicKey: "platforms",
     // The heading itself opens the all-platforms page; the added platforms are
