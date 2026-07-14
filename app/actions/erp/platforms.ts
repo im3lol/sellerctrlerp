@@ -26,6 +26,7 @@ const schema = z.object({
   syncProducts: z.boolean().optional(),
   syncOrders: z.boolean().optional(),
   syncInventory: z.boolean().optional(),
+  autoInvoice: z.boolean().optional(),
 });
 
 /** Validate that an optional FK id belongs to the active org (or is empty). */
@@ -84,6 +85,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
         ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
         ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
         ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
+        ...(parsed.data.autoInvoice !== undefined ? { autoInvoice: parsed.data.autoInvoice } : {}),
       }).returning({ id: salesPlatforms.id });
 
       // Adopt any existing sales for this channel (e.g. Amazon orders already
@@ -143,6 +145,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
     ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
     ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
     ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
+    ...(parsed.data.autoInvoice !== undefined ? { autoInvoice: parsed.data.autoInvoice } : {}),
     defaultWarehouseId: defaultWarehouseId || null,
     bankAccountId: bankAccountId || null,
     updatedAt: new Date(),

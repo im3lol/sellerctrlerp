@@ -1,0 +1,1 @@
+ALTER TABLE "sales_platforms" ADD COLUMN "auto_invoice" boolean DEFAULT true NOT NULL;

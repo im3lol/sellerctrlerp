@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
-  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean;
+  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; autoInvoice: boolean;
   customerName: string | null; customerId: string | null;
   warehouseId: string | null; warehouseName: string | null;
   bankAccountId: string | null; bankName: string | null;
@@ -59,6 +59,7 @@ function PlatformDialog({
   const [syncProducts, setSyncProducts] = useState(platform?.syncProducts ?? true);
   const [syncOrders, setSyncOrders] = useState(platform?.syncOrders ?? true);
   const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
+  const [autoInvoice, setAutoInvoice] = useState(platform?.autoInvoice ?? true);
   const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
 
@@ -73,7 +74,7 @@ function PlatformDialog({
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
     if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
+      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, autoInvoice, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
       const r = isEdit
         ? await updatePlatformAction(platform!.id, payload)
         : await createPlatformAction({ ...payload, code });
@@ -185,6 +186,13 @@ function PlatformDialog({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">اختر ما يسحبه زر «مزامنة الآن» لهذه المنصّة.</p>
+        </div>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input type="checkbox" className="size-4 rounded border-input" checked={autoInvoice} onChange={(e) => setAutoInvoice(e.target.checked)} />
+            الفوترة التلقائية عند اكتمال الأمر
+          </label>
+          <p className="text-xs text-muted-foreground">مفعّل: الأمر المكتمل يمرّ أمر بيع → إذن صرف → فاتورة مُرحّلة تلقائيًا. مُطفأ: يقف عند إذن الصرف وتُصدر الفاتورة يدويًا.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">

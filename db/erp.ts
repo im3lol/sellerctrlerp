@@ -1455,6 +1455,9 @@ export const salesPlatforms = pgTable(
     syncProducts: boolean("sync_products").notNull().default(true),
     syncOrders: boolean("sync_orders").notNull().default(true),
     syncInventory: boolean("sync_inventory").notNull().default(true),
+    // When a marketplace order completes: true = full cycle to a posted invoice;
+    // false = stop at the (posted) delivery note and leave invoicing manual.
+    autoInvoice: boolean("auto_invoice").notNull().default(true),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

@@ -10,13 +10,15 @@ export type FulfillResult =
   | { ok: false; blocked?: boolean; error: string };
 
 /**
- * Run the full document cycle for a CONFIRMED sales order:
- *   delivery note → confirm (stock OUT + COGS) → sales invoice → post (revenue + AR).
- * Pre-checks on-hand at each line's warehouse so it never creates a negative
- * movement; returns { blocked, error } (with the short items) instead. The order
- * must already be CONFIRMED (the caller confirms a DRAFT first).
+ * Run the document cycle for a CONFIRMED sales order:
+ *   delivery note → confirm (stock OUT + COGS) → [invoice → post (revenue + AR)].
+ * With `opts.invoice === false` it stops at the posted delivery note (manual
+ * invoicing). Pre-checks on-hand at each line's warehouse so it never creates a
+ * negative movement; returns { blocked, error } (with the short items) instead.
+ * The order must already be CONFIRMED (the caller confirms a DRAFT first).
  */
-export async function fulfillOrder(orgId: string, orderId: string): Promise<FulfillResult> {
+export async function fulfillOrder(orgId: string, orderId: string, opts: { invoice?: boolean } = {}): Promise<FulfillResult> {
+  const invoice = opts.invoice ?? true;
   const lines = await db
     .select({ itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, delivered: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId, name: items.nameAr, code: items.code })
     .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId))
@@ -41,6 +43,7 @@ export async function fulfillOrder(orgId: string, orderId: string): Promise<Fulf
     await deleteDeliveryAction(d.id).catch(() => {});
     return { ok: false, blocked: true, error: c.error ?? "تعذّر تأكيد إذن الصرف" };
   }
+  if (!invoice) return { ok: true, deliveryId: d.id }; // stop at delivery — invoice manually
   const inv = await convertDeliveryToInvoiceAction(d.id);
   if (!inv.ok || !inv.invoiceId) return { ok: false, error: inv.error ?? "تعذّر إنشاء الفاتورة" };
   const p = await postSalesInvoiceAction(inv.invoiceId);

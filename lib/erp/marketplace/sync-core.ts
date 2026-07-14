@@ -33,11 +33,11 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
   const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
   if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory })
+  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, autoInvoice: salesPlatforms.autoInvoice })
     .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
   if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-  const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name };
+  const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoInvoice: p.autoInvoice };
   const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory };
   return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags };
 }

@@ -23,7 +23,7 @@ export type { MatchedLine } from "./classify";
  * DRAFT→fulfil cycle, reconciliation) lives once and the ERP never knows the
  * source. Ported from the former Amazon-specific actions with no behaviour change.
  */
-export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string };
+export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoInvoice?: boolean };
 
 export type IngestResult = {
   created: number;
@@ -128,7 +128,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   };
 
   const runCycle = async (orderId: string, extId: string) => {
-    const f = await fulfillOrder(orgId, orderId);
+    const f = await fulfillOrder(orgId, orderId, { invoice: ctx.autoInvoice ?? true });
     if (f.ok) { if (!f.noop) fulfilled++; }
     else if (f.blocked) stockBlocked.push({ externalId: extId, reason: f.error });
     else failed++;
