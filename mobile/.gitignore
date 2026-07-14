@@ -1,0 +1,8 @@
+# Capacitor: the android/ native project is generated locally (npx cap add android)
+# and rebuilt in Android Studio — regenerable, so it is not committed.
+/android/
+/ios/
+node_modules/
+*.apk
+*.aab
+.gradle/

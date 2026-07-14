@@ -1,0 +1,20 @@
+{
+  "name": "sellerctrl-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SellerCtrl Android shell (Capacitor) — opens the live web app + native barcode scanner",
+  "scripts": {
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "run:android": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor-mlkit/barcode-scanning": "^8.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1"
+  }
+}

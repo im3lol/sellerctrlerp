@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { thmanyah } from "./fonts";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -6,6 +6,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SellerCtrl Workspace OS",
   description: "نظام إدارة عمليات SellerCtrl — تحكم كامل في عملياتك من مكان واحد",
+  appleWebApp: { capable: true, title: "SellerCtrl", statusBarStyle: "default" },
+};
+
+// Mobile/PWA: brand status bar + cover the notch/safe areas in the standalone app.
+export const viewport: Viewport = {
+  themeColor: "#0A33D1",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
