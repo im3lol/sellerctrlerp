@@ -121,10 +121,11 @@ function PlatformDialog({
             {BRANDS.map((b) => {
               const on = activeCodes.has(b.code);
               return (
-                <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`${tileCls} justify-between ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
+                <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`relative flex items-center justify-center rounded-xl border p-4 transition-colors ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
+                  {/* Fixed box + object-contain → every logo occupies the same width AND height regardless of its native aspect ratio. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={b.logo} alt={b.label} className="h-7 w-24 shrink-0 object-contain object-right dark:invert" />
-                  {!on && <Badge variant="secondary">قريبًا</Badge>}
+                  <img src={b.logo} alt={b.label} className="h-8 w-28 object-contain dark:invert" />
+                  {!on && <Badge variant="secondary" className="absolute start-1.5 top-1.5">قريبًا</Badge>}
                 </button>
               );
             })}

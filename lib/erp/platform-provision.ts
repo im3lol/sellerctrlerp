@@ -11,12 +11,12 @@ export type AmazonPlatform = { platformId: string; customerId: string; warehouse
  */
 async function ensureAmazonBank(orgId: string): Promise<string> {
   const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
-    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "Amazon Wallet"))).limit(1);
+    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "محفظة أمازون"))).limit(1);
   if (existing) return existing.id;
   const [gl] = await db.select({ id: accounts.id }).from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "1102"), eq(accounts.isLeaf, true))).limit(1);
   const [row] = await db.insert(bankAccounts)
-    .values({ organizationId: orgId, nameAr: "Amazon Wallet", bankName: "Amazon", glAccountId: gl?.id ?? null })
+    .values({ organizationId: orgId, nameAr: "محفظة أمازون", bankName: "أمازون", glAccountId: gl?.id ?? null })
     .returning({ id: bankAccounts.id });
   return row.id;
 }
