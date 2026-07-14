@@ -37,7 +37,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
   // Amazon report, so we fire them concurrently — the reports generate in
   // parallel instead of back-to-back (roughly 3× faster wall time).
   async function step<T extends { ok: boolean; error?: string }>(key: string, fn: () => Promise<T>, ok: (r: Extract<T, { ok: true }>) => string) {
-    set(key, "running");
+    set(key, "running", "جاري السحب من أمازون…");
     try {
       const r = await fn();
       set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? "فشل"));
@@ -48,7 +48,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
 
   async function run() {
     const jobs: Promise<unknown>[] = [];
-    if (flags.products) jobs.push(step("products", () => syncProductsAction(code), (r) => `${r.created} جديد · ${r.linked} مربوط\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`));
+    if (flags.products) jobs.push(step("products", () => syncProductsAction(code), (r) => `${r.total} منتج · ${r.created} جديد · ${r.linked} مربوط${r.alreadyLinked ? ` · ${r.alreadyLinked} موجود` : ""}\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`));
     if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة`));
     if (flags.inventory) jobs.push(step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
     await Promise.allSettled(jobs);
