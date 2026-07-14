@@ -20,14 +20,17 @@ export type Account = { orgName: string; userName: string; email: string };
 const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
 const cap = (n: number | null, unit: string) => (n == null ? "بلا حد" : `${n.toLocaleString("ar-EG")} ${unit}`);
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
+// Effective monthly price + % saved when billed annually.
+const effMonthly = (p: PlanCard, annual: boolean) => (annual ? Math.round(p.priceAnnual / 12) : p.priceMonthly);
+const discountPct = (p: PlanCard) => (p.priceMonthly > 0 ? Math.round((1 - p.priceAnnual / (p.priceMonthly * 12)) * 100) : 0);
 
-function SubscribeDialog({ plan, account, onClose }: { plan: PlanCard; account: Account; onClose: () => void }) {
+function SubscribeDialog({ plan, account, interval, onClose }: { plan: PlanCard; account: Account; interval: "MONTHLY" | "ANNUAL"; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [interval, setInterval] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
   const [method, setMethod] = useState<string>(PAYMENT_METHODS.find((m) => m.enabled)!.key);
   const [reference, setReference] = useState("");
-  const price = interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
+  const annual = interval === "ANNUAL";
+  const price = annual ? plan.priceAnnual : plan.priceMonthly;
   const chosen = PAYMENT_METHODS.find((m) => m.key === method)!;
 
   // Open WhatsApp support prefilled with the account + plan details for the
@@ -62,24 +65,15 @@ function SubscribeDialog({ plan, account, onClose }: { plan: PlanCard; account: 
         <DialogDescription>حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>الدورة</Label>
-            <select className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value as "MONTHLY" | "ANNUAL")}>
-              <option value="MONTHLY">شهري — {egp(plan.priceMonthly)}</option>
-              <option value="ANNUAL">سنوي — {egp(plan.priceAnnual)}</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>طريقة الدفع</Label>
-            <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
-              {PAYMENT_METHODS.filter((m) => m.enabled).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-            </select>
-          </div>
+        <div className="space-y-1.5">
+          <Label>طريقة الدفع</Label>
+          <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
+            {PAYMENT_METHODS.filter((m) => m.enabled).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </select>
         </div>
 
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-          <div className="mb-1 font-medium">المبلغ: {egp(price)}</div>
+          <div className="mb-1 font-medium">المبلغ: {egp(price)} <span className="font-normal text-muted-foreground">({annual ? "سنوي" : "شهري"})</span></div>
           <p className="text-muted-foreground">{chosen.detail}</p>
           {method === "INSTAPAY" && (
             <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
@@ -107,13 +101,28 @@ function SubscribeDialog({ plan, account, onClose }: { plan: PlanCard; account: 
 
 export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPending, account }: { plans: PlanCard[]; currentPlanId: string | null; canSubscribe: boolean; hasPending: boolean; account: Account }) {
   const [chosen, setChosen] = useState<PlanCard | null>(null);
+  const [annual, setAnnual] = useState(false);
   if (plans.length === 0) return <p className="text-sm text-muted-foreground">لا توجد باقات متاحة حالياً — تواصل مع الدعم.</p>;
+  const topPct = Math.max(0, ...plans.map(discountPct));
 
   return (
     <>
+      {/* Monthly / annual toggle */}
+      <div className="mb-5 flex justify-center">
+        <div className="inline-flex items-center rounded-full border bg-card p-1 text-sm">
+          <button type="button" onClick={() => setAnnual(false)} className={`rounded-full px-5 py-1.5 font-medium transition ${!annual ? "bg-primary text-primary-foreground" : ""}`}>شهري</button>
+          <button type="button" onClick={() => setAnnual(true)} className={`flex items-center gap-1.5 rounded-full px-5 py-1.5 font-medium transition ${annual ? "bg-primary text-primary-foreground" : ""}`}>
+            سنوي
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${annual ? "bg-primary-foreground/20" : "bg-emerald-500/15 text-emerald-600"}`}>وفّر حتى {topPct}%</span>
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = p.id === currentPlanId;
+          const eff = effMonthly(p, annual);
+          const pct = discountPct(p);
           return (
             <Card key={p.id} className={isCurrent ? "border-primary ring-1 ring-primary" : ""}>
               <CardContent className="space-y-3 pt-6">
@@ -121,8 +130,10 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
                   <h3 className="text-lg font-bold">{p.name}</h3>
                   {isCurrent && <Badge>باقتك الحالية</Badge>}
                 </div>
-                <div className="text-2xl font-bold tabular-nums">{egp(p.priceMonthly)}<span className="text-sm font-normal text-muted-foreground"> / شهر</span></div>
-                <div className="text-xs text-muted-foreground">أو {egp(p.priceAnnual)} سنوياً</div>
+                <div className="text-2xl font-bold tabular-nums">{egp(eff)}<span className="text-sm font-normal text-muted-foreground"> / شهر</span></div>
+                {annual
+                  ? <div className="flex flex-wrap items-center gap-2 text-xs"><s className="text-muted-foreground tabular-nums">{egp(p.priceMonthly)}</s><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">وفّر {pct}%</span><span className="text-muted-foreground">يُدفع {egp(p.priceAnnual)} سنوياً</span></div>
+                  : <div className="text-xs text-muted-foreground">أو {egp(p.priceAnnual)} سنوياً — وفّر {pct}%</div>}
                 <ul className="space-y-1.5 text-sm">
                   <li className="flex items-center gap-2"><Check className="size-4 text-primary" />حتى {cap(p.maxUsers, "مستخدم")}</li>
                   <li className="flex items-center gap-2"><Check className="size-4 text-primary" />تخزين {cap(p.storageGb, "جيجابايت")}</li>
@@ -141,7 +152,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
       {!canSubscribe && <p className="mt-3 text-sm text-muted-foreground">صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك.</p>}
       {hasPending && <p className="mt-3 text-sm text-amber-600">لديك طلب قيد المراجعة — لا يمكن إرسال طلب جديد حتى تتم مراجعته.</p>}
       <Dialog open={!!chosen} onOpenChange={(o) => !o && setChosen(null)}>
-        {chosen && <SubscribeDialog plan={chosen} account={account} onClose={() => setChosen(null)} />}
+        {chosen && <SubscribeDialog plan={chosen} account={account} interval={annual ? "ANNUAL" : "MONTHLY"} onClose={() => setChosen(null)} />}
       </Dialog>
     </>
   );

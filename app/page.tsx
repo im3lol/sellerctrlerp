@@ -16,7 +16,6 @@ import {
   Zap,
   ShieldCheck,
   ArrowLeft,
-  Users,
   Truck,
   Search,
   ChartPie,
@@ -24,7 +23,6 @@ import {
   Mail,
   Share2,
   Check,
-  HardDrive,
   UserCog,
   Warehouse,
   Coins,
@@ -37,8 +35,8 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { plans } from "@/db/schema";
-import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Logo } from "@/components/brand/logo";
+import { Pricing } from "@/components/brand/pricing";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -447,45 +445,6 @@ function DashboardPreview() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-type PlanCard = { name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
-
-function Pricing({ plans }: { plans: PlanCard[] }) {
-  const egp = (n: number) => n.toLocaleString("ar-EG");
-  if (plans.length === 0) {
-    return (
-      <div className="mt-10 rounded-3xl border bg-card p-10 text-center">
-        <p className="text-lg font-semibold">خطط مرنة تناسب كل حجم</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">ابدأ تجربتك المجانية الآن، وتواصل معنا لاختيار الباقة المناسبة لعدد مستخدميك وحجم تخزينك.</p>
-        <Button asChild className="mt-6"><Link href="/signup">ابدأ التجربة المجانية <ArrowLeft className="size-4" /></Link></Button>
-      </div>
-    );
-  }
-  const popular = plans.length >= 3 ? Math.floor(plans.length / 2) : -1;
-  return (
-    <div className={cn("mt-12 grid gap-6", plans.length >= 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 max-w-3xl mx-auto")}>
-      {plans.map((p, i) => (
-        <div key={p.name} className={cn("relative flex flex-col rounded-2xl border bg-card p-6", i === popular && "border-primary shadow-lg ring-1 ring-primary")}>
-          {i === popular && <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">الأكثر شيوعاً</span>}
-          <h3 className="text-lg font-bold">{p.name}</h3>
-          <div className="mt-3 flex items-end gap-1">
-            <span className="text-3xl font-black tabular-nums">{p.priceMonthly > 0 ? egp(p.priceMonthly) : "مجاناً"}</span>
-            {p.priceMonthly > 0 && <span className="pb-1 text-sm text-muted-foreground">ج.م / شهر</span>}
-          </div>
-          {p.priceAnnual > 0 && <div className="mt-1 text-xs text-muted-foreground">أو {egp(p.priceAnnual)} ج.م سنوياً</div>}
-          <ul className="mt-5 flex-1 space-y-2 text-sm">
-            <li className="flex items-center gap-2"><Users className="size-4 text-primary" />حتى {p.maxUsers == null ? "عدد غير محدود من المستخدمين" : `${egp(p.maxUsers)} مستخدم`}</li>
-            <li className="flex items-center gap-2"><HardDrive className="size-4 text-primary" />تخزين {p.storageGb == null ? "غير محدود" : `${egp(p.storageGb)} جيجابايت`}</li>
-            {p.modules.map((m) => (
-              <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{MODULE_LABELS[m] ?? m}</li>
-            ))}
-          </ul>
-          <Button asChild variant={i === popular ? "default" : "outline"} className="mt-6 w-full"><Link href={`/signup?plan=${encodeURIComponent(p.name)}`}>ابدأ التجربة</Link></Button>
-        </div>
-      ))}
     </div>
   );
 }

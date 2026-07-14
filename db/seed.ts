@@ -105,8 +105,8 @@ async function main() {
   // never duplicates or wipes plans the owner has customised.
   if ((await db.select({ id: plans.id }).from(plans).limit(1)).length === 0) {
     await db.insert(plans).values([
-      { name: "الأساسية", priceMonthly: "800", priceAnnual: "7200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports"], maxUsers: 3, storageGb: 10, sortOrder: 1 },
-      { name: "البائع", priceMonthly: "1750", priceAnnual: "15600", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr"], maxUsers: 10, storageGb: 50, sortOrder: 2 },
+      { name: "الأساسية", priceMonthly: "800", priceAnnual: "7200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports"], maxUsers: 5, storageGb: null, sortOrder: 1 },
+      { name: "البائع", priceMonthly: "1750", priceAnnual: "15600", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr"], maxUsers: 10, storageGb: null, sortOrder: 2 },
       { name: "المتقدمة", priceMonthly: "3500", priceAnnual: "31200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr", "investors"], maxUsers: null, storageGb: null, sortOrder: 3 },
     ]);
     console.log("  ✓ seeded 3 subscription plans");
