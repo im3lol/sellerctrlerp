@@ -54,6 +54,26 @@ describe("classifyOrders routing", () => {
     const r = classifyOrders([o], resolve, new Map());
     expect(r.toCreate).toHaveLength(1);
   });
+
+  it("routes a cancelled order that exists to toCancel", () => {
+    const existing = new Map([["C1", { id: "so_c1", status: "CONFIRMED" }]]);
+    const r = classifyOrders([order("C1", "Canceled", [])], resolve, existing);
+    expect(r.toCancel).toHaveLength(1);
+    expect(r.toCancel[0].existingId).toBe("so_c1");
+  });
+
+  it("ignores a cancellation for an unknown order (no-op)", () => {
+    const r = classifyOrders([order("C2", "Canceled", [])], resolve, new Map());
+    expect(r.toCancel).toHaveLength(0);
+    expect(r.duplicates).toHaveLength(1);
+  });
+
+  it("does not re-cancel an order already CANCELLED", () => {
+    const existing = new Map([["C3", { id: "so_c3", status: "CANCELLED" }]]);
+    const r = classifyOrders([order("C3", "Canceled", [])], resolve, existing);
+    expect(r.toCancel).toHaveLength(0);
+    expect(r.duplicates).toHaveLength(1);
+  });
 });
 
 const product = (sku: string, asin?: string): MarketplaceProduct => ({ code: sku, altCode: asin, name: sku, sellPrice: 10 });

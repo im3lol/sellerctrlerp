@@ -16,8 +16,9 @@ type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; Quantit
 type ItemsResponse = { payload?: { OrderItems?: ApiOrderItem[]; NextToken?: string } };
 
 const amt = (m?: Money) => Number(m?.Amount ?? 0) || 0;
-// Amazon order status → our DTO status (only "Shipped" drives the fulfil cycle).
-const mapStatus = (s?: string) => (s === "Shipped" ? "Shipped" : "Pending");
+// Amazon order status → our DTO status. "Shipped" drives the fulfil cycle;
+// "Canceled" tears down a previously-imported order; everything else is Pending.
+const mapStatus = (s?: string) => (s === "Shipped" ? "Shipped" : s === "Canceled" ? "Canceled" : "Pending");
 
 /** Pure: an Orders-API order + its items → MarketplaceOrder. */
 export function toMarketplaceOrder(o: ApiOrder, items: ApiOrderItem[]): MarketplaceOrder {
@@ -62,8 +63,11 @@ export async function fetchOrders(cred: Credential, range: DateRange): Promise<M
 
   const out: MarketplaceOrder[] = [];
   for (const o of orders.slice(0, MAX_ORDERS)) {
-    if (o.OrderStatus === "Canceled" || !o.AmazonOrderId) continue;
-    out.push(toMarketplaceOrder(o, await fetchOrderItems(cred, o.AmazonOrderId)));
+    if (!o.AmazonOrderId) continue;
+    // Cancelled orders are matched by id to tear down an existing SO — no need to
+    // pull their line items (skips a rate-limited call per cancellation).
+    const items = o.OrderStatus === "Canceled" ? [] : await fetchOrderItems(cred, o.AmazonOrderId);
+    out.push(toMarketplaceOrder(o, items));
   }
   return out;
 }

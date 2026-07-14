@@ -16,7 +16,7 @@ export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean
 export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags };
 
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
-export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
 /** Load the connector, decrypted credential, platform ctx and settings — no auth. */
@@ -91,7 +91,7 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
   try {
     const orders = await p.connector.fetchOrders(p.cred, range);
     const r = await ingestOrders(p.orgId, userId, p.ctx, orders);
-    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
   }

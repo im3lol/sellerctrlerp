@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesOrderLines, items } from "@/db/schema";
+import { salesOrderLines, salesOrders, deliveryNotes, items } from "@/db/schema";
 import { currentStock } from "@/lib/erp/inventory";
 import { createDeliveryFromOrderAction, confirmDeliveryAction, convertDeliveryToInvoiceAction, deleteDeliveryAction } from "@/app/actions/erp/deliveries";
 import { postSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
+import { cancelSalesOrderAction } from "@/app/actions/erp/sales-orders";
 
 export type FulfillResult =
   | { ok: true; deliveryId?: string; invoiceId?: string; noop?: boolean }
@@ -49,4 +50,28 @@ export async function fulfillOrder(orgId: string, orderId: string, opts: { invoi
   const p = await postSalesInvoiceAction(inv.invoiceId);
   if (!p.ok) return { ok: false, error: p.error ?? "تعذّر ترحيل الفاتورة" };
   return { ok: true, deliveryId: d.id, invoiceId: inv.invoiceId };
+}
+
+export type CancelResult = { ok: boolean; skipped?: boolean; error?: string };
+
+/**
+ * Tear down a marketplace order cancelled at the source: delete any un-posted
+ * (DRAFT) delivery notes, then cancel the sales order — which flips it to
+ * CANCELLED and releases its stock reservation (cancelled orders are excluded
+ * from availability). An order that already posted stock/GL (DELIVERED/INVOICED)
+ * is NOT cancelled here — that is a return, left for the return flow.
+ */
+export async function cancelMarketplaceOrder(orgId: string, soId: string): Promise<CancelResult> {
+  const [so] = await db.select({ status: salesOrders.status }).from(salesOrders)
+    .where(and(eq(salesOrders.id, soId), eq(salesOrders.organizationId, orgId))).limit(1);
+  if (!so) return { ok: false, error: "الأمر غير موجود" };
+  if (so.status === "CANCELLED") return { ok: true }; // already torn down — idempotent
+  if (so.status !== "DRAFT" && so.status !== "CONFIRMED") return { ok: false, skipped: true }; // posted → return territory
+
+  const drafts = await db.select({ id: deliveryNotes.id }).from(deliveryNotes)
+    .where(and(eq(deliveryNotes.salesOrderId, soId), eq(deliveryNotes.organizationId, orgId), eq(deliveryNotes.status, "DRAFT")));
+  for (const dn of drafts) await deleteDeliveryAction(dn.id).catch(() => {});
+
+  const r = await cancelSalesOrderAction(soId);
+  return { ok: !!r.ok, error: r.error };
 }

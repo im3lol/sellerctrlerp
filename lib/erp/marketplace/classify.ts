@@ -16,6 +16,7 @@ export type OrdersPreview = {
   totalOrders: number;
   toCreate: PreviewOrder[];
   transitions: PreviewOrder[];
+  toCancel: PreviewOrder[];
   duplicates: PreviewOrder[];
   blocked: PreviewOrder[];
   unmatched: { code: string; altCode?: string; name?: string; sampleOrder: string }[];
@@ -30,6 +31,7 @@ export function classifyOrders(
 ): OrdersPreview {
   const toCreate: PreviewOrder[] = [];
   const transitions: PreviewOrder[] = [];
+  const toCancel: PreviewOrder[] = [];
   const duplicates: PreviewOrder[] = [];
   const blocked: PreviewOrder[] = [];
   const unmatchedMap = new Map<string, { code: string; altCode?: string; name?: string; sampleOrder: string }>();
@@ -42,6 +44,15 @@ export function classifyOrders(
     const po: PreviewOrder = { externalId: o.externalId, date: o.date, status: o.status, subtotal: o.subtotal, shippingTotal: o.shippingTotal, total: o.total, lines };
     const fullyMatched = lines.every((l) => l.itemId);
     const ex = existing.get(o.externalId);
+
+    // Cancelled at the marketplace: tear down a previously-imported order that
+    // isn't already cancelled. A cancellation for an unknown order is a no-op.
+    if (o.status === "Canceled") {
+      if (ex && ex.status !== "CANCELLED") toCancel.push({ ...po, existingId: ex.id, existingStatus: ex.status });
+      else duplicates.push(po);
+      continue;
+    }
+
     if (ex) {
       const doneStatus = ex.status === "CANCELLED" || ex.status === "DELIVERED" || ex.status === "INVOICED";
       if (o.status === "Shipped" && fullyMatched && !doneStatus) transitions.push({ ...po, existingId: ex.id, existingStatus: ex.status });
@@ -57,7 +68,7 @@ export function classifyOrders(
     }
     toCreate.push(po);
   }
-  return { totalOrders: orders.length, toCreate, transitions, duplicates, blocked, unmatched: [...unmatchedMap.values()] };
+  return { totalOrders: orders.length, toCreate, transitions, toCancel, duplicates, blocked, unmatched: [...unmatchedMap.values()] };
 }
 
 // ── Product routing (pure) ──

@@ -49,7 +49,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
   async function run() {
     const jobs: Promise<unknown>[] = [];
     if (flags.products) jobs.push(step("products", () => syncProductsAction(code), (r) => `${r.total} منتج · ${r.created} جديد · ${r.linked} مربوط${r.alreadyLinked ? ` · ${r.alreadyLinked} موجود` : ""}${r.skippedUnmatched ? ` · ${r.skippedUnmatched} محتاج ASIN` : ""}\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`));
-    if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة`));
+    if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة${r.cancelled ? ` · ${r.cancelled} ملغى` : ""}`));
     if (flags.inventory) jobs.push(step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
     await Promise.allSettled(jobs);
     setRunning(false);

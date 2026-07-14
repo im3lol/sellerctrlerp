@@ -6,7 +6,7 @@ import { normalizeCode } from "@/lib/erp/amazon-import";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { fulfillOrder } from "@/lib/erp/fulfillment";
+import { fulfillOrder, cancelMarketplaceOrder } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
@@ -29,6 +29,7 @@ export type IngestResult = {
   created: number;
   transitioned: number;
   fulfilled: number;
+  cancelled: number;
   stockBlocked: { externalId: string; reason: string }[];
   skippedDuplicate: number;
   skippedUnmatched: number;
@@ -95,9 +96,9 @@ export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "chann
 export async function ingestOrders(orgId: string, userId: string | null, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
   const resolve = await buildMatcher(orgId, orders);
   const existing = await existingOrders(orgId, ctx.channel);
-  const { toCreate, transitions, duplicates, blocked } = classifyOrders(orders, resolve, existing);
+  const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
 
-  let created = 0, transitioned = 0, fulfilled = 0, failed = 0;
+  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];
 
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
@@ -152,8 +153,16 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     await runCycle(o.existingId, o.externalId);
   }
 
+  // Cancellations: tear down DRAFT/CONFIRMED orders (delete draft deliveries +
+  // cancel + release reservation). Posted ones are skipped (return territory).
+  for (const o of toCancel) {
+    if (!o.existingId) continue;
+    const r = await cancelMarketplaceOrder(orgId, o.existingId);
+    if (r.ok) cancelled++;
+  }
+
   return {
-    created, transitioned, fulfilled, stockBlocked,
+    created, transitioned, fulfilled, cancelled, stockBlocked,
     skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, failed,
   };
 }
