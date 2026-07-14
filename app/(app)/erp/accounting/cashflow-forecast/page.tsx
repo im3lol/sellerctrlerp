@@ -5,6 +5,7 @@ import { salesInvoices, purchaseInvoices, journalEntryLines, journalEntries, acc
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { TrendChart } from "@/components/charts/trend-chart";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const OPEN = ["POSTED", "PARTIAL_PAID"];
@@ -77,6 +78,19 @@ export default async function CashflowForecastPage() {
           ⚠️ الرصيد المتوقّع يهبط إلى <span className="font-bold tabular-nums">{fmt(lowest)}</span> — قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>الرصيد النقدي المتوقّع</CardTitle>
+          <CardDescription>مسار الرصيد عبر الأسابيع القادمة بناءً على تواريخ الاستحقاق.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TrendChart
+            data={[{ label: "افتتاحي", value: startCash }, ...rows.map((r) => ({ label: r.label, value: r.balance }))]}
+            valueLabel="الرصيد المتوقّع" money id="cashflow-forecast" height={220}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

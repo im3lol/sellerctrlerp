@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items, stockMovements } from "@/db/schema";
+import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -75,6 +76,18 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الربح الإجمالي</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tProfit)}</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">هامش الربح</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{pct(tMargin)}</p></CardContent></Card>
       </div>
+
+      {list.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>أعلى الأصناف ربحًا</CardTitle>
+            <CardDescription>أعلى ٨ أصناف حسب الربح.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: r.profit }))} valueLabel="الربح" money height={240} colors={list.slice(0, 8).map((r) => (r.profit >= 0 ? "#008300" : "#e34948"))} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

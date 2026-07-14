@@ -1,5 +1,8 @@
+import { sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
+import { db } from "@/lib/db";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,6 +47,25 @@ export default async function IncomeStatementPage({
   const totalExpense = expense.reduce((s, b) => s + b.amount, 0);
   const netProfit = totalRevenue - totalExpense;
 
+  // Monthly net profit for the trailing 12 months (independent of the period
+  // filter). P&L accounts net to income as Σ(credit − debit).
+  const plSince = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const plRows = (await db.execute<{ m: string; net: string }>(sql`
+    SELECT to_char(date_trunc('month', je.date), 'YYYY-MM') AS m,
+      COALESCE(SUM(l.credit - l.debit), 0) AS net
+    FROM journal_entry_lines l
+    JOIN journal_entries je ON je.id = l.journal_entry_id
+    JOIN accounts a ON a.id = l.account_id
+    WHERE je.organization_id = ${orgId} AND je.status = 'POSTED' AND je.date >= ${plSince}
+      AND a.type IN ('REVENUE', 'EXPENSE')
+    GROUP BY 1`)).rows as { m: string; net: string }[];
+  const netByMonth = new Map(plRows.map((r) => [r.m, Number(r.net)]));
+  const monthlyNet = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
+  });
+
   return (
     <div className="space-y-6">
       <ErpPageHeader
@@ -77,6 +99,18 @@ export default async function IncomeStatementPage({
           </form>
         </CardContent>
       </Card>
+
+      {monthlyNet.some((m) => m.value !== 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>صافي الربح الشهري</CardTitle>
+            <CardDescription>آخر ١٢ شهرًا — أخضر ربح، أحمر خسارة.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BarChart data={monthlyNet} valueLabel="الصافي" money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

@@ -2,7 +2,8 @@ import { and, eq, gt } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
-import { buildAging, type OpenDoc } from "@/lib/erp/aging";
+import { buildAging, AGING_BUCKETS, BUCKET_LABELS, type OpenDoc } from "@/lib/erp/aging";
+import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -71,7 +72,8 @@ export default async function ApAgingPage({ searchParams }: { searchParams: Prom
           <CardTitle>تحليل الأعمار</CardTitle>
           <CardDescription>إجمالي المستحق {grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {grand > 0 && <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel="المستحق" money height={220} />}
           <AgingTable rows={rows} totals={totals} grand={grand} partyLabel="المورد" empty="لا توجد أرصدة مستحقة للموردين." />
         </CardContent>
       </Card>

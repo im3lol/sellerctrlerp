@@ -2,6 +2,7 @@ import { and, between, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items } from "@/db/schema";
+import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -80,6 +81,18 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
           <CardContent><p className="text-2xl font-bold tabular-nums">{filtered.length}</p></CardContent>
         </Card>
       </div>
+
+      {filtered.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>أعلى الأصناف مبيعًا</CardTitle>
+            <CardDescription>أعلى ٨ أصناف حسب الإيراد.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BarChart data={filtered.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: Number(r.totalRevenue ?? 0) }))} valueLabel="الإيراد" money height={240} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

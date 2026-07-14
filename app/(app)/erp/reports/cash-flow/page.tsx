@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { BarChart } from "@/components/charts/bar-chart";
 
 const fmt   = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 });
 const inp   = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
@@ -54,6 +55,20 @@ export default async function CashFlowPage({
           </form>
         </CardContent>
       </Card>
+
+      {/* Activity comparison */}
+      {(opTotal !== 0 || invTotal !== 0 || finTotal !== 0) && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">التدفق حسب النشاط</CardTitle></CardHeader>
+          <CardContent>
+            <BarChart
+              data={[{ label: "تشغيلية", value: opTotal }, { label: "استثمارية", value: invTotal }, { label: "تمويلية", value: finTotal }]}
+              valueLabel="صافي التدفق" money height={220}
+              colors={[opTotal, invTotal, finTotal].map((v) => (v >= 0 ? "#008300" : "#e34948"))}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Operating */}
       <CashSection title="الأنشطة التشغيلية" total={opTotal}>
