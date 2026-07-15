@@ -139,6 +139,11 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("income_statement") { IncomeStatementScreen(nav) }
         composable("balance_sheet") { BalanceSheetScreen(nav) }
         composable("cash_flow") { CashFlowScreen(nav) }
+        // Ranked sales/purchases reports.
+        composable("report/{key}") { e ->
+            val key = e.arguments?.getString("key") ?: ""
+            ReportListScreen(nav, REPORT_TITLES[key] ?: "تقرير", key)
+        }
         // Generic coverage-batch lists: one destination for every /api/v1/list/:key.
         composable("genlist/{key}") { e ->
             val key = e.arguments?.getString("key") ?: ""
@@ -146,6 +151,14 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         }
     }
 }
+
+/** Arabic titles for the ranked report keys. */
+private val REPORT_TITLES = mapOf(
+    "sales-customers" to "المبيعات حسب العميل",
+    "sales-items" to "المبيعات حسب الصنف",
+    "purchases-suppliers" to "المشتريات حسب المورد",
+    "purchases-items" to "المشتريات حسب الصنف",
+)
 
 /** Arabic titles for the generic list keys (mirror the web nav labels). */
 private val GENLIST_TITLES = mapOf(

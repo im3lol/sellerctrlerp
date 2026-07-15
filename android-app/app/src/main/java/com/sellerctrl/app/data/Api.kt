@@ -138,6 +138,11 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- Ranked reports (تقارير المبيعات/المشتريات) ---
+@Serializable data class RankRowDto(val name: String, val code: String = "", val count: Int = 0, val qty: Double = 0.0, val amount: Double = 0.0)
+@Serializable data class RankReportDto(val from: String, val to: String, val total: Double = 0.0, val rows: List<RankRowDto> = emptyList())
+@Serializable data class RankReportResp(val data: RankReportDto)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -242,6 +247,9 @@ interface Api {
 
     @POST
     suspend fun quoteStatus(@Url url: String, @Body body: StatusReq): OkResp
+
+    @GET
+    suspend fun rankReport(@Url url: String): RankReportResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

@@ -1,7 +1,13 @@
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { salesInvoices, salesInvoiceLines, purchaseInvoices, purchaseInvoiceLines, customers, suppliers, items } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { getCashFlow } from "@/lib/erp/cashflow";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// Posted invoices only (net of tax) — matches the web ranking reports.
+const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export type StmtLine = { code: string; name: string; amount: number };
 
@@ -74,4 +80,74 @@ export async function cashFlowStatement(orgId: string, from?: string, to?: strin
     opTotal: round2(cf.opTotal), invTotal: round2(cf.invTotal), finTotal: round2(cf.finTotal),
     netChange: round2(cf.netCashChange), cashBegin: round2(cf.cashBegin), cashEnd: round2(cf.cashEnd),
   };
+}
+
+// ---- Ranked reports (sales/purchases by customer/supplier/item) -----------
+
+export type RankRow = { name: string; code: string; count: number; qty: number; amount: number };
+export type RankReport = { from: string; to: string; total: number; rows: RankRow[] };
+
+const range = (from?: string, to?: string) => {
+  const f = from || YEAR_START(); const t = to || today();
+  return { f, t, gd: gte, ld: lte, start: new Date(f), end: new Date(`${t}T23:59:59`) };
+};
+
+/** Sales grouped by customer (revenue net of tax, invoice count), highest first. */
+export async function salesByCustomer(orgId: string, from?: string, to?: string): Promise<RankReport> {
+  const { f, t, start, end } = range(from, to);
+  const rows = await db.select({
+    name: customers.nameAr, code: customers.code,
+    count: sql<number>`count(${salesInvoices.id})`,
+    amount: sql<string>`coalesce(sum(${salesInvoices.totalAmount} - ${salesInvoices.taxAmount}), 0)`,
+  }).from(customers)
+    .innerJoin(salesInvoices, and(eq(salesInvoices.customerId, customers.id), inArray(salesInvoices.status, POSTED), gte(salesInvoices.date, start), lte(salesInvoices.date, end)))
+    .where(eq(customers.organizationId, orgId))
+    .groupBy(customers.id, customers.nameAr, customers.code);
+  const list = rows.map((r) => ({ name: r.name ?? r.code, code: r.code, count: Number(r.count), qty: 0, amount: round2(Number(r.amount)) })).sort((a, b) => b.amount - a.amount);
+  return { from: f, to: t, total: round2(list.reduce((s, r) => s + r.amount, 0)), rows: list };
+}
+
+/** Purchases grouped by supplier (net of tax, invoice count), highest first. */
+export async function purchasesBySupplier(orgId: string, from?: string, to?: string): Promise<RankReport> {
+  const { f, t, start, end } = range(from, to);
+  const rows = await db.select({
+    name: suppliers.nameAr, code: suppliers.code,
+    count: sql<number>`count(${purchaseInvoices.id})`,
+    amount: sql<string>`coalesce(sum(${purchaseInvoices.totalAmount} - ${purchaseInvoices.taxAmount}), 0)`,
+  }).from(suppliers)
+    .innerJoin(purchaseInvoices, and(eq(purchaseInvoices.supplierId, suppliers.id), inArray(purchaseInvoices.status, POSTED), gte(purchaseInvoices.date, start), lte(purchaseInvoices.date, end)))
+    .where(eq(suppliers.organizationId, orgId))
+    .groupBy(suppliers.id, suppliers.nameAr, suppliers.code);
+  const list = rows.map((r) => ({ name: r.name ?? r.code, code: r.code, count: Number(r.count), qty: 0, amount: round2(Number(r.amount)) })).sort((a, b) => b.amount - a.amount);
+  return { from: f, to: t, total: round2(list.reduce((s, r) => s + r.amount, 0)), rows: list };
+}
+
+/** Sales grouped by item (qty sold + revenue), highest revenue first. */
+export async function salesByItem(orgId: string, from?: string, to?: string): Promise<RankReport> {
+  const { f, t, start, end } = range(from, to);
+  const rows = await db.select({
+    name: items.nameAr, code: items.code,
+    qty: sql<string>`coalesce(sum(${salesInvoiceLines.quantity}), 0)`,
+    amount: sql<string>`coalesce(sum(${salesInvoiceLines.totalAmount} - ${salesInvoiceLines.taxAmount}), 0)`,
+  }).from(salesInvoiceLines)
+    .innerJoin(salesInvoices, and(eq(salesInvoices.id, salesInvoiceLines.salesInvoiceId), inArray(salesInvoices.status, POSTED), gte(salesInvoices.date, start), lte(salesInvoices.date, end), eq(salesInvoices.organizationId, orgId)))
+    .leftJoin(items, eq(items.id, salesInvoiceLines.itemId))
+    .groupBy(items.id, items.nameAr, items.code);
+  const list = rows.map((r) => ({ name: r.name ?? r.code ?? "—", code: r.code ?? "", count: 0, qty: round2(Number(r.qty)), amount: round2(Number(r.amount)) })).sort((a, b) => b.amount - a.amount);
+  return { from: f, to: t, total: round2(list.reduce((s, r) => s + r.amount, 0)), rows: list };
+}
+
+/** Purchases grouped by item (qty + cost), highest first. */
+export async function purchasesByItem(orgId: string, from?: string, to?: string): Promise<RankReport> {
+  const { f, t, start, end } = range(from, to);
+  const rows = await db.select({
+    name: items.nameAr, code: items.code,
+    qty: sql<string>`coalesce(sum(${purchaseInvoiceLines.quantity}), 0)`,
+    amount: sql<string>`coalesce(sum(${purchaseInvoiceLines.totalAmount} - ${purchaseInvoiceLines.taxAmount}), 0)`,
+  }).from(purchaseInvoiceLines)
+    .innerJoin(purchaseInvoices, and(eq(purchaseInvoices.id, purchaseInvoiceLines.purchaseInvoiceId), inArray(purchaseInvoices.status, POSTED), gte(purchaseInvoices.date, start), lte(purchaseInvoices.date, end), eq(purchaseInvoices.organizationId, orgId)))
+    .leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId))
+    .groupBy(items.id, items.nameAr, items.code);
+  const list = rows.map((r) => ({ name: r.name ?? r.code ?? "—", code: r.code ?? "", count: 0, qty: round2(Number(r.qty)), amount: round2(Number(r.amount)) })).sort((a, b) => b.amount - a.amount);
+  return { from: f, to: t, total: round2(list.reduce((s, r) => s + r.amount, 0)), rows: list };
 }

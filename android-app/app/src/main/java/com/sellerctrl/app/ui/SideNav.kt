@@ -84,7 +84,8 @@ private val NAV = listOf(
         Leaf("إذون الاستلام", "purchase_receipts", "دورة الشراء"),
         Leaf("فواتير الشراء", "purchase_invoices", "دورة الشراء"),
         Leaf("تقرير الدفتر", null, "التقارير"),
-        Leaf("ترتيب الموردين", null, "التقارير"),
+        Leaf("ترتيب الموردين", "report/purchases-suppliers", "التقارير"),
+        Leaf("المشتريات حسب الصنف", "report/purchases-items", "التقارير"),
     )),
     Section("المخزون", Icons.Filled.Inventory2, null, listOf(
         Leaf("الأصناف", "search", "الأصناف والأرصدة"),
@@ -108,9 +109,9 @@ private val NAV = listOf(
         Leaf("فواتير البيع", "sales_invoices", "دورة البيع"),
         Leaf("الفواتير الدورية", null, "دورة البيع"),
         Leaf("تقرير الدفتر", null, "التقارير"),
-        Leaf("تقرير الأصناف", null, "التقارير"),
+        Leaf("تقرير الأصناف", "report/sales-items", "التقارير"),
         Leaf("ربحية المنتجات", null, "التقارير"),
-        Leaf("ترتيب العملاء", null, "التقارير"),
+        Leaf("ترتيب العملاء", "report/sales-customers", "التقارير"),
     )),
     Section("المستثمرون", Icons.Filled.Savings, "investors", emptyList()),
     Section("الموارد البشرية", Icons.Filled.Groups, null, listOf(

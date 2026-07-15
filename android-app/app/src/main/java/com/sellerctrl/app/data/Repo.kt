@@ -199,6 +199,9 @@ class Repo(val store: TokenStore) {
         catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحديث") }
     }
 
+    // --- Ranked reports (تقارير المبيعات/المشتريات) ---
+    suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 
