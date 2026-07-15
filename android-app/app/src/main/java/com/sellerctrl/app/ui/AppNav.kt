@@ -114,6 +114,9 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }
         composable("reports") { ReportsScreen(nav) }
+        composable("income_statement") { IncomeStatementScreen(nav) }
+        composable("balance_sheet") { BalanceSheetScreen(nav) }
+        composable("cash_flow") { CashFlowScreen(nav) }
         // Generic coverage-batch lists: one destination for every /api/v1/list/:key.
         composable("genlist/{key}") { e ->
             val key = e.arguments?.getString("key") ?: ""

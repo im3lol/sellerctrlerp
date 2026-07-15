@@ -58,6 +58,14 @@ import retrofit2.http.Url
 @Serializable data class OrderDetailDto(val id: String, val number: String, val party: String, val date: String, val status: String, val total: Double = 0.0, val lines: List<OrderLineDto> = emptyList())
 @Serializable data class OrderDetailResp(val data: OrderDetailDto)
 
+@Serializable data class StmtLineDto(val code: String, val name: String, val amount: Double = 0.0)
+@Serializable data class IncomeDto(val from: String, val to: String, val revenue: List<StmtLineDto> = emptyList(), val expense: List<StmtLineDto> = emptyList(), val totalRevenue: Double = 0.0, val totalExpense: Double = 0.0, val net: Double = 0.0)
+@Serializable data class IncomeResp(val data: IncomeDto)
+@Serializable data class BalanceDto(val asOf: String, val assets: List<StmtLineDto> = emptyList(), val liabilities: List<StmtLineDto> = emptyList(), val equity: List<StmtLineDto> = emptyList(), val totalAssets: Double = 0.0, val totalLiabilities: Double = 0.0, val totalEquity: Double = 0.0)
+@Serializable data class BalanceResp(val data: BalanceDto)
+@Serializable data class CashFlowDto(val from: String, val to: String, val operating: List<StmtLineDto> = emptyList(), val investing: List<StmtLineDto> = emptyList(), val financing: List<StmtLineDto> = emptyList(), val opTotal: Double = 0.0, val invTotal: Double = 0.0, val finTotal: Double = 0.0, val netChange: Double = 0.0, val cashBegin: Double = 0.0, val cashEnd: Double = 0.0)
+@Serializable data class CashFlowResp(val data: CashFlowDto)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -79,6 +87,15 @@ interface Api {
     /** Generic action POST (no body) — e.g. confirm. */
     @POST
     suspend fun postAction(@Url url: String): OkResp
+
+    @GET("api/v1/financials/income")
+    suspend fun incomeStatement(): IncomeResp
+
+    @GET("api/v1/financials/balance-sheet")
+    suspend fun balanceSheet(): BalanceResp
+
+    @GET("api/v1/financials/cash-flow")
+    suspend fun cashFlow(): CashFlowResp
 
     @GET("api/v1/inventory/items")
     suspend fun search(@Query("q") q: String): ItemsResp

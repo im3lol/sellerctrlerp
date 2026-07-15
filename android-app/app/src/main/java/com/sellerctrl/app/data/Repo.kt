@@ -83,6 +83,9 @@ class Repo(val store: TokenStore) {
     suspend fun reports(): ReportsDto = api.reports().data
     suspend fun docList(path: String): List<DocRow> = api.docList(path).data
     suspend fun orderDetail(path: String): OrderDetailDto = api.orderDetail(path).data
+    suspend fun incomeStatement(): IncomeDto = api.incomeStatement().data
+    suspend fun balanceSheet(): BalanceDto = api.balanceSheet().data
+    suspend fun cashFlow(): CashFlowDto = api.cashFlow().data
 
     /** POST an action (e.g. confirm); throws the server's Arabic error on failure. */
     suspend fun postAction(path: String) {
