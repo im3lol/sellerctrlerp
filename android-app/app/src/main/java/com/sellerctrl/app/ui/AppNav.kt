@@ -55,6 +55,12 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("scan") { ScanScreen(nav) }
         composable("search") { SearchScreen(nav) }
         composable("item_form/{id}") { e -> ItemFormScreen(nav, e.arguments?.getString("id") ?: "new") }
+        composable("transfers") { ListScreen(nav, "التحويلات المخزنية", "api/v1/inventory/transfers", detailPrefix = "transfer", addRoute = "transfer_form") }
+        composable("transfer_form") { StockTransferFormScreen(nav) }
+        composable("transfer/{id}") { e -> StockTransferDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("quotations") { ListScreen(nav, "عروض الأسعار", "api/v1/sales/quotations", detailPrefix = "quotation", addRoute = "quote_form") }
+        composable("quote_form") { QuotationFormScreen(nav) }
+        composable("quotation/{id}") { e -> QuotationDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("adjust") { AdjustmentScreen(nav) }
         // Module hubs
         composable("hub_sales") {

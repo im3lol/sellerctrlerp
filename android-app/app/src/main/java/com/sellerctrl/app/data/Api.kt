@@ -126,6 +126,18 @@ import retrofit2.http.Url
 @Serializable data class ItemEditResp(val data: ItemEditDto)
 @Serializable data class ItemSaveReq(val id: String? = null, val code: String, val nameAr: String, val nameEn: String? = null, val sellPrice: Double = 0.0, val minStock: Double = 0.0, val isPerishable: Boolean = false, val codes: List<ItemCodeIn> = emptyList())
 
+// --- Stock transfers (تحويلات المخزون) ---
+@Serializable data class TransferLineDto(val name: String, val qty: Double = 0.0, val from: String = "", val to: String = "")
+@Serializable data class TransferDetailDto(val id: String, val number: String, val date: String, val status: String, val notes: String = "", val lines: List<TransferLineDto> = emptyList())
+@Serializable data class TransferDetailResp(val data: TransferDetailDto)
+@Serializable data class TfCreateLine(val itemId: String, val fromWarehouseId: String, val toWarehouseId: String, val quantity: Double)
+@Serializable data class TfCreateReq(val date: String, val notes: String? = null, val lines: List<TfCreateLine>)
+
+// --- Sales quotations (عروض الأسعار) ---
+@Serializable data class QuoteCreateLine(val itemId: String, val quantity: Double, val unitPrice: Double)
+@Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
+@Serializable data class StatusReq(val status: String)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -218,6 +230,18 @@ interface Api {
 
     @POST
     suspend fun itemSave(@Url url: String, @Body body: ItemSaveReq): OkResp
+
+    @GET
+    suspend fun transferDetail(@Url url: String): TransferDetailResp
+
+    @POST
+    suspend fun tfCreate(@Url url: String, @Body body: TfCreateReq): OkResp
+
+    @POST
+    suspend fun quoteCreate(@Url url: String, @Body body: QuoteCreateReq): OkResp
+
+    @POST
+    suspend fun quoteStatus(@Url url: String, @Body body: StatusReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

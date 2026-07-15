@@ -7,7 +7,7 @@ import {
   salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
   leaveRequests, expenseClaims, expenseClaimLines,
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
-  purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers,
+  purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes,
 } from "@/db/schema";
 
@@ -290,6 +290,42 @@ export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
       sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`))
     .orderBy(accounts.code);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: null }));
+}
+
+/** Sales quotation header + lines (mobile detail; reuses the OrderDetail shape). */
+export async function quotationDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [q] = await db.select({ id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, party: customers.nameAr })
+    .from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
+    .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
+  if (!q) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, disc: salesQuotationLines.discountAmount, tax: salesQuotationLines.taxAmount })
+    .from(salesQuotationLines).leftJoin(items, eq(items.id, salesQuotationLines.itemId)).where(eq(salesQuotationLines.quotationId, id));
+  const mapped = lines.map((l) => {
+    const total = Number(l.qty) * Number(l.unitPrice) - Number(l.disc) + Number(l.tax);
+    return { name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total };
+  });
+  return { id: q.id, number: q.number, party: q.party ?? "—", date: new Date(q.date).toISOString().slice(0, 10), status: q.status,
+    total: mapped.reduce((s, l) => s + l.total, 0), lines: mapped };
+}
+
+export type TransferLine = { name: string; qty: number; from: string; to: string };
+export type TransferDetail = { id: string; number: string; date: string; status: string; notes: string; lines: TransferLine[] };
+
+/** Stock transfer header + lines (each line = item qty from→to warehouse). */
+export async function stockTransferDetail(orgId: string, id: string): Promise<TransferDetail | null> {
+  const [t] = await db.select({ id: stockTransfers.id, number: stockTransfers.number, date: stockTransfers.date, status: stockTransfers.status, notes: stockTransfers.notes })
+    .from(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
+  if (!t) return null;
+  const fromW = alias(warehouses, "l_from_w");
+  const toW = alias(warehouses, "l_to_w");
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: stockTransferLines.quantity, from: fromW.nameAr, to: toW.nameAr })
+    .from(stockTransferLines)
+    .leftJoin(items, eq(items.id, stockTransferLines.itemId))
+    .leftJoin(fromW, eq(fromW.id, stockTransferLines.fromWarehouseId))
+    .leftJoin(toW, eq(toW.id, stockTransferLines.toWarehouseId))
+    .where(eq(stockTransferLines.stockTransferId, id));
+  return { id: t.id, number: t.number, date: new Date(t.date).toISOString().slice(0, 10), status: t.status, notes: t.notes ?? "",
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), from: l.from ?? "—", to: l.to ?? "—" })) };
 }
 
 export type ItemCode = { codeType: string; code: string };

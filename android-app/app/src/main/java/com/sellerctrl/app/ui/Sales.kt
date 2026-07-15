@@ -57,12 +57,12 @@ import com.sellerctrl.app.data.SoCreateLine
 import com.sellerctrl.app.data.SoCreateReq
 import kotlinx.coroutines.launch
 
-private data class SLine(val itemId: String, val name: String, var qty: String, var price: String)
+internal data class SLine(val itemId: String, val name: String, var qty: String, var price: String)
 
-/** Shared sales create form: sales order (with warehouse) or standalone sales invoice. */
+/** Shared sales create form: sales order (with warehouse), standalone invoice, or quotation. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SalesForm(nav: NavController, title: String, withWarehouse: Boolean, submit: suspend (custId: String, whId: String, date: String, notes: String, lines: List<SLine>) -> Unit) {
+internal fun SalesForm(nav: NavController, title: String, withWarehouse: Boolean, submit: suspend (custId: String, whId: String, date: String, notes: String, lines: List<SLine>) -> Unit) {
     val scope = rememberCoroutineScope()
     var customers by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var warehouses by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }

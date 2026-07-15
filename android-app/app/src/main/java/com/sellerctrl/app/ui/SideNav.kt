@@ -94,7 +94,7 @@ private val NAV = listOf(
         Leaf("إذون الاستلام", "purchase_receipts", "العمليات"),
         Leaf("إذون الصرف", "sales_deliveries", "العمليات"),
         Leaf("تسويات المخزون", "genlist/adjustments", "العمليات"),
-        Leaf("التحويلات المخزنية", "genlist/transfers", "العمليات"),
+        Leaf("التحويلات المخزنية", "transfers", "العمليات"),
         Leaf("الحزم والمجموعات", null, "العمليات"),
         Leaf("تنبيهات إعادة الطلب", null, "التنبيهات والأدوات"),
         Leaf("المخزون الراكد", null, "التنبيهات والأدوات"),
@@ -103,7 +103,7 @@ private val NAV = listOf(
     )),
     Section("المبيعات", Icons.Filled.ShoppingCart, null, listOf(
         Leaf("العملاء", "customers_manager", null),
-        Leaf("عروض الأسعار", "genlist/quotations", "دورة البيع"),
+        Leaf("عروض الأسعار", "quotations", "دورة البيع"),
         Leaf("أوامر البيع", "sales_orders", "دورة البيع"),
         Leaf("فواتير البيع", "sales_invoices", "دورة البيع"),
         Leaf("الفواتير الدورية", null, "دورة البيع"),

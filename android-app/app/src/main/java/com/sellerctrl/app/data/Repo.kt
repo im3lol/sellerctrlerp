@@ -182,6 +182,23 @@ class Repo(val store: TokenStore) {
     }
     suspend fun itemDelete(id: String) = postAction("api/v1/inventory/items/$id/delete")
 
+    // --- Stock transfers (تحويلات المخزون) ---
+    suspend fun transferDetail(id: String): TransferDetailDto = api.transferDetail("api/v1/inventory/transfers/$id").data
+    suspend fun transferCreate(req: TfCreateReq) {
+        try { api.tfCreate("api/v1/inventory/transfers", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
+    // --- Sales quotations (عروض الأسعار) ---
+    suspend fun quotationCreate(req: QuoteCreateReq) {
+        try { api.quoteCreate("api/v1/sales/quotations", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun quotationStatus(id: String, status: String) {
+        try { api.quoteStatus("api/v1/sales/quotations/$id/status", StatusReq(status)) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحديث") }
+    }
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 
