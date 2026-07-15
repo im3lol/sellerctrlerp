@@ -1,15 +1,51 @@
 package com.sellerctrl.app.ui
 
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sellerctrl.app.ServiceLocator
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNav() {
     val nav = rememberNavController()
     val start = if (ServiceLocator.repo.isLoggedIn()) "home" else "login"
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val current by nav.currentBackStackEntryAsState()
+    val route = current?.destination?.route
+    // Drawer is available on the workspace; never on the login screen.
+    val gesturesEnabled = drawerState.isOpen || (route != null && route != "login")
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = gesturesEnabled,
+        drawerContent = {
+            ModalDrawerSheet(drawerContainerColor = androidx.compose.ui.graphics.Color(0xFF0A33D1)) {
+                SideNav(nav, route) { dest ->
+                    scope.launch { drawerState.close() }
+                    if (dest != route) nav.navigate(dest)
+                }
+            }
+        },
+    ) {
+        CompositionLocalProvider(LocalOpenDrawer provides { scope.launch { drawerState.open() } }) {
+            AppNavHost(nav, start)
+        }
+    }
+}
+
+@Composable
+private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String) {
     NavHost(navController = nav, startDestination = start) {
         composable("login") {
             LoginScreen(onDone = { nav.navigate("home") { popUpTo("login") { inclusive = true } } })

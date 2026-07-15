@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Badge
@@ -78,6 +79,10 @@ fun DashboardScreen(nav: NavController) {
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("SellerCtrl", color = BrandBlue, fontWeight = FontWeight.Black) },
+            navigationIcon = {
+                val open = LocalOpenDrawer.current
+                IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة", tint = BrandBlue) }
+            },
             actions = {
                 IconButton(onClick = { scope.launch { repo.logout(); nav.navigate("login") { popUpTo(0) } } }) {
                     Icon(Icons.AutoMirrored.Filled.Logout, "خروج")
