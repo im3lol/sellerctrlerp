@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +43,8 @@ import com.sellerctrl.app.data.DocRow
 fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: String? = null) {
     var rows by remember { mutableStateOf<List<DocRow>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(path) {
+    val tick by ServiceLocator.repo.tick.collectAsState()
+    LaunchedEffect(path, tick) {
         try {
             rows = ServiceLocator.repo.docList(path)
         } catch (e: Exception) {

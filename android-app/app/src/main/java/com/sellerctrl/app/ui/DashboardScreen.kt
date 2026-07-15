@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,7 +75,8 @@ fun DashboardScreen(nav: NavController) {
     val repo = ServiceLocator.repo
     val scope = rememberCoroutineScope()
     var dash by remember { mutableStateOf<DashboardDto?>(null) }
-    LaunchedEffect(Unit) { dash = try { repo.dashboard() } catch (_: Exception) { null } }
+    val tick by repo.tick.collectAsState()
+    LaunchedEffect(tick) { dash = try { repo.dashboard() } catch (_: Exception) { null } }
 
     Scaffold(topBar = {
         TopAppBar(

@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +55,8 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
-    LaunchedEffect(reload) {
+    val tick by ServiceLocator.repo.tick.collectAsState()
+    LaunchedEffect(reload, tick) {
         try { rows = ServiceLocator.repo.docList(listPath) } catch (e: Exception) { error = "تعذّر التحميل"; rows = emptyList() }
     }
 

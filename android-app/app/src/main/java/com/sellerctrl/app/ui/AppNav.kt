@@ -21,6 +21,7 @@ fun AppNav() {
     val start = if (ServiceLocator.repo.isLoggedIn()) "home" else "login"
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    androidx.compose.runtime.LaunchedEffect(Unit) { ServiceLocator.repo.startRealtime() }
     val current by nav.currentBackStackEntryAsState()
     val route = current?.destination?.route
     // Drawer is available on the workspace; never on the login screen.

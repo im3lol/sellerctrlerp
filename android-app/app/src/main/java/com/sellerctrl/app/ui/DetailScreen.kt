@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +48,8 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
-    LaunchedEffect(reload) { d = try { ServiceLocator.repo.orderDetail(detailPath) } catch (e: Exception) { null } }
+    val tick by ServiceLocator.repo.tick.collectAsState()
+    LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.orderDetail(detailPath) } catch (e: Exception) { null } }
 
     fun runAction(path: String, okMsg: String) {
         busy = true; message = null

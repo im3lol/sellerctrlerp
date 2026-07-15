@@ -66,3 +66,34 @@ export async function authorizeApi(req: Request, permission: ErpPermission): Pro
 export function runAsErp<T>(auth: ApiAuth, fn: () => Promise<T>): Promise<T> {
   return runWithErpContext({ userId: auth.userId, orgId: auth.orgId, role: auth.role, permissions: auth.permissions }, fn);
 }
+
+/**
+ * Member-level auth for contentless endpoints (the SSE change stream). Accepts
+ * the token from the `Authorization` header OR a `?token=` query param (an
+ * EventSource cannot set headers), and the org from `X-Org-Id` OR `?org=`. No
+ * specific ERP permission — the stream only signals "something changed".
+ */
+export async function authorizeApiMember(req: Request): Promise<{ orgId: string; userId: string } | ApiAuthError> {
+  const url = new URL(req.url);
+  const token = (req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? url.searchParams.get("token") ?? "").trim();
+  if (!token) return { error: "unauthorized", status: 401 };
+
+  let userId: string;
+  try {
+    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER });
+    userId = String(payload.sub ?? "");
+  } catch {
+    return { error: "invalid_token", status: 401 };
+  }
+  if (!userId) return { error: "invalid_token", status: 401 };
+
+  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!u || !u.isActive) return { error: "unauthorized", status: 401 };
+
+  const orgId = (req.headers.get("x-org-id") ?? url.searchParams.get("org") ?? "").trim();
+  if (!orgId) return { error: "org_required", status: 400 };
+
+  const access = await getMemberAccess(orgId, { id: u.id, role: u.role } as SessionUser);
+  if (!access.role) return { error: "forbidden_org", status: 403 };
+  return { orgId, userId: u.id };
+}

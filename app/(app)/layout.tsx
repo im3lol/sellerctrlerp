@@ -8,6 +8,7 @@ import { salesPlatforms } from "@/db/schema";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
+import { LiveRefresh } from "@/components/app-shell/live-refresh";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
       {user.role !== "system_admin" && <OnboardingTour />}
+      <LiveRefresh />
     </div>
   );
 }

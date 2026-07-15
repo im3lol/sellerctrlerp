@@ -1,11 +1,23 @@
 package com.sellerctrl.app.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.sse.EventSource
+import okhttp3.sse.EventSourceListener
+import okhttp3.sse.EventSources
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.create
+import java.util.concurrent.TimeUnit
 
 class Repo(val store: TokenStore) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -23,10 +35,44 @@ class Repo(val store: TokenStore) {
     fun orgName(): String = store.orgName ?: ""
     fun userName(): String = store.userName ?: ""
 
+    // --- Live sync (SSE) ---------------------------------------------------
+    // `tick` bumps on every server-pushed change event; screens key their reload
+    // on it to refetch live. Mirrors the web's LiveRefresh via /api/v1/stream.
+    private val _tick = MutableStateFlow(0L)
+    val tick: StateFlow<Long> = _tick
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val sseClient = client.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).retryOnConnectionFailure(true).build()
+    @Volatile private var eventSource: EventSource? = null
+
+    fun startRealtime() {
+        if (!isLoggedIn() || eventSource != null) return
+        connectSse()
+    }
+
+    private fun connectSse() {
+        val req = Request.Builder().url(BASE_URL + "api/v1/stream").build() // interceptor adds auth headers
+        eventSource = EventSources.createFactory(sseClient).newEventSource(req, object : EventSourceListener() {
+            override fun onEvent(es: EventSource, id: String?, type: String?, data: String) {
+                if (!data.contains("\"HELLO\"")) _tick.value = _tick.value + 1
+            }
+            override fun onFailure(es: EventSource, t: Throwable?, response: okhttp3.Response?) {
+                eventSource = null
+                // Reconnect while logged in (backoff 3s).
+                scope.launch { delay(3000); if (isLoggedIn()) connectSse() }
+            }
+        })
+    }
+
+    fun stopRealtime() {
+        eventSource?.cancel()
+        eventSource = null
+    }
+
     suspend fun login(username: String, password: String): LoginResp {
         val r = api.login(LoginReq(username.trim(), password))
         val org = r.orgs.firstOrNull()
         store.save(r.token, org?.id ?: "", org?.name ?: "", r.user.name)
+        startRealtime()
         return r
     }
 
@@ -61,7 +107,7 @@ class Repo(val store: TokenStore) {
         }
     }
 
-    suspend fun logout() = store.clear()
+    suspend fun logout() { stopRealtime(); store.clear() }
 
     companion object {
         // Local test build: talks to the Docker app via `adb reverse tcp:3001`.
