@@ -1,10 +1,14 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
   salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
   leaveRequests, expenseClaims, expenseClaimLines,
+  salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
+  purchaseReceipts, materialRequests, stockAdjustments, stockTransfers,
+  bankAccounts, fixedAssets, accounts, holidays, warehouses,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -169,6 +173,90 @@ export async function investorList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: investors.id, code: investors.code, name: investors.fullName, phone: investors.phone, status: investors.status })
     .from(investors).where(eq(investors.organizationId, orgId)).orderBy(investors.fullName).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "مستثمر", subtitle: r.phone ?? null, amount: null, status: r.status }));
+}
+
+// ---- Coverage batch: read-only document + master-data lists ---------------
+
+export async function quotationList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, name: customers.nameAr,
+    total: sql<string>`COALESCE(SUM(${salesQuotationLines.quantity} * ${salesQuotationLines.unitPrice} - ${salesQuotationLines.discountAmount} + ${salesQuotationLines.taxAmount}), 0)`,
+  }).from(salesQuotations)
+    .leftJoin(customers, eq(customers.id, salesQuotations.customerId))
+    .leftJoin(salesQuotationLines, eq(salesQuotationLines.quotationId, salesQuotations.id))
+    .where(eq(salesQuotations.organizationId, orgId))
+    .groupBy(salesQuotations.id, customers.nameAr)
+    .orderBy(desc(salesQuotations.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.total), status: r.status }));
+}
+
+export async function receiptVoucherList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: receiptVouchers.id, number: receiptVouchers.number, status: receiptVouchers.status, amount: receiptVouchers.amount, date: receiptVouchers.date, name: customers.nameAr })
+    .from(receiptVouchers).leftJoin(customers, eq(customers.id, receiptVouchers.customerId))
+    .where(eq(receiptVouchers.organizationId, orgId)).orderBy(desc(receiptVouchers.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
+}
+
+export async function paymentVoucherList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: paymentVouchers.id, number: paymentVouchers.number, status: paymentVouchers.status, amount: paymentVouchers.amount, date: paymentVouchers.date, name: suppliers.nameAr })
+    .from(paymentVouchers).leftJoin(suppliers, eq(suppliers.id, paymentVouchers.supplierId))
+    .where(eq(paymentVouchers.organizationId, orgId)).orderBy(desc(paymentVouchers.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
+}
+
+export async function purchaseReceiptList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, status: purchaseReceipts.status, date: purchaseReceipts.date, name: suppliers.nameAr })
+    .from(purchaseReceipts).leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
+    .where(eq(purchaseReceipts.organizationId, orgId)).orderBy(desc(purchaseReceipts.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "استلام", subtitle: r.number, amount: null, status: r.status }));
+}
+
+export async function materialRequestList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: materialRequests.id, number: materialRequests.number, status: materialRequests.status, date: materialRequests.date, by: materialRequests.requestedBy })
+    .from(materialRequests).where(eq(materialRequests.organizationId, orgId)).orderBy(desc(materialRequests.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: `طلب مواد ${r.number}`, subtitle: r.by ?? null, amount: null, status: r.status }));
+}
+
+export async function stockAdjustmentList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: stockAdjustments.id, number: stockAdjustments.number, status: stockAdjustments.status, date: stockAdjustments.date, reason: stockAdjustments.reason })
+    .from(stockAdjustments).where(eq(stockAdjustments.organizationId, orgId)).orderBy(desc(stockAdjustments.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.reason || `تسوية ${r.number}`, subtitle: r.number, amount: null, status: r.status }));
+}
+
+export async function stockTransferList(orgId: string): Promise<DocRow[]> {
+  const fromW = alias(warehouses, "from_w");
+  const toW = alias(warehouses, "to_w");
+  const rows = await db.select({ id: stockTransfers.id, number: stockTransfers.number, status: stockTransfers.status, date: stockTransfers.date, from: fromW.nameAr, to: toW.nameAr })
+    .from(stockTransfers)
+    .leftJoin(fromW, eq(fromW.id, stockTransfers.fromWarehouseId))
+    .leftJoin(toW, eq(toW.id, stockTransfers.toWarehouseId))
+    .where(eq(stockTransfers.organizationId, orgId)).orderBy(desc(stockTransfers.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: `${r.from ?? "—"} ← ${r.to ?? "—"}`, subtitle: r.number, amount: null, status: r.status }));
+}
+
+export async function bankAccountList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: bankAccounts.id, name: bankAccounts.nameAr, bank: bankAccounts.bankName, acc: bankAccounts.accountNumber, active: bankAccounts.isActive })
+    .from(bankAccounts).where(eq(bankAccounts.organizationId, orgId)).orderBy(bankAccounts.nameAr).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.acc ?? "—", title: r.name, subtitle: r.bank ?? r.acc ?? null, amount: null, status: r.active ? "نشط" : "متوقف" }));
+}
+
+export async function fixedAssetList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: fixedAssets.id, code: fixedAssets.code, name: fixedAssets.nameAr, nbv: fixedAssets.netBookValue, status: fixedAssets.status })
+    .from(fixedAssets).where(eq(fixedAssets.organizationId, orgId)).orderBy(fixedAssets.code).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: Number(r.nbv), status: r.status }));
+}
+
+const ACCT_TYPE_AR: Record<string, string> = { ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات" };
+export async function chartAccountList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
+    .from(accounts).where(eq(accounts.organizationId, orgId)).orderBy(accounts.code).limit(500);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: ACCT_TYPE_AR[r.type] ?? r.type }));
+}
+
+export async function holidayList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: holidays.id, name: holidays.nameAr, date: holidays.date })
+    .from(holidays).where(eq(holidays.organizationId, orgId)).orderBy(desc(holidays.date)).limit(200);
+  return rows.map((r) => ({ id: r.id, number: "", title: r.name, subtitle: new Date(r.date).toISOString().slice(0, 10), amount: null, status: null }));
 }
 
 export async function platformList(orgId: string): Promise<DocRow[]> {

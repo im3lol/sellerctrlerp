@@ -41,6 +41,11 @@ fun statusAr(s: String): String = when (s) {
     "OVERDUE" -> "متأخر"
     "APPROVED" -> "معتمد"
     "REJECTED" -> "مرفوض"
+    "SENT" -> "مُرسل"
+    "ACCEPTED" -> "مقبول"
+    "ACTIVE" -> "نشط"
+    "DISPOSED" -> "مستبعد"
+    "FULLY_DEPRECIATED" -> "مُستهلك بالكامل"
     else -> s
 }
 

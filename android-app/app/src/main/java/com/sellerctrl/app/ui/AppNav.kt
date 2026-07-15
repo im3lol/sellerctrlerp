@@ -114,5 +114,25 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }
         composable("reports") { ReportsScreen(nav) }
+        // Generic coverage-batch lists: one destination for every /api/v1/list/:key.
+        composable("genlist/{key}") { e ->
+            val key = e.arguments?.getString("key") ?: ""
+            ListScreen(nav, GENLIST_TITLES[key] ?: "قائمة", "api/v1/list/$key")
+        }
     }
 }
+
+/** Arabic titles for the generic list keys (mirror the web nav labels). */
+private val GENLIST_TITLES = mapOf(
+    "chart" to "دليل الحسابات",
+    "sales-receipts" to "سندات القبض",
+    "purchase-payments" to "سندات الصرف",
+    "purchase-receipts" to "إذون الاستلام",
+    "requisitions" to "طلبات المواد",
+    "adjustments" to "تسويات المخزون",
+    "transfers" to "التحويلات المخزنية",
+    "banks" to "الحسابات البنكية",
+    "assets" to "الأصول الثابتة",
+    "quotations" to "عروض الأسعار",
+    "holidays" to "تقويم العطلات",
+)
