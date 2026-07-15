@@ -138,6 +138,14 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- Bundles (الحزم والمجموعات) ---
+@Serializable data class BundleComponentDto(val itemId: String, val name: String = "", val code: String = "", val qty: Double = 0.0)
+@Serializable data class BundleDetailDto(val id: String, val code: String, val name: String, val components: List<BundleComponentDto> = emptyList())
+@Serializable data class BundleDetailResp(val data: BundleDetailDto)
+@Serializable data class BomComponent(val componentItemId: String, val quantity: Double)
+@Serializable data class BomReq(val parentItemId: String, val components: List<BomComponent>)
+@Serializable data class AssembleReq(val kitItemId: String, val warehouseId: String, val quantity: Double, val date: String, val notes: String? = null)
+
 // --- HR: employees + leave requests ---
 @Serializable data class EmployeeEditDto(val id: String, val fullName: String = "", val employeeCode: String = "", val position: String = "", val department: String = "", val payType: String = "MONTHLY", val basicSalary: Double = 0.0, val allowances: Double = 0.0, val deductions: Double = 0.0, val taxRate: Double = 0.0)
 @Serializable data class EmployeeEditResp(val data: EmployeeEditDto)
@@ -272,6 +280,15 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun bundleDetail(@Url url: String): BundleDetailResp
+
+    @POST
+    suspend fun bomSave(@Url url: String, @Body body: BomReq): OkResp
+
+    @POST
+    suspend fun assemble(@Url url: String, @Body body: AssembleReq): OkResp
 
     @GET
     suspend fun employeeEdit(@Url url: String): EmployeeEditResp

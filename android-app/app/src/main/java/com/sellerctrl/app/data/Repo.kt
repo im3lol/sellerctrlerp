@@ -202,6 +202,17 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Bundles (الحزم والمجموعات) ---
+    suspend fun bundleDetail(id: String): BundleDetailDto = api.bundleDetail("api/v1/inventory/bundles/$id").data
+    suspend fun bundleSetComponents(req: BomReq) {
+        try { api.bomSave("api/v1/inventory/bundles", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun bundleAssemble(req: AssembleReq) {
+        try { api.assemble("api/v1/inventory/bundles/assemble", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التجميع") }
+    }
+
     // --- HR: employees + leave requests ---
     suspend fun employeeEdit(id: String): EmployeeEditDto = api.employeeEdit("api/v1/hr/employees/$id").data
     suspend fun employeeSave(req: EmployeeSaveReq) {

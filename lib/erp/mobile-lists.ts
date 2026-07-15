@@ -9,7 +9,7 @@ import {
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
-  recurringSalesInvoices, recurringSalesInvoiceLines,
+  recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -399,6 +399,32 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
   return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
     purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
     accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
+}
+
+/** Kit items that have a bill of materials (bundles list). */
+export async function bundleList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: items.id, code: items.code, name: items.nameAr, n: sql<number>`count(${itemComponents.id})` })
+    .from(itemComponents).innerJoin(items, eq(items.id, itemComponents.parentItemId))
+    .where(eq(itemComponents.organizationId, orgId))
+    .groupBy(items.id, items.code, items.nameAr)
+    .orderBy(items.code).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name ?? r.code, subtitle: `${Number(r.n)} مكوّن`, amount: null, status: "حزمة" }));
+}
+
+export type BundleComponent = { itemId: string; name: string; code: string; qty: number };
+export type BundleDetail = { id: string; code: string; name: string; components: BundleComponent[] };
+
+/** A kit item + its components (bundle detail / edit). */
+export async function bundleDetail(orgId: string, parentItemId: string): Promise<BundleDetail | null> {
+  const [p] = await db.select({ id: items.id, code: items.code, name: items.nameAr })
+    .from(items).where(and(eq(items.id, parentItemId), eq(items.organizationId, orgId))).limit(1);
+  if (!p) return null;
+  const comp = alias(items, "comp_item");
+  const rows = await db.select({ itemId: itemComponents.componentItemId, qty: itemComponents.quantity, name: comp.nameAr, code: comp.code })
+    .from(itemComponents).leftJoin(comp, eq(comp.id, itemComponents.componentItemId))
+    .where(and(eq(itemComponents.organizationId, orgId), eq(itemComponents.parentItemId, parentItemId)));
+  return { id: p.id, code: p.code, name: p.name ?? p.code,
+    components: rows.map((r) => ({ itemId: r.itemId, name: r.name ?? r.code ?? "—", code: r.code ?? "", qty: Number(r.qty) })) };
 }
 
 export type ItemCode = { codeType: string; code: string };

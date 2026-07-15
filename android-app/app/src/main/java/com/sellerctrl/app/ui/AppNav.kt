@@ -61,6 +61,14 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("adjustments") { ListScreen(nav, "تسويات المخزون", "api/v1/inventory/adjustments", detailPrefix = "adjustment", addRoute = "adjustment_form") }
         composable("adjustment_form") { AdjustmentDocFormScreen(nav) }
         composable("adjustment/{id}") { e -> AdjustmentDocDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("bundles") { ListScreen(nav, "الحزم والمجموعات", "api/v1/inventory/bundles", detailPrefix = "bundle", addRoute = "bundle_form/new") }
+        composable("bundle_form/{id}") { e -> BundleFormScreen(nav, e.arguments?.getString("id") ?: "new") }
+        composable("bundle/{id}") { e -> BundleDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        // Inventory alert lists (reorder | dead-stock | expiry) — reuse the generic list.
+        composable("alert/{key}") { e ->
+            val key = e.arguments?.getString("key") ?: ""
+            ListScreen(nav, ALERT_TITLES[key] ?: "تنبيه", "api/v1/alerts/$key")
+        }
         composable("assets") { ListScreen(nav, "الأصول الثابتة", "api/v1/accounting/assets", detailPrefix = "asset", addRoute = "asset_form") }
         composable("asset_form") { AssetFormScreen(nav) }
         composable("asset/{id}") { e -> AssetDetailScreen(nav, e.arguments?.getString("id") ?: "") }
@@ -163,6 +171,13 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         }
     }
 }
+
+/** Arabic titles for the inventory alert keys. */
+private val ALERT_TITLES = mapOf(
+    "reorder" to "تنبيهات إعادة الطلب",
+    "dead-stock" to "المخزون الراكد",
+    "expiry" to "تنبيهات انتهاء الصلاحية",
+)
 
 /** Arabic titles for the ranked report keys. */
 private val REPORT_TITLES = mapOf(
