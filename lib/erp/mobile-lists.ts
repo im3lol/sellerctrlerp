@@ -8,7 +8,7 @@ import {
   leaveRequests, expenseClaims, expenseClaimLines,
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
-  bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes,
+  bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -326,6 +326,38 @@ export async function stockTransferDetail(orgId: string, id: string): Promise<Tr
     .where(eq(stockTransferLines.stockTransferId, id));
   return { id: t.id, number: t.number, date: new Date(t.date).toISOString().slice(0, 10), status: t.status, notes: t.notes ?? "",
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), from: l.from ?? "—", to: l.to ?? "—" })) };
+}
+
+export type AdjLine = { name: string; mode: string; entered: number; delta: number; warehouse: string };
+export type AdjDetail = { id: string; number: string; date: string; status: string; reason: string; lines: AdjLine[] };
+
+/** Stock adjustment header + lines (mobile detail). */
+export async function stockAdjustmentDetail(orgId: string, id: string): Promise<AdjDetail | null> {
+  const [a] = await db.select({ id: stockAdjustments.id, number: stockAdjustments.number, date: stockAdjustments.date, status: stockAdjustments.status, reason: stockAdjustments.reason })
+    .from(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
+  if (!a) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, mode: stockAdjustmentLines.mode, entered: stockAdjustmentLines.enteredValue, delta: stockAdjustmentLines.deltaQuantity, wh: warehouses.nameAr })
+    .from(stockAdjustmentLines)
+    .leftJoin(items, eq(items.id, stockAdjustmentLines.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, stockAdjustmentLines.warehouseId))
+    .where(eq(stockAdjustmentLines.stockAdjustmentId, id));
+  return { id: a.id, number: a.number, date: new Date(a.date).toISOString().slice(0, 10), status: a.status, reason: a.reason ?? "",
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", mode: l.mode, entered: Number(l.entered), delta: Number(l.delta), warehouse: l.wh ?? "—" })) };
+}
+
+export type AssetDetail = { id: string; code: string; nameAr: string; category: string; purchaseDate: string; purchaseCost: number; salvageValue: number; usefulLifeYears: number; accumulated: number; netBookValue: number; status: string; notes: string };
+
+/** Fixed asset detail (mobile). */
+export async function fixedAssetDetail(orgId: string, id: string): Promise<AssetDetail | null> {
+  const [a] = await db.select({
+    id: fixedAssets.id, code: fixedAssets.code, nameAr: fixedAssets.nameAr, category: fixedAssets.category, purchaseDate: fixedAssets.purchaseDate,
+    purchaseCost: fixedAssets.purchaseCost, salvageValue: fixedAssets.salvageValue, usefulLifeYears: fixedAssets.usefulLifeYears,
+    accumulated: fixedAssets.accumulatedDepreciation, nbv: fixedAssets.netBookValue, status: fixedAssets.status, notes: fixedAssets.notes,
+  }).from(fixedAssets).where(and(eq(fixedAssets.id, id), eq(fixedAssets.organizationId, orgId))).limit(1);
+  if (!a) return null;
+  return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
+    purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
+    accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
 }
 
 export type ItemCode = { codeType: string; code: string };

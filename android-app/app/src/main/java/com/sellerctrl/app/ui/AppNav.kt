@@ -58,6 +58,12 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("transfers") { ListScreen(nav, "التحويلات المخزنية", "api/v1/inventory/transfers", detailPrefix = "transfer", addRoute = "transfer_form") }
         composable("transfer_form") { StockTransferFormScreen(nav) }
         composable("transfer/{id}") { e -> StockTransferDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("adjustments") { ListScreen(nav, "تسويات المخزون", "api/v1/inventory/adjustments", detailPrefix = "adjustment", addRoute = "adjustment_form") }
+        composable("adjustment_form") { AdjustmentDocFormScreen(nav) }
+        composable("adjustment/{id}") { e -> AdjustmentDocDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("assets") { ListScreen(nav, "الأصول الثابتة", "api/v1/accounting/assets", detailPrefix = "asset", addRoute = "asset_form") }
+        composable("asset_form") { AssetFormScreen(nav) }
+        composable("asset/{id}") { e -> AssetDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("quotations") { ListScreen(nav, "عروض الأسعار", "api/v1/sales/quotations", detailPrefix = "quotation", addRoute = "quote_form") }
         composable("quote_form") { QuotationFormScreen(nav) }
         composable("quotation/{id}") { e -> QuotationDetailScreen(nav, e.arguments?.getString("id") ?: "") }

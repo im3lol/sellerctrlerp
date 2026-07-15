@@ -138,6 +138,18 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- Stock adjustment document (تسويات المخزون) ---
+@Serializable data class AdjLineDto(val name: String, val mode: String = "set", val entered: Double = 0.0, val delta: Double = 0.0, val warehouse: String = "")
+@Serializable data class AdjDetailDto(val id: String, val number: String, val date: String, val status: String, val reason: String = "", val lines: List<AdjLineDto> = emptyList())
+@Serializable data class AdjDetailResp(val data: AdjDetailDto)
+@Serializable data class AdjDraftLine(val itemId: String, val warehouseId: String, val mode: String = "set", val value: Double)
+@Serializable data class AdjDraftReq(val date: String, val reason: String? = null, val lines: List<AdjDraftLine>)
+
+// --- Fixed assets (الأصول الثابتة) ---
+@Serializable data class AssetDetailDto(val id: String, val code: String, val nameAr: String, val category: String = "OTHER", val purchaseDate: String = "", val purchaseCost: Double = 0.0, val salvageValue: Double = 0.0, val usefulLifeYears: Int = 0, val accumulated: Double = 0.0, val netBookValue: Double = 0.0, val status: String = "ACTIVE", val notes: String = "")
+@Serializable data class AssetDetailResp(val data: AssetDetailDto)
+@Serializable data class AssetCreateReq(val code: String, val nameAr: String, val category: String, val purchaseDate: String, val purchaseCost: Double, val salvageValue: Double = 0.0, val usefulLifeYears: Int, val notes: String? = null)
+
 // --- Ranked reports (تقارير المبيعات/المشتريات) ---
 @Serializable data class RankRowDto(val name: String, val code: String = "", val count: Int = 0, val qty: Double = 0.0, val amount: Double = 0.0)
 @Serializable data class RankReportDto(val from: String, val to: String, val total: Double = 0.0, val rows: List<RankRowDto> = emptyList())
@@ -250,6 +262,18 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun adjDetail(@Url url: String): AdjDetailResp
+
+    @POST
+    suspend fun adjDraft(@Url url: String, @Body body: AdjDraftReq): OkResp
+
+    @GET
+    suspend fun assetDetail(@Url url: String): AssetDetailResp
+
+    @POST
+    suspend fun assetCreate(@Url url: String, @Body body: AssetCreateReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

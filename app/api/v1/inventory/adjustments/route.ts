@@ -1,8 +1,16 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { createAdjustment, confirmAdjustment, deleteAdjustmentDraft } from "@/lib/erp/inventory-writes";
+import { stockAdjustmentList } from "@/lib/erp/mobile-lists";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** GET /api/v1/inventory/adjustments — stock adjustment documents list. */
+export async function GET(req: Request) {
+  const auth = await authorizeApi(req, "inventory.view");
+  if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
+  return Response.json({ data: await stockAdjustmentList(auth.orgId) });
+}
 
 /**
  * POST /api/v1/inventory/adjustments — mobile stock count: create + post in one

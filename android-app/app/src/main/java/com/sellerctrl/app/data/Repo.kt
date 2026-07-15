@@ -202,6 +202,20 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Stock adjustment document (تسويات المخزون) ---
+    suspend fun adjustmentDetail(id: String): AdjDetailDto = api.adjDetail("api/v1/inventory/adjustments/$id").data
+    suspend fun adjustmentDraftCreate(req: AdjDraftReq) {
+        try { api.adjDraft("api/v1/inventory/adjustments/draft", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
+    // --- Fixed assets (الأصول الثابتة) ---
+    suspend fun assetDetail(id: String): AssetDetailDto = api.assetDetail("api/v1/accounting/assets/$id").data
+    suspend fun assetCreate(req: AssetCreateReq) {
+        try { api.assetCreate("api/v1/accounting/assets", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 
