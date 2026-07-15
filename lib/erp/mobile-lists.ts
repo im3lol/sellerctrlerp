@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
-  salesInvoices, purchaseInvoices, deliveryNotes, expenses,
+  salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -91,4 +91,16 @@ export async function employeeList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: employees.id, code: employees.employeeCode, name: employees.fullName, position: employees.position, salary: employees.basicSalary })
     .from(employees).where(and(eq(employees.organizationId, orgId), eq(employees.isActive, true))).orderBy(employees.fullName).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "موظف", subtitle: r.position ?? null, amount: Number(r.salary), status: null }));
+}
+
+export async function investorList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: investors.id, code: investors.code, name: investors.fullName, phone: investors.phone, status: investors.status })
+    .from(investors).where(eq(investors.organizationId, orgId)).orderBy(investors.fullName).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "مستثمر", subtitle: r.phone ?? null, amount: null, status: r.status }));
+}
+
+export async function platformList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code, fulfillment: salesPlatforms.fulfillmentType, active: salesPlatforms.isActive })
+    .from(salesPlatforms).where(eq(salesPlatforms.organizationId, orgId)).orderBy(salesPlatforms.name);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.fulfillment ?? r.code, amount: null, status: r.active ? "نشط" : "متوقف" }));
 }

@@ -49,5 +49,8 @@ fun AppNav() {
         composable("journal") { ListScreen(nav, "القيود المحاسبية", "api/v1/accounting/journal") }
         composable("expenses") { ListScreen(nav, "المصروفات", "api/v1/accounting/expenses") }
         composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees") }
+        composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
+        composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }
+        composable("reports") { ReportsScreen(nav) }
     }
 }

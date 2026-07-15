@@ -34,6 +34,7 @@ class Repo(val store: TokenStore) {
     suspend fun scan(code: String): ItemDto = api.scan(code).data
     suspend fun warehouses(): List<WarehouseDto> = api.warehouses().data
     suspend fun dashboard(): DashboardDto = api.dashboard().data
+    suspend fun reports(): ReportsDto = api.reports().data
     suspend fun docList(path: String): List<DocRow> = api.docList(path).data
 
     /** One-shot stock count: create + post an adjustment. Throws the server's

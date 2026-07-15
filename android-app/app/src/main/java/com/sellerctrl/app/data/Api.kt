@@ -47,12 +47,22 @@ import retrofit2.http.Url
 @Serializable data class DocRow(val id: String, val number: String, val title: String, val subtitle: String? = null, val amount: Double? = null, val status: String? = null)
 @Serializable data class DocListResp(val data: List<DocRow> = emptyList())
 
+@Serializable data class ReportsDto(
+    val income: Double = 0.0, val expense: Double = 0.0, val net: Double = 0.0,
+    val ar: Double = 0.0, val ap: Double = 0.0, val overdueAR: Double = 0.0, val overdueAP: Double = 0.0,
+    val inventoryValue: Double = 0.0, val salesMonth: Double = 0.0, val purchasesMonth: Double = 0.0,
+)
+@Serializable data class ReportsResp(val data: ReportsDto)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
 
     @GET("api/v1/dashboard")
     suspend fun dashboard(): DashboardResp
+
+    @GET("api/v1/reports")
+    suspend fun reports(): ReportsResp
 
     /** Generic list GET for any /api/v1/... path. */
     @GET

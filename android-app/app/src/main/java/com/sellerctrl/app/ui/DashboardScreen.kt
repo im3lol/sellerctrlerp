@@ -13,13 +13,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +62,9 @@ private val MODULES = listOf(
     Mod("الموردون", Icons.Filled.Store, "suppliers"),
     Mod("المحاسبة", Icons.Filled.AccountBalance, "hub_accounting"),
     Mod("الموظفون", Icons.Filled.Badge, "employees"),
+    Mod("التقارير", Icons.Filled.Assessment, "reports"),
+    Mod("المستثمرون", Icons.Filled.Savings, "investors"),
+    Mod("المنصات", Icons.Filled.Storefront, "platforms"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
