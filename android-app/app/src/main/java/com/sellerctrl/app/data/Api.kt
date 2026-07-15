@@ -138,6 +138,16 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- HR: employees + leave requests ---
+@Serializable data class EmployeeEditDto(val id: String, val fullName: String = "", val employeeCode: String = "", val position: String = "", val department: String = "", val payType: String = "MONTHLY", val basicSalary: Double = 0.0, val allowances: Double = 0.0, val deductions: Double = 0.0, val taxRate: Double = 0.0)
+@Serializable data class EmployeeEditResp(val data: EmployeeEditDto)
+@Serializable data class EmployeeSaveReq(val id: String? = null, val fullName: String, val employeeCode: String? = null, val position: String? = null, val department: String? = null, val payType: String = "MONTHLY", val basicSalary: Double = 0.0, val allowances: Double = 0.0, val deductions: Double = 0.0, val taxRate: Double = 0.0)
+@Serializable data class LeaveCreateReq(val employeeId: String, val leaveType: String, val startDate: String, val endDate: String, val reason: String? = null)
+
+// --- Recurring sales invoices (الفواتير الدورية) ---
+@Serializable data class RecurLine(val itemId: String, val quantity: Double, val unitPrice: Double)
+@Serializable data class RecurSaveReq(val id: String? = null, val customerId: String, val frequency: String, val nextRunDate: String, val notes: String? = null, val lines: List<RecurLine>)
+
 // --- Stock adjustment document (تسويات المخزون) ---
 @Serializable data class AdjLineDto(val name: String, val mode: String = "set", val entered: Double = 0.0, val delta: Double = 0.0, val warehouse: String = "")
 @Serializable data class AdjDetailDto(val id: String, val number: String, val date: String, val status: String, val reason: String = "", val lines: List<AdjLineDto> = emptyList())
@@ -262,6 +272,18 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun employeeEdit(@Url url: String): EmployeeEditResp
+
+    @POST
+    suspend fun employeeSave(@Url url: String, @Body body: EmployeeSaveReq): OkResp
+
+    @POST
+    suspend fun leaveCreate(@Url url: String, @Body body: LeaveCreateReq): OkResp
+
+    @POST
+    suspend fun recurSave(@Url url: String, @Body body: RecurSaveReq): OkResp
 
     @GET
     suspend fun adjDetail(@Url url: String): AdjDetailResp

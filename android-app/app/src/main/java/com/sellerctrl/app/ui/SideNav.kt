@@ -107,7 +107,7 @@ private val NAV = listOf(
         Leaf("عروض الأسعار", "quotations", "دورة البيع"),
         Leaf("أوامر البيع", "sales_orders", "دورة البيع"),
         Leaf("فواتير البيع", "sales_invoices", "دورة البيع"),
-        Leaf("الفواتير الدورية", null, "دورة البيع"),
+        Leaf("الفواتير الدورية", "recurring", "دورة البيع"),
         Leaf("تقرير الدفتر", null, "التقارير"),
         Leaf("تقرير الأصناف", "report/sales-items", "التقارير"),
         Leaf("ربحية المنتجات", null, "التقارير"),

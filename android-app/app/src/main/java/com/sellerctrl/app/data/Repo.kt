@@ -202,6 +202,23 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- HR: employees + leave requests ---
+    suspend fun employeeEdit(id: String): EmployeeEditDto = api.employeeEdit("api/v1/hr/employees/$id").data
+    suspend fun employeeSave(req: EmployeeSaveReq) {
+        try { api.employeeSave("api/v1/hr/employees", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun leaveCreate(req: LeaveCreateReq) {
+        try { api.leaveCreate("api/v1/hr/leaves", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
+    // --- Recurring sales invoices (الفواتير الدورية) ---
+    suspend fun recurringCreate(req: RecurSaveReq) {
+        try { api.recurSave("api/v1/sales/recurring", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     // --- Stock adjustment document (تسويات المخزون) ---
     suspend fun adjustmentDetail(id: String): AdjDetailDto = api.adjDetail("api/v1/inventory/adjustments/$id").data
     suspend fun adjustmentDraftCreate(req: AdjDraftReq) {

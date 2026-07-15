@@ -95,7 +95,13 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
                 "مطالبات المصروفات" to "expense_claims",
             ))
         }
-        composable("leaves") { ApprovalScreen(nav, "طلبات الإجازات", "api/v1/hr/leaves", "api/v1/hr/leaves", canReject = true) }
+        composable("leaves") { ApprovalScreen(nav, "طلبات الإجازات", "api/v1/hr/leaves", "api/v1/hr/leaves", canReject = true, addRoute = "leave_form") }
+        composable("leave_form") { LeaveFormScreen(nav) }
+        composable("employee_form") { EmployeeFormScreen(nav, "new") }
+        composable("employee/{id}") { e -> EmployeeFormScreen(nav, e.arguments?.getString("id") ?: "new") }
+        composable("recurring") { ListScreen(nav, "الفواتير الدورية", "api/v1/sales/recurring", detailPrefix = "recurring_inv", addRoute = "recurring_form") }
+        composable("recurring_form") { RecurringFormScreen(nav) }
+        composable("recurring_inv/{id}") { e -> RecurringDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("expense_claims") { ApprovalScreen(nav, "مطالبات المصروفات", "api/v1/hr/expense-claims", "api/v1/hr/expense-claims", canReject = false) }
         // Lists
         composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order", addRoute = "so_form") }
@@ -130,7 +136,7 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("expense/{id}") { e -> ExpenseDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("banks_manager") { BankManagerScreen(nav) }
         composable("bank_form") { BankFormScreen(nav) }
-        composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees") }
+        composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees", detailPrefix = "employee", addRoute = "employee_form") }
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }
         composable("reports") { ReportsScreen(nav) }

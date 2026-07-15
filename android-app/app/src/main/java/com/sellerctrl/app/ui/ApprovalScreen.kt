@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -49,7 +50,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBase: String, canReject: Boolean) {
+fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBase: String, canReject: Boolean, addRoute: String? = null) {
     val scope = rememberCoroutineScope()
     var rows by remember { mutableStateOf<List<DocRow>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -75,6 +76,8 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
             actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
         )
+    }, floatingActionButton = {
+        if (addRoute != null) androidx.compose.material3.FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, "إضافة") }
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {

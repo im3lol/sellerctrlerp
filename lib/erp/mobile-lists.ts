@@ -9,6 +9,7 @@ import {
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
+  recurringSalesInvoices, recurringSalesInvoiceLines,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -326,6 +327,46 @@ export async function stockTransferDetail(orgId: string, id: string): Promise<Tr
     .where(eq(stockTransferLines.stockTransferId, id));
   return { id: t.id, number: t.number, date: new Date(t.date).toISOString().slice(0, 10), status: t.status, notes: t.notes ?? "",
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), from: l.from ?? "—", to: l.to ?? "—" })) };
+}
+
+export type EmployeeEdit = { id: string; fullName: string; employeeCode: string; position: string; department: string; payType: string; basicSalary: number; allowances: number; deductions: number; taxRate: number };
+
+/** Editable fields of one employee (mobile edit form). */
+export async function employeeEditDetail(orgId: string, id: string): Promise<EmployeeEdit | null> {
+  const [e] = await db.select({ id: employees.id, fullName: employees.fullName, code: employees.employeeCode, position: employees.position, department: employees.department, payType: employees.payType, basicSalary: employees.basicSalary, allowances: employees.allowances, deductions: employees.deductions, taxRate: employees.taxRate })
+    .from(employees).where(and(eq(employees.id, id), eq(employees.organizationId, orgId))).limit(1);
+  if (!e) return null;
+  return { id: e.id, fullName: e.fullName ?? "", employeeCode: e.code ?? "", position: e.position ?? "", department: e.department ?? "", payType: e.payType, basicSalary: Number(e.basicSalary), allowances: Number(e.allowances), deductions: Number(e.deductions), taxRate: Number(e.taxRate) };
+}
+
+const FREQ_AR: Record<string, string> = { WEEKLY: "أسبوعي", MONTHLY: "شهري", QUARTERLY: "ربع سنوي", YEARLY: "سنوي" };
+
+/** Recurring sales invoice templates (mobile list). */
+export async function recurringSalesInvoiceList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: recurringSalesInvoices.id, freq: recurringSalesInvoices.frequency, next: recurringSalesInvoices.nextRunDate, active: recurringSalesInvoices.isActive, name: customers.nameAr,
+    total: sql<string>`COALESCE(SUM(${recurringSalesInvoiceLines.quantity} * ${recurringSalesInvoiceLines.unitPrice}), 0)`,
+  }).from(recurringSalesInvoices)
+    .leftJoin(customers, eq(customers.id, recurringSalesInvoices.customerId))
+    .leftJoin(recurringSalesInvoiceLines, eq(recurringSalesInvoiceLines.recurringId, recurringSalesInvoices.id))
+    .where(eq(recurringSalesInvoices.organizationId, orgId))
+    .groupBy(recurringSalesInvoices.id, customers.nameAr)
+    .orderBy(desc(recurringSalesInvoices.nextRunDate)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: FREQ_AR[r.freq] ?? r.freq, title: r.name ?? "—",
+    subtitle: `التالي: ${new Date(r.next).toISOString().slice(0, 10)}`, amount: Number(r.total), status: r.active ? "ACTIVE" : "متوقف" }));
+}
+
+/** Recurring sales invoice template detail (header + lines; reuses OrderDetail). */
+export async function recurringSalesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [r] = await db.select({ id: recurringSalesInvoices.id, freq: recurringSalesInvoices.frequency, next: recurringSalesInvoices.nextRunDate, active: recurringSalesInvoices.isActive, party: customers.nameAr })
+    .from(recurringSalesInvoices).leftJoin(customers, eq(customers.id, recurringSalesInvoices.customerId))
+    .where(and(eq(recurringSalesInvoices.id, id), eq(recurringSalesInvoices.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: recurringSalesInvoiceLines.quantity, unitPrice: recurringSalesInvoiceLines.unitPrice })
+    .from(recurringSalesInvoiceLines).leftJoin(items, eq(items.id, recurringSalesInvoiceLines.itemId)).where(eq(recurringSalesInvoiceLines.recurringId, id));
+  const mapped = lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.qty) * Number(l.unitPrice) }));
+  return { id: r.id, number: FREQ_AR[r.freq] ?? r.freq, party: r.party ?? "—", date: new Date(r.next).toISOString().slice(0, 10), status: r.active ? "ACTIVE" : "متوقف",
+    total: mapped.reduce((s, l) => s + l.total, 0), lines: mapped };
 }
 
 export type AdjLine = { name: string; mode: string; entered: number; delta: number; warehouse: string };
