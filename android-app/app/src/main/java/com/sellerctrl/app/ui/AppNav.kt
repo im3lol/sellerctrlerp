@@ -38,6 +38,15 @@ fun AppNav() {
                 "المصروفات" to "expenses",
             ))
         }
+        composable("hub_hr") {
+            HubScreen(nav, "الموارد البشرية", listOf(
+                "الموظفون" to "employees",
+                "طلبات الإجازات" to "leaves",
+                "مطالبات المصروفات" to "expense_claims",
+            ))
+        }
+        composable("leaves") { ApprovalScreen(nav, "طلبات الإجازات", "api/v1/hr/leaves", "api/v1/hr/leaves", canReject = true) }
+        composable("expense_claims") { ApprovalScreen(nav, "مطالبات المصروفات", "api/v1/hr/expense-claims", "api/v1/hr/expense-claims", canReject = false) }
         // Lists
         composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order") }
         composable("sales_order/{id}") { e ->

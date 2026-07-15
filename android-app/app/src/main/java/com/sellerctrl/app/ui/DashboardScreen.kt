@@ -61,7 +61,7 @@ private val MODULES = listOf(
     Mod("العملاء", Icons.Filled.People, "customers"),
     Mod("الموردون", Icons.Filled.Store, "suppliers"),
     Mod("المحاسبة", Icons.Filled.AccountBalance, "hub_accounting"),
-    Mod("الموظفون", Icons.Filled.Badge, "employees"),
+    Mod("الموارد البشرية", Icons.Filled.Badge, "hub_hr"),
     Mod("التقارير", Icons.Filled.Assessment, "reports"),
     Mod("المستثمرون", Icons.Filled.Savings, "investors"),
     Mod("المنصات", Icons.Filled.Storefront, "platforms"),

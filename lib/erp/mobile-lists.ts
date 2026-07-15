@@ -1,9 +1,10 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
   salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
+  leaveRequests, expenseClaims, expenseClaimLines,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -139,6 +140,29 @@ export async function purchaseInvoiceDetail(orgId: string, id: string): Promise<
     .from(purchaseInvoiceLines).leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId)).where(eq(purchaseInvoiceLines.purchaseInvoiceId, id));
   return { id: o.id, number: o.number, party: o.party ?? "—", date: new Date(o.date).toISOString().slice(0, 10), status: o.status, total: Number(o.total),
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
+}
+
+const LEAVE_TYPE_AR: Record<string, string> = { ANNUAL: "سنوية", SICK: "مرضية", UNPAID: "بدون أجر", OTHER: "أخرى" };
+
+export async function leaveRequestList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: leaveRequests.id, number: leaveRequests.number, name: leaveRequests.employeeName,
+    type: leaveRequests.leaveType, days: leaveRequests.days, status: leaveRequests.status, date: leaveRequests.startDate,
+  }).from(leaveRequests).where(eq(leaveRequests.organizationId, orgId)).orderBy(desc(leaveRequests.startDate)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name,
+    subtitle: `${LEAVE_TYPE_AR[r.type] ?? r.type} · ${r.days} يوم`, amount: null, status: r.status }));
+}
+
+export async function expenseClaimList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: expenseClaims.id, number: expenseClaims.number, name: expenseClaims.employeeName, status: expenseClaims.status, date: expenseClaims.date,
+    total: sql<string>`COALESCE(SUM(${expenseClaimLines.amount}), 0)`,
+  }).from(expenseClaims)
+    .leftJoin(expenseClaimLines, eq(expenseClaimLines.claimId, expenseClaims.id))
+    .where(eq(expenseClaims.organizationId, orgId))
+    .groupBy(expenseClaims.id)
+    .orderBy(desc(expenseClaims.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name, subtitle: r.number, amount: Number(r.total), status: r.status }));
 }
 
 export async function investorList(orgId: string): Promise<DocRow[]> {
