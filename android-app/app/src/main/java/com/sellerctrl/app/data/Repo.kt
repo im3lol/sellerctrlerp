@@ -32,6 +32,20 @@ class Repo(val store: TokenStore) {
 
     suspend fun search(q: String): List<ItemDto> = api.search(q).data
     suspend fun scan(code: String): ItemDto = api.scan(code).data
+    suspend fun warehouses(): List<WarehouseDto> = api.warehouses().data
+
+    /** One-shot stock count: create + post an adjustment. Throws the server's
+     *  Arabic error message on failure. */
+    suspend fun submitCount(warehouseId: String, reason: String, lines: List<CountLine>) {
+        try {
+            api.adjust(AdjustReq(warehouseId, reason.ifBlank { null }, lines))
+        } catch (e: retrofit2.HttpException) {
+            val msg = e.response()?.errorBody()?.string()
+                ?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
+            throw Exception(msg ?: "فشل حفظ الجرد")
+        }
+    }
+
     suspend fun logout() = store.clear()
 
     companion object {

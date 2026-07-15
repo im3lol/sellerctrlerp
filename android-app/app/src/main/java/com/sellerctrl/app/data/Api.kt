@@ -26,6 +26,12 @@ import retrofit2.http.Query
 @Serializable data class ItemsResp(val data: List<ItemDto> = emptyList())
 @Serializable data class ItemResp(val data: ItemDto)
 
+@Serializable data class WarehouseDto(val id: String, val name: String)
+@Serializable data class WarehousesResp(val data: List<WarehouseDto> = emptyList())
+@Serializable data class CountLine(val itemId: String, val countedQty: Double)
+@Serializable data class AdjustReq(val warehouseId: String, val reason: String? = null, val lines: List<CountLine>)
+@Serializable data class OkResp(val ok: Boolean = false, val id: String? = null, val error: String? = null)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -35,4 +41,10 @@ interface Api {
 
     @GET("api/v1/inventory/scan")
     suspend fun scan(@Query("code") code: String): ItemResp
+
+    @GET("api/v1/inventory/warehouses")
+    suspend fun warehouses(): WarehousesResp
+
+    @POST("api/v1/inventory/adjustments")
+    suspend fun adjust(@Body body: AdjustReq): OkResp
 }

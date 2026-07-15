@@ -101,7 +101,7 @@ fun ScanScreen(nav: NavController) {
 
 @androidx.annotation.OptIn(ExperimentalGetImage::class)
 @Composable
-private fun CameraPreview(onCode: (String) -> Unit) {
+internal fun CameraPreview(onCode: (String) -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scanner = remember { BarcodeScanning.getClient() }
     val executor = remember { Executors.newSingleThreadExecutor() }

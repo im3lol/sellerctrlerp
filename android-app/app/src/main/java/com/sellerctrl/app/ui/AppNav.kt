@@ -17,5 +17,6 @@ fun AppNav() {
         composable("home") { HomeScreen(nav) }
         composable("scan") { ScanScreen(nav) }
         composable("search") { SearchScreen(nav) }
+        composable("adjust") { AdjustmentScreen(nav) }
     }
 }

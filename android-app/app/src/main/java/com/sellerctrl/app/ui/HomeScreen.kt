@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -41,6 +42,10 @@ fun HomeScreen(nav: NavController) {
         Button(onClick = { nav.navigate("search") }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.Search, null, modifier = Modifier.padding(end = 8.dp))
             Text("بحث الأصناف")
+        }
+        Button(onClick = { nav.navigate("adjust") }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Filled.Inventory2, null, modifier = Modifier.padding(end = 8.dp))
+            Text("جرد المخزون")
         }
         OutlinedButton(
             onClick = {
