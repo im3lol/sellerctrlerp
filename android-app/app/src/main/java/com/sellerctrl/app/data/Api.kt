@@ -54,6 +54,10 @@ import retrofit2.http.Url
 )
 @Serializable data class ReportsResp(val data: ReportsDto)
 
+@Serializable data class OrderLineDto(val name: String, val qty: Double = 0.0, val unitPrice: Double = 0.0, val total: Double = 0.0)
+@Serializable data class OrderDetailDto(val id: String, val number: String, val party: String, val date: String, val status: String, val total: Double = 0.0, val lines: List<OrderLineDto> = emptyList())
+@Serializable data class OrderDetailResp(val data: OrderDetailDto)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -67,6 +71,14 @@ interface Api {
     /** Generic list GET for any /api/v1/... path. */
     @GET
     suspend fun docList(@Url url: String): DocListResp
+
+    /** Generic document detail GET. */
+    @GET
+    suspend fun orderDetail(@Url url: String): OrderDetailResp
+
+    /** Generic action POST (no body) — e.g. confirm. */
+    @POST
+    suspend fun postAction(@Url url: String): OkResp
 
     @GET("api/v1/inventory/items")
     suspend fun search(@Query("q") q: String): ItemsResp

@@ -1,5 +1,6 @@
 package com.sellerctrl.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +38,7 @@ import com.sellerctrl.app.data.DocRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ListScreen(nav: NavController, title: String, path: String) {
+fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: String? = null) {
     var rows by remember { mutableStateOf<List<DocRow>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(path) {
@@ -60,7 +61,9 @@ fun ListScreen(nav: NavController, title: String, path: String) {
                 rows == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 rows!!.isEmpty() -> Text(error ?: "لا توجد بيانات", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp)) {
-                    items(rows!!) { r -> DocCard(r) }
+                    items(rows!!) { r ->
+                        DocCard(r, onClick = detailPrefix?.let { p -> { nav.navigate("$p/${r.id}") } })
+                    }
                 }
             }
         }
@@ -68,8 +71,9 @@ fun ListScreen(nav: NavController, title: String, path: String) {
 }
 
 @Composable
-private fun DocCard(r: DocRow) {
-    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+private fun DocCard(r: DocRow, onClick: (() -> Unit)? = null) {
+    val base = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    Card(if (onClick != null) base.clickable { onClick() } else base) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(r.title, style = MaterialTheme.typography.titleSmall)

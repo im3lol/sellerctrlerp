@@ -39,10 +39,18 @@ fun AppNav() {
             ))
         }
         // Lists
-        composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders") }
+        composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order") }
+        composable("sales_order/{id}") { e ->
+            val id = e.arguments?.getString("id") ?: ""
+            DetailScreen(nav, "أمر بيع", "api/v1/sales/orders/$id", "api/v1/sales/orders/$id/confirm")
+        }
         composable("sales_invoices") { ListScreen(nav, "فواتير البيع", "api/v1/sales/invoices") }
         composable("sales_deliveries") { ListScreen(nav, "التسليمات", "api/v1/sales/deliveries") }
-        composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders") }
+        composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders", detailPrefix = "purchase_order") }
+        composable("purchase_order/{id}") { e ->
+            val id = e.arguments?.getString("id") ?: ""
+            DetailScreen(nav, "أمر شراء", "api/v1/purchases/orders/$id", "api/v1/purchases/orders/$id/confirm")
+        }
         composable("purchase_invoices") { ListScreen(nav, "فواتير الشراء", "api/v1/purchases/invoices") }
         composable("customers") { ListScreen(nav, "العملاء", "api/v1/parties/customers") }
         composable("suppliers") { ListScreen(nav, "الموردون", "api/v1/parties/suppliers") }

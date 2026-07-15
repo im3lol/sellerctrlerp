@@ -36,6 +36,18 @@ class Repo(val store: TokenStore) {
     suspend fun dashboard(): DashboardDto = api.dashboard().data
     suspend fun reports(): ReportsDto = api.reports().data
     suspend fun docList(path: String): List<DocRow> = api.docList(path).data
+    suspend fun orderDetail(path: String): OrderDetailDto = api.orderDetail(path).data
+
+    /** POST an action (e.g. confirm); throws the server's Arabic error on failure. */
+    suspend fun postAction(path: String) {
+        try {
+            api.postAction(path)
+        } catch (e: retrofit2.HttpException) {
+            val msg = e.response()?.errorBody()?.string()
+                ?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
+            throw Exception(msg ?: "فشل التنفيذ")
+        }
+    }
 
     /** One-shot stock count: create + post an adjustment. Throws the server's
      *  Arabic error message on failure. */

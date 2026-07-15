@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
+  salesOrderLines, purchaseOrderLines, items,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -91,6 +92,31 @@ export async function employeeList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: employees.id, code: employees.employeeCode, name: employees.fullName, position: employees.position, salary: employees.basicSalary })
     .from(employees).where(and(eq(employees.organizationId, orgId), eq(employees.isActive, true))).orderBy(employees.fullName).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "موظف", subtitle: r.position ?? null, amount: Number(r.salary), status: null }));
+}
+
+export type OrderLine = { name: string; qty: number; unitPrice: number; total: number };
+export type OrderDetail = { id: string; number: string; party: string; date: string; status: string; total: number; lines: OrderLine[] };
+
+export async function salesOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [o] = await db.select({ id: salesOrders.id, number: salesOrders.number, status: salesOrders.status, total: salesOrders.totalAmount, date: salesOrders.date, party: customers.nameAr })
+    .from(salesOrders).leftJoin(customers, eq(customers.id, salesOrders.customerId))
+    .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, orgId))).limit(1);
+  if (!o) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, total: salesOrderLines.totalAmount })
+    .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId)).where(eq(salesOrderLines.salesOrderId, id));
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: String(o.date).slice(0, 10), status: o.status, total: Number(o.total),
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
+}
+
+export async function purchaseOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [o] = await db.select({ id: purchaseOrders.id, number: purchaseOrders.number, status: purchaseOrders.status, total: purchaseOrders.totalAmount, date: purchaseOrders.date, party: suppliers.nameAr })
+    .from(purchaseOrders).leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
+    .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, orgId))).limit(1);
+  if (!o) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, total: purchaseOrderLines.totalAmount })
+    .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, id));
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: String(o.date).slice(0, 10), status: o.status, total: Number(o.total),
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
 export async function investorList(orgId: string): Promise<DocRow[]> {
