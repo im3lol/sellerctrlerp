@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -40,7 +42,7 @@ import com.sellerctrl.app.data.DocRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: String? = null) {
+fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: String? = null, addRoute: String? = null) {
     var rows by remember { mutableStateOf<List<DocRow>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val tick by ServiceLocator.repo.tick.collectAsState()
@@ -59,6 +61,8 @@ fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: St
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
             actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
         )
+    }, floatingActionButton = {
+        if (addRoute != null) FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, "إضافة") }
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {

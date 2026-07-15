@@ -7,7 +7,7 @@ import {
   salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
   leaveRequests, expenseClaims, expenseClaimLines,
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
-  purchaseReceipts, materialRequests, stockAdjustments, stockTransfers,
+  purchaseReceipts, materialRequests, materialRequestLines, stockAdjustments, stockTransfers,
   bankAccounts, fixedAssets, accounts, holidays, warehouses,
 } from "@/db/schema";
 
@@ -175,6 +175,20 @@ export async function investorList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "مستثمر", subtitle: r.phone ?? null, amount: null, status: r.status }));
 }
 
+export type ReqLine = { name: string; qty: number };
+export type ReqDetail = { id: string; number: string; date: string; status: string; notes: string; lines: ReqLine[] };
+
+/** Material-requisition header + item lines (mobile detail). */
+export async function requisitionDetail(orgId: string, id: string): Promise<ReqDetail | null> {
+  const [r] = await db.select({ id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status, notes: materialRequests.notes })
+    .from(materialRequests).where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: materialRequestLines.quantity })
+    .from(materialRequestLines).leftJoin(items, eq(items.id, materialRequestLines.itemId)).where(eq(materialRequestLines.materialRequestId, id));
+  return { id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), status: r.status, notes: r.notes ?? "",
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty) })) };
+}
+
 export type PartyDetail = { id: string; code: string; nameAr: string; phone: string; email: string; address: string; paymentTerms: number; creditLimit: number; balance: number };
 
 /** Full editable fields for one supplier/customer (the mobile edit form). */
@@ -228,9 +242,9 @@ export async function purchaseReceiptList(orgId: string): Promise<DocRow[]> {
 }
 
 export async function materialRequestList(orgId: string): Promise<DocRow[]> {
-  const rows = await db.select({ id: materialRequests.id, number: materialRequests.number, status: materialRequests.status, date: materialRequests.date, by: materialRequests.requestedBy })
+  const rows = await db.select({ id: materialRequests.id, number: materialRequests.number, status: materialRequests.status, date: materialRequests.date })
     .from(materialRequests).where(eq(materialRequests.organizationId, orgId)).orderBy(desc(materialRequests.date)).limit(LIMIT);
-  return rows.map((r) => ({ id: r.id, number: r.number, title: `طلب مواد ${r.number}`, subtitle: r.by ?? null, amount: null, status: r.status }));
+  return rows.map((r) => ({ id: r.id, number: r.number, title: `طلب مواد ${r.number}`, subtitle: new Date(r.date).toISOString().slice(0, 10), amount: null, status: r.status }));
 }
 
 export async function stockAdjustmentList(orgId: string): Promise<DocRow[]> {

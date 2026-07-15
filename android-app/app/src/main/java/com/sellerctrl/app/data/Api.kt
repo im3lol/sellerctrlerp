@@ -70,6 +70,12 @@ import retrofit2.http.Url
 @Serializable data class PartyResp(val data: PartyDto)
 @Serializable data class PartySaveReq(val id: String? = null, val code: String, val nameAr: String, val phone: String? = null, val email: String? = null, val paymentTerms: Int = 30, val creditLimit: Double? = null)
 
+@Serializable data class ReqLineDto(val name: String, val qty: Double = 0.0)
+@Serializable data class ReqDetailDto(val id: String, val number: String, val date: String, val status: String, val notes: String = "", val lines: List<ReqLineDto> = emptyList())
+@Serializable data class ReqDetailResp(val data: ReqDetailDto)
+@Serializable data class ReqCreateLine(val itemId: String, val quantity: Double)
+@Serializable data class ReqCreateReq(val date: String, val notes: String? = null, val lines: List<ReqCreateLine>)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -99,6 +105,12 @@ interface Api {
     /** Create/update a party (JSON body). */
     @POST
     suspend fun partySave(@Url url: String, @Body body: PartySaveReq): OkResp
+
+    @GET
+    suspend fun reqDetail(@Url url: String): ReqDetailResp
+
+    @POST
+    suspend fun reqCreate(@Url url: String, @Body body: ReqCreateReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

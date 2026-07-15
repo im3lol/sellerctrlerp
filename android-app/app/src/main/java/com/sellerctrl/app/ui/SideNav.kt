@@ -79,7 +79,7 @@ private val NAV = listOf(
     )),
     Section("المشتريات", Icons.Filled.LocalShipping, null, listOf(
         Leaf("الموردون", "suppliers_manager", null),
-        Leaf("طلبات المواد", "genlist/requisitions", "دورة الشراء"),
+        Leaf("طلبات المواد", "requisitions", "دورة الشراء"),
         Leaf("أوامر الشراء", "purchase_orders", "دورة الشراء"),
         Leaf("إذون الاستلام", "genlist/purchase-receipts", "دورة الشراء"),
         Leaf("فواتير الشراء", "purchase_invoices", "دورة الشراء"),

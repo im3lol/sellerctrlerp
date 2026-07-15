@@ -95,6 +95,13 @@ class Repo(val store: TokenStore) {
     }
     suspend fun partyDelete(type: String, id: String) = postAction("api/v1/party/$type/$id/delete")
 
+    suspend fun requisitionDetail(id: String): ReqDetailDto = api.reqDetail("api/v1/purchases/requisitions/$id").data
+    /** Create a material requisition; throws the server's Arabic error on failure. */
+    suspend fun requisitionCreate(req: ReqCreateReq) {
+        try { api.reqCreate("api/v1/purchases/requisitions", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 
