@@ -174,6 +174,14 @@ class Repo(val store: TokenStore) {
         catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحصيل") }
     }
 
+    // --- Item CRUD (الأصناف) ---
+    suspend fun itemEdit(id: String): ItemEditDto = api.itemEdit("api/v1/inventory/items/$id").data
+    suspend fun itemSave(req: ItemSaveReq) {
+        try { api.itemSave("api/v1/inventory/items", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun itemDelete(id: String) = postAction("api/v1/inventory/items/$id/delete")
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 

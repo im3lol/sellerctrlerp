@@ -1,5 +1,6 @@
 package com.sellerctrl.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +9,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -43,9 +46,11 @@ fun SearchScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("بحث الأصناف") },
+            title = { Text("الأصناف") },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
         )
+    }, floatingActionButton = {
+        FloatingActionButton(onClick = { nav.navigate("item_form/new") }) { Icon(Icons.Filled.Add, "صنف جديد") }
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             OutlinedTextField(
@@ -56,7 +61,7 @@ fun SearchScreen(nav: NavController) {
             )
             LazyColumn(Modifier.padding(top = 12.dp)) {
                 items(results) { item ->
-                    ItemCard(item, Modifier.padding(vertical = 6.dp))
+                    ItemCard(item, Modifier.padding(vertical = 6.dp).clickable { nav.navigate("item_form/${item.id}") })
                 }
             }
         }

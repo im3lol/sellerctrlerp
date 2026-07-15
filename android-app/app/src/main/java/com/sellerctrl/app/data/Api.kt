@@ -120,6 +120,12 @@ import retrofit2.http.Url
 @Serializable data class ReceivableInvResp(val data: ReceivableDto)
 @Serializable data class CollectReq(val customerId: String, val salesInvoiceId: String? = null, val cashAccountId: String, val amount: Double, val date: String, val paymentMethod: String = "CASH")
 
+// --- Item CRUD (الأصناف) ---
+@Serializable data class ItemCodeIn(val codeType: String, val code: String)
+@Serializable data class ItemEditDto(val id: String, val code: String, val nameAr: String, val nameEn: String = "", val sellPrice: Double = 0.0, val minStock: Double = 0.0, val isPerishable: Boolean = false, val codes: List<ItemCodeIn> = emptyList())
+@Serializable data class ItemEditResp(val data: ItemEditDto)
+@Serializable data class ItemSaveReq(val id: String? = null, val code: String, val nameAr: String, val nameEn: String? = null, val sellPrice: Double = 0.0, val minStock: Double = 0.0, val isPerishable: Boolean = false, val codes: List<ItemCodeIn> = emptyList())
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -206,6 +212,12 @@ interface Api {
 
     @POST
     suspend fun collect(@Url url: String, @Body body: CollectReq): OkResp
+
+    @GET
+    suspend fun itemEdit(@Url url: String): ItemEditResp
+
+    @POST
+    suspend fun itemSave(@Url url: String, @Body body: ItemSaveReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

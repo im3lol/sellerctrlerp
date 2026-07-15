@@ -54,6 +54,7 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("home") { DashboardScreen(nav) }
         composable("scan") { ScanScreen(nav) }
         composable("search") { SearchScreen(nav) }
+        composable("item_form/{id}") { e -> ItemFormScreen(nav, e.arguments?.getString("id") ?: "new") }
         composable("adjust") { AdjustmentScreen(nav) }
         // Module hubs
         composable("hub_sales") {

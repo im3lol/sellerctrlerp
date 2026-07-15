@@ -8,7 +8,7 @@ import {
   leaveRequests, expenseClaims, expenseClaimLines,
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers,
-  bankAccounts, fixedAssets, accounts, holidays, warehouses,
+  bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -290,6 +290,18 @@ export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
       sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`))
     .orderBy(accounts.code);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: null }));
+}
+
+export type ItemCode = { codeType: string; code: string };
+export type ItemEdit = { id: string; code: string; nameAr: string; nameEn: string; sellPrice: number; minStock: number; isPerishable: boolean; codes: ItemCode[] };
+
+/** Editable fields of one item (the mobile item edit form). */
+export async function itemEditDetail(orgId: string, id: string): Promise<ItemEdit | null> {
+  const [it] = await db.select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn, sellPrice: items.sellPrice, minStock: items.minStock, isPerishable: items.isPerishable })
+    .from(items).where(and(eq(items.id, id), eq(items.organizationId, orgId))).limit(1);
+  if (!it) return null;
+  const codes = await db.select({ codeType: itemCodes.codeType, code: itemCodes.code }).from(itemCodes).where(eq(itemCodes.itemId, id));
+  return { id: it.id, code: it.code, nameAr: it.nameAr ?? "", nameEn: it.nameEn ?? "", sellPrice: Number(it.sellPrice), minStock: Number(it.minStock), isPerishable: Boolean(it.isPerishable), codes };
 }
 
 export type PartyDetail = { id: string; code: string; nameAr: string; phone: string; email: string; address: string; paymentTerms: number; creditLimit: number; balance: number };
