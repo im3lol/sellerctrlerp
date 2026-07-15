@@ -87,6 +87,17 @@ class Repo(val store: TokenStore) {
     suspend fun balanceSheet(): BalanceDto = api.balanceSheet().data
     suspend fun cashFlow(): CashFlowDto = api.cashFlow().data
 
+    suspend fun partyDetail(type: String, id: String): PartyDto = api.partyDetail("api/v1/party/$type/$id").data
+    /** Create/update a party; throws the server's Arabic error on failure. */
+    suspend fun partySave(type: String, req: PartySaveReq) {
+        try { api.partySave("api/v1/party/$type/save", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun partyDelete(type: String, id: String) = postAction("api/v1/party/$type/$id/delete")
+
+    private fun parseErr(e: retrofit2.HttpException): String? =
+        e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
+
     /** POST an action (e.g. confirm); throws the server's Arabic error on failure. */
     suspend fun postAction(path: String) {
         try {

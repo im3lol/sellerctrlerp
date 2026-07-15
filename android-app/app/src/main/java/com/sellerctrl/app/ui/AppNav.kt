@@ -114,6 +114,11 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }
         composable("reports") { ReportsScreen(nav) }
+        composable("suppliers_manager") { PartyManagerScreen(nav, "suppliers", "الموردون") }
+        composable("customers_manager") { PartyManagerScreen(nav, "customers", "العملاء") }
+        composable("party_form/{type}/{id}") { e ->
+            PartyFormScreen(nav, e.arguments?.getString("type") ?: "suppliers", e.arguments?.getString("id") ?: "new")
+        }
         composable("income_statement") { IncomeStatementScreen(nav) }
         composable("balance_sheet") { BalanceSheetScreen(nav) }
         composable("cash_flow") { CashFlowScreen(nav) }

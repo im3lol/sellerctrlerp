@@ -66,6 +66,10 @@ import retrofit2.http.Url
 @Serializable data class CashFlowDto(val from: String, val to: String, val operating: List<StmtLineDto> = emptyList(), val investing: List<StmtLineDto> = emptyList(), val financing: List<StmtLineDto> = emptyList(), val opTotal: Double = 0.0, val invTotal: Double = 0.0, val finTotal: Double = 0.0, val netChange: Double = 0.0, val cashBegin: Double = 0.0, val cashEnd: Double = 0.0)
 @Serializable data class CashFlowResp(val data: CashFlowDto)
 
+@Serializable data class PartyDto(val id: String, val code: String, val nameAr: String, val phone: String = "", val email: String = "", val address: String = "", val paymentTerms: Int = 30, val creditLimit: Double = 0.0, val balance: Double = 0.0)
+@Serializable data class PartyResp(val data: PartyDto)
+@Serializable data class PartySaveReq(val id: String? = null, val code: String, val nameAr: String, val phone: String? = null, val email: String? = null, val paymentTerms: Int = 30, val creditLimit: Double? = null)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -87,6 +91,14 @@ interface Api {
     /** Generic action POST (no body) — e.g. confirm. */
     @POST
     suspend fun postAction(@Url url: String): OkResp
+
+    /** Party (supplier/customer) detail for the edit form. */
+    @GET
+    suspend fun partyDetail(@Url url: String): PartyResp
+
+    /** Create/update a party (JSON body). */
+    @POST
+    suspend fun partySave(@Url url: String, @Body body: PartySaveReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

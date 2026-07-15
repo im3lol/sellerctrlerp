@@ -175,6 +175,22 @@ export async function investorList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "مستثمر", subtitle: r.phone ?? null, amount: null, status: r.status }));
 }
 
+export type PartyDetail = { id: string; code: string; nameAr: string; phone: string; email: string; address: string; paymentTerms: number; creditLimit: number; balance: number };
+
+/** Full editable fields for one supplier/customer (the mobile edit form). */
+export async function partyDetail(orgId: string, type: "suppliers" | "customers", id: string): Promise<PartyDetail | null> {
+  if (type === "customers") {
+    const [c] = await db.select({ id: customers.id, code: customers.code, nameAr: customers.nameAr, phone: customers.phone, email: customers.email, address: customers.address, paymentTerms: customers.paymentTerms, creditLimit: customers.creditLimit, balance: customers.balance })
+      .from(customers).where(and(eq(customers.id, id), eq(customers.organizationId, orgId))).limit(1);
+    if (!c) return null;
+    return { id: c.id, code: c.code, nameAr: c.nameAr, phone: c.phone ?? "", email: c.email ?? "", address: c.address ?? "", paymentTerms: c.paymentTerms, creditLimit: Number(c.creditLimit), balance: Number(c.balance) };
+  }
+  const [s] = await db.select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr, phone: suppliers.phone, email: suppliers.email, address: suppliers.address, paymentTerms: suppliers.paymentTerms, balance: suppliers.balance })
+    .from(suppliers).where(and(eq(suppliers.id, id), eq(suppliers.organizationId, orgId))).limit(1);
+  if (!s) return null;
+  return { id: s.id, code: s.code, nameAr: s.nameAr, phone: s.phone ?? "", email: s.email ?? "", address: s.address ?? "", paymentTerms: s.paymentTerms, creditLimit: 0, balance: Number(s.balance) };
+}
+
 // ---- Coverage batch: read-only document + master-data lists ---------------
 
 export async function quotationList(orgId: string): Promise<DocRow[]> {
