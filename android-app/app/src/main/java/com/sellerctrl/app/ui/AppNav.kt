@@ -144,6 +144,11 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("expense/{id}") { e -> ExpenseDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("banks_manager") { BankManagerScreen(nav) }
         composable("bank_form") { BankFormScreen(nav) }
+        composable("bank_recon") { BankReconListScreen(nav) }
+        composable("recon/{id}") { e -> BankReconScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("cost_centers") { ListScreen(nav, "مراكز التكلفة", "api/v1/accounting/cost-centers", detailPrefix = "cost_center", addRoute = "cost_center_form/new") }
+        composable("cost_center_form/{id}") { e -> CostCenterFormScreen(nav, e.arguments?.getString("id") ?: "new") }
+        composable("cost_center/{id}") { e -> CostCenterFormScreen(nav, e.arguments?.getString("id") ?: "new") }
         composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees", detailPrefix = "employee", addRoute = "employee_form") }
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }

@@ -10,6 +10,7 @@ import {
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
   recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
+  costCenters, bankStatementLines,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -399,6 +400,40 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
   return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
     purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
     accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
+}
+
+export async function costCenterList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: costCenters.id, code: costCenters.code, name: costCenters.nameAr, active: costCenters.isActive })
+    .from(costCenters).where(eq(costCenters.organizationId, orgId)).orderBy(costCenters.code).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: r.active ? "نشط" : "متوقف" }));
+}
+
+export type CostCenterEdit = { id: string; code: string; nameAr: string; nameEn: string; isActive: boolean };
+export async function costCenterDetail(orgId: string, id: string): Promise<CostCenterEdit | null> {
+  const [c] = await db.select({ id: costCenters.id, code: costCenters.code, nameAr: costCenters.nameAr, nameEn: costCenters.nameEn, active: costCenters.isActive })
+    .from(costCenters).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, orgId))).limit(1);
+  if (!c) return null;
+  return { id: c.id, code: c.code, nameAr: c.nameAr, nameEn: c.nameEn ?? "", isActive: c.active };
+}
+
+export type StatementLine = { id: string; date: string; description: string; reference: string; debit: number; credit: number; reconciled: boolean };
+export type BankStatement = { bankAccountId: string; bankName: string; reconciledCount: number; unreconciledCount: number; statementBalance: number; lines: StatementLine[] };
+
+/** Bank statement lines + reconciliation summary for one bank account. */
+export async function bankStatement(orgId: string, bankAccountId: string): Promise<BankStatement | null> {
+  const [ba] = await db.select({ id: bankAccounts.id, name: bankAccounts.nameAr })
+    .from(bankAccounts).where(and(eq(bankAccounts.id, bankAccountId), eq(bankAccounts.organizationId, orgId))).limit(1);
+  if (!ba) return null;
+  const rows = await db.select({ id: bankStatementLines.id, date: bankStatementLines.date, description: bankStatementLines.description, reference: bankStatementLines.reference, debit: bankStatementLines.debit, credit: bankStatementLines.credit, reconciled: bankStatementLines.isReconciled })
+    .from(bankStatementLines).where(and(eq(bankStatementLines.organizationId, orgId), eq(bankStatementLines.bankAccountId, bankAccountId)))
+    .orderBy(desc(bankStatementLines.date)).limit(200);
+  let reconciledCount = 0, statementBalance = 0;
+  const lines = rows.map((r) => {
+    if (r.reconciled) reconciledCount++;
+    statementBalance += Number(r.debit) - Number(r.credit);
+    return { id: r.id, date: new Date(r.date).toISOString().slice(0, 10), description: r.description ?? "", reference: r.reference ?? "", debit: Number(r.debit), credit: Number(r.credit), reconciled: r.reconciled };
+  });
+  return { bankAccountId, bankName: ba.name, reconciledCount, unreconciledCount: lines.length - reconciledCount, statementBalance: Math.round(statementBalance * 100) / 100, lines };
 }
 
 /** Kit items that have a bill of materials (bundles list). */

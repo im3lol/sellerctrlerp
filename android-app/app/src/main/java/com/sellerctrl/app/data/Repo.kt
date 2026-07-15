@@ -202,6 +202,20 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Cost centers (مراكز التكلفة) ---
+    suspend fun costCenterEdit(id: String): CostCenterEditDto = api.costCenterEdit("api/v1/accounting/cost-centers/$id").data
+    suspend fun costCenterSave(req: CostCenterSaveReq) {
+        try { api.costCenterSave("api/v1/accounting/cost-centers", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
+    // --- Bank reconciliation (المطابقة البنكية) ---
+    suspend fun bankStatement(bankId: String): BankStatementDto = api.bankStatement("api/v1/accounting/banks/$bankId/statement").data
+    suspend fun statementLineAdd(bankId: String, req: StatementLineReq) {
+        try { api.statementLineAdd("api/v1/accounting/banks/$bankId/statement", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الإضافة") }
+    }
+
     // --- Bundles (الحزم والمجموعات) ---
     suspend fun bundleDetail(id: String): BundleDetailDto = api.bundleDetail("api/v1/inventory/bundles/$id").data
     suspend fun bundleSetComponents(req: BomReq) {

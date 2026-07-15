@@ -138,6 +138,17 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- Cost centers (مراكز التكلفة) ---
+@Serializable data class CostCenterEditDto(val id: String, val code: String, val nameAr: String, val nameEn: String = "", val isActive: Boolean = true)
+@Serializable data class CostCenterEditResp(val data: CostCenterEditDto)
+@Serializable data class CostCenterSaveReq(val id: String? = null, val code: String, val nameAr: String, val nameEn: String? = null, val isActive: Boolean = true)
+
+// --- Bank reconciliation (المطابقة البنكية) ---
+@Serializable data class StatementLineDto(val id: String, val date: String, val description: String = "", val reference: String = "", val debit: Double = 0.0, val credit: Double = 0.0, val reconciled: Boolean = false)
+@Serializable data class BankStatementDto(val bankAccountId: String, val bankName: String, val reconciledCount: Int = 0, val unreconciledCount: Int = 0, val statementBalance: Double = 0.0, val lines: List<StatementLineDto> = emptyList())
+@Serializable data class BankStatementResp(val data: BankStatementDto)
+@Serializable data class StatementLineReq(val date: String, val description: String? = null, val reference: String? = null, val debit: Double = 0.0, val credit: Double = 0.0)
+
 // --- Bundles (الحزم والمجموعات) ---
 @Serializable data class BundleComponentDto(val itemId: String, val name: String = "", val code: String = "", val qty: Double = 0.0)
 @Serializable data class BundleDetailDto(val id: String, val code: String, val name: String, val components: List<BundleComponentDto> = emptyList())
@@ -280,6 +291,18 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun costCenterEdit(@Url url: String): CostCenterEditResp
+
+    @POST
+    suspend fun costCenterSave(@Url url: String, @Body body: CostCenterSaveReq): OkResp
+
+    @GET
+    suspend fun bankStatement(@Url url: String): BankStatementResp
+
+    @POST
+    suspend fun statementLineAdd(@Url url: String, @Body body: StatementLineReq): OkResp
 
     @GET
     suspend fun bundleDetail(@Url url: String): BundleDetailResp
