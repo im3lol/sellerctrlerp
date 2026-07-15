@@ -18,11 +18,36 @@ fun AppNav() {
         composable("scan") { ScanScreen(nav) }
         composable("search") { SearchScreen(nav) }
         composable("adjust") { AdjustmentScreen(nav) }
+        // Module hubs
+        composable("hub_sales") {
+            HubScreen(nav, "المبيعات", listOf(
+                "أوامر البيع" to "sales_orders",
+                "فواتير البيع" to "sales_invoices",
+                "أذون الصرف / التسليم" to "sales_deliveries",
+            ))
+        }
+        composable("hub_purchases") {
+            HubScreen(nav, "المشتريات", listOf(
+                "أوامر الشراء" to "purchase_orders",
+                "فواتير الشراء" to "purchase_invoices",
+            ))
+        }
+        composable("hub_accounting") {
+            HubScreen(nav, "المحاسبة", listOf(
+                "القيود اليومية" to "journal",
+                "المصروفات" to "expenses",
+            ))
+        }
+        // Lists
         composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders") }
+        composable("sales_invoices") { ListScreen(nav, "فواتير البيع", "api/v1/sales/invoices") }
+        composable("sales_deliveries") { ListScreen(nav, "التسليمات", "api/v1/sales/deliveries") }
         composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders") }
+        composable("purchase_invoices") { ListScreen(nav, "فواتير الشراء", "api/v1/purchases/invoices") }
         composable("customers") { ListScreen(nav, "العملاء", "api/v1/parties/customers") }
         composable("suppliers") { ListScreen(nav, "الموردون", "api/v1/parties/suppliers") }
         composable("journal") { ListScreen(nav, "القيود المحاسبية", "api/v1/accounting/journal") }
+        composable("expenses") { ListScreen(nav, "المصروفات", "api/v1/accounting/expenses") }
         composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees") }
     }
 }

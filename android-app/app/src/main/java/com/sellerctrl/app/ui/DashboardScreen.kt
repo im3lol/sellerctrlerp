@@ -53,11 +53,11 @@ private val MODULES = listOf(
     Mod("المخزون", Icons.Filled.Inventory2, "search"),
     Mod("جرد المخزون", Icons.Filled.Checklist, "adjust"),
     Mod("مسح باركود", Icons.Filled.QrCodeScanner, "scan"),
-    Mod("المبيعات", Icons.Filled.ShoppingCart, "sales_orders"),
-    Mod("المشتريات", Icons.AutoMirrored.Filled.List, "purchase_orders"),
+    Mod("المبيعات", Icons.Filled.ShoppingCart, "hub_sales"),
+    Mod("المشتريات", Icons.AutoMirrored.Filled.List, "hub_purchases"),
     Mod("العملاء", Icons.Filled.People, "customers"),
     Mod("الموردون", Icons.Filled.Store, "suppliers"),
-    Mod("المحاسبة", Icons.Filled.AccountBalance, "journal"),
+    Mod("المحاسبة", Icons.Filled.AccountBalance, "hub_accounting"),
     Mod("الموظفون", Icons.Filled.Badge, "employees"),
 )
 
