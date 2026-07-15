@@ -33,6 +33,8 @@ class Repo(val store: TokenStore) {
     suspend fun search(q: String): List<ItemDto> = api.search(q).data
     suspend fun scan(code: String): ItemDto = api.scan(code).data
     suspend fun warehouses(): List<WarehouseDto> = api.warehouses().data
+    suspend fun dashboard(): DashboardDto = api.dashboard().data
+    suspend fun docList(path: String): List<DocRow> = api.docList(path).data
 
     /** One-shot stock count: create + post an adjustment. Throws the server's
      *  Arabic error message on failure. */

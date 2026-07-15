@@ -21,6 +21,24 @@ fun fmt(n: Double): String {
     return if (n == r.toDouble()) r.toString() else String.format("%.2f", n)
 }
 
+/** Money with thousands separators + ج.م. */
+fun money(n: Double): String = String.format("%,.0f ج.م", n)
+
+/** Arabic label for a document status enum. */
+fun statusAr(s: String): String = when (s) {
+    "DRAFT" -> "مسودة"
+    "CONFIRMED" -> "مؤكد"
+    "POSTED" -> "مُرحّل"
+    "DELIVERED" -> "مُسلّم"
+    "INVOICED" -> "مفوتر"
+    "CANCELLED" -> "ملغي"
+    "PARTIALLY_DELIVERED" -> "تسليم جزئي"
+    "PARTIALLY_RECEIVED" -> "استلام جزئي"
+    "RECEIVED" -> "مستلم"
+    "PAID" -> "مدفوع"
+    else -> s
+}
+
 @Composable
 fun ItemCard(item: ItemDto, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxWidth()) {
