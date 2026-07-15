@@ -58,7 +58,7 @@ import com.sellerctrl.app.data.ReqCreateReq
 import com.sellerctrl.app.data.ReqDetailDto
 import kotlinx.coroutines.launch
 
-private fun todayIso(): String {
+internal fun todayIso(): String {
     val c = java.util.Calendar.getInstance()
     return String.format("%04d-%02d-%02d", c.get(java.util.Calendar.YEAR), c.get(java.util.Calendar.MONTH) + 1, c.get(java.util.Calendar.DAY_OF_MONTH))
 }
@@ -180,7 +180,7 @@ fun RequisitionFormScreen(nav: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ItemPickerDialog(onDismiss: () -> Unit, onPick: (ItemDto) -> Unit) {
+internal fun ItemPickerDialog(onDismiss: () -> Unit, onPick: (ItemDto) -> Unit) {
     var q by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<ItemDto>>(emptyList()) }
     LaunchedEffect(q) {

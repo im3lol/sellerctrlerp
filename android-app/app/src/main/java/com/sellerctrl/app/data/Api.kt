@@ -76,6 +76,9 @@ import retrofit2.http.Url
 @Serializable data class ReqCreateLine(val itemId: String, val quantity: Double)
 @Serializable data class ReqCreateReq(val date: String, val notes: String? = null, val lines: List<ReqCreateLine>)
 
+@Serializable data class PoCreateLine(val itemId: String, val quantity: Double, val unitPrice: Double)
+@Serializable data class PoCreateReq(val supplierId: String, val warehouseId: String, val date: String, val notes: String? = null, val lines: List<PoCreateLine>)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -111,6 +114,9 @@ interface Api {
 
     @POST
     suspend fun reqCreate(@Url url: String, @Body body: ReqCreateReq): OkResp
+
+    @POST
+    suspend fun poCreate(@Url url: String, @Body body: PoCreateReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

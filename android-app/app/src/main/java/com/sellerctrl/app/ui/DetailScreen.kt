@@ -42,11 +42,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmPath: String?, fulfillPath: String? = null) {
+fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmPath: String?, fulfillPath: String? = null, deletePath: String? = null) {
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<OrderDetailDto?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
     val tick by ServiceLocator.repo.tick.collectAsState()
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.orderDetail(detailPath) } catch (e: Exception) { null } }
@@ -113,8 +114,33 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text(if (busy) "جارٍ التنفيذ…" else "تسليم وفوترة") }
                     }
+
+                    if (o.status == "DRAFT" && deletePath != null) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        ) { Text("حذف") }
+                    }
                 }
             }
         }
+    }
+
+    if (confirmDelete && deletePath != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("حذف") },
+            text = { Text("متأكد من حذف هذا المستند؟") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDelete = false; busy = true; message = null
+                    scope.launch {
+                        try { ServiceLocator.repo.postAction(deletePath); nav.popBackStack() }
+                        catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false }
+                    }
+                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        )
     }
 }

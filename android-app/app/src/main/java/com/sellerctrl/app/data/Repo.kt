@@ -101,6 +101,11 @@ class Repo(val store: TokenStore) {
         try { api.reqCreate("api/v1/purchases/requisitions", req) }
         catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
     }
+    /** Create a purchase order; throws the server's Arabic error on failure. */
+    suspend fun purchaseOrderCreate(req: PoCreateReq) {
+        try { api.poCreate("api/v1/purchases/orders", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
 
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }

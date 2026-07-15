@@ -96,10 +96,11 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
             DetailScreen(nav, "فاتورة بيع", "api/v1/sales/invoices/$id", null)
         }
         composable("sales_deliveries") { ListScreen(nav, "التسليمات", "api/v1/sales/deliveries") }
-        composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders", detailPrefix = "purchase_order") }
+        composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders", detailPrefix = "purchase_order", addRoute = "po_form") }
+        composable("po_form") { PurchaseOrderFormScreen(nav) }
         composable("purchase_order/{id}") { e ->
             val id = e.arguments?.getString("id") ?: ""
-            DetailScreen(nav, "أمر شراء", "api/v1/purchases/orders/$id", "api/v1/purchases/orders/$id/confirm")
+            DetailScreen(nav, "أمر شراء", "api/v1/purchases/orders/$id", "api/v1/purchases/orders/$id/confirm", deletePath = "api/v1/purchases/orders/$id/delete")
         }
         composable("purchase_invoices") { ListScreen(nav, "فواتير الشراء", "api/v1/purchases/invoices", detailPrefix = "purchase_invoice") }
         composable("purchase_invoice/{id}") { e ->
