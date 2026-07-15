@@ -41,13 +41,22 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmPath: String?) {
+fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmPath: String?, fulfillPath: String? = null) {
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<OrderDetailDto?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     LaunchedEffect(reload) { d = try { ServiceLocator.repo.orderDetail(detailPath) } catch (e: Exception) { null } }
+
+    fun runAction(path: String, okMsg: String) {
+        busy = true; message = null
+        scope.launch {
+            try { ServiceLocator.repo.postAction(path); message = okMsg; reload++ }
+            catch (e: Exception) { message = e.message ?: "خطأ" }
+            finally { busy = false }
+        }
+    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -89,17 +98,18 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
 
                     if (o.status == "DRAFT" && confirmPath != null) {
                         Button(
-                            onClick = {
-                                busy = true; message = null
-                                scope.launch {
-                                    try { ServiceLocator.repo.postAction(confirmPath); message = "تم التأكيد ✓"; reload++ }
-                                    catch (e: Exception) { message = e.message ?: "خطأ" }
-                                    finally { busy = false }
-                                }
-                            },
+                            onClick = { runAction(confirmPath, "تم التأكيد ✓") },
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text(if (busy) "جارٍ التأكيد…" else "تأكيد الأمر") }
+                    }
+
+                    if (o.status == "CONFIRMED" && fulfillPath != null) {
+                        Button(
+                            onClick = { runAction(fulfillPath, "تم التسليم والفوترة ✓") },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(if (busy) "جارٍ التنفيذ…" else "تسليم وفوترة") }
                     }
                 }
             }

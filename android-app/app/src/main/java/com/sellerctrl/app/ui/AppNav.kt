@@ -42,7 +42,7 @@ fun AppNav() {
         composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order") }
         composable("sales_order/{id}") { e ->
             val id = e.arguments?.getString("id") ?: ""
-            DetailScreen(nav, "أمر بيع", "api/v1/sales/orders/$id", "api/v1/sales/orders/$id/confirm")
+            DetailScreen(nav, "أمر بيع", "api/v1/sales/orders/$id", "api/v1/sales/orders/$id/confirm", "api/v1/sales/orders/$id/fulfill")
         }
         composable("sales_invoices") { ListScreen(nav, "فواتير البيع", "api/v1/sales/invoices", detailPrefix = "sales_invoice") }
         composable("sales_invoice/{id}") { e ->

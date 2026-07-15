@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
+import { runWithErpContext } from "@/lib/erp/erp-context";
 import type { SessionUser } from "@/lib/session";
 import type { ErpPermission } from "@/lib/erp/permissions";
 
@@ -26,7 +27,7 @@ export async function signApiToken(userId: string): Promise<string> {
     .sign(secret());
 }
 
-export type ApiAuth = { userId: string; orgId: string; role: string; can: (p: ErpPermission) => boolean };
+export type ApiAuth = { userId: string; orgId: string; role: string; can: (p: ErpPermission) => boolean; permissions: Set<string> };
 export type ApiAuthError = { error: string; status: number };
 export const isApiError = (r: ApiAuth | ApiAuthError): r is ApiAuthError => "error" in r;
 
@@ -58,5 +59,10 @@ export async function authorizeApi(req: Request, permission: ErpPermission): Pro
   if (!access.role) return { error: "forbidden_org", status: 403 };
   if (!access.permissions.has(permission)) return { error: "forbidden", status: 403 };
 
-  return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p) };
+  return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p), permissions: access.permissions };
+}
+
+/** Run a cookie-bound server action (or a chain of them) as the API caller. */
+export function runAsErp<T>(auth: ApiAuth, fn: () => Promise<T>): Promise<T> {
+  return runWithErpContext({ userId: auth.userId, orgId: auth.orgId, role: auth.role, permissions: auth.permissions }, fn);
 }

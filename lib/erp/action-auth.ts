@@ -2,6 +2,7 @@ import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { orgHasModule } from "@/lib/erp/entitlements";
 import { type ErpPermission } from "@/lib/erp/permissions";
+import { getErpContext } from "@/lib/erp/erp-context";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -18,6 +19,16 @@ export async function authorizeErp(
   permission: ErpPermission,
   moduleKey?: string,
 ): Promise<{ orgId: string; userId: string; role: string } | { error: string }> {
+  // Bearer API path: an ambient context was set by authorizeApi (no session cookie).
+  const ctx = getErpContext();
+  if (ctx) {
+    if (!ctx.permissions.has(permission)) return { error: "ليس لديك صلاحية لهذا الإجراء" };
+    if (moduleKey && ctx.role !== "system_admin" && !(await orgHasModule(ctx.orgId, moduleKey))) {
+      return { error: "هذه الميزة غير مُفعّلة في باقتك" };
+    }
+    return { orgId: ctx.orgId, userId: ctx.userId, role: ctx.role };
+  }
+
   const { user, org } = await getActiveOrg();
   if (!user) return { error: "غير مصرح بالدخول" };
   if (!org) return { error: "لم يتم تحديد المؤسسة" };

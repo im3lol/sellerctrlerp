@@ -95,7 +95,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
   if (!so) return { error: "الأمر غير موجود" };
   if (so.status !== "CONFIRMED" && so.status !== "PARTIALLY_DELIVERED") return { error: "يمكن التسليم من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-  const orderLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
+  const orderLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId })
     .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
 
   const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
@@ -106,7 +106,9 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
     const want = picks ? (p?.quantity ?? 0) : remaining;
     if (want < -EPS) return { error: "كمية غير صالحة" };
     if (want > remaining + EPS) return { error: "الكمية المسلّمة أكبر من المتبقّي للصنف" };
-    if (want > EPS) toDeliver.push({ itemId: l.itemId, qty: round2(want), warehouseId: p?.warehouseId || null });
+    // Fall back to the order line's warehouse when no explicit pick — otherwise a
+    // pick-less fulfill would issue from the default warehouse, not the line's.
+    if (want > EPS) toDeliver.push({ itemId: l.itemId, qty: round2(want), warehouseId: (p?.warehouseId ?? l.warehouseId) || null });
   }
   if (toDeliver.length === 0) return { error: "لا توجد كميات للتسليم" };
 
