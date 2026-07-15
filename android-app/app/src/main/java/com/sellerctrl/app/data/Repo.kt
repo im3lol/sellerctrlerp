@@ -158,6 +158,22 @@ class Repo(val store: TokenStore) {
         catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
     }
 
+    // --- Sales revenue cycle (SO create, SI create/post, سند قبض) ---
+    suspend fun salesOrderCreate(req: SoCreateReq) {
+        try { api.soCreate("api/v1/sales/orders", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun salesInvoiceCreate(req: SiCreateReq) {
+        try { api.siCreate("api/v1/sales/invoices", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun invoiceReceivable(id: String): ReceivableDto = api.invReceivable("api/v1/sales/invoices/$id/receivable").data
+    /** Create + post a customer receipt voucher (سند قبض); throws the server's Arabic error on failure. */
+    suspend fun collectInvoice(req: CollectReq) {
+        try { api.collect("api/v1/sales/receipts", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحصيل") }
+    }
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 

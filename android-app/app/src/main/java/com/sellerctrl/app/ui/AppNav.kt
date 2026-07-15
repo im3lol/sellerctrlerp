@@ -85,16 +85,15 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("leaves") { ApprovalScreen(nav, "طلبات الإجازات", "api/v1/hr/leaves", "api/v1/hr/leaves", canReject = true) }
         composable("expense_claims") { ApprovalScreen(nav, "مطالبات المصروفات", "api/v1/hr/expense-claims", "api/v1/hr/expense-claims", canReject = false) }
         // Lists
-        composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order") }
+        composable("sales_orders") { ListScreen(nav, "أوامر البيع", "api/v1/sales/orders", detailPrefix = "sales_order", addRoute = "so_form") }
+        composable("so_form") { SalesOrderFormScreen(nav) }
         composable("sales_order/{id}") { e ->
             val id = e.arguments?.getString("id") ?: ""
-            DetailScreen(nav, "أمر بيع", "api/v1/sales/orders/$id", "api/v1/sales/orders/$id/confirm", "api/v1/sales/orders/$id/fulfill")
+            DetailScreen(nav, "أمر بيع", "api/v1/sales/orders/$id", "api/v1/sales/orders/$id/confirm", "api/v1/sales/orders/$id/fulfill", deletePath = "api/v1/sales/orders/$id/delete")
         }
-        composable("sales_invoices") { ListScreen(nav, "فواتير البيع", "api/v1/sales/invoices", detailPrefix = "sales_invoice") }
-        composable("sales_invoice/{id}") { e ->
-            val id = e.arguments?.getString("id") ?: ""
-            DetailScreen(nav, "فاتورة بيع", "api/v1/sales/invoices/$id", null)
-        }
+        composable("sales_invoices") { ListScreen(nav, "فواتير البيع", "api/v1/sales/invoices", detailPrefix = "sales_invoice", addRoute = "si_form") }
+        composable("si_form") { SalesInvoiceFormScreen(nav) }
+        composable("sales_invoice/{id}") { e -> SalesInvoiceDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("sales_deliveries") { ListScreen(nav, "التسليمات", "api/v1/sales/deliveries") }
         composable("purchase_orders") { ListScreen(nav, "أوامر الشراء", "api/v1/purchases/orders", detailPrefix = "purchase_order", addRoute = "po_form") }
         composable("po_form") { PurchaseOrderFormScreen(nav) }

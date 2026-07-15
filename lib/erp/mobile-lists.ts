@@ -271,6 +271,17 @@ export async function purchaseInvoicePayable(orgId: string, id: string): Promise
   return { id: i.id, number: i.number, supplierId: i.supplierId, total: Number(i.total), paid: Number(i.paid), balanceDue: Number(i.balanceDue), status: i.status };
 }
 
+export type InvoiceReceivable = { id: string; number: string; customerId: string; total: number; paid: number; balanceDue: number; status: string };
+
+/** Collection-relevant fields of a sales invoice (for the mobile سند قبض form). */
+export async function salesInvoiceReceivable(orgId: string, id: string): Promise<InvoiceReceivable | null> {
+  const [i] = await db.select({ id: salesInvoices.id, number: salesInvoices.number, customerId: salesInvoices.customerId,
+    total: salesInvoices.totalAmount, paid: salesInvoices.paidAmount, balanceDue: salesInvoices.balanceDue, status: salesInvoices.status })
+    .from(salesInvoices).where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, orgId))).limit(1);
+  if (!i) return null;
+  return { id: i.id, number: i.number, customerId: i.customerId, total: Number(i.total), paid: Number(i.paid), balanceDue: Number(i.balanceDue), status: i.status };
+}
+
 /** Cash/bank leaf accounts (110x) for the payment/voucher account picker. */
 export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr })

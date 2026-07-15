@@ -111,6 +111,15 @@ import retrofit2.http.Url
 
 @Serializable data class BankSaveReq(val id: String? = null, val nameAr: String, val bankName: String? = null, val accountNumber: String? = null, val iban: String? = null, val glAccountId: String? = null, val notes: String? = null)
 
+// --- Sales revenue cycle (SO create, SI create/post, سند قبض) ---
+@Serializable data class SoCreateLine(val itemId: String, val warehouseId: String? = null, val quantity: Double, val unitPrice: Double)
+@Serializable data class SoCreateReq(val customerId: String, val date: String, val notes: String? = null, val lines: List<SoCreateLine>)
+@Serializable data class SiCreateLine(val itemId: String, val quantity: Double, val unitPrice: Double)
+@Serializable data class SiCreateReq(val customerId: String, val date: String, val notes: String? = null, val lines: List<SiCreateLine>)
+@Serializable data class ReceivableDto(val id: String, val number: String, val customerId: String, val total: Double = 0.0, val paid: Double = 0.0, val balanceDue: Double = 0.0, val status: String)
+@Serializable data class ReceivableInvResp(val data: ReceivableDto)
+@Serializable data class CollectReq(val customerId: String, val salesInvoiceId: String? = null, val cashAccountId: String, val amount: Double, val date: String, val paymentMethod: String = "CASH")
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -185,6 +194,18 @@ interface Api {
 
     @POST
     suspend fun bankSave(@Url url: String, @Body body: BankSaveReq): OkResp
+
+    @POST
+    suspend fun soCreate(@Url url: String, @Body body: SoCreateReq): OkResp
+
+    @POST
+    suspend fun siCreate(@Url url: String, @Body body: SiCreateReq): OkResp
+
+    @GET
+    suspend fun invReceivable(@Url url: String): ReceivableInvResp
+
+    @POST
+    suspend fun collect(@Url url: String, @Body body: CollectReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp
