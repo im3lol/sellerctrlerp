@@ -36,6 +36,9 @@ fun statusAr(s: String): String = when (s) {
     "PARTIALLY_RECEIVED" -> "استلام جزئي"
     "RECEIVED" -> "مستلم"
     "PAID" -> "مدفوع"
+    "PARTIAL_PAID", "PARTIALLY_PAID" -> "مدفوع جزئياً"
+    "UNPAID" -> "غير مدفوع"
+    "OVERDUE" -> "متأخر"
     else -> s
 }
 

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
-  salesOrderLines, purchaseOrderLines, items,
+  salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -104,7 +104,7 @@ export async function salesOrderDetail(orgId: string, id: string): Promise<Order
   if (!o) return null;
   const lines = await db.select({ name: items.nameAr, code: items.code, qty: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, total: salesOrderLines.totalAmount })
     .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId)).where(eq(salesOrderLines.salesOrderId, id));
-  return { id: o.id, number: o.number, party: o.party ?? "—", date: String(o.date).slice(0, 10), status: o.status, total: Number(o.total),
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: new Date(o.date).toISOString().slice(0, 10), status: o.status, total: Number(o.total),
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
@@ -115,7 +115,29 @@ export async function purchaseOrderDetail(orgId: string, id: string): Promise<Or
   if (!o) return null;
   const lines = await db.select({ name: items.nameAr, code: items.code, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, total: purchaseOrderLines.totalAmount })
     .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, id));
-  return { id: o.id, number: o.number, party: o.party ?? "—", date: String(o.date).slice(0, 10), status: o.status, total: Number(o.total),
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: new Date(o.date).toISOString().slice(0, 10), status: o.status, total: Number(o.total),
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
+}
+
+export async function salesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [o] = await db.select({ id: salesInvoices.id, number: salesInvoices.number, status: salesInvoices.status, total: salesInvoices.totalAmount, date: salesInvoices.date, party: customers.nameAr })
+    .from(salesInvoices).leftJoin(customers, eq(customers.id, salesInvoices.customerId))
+    .where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, orgId))).limit(1);
+  if (!o) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: salesInvoiceLines.quantity, unitPrice: salesInvoiceLines.unitPrice, total: salesInvoiceLines.totalAmount })
+    .from(salesInvoiceLines).leftJoin(items, eq(items.id, salesInvoiceLines.itemId)).where(eq(salesInvoiceLines.salesInvoiceId, id));
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: new Date(o.date).toISOString().slice(0, 10), status: o.status, total: Number(o.total),
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
+}
+
+export async function purchaseInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+  const [o] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, status: purchaseInvoices.status, total: purchaseInvoices.totalAmount, date: purchaseInvoices.date, party: suppliers.nameAr })
+    .from(purchaseInvoices).leftJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
+    .where(and(eq(purchaseInvoices.id, id), eq(purchaseInvoices.organizationId, orgId))).limit(1);
+  if (!o) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, total: purchaseInvoiceLines.totalAmount })
+    .from(purchaseInvoiceLines).leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId)).where(eq(purchaseInvoiceLines.purchaseInvoiceId, id));
+  return { id: o.id, number: o.number, party: o.party ?? "—", date: new Date(o.date).toISOString().slice(0, 10), status: o.status, total: Number(o.total),
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
