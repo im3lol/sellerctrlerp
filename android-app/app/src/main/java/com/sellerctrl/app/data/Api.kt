@@ -79,6 +79,38 @@ import retrofit2.http.Url
 @Serializable data class PoCreateLine(val itemId: String, val quantity: Double, val unitPrice: Double)
 @Serializable data class PoCreateReq(val supplierId: String, val warehouseId: String, val date: String, val notes: String? = null, val lines: List<PoCreateLine>)
 
+// --- Purchase receipts (إذون الاستلام) ---
+@Serializable data class ReceiptLineDto(val name: String, val qty: Double = 0.0, val rejected: Double = 0.0)
+@Serializable data class ReceiptDetailDto(val id: String, val number: String, val date: String, val status: String, val supplier: String = "", val poNumber: String = "", val invoiced: Boolean = false, val notes: String = "", val lines: List<ReceiptLineDto> = emptyList())
+@Serializable data class ReceiptDetailResp(val data: ReceiptDetailDto)
+@Serializable data class ReceivableLineDto(val itemId: String, val code: String = "", val name: String = "", val remaining: Double = 0.0)
+@Serializable data class ReceivableData(val lines: List<ReceivableLineDto> = emptyList(), val defaultWarehouseId: String? = null)
+@Serializable data class ReceivableResp(val data: ReceivableData)
+@Serializable data class ReceiptPick(val itemId: String, val quantity: Double, val rejectedQty: Double = 0.0)
+@Serializable data class ReceiptCreateReq(val purchaseOrderId: String, val date: String? = null, val picks: List<ReceiptPick>? = null)
+@Serializable data class BillData(val invoiceId: String? = null)
+@Serializable data class BillResp(val data: BillData)
+
+// --- Purchase invoices (standalone create) + payment (سند صرف) ---
+@Serializable data class PiCreateLine(val itemId: String, val quantity: Double, val unitPrice: Double, val discountAmount: Double = 0.0, val taxAmount: Double = 0.0)
+@Serializable data class PiCreateReq(val supplierId: String, val warehouseId: String, val date: String, val notes: String? = null, val lines: List<PiCreateLine>)
+@Serializable data class PayableDto(val id: String, val number: String, val supplierId: String, val total: Double = 0.0, val paid: Double = 0.0, val balanceDue: Double = 0.0, val status: String)
+@Serializable data class PayableResp(val data: PayableDto)
+@Serializable data class PayReq(val supplierId: String, val purchaseInvoiceId: String? = null, val cashAccountId: String, val amount: Double, val date: String, val paymentMethod: String = "CASH")
+
+// --- Accounting: journal, expenses, banks ---
+@Serializable data class JournalLineDto(val account: String, val debit: Double = 0.0, val credit: Double = 0.0, val desc: String = "")
+@Serializable data class JournalDetailDto(val id: String, val number: String, val date: String, val status: String, val description: String = "", val totalDebit: Double = 0.0, val totalCredit: Double = 0.0, val lines: List<JournalLineDto> = emptyList())
+@Serializable data class JournalDetailResp(val data: JournalDetailDto)
+@Serializable data class JeCreateLine(val accountId: String, val debit: Double = 0.0, val credit: Double = 0.0, val description: String? = null)
+@Serializable data class JeCreateReq(val date: String, val description: String, val reference: String? = null, val mode: String = "draft", val lines: List<JeCreateLine>)
+
+@Serializable data class ExpenseDetailDto(val id: String, val number: String, val date: String, val status: String, val account: String = "", val cashAccount: String = "", val amount: Double = 0.0, val payee: String = "", val notes: String = "")
+@Serializable data class ExpenseDetailResp(val data: ExpenseDetailDto)
+@Serializable data class ExpenseCreateReq(val expenseAccountId: String, val cashAccountId: String, val amount: Double, val date: String, val paymentMethod: String = "CASH", val payee: String? = null, val notes: String? = null)
+
+@Serializable data class BankSaveReq(val id: String? = null, val nameAr: String, val bankName: String? = null, val accountNumber: String? = null, val iban: String? = null, val glAccountId: String? = null, val notes: String? = null)
+
 interface Api {
     @POST("api/v1/auth/login")
     suspend fun login(@Body body: LoginReq): LoginResp
@@ -117,6 +149,42 @@ interface Api {
 
     @POST
     suspend fun poCreate(@Url url: String, @Body body: PoCreateReq): OkResp
+
+    @GET
+    suspend fun receiptDetail(@Url url: String): ReceiptDetailResp
+
+    @GET
+    suspend fun receivable(@Url url: String): ReceivableResp
+
+    @POST
+    suspend fun receiptCreate(@Url url: String, @Body body: ReceiptCreateReq): OkResp
+
+    @POST
+    suspend fun receiptBill(@Url url: String): BillResp
+
+    @POST
+    suspend fun piCreate(@Url url: String, @Body body: PiCreateReq): OkResp
+
+    @GET
+    suspend fun payable(@Url url: String): PayableResp
+
+    @POST
+    suspend fun pay(@Url url: String, @Body body: PayReq): OkResp
+
+    @GET
+    suspend fun jeDetail(@Url url: String): JournalDetailResp
+
+    @POST
+    suspend fun jeCreate(@Url url: String, @Body body: JeCreateReq): OkResp
+
+    @GET
+    suspend fun expenseDetail(@Url url: String): ExpenseDetailResp
+
+    @POST
+    suspend fun expenseCreate(@Url url: String, @Body body: ExpenseCreateReq): OkResp
+
+    @POST
+    suspend fun bankSave(@Url url: String, @Body body: BankSaveReq): OkResp
 
     @GET("api/v1/financials/income")
     suspend fun incomeStatement(): IncomeResp

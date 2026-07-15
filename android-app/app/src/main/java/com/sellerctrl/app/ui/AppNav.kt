@@ -102,15 +102,22 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
             val id = e.arguments?.getString("id") ?: ""
             DetailScreen(nav, "أمر شراء", "api/v1/purchases/orders/$id", "api/v1/purchases/orders/$id/confirm", deletePath = "api/v1/purchases/orders/$id/delete")
         }
-        composable("purchase_invoices") { ListScreen(nav, "فواتير الشراء", "api/v1/purchases/invoices", detailPrefix = "purchase_invoice") }
-        composable("purchase_invoice/{id}") { e ->
-            val id = e.arguments?.getString("id") ?: ""
-            DetailScreen(nav, "فاتورة شراء", "api/v1/purchases/invoices/$id", null)
-        }
+        composable("purchase_receipts") { ListScreen(nav, "إذون الاستلام", "api/v1/purchases/receipts", detailPrefix = "purchase_receipt", addRoute = "receipt_form") }
+        composable("receipt_form") { PurchaseReceiptFormScreen(nav) }
+        composable("purchase_receipt/{id}") { e -> PurchaseReceiptDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("purchase_invoices") { ListScreen(nav, "فواتير الشراء", "api/v1/purchases/invoices", detailPrefix = "purchase_invoice", addRoute = "pi_form") }
+        composable("pi_form") { PurchaseInvoiceFormScreen(nav) }
+        composable("purchase_invoice/{id}") { e -> PurchaseInvoiceDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("customers") { ListScreen(nav, "العملاء", "api/v1/parties/customers") }
         composable("suppliers") { ListScreen(nav, "الموردون", "api/v1/parties/suppliers") }
-        composable("journal") { ListScreen(nav, "القيود المحاسبية", "api/v1/accounting/journal") }
-        composable("expenses") { ListScreen(nav, "المصروفات", "api/v1/accounting/expenses") }
+        composable("journal") { ListScreen(nav, "القيود المحاسبية", "api/v1/accounting/journal", detailPrefix = "journal_entry", addRoute = "je_form") }
+        composable("je_form") { JournalFormScreen(nav) }
+        composable("journal_entry/{id}") { e -> JournalDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("expenses") { ListScreen(nav, "المصروفات", "api/v1/accounting/expenses", detailPrefix = "expense", addRoute = "expense_form") }
+        composable("expense_form") { ExpenseFormScreen(nav) }
+        composable("expense/{id}") { e -> ExpenseDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("banks_manager") { BankManagerScreen(nav) }
+        composable("bank_form") { BankFormScreen(nav) }
         composable("employees") { ListScreen(nav, "الموظفون", "api/v1/hr/employees") }
         composable("investors") { ListScreen(nav, "المستثمرون", "api/v1/parties/investors") }
         composable("platforms") { ListScreen(nav, "منصات البيع", "api/v1/platforms") }

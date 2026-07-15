@@ -107,6 +107,57 @@ class Repo(val store: TokenStore) {
         catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
     }
 
+    // --- Purchase receipts (إذون الاستلام) ---
+    suspend fun receiptDetail(id: String): ReceiptDetailDto = api.receiptDetail("api/v1/purchases/receipts/$id").data
+    /** Confirmed/partial POs to receive against (for the receipt form). */
+    suspend fun receivableOrders(): List<DocRow> = api.docList("api/v1/purchases/receivable-orders").data
+    /** A PO's still-unreceived lines. */
+    suspend fun receivableLines(poId: String): ReceivableData = api.receivable("api/v1/purchases/orders/$poId/receivable").data
+    /** Create a DRAFT goods receipt from a PO; throws the server's Arabic error on failure. */
+    suspend fun receiptCreate(req: ReceiptCreateReq) {
+        try { api.receiptCreate("api/v1/purchases/receipts", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    /** Bill a confirmed receipt → DRAFT purchase invoice; returns the new invoice id. */
+    suspend fun receiptBill(id: String): String? {
+        try { return api.receiptBill("api/v1/purchases/receipts/$id/bill").data.invoiceId }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الفوترة") }
+    }
+
+    // --- Purchase invoices (standalone) + payment (سند صرف) ---
+    /** Create a standalone DRAFT purchase invoice; throws the server's Arabic error on failure. */
+    suspend fun purchaseInvoiceCreate(req: PiCreateReq) {
+        try { api.piCreate("api/v1/purchases/invoices", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun invoicePayable(id: String): PayableDto = api.payable("api/v1/purchases/invoices/$id/payable").data
+    /** Cash/bank leaf accounts for the payment picker. */
+    suspend fun cashAccounts(): List<DocRow> = api.docList("api/v1/accounting/cash-accounts").data
+    /** Create + post a supplier payment voucher; throws the server's Arabic error on failure. */
+    suspend fun payInvoice(req: PayReq) {
+        try { api.pay("api/v1/purchases/payments", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الدفع") }
+    }
+
+    // --- Accounting: journal, expenses, banks ---
+    /** Postable leaf accounts for pickers (optionally by type: EXPENSE/ASSET/…). */
+    suspend fun accounts(type: String? = null): List<DocRow> =
+        api.docList("api/v1/accounting/accounts" + (if (type != null) "?type=$type" else "")).data
+    suspend fun journalDetail(id: String): JournalDetailDto = api.jeDetail("api/v1/accounting/journal/$id").data
+    suspend fun journalCreate(req: JeCreateReq) {
+        try { api.jeCreate("api/v1/accounting/journal", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun expenseDetail(id: String): ExpenseDetailDto = api.expenseDetail("api/v1/accounting/expenses/$id").data
+    suspend fun expenseCreate(req: ExpenseCreateReq) {
+        try { api.expenseCreate("api/v1/accounting/expenses", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun bankSave(req: BankSaveReq) {
+        try { api.bankSave("api/v1/accounting/banks", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     private fun parseErr(e: retrofit2.HttpException): String? =
         e.response()?.errorBody()?.string()?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
 

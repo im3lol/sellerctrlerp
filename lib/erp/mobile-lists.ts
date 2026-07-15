@@ -1,13 +1,13 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
-  salesOrders, purchaseOrders, customers, suppliers, journalEntries, employees,
+  salesOrders, purchaseOrders, customers, suppliers, journalEntries, journalEntryLines, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
   salesOrderLines, purchaseOrderLines, salesInvoiceLines, purchaseInvoiceLines, items,
   leaveRequests, expenseClaims, expenseClaimLines,
   salesQuotations, salesQuotationLines, receiptVouchers, paymentVouchers,
-  purchaseReceipts, materialRequests, materialRequestLines, stockAdjustments, stockTransfers,
+  purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers,
   bankAccounts, fixedAssets, accounts, holidays, warehouses,
 } from "@/db/schema";
 
@@ -187,6 +187,98 @@ export async function requisitionDetail(orgId: string, id: string): Promise<ReqD
     .from(materialRequestLines).leftJoin(items, eq(items.id, materialRequestLines.itemId)).where(eq(materialRequestLines.materialRequestId, id));
   return { id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), status: r.status, notes: r.notes ?? "",
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty) })) };
+}
+
+export type ReceiptLine = { name: string; qty: number; rejected: number };
+export type ReceiptDetail = { id: string; number: string; date: string; status: string; supplier: string; poNumber: string; invoiced: boolean; notes: string; lines: ReceiptLine[] };
+
+/** Goods-receipt header + received lines (mobile detail). */
+export async function purchaseReceiptDetail(orgId: string, id: string): Promise<ReceiptDetail | null> {
+  const [r] = await db.select({
+    id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, status: purchaseReceipts.status,
+    notes: purchaseReceipts.notes, invoiceId: purchaseReceipts.purchaseInvoiceId, poNumber: purchaseOrders.number, supplier: suppliers.nameAr,
+  }).from(purchaseReceipts)
+    .leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
+    .leftJoin(purchaseOrders, eq(purchaseOrders.id, purchaseReceipts.purchaseOrderId))
+    .where(and(eq(purchaseReceipts.id, id), eq(purchaseReceipts.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  const lines = await db.select({ name: items.nameAr, code: items.code, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty })
+    .from(purchaseReceiptLines).leftJoin(items, eq(items.id, purchaseReceiptLines.itemId)).where(eq(purchaseReceiptLines.purchaseReceiptId, id));
+  return { id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), status: r.status, supplier: r.supplier ?? "—",
+    poNumber: r.poNumber ?? "", invoiced: Boolean(r.invoiceId), notes: r.notes ?? "",
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), rejected: Number(l.rejected) })) };
+}
+
+/** Confirmed/partial POs available to receive against (for the receipt form's PO picker). */
+export async function receivablePurchaseOrders(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: purchaseOrders.id, number: purchaseOrders.number, status: purchaseOrders.status, date: purchaseOrders.date, name: suppliers.nameAr })
+    .from(purchaseOrders).leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
+    .where(and(eq(purchaseOrders.organizationId, orgId), inArray(purchaseOrders.status, ["CONFIRMED", "PARTIALLY_RECEIVED"])))
+    .orderBy(desc(purchaseOrders.date)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: null, status: r.status }));
+}
+
+/** Postable leaf accounts for pickers. Pass a type to filter (EXPENSE, ASSET, …). */
+export async function leafAccounts(orgId: string, type?: string): Promise<DocRow[]> {
+  const conds = [eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true)];
+  if (type) conds.push(eq(accounts.type, type));
+  const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
+    .from(accounts).where(and(...conds)).orderBy(accounts.code).limit(500);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: ACCT_TYPE_AR[r.type] ?? r.type }));
+}
+
+export type JournalLine = { account: string; debit: number; credit: number; desc: string };
+export type JournalDetail = { id: string; number: string; date: string; status: string; description: string; totalDebit: number; totalCredit: number; lines: JournalLine[] };
+
+/** Journal entry header + debit/credit lines (mobile detail). */
+export async function journalEntryDetail(orgId: string, id: string): Promise<JournalDetail | null> {
+  const [e] = await db.select({ id: journalEntries.id, number: journalEntries.number, date: journalEntries.date, status: journalEntries.status, desc: journalEntries.description })
+    .from(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, orgId))).limit(1);
+  if (!e) return null;
+  const lines = await db.select({ code: accounts.code, name: accounts.nameAr, debit: journalEntryLines.debit, credit: journalEntryLines.credit, desc: journalEntryLines.description })
+    .from(journalEntryLines).leftJoin(accounts, eq(accounts.id, journalEntryLines.accountId)).where(eq(journalEntryLines.journalEntryId, id));
+  const mapped = lines.map((l) => ({ account: `${l.code ?? ""} ${l.name ?? ""}`.trim(), debit: Number(l.debit), credit: Number(l.credit), desc: l.desc ?? "" }));
+  return { id: e.id, number: e.number, date: new Date(e.date).toISOString().slice(0, 10), status: e.status, description: e.desc ?? "",
+    totalDebit: mapped.reduce((s, l) => s + l.debit, 0), totalCredit: mapped.reduce((s, l) => s + l.credit, 0), lines: mapped };
+}
+
+export type ExpenseDetail = { id: string; number: string; date: string; status: string; account: string; cashAccount: string; amount: number; payee: string; notes: string };
+const expCat = alias(accounts, "exp_cat");
+const cashCat = alias(accounts, "cash_cat");
+
+/** Expense header + account names (mobile detail). */
+export async function expenseDetail(orgId: string, id: string): Promise<ExpenseDetail | null> {
+  const [e] = await db.select({
+    id: expenses.id, number: expenses.number, date: expenses.date, status: expenses.status, amount: expenses.amount,
+    payee: expenses.payee, notes: expenses.notes, cat: expCat.nameAr, cash: cashCat.nameAr,
+  }).from(expenses)
+    .leftJoin(expCat, eq(expCat.id, expenses.expenseAccountId))
+    .leftJoin(cashCat, eq(cashCat.id, expenses.cashAccountId))
+    .where(and(eq(expenses.id, id), eq(expenses.organizationId, orgId))).limit(1);
+  if (!e) return null;
+  return { id: e.id, number: e.number, date: new Date(e.date).toISOString().slice(0, 10), status: e.status,
+    account: e.cat ?? "—", cashAccount: e.cash ?? "—", amount: Number(e.amount), payee: e.payee ?? "", notes: e.notes ?? "" };
+}
+
+export type InvoicePayable = { id: string; number: string; supplierId: string; total: number; paid: number; balanceDue: number; status: string };
+
+/** Payment-relevant fields of a purchase invoice (for the mobile سند صرف form). */
+export async function purchaseInvoicePayable(orgId: string, id: string): Promise<InvoicePayable | null> {
+  const [i] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, supplierId: purchaseInvoices.supplierId,
+    total: purchaseInvoices.totalAmount, paid: purchaseInvoices.paidAmount, balanceDue: purchaseInvoices.balanceDue, status: purchaseInvoices.status })
+    .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, id), eq(purchaseInvoices.organizationId, orgId))).limit(1);
+  if (!i) return null;
+  return { id: i.id, number: i.number, supplierId: i.supplierId, total: Number(i.total), paid: Number(i.paid), balanceDue: Number(i.balanceDue), status: i.status };
+}
+
+/** Cash/bank leaf accounts (110x) for the payment/voucher account picker. */
+export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr })
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), eq(accounts.type, "ASSET"),
+      sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`))
+    .orderBy(accounts.code);
+  return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: null }));
 }
 
 export type PartyDetail = { id: string; code: string; nameAr: string; phone: string; email: string; address: string; paymentTerms: number; creditLimit: number; balance: number };
