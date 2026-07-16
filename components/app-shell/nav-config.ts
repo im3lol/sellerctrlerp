@@ -208,6 +208,9 @@ export const NAV: NavSection[] = [
       // Platform admin panel (/admin) is deliberately NOT linked from the tenant
       // workspace — it's a separate SaaS surface reached via its own login
       // (/login/admin) and stays server-guarded by employee.manage (system_admin).
+      // The migration step: a company that already exists starts here, not at an
+      // empty ledger.
+      { label: "الأرصدة الافتتاحية", href: "/erp/settings/opening-balance", icon: "Upload", capability: "erp.accounting.create" },
       { label: "صلاحيات المستخدمين", href: "/erp/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
       { label: "سجل التدقيق", href: "/erp/audit", icon: "ScrollText", capability: "erp.settings.edit" },
       { label: "الإعدادات", href: "/erp/settings", icon: "Settings", capability: "erp.settings.edit" },

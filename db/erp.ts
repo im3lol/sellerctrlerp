@@ -1991,3 +1991,61 @@ export const payrollLines = pgTable(
     index("payroll_lines_run_idx").on(t.payrollRunId),
   ],
 );
+
+/* ═══════════════ OPENING BALANCES (أرصدة افتتاحية) ═══════════════ */
+
+/**
+ * The one-time migration document: what the company already owed, was owed, held
+ * in stock and had in the bank on the day it started using this system.
+ *
+ * Without this there is no way onto the product except hand-writing journal entries
+ * and faking stock adjustments, which is why every onboarding stalled.
+ *
+ * Everything balances against 3002 (حساب الأرصدة الافتتاحية), created on first use.
+ * Posting is one-way and once per org — it is a statement about a moment in time,
+ * not a document you keep editing.
+ */
+export const openingBalances = pgTable(
+  "opening_balances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    /** As-of date: the day before go-live. Balances are stated as at this date. */
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | POSTED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("opening_balances_org_status_idx").on(t.organizationId, t.status)],
+);
+
+/**
+ * One line per thing being brought over.
+ *
+ *  ACCOUNT  — a GL account's balance (cash, bank, loans, capital…): debit/credit.
+ *  CUSTOMER — what a customer owed. Posts to 1103 AND creates an opening invoice,
+ *             so the debt shows in AR aging and can actually be collected against.
+ *  SUPPLIER — mirror of CUSTOMER against 2101.
+ *  ITEM     — stock on hand: quantity × unitCost, through the stock ledger.
+ */
+export const openingBalanceLines = pgTable(
+  "opening_balance_lines",
+  {
+    id: pk(),
+    openingBalanceId: text("opening_balance_id").notNull().references(() => openingBalances.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // ACCOUNT | CUSTOMER | SUPPLIER | ITEM
+    accountId: text("account_id").references(() => accounts.id),
+    customerId: text("customer_id").references(() => customers.id),
+    supplierId: text("supplier_id").references(() => suppliers.id),
+    itemId: text("item_id").references(() => items.id),
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    /** ACCOUNT/CUSTOMER/SUPPLIER. For ITEM these are derived from qty × unitCost. */
+    debit: money("debit").notNull().default("0"),
+    credit: money("credit").notNull().default("0"),
+    quantity: money("quantity"),
+    unitCost: money("unit_cost"),
+    notes: text("notes"),
+  },
+  (t) => [index("opening_balance_lines_parent_idx").on(t.openingBalanceId)],
+);
