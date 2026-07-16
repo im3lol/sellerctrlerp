@@ -202,6 +202,17 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Recurring journals (القيود المتكررة) + fiscal periods (الفترات المالية) ---
+    suspend fun recurringJournalDetail(id: String): RecurJournalDetailDto = api.recurJournalDetail("api/v1/accounting/recurring-journals/$id").data
+    suspend fun recurringJournalSave(req: RecurJournalSaveReq) {
+        try { api.recurJournalSave("api/v1/accounting/recurring-journals", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+    suspend fun periodStatus(id: String, status: String) {
+        try { api.periodStatus("api/v1/accounting/periods/$id/status", StatusReq(status)) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحديث") }
+    }
+
     // --- Payroll runs (مسيّرات الرواتب) ---
     suspend fun payrollDetail(id: String): PayrollDetailDto = api.payrollDetail("api/v1/hr/payroll/$id").data
     suspend fun payrollCreate(req: PayrollCreateReq) {

@@ -11,6 +11,7 @@ import {
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
   recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
   costCenters, bankStatementLines, payrollRuns, payrollLines, recurringExpenses,
+  recurringJournals, recurringJournalLines, fiscalPeriods,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -400,6 +401,48 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
   return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
     purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
     accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
+}
+
+/** Recurring journal templates (mobile list). */
+export async function recurringJournalList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: recurringJournals.id, name: recurringJournals.name, freq: recurringJournals.frequency,
+    next: recurringJournals.nextRunDate, active: recurringJournals.isActive,
+    total: sql<string>`COALESCE(SUM(${recurringJournalLines.debit}), 0)`,
+  }).from(recurringJournals)
+    .leftJoin(recurringJournalLines, eq(recurringJournalLines.recurringJournalId, recurringJournals.id))
+    .where(eq(recurringJournals.organizationId, orgId))
+    .groupBy(recurringJournals.id)
+    .orderBy(desc(recurringJournals.nextRunDate)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: FREQ_AR[r.freq] ?? r.freq, title: r.name,
+    subtitle: `التالي: ${new Date(r.next).toISOString().slice(0, 10)}`, amount: Number(r.total), status: r.active ? "ACTIVE" : "متوقف" }));
+}
+
+export type RecurJournalDetail = { id: string; name: string; description: string; frequency: string; nextRunDate: string; isActive: boolean; totalDebit: number; totalCredit: number; lines: JournalLine[] };
+
+/** One recurring journal template + its Dr/Cr lines. */
+export async function recurringJournalDetail(orgId: string, id: string): Promise<RecurJournalDetail | null> {
+  const [r] = await db.select({ id: recurringJournals.id, name: recurringJournals.name, desc: recurringJournals.description, freq: recurringJournals.frequency, next: recurringJournals.nextRunDate, active: recurringJournals.isActive })
+    .from(recurringJournals).where(and(eq(recurringJournals.id, id), eq(recurringJournals.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  const lines = await db.select({ code: accounts.code, name: accounts.nameAr, debit: recurringJournalLines.debit, credit: recurringJournalLines.credit, desc: recurringJournalLines.description })
+    .from(recurringJournalLines).leftJoin(accounts, eq(accounts.id, recurringJournalLines.accountId))
+    .where(eq(recurringJournalLines.recurringJournalId, id));
+  const mapped = lines.map((l) => ({ account: `${l.code ?? ""} ${l.name ?? ""}`.trim(), debit: Number(l.debit), credit: Number(l.credit), desc: l.desc ?? "" }));
+  return { id: r.id, name: r.name, description: r.desc ?? "", frequency: FREQ_AR[r.freq] ?? r.freq,
+    nextRunDate: new Date(r.next).toISOString().slice(0, 10), isActive: r.active,
+    totalDebit: mapped.reduce((s, l) => s + l.debit, 0), totalCredit: mapped.reduce((s, l) => s + l.credit, 0), lines: mapped };
+}
+
+const PERIOD_STATUS_AR: Record<string, string> = { OPEN: "مفتوحة", SOFT_CLOSED: "مغلقة مؤقتاً", CLOSED: "مقفلة" };
+
+/** Fiscal periods (mobile list). */
+export async function fiscalPeriodList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: fiscalPeriods.id, name: fiscalPeriods.name, from: fiscalPeriods.startDate, to: fiscalPeriods.endDate, status: fiscalPeriods.status })
+    .from(fiscalPeriods).where(eq(fiscalPeriods.organizationId, orgId)).orderBy(desc(fiscalPeriods.startDate)).limit(200);
+  return rows.map((r) => ({ id: r.id, number: r.name, title: r.name,
+    subtitle: `${new Date(r.from).toISOString().slice(0, 10)} → ${new Date(r.to).toISOString().slice(0, 10)}`,
+    amount: null, status: PERIOD_STATUS_AR[r.status] ?? r.status }));
 }
 
 /** Payroll runs (mobile list). */

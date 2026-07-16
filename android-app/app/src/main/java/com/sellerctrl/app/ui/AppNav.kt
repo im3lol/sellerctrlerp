@@ -144,6 +144,10 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("expense/{id}") { e -> ExpenseDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("banks_manager") { BankManagerScreen(nav) }
         composable("bank_form") { BankFormScreen(nav) }
+        composable("recurring_journals") { ListScreen(nav, "القيود المتكررة", "api/v1/accounting/recurring-journals", detailPrefix = "recurring_je", addRoute = "recurring_je_form") }
+        composable("recurring_je_form") { RecurringJournalFormScreen(nav) }
+        composable("recurring_je/{id}") { e -> RecurringJournalDetailScreen(nav, e.arguments?.getString("id") ?: "") }
+        composable("periods") { PeriodsScreen(nav) }
         composable("payroll") { ListScreen(nav, "مسيّرات الرواتب", "api/v1/hr/payroll", detailPrefix = "payroll_run", addRoute = "payroll_form") }
         composable("payroll_form") { PayrollFormScreen(nav) }
         composable("payroll_run/{id}") { e -> PayrollDetailScreen(nav, e.arguments?.getString("id") ?: "") }

@@ -60,7 +60,7 @@ private val NAV = listOf(
     Section("المحاسبة", Icons.Filled.AccountBalance, null, listOf(
         Leaf("دليل الحسابات", "genlist/chart", "القيود والأستاذ"),
         Leaf("القيود اليومية", "journal", "القيود والأستاذ"),
-        Leaf("القيود المتكررة", null, "القيود والأستاذ"),
+        Leaf("القيود المتكررة", "recurring_journals", "القيود والأستاذ"),
         Leaf("دفتر الأستاذ", null, "القيود والأستاذ"),
         Leaf("سندات القبض", "genlist/sales-receipts", "العملاء"),
         Leaf("كشف حساب العميل", null, "العملاء"),
@@ -75,7 +75,7 @@ private val NAV = listOf(
         Leaf("توقّع التدفق النقدي", null, "التقارير والمطابقات"),
         Leaf("مطابقة حسابات المراقبة", null, "التقارير والمطابقات"),
         Leaf("مراكز التكلفة", "cost_centers", "الإعداد"),
-        Leaf("الفترات المالية", null, "الإعداد"),
+        Leaf("الفترات المالية", "periods", "الإعداد"),
         Leaf("الميزانية التقديرية", null, "الإعداد"),
     )),
     Section("المشتريات", Icons.Filled.LocalShipping, null, listOf(
