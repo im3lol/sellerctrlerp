@@ -149,7 +149,11 @@ export const NAV: NavSection[] = [
     moduleKey: "investors",
     icon: "Coins",
     items: [
-      { label: "نظرة عامة", href: "/erp/investors", icon: "Coins", capability: "erp.investors.view" },
+      { label: "المستثمرون", href: "/erp/investors/list", icon: "Coins", capability: "erp.investors.view", group: "البيانات الأساسية" },
+
+      { label: "مساهمات رأس المال", href: "/erp/investors/investments", icon: "PiggyBank", capability: "erp.investors.view", group: "حقوق الملكية" },
+      { label: "توزيعات الأرباح", href: "/erp/investors/distributions", icon: "PieChart", capability: "erp.investors.view", group: "حقوق الملكية" },
+      { label: "السحوبات", href: "/erp/investors/withdrawals", icon: "Banknote", capability: "erp.investors.view", group: "حقوق الملكية" },
     ],
   },
   {
