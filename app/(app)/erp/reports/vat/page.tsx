@@ -2,6 +2,7 @@ import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
+import { liveInvoice } from "@/lib/erp/invoice-status";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
 import { Button } from "@/components/ui/button";
@@ -97,9 +98,10 @@ export default async function VatReportPage({ searchParams }: Params) {
   const fromISO  = fromDate.toISOString().slice(0, 10);
   const toISO    = toDate.toISOString().slice(0, 10);
 
-  // Only POSTED/CONFIRMED invoices count as VAT obligations
-  const ACTIVE = ["CONFIRMED", "POSTED", "PARTIALLY_PAID", "PAID"];
-
+  // Every live invoice carries its VAT obligation regardless of whether it has been
+  // paid. This used to enumerate the statuses by hand and misspelled one of them
+  // ('PARTIALLY_PAID' — the real status is PARTIAL_PAID), so every partially-paid
+  // invoice was dropped from the return and output VAT was under-declared.
   /* ── Output VAT (sales) ─────────────────────────────────── */
   const salesRows = await db
     .select({
@@ -114,7 +116,7 @@ export default async function VatReportPage({ searchParams }: Params) {
     .where(
       and(
         eq(salesInvoices.organizationId, orgId),
-        sql`${salesInvoices.status} = ANY(ARRAY[${sql.raw(ACTIVE.map((s) => `'${s}'`).join(","))}])`,
+        liveInvoice(salesInvoices.status),
         gte(salesInvoices.date, fromDate),
         lte(salesInvoices.date, toDate),
         ne(salesInvoices.taxAmount, "0"),
@@ -136,7 +138,7 @@ export default async function VatReportPage({ searchParams }: Params) {
     .where(
       and(
         eq(purchaseInvoices.organizationId, orgId),
-        sql`${purchaseInvoices.status} = ANY(ARRAY[${sql.raw(ACTIVE.map((s) => `'${s}'`).join(","))}])`,
+        liveInvoice(purchaseInvoices.status),
         gte(purchaseInvoices.date, fromDate),
         lte(purchaseInvoices.date, toDate),
         ne(purchaseInvoices.taxAmount, "0"),

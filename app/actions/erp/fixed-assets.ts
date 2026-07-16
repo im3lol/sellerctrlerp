@@ -5,9 +5,12 @@ import { round2 } from "@/lib/erp/money";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
-import { fixedAssets, assetDepreciationLines } from "@/db/schema";
+import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
+import { buildDisposalLines } from "@/lib/erp/asset-disposal";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /* ── Create asset ──────────────────────────────────────────── */
 export async function createAssetAction(input: {
   code: string;
@@ -59,7 +62,7 @@ export async function createAssetAction(input: {
 export async function postMonthlyDepreciationAction(input: {
   year: number;
   month: number; // 1-12
-}): Promise<ActionState & { count?: number }> {
+}): Promise<ActionState & { count?: number; skipped?: string[] }> {
   const { orgId } = await requireErpModule("accounting.post");
   const userId = null;
   const { year, month } = input;
@@ -79,6 +82,8 @@ export async function postMonthlyDepreciationAction(input: {
   if (!assets.length) return { ok: true, count: 0 };
 
   let posted = 0;
+  /** Assets whose GL accounts are half-configured — reported, not silently dropped. */
+  const skipped: string[] = [];
 
   await db.transaction(async (tx) => {
     for (const asset of assets) {
@@ -107,9 +112,20 @@ export async function postMonthlyDepreciationAction(input: {
       }
       const amount = round2(Math.min(monthly, remaining));
 
-      // Post GL if accounts are configured
+      // An asset with no GL accounts is register-only and never reaches the ledger
+      // (createAssetAction does not capitalise it either), so advancing its schedule
+      // alone is correct. A half-linked asset is a broken configuration: it would
+      // accrue depreciation on the register with nothing in the GL, and the
+      // alreadyPosted guard above would then block ever posting it once the accounts
+      // were filled in. Skip it rather than record an unpostable line.
+      const linked = !!asset.glDeprecExpenseAccountId && !!asset.glAccumDeprecAccountId;
+      if (!linked && (asset.glDeprecExpenseAccountId || asset.glAccumDeprecAccountId)) {
+        skipped.push(asset.code);
+        continue;
+      }
+
       let jeId: string | null = null;
-      if (asset.glDeprecExpenseAccountId && asset.glAccumDeprecAccountId) {
+      if (linked) {
         const periodDate = new Date(year, month - 1, 28);
         jeId = await postEntry(tx, {
           orgId,
@@ -119,8 +135,9 @@ export async function postMonthlyDepreciationAction(input: {
           date: periodDate,
           description: `إهلاك: ${asset.nameAr} (${year}/${String(month).padStart(2, "0")})`,
           lines: [
-            { accountId: asset.glDeprecExpenseAccountId, debit: amount, credit: 0, description: asset.nameAr },
-            { accountId: asset.glAccumDeprecAccountId,   debit: 0, credit: amount, description: asset.nameAr },
+            // `linked` above guarantees both are set; the boolean just doesn't narrow.
+            { accountId: asset.glDeprecExpenseAccountId!, debit: amount, credit: 0, description: asset.nameAr },
+            { accountId: asset.glAccumDeprecAccountId!,   debit: 0, credit: amount, description: asset.nameAr },
           ],
         });
       }
@@ -152,17 +169,65 @@ export async function postMonthlyDepreciationAction(input: {
   });
 
   revalidatePath("/erp/accounting/assets");
-  return { ok: true, count: posted };
+  return { ok: true, count: posted, skipped: skipped.length ? skipped : undefined };
+}
+
+/**
+ * Gain/loss-on-disposal accounts, created on first use.
+ *
+ * They are not in the base chart for existing tenants, so mirror the approach
+ * ensureAmazonAccounts uses rather than making every org re-bootstrap its chart.
+ */
+async function ensureDisposalAccounts(orgId: string, tx: Tx): Promise<{ gain: string; loss: string }> {
+  const accs = await tx.select({ id: accounts.id, code: accounts.code }).from(accounts).where(eq(accounts.organizationId, orgId));
+  const byCode = new Map(accs.map((a) => [a.code, a.id]));
+  let gain = byCode.get("4202");
+  if (!gain) {
+    const [r] = await tx.insert(accounts).values({
+      organizationId: orgId, code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT",
+      parentId: byCode.get("4") ?? null, isLeaf: true,
+    }).returning({ id: accounts.id });
+    gain = r.id;
+  }
+  let loss = byCode.get("5303");
+  if (!loss) {
+    const [r] = await tx.insert(accounts).values({
+      organizationId: orgId, code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT",
+      parentId: byCode.get("5") ?? null, isLeaf: true,
+    }).returning({ id: accounts.id });
+    loss = r.id;
+  }
+  return { gain, loss };
 }
 
 /* ── Dispose asset ─────────────────────────────────────────── */
+/**
+ * Retire an asset and take it off the books.
+ *
+ *   Dr cash/bank            proceeds
+ *   Dr accumulated deprec.  accumulated
+ *     Cr asset account        purchase cost
+ *     Cr gain on disposal     (or Dr loss) — the balancing figure, proceeds − NBV
+ *
+ * This used to write the register row and post nothing at all, so a 50,000 asset
+ * with 30,000 accumulated depreciation sold for 25,000 left the asset on the
+ * balance sheet at 20,000 forever, the 25,000 of cash outside the ledger, and the
+ * 5,000 gain out of the income statement.
+ *
+ * An asset with no GL accounts linked was never capitalised (createAssetAction does
+ * not post — see its note), so for those the register update alone is correct and
+ * no entry is written.
+ */
 export async function disposeAssetAction(input: {
   id: string;
   disposalDate: string;
   disposalProceeds?: number;
+  /** Cash/bank account that received the proceeds. Required when proceeds > 0. */
+  proceedsAccountId?: string;
   notes?: string;
 }): Promise<ActionState> {
-  const { orgId } = await requireErpModule("accounting.create");
+  const { orgId } = await requireErpModule("accounting.post");
+  const userId = null; // requireErpModule does not surface the user — as in postMonthlyDepreciationAction.
 
   const [asset] = await db
     .select()
@@ -171,15 +236,68 @@ export async function disposeAssetAction(input: {
   if (!asset) return { error: "الأصل غير موجود" };
   if (asset.status === "DISPOSED") return { error: "تم التخلّص من هذا الأصل مسبقًا" };
 
-  await db.update(fixedAssets).set({
-    status: "DISPOSED",
-    disposalDate: new Date(input.disposalDate),
-    disposalProceeds: input.disposalProceeds ? String(input.disposalProceeds) : null,
-    notes: input.notes?.trim() || asset.notes,
-    updatedAt: new Date(),
-  }).where(eq(fixedAssets.id, input.id));
+  const disposalDate = new Date(input.disposalDate);
+  if (Number.isNaN(disposalDate.getTime())) return { error: "تاريخ الاستبعاد غير صالح" };
+  const proceeds = round2(input.disposalProceeds ?? 0);
+  if (proceeds < 0) return { error: "متحصّلات البيع غير صالحة" };
+
+  // Post only when the asset is actually on the books. Half-linked is a broken
+  // configuration, not a register-only asset: depreciation has been crediting
+  // accumulated depreciation, and leaving it there would strand that balance.
+  const onBooks = !!asset.glAssetAccountId && !!asset.glAccumDeprecAccountId;
+  if (!onBooks && (asset.glAssetAccountId || asset.glAccumDeprecAccountId)) {
+    return { error: "حسابات الأصل غير مكتملة (حساب الأصل/الإهلاك المتراكم) — أكملها قبل الاستبعاد" };
+  }
+  if (onBooks && proceeds > 0 && !input.proceedsAccountId) {
+    return { error: "اختر حساب النقدية/البنك الذي استلم متحصّلات البيع" };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      if (onBooks) {
+        const { gain, loss } = await ensureDisposalAccounts(orgId, tx);
+        const lines = buildDisposalLines({
+          cost: Number(asset.purchaseCost),
+          accumulatedDepreciation: Number(asset.accumulatedDepreciation),
+          proceeds,
+          assetName: asset.nameAr,
+          accounts: {
+            asset: asset.glAssetAccountId!,
+            accumDeprec: asset.glAccumDeprecAccountId!,
+            proceeds: input.proceedsAccountId,
+            gain,
+            loss,
+          },
+        });
+
+        await postEntry(tx, {
+          orgId,
+          userId,
+          sourceType: "ASSET_DISPOSAL",
+          sourceId: asset.id,
+          date: disposalDate,
+          description: `استبعاد أصل: ${asset.nameAr} (${asset.code})`,
+          journalType: "GENERAL",
+          lines,
+        });
+      }
+
+      await tx.update(fixedAssets).set({
+        status: "DISPOSED",
+        disposalDate,
+        disposalProceeds: input.disposalProceeds ? String(proceeds) : null,
+        // The asset is gone: its remaining book value leaves with it.
+        netBookValue: "0",
+        notes: input.notes?.trim() || asset.notes,
+        updatedAt: new Date(),
+      }).where(eq(fixedAssets.id, input.id));
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر ترحيل قيد الاستبعاد" };
+  }
 
   revalidatePath("/erp/accounting/assets");
   revalidatePath(`/erp/accounting/assets/${input.id}`);
+  revalidatePath("/erp/accounting/journal");
   return { ok: true };
 }

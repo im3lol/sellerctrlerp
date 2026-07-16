@@ -36,11 +36,13 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "4101", nameAr: "إيرادات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4102", nameAr: "مردودات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4201", nameAr: "فائض المخزون (أرباح جرد)", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
+  { code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "5", nameAr: "المصروفات", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: false, parent: null },
   { code: "5101", nameAr: "تكلفة البضاعة المباعة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5201", nameAr: "مصروفات عمومية وإدارية", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5301", nameAr: "عجز وتالف المخزون (خسائر جرد)", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5302", nameAr: "فروق أسعار مرتجعات الشراء", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
+  { code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
 ];
 
 export const DEFAULT_JOURNALS = [

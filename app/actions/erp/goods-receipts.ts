@@ -154,6 +154,12 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
 
   const [po] = await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.id, grn.purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "أمر الشراء غير موجود" };
+  // Re-read the order's status at confirm time rather than trusting it from when
+  // the draft was saved: cancelling an order leaves its drafts untouched, so
+  // without this a stale draft still receives stock against a cancelled order —
+  // and recomputePurchaseOrderStatus below would then flip it back to RECEIVED.
+  if (po.status === "CANCELLED") return { error: "أمر الشراء ملغي — لا يمكن تأكيد الاستلام" };
+  if (po.status === "DRAFT") return { error: "أمر الشراء لم يُؤكَّد بعد" };
 
   const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
     .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));

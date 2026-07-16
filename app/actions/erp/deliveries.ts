@@ -154,8 +154,16 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
   if (dn.status !== "DRAFT") return { error: "تم تأكيد التسليم بالفعل" };
   if (!dn.salesOrderId) return { error: "التسليم غير مرتبط بأمر بيع" };
 
-  const [so] = await db.select().from(salesOrders).where(eq(salesOrders.id, dn.salesOrderId)).limit(1);
+  const [so] = await db.select().from(salesOrders)
+    .where(and(eq(salesOrders.id, dn.salesOrderId), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "أمر البيع غير موجود" };
+  // Re-read the order's status at confirm time rather than trusting it from when
+  // the draft was saved: cancelling an order leaves its drafts untouched, so
+  // without this a stale draft still ships stock and posts COGS against a
+  // cancelled order — and recomputeSalesOrderStatus below would then quietly flip
+  // the order back to DELIVERED.
+  if (so.status === "CANCELLED") return { error: "أمر البيع ملغي — لا يمكن تأكيد التسليم" };
+  if (so.status === "DRAFT") return { error: "أمر البيع لم يُؤكَّد بعد" };
 
   const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity, warehouseId: deliveryNoteLines.warehouseId })
     .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));

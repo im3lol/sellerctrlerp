@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { round2 as r2 } from "@/lib/erp/money";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts } from "@/db/schema";
+import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
+import { liveInvoice } from "@/lib/erp/invoice-status";
 import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { returnFromSalesInvoiceAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -27,7 +28,17 @@ export type SettlementPreview =
   | { ok: false; error: string };
 
 export type SettlementResult =
-  | { ok: true; imported: number; updated: number; posted: number; deferredHeld: number; returnsCreated: number; returnsUnmatched: string[]; journalNumber?: string }
+  | {
+      ok: true; imported: number; updated: number; posted: number; deferredHeld: number;
+      returnsCreated: number; returnsUnmatched: string[]; journalNumber?: string;
+      /**
+       * AR credited in the GL that found no invoice to apply it against (the
+       * settlement row was never matched to a sales order). This is the remaining
+       * way GL 1103 and the customer subledger can drift, so it is reported
+       * instead of being silently absorbed.
+       */
+      unlinkedReceivable?: number;
+    }
   | { ok: false; error: string };
 
 async function readTxns(formData: FormData): Promise<SettlementTxn[] | { error: string }> {
@@ -274,6 +285,7 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     promotionalRebates: marketplaceSettlementTxns.promotionalRebates, sellingFees: marketplaceSettlementTxns.sellingFees,
     fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
     other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate,
+    salesOrderId: marketplaceSettlementTxns.salesOrderId,
   }).from(marketplaceSettlementTxns).where(and(
     eq(marketplaceSettlementTxns.organizationId, auth.orgId),
     eq(marketplaceSettlementTxns.status, "Released"),
@@ -310,6 +322,47 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     return d && (!mx || d > mx) ? d : mx;
   }, null) ?? new Date();
 
+  // ── Customer subledger ────────────────────────────────────────────────
+  // The entry above credits AR (1103) for money Amazon collected on our behalf.
+  // Crediting the control account alone left customers.balance and the invoice's
+  // balanceDue untouched, so for every marketplace seller GL 1103 drifted from the
+  // subledger permanently: the invoice never left AR aging, and its credit limit
+  // stayed consumed by money already banked. /erp/accounting/control-reconciliation
+  // exists to assert exactly this invariant.
+  //
+  // Apply per order the same figure aggregateGL credits (productSales +
+  // shippingCredits + promotionalRebates + other), so the two sides move together
+  // by construction. A Refund carries negative amounts and correctly puts the debt
+  // back. Resolved order → delivery → invoice in one query, not per row.
+  const arByOrder = new Map<string, number>();
+  for (const r of toPost) {
+    if (!r.salesOrderId) continue;
+    if (r.type !== "Order" && r.type !== "Refund") continue;
+    const amt = Number(r.productSales) + Number(r.shippingCredits) + Number(r.promotionalRebates) + Number(r.other);
+    arByOrder.set(r.salesOrderId, (arByOrder.get(r.salesOrderId) ?? 0) + amt);
+  }
+  const orderIds = [...arByOrder.keys()];
+  const invoiceRows = orderIds.length
+    ? await db.select({
+        invoiceId: salesInvoices.id,
+        customerId: salesInvoices.customerId,
+        orderId: deliveryNotes.salesOrderId,
+      })
+      .from(salesInvoices)
+      .innerJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+      .where(and(
+        eq(salesInvoices.organizationId, auth.orgId),
+        liveInvoice(salesInvoices.status),
+        inArray(deliveryNotes.salesOrderId, orderIds),
+      ))
+    : [];
+  const invByOrder = new Map(invoiceRows.filter((r) => r.orderId).map((r) => [r.orderId!, r]));
+  // AR credited in the GL with no invoice to apply it to — the one case that can
+  // still drift, so it is surfaced rather than swallowed.
+  const unlinkedAr = r2([...arByOrder.entries()]
+    .filter(([oid]) => !invByOrder.has(oid))
+    .reduce((s, [, amt]) => s + amt, 0));
+
   try {
     const journalId = await db.transaction(async (tx) => {
       const jid = await postEntry(tx, {
@@ -318,6 +371,29 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
         description: `تسوية أمازون — ${toPost.length} معاملة (مُفرج عنها)`,
         userId: auth.userId, lines,
       });
+      // Same transaction as the entry above: the control account and the subledger
+      // move together or neither moves.
+      for (const [orderId, amount] of arByOrder) {
+        const inv = invByOrder.get(orderId);
+        if (!inv) continue;
+        const amt = r2(amount);
+        if (amt === 0) continue;
+        // A settlement really is a collection, so paidAmount and status move too —
+        // unlike a credit note, which reduces the debt without paying it. Postgres
+        // evaluates every SET expression against the old row, so the CASE agrees
+        // with the balanceDue expression beside it.
+        await tx.update(salesInvoices)
+          .set({
+            balanceDue: sql`${salesInvoices.balanceDue} - ${amt}`,
+            paidAmount: sql`${salesInvoices.paidAmount} + ${amt}`,
+            status: sql`CASE WHEN ${salesInvoices.balanceDue} - ${amt} <= 0.01 THEN 'PAID' ELSE 'PARTIAL_PAID' END`,
+          })
+          .where(eq(salesInvoices.id, inv.invoiceId));
+        await tx.update(customers)
+          .set({ balance: sql`${customers.balance} - ${amt}` })
+          .where(eq(customers.id, inv.customerId));
+      }
+
       await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
         .where(inArray(marketplaceSettlementTxns.id, toPost.map((r) => r.id)));
       return jid;
@@ -332,5 +408,5 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
   revalidatePath("/erp/sales/invoices");
   revalidatePath("/erp/sales/deliveries");
   revalidatePath("/erp/accounting");
-  return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
+  return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched, unlinkedReceivable: unlinkedAr || undefined };
 }

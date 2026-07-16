@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -40,6 +40,20 @@ export default async function AssetDetailPage({ params }: Params) {
   if (!asset) notFound();
 
   const a = asset.asset;
+
+  // Cash/bank leaves — where the sale proceeds landed. Restricted to 1101/1102 so
+  // the picker cannot offer receivables (1103) or inventory (1104).
+  const cashAccounts = a.status === "DISPOSED" ? [] : (await db
+    .select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr })
+    .from(accounts)
+    .where(and(
+      eq(accounts.organizationId, orgId),
+      eq(accounts.isLeaf, true),
+      eq(accounts.type, "ASSET"),
+      sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`,
+    ))
+    .orderBy(asc(accounts.code))
+  ).map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }));
 
   const deprecLines = await db
     .select()
@@ -100,9 +114,9 @@ export default async function AssetDetailPage({ params }: Params) {
           </CardContent>
         </Card>
 
-        {/* Dispose */}
-        {canEdit && a.status !== "DISPOSED" && (
-          <AssetDisposeForm assetId={id} assetName={a.nameAr} />
+        {/* Dispose — needs accounting.post, since it writes the disposal entry. */}
+        {can("accounting.post") && a.status !== "DISPOSED" && (
+          <AssetDisposeForm assetId={id} assetName={a.nameAr} cashAccounts={cashAccounts} />
         )}
       </div>
 

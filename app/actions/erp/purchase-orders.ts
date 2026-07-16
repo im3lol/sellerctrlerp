@@ -172,6 +172,13 @@ export async function cancelPurchaseOrderAction(id: string): Promise<ActionState
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
   if (!po) return { error: "الأمر غير موجود" };
   if (po.status === "INVOICED") return { error: "لا يمكن إلغاء أمر محوّل لفاتورة" };
+  // See cancelSalesOrderAction: blocking INVOICED alone lets a part-received order
+  // (which never reaches INVOICED) be cancelled while carrying posted stock.
+  const moved = await db.select({ r: purchaseOrderLines.receivedQty, inv: purchaseOrderLines.invoicedQty })
+    .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
+  if (moved.some((l) => Number(l.r) > 0 || Number(l.inv) > 0)) {
+    return { error: "الأمر مستلم/مفوتر جزئيًا — اعكس الاستلام أو أنشئ مرتجعًا بدل الإلغاء" };
+  }
   await db.update(purchaseOrders).set({ status: "CANCELLED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
   await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إلغاء أمر شراء ${po.number}` });
   revalidatePath("/erp/purchases/orders");

@@ -48,15 +48,23 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
   if (!inv) return { error: "الفاتورة غير موجودة" };
   if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
 
-  // Validate returned quantities against the invoice lines.
+  // remaining = sold − already returned (posted), per item. Counting only the
+  // invoice's own quantities would cap each return individually but never against
+  // the total: a 10-unit invoice could be returned 10 units any number of times,
+  // reversing revenue once per credit note and restocking phantom units each time
+  // (every return is its own sourceId, so the GL idempotency index never fires).
   const invLines = await db.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
     .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
   const soldByItem = new Map<string, number>();
   for (const l of invLines) soldByItem.set(l.itemId, (soldByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+  const priorRet = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity })
+    .from(salesReturnLines).innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
+    .where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.status, "POSTED")));
+  const returnedByItem = new Map<string, number>();
+  for (const l of priorRet) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
   for (const l of lines) {
-    if ((l.quantity) > (soldByItem.get(l.itemId) ?? 0) + 1e-9) {
-      return { error: "الكمية المرتجعة أكبر من المباعة" };
-    }
+    const remaining = (soldByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+    if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
   }
 
   const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -217,7 +225,23 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
         }
       }
 
+      // The credit note reduces what the customer owes, so it has to move BOTH
+      // representations of that debt. customers.balance alone left salesInvoices
+      // .balanceDue untouched, so a fully-returned invoice still showed its full
+      // balance: it sat in AR aging forever, and createReceiptVoucherAction — which
+      // validates against balanceDue — would happily accept payment for a debt that
+      // no longer existed, driving customers.balance negative.
+      // paidAmount is deliberately not touched: a return is not a payment. That
+      // makes balanceDue = total − paid − returned, which is what is actually owed.
+      // Not clamped at 0, for the same reason customers.balance isn't: an invoice
+      // paid 600 of 1000 and then returned in full leaves us owing the customer
+      // 600, and a negative balanceDue says exactly that. Clamping would also break
+      // reverseSalesReturnAction, which adds the same figure back — from 0 it would
+      // restore 1000 rather than the 400 that was really outstanding.
       await tx.update(customers).set({ balance: sql`${customers.balance} - ${total}` }).where(eq(customers.id, ret.customerId));
+      await tx.update(salesInvoices)
+        .set({ balanceDue: sql`${salesInvoices.balanceDue} - ${total}` })
+        .where(eq(salesInvoices.id, inv.id));
       await tx.update(salesReturns).set({ status: "POSTED" }).where(eq(salesReturns.id, ret.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مبيعات ${ret.number}`, metadata: { total, invoice: inv.number } });
     });
@@ -304,6 +328,13 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
         }
       } else if (ret.customerId) {
         await tx.update(customers).set({ balance: sql`${customers.balance} + ${total}` }).where(eq(customers.id, ret.customerId));
+        // Mirror of confirmSalesReturnAction: it reduced the invoice's balanceDue,
+        // so undoing the return has to put it back or the debt stays written off.
+        if (ret.salesInvoiceId) {
+          await tx.update(salesInvoices)
+            .set({ balanceDue: sql`${salesInvoices.balanceDue} + ${total}` })
+            .where(and(eq(salesInvoices.id, ret.salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId)));
+        }
       }
       await tx.update(salesReturns).set({ status: "CANCELLED" }).where(eq(salesReturns.id, ret.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مبيعات ${ret.number}`, metadata: { total } });

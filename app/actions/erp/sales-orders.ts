@@ -212,6 +212,16 @@ export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
   if (!so) return { error: "الأمر غير موجود" };
   if (so.status === "INVOICED") return { error: "لا يمكن إلغاء أمر محوّل لفاتورة" };
+  // Cancelling says the order never happened, so it cannot be squared with stock
+  // that has already shipped or been invoiced — those post COGS/revenue that a
+  // cancel does not reverse. Blocking INVOICED alone missed the partial case: a
+  // part-delivered order never reaches INVOICED, so it slipped through and left a
+  // CANCELLED order carrying posted movements. Same rule revertToDraft uses.
+  const moved = await db.select({ d: salesOrderLines.deliveredQty, inv: salesOrderLines.invoicedQty })
+    .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+  if (moved.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) {
+    return { error: "الأمر مصروف/مفوتر جزئيًا — اعكس الصرف أو أنشئ مرتجعًا بدل الإلغاء" };
+  }
   await db.update(salesOrders).set({ status: "CANCELLED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
   await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
   revalidatePath("/erp/sales/orders");

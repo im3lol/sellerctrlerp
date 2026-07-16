@@ -2,11 +2,10 @@ import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
+import { liveInvoice } from "@/lib/erp/invoice-status";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
 
 export const runtime = "nodejs";
-
-const ACTIVE = ["CONFIRMED", "POSTED", "PARTIALLY_PAID", "PAID"];
 
 /** Excel export of the VAT return for the page's period. */
 export async function GET(req: Request) {
@@ -18,18 +17,17 @@ export async function GET(req: Request) {
   const okDate = (s: string | null, fb: Date) => { if (!s) return fb; const d = new Date(s); return Number.isNaN(d.getTime()) ? fb : d; };
   const fromDate = okDate(p.get("from"), qStart);
   const toDate = okDate(p.get("to"), qEnd);
-  const active = sql`status = ANY(ARRAY[${sql.raw(ACTIVE.map((s) => `'${s}'`).join(","))}])`;
 
   const sales = await db
     .select({ number: salesInvoices.number, date: salesInvoices.date, party: sql<string>`(SELECT name_ar FROM customers WHERE id = ${salesInvoices.customerId})`, net: sql<string>`(${salesInvoices.totalAmount} - ${salesInvoices.taxAmount})`, tax: salesInvoices.taxAmount, pct: salesInvoices.taxPercent })
     .from(salesInvoices)
-    .where(and(eq(salesInvoices.organizationId, orgId), active, gte(salesInvoices.date, fromDate), lte(salesInvoices.date, toDate), ne(salesInvoices.taxAmount, "0")))
+    .where(and(eq(salesInvoices.organizationId, orgId), liveInvoice(salesInvoices.status), gte(salesInvoices.date, fromDate), lte(salesInvoices.date, toDate), ne(salesInvoices.taxAmount, "0")))
     .orderBy(salesInvoices.date, salesInvoices.number);
 
   const purchases = await db
     .select({ number: purchaseInvoices.number, date: purchaseInvoices.date, party: sql<string>`(SELECT name_ar FROM suppliers WHERE id = ${purchaseInvoices.supplierId})`, net: sql<string>`(${purchaseInvoices.totalAmount} - ${purchaseInvoices.taxAmount} - COALESCE(${purchaseInvoices.shippingAmount}, 0))`, tax: purchaseInvoices.taxAmount, pct: purchaseInvoices.taxPercent })
     .from(purchaseInvoices)
-    .where(and(eq(purchaseInvoices.organizationId, orgId), active, gte(purchaseInvoices.date, fromDate), lte(purchaseInvoices.date, toDate), ne(purchaseInvoices.taxAmount, "0")))
+    .where(and(eq(purchaseInvoices.organizationId, orgId), liveInvoice(purchaseInvoices.status), gte(purchaseInvoices.date, fromDate), lte(purchaseInvoices.date, toDate), ne(purchaseInvoices.taxAmount, "0")))
     .orderBy(purchaseInvoices.date, purchaseInvoices.number);
 
   const outVat = sales.reduce((s, r) => s + Number(r.tax), 0);

@@ -1,16 +1,5 @@
-import { sql, type SQLWrapper } from "drizzle-orm";
-
-/**
- * Which invoices count as open for aging, by status.
- *
- * Shared so every aging surface agrees. Filtering on `status = 'POSTED'` looks
- * equivalent but silently drops PARTIAL_PAID — a 1000 invoice with a 300 receipt
- * flips to PARTIAL_PAID, so its genuinely-outstanding 700 vanishes from the report
- * while still sitting in GL 1103. Anything not DRAFT or CANCELLED with a balance
- * left is receivable/payable.
- */
-export const openForAging = (statusCol: SQLWrapper) =>
-  sql`${statusCol} NOT IN ('DRAFT','CANCELLED')`;
+/** Which invoices count as open for aging: a live invoice with a balance left. */
+export { liveInvoice as openForAging } from "./invoice-status";
 
 export type AgingBucket = "current" | "d30" | "d60" | "d90" | "d90plus";
 

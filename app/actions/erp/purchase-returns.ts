@@ -48,12 +48,21 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
   if (!inv) return { error: "الفاتورة غير موجودة" };
   if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
 
+  // remaining = bought − already returned (posted), per item. Without subtracting
+  // prior returns each credit note is capped only against the invoice, so the same
+  // invoice could be returned in full repeatedly — see createSalesReturnAction.
   const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
     .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
   const boughtByItem = new Map<string, number>();
   for (const l of invLines) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+  const priorRet = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+    .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+    .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
+  const returnedByItem = new Map<string, number>();
+  for (const l of priorRet) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
   for (const l of lines) {
-    if (l.quantity > (boughtByItem.get(l.itemId) ?? 0) + 1e-9) return { error: "الكمية المرتجعة أكبر من المشتراة" };
+    const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+    if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
   }
 
   const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -217,7 +226,14 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
         description: `مرتجع مشتريات ${ret.number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
       });
 
+      // Move both representations of the debt — see confirmSalesReturnAction. Left
+      // out, the invoice keeps its full balanceDue: it sits in AP aging forever and
+      // createPaymentVoucherAction (which validates against balanceDue) would pay a
+      // supplier for goods already sent back.
       await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, ret.supplierId));
+      await tx.update(purchaseInvoices)
+        .set({ balanceDue: sql`${purchaseInvoices.balanceDue} - ${total}` })
+        .where(eq(purchaseInvoices.id, inv.id));
       await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
     });
@@ -304,6 +320,12 @@ export async function reversePurchaseReturnAction(id: string): Promise<ActionSta
         }
       } else {
         await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, ret.supplierId));
+        // Mirror of confirmPurchaseReturnAction, which reduced the invoice's balanceDue.
+        if (ret.purchaseInvoiceId) {
+          await tx.update(purchaseInvoices)
+            .set({ balanceDue: sql`${purchaseInvoices.balanceDue} + ${total}` })
+            .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId)));
+        }
       }
       await tx.update(purchaseReturns).set({ status: "CANCELLED" }).where(eq(purchaseReturns.id, ret.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مشتريات ${ret.number}`, metadata: { total } });
