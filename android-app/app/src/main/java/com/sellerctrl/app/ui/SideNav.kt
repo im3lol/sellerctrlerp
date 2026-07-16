@@ -67,6 +67,7 @@ private val NAV = listOf(
         Leaf("سندات الصرف", "genlist/purchase-payments", "الموردون"),
         Leaf("كشف حساب المورّد", null, "الموردون"),
         Leaf("المصروفات", "expenses", "المصروفات والأصول"),
+        Leaf("المصروفات الدورية", "recurring_expenses", "المصروفات والأصول"),
         Leaf("الأصول الثابتة", "assets", "المصروفات والأصول"),
         Leaf("الحسابات البنكية", "banks_manager", "البنوك والخزينة"),
         Leaf("المطابقة البنكية", "bank_recon", "البنوك والخزينة"),
@@ -118,7 +119,7 @@ private val NAV = listOf(
         Leaf("الموظفون", "employees", null),
         Leaf("الإجازات", "leaves", "الحضور والإجازات"),
         Leaf("تقويم العطلات", "genlist/holidays", "الحضور والإجازات"),
-        Leaf("مسير الرواتب", null, "المالية"),
+        Leaf("مسيّرات الرواتب", "payroll", "المالية"),
         Leaf("مطالبات المصروفات", "expense_claims", "المالية"),
     )),
     Section("التقارير والتحليلات", Icons.Filled.Assessment, null, listOf(

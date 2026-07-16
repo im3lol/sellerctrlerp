@@ -138,6 +138,18 @@ import retrofit2.http.Url
 @Serializable data class QuoteCreateReq(val customerId: String, val date: String, val validUntil: String? = null, val notes: String? = null, val lines: List<QuoteCreateLine>)
 @Serializable data class StatusReq(val status: String)
 
+// --- Payroll runs (مسيّرات الرواتب) ---
+@Serializable data class PayrollLineDto(val name: String, val basic: Double = 0.0, val allowances: Double = 0.0, val gross: Double = 0.0, val deductions: Double = 0.0, val tax: Double = 0.0, val net: Double = 0.0)
+@Serializable data class PayrollDetailDto(val id: String, val number: String, val from: String, val to: String, val status: String, val totalGross: Double = 0.0, val totalNet: Double = 0.0, val lines: List<PayrollLineDto> = emptyList())
+@Serializable data class PayrollDetailResp(val data: PayrollDetailDto)
+@Serializable data class PayrollCreateReq(val periodStart: String, val periodEnd: String, val paymentDate: String? = null, val notes: String? = null)
+@Serializable data class ReasonReq(val reason: String)
+
+// --- Recurring expenses (المصروفات الدورية) ---
+@Serializable data class RecurExpDetailDto(val id: String, val account: String = "", val cashAccount: String = "", val amount: Double = 0.0, val frequency: String = "", val nextRunDate: String = "", val payee: String = "", val notes: String = "", val isActive: Boolean = true)
+@Serializable data class RecurExpDetailResp(val data: RecurExpDetailDto)
+@Serializable data class RecurExpSaveReq(val id: String? = null, val expenseAccountId: String, val cashAccountId: String, val amount: Double, val frequency: String, val nextRunDate: String, val paymentMethod: String = "CASH", val payee: String? = null, val notes: String? = null)
+
 // --- Cost centers (مراكز التكلفة) ---
 @Serializable data class CostCenterEditDto(val id: String, val code: String, val nameAr: String, val nameEn: String = "", val isActive: Boolean = true)
 @Serializable data class CostCenterEditResp(val data: CostCenterEditDto)
@@ -291,6 +303,21 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun payrollDetail(@Url url: String): PayrollDetailResp
+
+    @POST
+    suspend fun payrollCreate(@Url url: String, @Body body: PayrollCreateReq): OkResp
+
+    @POST
+    suspend fun payrollReverse(@Url url: String, @Body body: ReasonReq): OkResp
+
+    @GET
+    suspend fun recurExpDetail(@Url url: String): RecurExpDetailResp
+
+    @POST
+    suspend fun recurExpSave(@Url url: String, @Body body: RecurExpSaveReq): OkResp
 
     @GET
     suspend fun costCenterEdit(@Url url: String): CostCenterEditResp

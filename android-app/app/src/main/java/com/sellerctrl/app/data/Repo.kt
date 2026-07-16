@@ -202,6 +202,24 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Payroll runs (مسيّرات الرواتب) ---
+    suspend fun payrollDetail(id: String): PayrollDetailDto = api.payrollDetail("api/v1/hr/payroll/$id").data
+    suspend fun payrollCreate(req: PayrollCreateReq) {
+        try { api.payrollCreate("api/v1/hr/payroll", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الإنشاء") }
+    }
+    suspend fun payrollReverse(id: String, reason: String) {
+        try { api.payrollReverse("api/v1/hr/payroll/$id/reverse", ReasonReq(reason)) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر العكس") }
+    }
+
+    // --- Recurring expenses (المصروفات الدورية) ---
+    suspend fun recurringExpenseDetail(id: String): RecurExpDetailDto = api.recurExpDetail("api/v1/accounting/recurring-expenses/$id").data
+    suspend fun recurringExpenseSave(req: RecurExpSaveReq) {
+        try { api.recurExpSave("api/v1/accounting/recurring-expenses", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     // --- Cost centers (مراكز التكلفة) ---
     suspend fun costCenterEdit(id: String): CostCenterEditDto = api.costCenterEdit("api/v1/accounting/cost-centers/$id").data
     suspend fun costCenterSave(req: CostCenterSaveReq) {

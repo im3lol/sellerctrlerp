@@ -10,7 +10,7 @@ import {
   purchaseReceipts, purchaseReceiptLines, materialRequests, materialRequestLines, stockAdjustments, stockTransfers, stockTransferLines,
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
   recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
-  costCenters, bankStatementLines,
+  costCenters, bankStatementLines, payrollRuns, payrollLines, recurringExpenses,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -400,6 +400,58 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
   return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
     purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
     accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
+}
+
+/** Payroll runs (mobile list). */
+export async function payrollRunList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: payrollRuns.id, number: payrollRuns.number, status: payrollRuns.status, net: payrollRuns.totalNet, from: payrollRuns.periodStart, to: payrollRuns.periodEnd })
+    .from(payrollRuns).where(eq(payrollRuns.organizationId, orgId)).orderBy(desc(payrollRuns.periodStart)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: r.number, title: r.number,
+    subtitle: `${new Date(r.from).toISOString().slice(0, 10)} → ${new Date(r.to).toISOString().slice(0, 10)}`,
+    amount: Number(r.net), status: r.status }));
+}
+
+export type PayrollLine = { name: string; basic: number; allowances: number; gross: number; deductions: number; tax: number; net: number };
+export type PayrollDetail = { id: string; number: string; from: string; to: string; status: string; totalGross: number; totalNet: number; lines: PayrollLine[] };
+
+/** Payroll run header + per-employee lines. */
+export async function payrollRunDetail(orgId: string, id: string): Promise<PayrollDetail | null> {
+  const [r] = await db.select({ id: payrollRuns.id, number: payrollRuns.number, status: payrollRuns.status, from: payrollRuns.periodStart, to: payrollRuns.periodEnd, gross: payrollRuns.totalGross, net: payrollRuns.totalNet })
+    .from(payrollRuns).where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  const lines = await db.select({ name: employees.fullName, code: employees.employeeCode, basic: payrollLines.basicSalary, allow: payrollLines.allowances, gross: payrollLines.grossPay, ded: payrollLines.deductions, tax: payrollLines.taxAmount, net: payrollLines.netPay })
+    .from(payrollLines).leftJoin(employees, eq(employees.id, payrollLines.employeeId))
+    .where(eq(payrollLines.payrollRunId, id));
+  return { id: r.id, number: r.number, from: new Date(r.from).toISOString().slice(0, 10), to: new Date(r.to).toISOString().slice(0, 10), status: r.status,
+    totalGross: Number(r.gross), totalNet: Number(r.net),
+    lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", basic: Number(l.basic), allowances: Number(l.allow), gross: Number(l.gross), deductions: Number(l.ded), tax: Number(l.tax), net: Number(l.net) })) };
+}
+
+const recExpAcc = alias(accounts, "rec_exp_acc");
+
+/** Recurring expense templates (mobile list). */
+export async function recurringExpenseList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ id: recurringExpenses.id, amount: recurringExpenses.amount, freq: recurringExpenses.frequency, next: recurringExpenses.nextRunDate, active: recurringExpenses.isActive, payee: recurringExpenses.payee, acc: recExpAcc.nameAr })
+    .from(recurringExpenses).leftJoin(recExpAcc, eq(recExpAcc.id, recurringExpenses.expenseAccountId))
+    .where(eq(recurringExpenses.organizationId, orgId)).orderBy(desc(recurringExpenses.nextRunDate)).limit(LIMIT);
+  return rows.map((r) => ({ id: r.id, number: FREQ_AR[r.freq] ?? r.freq, title: r.acc ?? "مصروف",
+    subtitle: `${r.payee ? `${r.payee} · ` : ""}التالي: ${new Date(r.next).toISOString().slice(0, 10)}`,
+    amount: Number(r.amount), status: r.active ? "ACTIVE" : "متوقف" }));
+}
+
+export type RecurringExpenseDetail = { id: string; account: string; cashAccount: string; amount: number; frequency: string; nextRunDate: string; payee: string; notes: string; isActive: boolean };
+const recCashAcc = alias(accounts, "rec_cash_acc");
+
+/** One recurring expense template (mobile detail). */
+export async function recurringExpenseDetail(orgId: string, id: string): Promise<RecurringExpenseDetail | null> {
+  const [r] = await db.select({ id: recurringExpenses.id, amount: recurringExpenses.amount, freq: recurringExpenses.frequency, next: recurringExpenses.nextRunDate, active: recurringExpenses.isActive, payee: recurringExpenses.payee, notes: recurringExpenses.notes, acc: recExpAcc.nameAr, cash: recCashAcc.nameAr })
+    .from(recurringExpenses)
+    .leftJoin(recExpAcc, eq(recExpAcc.id, recurringExpenses.expenseAccountId))
+    .leftJoin(recCashAcc, eq(recCashAcc.id, recurringExpenses.cashAccountId))
+    .where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.organizationId, orgId))).limit(1);
+  if (!r) return null;
+  return { id: r.id, account: r.acc ?? "—", cashAccount: r.cash ?? "—", amount: Number(r.amount), frequency: FREQ_AR[r.freq] ?? r.freq,
+    nextRunDate: new Date(r.next).toISOString().slice(0, 10), payee: r.payee ?? "", notes: r.notes ?? "", isActive: r.active };
 }
 
 export async function costCenterList(orgId: string): Promise<DocRow[]> {
