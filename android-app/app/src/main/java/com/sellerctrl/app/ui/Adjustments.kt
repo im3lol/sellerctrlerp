@@ -100,7 +100,7 @@ fun AdjustmentDocFormScreen(nav: NavController) {
                 TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(" صنف") }
             }
             lines.forEachIndexed { i, l ->
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(l.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         OutlinedTextField(l.counted, { v -> lines[i] = l.copy(counted = v.filter { it.isDigit() || it == '.' }) }, label = { Text("مجرود") }, singleLine = true,
@@ -141,7 +141,7 @@ fun AdjustmentDocDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.number, style = MaterialTheme.typography.titleLarge)
                         Text(o.date, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -151,7 +151,7 @@ fun AdjustmentDocDetailScreen(nav: NavController, id: String) {
                 }
                 Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
-                    Card(Modifier.fillMaxWidth()) {
+                    AppCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(l.name, modifier = Modifier.weight(1f))

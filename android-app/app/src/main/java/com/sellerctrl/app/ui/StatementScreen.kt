@@ -67,7 +67,7 @@ fun StatementScaffold(nav: NavController, title: String, subtitle: String?, load
                     subtitle?.let { item { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) } }
                     s.first.forEach { sec ->
                         item {
-                            Card(Modifier.fillMaxWidth()) {
+                            AppCard(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(sec.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                                     if (sec.lines.isEmpty()) Text("—", color = MaterialTheme.colorScheme.outline)
@@ -87,7 +87,7 @@ fun StatementScaffold(nav: NavController, title: String, subtitle: String?, load
                         }
                     }
                     item {
-                        Card(Modifier.fillMaxWidth()) {
+                        AppCard(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 s.second.forEach { t ->
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

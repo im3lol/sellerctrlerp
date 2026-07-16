@@ -82,7 +82,7 @@ fun ReportsScreen(nav: NavController) {
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-    Card(Modifier.fillMaxWidth()) {
+    AppCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }

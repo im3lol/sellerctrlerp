@@ -81,7 +81,7 @@ fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: St
 @Composable
 private fun DocCard(r: DocRow, onClick: (() -> Unit)? = null) {
     val base = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-    Card(if (onClick != null) base.clickable { onClick() } else base) {
+    AppCard(if (onClick != null) base.clickable { onClick() } else base) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(r.title, style = MaterialTheme.typography.titleSmall)

@@ -72,7 +72,7 @@ fun BankReconListScreen(nav: NavController) {
                 r.isEmpty() -> Text("لا توجد حسابات بنكية", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(r) { b ->
-                        Card(Modifier.fillMaxWidth().clickable { nav.navigate("recon/${b.id}") }) {
+                        AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("recon/${b.id}") }) {
                             Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(b.title, style = MaterialTheme.typography.titleSmall)
@@ -112,7 +112,7 @@ fun BankReconScreen(nav: NavController, bankId: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().padding(12.dp)) {
-                Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text("مطابَق ${o.reconciledCount} · غير مطابَق ${o.unreconciledCount}", style = MaterialTheme.typography.bodyMedium)
@@ -135,7 +135,7 @@ fun BankReconScreen(nav: NavController, bankId: String) {
 
 @Composable
 private fun StatementLineCard(l: StatementLineDto, onToggle: () -> Unit, onDelete: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    AppCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onToggle) {
                 if (l.reconciled) Icon(Icons.Filled.CheckCircle, "مطابَق", tint = MaterialTheme.colorScheme.primary)

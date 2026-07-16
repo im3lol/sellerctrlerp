@@ -68,7 +68,7 @@ fun PeriodsScreen(nav: NavController) {
                     message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 6.dp)) }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(r) { p ->
-                            Card(Modifier.fillMaxWidth().clickable { pickFor = p }) {
+                            AppCard(Modifier.fillMaxWidth().clickable { pickFor = p }) {
                                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(p.title, style = MaterialTheme.typography.titleSmall)

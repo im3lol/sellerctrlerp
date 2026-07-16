@@ -74,7 +74,7 @@ fun BudgetYearsScreen(nav: NavController) {
                 r.isEmpty() -> Text("لا توجد ميزانيات — اضغط + لبدء سنة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(r) { y ->
-                        Card(Modifier.fillMaxWidth().clickable { nav.navigate("budget_year/${y.number}") }) {
+                        AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("budget_year/${y.number}") }) {
                             Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(y.title, style = MaterialTheme.typography.titleSmall)
@@ -144,7 +144,7 @@ fun BudgetYearScreen(nav: NavController, year: String) {
         Box(Modifier.fillMaxSize().padding(pad)) {
             if (!loaded) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().padding(12.dp)) {
-                Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("إجمالي المُقدَّر", fontWeight = FontWeight.Bold)
                         Text(money(total()), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -154,7 +154,7 @@ fun BudgetYearScreen(nav: NavController, year: String) {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(lines.size) { i ->
                         val l = lines[i]
-                        Card(Modifier.fillMaxWidth()) {
+                        AppCard(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(l.label, style = MaterialTheme.typography.bodyMedium)

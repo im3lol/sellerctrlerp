@@ -121,7 +121,7 @@ fun AssetDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.nameAr, style = MaterialTheme.typography.titleLarge)
                         Text("${o.code} · ${catAr(o.category)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -142,7 +142,7 @@ fun AssetDetailScreen(nav: NavController, id: String) {
 
 @Composable
 private fun AssetRow(label: String, value: String) {
-    Card(Modifier.fillMaxWidth()) {
+    AppCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = MaterialTheme.colorScheme.outline)
             Text(value, fontWeight = FontWeight.SemiBold)

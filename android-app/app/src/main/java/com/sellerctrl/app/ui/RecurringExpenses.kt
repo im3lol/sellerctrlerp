@@ -132,7 +132,7 @@ fun RecurringExpenseDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.account, style = MaterialTheme.typography.titleLarge)
                         Text("${o.frequency} · التالي: ${o.nextRunDate}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)

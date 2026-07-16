@@ -114,7 +114,7 @@ fun AdjustmentScreen(nav: NavController) {
 
             LazyColumn(Modifier.weight(1f).padding(top = 8.dp)) {
                 items(rows, key = { it.item.id }) { row ->
-                    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    AppCard(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(row.item.name, style = MaterialTheme.typography.titleSmall)

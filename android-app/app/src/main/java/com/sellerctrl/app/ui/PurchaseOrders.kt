@@ -111,7 +111,7 @@ fun PurchaseOrderFormScreen(nav: NavController) {
                 TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(" إضافة صنف") }
             }
             lines.forEachIndexed { i, l ->
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(l.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)

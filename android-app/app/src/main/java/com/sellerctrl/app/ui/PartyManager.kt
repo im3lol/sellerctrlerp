@@ -83,7 +83,7 @@ fun PartyManagerScreen(nav: NavController, type: String, title: String) {
                 rows!!.isEmpty() -> Text("لا يوجد ${singular(type)}ون — أضِف بالزر +", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(rows!!) { r ->
-                        Card(Modifier.fillMaxWidth().clickable { nav.navigate("party_form/$type/${r.id}") }) {
+                        AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("party_form/$type/${r.id}") }) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(r.title, style = MaterialTheme.typography.titleSmall)

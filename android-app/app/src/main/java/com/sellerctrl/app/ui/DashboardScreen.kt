@@ -136,7 +136,7 @@ fun DashboardScreen(nav: NavController) {
 
 @Composable
 private fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    AppCard(modifier) {
         Column(Modifier.padding(12.dp)) {
             Text(value, style = MaterialTheme.typography.titleMedium)
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
@@ -146,7 +146,7 @@ private fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun ModuleTile(m: Mod, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(96.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+    AppCard(onClick = onClick, modifier = modifier.height(96.dp), container = MaterialTheme.colorScheme.primaryContainer, border = null) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(m.icon, null, tint = BrandBlue)
             Spacer(Modifier.height(6.dp))

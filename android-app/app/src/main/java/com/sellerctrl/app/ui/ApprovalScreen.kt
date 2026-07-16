@@ -85,7 +85,7 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
                 rows!!.isEmpty() -> Text(error ?: "لا توجد طلبات", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(rows!!) { r ->
-                        Card(Modifier.fillMaxWidth()) {
+                        AppCard(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {

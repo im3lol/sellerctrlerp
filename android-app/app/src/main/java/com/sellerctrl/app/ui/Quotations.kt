@@ -79,7 +79,7 @@ fun QuotationDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.party, style = MaterialTheme.typography.titleLarge)
                         Text("${o.number} · ${o.date}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -91,7 +91,7 @@ fun QuotationDetailScreen(nav: NavController, id: String) {
                 }
                 Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
-                    Card(Modifier.fillMaxWidth()) {
+                    AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(l.name, style = MaterialTheme.typography.titleSmall)

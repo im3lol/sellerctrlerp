@@ -56,7 +56,7 @@ fun ReportListScreen(nav: NavController, title: String, key: String) {
                 rep == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 rep.rows.isEmpty() -> Text(error ?: "لا توجد بيانات في الفترة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> Column(Modifier.fillMaxSize().padding(12.dp)) {
-                    Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
                                 Text("الإجمالي", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
@@ -67,7 +67,7 @@ fun ReportListScreen(nav: NavController, title: String, key: String) {
                     }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(rep.rows) { row ->
-                            Card(Modifier.fillMaxWidth()) {
+                            AppCard(Modifier.fillMaxWidth()) {
                                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(row.name, style = MaterialTheme.typography.titleSmall)

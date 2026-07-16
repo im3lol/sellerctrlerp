@@ -37,7 +37,7 @@ fun HubScreen(nav: NavController, title: String, entries: List<Pair<String, Stri
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             entries.forEach { (label, route) ->
-                Card(onClick = { nav.navigate(route) }, modifier = Modifier.fillMaxWidth()) {
+                AppCard(onClick = { nav.navigate(route) }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = MaterialTheme.colorScheme.outline)

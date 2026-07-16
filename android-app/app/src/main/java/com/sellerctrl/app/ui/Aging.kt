@@ -58,7 +58,7 @@ fun AgingScreen(nav: NavController, title: String, kind: String) {
                 rep == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 rep.rows.isEmpty() -> Text(error ?: "لا توجد أرصدة مستحقة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> Column(Modifier.fillMaxSize().padding(12.dp)) {
-                    Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text("الإجمالي المستحق", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
@@ -72,7 +72,7 @@ fun AgingScreen(nav: NavController, title: String, kind: String) {
                     }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(rep.rows.sortedByDescending { it.total }) { p ->
-                            Card(Modifier.fillMaxWidth()) {
+                            AppCard(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(p.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))

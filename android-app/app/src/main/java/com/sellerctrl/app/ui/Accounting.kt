@@ -135,7 +135,7 @@ fun JournalFormScreen(nav: NavController) {
                 TextButton(onClick = { lines.add(JeLine("", "", "", "")) }) { Icon(Icons.Filled.Add, null); Text(" بند") }
             }
             lines.forEachIndexed { i, l ->
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             OutlinedButton(onClick = { pickFor = i }, modifier = Modifier.weight(1f)) {
@@ -197,7 +197,7 @@ fun JournalDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.description, style = MaterialTheme.typography.titleLarge)
                         Text("${o.number} · ${o.date}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -206,7 +206,7 @@ fun JournalDetailScreen(nav: NavController, id: String) {
                 }
                 Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
-                    Card(Modifier.fillMaxWidth()) {
+                    AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(l.account, modifier = Modifier.weight(1f))
                             if (l.debit > 0) Text("مدين ${money(l.debit)}", color = MaterialTheme.colorScheme.primary)
@@ -325,7 +325,7 @@ fun ExpenseDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.account, style = MaterialTheme.typography.titleLarge)
                         Text("${o.number} · ${o.date}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -383,7 +383,7 @@ fun BankManagerScreen(nav: NavController) {
             message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(rows) { r ->
-                    Card(Modifier.fillMaxWidth().clickable { actionFor = r }) {
+                    AppCard(Modifier.fillMaxWidth().clickable { actionFor = r }) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(r.title, style = MaterialTheme.typography.titleSmall)

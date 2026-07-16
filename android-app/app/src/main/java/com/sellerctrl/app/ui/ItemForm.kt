@@ -113,7 +113,7 @@ fun ItemFormScreen(nav: NavController, id: String) {
                 TextButton(onClick = { codes.add(CodeRow("BARCODE", "")) }) { Icon(Icons.Filled.Add, null); Text(" كود") }
             }
             codes.forEachIndexed { i, c ->
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(c.type, { v -> codes[i] = c.copy(type = v) }, label = { Text("النوع") }, singleLine = true, modifier = Modifier.width(120.dp))
                         OutlinedTextField(c.code, { v -> codes[i] = c.copy(code = v) }, label = { Text("الكود") }, singleLine = true, modifier = Modifier.weight(1f))

@@ -109,7 +109,7 @@ fun BundleFormScreen(nav: NavController, id: String) {
                 TextButton(onClick = { compPicker = true }) { Icon(Icons.Filled.Add, null); Text(" مكوّن") }
             }
             comps.forEachIndexed { i, c ->
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(c.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         OutlinedTextField(c.qty, { v -> comps[i] = c.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text("كمية") }, singleLine = true,
@@ -151,7 +151,7 @@ fun BundleDetailScreen(nav: NavController, id: String) {
             val o = d
             if (o == null) CircularProgressIndicator(Modifier.align(Alignment.Center))
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Card(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.name, style = MaterialTheme.typography.titleLarge)
                         Text(o.code, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -159,7 +159,7 @@ fun BundleDetailScreen(nav: NavController, id: String) {
                 }
                 Text("المكوّنات (${o.components.size})", style = MaterialTheme.typography.titleMedium)
                 o.components.forEach { c ->
-                    Card(Modifier.fillMaxWidth()) {
+                    AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) {
                                 Text(c.name, style = MaterialTheme.typography.titleSmall)
