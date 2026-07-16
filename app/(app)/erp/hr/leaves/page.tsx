@@ -21,7 +21,7 @@ export default async function LeaveRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="CalendarDays" title="إجازات الموظفين" subtitle={`${rows.length} طلب`} backHref="/erp/hr/employees"
+      <ErpPageHeader icon="CalendarDays" title="إجازات الموظفين" subtitle={`${rows.length} طلب`} backHref="/erp/hr"
         action={
           <div className="flex gap-2">
             <Button asChild variant="outline"><Link href="/erp/hr/leaves/report"><Icon name="BarChart3" className="size-4" />التقرير</Link></Button>

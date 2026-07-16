@@ -104,6 +104,7 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
   }
 
   revalidatePath("/erp/hr/employees");
+  revalidatePath("/erp/hr"); // headcount + payroll cost on the module overview
   revalidatePath("/admin/users");
   return { ok: true };
 }
@@ -122,6 +123,7 @@ export async function toggleEmployeeActiveAction(id: string): Promise<ActionStat
     .where(eq(employees.id, id));
 
   revalidatePath("/erp/hr/employees");
+  revalidatePath("/erp/hr"); // activating/deactivating changes the active headcount
   return { ok: true };
 }
 

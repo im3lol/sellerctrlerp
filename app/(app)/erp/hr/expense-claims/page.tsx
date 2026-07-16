@@ -20,7 +20,7 @@ export default async function ExpenseClaimsPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="ReceiptText" title="مطالبات مصروفات الموظفين" subtitle={`${rows.length} مطالبة`} backHref="/erp/hr/employees"
+      <ErpPageHeader icon="ReceiptText" title="مطالبات مصروفات الموظفين" subtitle={`${rows.length} مطالبة`} backHref="/erp/hr"
         action={can("accounting.create") ? <Button asChild><Link href="/erp/hr/expense-claims/new"><Icon name="Plus" className="size-4" />مطالبة جديدة</Link></Button> : undefined} />
       <Card>
         <CardContent className="p-0">

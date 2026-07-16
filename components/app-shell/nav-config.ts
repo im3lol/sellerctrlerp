@@ -154,12 +154,17 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "الموارد البشرية",
-    href: "/erp/hr/employees",
+    href: "/erp/hr",
     capability: "erp.hr.view",
     moduleKey: "hr",
     icon: "UsersRound",
     items: [
+      // The employee master. Like الموردون/العملاء, it had no entry — the heading
+      // pointed straight at it, so the module had no landing page and /erp/hr 404'd.
+      { label: "الموظفون",     href: "/erp/hr/employees", icon: "UsersRound",  capability: "erp.hr.view", group: "البيانات الأساسية" },
+
       { label: "الإجازات",     href: "/erp/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view", group: "الحضور والإجازات" },
+      { label: "تقرير الإجازات", href: "/erp/hr/leaves/report", icon: "BarChart3", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقويم العطلات", href: "/erp/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
 
       { label: "مسير الرواتب", href: "/erp/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view", group: "المالية" },

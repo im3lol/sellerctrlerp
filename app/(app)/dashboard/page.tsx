@@ -16,8 +16,8 @@ const TILES: { label: string; href: string; icon: string; module: string; desc: 
   // module landing page.
   { label: "المبيعات", href: "/erp/sales", icon: "ShoppingCart", module: "sales", desc: "العملاء، أوامر البيع، الفواتير، أمازون" },
   { label: "المشتريات", href: "/erp/purchases", icon: "Truck", module: "purchases", desc: "الموردون، أوامر الشراء، الاستلام، الفواتير" },
-  { label: "المخزون", href: "/erp/inventory/items", icon: "Boxes", module: "inventory", desc: "الأصناف، الأرصدة، الحركة، التسويات" },
-  { label: "الموارد البشرية", href: "/erp/hr/employees", icon: "UserCog", module: "hr", desc: "الموظفون ومسير الرواتب" },
+  { label: "المخزون", href: "/erp/inventory", icon: "Boxes", module: "inventory", desc: "الأصناف، الأرصدة، الحركة، التسويات" },
+  { label: "الموارد البشرية", href: "/erp/hr", icon: "UserCog", module: "hr", desc: "الموظفون، الإجازات، مسير الرواتب" },
   { label: "المستثمرون", href: "/erp/investors", icon: "Coins", module: "investors", desc: "المستثمرون وحصصهم" },
   { label: "التقارير", href: "/erp/reports", icon: "ChartPie", module: "reports", desc: "ميزان المراجعة، الدخل، الميزانية، الضريبة" },
 ];
