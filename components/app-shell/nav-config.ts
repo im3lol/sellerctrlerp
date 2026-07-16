@@ -53,11 +53,14 @@ export const NAV: NavSection[] = [
       { label: "القيود المتكررة", href: "/erp/accounting/recurring-journals", icon: "Repeat", capability: "erp.accounting.view", group: "القيود والأستاذ" },
       { label: "دفتر الأستاذ", href: "/erp/accounting/ledger", icon: "BookOpen", capability: "erp.accounting.view", group: "القيود والأستاذ" },
 
-      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view", group: "العملاء" },
-      { label: "كشف حساب العميل", href: "/erp/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "العملاء" },
+      // Named for what they are, not for the party: "العملاء"/"الموردون" now belong to
+      // the master files under المبيعات/المشتريات, and two different things sharing a
+      // nav label is how you end up clicking the wrong one.
+      { label: "سندات القبض", href: "/erp/sales/receipts", icon: "HandCoins", capability: "erp.sales.view", group: "الذمم المدينة" },
+      { label: "كشف حساب العميل", href: "/erp/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم المدينة" },
 
-      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الموردون" },
-      { label: "كشف حساب المورّد", href: "/erp/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الموردون" },
+      { label: "سندات الصرف", href: "/erp/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الذمم الدائنة" },
+      { label: "كشف حساب المورّد", href: "/erp/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم الدائنة" },
 
       { label: "المصروفات", href: "/erp/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view", group: "المصروفات والأصول" },
       { label: "الأصول الثابتة", href: "/erp/accounting/assets", icon: "Building2", capability: "erp.accounting.view", group: "المصروفات والأصول" },
@@ -81,6 +84,10 @@ export const NAV: NavSection[] = [
     moduleKey: "purchases",
     icon: "Truck",
     items: [
+      // The supplier master. It used to have no entry at all — /erp/purchases *was*
+      // the supplier list, so the only way in was clicking the module heading.
+      { label: "الموردون", href: "/erp/purchases/suppliers", icon: "Truck", capability: "erp.purchases.view", group: "البيانات الأساسية" },
+
       { label: "طلبات المواد", href: "/erp/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "أوامر الشراء", href: "/erp/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/erp/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
@@ -121,6 +128,9 @@ export const NAV: NavSection[] = [
     moduleKey: "sales",
     icon: "ShoppingCart",
     items: [
+      // The customer master — same story as الموردون above.
+      { label: "العملاء", href: "/erp/sales/customers", icon: "Users", capability: "erp.sales.view", group: "البيانات الأساسية" },
+
       { label: "عروض الأسعار", href: "/erp/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر البيع", href: "/erp/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/erp/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
