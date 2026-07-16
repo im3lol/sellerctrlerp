@@ -19,14 +19,20 @@ const CATEGORIES = [
   ["FURNITURE", "أثاث"], ["IT", "تقنية المعلومات"], ["OTHER", "أخرى"],
 ];
 
-export default async function NewFixedAssetPage() {
+export default async function NewFixedAssetPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { orgId } = await requireErpModule("accounting.create");
+  const { error } = await searchParams;
 
   const glAccounts = await db
     .select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr, type: accounts.type })
     .from(accounts)
     .where(eq(accounts.organizationId, orgId))
     .orderBy(accounts.code);
+
+  // What can credit an asset purchase: cash/bank, or a payable if bought on credit.
+  const fundingAccounts = glAccounts.filter(
+    (a) => /^(1101|1102)/.test(a.code) || (a.type === "LIABILITY" && /^21/.test(a.code)),
+  );
 
   async function create(fd: FormData) {
     "use server";
@@ -41,10 +47,15 @@ export default async function NewFixedAssetPage() {
       glAssetAccountId:          String(fd.get("glAssetAccountId") ?? ""),
       glAccumDeprecAccountId:    String(fd.get("glAccumDeprecAccountId") ?? ""),
       glDeprecExpenseAccountId:  String(fd.get("glDeprecExpenseAccountId") ?? ""),
+      acquisition:     fd.get("acquisition") === "CAPITALIZE" ? "CAPITALIZE" : "EXISTING",
+      fundingAccountId: String(fd.get("fundingAccountId") ?? ""),
       notes: String(fd.get("notes") ?? ""),
     });
     if (res.ok && res.id) redirect(`/erp/accounting/assets/${res.id}`);
-    redirect("/erp/accounting/assets");
+    // Bounce back with the reason. This used to redirect to the list on failure,
+    // discarding the error — which now matters, since capitalizing refuses rather
+    // than silently registering the asset without its entry.
+    redirect(`/erp/accounting/assets/new?error=${encodeURIComponent(res.error ?? "تعذّر حفظ الأصل")}`);
   }
 
   return (
@@ -54,6 +65,11 @@ export default async function NewFixedAssetPage() {
       <Card className="max-w-2xl">
         <CardHeader><CardTitle className="text-base">بيانات الأصل</CardTitle></CardHeader>
         <CardContent>
+          {error && (
+            <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <form action={create} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -90,8 +106,38 @@ export default async function NewFixedAssetPage() {
               <Input id="usefulLifeYears" name="usefulLifeYears" type="number" min="1" max="50" defaultValue="5" />
             </div>
 
+            <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-sm font-medium">تسجيل الاقتناء محاسبيًا</p>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="radio" name="acquisition" value="EXISTING" defaultChecked className="mt-1" />
+                <span>
+                  <span className="font-medium">الأصل مُسجَّل بالفعل في الدفاتر</span>
+                  <span className="block text-xs text-muted-foreground">
+                    رصيد افتتاحي من نظام قديم، أو اشتريته بفاتورة شراء مُرحَّلة. لا يُرحَّل قيد — لأن الأصل وثمنه مسجّلان بالفعل، وترحيله تاني هيحسبهم مرتين.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="radio" name="acquisition" value="CAPITALIZE" className="mt-1" />
+                <span>
+                  <span className="font-medium">شراء جديد — رحّل قيد الاقتناء</span>
+                  <span className="block text-xs text-muted-foreground">
+                    يُرحَّل: حساب الأصل مدين بالتكلفة، وحساب السداد دائن. يتطلّب حساب الأصل وحساب السداد أدناه.
+                  </span>
+                </span>
+              </label>
+              <div className="space-y-1 pt-1">
+                <Label htmlFor="fundingAccountId">حساب السداد (عند الشراء الجديد)</Label>
+                <FormCombobox
+                  name="fundingAccountId"
+                  placeholder="النقدية / البنك / الدائنون…"
+                  options={fundingAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+                />
+              </div>
+            </div>
+
             <div className="pt-2">
-              <p className="mb-3 text-sm font-medium text-muted-foreground">الحسابات المحاسبية (اختيارية — لترحيل الإهلاك تلقائيًا)</p>
+              <p className="mb-3 text-sm font-medium text-muted-foreground">الحسابات المحاسبية (مطلوبة لترحيل الإهلاك — وحساب الأصل مطلوب للاقتناء)</p>
               {[
                 ["glAssetAccountId",         "حساب الأصل (بالميزانية)"],
                 ["glAccumDeprecAccountId",   "حساب الإهلاك المتراكم"],

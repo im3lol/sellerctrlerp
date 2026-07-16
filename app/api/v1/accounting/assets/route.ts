@@ -16,7 +16,13 @@ export async function GET(req: Request) {
 /** POST /api/v1/accounting/assets — register a fixed asset (direct core; the cookie
  *  action gates via requireErpModule, unusable from the bearer API).
  *  Body: { code, nameAr, category, purchaseDate, purchaseCost, salvageValue?, usefulLifeYears,
- *          glAssetAccountId?, glAccumDeprecAccountId?, glDeprecExpenseAccountId?, notes? }. */
+ *          glAssetAccountId?, glAccumDeprecAccountId?, glDeprecExpenseAccountId?, notes? }.
+ *
+ *  Registers only — equivalent to the web form's "الأصل مُسجَّل بالفعل" (EXISTING)
+ *  mode; no acquisition entry is posted. Deliberate: capitalizing needs the user to
+ *  say which account paid for the asset and to confirm it isn't already on the books
+ *  from a purchase invoice, and that is a decision to make on the web form with the
+ *  chart in front of you, not a field to guess from a phone. Capitalize there. */
 export async function POST(req: Request) {
   const auth = await authorizeApi(req, "accounting.create");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });

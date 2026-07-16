@@ -9,6 +9,7 @@ import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { buildDisposalLines } from "@/lib/erp/asset-disposal";
+import { planAssetAcquisition, type AssetAcquisition } from "@/lib/erp/asset-acquisition";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /* ── Create asset ──────────────────────────────────────────── */
@@ -23,12 +24,17 @@ export async function createAssetAction(input: {
   glAssetAccountId?: string;
   glAccumDeprecAccountId?: string;
   glDeprecExpenseAccountId?: string;
+  /** Defaults to EXISTING — the register-only behaviour this action always had. */
+  acquisition?: AssetAcquisition;
+  /** Cash/bank/payable credited when capitalizing. Required for CAPITALIZE. */
+  fundingAccountId?: string;
   notes?: string;
 }): Promise<ActionState & { id?: string }> {
-  const { orgId } = await requireErpModule("accounting.create");
+  const { orgId, can } = await requireErpModule("accounting.create");
 
   const cost = input.purchaseCost;
   const salvage = input.salvageValue ?? 0;
+  const acquisition: AssetAcquisition = input.acquisition ?? "EXISTING";
 
   // Validate — a zero/negative life divides to Infinity (∞/NaN in the UI) and an
   // invalid date throws on insert into the NOT NULL timestamp column.
@@ -38,24 +44,57 @@ export async function createAssetAction(input: {
   if (!(cost >= 0)) return { error: "تكلفة الشراء غير صالحة" };
   if (salvage < 0 || salvage > cost) return { error: "قيمة الخردة يجب أن تكون بين صفر والتكلفة" };
 
-  const [row] = await db.insert(fixedAssets).values({
-    organizationId: orgId,
-    code: input.code.trim(),
-    nameAr: input.nameAr.trim(),
-    category: input.category,
-    purchaseDate,
-    purchaseCost: String(cost),
-    salvageValue: String(salvage),
-    usefulLifeYears: input.usefulLifeYears,
-    netBookValue: String(cost),
-    glAssetAccountId: input.glAssetAccountId || null,
-    glAccumDeprecAccountId: input.glAccumDeprecAccountId || null,
-    glDeprecExpenseAccountId: input.glDeprecExpenseAccountId || null,
-    notes: input.notes?.trim() || null,
-  }).returning({ id: fixedAssets.id });
+  const plan = planAssetAcquisition({
+    acquisition,
+    cost,
+    glAssetAccountId: input.glAssetAccountId,
+    fundingAccountId: input.fundingAccountId,
+    canPost: can("accounting.post"),
+  });
+  if ("error" in plan) return plan;
 
-  revalidatePath("/erp/accounting/assets");
-  return { ok: true, id: row.id };
+  try {
+    const id = await db.transaction(async (tx) => {
+      const [row] = await tx.insert(fixedAssets).values({
+        organizationId: orgId,
+        code: input.code.trim(),
+        nameAr: input.nameAr.trim(),
+        category: input.category,
+        purchaseDate,
+        purchaseCost: String(cost),
+        salvageValue: String(salvage),
+        usefulLifeYears: input.usefulLifeYears,
+        netBookValue: String(cost),
+        glAssetAccountId: input.glAssetAccountId || null,
+        glAccumDeprecAccountId: input.glAccumDeprecAccountId || null,
+        glDeprecExpenseAccountId: input.glDeprecExpenseAccountId || null,
+        notes: input.notes?.trim() || null,
+      }).returning({ id: fixedAssets.id });
+
+      if (plan.post) {
+        await postEntry(tx, {
+          orgId,
+          userId: null, // requireErpModule does not surface the user — as elsewhere in this file.
+          sourceType: "ASSET_ACQUISITION",
+          sourceId: row.id,
+          date: purchaseDate,
+          description: `اقتناء أصل: ${input.nameAr.trim()} (${input.code.trim()})`,
+          journalType: "GENERAL",
+          lines: [
+            { accountId: plan.assetAccountId, debit: plan.cost, credit: 0, description: input.nameAr.trim() },
+            { accountId: plan.fundingAccountId, debit: 0, credit: plan.cost, description: `سداد ثمن ${input.nameAr.trim()}` },
+          ],
+        });
+      }
+      return row.id;
+    });
+
+    revalidatePath("/erp/accounting/assets");
+    revalidatePath("/erp/accounting/journal");
+    return { ok: true, id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الأصل" };
+  }
 }
 
 /* ── Post depreciation for one period ─────────────────────── */
