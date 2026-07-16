@@ -284,11 +284,32 @@ export const stockMovements = pgTable(
   },
   (t) => [
     uniqueIndex("stock_movements_org_number_idx").on(t.organizationId, t.number),
-    index("stock_movements_item_wh_idx").on(t.organizationId, t.itemId, t.warehouseId),
-    // Covers DISTINCT ON (item_id, wh_id) ORDER BY item_id, wh_id, created_at DESC, number DESC
-    // used by stock-balance queries — without this PostgreSQL does a full table scan + sort.
-    // Apply with: CREATE INDEX CONCURRENTLY stock_movements_balance_idx ON
-    //   stock_movements (organization_id, item_id, warehouse_id, created_at DESC, number DESC);
+    // (org, item, warehouse) is a strict prefix of stock_movements_balance_idx below,
+    // so that index already serves every lookup this one did — verified on EXPLAIN.
+    // Keeping both only cost writes on the busiest table in the system and gave the
+    // planner a narrower index to prefer, which is how the balance index ended up
+    // looking unused.
+    // index("stock_movements_item_wh_idx") — removed, redundant prefix.
+    // Serves priorBalance: WHERE org+item+warehouse ORDER BY created_at DESC,
+    // number DESC LIMIT 1 — the hottest read in the system (postStockMovement runs
+    // it for every line of every posted document).
+    //
+    // ALL-ASC IS CORRECT HERE. DO NOT "FIX" IT TO DESC — measured, it changes
+    // nothing, and rebuilding this index on a large table is not free:
+    //   · priorBalance already gets "Index Scan Backward using
+    //     stock_movements_balance_idx", 0.04ms over 50k movements on one
+    //     item+warehouse. `ORDER BY a DESC, b DESC` is the exact reverse of the
+    //     index, and a btree reads backwards just as cheaply. (Backward also yields
+    //     NULLS FIRST, which is what a bare `ORDER BY x DESC` asks for — whereas
+    //     drizzle's .desc() would emit DESC NULLS LAST and match nothing.)
+    //   · The DISTINCT ON in getStockBalances does not use this index in either
+    //     direction and never will: Postgres has no index skip-scan, so it reads
+    //     every row of the org regardless, and seq-scan + sort beats an ordered
+    //     scan plus 50k random heap fetches. A/B at 5000 items × 10 movements gives
+    //     byte-identical plans for the ASC and DESC versions.
+    // A mixed-direction index would only pay off for a mixed ORDER BY
+    // (e.g. item ASC, created_at DESC) that the planner actually chooses — not the
+    // case for any query here.
     index("stock_movements_balance_idx").on(t.organizationId, t.itemId, t.warehouseId, t.createdAt, t.number),
     index("stock_movements_ref_idx").on(t.referenceType, t.referenceId),
   ],
@@ -376,7 +397,9 @@ export const stockTransferLines = pgTable("stock_transfer_lines", {
   toWarehouseId: text("to_warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(),
   notes: text("notes"),
-});
+}, (t) => [
+  index("stock_transfer_lines_transfer_idx").on(t.stockTransferId),
+]);
 
 /**
  * Stock adjustment document (count correction / damage / surplus). The header
@@ -423,7 +446,9 @@ export const stockAdjustmentLines = pgTable("stock_adjustment_lines", {
   totalValue: money("total_value").notNull().default("0"),
   movementId: text("movement_id"), // the ADJ stock movement for this line, set on confirm
   notes: text("notes"),
-});
+}, (t) => [
+  index("stock_adjustment_lines_adj_idx").on(t.stockAdjustmentId),
+]);
 
 export const materialRequests = pgTable(
   "material_requests",
@@ -450,7 +475,9 @@ export const materialRequestLines = pgTable("material_request_lines", {
   fulfilledQty: money("fulfilled_qty").notNull().default("0"),
   uomId: text("uom_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("material_request_lines_req_idx").on(t.materialRequestId),
+]);
 
 export const deliveryNotes = pgTable(
   "delivery_notes",
@@ -468,7 +495,12 @@ export const deliveryNotes = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("delivery_notes_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("delivery_notes_org_number_idx").on(t.organizationId, t.number),
+    // Order → delivery → invoice: walked by the delivery list, the invoice-from-
+    // delivery flow, and the Amazon settlement's subledger lookup.
+    index("delivery_notes_order_idx").on(t.salesOrderId),
+  ],
 );
 
 export const deliveryNoteLines = pgTable("delivery_note_lines", {
@@ -480,7 +512,10 @@ export const deliveryNoteLines = pgTable("delivery_note_lines", {
   quantity: money("quantity").notNull(),
   salesInvoiceLineId: text("sales_invoice_line_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("delivery_note_lines_dn_idx").on(t.deliveryNoteId),
+  index("delivery_note_lines_item_idx").on(t.itemId),
+]);
 
 export const purchaseReceipts = pgTable(
   "purchase_receipts",
@@ -513,7 +548,10 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_receipt_lines_grn_idx").on(t.purchaseReceiptId),
+  index("purchase_receipt_lines_item_idx").on(t.itemId),
+]);
 
 export const pickLists = pgTable(
   "pick_lists",
@@ -539,7 +577,9 @@ export const pickListLines = pgTable("pick_list_lines", {
   pickedQty: money("picked_qty").notNull().default("0"),
   salesInvoiceId: text("sales_invoice_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("pick_list_lines_list_idx").on(t.pickListId),
+]);
 
 /* ════════════════════════ ACCOUNTING ══════════════════════ */
 
@@ -770,6 +810,10 @@ export const journalEntryLines = pgTable(
     reconciledAt: ts("reconciled_at"),
   },
   (t) => [
+    // The join key of every financial statement, and of postDraft/reverseEntry
+    // fetching one entry's lines. Postgres does not index a FK for you, so without
+    // this, posting a single entry seq-scans the whole table (200k+ rows/yr).
+    index("journal_entry_lines_entry_idx").on(t.journalEntryId),
     index("journal_entry_lines_account_idx").on(t.accountId),
     index("journal_entry_lines_cost_center_idx").on(t.costCenterId),
   ],
@@ -965,20 +1009,36 @@ export const salesInvoices = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("sales_invoices_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("sales_invoices_org_number_idx").on(t.organizationId, t.number),
+    // The dashboard and every invoice list filter org + status and sort/bound by
+    // date; the org+number unique above cannot serve that, so they were seq-scanning
+    // the table (one of them scans everything just to return the latest 5).
+    index("sales_invoices_org_status_date_idx").on(t.organizationId, t.status, t.date.desc()),
+    // Overdue AR.
+    index("sales_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
+    index("sales_invoices_customer_idx").on(t.customerId),
+  ],
 );
 
-export const salesInvoiceLines = pgTable("sales_invoice_lines", {
-  id: pk(),
-  salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
-  itemId: text("item_id").notNull().references(() => items.id),
-  quantity: money("quantity").notNull(),
-  unitPrice: money("unit_price").notNull(),
-  discountAmount: money("discount_amount").notNull().default("0"),
-  taxAmount: money("tax_amount").notNull().default("0"),
-  totalAmount: money("total_amount").notNull(),
-  costAmount: money("cost_amount").notNull().default("0"),
-});
+export const salesInvoiceLines = pgTable(
+  "sales_invoice_lines",
+  {
+    id: pk(),
+    salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id),
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull(),
+    discountAmount: money("discount_amount").notNull().default("0"),
+    taxAmount: money("tax_amount").notNull().default("0"),
+    totalAmount: money("total_amount").notNull(),
+    costAmount: money("cost_amount").notNull().default("0"),
+  },
+  (t) => [
+    index("sales_invoice_lines_inv_idx").on(t.salesInvoiceId),
+    index("sales_invoice_lines_item_idx").on(t.itemId),
+  ],
+);
 
 export const receiptVouchers = pgTable(
   "receipt_vouchers",
@@ -1010,7 +1070,10 @@ export const receiptLines = pgTable("receipt_lines", {
   receiptVoucherId: text("receipt_voucher_id").notNull().references(() => receiptVouchers.id, { onDelete: "cascade" }),
   salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id),
   amount: money("amount").notNull(),
-});
+}, (t) => [
+  index("receipt_lines_voucher_idx").on(t.receiptVoucherId),
+  index("receipt_lines_invoice_idx").on(t.salesInvoiceId),
+]);
 
 /* ══════════════════ CRM — SALES PIPELINE ══════════════════ */
 
@@ -1071,7 +1134,13 @@ export const purchaseInvoices = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("purchase_invoices_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("purchase_invoices_org_number_idx").on(t.organizationId, t.number),
+    // Mirror of sales_invoices — same dashboard/list/aging access pattern.
+    index("purchase_invoices_org_status_date_idx").on(t.organizationId, t.status, t.date.desc()),
+    index("purchase_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
+    index("purchase_invoices_supplier_idx").on(t.supplierId),
+  ],
 );
 
 export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
@@ -1084,7 +1153,10 @@ export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
   totalAmount: money("total_amount").notNull(),
-});
+}, (t) => [
+  index("purchase_invoice_lines_inv_idx").on(t.purchaseInvoiceId),
+  index("purchase_invoice_lines_item_idx").on(t.itemId),
+]);
 
 export const paymentVouchers = pgTable(
   "payment_vouchers",
@@ -1116,7 +1188,10 @@ export const paymentLines = pgTable("payment_lines", {
   paymentVoucherId: text("payment_voucher_id").notNull().references(() => paymentVouchers.id, { onDelete: "cascade" }),
   purchaseInvoiceId: text("purchase_invoice_id").notNull().references(() => purchaseInvoices.id),
   amount: money("amount").notNull(),
-});
+}, (t) => [
+  index("payment_lines_voucher_idx").on(t.paymentVoucherId),
+  index("payment_lines_invoice_idx").on(t.purchaseInvoiceId),
+]);
 
 // General operating expense (not tied to a supplier invoice): pay from cash/bank
 // against an expense category. Confirming posts Dr expense · Cr cash/bank.
@@ -1231,7 +1306,9 @@ export const salesQuotationLines = pgTable("sales_quotation_lines", {
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
-});
+}, (t) => [
+  index("sales_quotation_lines_qt_idx").on(t.quotationId),
+]);
 
 // Employee expense claim: an employee submits multiple expense lines; approving it
 // posts Dr each expense category / Cr cash/bank (reimbursement) via the engine.
@@ -1259,7 +1336,9 @@ export const expenseClaimLines = pgTable("expense_claim_lines", {
   expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
   amount: money("amount").notNull(),
   description: text("description"),
-});
+}, (t) => [
+  index("expense_claim_lines_claim_idx").on(t.claimId),
+]);
 
 // Recurring journal template (accruals, prepaid amortisation, allocations…). The
 // daily cron materialises a DRAFT journal entry each time it's due; a human posts it.
@@ -1287,7 +1366,9 @@ export const recurringJournalLines = pgTable("recurring_journal_lines", {
   debit: money("debit").notNull().default("0"),
   credit: money("credit").notNull().default("0"),
   description: text("description"),
-});
+}, (t) => [
+  index("recurring_journal_lines_tpl_idx").on(t.recurringJournalId),
+]);
 
 // Per-tenant API keys for the read-only public REST API (/api/v1/*). Only the
 // SHA-256 hash is stored; the plaintext key is shown once at creation.
@@ -1333,7 +1414,9 @@ export const recurringSalesInvoiceLines = pgTable("recurring_sales_invoice_lines
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
-});
+}, (t) => [
+  index("recurring_sales_invoice_lines_tpl_idx").on(t.recurringId),
+]);
 
 export const purchaseOrders = pgTable(
   "purchase_orders",
@@ -1376,7 +1459,10 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   taxAmount: money("tax_amount").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_order_lines_order_idx").on(t.purchaseOrderId),
+  index("purchase_order_lines_item_idx").on(t.itemId),
+]);
 
 export const salesOrders = pgTable(
   "sales_orders",
@@ -1414,21 +1500,30 @@ export const salesOrders = pgTable(
   ],
 );
 
-export const salesOrderLines = pgTable("sales_order_lines", {
-  id: pk(),
-  salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
-  itemId: text("item_id").notNull().references(() => items.id),
-  // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
-  warehouseId: text("warehouse_id").references(() => warehouses.id),
-  quantity: money("quantity").notNull(),
-  deliveredQty: money("delivered_qty").notNull().default("0"),
-  invoicedQty: money("invoiced_qty").notNull().default("0"),
-  unitPrice: money("unit_price").notNull().default("0"),
-  discountAmount: money("discount_amount").notNull().default("0"),
-  taxAmount: money("tax_amount").notNull().default("0"),
-  totalAmount: money("total_amount").notNull().default("0"),
-  notes: text("notes"),
-});
+export const salesOrderLines = pgTable(
+  "sales_order_lines",
+  {
+    id: pk(),
+    salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id),
+    // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    quantity: money("quantity").notNull(),
+    deliveredQty: money("delivered_qty").notNull().default("0"),
+    invoicedQty: money("invoiced_qty").notNull().default("0"),
+    unitPrice: money("unit_price").notNull().default("0"),
+    discountAmount: money("discount_amount").notNull().default("0"),
+    taxAmount: money("tax_amount").notNull().default("0"),
+    totalAmount: money("total_amount").notNull().default("0"),
+    notes: text("notes"),
+  },
+  (t) => [
+    index("sales_order_lines_order_idx").on(t.salesOrderId),
+    // getAvailability joins this per item on every item search / order save to work
+    // out what is reserved — the hottest interactive read in the app.
+    index("sales_order_lines_item_idx").on(t.itemId),
+  ],
+);
 
 /* ═══════════════ SALES PLATFORMS (منصات البيع) ═══════════════ */
 
@@ -1620,7 +1715,12 @@ export const purchaseReturns = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("purchase_returns_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("purchase_returns_org_number_idx").on(t.organizationId, t.number),
+    // Mirror of sales_returns — the prior-returns lookup in createPurchaseReturnAction.
+    index("purchase_returns_invoice_idx").on(t.purchaseInvoiceId),
+    index("purchase_returns_receipt_idx").on(t.purchaseReceiptId),
+  ],
 );
 
 export const purchaseReturnLines = pgTable("purchase_return_lines", {
@@ -1631,7 +1731,9 @@ export const purchaseReturnLines = pgTable("purchase_return_lines", {
   unitPrice: money("unit_price").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_return_lines_ret_idx").on(t.purchaseReturnId),
+]);
 
 export const salesReturns = pgTable(
   "sales_returns",
@@ -1651,7 +1753,13 @@ export const salesReturns = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number),
+    // createSalesReturnAction sums prior POSTED returns for the invoice/delivery to
+    // work out what is still returnable — one lookup per credit note.
+    index("sales_returns_invoice_idx").on(t.salesInvoiceId),
+    index("sales_returns_delivery_idx").on(t.deliveryNoteId),
+  ],
 );
 
 export const salesReturnLines = pgTable("sales_return_lines", {
@@ -1662,7 +1770,9 @@ export const salesReturnLines = pgTable("sales_return_lines", {
   unitPrice: money("unit_price").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("sales_return_lines_ret_idx").on(t.salesReturnId),
+]);
 
 /* ═══════════════ PLATFORM / LICENSING (SaaS) ══════════════ */
 

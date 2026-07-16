@@ -316,6 +316,13 @@
       "when": 1784019846893,
       "tag": "0044_swift_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1784206121363,
+      "tag": "0045_nifty_praxagora",
+      "breakpoints": true
     }
   ]
 }
