@@ -196,6 +196,17 @@ import retrofit2.http.Url
 @Serializable data class AssetDetailResp(val data: AssetDetailDto)
 @Serializable data class AssetCreateReq(val code: String, val nameAr: String, val category: String, val purchaseDate: String, val purchaseCost: Double, val salvageValue: Double = 0.0, val usefulLifeYears: Int, val notes: String? = null)
 
+// --- Aging (تحليل الأعمار) + budget (الميزانية التقديرية) ---
+@Serializable data class AgingPartyDto(val name: String, val code: String = "", val current: Double = 0.0, val d30: Double = 0.0, val d60: Double = 0.0, val d90: Double = 0.0, val d90plus: Double = 0.0, val total: Double = 0.0)
+@Serializable data class AgingReportDto(val asOf: String, val grand: Double = 0.0, val current: Double = 0.0, val d30: Double = 0.0, val d60: Double = 0.0, val d90: Double = 0.0, val d90plus: Double = 0.0, val rows: List<AgingPartyDto> = emptyList())
+@Serializable data class AgingReportResp(val data: AgingReportDto)
+
+@Serializable data class BudgetLineDto(val accountId: String, val code: String = "", val name: String = "", val type: String = "", val amount: Double = 0.0)
+@Serializable data class BudgetYearDto(val year: Int, val lines: List<BudgetLineDto> = emptyList())
+@Serializable data class BudgetYearResp(val data: BudgetYearDto)
+@Serializable data class BudgetSaveLine(val accountId: String, val amount: Double)
+@Serializable data class BudgetSaveReq(val year: Int, val lines: List<BudgetSaveLine>)
+
 // --- Ranked reports (تقارير المبيعات/المشتريات) ---
 @Serializable data class RankRowDto(val name: String, val code: String = "", val count: Int = 0, val qty: Double = 0.0, val amount: Double = 0.0)
 @Serializable data class RankReportDto(val from: String, val to: String, val total: Double = 0.0, val rows: List<RankRowDto> = emptyList())
@@ -308,6 +319,15 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun agingReport(@Url url: String): AgingReportResp
+
+    @GET
+    suspend fun budgetYear(@Url url: String): BudgetYearResp
+
+    @POST
+    suspend fun budgetSave(@Url url: String, @Body body: BudgetSaveReq): OkResp
 
     @GET
     suspend fun recurJournalDetail(@Url url: String): RecurJournalDetailResp

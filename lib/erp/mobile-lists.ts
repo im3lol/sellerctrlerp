@@ -11,7 +11,7 @@ import {
   bankAccounts, fixedAssets, accounts, holidays, warehouses, itemCodes, stockAdjustmentLines,
   recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
   costCenters, bankStatementLines, payrollRuns, payrollLines, recurringExpenses,
-  recurringJournals, recurringJournalLines, fiscalPeriods,
+  recurringJournals, recurringJournalLines, fiscalPeriods, accountBudgets,
 } from "@/db/schema";
 
 /** One neutral shape for every mobile list card. */
@@ -401,6 +401,28 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
   return { id: a.id, code: a.code, nameAr: a.nameAr, category: a.category, purchaseDate: new Date(a.purchaseDate).toISOString().slice(0, 10),
     purchaseCost: Number(a.purchaseCost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears,
     accumulated: Number(a.accumulated), netBookValue: Number(a.nbv), status: a.status, notes: a.notes ?? "" };
+}
+
+/** Budget years with line count + total (mobile list). */
+export async function budgetYearList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({ year: accountBudgets.year, n: sql<number>`count(*)::int`, total: sql<string>`coalesce(sum(${accountBudgets.amount}),0)` })
+    .from(accountBudgets).where(eq(accountBudgets.organizationId, orgId))
+    .groupBy(accountBudgets.year).orderBy(desc(accountBudgets.year));
+  return rows.map((r) => ({ id: String(r.year), number: String(r.year), title: `ميزانية ${r.year}`, subtitle: `${Number(r.n)} حساب`, amount: Number(r.total), status: null }));
+}
+
+export type BudgetLine = { accountId: string; code: string; name: string; type: string; amount: number };
+
+/** Budgetable (leaf REVENUE/EXPENSE) accounts with their amount for a year. */
+export async function budgetForYear(orgId: string, year: number): Promise<BudgetLine[]> {
+  const accs = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), inArray(accounts.type, ["REVENUE", "EXPENSE"])))
+    .orderBy(accounts.code);
+  const budgets = await db.select({ accountId: accountBudgets.accountId, amount: accountBudgets.amount })
+    .from(accountBudgets).where(and(eq(accountBudgets.organizationId, orgId), eq(accountBudgets.year, year)));
+  const byAcc = new Map(budgets.map((b) => [b.accountId, Number(b.amount)]));
+  return accs.map((a) => ({ accountId: a.id, code: a.code, name: a.name, type: ACCT_TYPE_AR[a.type] ?? a.type, amount: byAcc.get(a.id) ?? 0 }));
 }
 
 /** Recurring journal templates (mobile list). */

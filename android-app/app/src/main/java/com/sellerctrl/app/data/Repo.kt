@@ -202,6 +202,14 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Aging (تحليل الأعمار) + budget (الميزانية التقديرية) ---
+    suspend fun agingReport(kind: String): AgingReportDto = api.agingReport("api/v1/aging/$kind").data
+    suspend fun budgetYear(year: Int): BudgetYearDto = api.budgetYear("api/v1/accounting/budget/$year").data
+    suspend fun budgetSave(req: BudgetSaveReq) {
+        try { api.budgetSave("api/v1/accounting/budget", req) }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+    }
+
     // --- Recurring journals (القيود المتكررة) + fiscal periods (الفترات المالية) ---
     suspend fun recurringJournalDetail(id: String): RecurJournalDetailDto = api.recurJournalDetail("api/v1/accounting/recurring-journals/$id").data
     suspend fun recurringJournalSave(req: RecurJournalSaveReq) {

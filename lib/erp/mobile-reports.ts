@@ -1,8 +1,9 @@
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, purchaseInvoices, purchaseInvoiceLines, customers, suppliers, items } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { getCashFlow } from "@/lib/erp/cashflow";
+import { buildAging, type OpenDoc } from "@/lib/erp/aging";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -80,6 +81,39 @@ export async function cashFlowStatement(orgId: string, from?: string, to?: strin
     opTotal: round2(cf.opTotal), invTotal: round2(cf.invTotal), finTotal: round2(cf.finTotal),
     netChange: round2(cf.netCashChange), cashBegin: round2(cf.cashBegin), cashEnd: round2(cf.cashEnd),
   };
+}
+
+// ---- Aging (تحليل أعمار الذمم) -------------------------------------------
+
+export type AgingPartyRow = { name: string; code: string; current: number; d30: number; d60: number; d90: number; d90plus: number; total: number };
+export type AgingReport = { asOf: string; grand: number; current: number; d30: number; d60: number; d90: number; d90plus: number; rows: AgingPartyRow[] };
+
+/** Shared shaping: buildAging output → the flat mobile DTO. */
+function shapeAging(open: OpenDoc[], asOf: string): AgingReport {
+  const { rows, totals, grand } = buildAging(open, new Date(`${asOf}T23:59:59`));
+  return {
+    asOf, grand: round2(grand),
+    current: round2(totals.current), d30: round2(totals.d30), d60: round2(totals.d60), d90: round2(totals.d90), d90plus: round2(totals.d90plus),
+    rows: rows.map((r) => ({ name: r.partyName, code: r.partyCode, current: round2(r.buckets.current), d30: round2(r.buckets.d30), d60: round2(r.buckets.d60), d90: round2(r.buckets.d90), d90plus: round2(r.buckets.d90plus), total: round2(r.total) })),
+  };
+}
+
+/** Customer receivables aging (أعمار ذمم العملاء) — posted invoices with a balance. */
+export async function arAging(orgId: string, asOf?: string): Promise<AgingReport> {
+  const t = asOf || today();
+  const docs = await db.select({ partyId: customers.id, partyCode: customers.code, partyName: customers.nameAr, date: salesInvoices.date, dueDate: salesInvoices.dueDate, balanceDue: salesInvoices.balanceDue })
+    .from(salesInvoices).innerJoin(customers, eq(customers.id, salesInvoices.customerId))
+    .where(and(eq(salesInvoices.organizationId, orgId), inArray(salesInvoices.status, POSTED), gt(salesInvoices.balanceDue, "0")));
+  return shapeAging(docs.map((d) => ({ ...d, balanceDue: Number(d.balanceDue) })), t);
+}
+
+/** Supplier payables aging (أعمار ذمم الموردين). */
+export async function apAging(orgId: string, asOf?: string): Promise<AgingReport> {
+  const t = asOf || today();
+  const docs = await db.select({ partyId: suppliers.id, partyCode: suppliers.code, partyName: suppliers.nameAr, date: purchaseInvoices.date, dueDate: purchaseInvoices.dueDate, balanceDue: purchaseInvoices.balanceDue })
+    .from(purchaseInvoices).innerJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
+    .where(and(eq(purchaseInvoices.organizationId, orgId), inArray(purchaseInvoices.status, POSTED), gt(purchaseInvoices.balanceDue, "0")));
+  return shapeAging(docs.map((d) => ({ ...d, balanceDue: Number(d.balanceDue) })), t);
 }
 
 // ---- Ranked reports (sales/purchases by customer/supplier/item) -----------
