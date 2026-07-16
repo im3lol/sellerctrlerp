@@ -202,6 +202,9 @@ class Repo(val store: TokenStore) {
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
     suspend fun rankReport(key: String): RankReportDto = api.rankReport("api/v1/reports/$key").data
 
+    // --- Statements (دفتر الأستاذ / كشوف الحسابات) ---
+    suspend fun statement(kind: String, id: String): StatementDto = api.statement("api/v1/statement/$kind?id=$id").data
+
     // --- Aging (تحليل الأعمار) + budget (الميزانية التقديرية) ---
     suspend fun agingReport(kind: String): AgingReportDto = api.agingReport("api/v1/aging/$kind").data
     suspend fun budgetYear(year: Int): BudgetYearDto = api.budgetYear("api/v1/accounting/budget/$year").data

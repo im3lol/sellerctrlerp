@@ -149,6 +149,10 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         composable("recurring_je/{id}") { e -> RecurringJournalDetailScreen(nav, e.arguments?.getString("id") ?: "") }
         composable("periods") { PeriodsScreen(nav) }
         composable("budget") { BudgetYearsScreen(nav) }
+        composable("statement/{kind}") { e ->
+            val kind = e.arguments?.getString("kind") ?: "account"
+            StatementScreen(nav, STATEMENT_TITLES[kind] ?: "كشف حساب", kind)
+        }
         composable("budget_year/{year}") { e -> BudgetYearScreen(nav, e.arguments?.getString("year") ?: "") }
         composable("aging/{kind}") { e ->
             val kind = e.arguments?.getString("kind") ?: "ar"
@@ -192,6 +196,13 @@ private fun AppNavHost(nav: androidx.navigation.NavHostController, start: String
         }
     }
 }
+
+/** Arabic titles for the statement kinds. */
+private val STATEMENT_TITLES = mapOf(
+    "account" to "دفتر الأستاذ",
+    "customer" to "كشف حساب العميل",
+    "supplier" to "كشف حساب المورّد",
+)
 
 /** Arabic titles for the inventory alert keys. */
 private val ALERT_TITLES = mapOf(

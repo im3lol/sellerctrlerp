@@ -196,6 +196,11 @@ import retrofit2.http.Url
 @Serializable data class AssetDetailResp(val data: AssetDetailDto)
 @Serializable data class AssetCreateReq(val code: String, val nameAr: String, val category: String, val purchaseDate: String, val purchaseCost: Double, val salvageValue: Double = 0.0, val usefulLifeYears: Int, val notes: String? = null)
 
+// --- Statements (دفتر الأستاذ / كشف حساب العميل / كشف حساب المورّد) ---
+@Serializable data class StmtRowDto(val date: String, val number: String, val description: String = "", val debit: Double = 0.0, val credit: Double = 0.0, val balance: Double = 0.0)
+@Serializable data class StatementDto(val title: String, val from: String, val to: String, val opening: Double = 0.0, val totalDebit: Double = 0.0, val totalCredit: Double = 0.0, val closing: Double = 0.0, val rows: List<StmtRowDto> = emptyList())
+@Serializable data class StatementResp(val data: StatementDto)
+
 // --- Aging (تحليل الأعمار) + budget (الميزانية التقديرية) ---
 @Serializable data class AgingPartyDto(val name: String, val code: String = "", val current: Double = 0.0, val d30: Double = 0.0, val d60: Double = 0.0, val d90: Double = 0.0, val d90plus: Double = 0.0, val total: Double = 0.0)
 @Serializable data class AgingReportDto(val asOf: String, val grand: Double = 0.0, val current: Double = 0.0, val d30: Double = 0.0, val d60: Double = 0.0, val d90: Double = 0.0, val d90plus: Double = 0.0, val rows: List<AgingPartyDto> = emptyList())
@@ -319,6 +324,9 @@ interface Api {
 
     @GET
     suspend fun rankReport(@Url url: String): RankReportResp
+
+    @GET
+    suspend fun statement(@Url url: String): StatementResp
 
     @GET
     suspend fun agingReport(@Url url: String): AgingReportResp
