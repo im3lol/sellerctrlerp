@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const from = p.get("from") || `${now.getFullYear()}-01-01`;
   const to = p.get("to") || now.toISOString().slice(0, 10);
 
-  const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });
+  const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`), excludeClosing: true });
   const revenue = balances.filter((b) => b.type === "REVENUE").map((b) => ({ ...b, amount: naturalAmount(b) })).filter((b) => b.amount !== 0);
   const expense = balances.filter((b) => b.type === "EXPENSE").map((b) => ({ ...b, amount: naturalAmount(b) })).filter((b) => b.amount !== 0);
   const totalRevenue = revenue.reduce((s, b) => s + b.amount, 0);

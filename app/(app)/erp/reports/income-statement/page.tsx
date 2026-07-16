@@ -32,6 +32,7 @@ export default async function IncomeStatementPage({
     orgId,
     from: new Date(from),
     to: new Date(`${to}T23:59:59`),
+    excludeClosing: true,
   });
 
   const revenue = balances
@@ -58,6 +59,7 @@ export default async function IncomeStatementPage({
     JOIN accounts a ON a.id = l.account_id
     WHERE je.organization_id = ${orgId} AND je.status = 'POSTED' AND je.date >= ${plSince}
       AND a.type IN ('REVENUE', 'EXPENSE')
+      AND je.source_type IS DISTINCT FROM 'YEAR_CLOSING'
     GROUP BY 1`)).rows as { m: string; net: string }[];
   const netByMonth = new Map(plRows.map((r) => [r.m, Number(r.net)]));
   const monthlyNet = Array.from({ length: 12 }, (_, i) => {

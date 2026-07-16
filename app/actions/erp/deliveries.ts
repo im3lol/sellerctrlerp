@@ -171,6 +171,12 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
   }
 
   const A = await resolveAccountIds(auth.orgId, ["5101", "1104"]);
+  // Refuse rather than post stock without the matching GL entry: postStockMovement
+  // below drops inventory value regardless, so skipping the entry would leave the
+  // stock ledger and GL 1104 permanently, silently out of step (the valuation
+  // report reconciles the two and would never balance again). Same guard as
+  // confirmGoodsReceiptAction.
+  if (!A["5101"] || !A["1104"]) return { error: "حسابات التسليم غير مكتملة (ت.ب.م/المخزون)." };
 
   const deliveryDate = new Date(dn.date);
   try {
@@ -188,7 +194,7 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
         await tx.update(salesOrderLines).set({ deliveredQty: sql`${salesOrderLines.deliveredQty} + ${qty}` }).where(eq(salesOrderLines.id, sol.id));
       }
       cogs = round2(cogs);
-      if (cogs > 0 && A["5101"] && A["1104"]) {
+      if (cogs > 0) {
         await postEntry(tx, {
           orgId: auth.orgId, date: deliveryDate, sourceType: "DELIVERY_COGS", sourceId: dn.id,
           description: `ت.ب.م تسليم ${dn.number}`, journalType: "GENERAL", userId: auth.userId,

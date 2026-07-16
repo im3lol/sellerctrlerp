@@ -38,7 +38,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 export async function incomeStatement(orgId: string, from?: string, to?: string): Promise<IncomeStatement> {
   const f = from || YEAR_START();
   const t = to || today();
-  const balances = await accountBalances({ orgId, from: new Date(f), to: new Date(`${t}T23:59:59`) });
+  const balances = await accountBalances({ orgId, from: new Date(f), to: new Date(`${t}T23:59:59`), excludeClosing: true });
   const pick = (type: string) => balances.filter((b) => b.type === type)
     .map((b) => ({ code: b.code, name: b.nameAr, amount: round2(naturalAmount(b)) })).filter((b) => b.amount !== 0);
   const revenue = pick("REVENUE");

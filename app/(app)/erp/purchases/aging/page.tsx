@@ -2,7 +2,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
-import { buildAging, AGING_BUCKETS, BUCKET_LABELS, type OpenDoc } from "@/lib/erp/aging";
+import { buildAging, openForAging, AGING_BUCKETS, BUCKET_LABELS, type OpenDoc } from "@/lib/erp/aging";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export default async function ApAgingPage({ searchParams }: { searchParams: Prom
     .where(
       and(
         eq(purchaseInvoices.organizationId, orgId),
-        eq(purchaseInvoices.status, "POSTED"),
+        openForAging(purchaseInvoices.status),
         gt(purchaseInvoices.balanceDue, "0"),
       ),
     );

@@ -91,6 +91,19 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
 
   try {
     await db.transaction(async (tx) => {
+      // Claim the transfer before moving any stock. The status check above runs
+      // outside the transaction, so two concurrent confirms both pass it; every
+      // other document survives that race only because postEntry's unique
+      // (org, source_type, source_id) index makes the second one fail. A transfer
+      // posts no journal entry, so nothing would catch it — a double-confirm would
+      // run both legs twice and conjure stock (source −10, destination +20).
+      // This conditional UPDATE takes the row lock: the loser matches 0 rows and
+      // rolls back.
+      const claimed = await tx.update(stockTransfers).set({ status: "POSTED" })
+        .where(and(eq(stockTransfers.id, tr.id), eq(stockTransfers.status, "DRAFT")))
+        .returning({ id: stockTransfers.id });
+      if (claimed.length === 0) throw new Error("ALREADY_POSTED");
+
       for (const l of ls) {
         const from = l.fromWarehouseId ?? tr.fromWarehouseId;
         const to = l.toWarehouseId ?? tr.toWarehouseId;
@@ -111,7 +124,6 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
           });
         }
       }
-      await tx.update(stockTransfers).set({ status: "POSTED" }).where(eq(stockTransfers.id, tr.id));
       await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: ls.length } });
     });
 
@@ -120,7 +132,9 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
     revalidatePath("/erp/inventory/ledger");
     return { ok: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر ترحيل التحويل" };
+    const msg = e instanceof Error ? e.message : "";
+    if (msg === "ALREADY_POSTED") return { error: "التحويل مُرحّل بالفعل" };
+    return { error: msg || "تعذّر ترحيل التحويل" };
   }
 }
 

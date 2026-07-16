@@ -2,7 +2,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
-import { buildAging, type OpenDoc } from "@/lib/erp/aging";
+import { buildAging, openForAging, type OpenDoc } from "@/lib/erp/aging";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     })
     .from(purchaseInvoices)
     .innerJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
-    .where(and(eq(purchaseInvoices.organizationId, orgId), eq(purchaseInvoices.status, "POSTED"), gt(purchaseInvoices.balanceDue, "0")));
+    .where(and(eq(purchaseInvoices.organizationId, orgId), openForAging(purchaseInvoices.status), gt(purchaseInvoices.balanceDue, "0")));
 
   const open: OpenDoc[] = docs.map((d) => ({ ...d, balanceDue: Number(d.balanceDue) }));
   const { rows, totals, grand } = buildAging(open, new Date(`${asOf}T23:59:59`));
