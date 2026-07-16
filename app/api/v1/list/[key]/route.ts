@@ -5,6 +5,7 @@ import {
   quotationList, receiptVoucherList, paymentVoucherList, purchaseReceiptList,
   materialRequestList, stockAdjustmentList, stockTransferList, bankAccountList,
   fixedAssetList, chartAccountList, holidayList,
+  stockBalanceList, stockLedgerList, salesLedgerList, purchasesLedgerList,
 } from "@/lib/erp/mobile-lists";
 
 export const runtime = "nodejs";
@@ -23,6 +24,10 @@ const REGISTRY: Record<string, { perm: ErpPermission; fn: (orgId: string) => Pro
   assets: { perm: "accounting.view", fn: fixedAssetList },
   chart: { perm: "accounting.view", fn: chartAccountList },
   holidays: { perm: "hr.view", fn: holidayList },
+  "stock-balances": { perm: "inventory.view", fn: stockBalanceList },
+  "stock-ledger": { perm: "inventory.view", fn: stockLedgerList },
+  "sales-ledger": { perm: "sales.view", fn: salesLedgerList },
+  "purchases-ledger": { perm: "purchases.view", fn: purchasesLedgerList },
 };
 
 /** GET /api/v1/list/:key — dispatches to the registered list for that key. */

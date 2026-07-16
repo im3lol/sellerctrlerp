@@ -221,4 +221,8 @@ private val GENLIST_TITLES = mapOf(
     "assets" to "الأصول الثابتة",
     "quotations" to "عروض الأسعار",
     "holidays" to "تقويم العطلات",
+    "stock-balances" to "أرصدة المخزون",
+    "stock-ledger" to "دفتر حركة المخزون",
+    "sales-ledger" to "تقرير دفتر المبيعات",
+    "purchases-ledger" to "تقرير دفتر المشتريات",
 )

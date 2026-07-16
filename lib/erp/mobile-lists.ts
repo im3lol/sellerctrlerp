@@ -607,6 +607,57 @@ export async function partyDetail(orgId: string, type: "suppliers" | "customers"
   return { id: s.id, code: s.code, nameAr: s.nameAr, phone: s.phone ?? "", email: s.email ?? "", address: s.address ?? "", paymentTerms: s.paymentTerms, creditLimit: 0, balance: Number(s.balance) };
 }
 
+// ---- Ledgers + balances (reuse the web's report engines verbatim) ---------
+
+const STOCK_STATUS_AR: Record<string, string> = { OUT: "نافد", LOW: "منخفض", OK: "متاح" };
+
+/** أرصدة المخزون — on-hand qty + value per item/warehouse. */
+export async function stockBalanceList(orgId: string): Promise<DocRow[]> {
+  const { getStockBalances } = await import("@/lib/erp/stock-balances");
+  const { lines } = await getStockBalances(orgId, {});
+  return lines.slice(0, 200).map((l) => ({
+    id: `${l.itemId}|${l.warehouseId}`, number: l.code, title: l.name,
+    subtitle: `${l.warehouse} · كمية ${fmtQty(l.quantity)}`, amount: l.value, status: STOCK_STATUS_AR[l.status] ?? l.status,
+  }));
+}
+
+/** دفتر حركة المخزون — latest stock movements across all items. */
+export async function stockLedgerList(orgId: string): Promise<DocRow[]> {
+  const { getStockLedger } = await import("@/lib/erp/stock-ledger");
+  const { rows } = await getStockLedger(orgId, { page: 1, pageSize: 50 });
+  return rows.map((r) => ({
+    id: r.number, number: r.number, title: r.itemName ?? r.itemCode ?? "—",
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)} · ${r.warehouse ?? "—"} · رصيد ${fmtQty(r.balanceQuantity)}`,
+    amount: r.quantity * r.unitCost, status: r.type,
+  }));
+}
+
+/** تقرير دفتر المبيعات — sales documents (orders/deliveries/invoices/returns). */
+export async function salesLedgerList(orgId: string): Promise<DocRow[]> {
+  const { getSalesLedger } = await import("@/lib/erp/sales-ledger");
+  const { rows } = await getSalesLedger(orgId, {});
+  return rows.slice(0, 100).map((r) => ({
+    id: r.id, number: r.number, title: r.customerName,
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)} · ${SALES_DOC_AR[r.docType] ?? r.docType}`,
+    amount: r.total ?? 0, status: r.status,
+  }));
+}
+
+/** تقرير دفتر المشتريات — purchase documents (orders/receipts/invoices/returns). */
+export async function purchasesLedgerList(orgId: string): Promise<DocRow[]> {
+  const { getPurchasesLedger } = await import("@/lib/erp/purchases-ledger");
+  const { rows } = await getPurchasesLedger(orgId, {});
+  return rows.slice(0, 100).map((r) => ({
+    id: r.id, number: r.number, title: r.supplierName,
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)} · ${PURCH_DOC_AR[r.docType] ?? r.docType}`,
+    amount: r.total ?? 0, status: r.status,
+  }));
+}
+
+const SALES_DOC_AR: Record<string, string> = { ORDER: "أمر بيع", DELIVERY: "إذن صرف", INVOICE: "فاتورة", RETURN: "مرتجع" };
+const PURCH_DOC_AR: Record<string, string> = { ORDER: "أمر شراء", RECEIPT: "إذن استلام", INVOICE: "فاتورة", RETURN: "مرتجع" };
+const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+
 // ---- Coverage batch: read-only document + master-data lists ---------------
 
 export async function quotationList(orgId: string): Promise<DocRow[]> {
