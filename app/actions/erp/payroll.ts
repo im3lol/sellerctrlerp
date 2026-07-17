@@ -1,12 +1,13 @@
 "use server";
 
-import { capPayrollDeductions } from "@/lib/erp/payroll-calc";
+import { capPayrollDeductions, inclusiveOverlapDays, unpaidLeaveDeduction } from "@/lib/erp/payroll-calc";
+import { round2 } from "@/lib/erp/money";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  employees, payrollRuns, payrollLines, accounts,
+  employees, payrollRuns, payrollLines, accounts, leaveRequests,
   organizationMembers, users as usersTable,
 } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";
@@ -195,6 +196,25 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
       }
     }
 
+    // Approved UNPAID leave in the period → prorate MONTHLY salaries. (HOURLY already
+    // only pays clocked hours, so an unpaid absence is reflected by the missing time.)
+    const periodDays = inclusiveOverlapDays(periodStart, periodEnd, periodStart, periodEnd);
+    const unpaidDaysByEmp = new Map<string, number>(); // employeeId → unpaid days in period
+    const unpaidLeaves = await db
+      .select({ employeeId: leaveRequests.employeeId, startDate: leaveRequests.startDate, endDate: leaveRequests.endDate })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.organizationId, auth.orgId),
+        eq(leaveRequests.leaveType, "UNPAID"),
+        eq(leaveRequests.status, "APPROVED"),
+        lte(leaveRequests.startDate, periodEnd),
+        gte(leaveRequests.endDate, periodStart),
+      ));
+    for (const lv of unpaidLeaves) {
+      const days = inclusiveOverlapDays(new Date(lv.startDate), new Date(lv.endDate), periodStart, periodEnd);
+      if (days > 0) unpaidDaysByEmp.set(lv.employeeId, (unpaidDaysByEmp.get(lv.employeeId) ?? 0) + days);
+    }
+
     // Compute per-employee figures
     const lines = emps.map((emp) => {
       let basic = n(emp.basicSalary);
@@ -204,6 +224,9 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
         const seconds = (emp.userId ? attendanceMap.get(emp.userId) : 0) ?? 0;
         hoursWorked = seconds / 3600;
         basic = hoursWorked * n(emp.basicSalary); // basicSalary = hourly rate
+      } else {
+        const unpaidDays = unpaidDaysByEmp.get(emp.id) ?? 0;
+        if (unpaidDays > 0) basic = Math.max(0, round2(basic - unpaidLeaveDeduction(basic, unpaidDays, periodDays)));
       }
 
       const allowances  = n(emp.allowances);
