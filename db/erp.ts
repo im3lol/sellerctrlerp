@@ -1902,7 +1902,7 @@ export const employees = pgTable(
     id: pk(),
     organizationId: orgId(),
     // Nullable: an employee may be payroll-only, with no system login (userId null).
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     fullName: text("full_name"), // used when there is no linked user account
     employeeCode: text("employee_code"),
     position: text("position"),
