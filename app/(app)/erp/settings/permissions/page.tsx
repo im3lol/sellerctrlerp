@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { and, eq, ne } from "drizzle-orm";
-import { requireErpModule } from "@/lib/erp/org";
+import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { organizationMembers, users } from "@/db/schema";
@@ -33,86 +33,87 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function PermissionsPage() {
-  const { orgId, can: erpCan } = await requireErpModule("settings.view");
-  const user = await requireUser();
-  // Org admins (users.create) manage their own org's members via invite; only the
-  // platform owner may link EXISTING accounts (which span all tenants).
-  const canManage = erpCan("users.create");
-  const isSystemAdmin = user.role === "system_admin";
+  return loadErpPage("settings.view", async ({ orgId, can: erpCan }) => {
+    const user = await requireUser();
+    // Org admins (users.create) manage their own org's members via invite; only the
+    // platform owner may link EXISTING accounts (which span all tenants).
+    const canManage = erpCan("users.create");
+    const isSystemAdmin = user.role === "system_admin";
 
-  const [memberRows, allUsers] = await Promise.all([
-    db.select({ userId: organizationMembers.userId, role: organizationMembers.role, overrides: organizationMembers.permissionOverrides, name: users.name, email: users.email, osRole: users.role })
-      .from(organizationMembers)
-      .innerJoin(users, eq(users.id, organizationMembers.userId))
-      .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
-      .orderBy(users.name),
-    // The "link existing user" pool is global — only expose it to the platform owner.
-    isSystemAdmin
-      ? db.select({ id: users.id, name: users.name, email: users.email })
-          .from(users).where(and(eq(users.isActive, true), ne(users.role, "client"))).orderBy(users.name)
-      : Promise.resolve([] as { id: string; name: string; email: string }[]),
-  ]);
+    const [memberRows, allUsers] = await Promise.all([
+      db.select({ userId: organizationMembers.userId, role: organizationMembers.role, overrides: organizationMembers.permissionOverrides, name: users.name, email: users.email, osRole: users.role })
+        .from(organizationMembers)
+        .innerJoin(users, eq(users.id, organizationMembers.userId))
+        .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
+        .orderBy(users.name),
+      // The "link existing user" pool is global — only expose it to the platform owner.
+      isSystemAdmin
+        ? db.select({ id: users.id, name: users.name, email: users.email })
+            .from(users).where(and(eq(users.isActive, true), ne(users.role, "client"))).orderBy(users.name)
+        : Promise.resolve([] as { id: string; name: string; email: string }[]),
+    ]);
 
-  const members: Member[] = memberRows.map((m) => ({
-    userId: m.userId, name: m.name, email: m.email, role: m.role, isSystemAdmin: m.osRole === "system_admin",
-    grant: m.overrides?.grant ?? [], revoke: m.overrides?.revoke ?? [],
-  }));
-  const memberIds = new Set(members.map((m) => m.userId));
-  const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
+    const members: Member[] = memberRows.map((m) => ({
+      userId: m.userId, name: m.name, email: m.email, role: m.role, isSystemAdmin: m.osRole === "system_admin",
+      grant: m.overrides?.grant ?? [], revoke: m.overrides?.revoke ?? [],
+    }));
+    const memberIds = new Set(members.map((m) => m.userId));
+    const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
 
-  const rolePerms: Record<string, string[]> = { super_admin: allErpPermissions, ...erpRolePermissions };
-  const roleOptions = ASSIGNABLE.map((r) => ({ value: r, label: erpRoleLabels[r] ?? r }));
+    const rolePerms: Record<string, string[]> = { super_admin: allErpPermissions, ...erpRolePermissions };
+    const roleOptions = ASSIGNABLE.map((r) => ({ value: r, label: erpRoleLabels[r] ?? r }));
 
-  const groups = MODULES.map((mod) => ({
-    ...mod,
-    perms: allErpPermissions.filter((p) => p.startsWith(`${mod.key}.`)).map((p) => ({ key: p, action: ACTION_LABEL[p.split(".")[1]] ?? p.split(".")[1] })),
-  })).filter((g) => g.perms.length > 0);
+    const groups = MODULES.map((mod) => ({
+      ...mod,
+      perms: allErpPermissions.filter((p) => p.startsWith(`${mod.key}.`)).map((p) => ({ key: p, action: ACTION_LABEL[p.split(".")[1]] ?? p.split(".")[1] })),
+    })).filter((g) => g.perms.length > 0);
 
-  return (
-    <div className="space-y-6">
-      <ErpPageHeader icon="ShieldCheck" title="صلاحيات المستخدمين" subtitle="تعيين أدوار الأعضاء ومعرفة تفاصيل ما يسمح به كل دور" backHref="/erp/settings" />
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader icon="ShieldCheck" title="صلاحيات المستخدمين" subtitle="تعيين أدوار الأعضاء ومعرفة تفاصيل ما يسمح به كل دور" backHref="/erp/settings" />
 
-      <PermissionsMembers members={members} nonMembers={nonMembers} roleOptions={roleOptions} roleLabels={ROLE_LABELS} canManage={canManage} rolePerms={rolePerms} catalog={groups} />
+        <PermissionsMembers members={members} nonMembers={nonMembers} roleOptions={roleOptions} roleLabels={ROLE_LABELS} canManage={canManage} rolePerms={rolePerms} catalog={groups} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>مصفوفة الصلاحيات التفصيلية</CardTitle>
-          <CardDescription>ما يسمح به كل دور بالضبط، مقسّماً حسب الموديول والإجراء. ✓ = مسموح.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs">
-                <tr className="[&>th]:whitespace-nowrap [&>th]:p-2.5 [&>th]:text-start">
-                  <th className="min-w-40">الصلاحية</th>
-                  {MATRIX_ROLES.map((r) => <th key={r} className="text-center">{ROLE_LABELS[r] ?? r}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map((g) => (
-                  <Fragment key={g.key}>
-                    <tr className="bg-muted/20">
-                      <td colSpan={MATRIX_ROLES.length + 1} className="p-2 ps-3 text-xs font-bold text-primary">{g.label}</td>
-                    </tr>
-                    {g.perms.map((p) => (
-                      <tr key={p.key} className="border-t [&>td]:p-2.5">
-                        <td className="ps-4 text-muted-foreground">{p.action}</td>
-                        {MATRIX_ROLES.map((r) => (
-                          <td key={r} className="text-center">
-                            {rolePerms[r]?.includes(p.key)
-                              ? <Icon name="Check" className="mx-auto size-4 text-emerald-600" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                        ))}
+        <Card>
+          <CardHeader>
+            <CardTitle>مصفوفة الصلاحيات التفصيلية</CardTitle>
+            <CardDescription>ما يسمح به كل دور بالضبط، مقسّماً حسب الموديول والإجراء. ✓ = مسموح.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs">
+                  <tr className="[&>th]:whitespace-nowrap [&>th]:p-2.5 [&>th]:text-start">
+                    <th className="min-w-40">الصلاحية</th>
+                    {MATRIX_ROLES.map((r) => <th key={r} className="text-center">{ROLE_LABELS[r] ?? r}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <Fragment key={g.key}>
+                      <tr className="bg-muted/20">
+                        <td colSpan={MATRIX_ROLES.length + 1} className="p-2 ps-3 text-xs font-bold text-primary">{g.label}</td>
                       </tr>
-                    ))}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                      {g.perms.map((p) => (
+                        <tr key={p.key} className="border-t [&>td]:p-2.5">
+                          <td className="ps-4 text-muted-foreground">{p.action}</td>
+                          {MATRIX_ROLES.map((r) => (
+                            <td key={r} className="text-center">
+                              {rolePerms[r]?.includes(p.key)
+                                ? <Icon name="Check" className="mx-auto size-4 text-emerald-600" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  });
 }

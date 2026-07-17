@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireErpModule } from "@/lib/erp/org";
+import { loadErpPage } from "@/lib/erp/org";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
@@ -82,33 +82,33 @@ const GROUPS: Group[] = [
 ];
 
 export default async function ReportsCenterPage() {
-  await requireErpModule("reports.view");
-
-  return (
-    <div className="space-y-6">
-      <ErpPageHeader icon="ChartColumn" title="مركز التقارير" subtitle="كل التحاليل والتقارير عبر النظام في مكان واحد" />
-      {GROUPS.map((g) => (
-        <Card key={g.title}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><Icon name={g.icon} className="size-5 text-primary" />{g.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {g.reports.map((r) => (
-                <Link key={r.href} href={r.href} className="group flex items-start gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Icon name={r.icon} className="size-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">{r.label}</div>
-                    <div className="text-xs text-muted-foreground">{r.desc}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  return loadErpPage("reports.view", async () => {
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader icon="ChartColumn" title="مركز التقارير" subtitle="كل التحاليل والتقارير عبر النظام في مكان واحد" />
+        {GROUPS.map((g) => (
+          <Card key={g.title}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Icon name={g.icon} className="size-5 text-primary" />{g.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {g.reports.map((r) => (
+                  <Link key={r.href} href={r.href} className="group flex items-start gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Icon name={r.icon} className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{r.label}</div>
+                      <div className="text-xs text-muted-foreground">{r.desc}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  });
 }

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { requireErpModule } from "@/lib/erp/org";
+import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesReturns, salesReturnLines, customers, items, salesInvoices, deliveryNotes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,89 +23,89 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function SalesReturnDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  const { orgId, role, can } = await requireErpModule("sales.view");
+  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
+    if (UUID_RE.test(raw)) {
+      const [byId] = await db.select({ number: salesReturns.number }).from(salesReturns)
+        .where(and(eq(salesReturns.id, raw), eq(salesReturns.organizationId, orgId))).limit(1);
+      if (!byId) notFound();
+      redirect(`/erp/sales/returns/${encodeURIComponent(byId.number)}`);
+    }
 
-  if (UUID_RE.test(raw)) {
-    const [byId] = await db.select({ number: salesReturns.number }).from(salesReturns)
-      .where(and(eq(salesReturns.id, raw), eq(salesReturns.organizationId, orgId))).limit(1);
-    if (!byId) notFound();
-    redirect(`/erp/sales/returns/${encodeURIComponent(byId.number)}`);
-  }
+    const [ret] = await db.select().from(salesReturns)
+      .where(and(eq(salesReturns.number, raw), eq(salesReturns.organizationId, orgId))).limit(1);
+    if (!ret) notFound();
 
-  const [ret] = await db.select().from(salesReturns)
-    .where(and(eq(salesReturns.number, raw), eq(salesReturns.organizationId, orgId))).limit(1);
-  if (!ret) notFound();
+    const [[cust], lines, [si], [dn], audit] = await Promise.all([
+      ret.customerId
+        ? db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, ret.customerId)).limit(1)
+        : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
+      db.select({ id: salesReturnLines.id, qty: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice, total: salesReturnLines.totalAmount, code: items.code, name: items.nameAr })
+        .from(salesReturnLines).leftJoin(items, eq(items.id, salesReturnLines.itemId)).where(eq(salesReturnLines.salesReturnId, ret.id)),
+      ret.salesInvoiceId
+        ? db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, ret.salesInvoiceId)).limit(1)
+        : Promise.resolve([] as { number: string }[]),
+      ret.deliveryNoteId
+        ? db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1)
+        : Promise.resolve([] as { number: string }[]),
+      getDocumentAudit(orgId, ret.id),
+    ]);
 
-  const [[cust], lines, [si], [dn], audit] = await Promise.all([
-    ret.customerId
-      ? db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, ret.customerId)).limit(1)
-      : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-    db.select({ id: salesReturnLines.id, qty: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice, total: salesReturnLines.totalAmount, code: items.code, name: items.nameAr })
-      .from(salesReturnLines).leftJoin(items, eq(items.id, salesReturnLines.itemId)).where(eq(salesReturnLines.salesReturnId, ret.id)),
-    ret.salesInvoiceId
-      ? db.select({ number: salesInvoices.number }).from(salesInvoices).where(eq(salesInvoices.id, ret.salesInvoiceId)).limit(1)
-      : Promise.resolve([] as { number: string }[]),
-    ret.deliveryNoteId
-      ? db.select({ number: deliveryNotes.number }).from(deliveryNotes).where(eq(deliveryNotes.id, ret.deliveryNoteId)).limit(1)
-      : Promise.resolve([] as { number: string }[]),
-    getDocumentAudit(orgId, ret.id),
-  ]);
+    const linked: DocLink[] = [];
+    let backHref = "/erp/sales/invoices";
+    if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
+    if (dn) { const href = `/erp/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
+    const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
+    const canManage = can("sales.create");
 
-  const linked: DocLink[] = [];
-  let backHref = "/erp/sales/invoices";
-  if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/erp/sales/invoices/${encodeURIComponent(si.number)}` });
-  if (dn) { const href = `/erp/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
-  const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
-  const canManage = can("sales.create");
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader
+          icon="Undo2"
+          title={`مرتجع مبيعات ${ret.number}`}
+          subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
+          backHref={backHref}
+          action={<ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} dest={backHref} />}
+        />
 
-  return (
-    <div className="space-y-6">
-      <ErpPageHeader
-        icon="Undo2"
-        title={`مرتجع مبيعات ${ret.number}`}
-        subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
-        backHref={backHref}
-        action={<ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} dest={backHref} />}
-      />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
+          <Field label="التاريخ">{dt(ret.date)}</Field>
+          <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-        <Field label="التاريخ">{dt(ret.date)}</Field>
-        <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="text-start">الكمية</TableHead>
-                <TableHead className="text-start">السعر</TableHead>
-                <TableHead className="text-start">الإجمالي</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lines.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
-                  <TableCell>{qty(l.qty)}</TableCell>
-                  <TableCell>{fmt(l.unitPrice)}</TableCell>
-                  <TableCell>{fmt(l.total)}</TableCell>
+        <Card>
+          <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-start">الصنف</TableHead>
+                  <TableHead className="text-start">الكمية</TableHead>
+                  <TableHead className="text-start">السعر</TableHead>
+                  <TableHead className="text-start">الإجمالي</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow className="font-bold"><TableCell colSpan={3}>إجمالي المرتجع</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
-            </TableFooter>
-          </Table>
-          {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {lines.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell>{qty(l.qty)}</TableCell>
+                    <TableCell>{fmt(l.unitPrice)}</TableCell>
+                    <TableCell>{fmt(l.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow className="font-bold"><TableCell colSpan={3}>إجمالي المرتجع</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
+              </TableFooter>
+            </Table>
+            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}
+          </CardContent>
+        </Card>
 
-      <LinkedDocsCard links={linked} />
-      <DocAuditCard rows={audit} />
-    </div>
-  );
+        <LinkedDocsCard links={linked} />
+        <DocAuditCard rows={audit} />
+      </div>
+    );
+  });
 }
