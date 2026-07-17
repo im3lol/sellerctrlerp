@@ -1,6 +1,6 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals } from "@/db/schema";
+import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals, accounts } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { fiscalYearBounds } from "@/lib/erp/default-chart";
 
@@ -168,13 +168,30 @@ export async function postDraft(
   if (entry.status !== "DRAFT") throw new Error("القيد ليس مسودة قابلة للترحيل");
 
   const rows = await tx
-    .select({ debit: journalEntryLines.debit, credit: journalEntryLines.credit })
+    .select({ accountId: journalEntryLines.accountId, debit: journalEntryLines.debit, credit: journalEntryLines.credit })
     .from(journalEntryLines)
     .where(eq(journalEntryLines.journalEntryId, entry.id));
   const debit = rows.reduce((s, l) => s + cents(Number(l.debit)), 0);
   const credit = rows.reduce((s, l) => s + cents(Number(l.credit)), 0);
   if (debit === 0) throw new Error("لا يمكن ترحيل قيد بقيمة صفر");
   if (debit !== credit) throw new Error("القيد غير متوازن");
+
+  // Choke point for ALL draft sources (saved manual drafts, recurring templates):
+  // never post to a non-leaf/header account — it corrupts every parent-rollup
+  // report — and honour allowManualEntries. The manual-entry form checks this at
+  // creation, but recurring templates don't, so enforce it here at posting time.
+  const accIds = [...new Set(rows.map((l) => l.accountId))];
+  const accs = await tx
+    .select({ id: accounts.id, isLeaf: accounts.isLeaf, allowManualEntries: accounts.allowManualEntries })
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, input.orgId), inArray(accounts.id, accIds)));
+  const accById = new Map(accs.map((a) => [a.id, a]));
+  for (const id of accIds) {
+    const a = accById.get(id);
+    if (!a) throw new Error("حساب غير موجود في هذه المؤسسة");
+    if (!a.isLeaf) throw new Error("لا يمكن الترحيل على حساب رئيسي — اختر حساباً فرعياً");
+    if (!a.allowManualEntries) throw new Error("أحد الحسابات لا يسمح بالقيود اليدوية");
+  }
 
   const date = new Date(entry.date);
   const periodId = await ensurePeriod(tx, input.orgId, date);
