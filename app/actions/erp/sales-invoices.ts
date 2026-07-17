@@ -196,6 +196,13 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
             .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
           const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
             .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
+          // Never book revenue+AR with no COGS/stock movement (mirrors the delivery
+          // path, deliveries.ts): if there are goods to issue but no warehouse or the
+          // inventory/COGS accounts are missing, refuse instead of posting revenue-only.
+          const hasIssuable = invLines.some((l) => Number(l.quantity) > 0);
+          if (hasIssuable && !(wh && byCode["5101"] && byCode["1104"])) {
+            throw new Error("تعذّر الترحيل — لا يوجد مخزن نشط أو أن حسابَي المخزون (1104) وتكلفة المبيعات (5101) غير مكتملين");
+          }
           let cogs = 0;
           if (wh && byCode["5101"] && byCode["1104"]) {
             for (const l of invLines) {
