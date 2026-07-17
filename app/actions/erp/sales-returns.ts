@@ -135,7 +135,14 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       const rLines = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice })
         .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, id));
       if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
-      const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
+      // Restock cost is recomputed server-side from the ORIGINAL delivery's stock
+      // movements (the WAC the goods left at) — never trusted from the client-supplied
+      // unitPrice, so a crafted request can't restock / reverse COGS at an arbitrary amount.
+      const delMoves = await db.select({ itemId: stockMovements.itemId, unitCost: stockMovements.unitCost })
+        .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
+      const costByItem = new Map(delMoves.map((m) => [m.itemId, Number(m.unitCost)]));
+      const costOf = (l: { itemId: string; unitPrice: string | number }) => costByItem.get(l.itemId) ?? Number(l.unitPrice);
+      const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * costOf(l), 0));
       const A = await resolveAccountIds(auth.orgId, ["1104", "5101"]);
       if (!A["1104"] || !A["5101"]) return { error: "حسابات الترحيل غير مكتملة." };
       const soLines = dn.salesOrderId
@@ -147,7 +154,7 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
         await db.transaction(async (tx) => {
           for (const l of rLines) {
             const q = Number(l.quantity);
-            await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: dn.warehouseId, type: "IN", quantity: q, unitCost: Number(l.unitPrice), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
+            await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: dn.warehouseId, type: "IN", quantity: q, unitCost: costOf(l), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
             const sol = soByItem.get(l.itemId);
             if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${q})` }).where(eq(salesOrderLines.id, sol.id));
           }
