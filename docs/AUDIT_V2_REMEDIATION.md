@@ -44,10 +44,10 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 ## 3. الموجات بالترتيب
 
 ### موجة 1 — P0 + مكاسب أمنية سريعة (تأثير عالي، خطر ~صفر، ~ساعة)
-- [ ] **#1** مفتاح `"marketplace"` على ٨ أسطح (`platforms.ts` ×6، `amazon-import`، `amazon-settlement`، `platform-inventory/returns/removals`، `api/erp/marketplace/[provider]/connect`، `platforms/[code]/orders/export`).
-- [ ] **#14** `api-auth.ts:18` — throw لو `AUTH_SECRET` غايب (fail-closed) بدل الثابت العام.
-- [ ] **#13** `users.ts:updateProfileAction` — يمرّ على `validatePassword` + `BCRYPT_COST` + منع إعادة الاستخدام (أو يشيل حقل الباسورد ويوجّه لتدفق التغيير الصحيح).
-- [ ] **#22** `nav-config.ts:112` — صلاحية «مطابقة قيمة المخزون» → `erp.inventory.view`.
+- [x] **#1** مفتاح `"marketplace"` على ٨ أسطح (`platforms.ts` ×6، `amazon-import`، `amazon-settlement`، `platform-inventory/returns/removals`، `api/erp/marketplace/[provider]/connect`، `platforms/[code]/orders/export`).
+- [x] **#14** `api-auth.ts:18` — throw لو `AUTH_SECRET` غايب (fail-closed) بدل الثابت العام.
+- [x] **#13** `users.ts:updateProfileAction` — يمرّ على `validatePassword` + `BCRYPT_COST` + منع إعادة الاستخدام (أو يشيل حقل الباسورد ويوجّه لتدفق التغيير الصحيح).
+- [x] **#22** `nav-config.ts:112` — صلاحية «مطابقة قيمة المخزون» → `erp.inventory.view`.
 
 ### موجة 2 — P1: صحّة الفلوس/الأرقام (كل بند باختبار vitest أولًا)
 - [ ] **#2** `periods.ts:89-98,161-171` — اقفل كل حساب P&L بإشارته (`bal = debit − credit`)، net income = Σ الكل. اختبار: 4101=1000Cr، 4102=200Dr، 5101=600Dr → صافي 200، و4102 يتقفل.
