@@ -41,6 +41,9 @@ export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true
     if (input.couponCode?.trim()) {
       const coupon = await findRedeemableCoupon(input.couponCode);
       if (!coupon) return { error: "الكوبون غير صالح أو منتهٍ أو مستنفد" };
+      // Consume the redemption atomically up front — closes the TOCTOU where two
+      // concurrent redemptions both pass findRedeemableCoupon's read-side cap check.
+      if (!(await incrementRedemption(coupon.id))) return { error: "الكوبون مستنفد" };
       price = applyDiscount(price, coupon.discountType, Number(coupon.value));
       couponId = coupon.id;
     }
@@ -63,7 +66,6 @@ export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true
 
     await db.insert(orgSubscriptions).values(values)
       .onConflictDoUpdate({ target: orgSubscriptions.organizationId, set: values });
-    if (couponId) await incrementRedemption(couponId);
     revalidatePath("/admin/licensing");
     return { ok: true, discounted: couponId ? price : undefined };
   });
