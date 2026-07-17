@@ -38,10 +38,9 @@ export function ProfileForm({ name, email }: { name: string; email: string }) {
         <Input id="p-email" value={email} dir="ltr" disabled />
         <p className="text-xs text-muted-foreground">لا يمكن تغيير البريد الإلكتروني.</p>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="p-pass">كلمة مرور جديدة</Label>
-        <Input id="p-pass" name="password" type="password" dir="ltr" placeholder="اتركها فارغة للإبقاء على الحالية" />
-      </div>
+      <p className="text-xs text-muted-foreground">
+        لتغيير كلمة المرور استخدم <a href="/erp/settings/security" className="underline">صفحة الأمان</a> (تتطلب كلمة المرور الحالية).
+      </p>
       <Submit />
     </form>
   );
