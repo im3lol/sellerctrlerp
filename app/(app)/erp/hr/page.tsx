@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { employees, leaveRequests, payrollRuns, expenseClaims } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -78,7 +79,8 @@ export default async function ErpHrPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <ErpPageHeader icon="UsersRound" title="الموارد البشرية" subtitle="نظرة عامة على الموظفين والإجازات والرواتب" />
+      <ErpPageHeader icon="UsersRound" title="الموارد البشرية" subtitle="نظرة عامة على الموظفين والإجازات والرواتب"
+        action={<AcademyLink module="hr" />} />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

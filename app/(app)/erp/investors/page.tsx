@@ -7,6 +7,7 @@ import { orgOwnership } from "@/app/actions/erp/investor-equity";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,8 @@ export default async function InvestorsPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <ErpPageHeader icon="Coins" title="المستثمرون" subtitle="رأس المال، نسب الملكية، وتوزيعات الأرباح" />
+      <ErpPageHeader icon="Coins" title="المستثمرون" subtitle="رأس المال، نسب الملكية، وتوزيعات الأرباح"
+        action={<AcademyLink module="investors" />} />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (

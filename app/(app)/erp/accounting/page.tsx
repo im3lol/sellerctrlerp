@@ -6,6 +6,7 @@ import { accounts, journalEntries, salesInvoices, purchaseInvoices } from "@/db/
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,8 @@ export default async function AccountingDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Calculator" title="المحاسبة" subtitle="نظرة عامة على الأداء المالي" />
+      <ErpPageHeader icon="Calculator" title="المحاسبة" subtitle="نظرة عامة على الأداء المالي"
+        action={<AcademyLink module="accounting" />} />
 
       <NeedsAttention tiles={todos} />
 

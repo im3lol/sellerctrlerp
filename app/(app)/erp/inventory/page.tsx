@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { items } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -73,7 +74,8 @@ export default async function InventoryDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Warehouse" title="المخزون" subtitle="نظرة عامة وتحليل المخزون" />
+      <ErpPageHeader icon="Warehouse" title="المخزون" subtitle="نظرة عامة وتحليل المخزون"
+        action={<AcademyLink module="inventory" />} />
 
       <NeedsAttention tiles={todos} />
 

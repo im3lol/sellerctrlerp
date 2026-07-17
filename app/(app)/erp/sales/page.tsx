@@ -8,6 +8,7 @@ import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,8 @@ export default async function ErpSalesPage() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <ErpPageHeader icon="ShoppingCart" title="المبيعات" subtitle="نظرة عامة على دورة البيع والعملاء" />
+      <ErpPageHeader icon="ShoppingCart" title="المبيعات" subtitle="نظرة عامة على دورة البيع والعملاء"
+        action={<AcademyLink module="sales" />} />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => (
