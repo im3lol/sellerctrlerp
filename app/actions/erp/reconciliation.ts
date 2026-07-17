@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -12,15 +13,17 @@ export async function setLinesReconciledAction(reconcileIds: string[], unreconci
   const auth = await authorizeErp("accounting.post");
   if ("error" in auth) return auth;
 
-  const orgFilter = sql`${journalEntryLines.journalEntryId} in (select id from journal_entries where organization_id = ${auth.orgId})`;
-  if (reconcileIds.length) {
-    await db.update(journalEntryLines).set({ reconciled: true, reconciledAt: new Date() })
-      .where(and(inArray(journalEntryLines.id, reconcileIds), orgFilter));
-  }
-  if (unreconcileIds.length) {
-    await db.update(journalEntryLines).set({ reconciled: false, reconciledAt: null })
-      .where(and(inArray(journalEntryLines.id, unreconcileIds), orgFilter));
-  }
-  revalidatePath("/erp/accounting/reconciliation");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    const orgFilter = sql`${journalEntryLines.journalEntryId} in (select id from journal_entries where organization_id = ${auth.orgId})`;
+    if (reconcileIds.length) {
+      await db.update(journalEntryLines).set({ reconciled: true, reconciledAt: new Date() })
+        .where(and(inArray(journalEntryLines.id, reconcileIds), orgFilter));
+    }
+    if (unreconcileIds.length) {
+      await db.update(journalEntryLines).set({ reconciled: false, reconciledAt: null })
+        .where(and(inArray(journalEntryLines.id, unreconcileIds), orgFilter));
+    }
+    revalidatePath("/erp/accounting/reconciliation");
+    return { ok: true };
+  });
 }

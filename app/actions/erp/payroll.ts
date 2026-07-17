@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -62,69 +63,73 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
   const auth = await authorizeErp("hr.create");
   if ("error" in auth) return auth;
 
-  const userId = input.userId || null;
-  const fullName = input.fullName?.trim() || null;
-  if (!userId && !fullName) return { error: "أدخل اسم الموظف" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const userId = input.userId || null;
+    const fullName = input.fullName?.trim() || null;
+    if (!userId && !fullName) return { error: "أدخل اسم الموظف" };
 
-  const values = {
-    organizationId: auth.orgId,
-    userId: userId as `${string}-${string}-${string}-${string}-${string}` | null,
-    fullName,
-    employeeCode: input.employeeCode?.trim() || null,
-    position: input.position?.trim() || null,
-    department: input.department?.trim() || null,
-    payType: input.payType,
-    basicSalary: String(Math.max(0, input.basicSalary)),
-    allowances: String(Math.max(0, input.allowances ?? 0)),
-    deductions: String(Math.max(0, input.deductions ?? 0)),
-    taxRate: String(Math.max(0, Math.min(100, input.taxRate ?? 0))),
-    hiredAt: input.hiredAt ? new Date(input.hiredAt) : null,
-    notes: input.notes?.trim() || null,
-    updatedAt: new Date(),
-  };
+    const values = {
+      organizationId: auth.orgId,
+      userId: userId as `${string}-${string}-${string}-${string}-${string}` | null,
+      fullName,
+      employeeCode: input.employeeCode?.trim() || null,
+      position: input.position?.trim() || null,
+      department: input.department?.trim() || null,
+      payType: input.payType,
+      basicSalary: String(Math.max(0, input.basicSalary)),
+      allowances: String(Math.max(0, input.allowances ?? 0)),
+      deductions: String(Math.max(0, input.deductions ?? 0)),
+      taxRate: String(Math.max(0, Math.min(100, input.taxRate ?? 0))),
+      hiredAt: input.hiredAt ? new Date(input.hiredAt) : null,
+      notes: input.notes?.trim() || null,
+      updatedAt: new Date(),
+    };
 
-  if (input.id) {
-    await db
-      .update(employees)
-      .set(values)
-      .where(and(eq(employees.id, input.id), eq(employees.organizationId, auth.orgId)));
-  } else if (!userId) {
-    // Payroll-only employee (no system user) — just insert the record.
-    await db.insert(employees).values(values);
-  } else {
-    // Onboarding a new employee: ensure the user is a member of this org first,
-    // otherwise they wouldn't appear anywhere (HR requires org membership). Give
-    // a minimal "viewer" ERP role; the admin can raise it from the user page.
-    const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
-      .where(and(eq(organizationMembers.organizationId, auth.orgId), eq(organizationMembers.userId, userId))).limit(1);
-    if (!member) {
-      await db.insert(organizationMembers).values({ organizationId: auth.orgId, userId, role: "viewer" });
+    if (input.id) {
+      await db
+        .update(employees)
+        .set(values)
+        .where(and(eq(employees.id, input.id), eq(employees.organizationId, auth.orgId)));
+    } else if (!userId) {
+      // Payroll-only employee (no system user) — just insert the record.
+      await db.insert(employees).values(values);
+    } else {
+      // Onboarding a new employee: ensure the user is a member of this org first,
+      // otherwise they wouldn't appear anywhere (HR requires org membership). Give
+      // a minimal "viewer" ERP role; the admin can raise it from the user page.
+      const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
+        .where(and(eq(organizationMembers.organizationId, auth.orgId), eq(organizationMembers.userId, userId))).limit(1);
+      if (!member) {
+        await db.insert(organizationMembers).values({ organizationId: auth.orgId, userId, role: "viewer" });
+      }
+      await db.insert(employees).values(values);
     }
-    await db.insert(employees).values(values);
-  }
 
-  revalidatePath("/erp/hr/employees");
-  revalidatePath("/erp/hr"); // headcount + payroll cost on the module overview
-  revalidatePath("/admin/users");
-  return { ok: true };
+    revalidatePath("/erp/hr/employees");
+    revalidatePath("/erp/hr"); // headcount + payroll cost on the module overview
+    revalidatePath("/admin/users");
+    return { ok: true };
+  });
 }
 
 export async function toggleEmployeeActiveAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("hr.create");
   if ("error" in auth) return auth;
 
-  const [emp] = await db.select({ isActive: employees.isActive })
-    .from(employees)
-    .where(and(eq(employees.id, id), eq(employees.organizationId, auth.orgId)))
-    .limit(1);
-  if (!emp) return { error: "الموظف غير موجود" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [emp] = await db.select({ isActive: employees.isActive })
+      .from(employees)
+      .where(and(eq(employees.id, id), eq(employees.organizationId, auth.orgId)))
+      .limit(1);
+    if (!emp) return { error: "الموظف غير موجود" };
 
-  await db.update(employees).set({ isActive: !emp.isActive, updatedAt: new Date() })
-    .where(eq(employees.id, id));
+    await db.update(employees).set({ isActive: !emp.isActive, updatedAt: new Date() })
+      .where(eq(employees.id, id));
 
-  revalidatePath("/erp/hr/employees");
-  revalidatePath("/erp/hr"); // activating/deactivating changes the active headcount
-  return { ok: true };
+    revalidatePath("/erp/hr/employees");
+    revalidatePath("/erp/hr"); // activating/deactivating changes the active headcount
+    return { ok: true };
+  });
 }
 
 // ── Payroll Run actions ───────────────────────────────────────
@@ -140,219 +145,225 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
   const auth = await authorizeErp("hr.create");
   if ("error" in auth) return auth;
 
-  const periodStart = new Date(input.periodStart);
-  const periodEnd   = new Date(input.periodEnd);
-  if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
-    return { error: "تاريخ الفترة غير صحيح" };
-  }
+  return withOrgScope(auth.orgId, false, async () => {
+    const periodStart = new Date(input.periodStart);
+    const periodEnd   = new Date(input.periodEnd);
+    if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
+      return { error: "تاريخ الفترة غير صحيح" };
+    }
 
-  // Load active employees
-  const emps = await db
-    .select()
-    .from(employees)
-    .where(and(eq(employees.organizationId, auth.orgId), eq(employees.isActive, true)));
+    // Load active employees
+    const emps = await db
+      .select()
+      .from(employees)
+      .where(and(eq(employees.organizationId, auth.orgId), eq(employees.isActive, true)));
 
-  if (emps.length === 0) return { error: "لا يوجد موظفون نشطون — أضف موظفًا أولاً" };
+    if (emps.length === 0) return { error: "لا يوجد موظفون نشطون — أضف موظفًا أولاً" };
 
-  // For HOURLY employees: sum totalSeconds from attendance in the period
-  const attendanceMap = new Map<string, number>(); // userId → total seconds
-  const hourlyIds = emps.filter((e) => e.payType === "HOURLY").map((e) => e.userId).filter((id): id is string => !!id);
-  if (hourlyIds.length > 0) {
-    const { attendance } = await import("@/db/schema");
-    const rows = await db
-      .select({ userId: attendance.userId, totalSeconds: attendance.totalSeconds })
-      .from(attendance)
-      .where(
-        and(
-          gte(attendance.clockIn, periodStart),
-          lte(attendance.clockIn, periodEnd),
-        ),
-      );
-    for (const r of rows) {
-      if (r.userId && hourlyIds.includes(r.userId)) {
-        attendanceMap.set(r.userId, (attendanceMap.get(r.userId) ?? 0) + r.totalSeconds);
+    // For HOURLY employees: sum totalSeconds from attendance in the period
+    const attendanceMap = new Map<string, number>(); // userId → total seconds
+    const hourlyIds = emps.filter((e) => e.payType === "HOURLY").map((e) => e.userId).filter((id): id is string => !!id);
+    if (hourlyIds.length > 0) {
+      const { attendance } = await import("@/db/schema");
+      const rows = await db
+        .select({ userId: attendance.userId, totalSeconds: attendance.totalSeconds })
+        .from(attendance)
+        .where(
+          and(
+            gte(attendance.clockIn, periodStart),
+            lte(attendance.clockIn, periodEnd),
+          ),
+        );
+      for (const r of rows) {
+        if (r.userId && hourlyIds.includes(r.userId)) {
+          attendanceMap.set(r.userId, (attendanceMap.get(r.userId) ?? 0) + r.totalSeconds);
+        }
       }
     }
-  }
 
-  // Compute per-employee figures
-  const lines = emps.map((emp) => {
-    let basic = n(emp.basicSalary);
-    let hoursWorked: number | null = null;
+    // Compute per-employee figures
+    const lines = emps.map((emp) => {
+      let basic = n(emp.basicSalary);
+      let hoursWorked: number | null = null;
 
-    if (emp.payType === "HOURLY") {
-      const seconds = (emp.userId ? attendanceMap.get(emp.userId) : 0) ?? 0;
-      hoursWorked = seconds / 3600;
-      basic = hoursWorked * n(emp.basicSalary); // basicSalary = hourly rate
-    }
+      if (emp.payType === "HOURLY") {
+        const seconds = (emp.userId ? attendanceMap.get(emp.userId) : 0) ?? 0;
+        hoursWorked = seconds / 3600;
+        basic = hoursWorked * n(emp.basicSalary); // basicSalary = hourly rate
+      }
 
-    const allowances  = n(emp.allowances);
-    const grossPay    = basic + allowances;
-    const deductions  = n(emp.deductions);
-    const taxAmount   = Math.round(grossPay * (n(emp.taxRate) / 100) * 100) / 100;
-    const netPay      = Math.max(0, grossPay - deductions - taxAmount);
+      const allowances  = n(emp.allowances);
+      const grossPay    = basic + allowances;
+      const deductions  = n(emp.deductions);
+      const taxAmount   = Math.round(grossPay * (n(emp.taxRate) / 100) * 100) / 100;
+      const netPay      = Math.max(0, grossPay - deductions - taxAmount);
 
-    return {
-      organizationId: auth.orgId,
-      employeeId: emp.id,
-      userId: emp.userId,
-      basicSalary: String(basic),
-      allowances: String(allowances),
-      grossPay: String(grossPay),
-      deductions: String(deductions),
-      taxAmount: String(taxAmount),
-      netPay: String(netPay),
-      hoursWorked: hoursWorked != null ? String(hoursWorked) : null,
-    };
-  });
-
-  const totalGross      = lines.reduce((s, l) => s + n(l.grossPay), 0);
-  const totalAllowances = lines.reduce((s, l) => s + n(l.allowances), 0);
-  const totalDeductions = lines.reduce((s, l) => s + n(l.deductions) + n(l.taxAmount), 0);
-  const totalNet        = lines.reduce((s, l) => s + n(l.netPay), 0);
-
-  const runId = await db.transaction(async (tx) => {
-    const number = await nextDocumentNumber(tx, auth.orgId, "PR", periodStart.getFullYear());
-    const [run] = await tx
-      .insert(payrollRuns)
-      .values({
+      return {
         organizationId: auth.orgId,
-        number,
-        periodStart,
-        periodEnd,
-        paymentDate: input.paymentDate ? new Date(input.paymentDate) : null,
-        status: "DRAFT",
-        totalGross:      String(totalGross),
-        totalAllowances: String(totalAllowances),
-        totalDeductions: String(totalDeductions),
-        totalNet:        String(totalNet),
-        notes: input.notes?.trim() || null,
-        createdById: auth.userId,
-      })
-      .returning({ id: payrollRuns.id });
+        employeeId: emp.id,
+        userId: emp.userId,
+        basicSalary: String(basic),
+        allowances: String(allowances),
+        grossPay: String(grossPay),
+        deductions: String(deductions),
+        taxAmount: String(taxAmount),
+        netPay: String(netPay),
+        hoursWorked: hoursWorked != null ? String(hoursWorked) : null,
+      };
+    });
 
-    await tx.insert(payrollLines).values(
-      lines.map((l) => ({ ...l, payrollRunId: run.id })),
-    );
-    return run.id;
+    const totalGross      = lines.reduce((s, l) => s + n(l.grossPay), 0);
+    const totalAllowances = lines.reduce((s, l) => s + n(l.allowances), 0);
+    const totalDeductions = lines.reduce((s, l) => s + n(l.deductions) + n(l.taxAmount), 0);
+    const totalNet        = lines.reduce((s, l) => s + n(l.netPay), 0);
+
+    const runId = await db.transaction(async (tx) => {
+      const number = await nextDocumentNumber(tx, auth.orgId, "PR", periodStart.getFullYear());
+      const [run] = await tx
+        .insert(payrollRuns)
+        .values({
+          organizationId: auth.orgId,
+          number,
+          periodStart,
+          periodEnd,
+          paymentDate: input.paymentDate ? new Date(input.paymentDate) : null,
+          status: "DRAFT",
+          totalGross:      String(totalGross),
+          totalAllowances: String(totalAllowances),
+          totalDeductions: String(totalDeductions),
+          totalNet:        String(totalNet),
+          notes: input.notes?.trim() || null,
+          createdById: auth.userId,
+        })
+        .returning({ id: payrollRuns.id });
+
+      await tx.insert(payrollLines).values(
+        lines.map((l) => ({ ...l, payrollRunId: run.id })),
+      );
+      return run.id;
+    });
+
+    revalidatePath("/erp/hr/payroll");
+    return { ok: true, id: runId };
   });
-
-  revalidatePath("/erp/hr/payroll");
-  return { ok: true, id: runId };
 }
 
 export async function confirmPayrollRunAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("hr.post");
   if ("error" in auth) return auth;
 
-  const [run] = await db
-    .select()
-    .from(payrollRuns)
-    .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, auth.orgId)))
-    .limit(1);
+  return withOrgScope(auth.orgId, false, async () => {
+    const [run] = await db
+      .select()
+      .from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, auth.orgId)))
+      .limit(1);
 
-  if (!run) return { error: "مسير الرواتب غير موجود" };
-  if (run.status !== "DRAFT") return { error: "لا يمكن ترحيل مسير غير مسودة" };
+    if (!run) return { error: "مسير الرواتب غير موجود" };
+    if (run.status !== "DRAFT") return { error: "لا يمكن ترحيل مسير غير مسودة" };
 
-  const totalGross = n(run.totalGross);
-  if (totalGross === 0) return { error: "مسير الرواتب فارغ (إجمالي المرتبات = صفر)" };
+    const totalGross = n(run.totalGross);
+    if (totalGross === 0) return { error: "مسير الرواتب فارغ (إجمالي المرتبات = صفر)" };
 
-  const now = new Date();
+    const now = new Date();
 
-  await db.transaction(async (tx) => {
-    // Auto-create standard payroll GL accounts if they don't exist
-    const salaryExpId = await ensureAccount(tx, auth.orgId, "5401", "مرتبات وأجور",       "EXPENSE",   "DEBIT");
-    const benefitsId  = await ensureAccount(tx, auth.orgId, "5402", "بدلات ومزايا",        "EXPENSE",   "DEBIT");
-    const payableId   = await ensureAccount(tx, auth.orgId, "2201", "مرتبات مستحقة الدفع", "LIABILITY", "CREDIT");
-    const deductId    = await ensureAccount(tx, auth.orgId, "2202", "استقطاعات مستحقة",    "LIABILITY", "CREDIT");
+    await db.transaction(async (tx) => {
+      // Auto-create standard payroll GL accounts if they don't exist
+      const salaryExpId = await ensureAccount(tx, auth.orgId, "5401", "مرتبات وأجور",       "EXPENSE",   "DEBIT");
+      const benefitsId  = await ensureAccount(tx, auth.orgId, "5402", "بدلات ومزايا",        "EXPENSE",   "DEBIT");
+      const payableId   = await ensureAccount(tx, auth.orgId, "2201", "مرتبات مستحقة الدفع", "LIABILITY", "CREDIT");
+      const deductId    = await ensureAccount(tx, auth.orgId, "2202", "استقطاعات مستحقة",    "LIABILITY", "CREDIT");
 
-    const totalBasic     = n(run.totalGross) - n(run.totalAllowances);
-    const totalAllowance = n(run.totalAllowances);
-    const totalNet       = n(run.totalNet);
-    const totalDed       = n(run.totalDeductions);
+      const totalBasic     = n(run.totalGross) - n(run.totalAllowances);
+      const totalAllowance = n(run.totalAllowances);
+      const totalNet       = n(run.totalNet);
+      const totalDed       = n(run.totalDeductions);
 
-    const postLines = [
-      { accountId: salaryExpId, debit: totalBasic,     credit: 0,            description: "أجور أساسية" },
-      ...(totalAllowance > 0 ? [{ accountId: benefitsId, debit: totalAllowance, credit: 0, description: "بدلات ومزايا" }] : []),
-      { accountId: payableId,   debit: 0,               credit: totalNet,     description: "صافي مستحق للموظفين" },
-      ...(totalDed > 0 ? [{ accountId: deductId, debit: 0, credit: totalDed, description: "استقطاعات ضريبية وتأمينات" }] : []),
-    ];
+      const postLines = [
+        { accountId: salaryExpId, debit: totalBasic,     credit: 0,            description: "أجور أساسية" },
+        ...(totalAllowance > 0 ? [{ accountId: benefitsId, debit: totalAllowance, credit: 0, description: "بدلات ومزايا" }] : []),
+        { accountId: payableId,   debit: 0,               credit: totalNet,     description: "صافي مستحق للموظفين" },
+        ...(totalDed > 0 ? [{ accountId: deductId, debit: 0, credit: totalDed, description: "استقطاعات ضريبية وتأمينات" }] : []),
+      ];
 
-    const period = `${run.periodStart.toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}`;
-    const jeId = await postEntry(tx, {
-      orgId: auth.orgId,
-      date: run.paymentDate ?? now,
-      sourceType: "PAYROLL_RUN",
-      sourceId: run.id,
-      description: `مسير الرواتب — ${period}`,
-      journalType: "GENERAL",
-      userId: auth.userId,
-      lines: postLines,
+      const period = `${run.periodStart.toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}`;
+      const jeId = await postEntry(tx, {
+        orgId: auth.orgId,
+        date: run.paymentDate ?? now,
+        sourceType: "PAYROLL_RUN",
+        sourceId: run.id,
+        description: `مسير الرواتب — ${period}`,
+        journalType: "GENERAL",
+        userId: auth.userId,
+        lines: postLines,
+      });
+
+      await tx
+        .update(payrollRuns)
+        .set({ status: "POSTED", journalEntryId: jeId, postedById: auth.userId, postedAt: now, updatedAt: now })
+        .where(eq(payrollRuns.id, run.id));
     });
 
-    await tx
-      .update(payrollRuns)
-      .set({ status: "POSTED", journalEntryId: jeId, postedById: auth.userId, postedAt: now, updatedAt: now })
-      .where(eq(payrollRuns.id, run.id));
+    revalidatePath("/erp/hr/payroll");
+    revalidatePath(`/erp/hr/payroll/${id}`);
+    return { ok: true };
   });
-
-  revalidatePath("/erp/hr/payroll");
-  revalidatePath(`/erp/hr/payroll/${id}`);
-  return { ok: true };
 }
 
 export async function reversePayrollRunAction(id: string, reason: string): Promise<ActionState> {
   const auth = await authorizeErp("hr.post");
   if ("error" in auth) return auth;
 
-  const [run] = await db
-    .select()
-    .from(payrollRuns)
-    .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, auth.orgId)))
-    .limit(1);
+  return withOrgScope(auth.orgId, false, async () => {
+    const [run] = await db
+      .select()
+      .from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, auth.orgId)))
+      .limit(1);
 
-  if (!run) return { error: "مسير الرواتب غير موجود" };
-  if (run.status !== "POSTED") return { error: "يمكن عكس المرسلة فقط" };
+    if (!run) return { error: "مسير الرواتب غير موجود" };
+    if (run.status !== "POSTED") return { error: "يمكن عكس المرسلة فقط" };
 
-  const now = new Date();
+    const now = new Date();
 
-  await db.transaction(async (tx) => {
-    // Reverse the GL entry
-    const salaryExpId = await ensureAccount(tx, auth.orgId, "5401", "مرتبات وأجور",       "EXPENSE",   "DEBIT");
-    const benefitsId  = await ensureAccount(tx, auth.orgId, "5402", "بدلات ومزايا",        "EXPENSE",   "DEBIT");
-    const payableId   = await ensureAccount(tx, auth.orgId, "2201", "مرتبات مستحقة الدفع", "LIABILITY", "CREDIT");
-    const deductId    = await ensureAccount(tx, auth.orgId, "2202", "استقطاعات مستحقة",    "LIABILITY", "CREDIT");
+    await db.transaction(async (tx) => {
+      // Reverse the GL entry
+      const salaryExpId = await ensureAccount(tx, auth.orgId, "5401", "مرتبات وأجور",       "EXPENSE",   "DEBIT");
+      const benefitsId  = await ensureAccount(tx, auth.orgId, "5402", "بدلات ومزايا",        "EXPENSE",   "DEBIT");
+      const payableId   = await ensureAccount(tx, auth.orgId, "2201", "مرتبات مستحقة الدفع", "LIABILITY", "CREDIT");
+      const deductId    = await ensureAccount(tx, auth.orgId, "2202", "استقطاعات مستحقة",    "LIABILITY", "CREDIT");
 
-    const totalBasic     = n(run.totalGross) - n(run.totalAllowances);
-    const totalAllowance = n(run.totalAllowances);
-    const totalNet       = n(run.totalNet);
-    const totalDed       = n(run.totalDeductions);
+      const totalBasic     = n(run.totalGross) - n(run.totalAllowances);
+      const totalAllowance = n(run.totalAllowances);
+      const totalNet       = n(run.totalNet);
+      const totalDed       = n(run.totalDeductions);
 
-    const reverseLines = [
-      { accountId: salaryExpId, debit: 0,               credit: totalBasic,     description: "عكس أجور أساسية" },
-      ...(totalAllowance > 0 ? [{ accountId: benefitsId, debit: 0, credit: totalAllowance, description: "عكس بدلات" }] : []),
-      { accountId: payableId,   debit: totalNet,         credit: 0,              description: "عكس مرتبات مستحقة" },
-      ...(totalDed > 0 ? [{ accountId: deductId, debit: totalDed, credit: 0, description: "عكس استقطاعات" }] : []),
-    ];
+      const reverseLines = [
+        { accountId: salaryExpId, debit: 0,               credit: totalBasic,     description: "عكس أجور أساسية" },
+        ...(totalAllowance > 0 ? [{ accountId: benefitsId, debit: 0, credit: totalAllowance, description: "عكس بدلات" }] : []),
+        { accountId: payableId,   debit: totalNet,         credit: 0,              description: "عكس مرتبات مستحقة" },
+        ...(totalDed > 0 ? [{ accountId: deductId, debit: totalDed, credit: 0, description: "عكس استقطاعات" }] : []),
+      ];
 
-    await postEntry(tx, {
-      orgId: auth.orgId,
-      date: now,
-      sourceType: "PAYROLL_REVERSAL",
-      sourceId: run.id,
-      description: `عكس مسير الرواتب ${run.number} — ${reason}`,
-      journalType: "GENERAL",
-      userId: auth.userId,
-      lines: reverseLines,
+      await postEntry(tx, {
+        orgId: auth.orgId,
+        date: now,
+        sourceType: "PAYROLL_REVERSAL",
+        sourceId: run.id,
+        description: `عكس مسير الرواتب ${run.number} — ${reason}`,
+        journalType: "GENERAL",
+        userId: auth.userId,
+        lines: reverseLines,
+      });
+
+      await tx
+        .update(payrollRuns)
+        .set({ status: "REVERSED", updatedAt: now })
+        .where(eq(payrollRuns.id, run.id));
     });
 
-    await tx
-      .update(payrollRuns)
-      .set({ status: "REVERSED", updatedAt: now })
-      .where(eq(payrollRuns.id, run.id));
+    revalidatePath("/erp/hr/payroll");
+    revalidatePath(`/erp/hr/payroll/${id}`);
+    return { ok: true };
   });
-
-  revalidatePath("/erp/hr/payroll");
-  revalidatePath(`/erp/hr/payroll/${id}`);
-  return { ok: true };
 }

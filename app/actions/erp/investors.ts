@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -23,48 +24,52 @@ export async function saveInvestorAction(_prev: ActionState, formData: FormData)
   const auth = await authorizeErp(id ? "investors.edit" : "investors.create");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse({
-    code: formData.get("code"),
-    fullName: formData.get("fullName"),
-    phone: formData.get("phone") || undefined,
-    email: formData.get("email") || "",
-    nationalId: formData.get("nationalId") || undefined,
-    status: formData.get("status") || "active",
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse({
+      code: formData.get("code"),
+      fullName: formData.get("fullName"),
+      phone: formData.get("phone") || undefined,
+      email: formData.get("email") || "",
+      nationalId: formData.get("nationalId") || undefined,
+      status: formData.get("status") || "active",
+    });
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const data = {
-    code: parsed.data.code,
-    fullName: parsed.data.fullName,
-    phone: parsed.data.phone || null,
-    email: parsed.data.email || null,
-    nationalId: parsed.data.nationalId || null,
-    status: parsed.data.status,
-  };
+    const data = {
+      code: parsed.data.code,
+      fullName: parsed.data.fullName,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || null,
+      nationalId: parsed.data.nationalId || null,
+      status: parsed.data.status,
+    };
 
-  try {
-    if (id) {
-      await db.update(investors).set(data).where(and(eq(investors.id, id), eq(investors.organizationId, auth.orgId)));
-    } else {
-      await db.insert(investors).values({ ...data, organizationId: auth.orgId });
+    try {
+      if (id) {
+        await db.update(investors).set(data).where(and(eq(investors.id, id), eq(investors.organizationId, auth.orgId)));
+      } else {
+        await db.insert(investors).values({ ...data, organizationId: auth.orgId });
+      }
+    } catch (e) {
+      return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-  } catch (e) {
-    return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
-  }
-  revalidatePath("/erp/investors");
-  return { ok: true };
+    revalidatePath("/erp/investors");
+    return { ok: true };
+  });
 }
 
 export async function deleteInvestorAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("investors.delete");
   if ("error" in auth) return auth;
-  try {
-    await db.delete(investors).where(and(eq(investors.id, id), eq(investors.organizationId, auth.orgId)));
-  } catch {
-    return { error: "تعذّر الحذف — قد يكون المستثمر مرتبطاً بحركات" };
-  }
-  revalidatePath("/erp/investors");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    try {
+      await db.delete(investors).where(and(eq(investors.id, id), eq(investors.organizationId, auth.orgId)));
+    } catch {
+      return { error: "تعذّر الحذف — قد يكون المستثمر مرتبطاً بحركات" };
+    }
+    revalidatePath("/erp/investors");
+    return { ok: true };
+  });
 }
 
 export async function bulkDeleteInvestorsAction(ids: string[]): Promise<BulkResult> {

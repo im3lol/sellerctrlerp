@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -10,18 +11,22 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 export async function disconnectMarketplaceAction(provider: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  await db.delete(platformCredentials)
-    .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
-  revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    await db.delete(platformCredentials)
+      .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
+    revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
+    return { ok: true };
+  });
 }
 
 /** Turn scheduled auto-sync on/off for a provider. */
 export async function setAutoSyncAction(provider: string, enabled: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  await db.update(platformCredentials).set({ autoSync: enabled, updatedAt: new Date() })
-    .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
-  revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    await db.update(platformCredentials).set({ autoSync: enabled, updatedAt: new Date() })
+      .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
+    revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
+    return { ok: true };
+  });
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { documentAttachments } from "@/db/schema";
@@ -35,23 +36,25 @@ export async function getAttachmentsAction(entityType: string, entityId: string)
   const auth = await authorizeErp(permsFor(entityType).view);
   if ("error" in auth) return auth;
 
-  return db
-    .select({
-      id: documentAttachments.id,
-      fileName: documentAttachments.fileName,
-      fileSize: documentAttachments.fileSize,
-      mimeType: documentAttachments.mimeType,
-      createdAt: documentAttachments.createdAt,
-    })
-    .from(documentAttachments)
-    .where(
-      and(
-        eq(documentAttachments.organizationId, auth.orgId),
-        eq(documentAttachments.entityType, entityType),
-        eq(documentAttachments.entityId, entityId),
-      ),
-    )
-    .orderBy(asc(documentAttachments.createdAt));
+  return withOrgScope(auth.orgId, false, async () => {
+    return db
+      .select({
+        id: documentAttachments.id,
+        fileName: documentAttachments.fileName,
+        fileSize: documentAttachments.fileSize,
+        mimeType: documentAttachments.mimeType,
+        createdAt: documentAttachments.createdAt,
+      })
+      .from(documentAttachments)
+      .where(
+        and(
+          eq(documentAttachments.organizationId, auth.orgId),
+          eq(documentAttachments.entityType, entityType),
+          eq(documentAttachments.entityId, entityId),
+        ),
+      )
+      .orderBy(asc(documentAttachments.createdAt));
+  });
 }
 
 export async function addAttachmentAction(
@@ -65,27 +68,29 @@ export async function addAttachmentAction(
   if ("error" in auth) return auth;
 
   // Rough byte size: base64 is ~4/3 ratio
-  const fileSize = Math.round((base64Content.length * 3) / 4);
-  if (fileSize > MAX_FILE_SIZE) return { error: "حجم الملف أكبر من 10 ميجابايت" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const fileSize = Math.round((base64Content.length * 3) / 4);
+    if (fileSize > MAX_FILE_SIZE) return { error: "حجم الملف أكبر من 10 ميجابايت" };
 
-  const storageError = await storageLimitError(auth.orgId, fileSize);
-  if (storageError) return { error: storageError };
+    const storageError = await storageLimitError(auth.orgId, fileSize);
+    if (storageError) return { error: storageError };
 
-  const [row] = await db
-    .insert(documentAttachments)
-    .values({
-      organizationId: auth.orgId,
-      entityType,
-      entityId,
-      fileName,
-      fileSize,
-      mimeType,
-      content: base64Content,
-      uploadedBy: auth.userId,
-    })
-    .returning({ id: documentAttachments.id });
+    const [row] = await db
+      .insert(documentAttachments)
+      .values({
+        organizationId: auth.orgId,
+        entityType,
+        entityId,
+        fileName,
+        fileSize,
+        mimeType,
+        content: base64Content,
+        uploadedBy: auth.userId,
+      })
+      .returning({ id: documentAttachments.id });
 
-  return { ok: true, id: row.id };
+    return { ok: true, id: row.id };
+  });
 }
 
 // Resolve the active org for the caller (membership only) to locate a row by id
@@ -110,8 +115,10 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<{ ok
   const auth = await authorizeErp(permsFor(row.entityType).write);
   if ("error" in auth) return auth;
 
-  await db.delete(documentAttachments).where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, auth.orgId)));
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    await db.delete(documentAttachments).where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, auth.orgId)));
+    return { ok: true };
+  });
 }
 
 export async function getAttachmentContentAction(attachmentId: string): Promise<{ content: string; mimeType: string; fileName: string } | { error: string }> {
@@ -133,5 +140,7 @@ export async function getAttachmentContentAction(attachmentId: string): Promise<
   const auth = await authorizeErp(permsFor(row.entityType).view);
   if ("error" in auth) return auth;
 
-  return { content: row.content, mimeType: row.mimeType, fileName: row.fileName };
+  return withOrgScope(auth.orgId, false, async () => {
+    return { content: row.content, mimeType: row.mimeType, fileName: row.fileName };
+  });
 }

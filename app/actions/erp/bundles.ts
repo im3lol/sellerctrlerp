@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -26,34 +27,38 @@ const bomSchema = z.object({
 export async function setBundleComponentsAction(input: unknown): Promise<ActionState> {
   const auth = await authorizeErp("inventory.create");
   if ("error" in auth) return auth;
-  const parsed = bomSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { parentItemId, components } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = bomSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { parentItemId, components } = parsed.data;
 
-  if (components.some((c) => c.componentItemId === parentItemId)) return { error: "لا يمكن أن تحتوي الحزمة على نفسها كمكوّن" };
-  const ids = [parentItemId, ...components.map((c) => c.componentItemId)];
-  const found = await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, auth.orgId), inArray(items.id, ids)));
-  if (found.length !== new Set(ids).size) return { error: "صنف غير موجود في هذه المؤسسة" };
-  // Dedupe components (keep last).
-  const byComp = new Map(components.map((c) => [c.componentItemId, c.quantity]));
+    if (components.some((c) => c.componentItemId === parentItemId)) return { error: "لا يمكن أن تحتوي الحزمة على نفسها كمكوّن" };
+    const ids = [parentItemId, ...components.map((c) => c.componentItemId)];
+    const found = await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, auth.orgId), inArray(items.id, ids)));
+    if (found.length !== new Set(ids).size) return { error: "صنف غير موجود في هذه المؤسسة" };
+    // Dedupe components (keep last).
+    const byComp = new Map(components.map((c) => [c.componentItemId, c.quantity]));
 
-  await db.transaction(async (tx) => {
-    await tx.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
-    await tx.insert(itemComponents).values([...byComp].map(([componentItemId, quantity]) => ({
-      organizationId: auth.orgId, parentItemId, componentItemId, quantity: String(quantity),
-    })));
+    await db.transaction(async (tx) => {
+      await tx.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
+      await tx.insert(itemComponents).values([...byComp].map(([componentItemId, quantity]) => ({
+        organizationId: auth.orgId, parentItemId, componentItemId, quantity: String(quantity),
+      })));
+    });
+    revalidatePath("/erp/inventory/bundles");
+    return { ok: true };
   });
-  revalidatePath("/erp/inventory/bundles");
-  return { ok: true };
 }
 
 /** Remove a kit's BOM entirely (it stops being a bundle). */
 export async function deleteBundleAction(parentItemId: string): Promise<ActionState> {
   const auth = await authorizeErp("inventory.delete");
   if ("error" in auth) return auth;
-  await db.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
-  revalidatePath("/erp/inventory/bundles");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    await db.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
+    revalidatePath("/erp/inventory/bundles");
+    return { ok: true };
+  });
 }
 
 export async function bulkDeleteBundlesAction(ids: string[]): Promise<BulkResult> {
@@ -76,51 +81,53 @@ const assembleSchema = z.object({
 export async function assembleAction(input: unknown): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("inventory.confirm");
   if ("error" in auth) return auth;
-  const parsed = assembleSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { kitItemId, warehouseId, quantity, date, notes } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = assembleSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { kitItemId, warehouseId, quantity, date, notes } = parsed.data;
 
-  const comps = await db.select({ componentItemId: itemComponents.componentItemId, quantity: itemComponents.quantity })
-    .from(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, kitItemId)));
-  if (comps.length === 0) return { error: "لا توجد مكوّنات معرّفة لهذه الحزمة" };
-  const [wh] = await db.select({ id: warehouses.id }).from(warehouses).where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
-  if (!wh) return { error: "المستودع غير موجود" };
+    const comps = await db.select({ componentItemId: itemComponents.componentItemId, quantity: itemComponents.quantity })
+      .from(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, kitItemId)));
+    if (comps.length === 0) return { error: "لا توجد مكوّنات معرّفة لهذه الحزمة" };
+    const [wh] = await db.select({ id: warehouses.id }).from(warehouses).where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
+    if (!wh) return { error: "المستودع غير موجود" };
 
-  const d = new Date(date);
-  try {
-    const id = await db.transaction(async (tx) => {
-      const number = await nextDocumentNumber(tx, auth.orgId, "ASM", d.getFullYear());
-      const [asm] = await tx.insert(stockAssemblies).values({
-        organizationId: auth.orgId, number, kitItemId, warehouseId, quantity: String(quantity),
-        status: "POSTED", date: d, notes: notes || null, totalCost: "0",
-      }).returning({ id: stockAssemblies.id });
+    const d = new Date(date);
+    try {
+      const id = await db.transaction(async (tx) => {
+        const number = await nextDocumentNumber(tx, auth.orgId, "ASM", d.getFullYear());
+        const [asm] = await tx.insert(stockAssemblies).values({
+          organizationId: auth.orgId, number, kitItemId, warehouseId, quantity: String(quantity),
+          status: "POSTED", date: d, notes: notes || null, totalCost: "0",
+        }).returning({ id: stockAssemblies.id });
 
-      // Consume components (throws if any is short — allowNegative defaults false).
-      let totalCost = 0;
-      for (const c of comps) {
-        const outQty = round4(Number(c.quantity) * quantity);
-        const out = await postStockMovement(tx, {
-          orgId: auth.orgId, itemId: c.componentItemId, warehouseId, type: "OUT",
-          quantity: outQty, date: d, referenceType: "ASSEMBLY", referenceId: asm.id, reason: `تجميع ${number}`,
+        // Consume components (throws if any is short — allowNegative defaults false).
+        let totalCost = 0;
+        for (const c of comps) {
+          const outQty = round4(Number(c.quantity) * quantity);
+          const out = await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: c.componentItemId, warehouseId, type: "OUT",
+            quantity: outQty, date: d, referenceType: "ASSEMBLY", referenceId: asm.id, reason: `تجميع ${number}`,
+          });
+          totalCost = round2(totalCost + out.totalCost);
+        }
+        // Produce the kit at the summed component cost (value-neutral).
+        await postStockMovement(tx, {
+          orgId: auth.orgId, itemId: kitItemId, warehouseId, type: "IN",
+          quantity, unitCost: round4(totalCost / quantity), date: d,
+          referenceType: "ASSEMBLY", referenceId: asm.id, reason: `تجميع ${number}`,
         });
-        totalCost = round2(totalCost + out.totalCost);
-      }
-      // Produce the kit at the summed component cost (value-neutral).
-      await postStockMovement(tx, {
-        orgId: auth.orgId, itemId: kitItemId, warehouseId, type: "IN",
-        quantity, unitCost: round4(totalCost / quantity), date: d,
-        referenceType: "ASSEMBLY", referenceId: asm.id, reason: `تجميع ${number}`,
-      });
 
-      await tx.update(stockAssemblies).set({ totalCost: String(totalCost) }).where(eq(stockAssemblies.id, asm.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "ASSEMBLY", entityId: asm.id, entityNumber: number, summary: `تجميع ${number} — ${quantity} وحدة`, metadata: { totalCost } });
-      return asm.id;
-    });
-    revalidatePath("/erp/inventory/bundles");
-    revalidatePath("/erp/inventory/stock");
-    return { ok: true, id };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "تعذّر التجميع";
-    return { error: msg.includes("رصيد") || msg.includes("سالب") || msg.includes("negative") ? "لا يوجد رصيد كافٍ من أحد المكوّنات" : msg };
-  }
+        await tx.update(stockAssemblies).set({ totalCost: String(totalCost) }).where(eq(stockAssemblies.id, asm.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "ASSEMBLY", entityId: asm.id, entityNumber: number, summary: `تجميع ${number} — ${quantity} وحدة`, metadata: { totalCost } });
+        return asm.id;
+      });
+      revalidatePath("/erp/inventory/bundles");
+      revalidatePath("/erp/inventory/stock");
+      return { ok: true, id };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر التجميع";
+      return { error: msg.includes("رصيد") || msg.includes("سالب") || msg.includes("negative") ? "لا يوجد رصيد كافٍ من أحد المكوّنات" : msg };
+    }
+  });
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -28,42 +29,44 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
   const auth = await authorizeErp("settings.edit");
   if ("error" in auth) return auth;
 
-  const parsed = profileSchema.safeParse({
-    nameAr: formData.get("nameAr"),
-    nameEn: formData.get("nameEn") || undefined,
-    legalName: formData.get("legalName") || undefined,
-    taxNumber: formData.get("taxNumber") || undefined,
-    address: formData.get("address") || undefined,
-    phone: formData.get("phone") || undefined,
-    email: formData.get("email") || "",
-    logo: formData.get("logo") || undefined,
-    vatRate: formData.get("vatRate"),
-    poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
-    fiscalYearStart: formData.get("fiscalYearStart") || undefined,
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const d = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = profileSchema.safeParse({
+      nameAr: formData.get("nameAr"),
+      nameEn: formData.get("nameEn") || undefined,
+      legalName: formData.get("legalName") || undefined,
+      taxNumber: formData.get("taxNumber") || undefined,
+      address: formData.get("address") || undefined,
+      phone: formData.get("phone") || undefined,
+      email: formData.get("email") || "",
+      logo: formData.get("logo") || undefined,
+      vatRate: formData.get("vatRate"),
+      poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
+      fiscalYearStart: formData.get("fiscalYearStart") || undefined,
+    });
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const d = parsed.data;
 
-  try {
-    await db.update(organizations).set({
-      nameAr: d.nameAr,
-      nameEn: d.nameEn || "My Company",
-      legalName: d.legalName || null,
-      taxNumber: d.taxNumber || null,
-      address: d.address || null,
-      phone: d.phone || null,
-      email: d.email || null,
-      logo: d.logo || null,
-      vatRate: String(d.vatRate),
-      poApprovalThreshold: String(d.poApprovalThreshold),
-      fiscalYearStart: d.fiscalYearStart || null,
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, auth.orgId));
-  } catch {
-    return { error: "تعذّر حفظ بيانات المنشأة" };
-  }
-  revalidatePath("/erp/settings");
-  return { ok: true };
+    try {
+      await db.update(organizations).set({
+        nameAr: d.nameAr,
+        nameEn: d.nameEn || "My Company",
+        legalName: d.legalName || null,
+        taxNumber: d.taxNumber || null,
+        address: d.address || null,
+        phone: d.phone || null,
+        email: d.email || null,
+        logo: d.logo || null,
+        vatRate: String(d.vatRate),
+        poApprovalThreshold: String(d.poApprovalThreshold),
+        fiscalYearStart: d.fiscalYearStart || null,
+        updatedAt: new Date(),
+      }).where(eq(organizations.id, auth.orgId));
+    } catch {
+      return { error: "تعذّر حفظ بيانات المنشأة" };
+    }
+    revalidatePath("/erp/settings");
+    return { ok: true };
+  });
 }
 
 /**
@@ -107,26 +110,28 @@ export async function saveAccountingConfigAction(_prev: ActionState, formData: F
   const auth = await authorizeErp("settings.edit");
   if ("error" in auth) return auth;
 
-  const values = Object.fromEntries(
-    CONFIG_FIELDS.map((f) => [f, (formData.get(f) as string) || null]),
-  ) as Record<(typeof CONFIG_FIELDS)[number], string | null>;
+  return withOrgScope(auth.orgId, false, async () => {
+    const values = Object.fromEntries(
+      CONFIG_FIELDS.map((f) => [f, (formData.get(f) as string) || null]),
+    ) as Record<(typeof CONFIG_FIELDS)[number], string | null>;
 
-  try {
-    const [existing] = await db
-      .select({ id: accountingConfigurations.id })
-      .from(accountingConfigurations)
-      .where(eq(accountingConfigurations.organizationId, auth.orgId))
-      .limit(1);
-    if (existing) {
-      await db.update(accountingConfigurations)
-        .set({ ...values, updatedAt: new Date() })
-        .where(and(eq(accountingConfigurations.id, existing.id), eq(accountingConfigurations.organizationId, auth.orgId)));
-    } else {
-      await db.insert(accountingConfigurations).values({ organizationId: auth.orgId, ...values });
+    try {
+      const [existing] = await db
+        .select({ id: accountingConfigurations.id })
+        .from(accountingConfigurations)
+        .where(eq(accountingConfigurations.organizationId, auth.orgId))
+        .limit(1);
+      if (existing) {
+        await db.update(accountingConfigurations)
+          .set({ ...values, updatedAt: new Date() })
+          .where(and(eq(accountingConfigurations.id, existing.id), eq(accountingConfigurations.organizationId, auth.orgId)));
+      } else {
+        await db.insert(accountingConfigurations).values({ organizationId: auth.orgId, ...values });
+      }
+    } catch {
+      return { error: "تعذّر حفظ الضبط المحاسبي" };
     }
-  } catch {
-    return { error: "تعذّر حفظ الضبط المحاسبي" };
-  }
-  revalidatePath("/erp/settings");
-  return { ok: true };
+    revalidatePath("/erp/settings");
+    return { ok: true };
+  });
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -32,63 +33,69 @@ const STATUSES = ["SENT", "ACCEPTED", "REJECTED"];
 export async function createQuotationAction(input: unknown): Promise<SaveState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const d = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const d = parsed.data;
 
-  const [cust] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.id, d.customerId), eq(customers.organizationId, auth.orgId))).limit(1);
-  if (!cust) return { error: "العميل غير موجود" };
-  const valid = new Set((await db.select({ id: items.id }).from(items).where(eq(items.organizationId, auth.orgId))).map((r) => r.id));
-  if (d.lines.some((l) => !valid.has(l.itemId))) return { error: "صنف غير موجود" };
+    const [cust] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.id, d.customerId), eq(customers.organizationId, auth.orgId))).limit(1);
+    if (!cust) return { error: "العميل غير موجود" };
+    const valid = new Set((await db.select({ id: items.id }).from(items).where(eq(items.organizationId, auth.orgId))).map((r) => r.id));
+    if (d.lines.some((l) => !valid.has(l.itemId))) return { error: "صنف غير موجود" };
 
-  const dt = new Date(d.date);
-  try {
-    const id = await db.transaction(async (tx) => {
-      const number = await nextDocumentNumber(tx, auth.orgId, "QT", dt.getFullYear());
-      const [qt] = await tx.insert(salesQuotations).values({
-        organizationId: auth.orgId, number, customerId: d.customerId, date: dt,
-        validUntil: d.validUntil ? new Date(d.validUntil) : null, status: "DRAFT", notes: d.notes || null,
-      }).returning({ id: salesQuotations.id });
-      await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({
-        quotationId: qt.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-        discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount),
-      })));
-      return qt.id;
-    });
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "QUOTATION", entityId: id, summary: "إنشاء عرض سعر (مسودة)" });
-    revalidatePath("/erp/sales/quotations");
-    return { ok: true, id };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
-  }
+    const dt = new Date(d.date);
+    try {
+      const id = await db.transaction(async (tx) => {
+        const number = await nextDocumentNumber(tx, auth.orgId, "QT", dt.getFullYear());
+        const [qt] = await tx.insert(salesQuotations).values({
+          organizationId: auth.orgId, number, customerId: d.customerId, date: dt,
+          validUntil: d.validUntil ? new Date(d.validUntil) : null, status: "DRAFT", notes: d.notes || null,
+        }).returning({ id: salesQuotations.id });
+        await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({
+          quotationId: qt.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount),
+        })));
+        return qt.id;
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "QUOTATION", entityId: id, summary: "إنشاء عرض سعر (مسودة)" });
+      revalidatePath("/erp/sales/quotations");
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
+    }
+  });
 }
 
 /** Update a quotation's status (SENT / ACCEPTED / REJECTED). */
 export async function setQuotationStatusAction(id: string, status: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
-  if (!STATUSES.includes(status)) return { error: "حالة غير صحيحة" };
-  const [qt] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
-    .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
-  if (!qt) return { error: "العرض غير موجود" };
-  await db.update(salesQuotations).set({ status, updatedAt: new Date() })
-    .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
-  revalidatePath("/erp/sales/quotations");
-  revalidatePath(`/erp/sales/quotations/${id}`);
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    if (!STATUSES.includes(status)) return { error: "حالة غير صحيحة" };
+    const [qt] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
+      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
+    if (!qt) return { error: "العرض غير موجود" };
+    await db.update(salesQuotations).set({ status, updatedAt: new Date() })
+      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
+    revalidatePath("/erp/sales/quotations");
+    revalidatePath(`/erp/sales/quotations/${id}`);
+    return { ok: true };
+  });
 }
 
 /** Delete a quotation (not once accepted). */
 export async function deleteQuotationAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
-  const [qt] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
-    .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
-  if (!qt) return { error: "العرض غير موجود" };
-  if (qt.status === "ACCEPTED") return { error: "لا يمكن حذف عرض مقبول" };
-  await db.delete(salesQuotations).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
-  revalidatePath("/erp/sales/quotations");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [qt] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
+      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
+    if (!qt) return { error: "العرض غير موجود" };
+    if (qt.status === "ACCEPTED") return { error: "لا يمكن حذف عرض مقبول" };
+    await db.delete(salesQuotations).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
+    revalidatePath("/erp/sales/quotations");
+    return { ok: true };
+  });
 }
 
 /** Bulk accept/reject (status) or delete quotations; accepted rows resist delete. */

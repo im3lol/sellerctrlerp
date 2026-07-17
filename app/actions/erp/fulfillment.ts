@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -15,15 +16,17 @@ import { fulfillOrder } from "@/lib/erp/fulfillment";
 export async function fulfillOrderAction(orderId: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
-  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
-    .where(and(eq(salesOrders.id, orderId), eq(salesOrders.organizationId, auth.orgId))).limit(1);
-  if (!so) return { error: "الأمر غير موجود" };
-  if (so.status === "DRAFT") return { error: "أكّد الأمر أولاً قبل تنفيذ الدورة" };
-  if (so.status === "CANCELLED" || so.status === "INVOICED") return { error: "الأمر غير قابل للتنفيذ في حالته الحالية" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      .where(and(eq(salesOrders.id, orderId), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+    if (!so) return { error: "الأمر غير موجود" };
+    if (so.status === "DRAFT") return { error: "أكّد الأمر أولاً قبل تنفيذ الدورة" };
+    if (so.status === "CANCELLED" || so.status === "INVOICED") return { error: "الأمر غير قابل للتنفيذ في حالته الحالية" };
 
-  const f = await fulfillOrder(auth.orgId, orderId);
-  if (!f.ok) return { error: f.error };
-  revalidatePath("/erp/sales/orders");
-  revalidatePath(`/erp/sales/orders/${encodeURIComponent(so.number)}`);
-  return { ok: true };
+    const f = await fulfillOrder(auth.orgId, orderId);
+    if (!f.ok) return { error: f.error };
+    revalidatePath("/erp/sales/orders");
+    revalidatePath(`/erp/sales/orders/${encodeURIComponent(so.number)}`);
+    return { ok: true };
+  });
 }

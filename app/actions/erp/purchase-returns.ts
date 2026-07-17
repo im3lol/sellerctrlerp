@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
@@ -39,69 +40,71 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { purchaseInvoiceId, date, notes, lines } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { purchaseInvoiceId, date, notes, lines } = parsed.data;
 
-  const [inv] = await db.select().from(purchaseInvoices)
-    .where(and(eq(purchaseInvoices.id, purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
-  if (!inv) return { error: "الفاتورة غير موجودة" };
-  if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
+    const [inv] = await db.select().from(purchaseInvoices)
+      .where(and(eq(purchaseInvoices.id, purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
+    if (!inv) return { error: "الفاتورة غير موجودة" };
+    if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
 
-  // remaining = bought − already returned (posted), per item. Without subtracting
-  // prior returns each credit note is capped only against the invoice, so the same
-  // invoice could be returned in full repeatedly — see createSalesReturnAction.
-  const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
-    .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
-  const boughtByItem = new Map<string, number>();
-  for (const l of invLines) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
-  const priorRet = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
-    .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
-    .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
-  const returnedByItem = new Map<string, number>();
-  for (const l of priorRet) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
-  for (const l of lines) {
-    const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
-    if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
-  }
+    // remaining = bought − already returned (posted), per item. Without subtracting
+    // prior returns each credit note is capped only against the invoice, so the same
+    // invoice could be returned in full repeatedly — see createSalesReturnAction.
+    const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
+      .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
+    const boughtByItem = new Map<string, number>();
+    for (const l of invLines) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    const priorRet = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+      .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+      .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
+    const returnedByItem = new Map<string, number>();
+    for (const l of priorRet) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    for (const l of lines) {
+      const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+      if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+    }
 
-  const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-  const subtotal = Number(inv.subtotal) || 0;
-  const taxRate = subtotal > 0 ? Number(inv.taxAmount) / subtotal : 0;
-  const tax = round2(net * taxRate);
-  const total = round2(net + tax);
+    const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    const subtotal = Number(inv.subtotal) || 0;
+    const taxRate = subtotal > 0 ? Number(inv.taxAmount) / subtotal : 0;
+    const tax = round2(net * taxRate);
+    const total = round2(net + tax);
 
-  // Trace the originating order (via the invoice's receipt) so the return also shows under the order.
-  let orderId: string | null = null;
-  if (inv.goodsReceiptId) {
-    const [rc] = await db.select({ poId: purchaseReceipts.purchaseOrderId }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1);
-    orderId = rc?.poId ?? null;
-  }
+    // Trace the originating order (via the invoice's receipt) so the return also shows under the order.
+    let orderId: string | null = null;
+    if (inv.goodsReceiptId) {
+      const [rc] = await db.select({ poId: purchaseReceipts.purchaseOrderId }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1);
+      orderId = rc?.poId ?? null;
+    }
 
-  const d = new Date(date);
-  const number = await nextNumber(auth.orgId, d.getFullYear());
+    const d = new Date(date);
+    const number = await nextNumber(auth.orgId, d.getFullYear());
 
-  try {
-    const id = await db.transaction(async (tx) => {
-      const [ret] = await tx.insert(purchaseReturns).values({
-        organizationId: auth.orgId, number, date: d, status: "DRAFT",
-        supplierId: inv.supplierId, warehouseId: inv.warehouseId, purchaseInvoiceId: inv.id, purchaseOrderId: orderId,
-        totalAmount: String(total), notes: notes || null,
-      }).returning({ id: purchaseReturns.id });
+    try {
+      const id = await db.transaction(async (tx) => {
+        const [ret] = await tx.insert(purchaseReturns).values({
+          organizationId: auth.orgId, number, date: d, status: "DRAFT",
+          supplierId: inv.supplierId, warehouseId: inv.warehouseId, purchaseInvoiceId: inv.id, purchaseOrderId: orderId,
+          totalAmount: String(total), notes: notes || null,
+        }).returning({ id: purchaseReturns.id });
 
-      await tx.insert(purchaseReturnLines).values(lines.map((l) => ({
-        purchaseReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity),
-        unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
-      })));
-      return ret.id;
-    });
+        await tx.insert(purchaseReturnLines).values(lines.map((l) => ({
+          purchaseReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity),
+          unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
+        })));
+        return ret.id;
+      });
 
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مشتريات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
-    revalidatePath("/erp/purchases/invoices");
-    return { ok: true, id };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
-  }
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مشتريات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
+      revalidatePath("/erp/purchases/invoices");
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
+    }
+  });
 }
 
 /**
@@ -114,136 +117,138 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
-  const [ret] = await db.select().from(purchaseReturns)
-    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
-  if (!ret) return { error: "المرتجع غير موجود" };
-  if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [ret] = await db.select().from(purchaseReturns)
+      .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+    if (!ret) return { error: "المرتجع غير موجود" };
+    if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
 
-  // Receipt return (stock side): Dr 2103 / Cr 1104, take goods out, drop the order's receivedQty.
-  if (ret.purchaseReceiptId) {
-    const [grn] = await db.select().from(purchaseReceipts).where(eq(purchaseReceipts.id, ret.purchaseReceiptId)).limit(1);
-    if (!grn) return { error: "إذن الاستلام غير موجود" };
-    const rLines = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice })
+    // Receipt return (stock side): Dr 2103 / Cr 1104, take goods out, drop the order's receivedQty.
+    if (ret.purchaseReceiptId) {
+      const [grn] = await db.select().from(purchaseReceipts).where(eq(purchaseReceipts.id, ret.purchaseReceiptId)).limit(1);
+      if (!grn) return { error: "إذن الاستلام غير موجود" };
+      const rLines = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice })
+        .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
+      if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
+      const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
+      const A = await resolveAccountIds(auth.orgId, ["1104", "2103", "4201", "5301", "5302"]);
+      if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
+      const poLines = grn.purchaseOrderId
+        ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
+        : [];
+      const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+      const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
+      try {
+        await db.transaction(async (tx) => {
+          // FIFO lot costing: stock leaves at batch cost; the price↔cost gap is a variance.
+          let cost = 0;
+          for (const l of rLines) {
+            const q = Number(l.quantity);
+            const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
+            cost = round2(cost + r.totalCost);
+            const pol = poByItem.get(l.itemId);
+            if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${q})` }).where(eq(purchaseOrderLines.id, pol.id));
+          }
+          const variance = round2(net - cost);
+          const glLines = [
+            { accountId: A["2103"], debit: net, credit: 0, description: `تسوية بضاعة لم تُفوتر ${ret.number}` },
+            { accountId: A["1104"], debit: 0, credit: cost, description: `إرجاع مخزون ${ret.number}` },
+          ];
+          const varGain = A["5302"] ?? A["4201"]; // dedicated purchase-return price variance (5302), fallback to surplus/shrinkage
+          const varLoss = A["5302"] ?? A["5301"];
+          if (variance > 0 && varGain) glLines.push({ accountId: varGain, debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });
+          else if (variance < 0 && varLoss) glLines.push({ accountId: varLoss, debit: -variance, credit: 0, description: `فرق سعر مرتجع ${ret.number}` });
+          await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id, description: `مرتجع إذن استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines });
+          if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
+          await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
+          await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن استلام ${grn.number}`, metadata: { net } });
+        });
+        revalidatePath("/erp/purchases/receipts");
+        revalidatePath("/erp/purchases/orders");
+        revalidatePath("/erp/accounting/journal");
+        return { ok: true };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
+      }
+    }
+
+    const [inv] = await db.select().from(purchaseInvoices)
+      .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId ?? ""), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
+    if (!inv) return { error: "الفاتورة غير موجودة" };
+    if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
+
+    const retLines = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice })
       .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
-    if (rLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
-    const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
-    const A = await resolveAccountIds(auth.orgId, ["1104", "2103", "4201", "5301", "5302"]);
-    if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
-    const poLines = grn.purchaseOrderId
-      ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
-      : [];
-    const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+    if (retLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
+    const lines = retLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }));
+
+    const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    const subtotal = Number(inv.subtotal) || 0;
+    const taxRate = subtotal > 0 ? Number(inv.taxAmount) / subtotal : 0;
+    const tax = round2(net * taxRate);
+    const total = round2(net + tax);
+
+    const A = await resolveAccountIds(auth.orgId, ["2101", "1104", "2103", "1107", "4201", "5301", "5302"]);
+    // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
+    // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
+    const fromReceipt = Boolean(inv.goodsReceiptId);
+    const creditAcc = fromReceipt ? A["2103"] : A["1104"];
+    if (!A["2101"] || !creditAcc) return { error: "حسابات الترحيل غير مكتملة." };
+
+    const whId = ret.warehouseId;
     const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
+
     try {
       await db.transaction(async (tx) => {
-        // FIFO lot costing: stock leaves at batch cost; the price↔cost gap is a variance.
-        let cost = 0;
-        for (const l of rLines) {
-          const q = Number(l.quantity);
-          const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
-          cost = round2(cost + r.totalCost);
-          const pol = poByItem.get(l.itemId);
-          if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${q})` }).where(eq(purchaseOrderLines.id, pol.id));
+        // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
+        // touch no stock (credit GRNI at net). `cost` = inventory value credited.
+        let cost = net;
+        if (!fromReceipt) {
+          cost = 0;
+          for (const l of lines) {
+            const r = await postStockMovement(tx, {
+              orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
+              quantity: l.quantity, date: d,
+              referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
+            });
+            cost = round2(cost + r.totalCost);
+          }
         }
-        const variance = round2(net - cost);
+
         const glLines = [
-          { accountId: A["2103"], debit: net, credit: 0, description: `تسوية بضاعة لم تُفوتر ${ret.number}` },
-          { accountId: A["1104"], debit: 0, credit: cost, description: `إرجاع مخزون ${ret.number}` },
+          { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
+          { accountId: creditAcc, debit: 0, credit: cost, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
         ];
+        if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
+        const variance = round2(net - cost); // 0 for from-GRN; price↔cost gap for standalone
         const varGain = A["5302"] ?? A["4201"]; // dedicated purchase-return price variance (5302), fallback to surplus/shrinkage
         const varLoss = A["5302"] ?? A["5301"];
         if (variance > 0 && varGain) glLines.push({ accountId: varGain, debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });
         else if (variance < 0 && varLoss) glLines.push({ accountId: varLoss, debit: -variance, credit: 0, description: `فرق سعر مرتجع ${ret.number}` });
-        await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id, description: `مرتجع إذن استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines });
-        if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
+        await postEntry(tx, {
+          orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id,
+          description: `مرتجع مشتريات ${ret.number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
+        });
+
+        // Move both representations of the debt — see confirmSalesReturnAction. Left
+        // out, the invoice keeps its full balanceDue: it sits in AP aging forever and
+        // createPaymentVoucherAction (which validates against balanceDue) would pay a
+        // supplier for goods already sent back.
+        await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, ret.supplierId));
+        await tx.update(purchaseInvoices)
+          .set({ balanceDue: sql`${purchaseInvoices.balanceDue} - ${total}` })
+          .where(eq(purchaseInvoices.id, inv.id));
         await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
-        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن استلام ${grn.number}`, metadata: { net } });
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
       });
-      revalidatePath("/erp/purchases/receipts");
-      revalidatePath("/erp/purchases/orders");
+
+      revalidatePath("/erp/purchases/invoices");
       revalidatePath("/erp/accounting/journal");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
     }
-  }
-
-  const [inv] = await db.select().from(purchaseInvoices)
-    .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId ?? ""), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
-  if (!inv) return { error: "الفاتورة غير موجودة" };
-  if (inv.status === "DRAFT" || inv.status === "CANCELLED") return { error: "لا يمكن إرجاع فاتورة غير مُرحّلة" };
-
-  const retLines = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity, unitPrice: purchaseReturnLines.unitPrice })
-    .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
-  if (retLines.length === 0) return { error: "لا توجد بنود في المرتجع" };
-  const lines = retLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }));
-
-  const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-  const subtotal = Number(inv.subtotal) || 0;
-  const taxRate = subtotal > 0 ? Number(inv.taxAmount) / subtotal : 0;
-  const tax = round2(net * taxRate);
-  const total = round2(net + tax);
-
-  const A = await resolveAccountIds(auth.orgId, ["2101", "1104", "2103", "1107", "4201", "5301", "5302"]);
-  // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
-  // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
-  const fromReceipt = Boolean(inv.goodsReceiptId);
-  const creditAcc = fromReceipt ? A["2103"] : A["1104"];
-  if (!A["2101"] || !creditAcc) return { error: "حسابات الترحيل غير مكتملة." };
-
-  const whId = ret.warehouseId;
-  const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
-
-  try {
-    await db.transaction(async (tx) => {
-      // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
-      // touch no stock (credit GRNI at net). `cost` = inventory value credited.
-      let cost = net;
-      if (!fromReceipt) {
-        cost = 0;
-        for (const l of lines) {
-          const r = await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "OUT",
-            quantity: l.quantity, date: d,
-            referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع شراء ${ret.number}`,
-          });
-          cost = round2(cost + r.totalCost);
-        }
-      }
-
-      const glLines = [
-        { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
-        { accountId: creditAcc, debit: 0, credit: cost, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
-      ];
-      if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
-      const variance = round2(net - cost); // 0 for from-GRN; price↔cost gap for standalone
-      const varGain = A["5302"] ?? A["4201"]; // dedicated purchase-return price variance (5302), fallback to surplus/shrinkage
-      const varLoss = A["5302"] ?? A["5301"];
-      if (variance > 0 && varGain) glLines.push({ accountId: varGain, debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });
-      else if (variance < 0 && varLoss) glLines.push({ accountId: varLoss, debit: -variance, credit: 0, description: `فرق سعر مرتجع ${ret.number}` });
-      await postEntry(tx, {
-        orgId: auth.orgId, date: d, sourceType: "PURCHASE_RETURN", sourceId: ret.id,
-        description: `مرتجع مشتريات ${ret.number} — فاتورة ${inv.number}`, journalType: "PURCHASE", userId: auth.userId, lines: glLines,
-      });
-
-      // Move both representations of the debt — see confirmSalesReturnAction. Left
-      // out, the invoice keeps its full balanceDue: it sits in AP aging forever and
-      // createPaymentVoucherAction (which validates against balanceDue) would pay a
-      // supplier for goods already sent back.
-      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${total}` }).where(eq(suppliers.id, ret.supplierId));
-      await tx.update(purchaseInvoices)
-        .set({ balanceDue: sql`${purchaseInvoices.balanceDue} - ${total}` })
-        .where(eq(purchaseInvoices.id, inv.id));
-      await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
-    });
-
-    revalidatePath("/erp/purchases/invoices");
-    revalidatePath("/erp/accounting/journal");
-    return { ok: true };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
-  }
+  });
 }
 
 export type ReturnPick = { itemId: string; quantity: number; unitPrice: number };
@@ -269,18 +274,20 @@ export async function deletePurchaseReturnAction(id: string): Promise<ActionStat
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
-  const [ret] = await db.select({ status: purchaseReturns.status }).from(purchaseReturns)
-    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
-  if (!ret) return { error: "المرتجع غير موجود" };
-  if (ret.status !== "DRAFT") return { error: "لا يمكن حذف مرتجع مُرحّل" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [ret] = await db.select({ status: purchaseReturns.status }).from(purchaseReturns)
+      .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+    if (!ret) return { error: "المرتجع غير موجود" };
+    if (ret.status !== "DRAFT") return { error: "لا يمكن حذف مرتجع مُرحّل" };
 
-  await db.transaction(async (tx) => {
-    await tx.delete(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
-    await tx.delete(purchaseReturns).where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId)));
+    await db.transaction(async (tx) => {
+      await tx.delete(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, id));
+      await tx.delete(purchaseReturns).where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId)));
+    });
+
+    revalidatePath("/erp/purchases/invoices");
+    return { ok: true };
   });
-
-  revalidatePath("/erp/purchases/invoices");
-  return { ok: true };
 }
 
 /**
@@ -290,52 +297,54 @@ export async function deletePurchaseReturnAction(id: string): Promise<ActionStat
 export async function reversePurchaseReturnAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
-  const [ret] = await db.select().from(purchaseReturns)
-    .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
-  if (!ret) return { error: "المرتجع غير موجود" };
-  if (ret.status !== "POSTED") return { error: "يمكن إلغاء مرتجع مُرحّل فقط" };
-  const total = Number(ret.totalAmount);
-  const d = new Date();
-  try {
-    await db.transaction(async (tx) => {
-      const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
-        .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "PURCHASE_RETURN"), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
-      for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
+  return withOrgScope(auth.orgId, false, async () => {
+    const [ret] = await db.select().from(purchaseReturns)
+      .where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId))).limit(1);
+    if (!ret) return { error: "المرتجع غير موجود" };
+    if (ret.status !== "POSTED") return { error: "يمكن إلغاء مرتجع مُرحّل فقط" };
+    const total = Number(ret.totalAmount);
+    const d = new Date();
+    try {
+      await db.transaction(async (tx) => {
+        const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "PURCHASE_RETURN"), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
+        for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
 
-      const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
-        .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "PURCHASE_RETURN"), eq(stockMovements.referenceId, ret.id)));
-      for (const m of moves) {
-        const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
-        await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "OUT" ? "IN" : "OUT", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "PURCHASE_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
-      }
+        const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
+          .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "PURCHASE_RETURN"), eq(stockMovements.referenceId, ret.id)));
+        for (const m of moves) {
+          const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+          await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "OUT" ? "IN" : "OUT", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "PURCHASE_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+        }
 
-      if (ret.purchaseReceiptId) {
-        // Receipt (stock) return: no AP impact — restore the order's receivedQty instead.
-        if (ret.purchaseOrderId) {
-          const rLines = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity }).from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, ret.id));
-          const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, ret.purchaseOrderId));
-          const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-          for (const l of rLines) { const pol = poByItem.get(l.itemId); if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${Number(l.quantity)}` }).where(eq(purchaseOrderLines.id, pol.id)); }
-          await recomputePurchaseOrderStatus(tx, ret.purchaseOrderId);
+        if (ret.purchaseReceiptId) {
+          // Receipt (stock) return: no AP impact — restore the order's receivedQty instead.
+          if (ret.purchaseOrderId) {
+            const rLines = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity }).from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, ret.id));
+            const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, ret.purchaseOrderId));
+            const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+            for (const l of rLines) { const pol = poByItem.get(l.itemId); if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${Number(l.quantity)}` }).where(eq(purchaseOrderLines.id, pol.id)); }
+            await recomputePurchaseOrderStatus(tx, ret.purchaseOrderId);
+          }
+        } else {
+          await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, ret.supplierId));
+          // Mirror of confirmPurchaseReturnAction, which reduced the invoice's balanceDue.
+          if (ret.purchaseInvoiceId) {
+            await tx.update(purchaseInvoices)
+              .set({ balanceDue: sql`${purchaseInvoices.balanceDue} + ${total}` })
+              .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId)));
+          }
         }
-      } else {
-        await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, ret.supplierId));
-        // Mirror of confirmPurchaseReturnAction, which reduced the invoice's balanceDue.
-        if (ret.purchaseInvoiceId) {
-          await tx.update(purchaseInvoices)
-            .set({ balanceDue: sql`${purchaseInvoices.balanceDue} + ${total}` })
-            .where(and(eq(purchaseInvoices.id, ret.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId)));
-        }
-      }
-      await tx.update(purchaseReturns).set({ status: "CANCELLED" }).where(eq(purchaseReturns.id, ret.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مشتريات ${ret.number}`, metadata: { total } });
-    });
-    revalidatePath("/erp/purchases/invoices");
-    revalidatePath("/erp/accounting/journal");
-    return { ok: true };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
-  }
+        await tx.update(purchaseReturns).set({ status: "CANCELLED" }).where(eq(purchaseReturns.id, ret.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مشتريات ${ret.number}`, metadata: { total } });
+      });
+      revalidatePath("/erp/purchases/invoices");
+      revalidatePath("/erp/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
+    }
+  });
 }
 
 const receiptReturnSchema = z.object({
@@ -349,50 +358,52 @@ const receiptReturnSchema = z.object({
 export async function createReceiptReturnAction(input: unknown): Promise<SaveReturnState> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
-  const parsed = receiptReturnSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { goodsReceiptId, date, notes, lines } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = receiptReturnSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { goodsReceiptId, date, notes, lines } = parsed.data;
 
-  const [grn] = await db.select().from(purchaseReceipts)
-    .where(and(eq(purchaseReceipts.id, goodsReceiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
-  if (!grn) return { error: "إذن الاستلام غير موجود" };
-  if (grn.status !== "RECEIVED" && grn.status !== "INVOICED") return { error: "لا يمكن الإرجاع من هذا الإذن" };
-  if (!grn.supplierId) return { error: "الإذن غير مرتبط بمورد" };
+    const [grn] = await db.select().from(purchaseReceipts)
+      .where(and(eq(purchaseReceipts.id, goodsReceiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+    if (!grn) return { error: "إذن الاستلام غير موجود" };
+    if (grn.status !== "RECEIVED" && grn.status !== "INVOICED") return { error: "لا يمكن الإرجاع من هذا الإذن" };
+    if (!grn.supplierId) return { error: "الإذن غير مرتبط بمورد" };
 
-  // remaining = received − already returned (posted), per item.
-  const recLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
-    .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
-  const receivedByItem = new Map<string, number>();
-  for (const l of recLines) receivedByItem.set(l.itemId, (receivedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
-  const prior = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
-    .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
-    .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED")));
-  const returnedByItem = new Map<string, number>();
-  for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
-  for (const l of lines) {
-    const remaining = (receivedByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
-    if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
-  }
+    // remaining = received − already returned (posted), per item.
+    const recLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
+      .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+    const receivedByItem = new Map<string, number>();
+    for (const l of recLines) receivedByItem.set(l.itemId, (receivedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    const prior = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+      .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+      .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED")));
+    const returnedByItem = new Map<string, number>();
+    for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    for (const l of lines) {
+      const remaining = (receivedByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+      if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+    }
 
-  const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-  const d = new Date(date);
-  const number = await nextNumber(auth.orgId, d.getFullYear());
-  try {
-    const id = await db.transaction(async (tx) => {
-      const [ret] = await tx.insert(purchaseReturns).values({
-        organizationId: auth.orgId, number, date: d, status: "DRAFT",
-        supplierId: grn.supplierId!, warehouseId: grn.warehouseId, purchaseReceiptId: grn.id, purchaseOrderId: grn.purchaseOrderId,
-        totalAmount: String(net), notes: notes || null,
-      }).returning({ id: purchaseReturns.id });
-      await tx.insert(purchaseReturnLines).values(lines.map((l) => ({
-        purchaseReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
-      })));
-      return ret.id;
-    });
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `مرتجع إذن استلام ${grn.number} (مسودة)`, metadata: { net } });
-    revalidatePath("/erp/purchases/receipts");
-    return { ok: true, id };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
-  }
+    const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    const d = new Date(date);
+    const number = await nextNumber(auth.orgId, d.getFullYear());
+    try {
+      const id = await db.transaction(async (tx) => {
+        const [ret] = await tx.insert(purchaseReturns).values({
+          organizationId: auth.orgId, number, date: d, status: "DRAFT",
+          supplierId: grn.supplierId!, warehouseId: grn.warehouseId, purchaseReceiptId: grn.id, purchaseOrderId: grn.purchaseOrderId,
+          totalAmount: String(net), notes: notes || null,
+        }).returning({ id: purchaseReturns.id });
+        await tx.insert(purchaseReturnLines).values(lines.map((l) => ({
+          purchaseReturnId: ret.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice), totalAmount: String(round2(l.quantity * l.unitPrice)),
+        })));
+        return ret.id;
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `مرتجع إذن استلام ${grn.number} (مسودة)`, metadata: { net } });
+      revalidatePath("/erp/purchases/receipts");
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
+    }
+  });
 }

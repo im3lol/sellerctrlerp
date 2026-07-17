@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -14,23 +15,27 @@ export type SaveAdjustmentState = ActionState & { id?: string };
 export async function createStockAdjustmentAction(input: unknown): Promise<SaveAdjustmentState> {
   const auth = await authorizeErp("inventory.create");
   if ("error" in auth) return auth;
-  const r = await createAdjustment(auth.orgId, auth.userId, input);
-  if ("error" in r) return { error: r.error };
-  revalidatePath("/erp/inventory/adjustments");
-  return { ok: true, id: r.id };
+  return withOrgScope(auth.orgId, false, async () => {
+    const r = await createAdjustment(auth.orgId, auth.userId, input);
+    if ("error" in r) return { error: r.error };
+    revalidatePath("/erp/inventory/adjustments");
+    return { ok: true, id: r.id };
+  });
 }
 
 /** Confirm (post) a DRAFT adjustment — books the ADJ stock movements + one netting journal entry. */
 export async function confirmStockAdjustmentAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("inventory.confirm");
   if ("error" in auth) return auth;
-  const r = await confirmAdjustment(auth.orgId, auth.userId, id);
-  if ("error" in r) return { error: r.error };
-  revalidatePath("/erp/inventory/adjustments");
-  revalidatePath("/erp/inventory/stock");
-  revalidatePath("/erp/inventory/ledger");
-  revalidatePath("/erp/accounting/journal");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    const r = await confirmAdjustment(auth.orgId, auth.userId, id);
+    if ("error" in r) return { error: r.error };
+    revalidatePath("/erp/inventory/adjustments");
+    revalidatePath("/erp/inventory/stock");
+    revalidatePath("/erp/inventory/ledger");
+    revalidatePath("/erp/accounting/journal");
+    return { ok: true };
+  });
 }
 
 /** Delete a DRAFT adjustment (cascade removes its lines). Posted are immutable. */
@@ -38,14 +43,16 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
   const auth = await authorizeErp("inventory.create");
   if ("error" in auth) return auth;
 
-  const [adj] = await db.select({ status: stockAdjustments.status }).from(stockAdjustments)
-    .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId))).limit(1);
-  if (!adj) return { error: "التسوية غير موجودة" };
-  if (adj.status !== "DRAFT") return { error: "لا يمكن حذف تسوية مُرحّلة" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [adj] = await db.select({ status: stockAdjustments.status }).from(stockAdjustments)
+      .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId))).limit(1);
+    if (!adj) return { error: "التسوية غير موجودة" };
+    if (adj.status !== "DRAFT") return { error: "لا يمكن حذف تسوية مُرحّلة" };
 
-  await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
-  revalidatePath("/erp/inventory/adjustments");
-  return { ok: true };
+    await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
+    revalidatePath("/erp/inventory/adjustments");
+    return { ok: true };
+  });
 }
 
 /** Bulk confirm(post)/delete DRAFT stock adjustments; ineligible rows skipped. */
