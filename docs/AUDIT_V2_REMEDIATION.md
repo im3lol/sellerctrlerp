@@ -57,15 +57,15 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 - [x] **#5a** `payroll.ts:149,168` — فلتر الحضور بـ`workDate` شامل آخر يوم (بدل `clockIn ≤ periodEnd@UTC00:00`). اختبار: ساعات 31/7 تتحسب. **(#5b عزل الحضور بالمؤسسة = موجة 4، محتاج قرار سكيمة.)**
 
 ### موجة 3 — P2: صحّة الترحيل وآلة الحالات
-- [ ] **#6** `sales-invoices.ts:200` — الفاتورة القائمة بذاتها ترفض الترحيل لو المخزن/5101/1104 ناقص (مرآة `deliveries.ts:193`).
-- [ ] **#7** `sales-orders.ts:175` + `purchase-orders.ts:170` — التحويل يسيب الأمر CONFIRMED؛ الحالة تتحرّك بترحيل الفاتورة (أو إعادة الفتح لـCONFIRMED عند حذف الفاتورة المسودّة).
-- [ ] **#9** `posting.ts:postDraft` — فحص `isLeaf` + `allowManualEntries` في نقطة الترحيل الواحدة.
-- [ ] **#8** `deliveries/goods-receipts/receipts/payments` — `SELECT … FOR UPDATE` على السطور داخل ترانزاكشن التأكيد + إعادة قراءة قبل التحقق.
-- [ ] **#11** `recurring.ts` — كل قالب (insert + تقديم nextRunDate) في ترانزاكشن واحد؛ `sourceId` مستقر؛ تقديم nextRunDate داخل حارس النجاح.
-- [ ] **#12** `periods.ts:14-30` — إعادة الفتح تعكس قيد `YEAR_CLOSING` (عشان إعادة الإقفال ما تصطدمش بالقيد الفريد).
-- [ ] **#17** `payroll.ts:199,217` — حدّ (`deductions+tax`) عند `gross` لكل سطر عشان الإجمالي يتوازن.
-- [ ] **#19** `amazon-settlement.ts:374` — `sourceId` = مفتاح طبيعي ثابت (settlementId/هاش الصفوف) بدل تاريخ+عدد.
-- [ ] **#21** `sales-returns.ts:150`، `purchase-returns.ts:147` — أعِد حساب تكلفة المرتجع من حركات المستند الأصلي سيرفر-سايد؛ تجاهل سعر العميل.
+- [x] **#6** `sales-invoices.ts:200` — الفاتورة القائمة بذاتها ترفض الترحيل لو المخزن/5101/1104 ناقص (مرآة `deliveries.ts:193`).
+- [ ] **#7** (→W4: يحتاج ربط فاتورة↔أمر) `sales-orders.ts:175` + `purchase-orders.ts:170` — التحويل يسيب الأمر CONFIRMED؛ الحالة تتحرّك بترحيل الفاتورة (أو إعادة الفتح لـCONFIRMED عند حذف الفاتورة المسودّة).
+- [x] **#9** `posting.ts:postDraft` — فحص `isLeaf` + `allowManualEntries` في نقطة الترحيل الواحدة.
+- [x] **#8** `deliveries/goods-receipts/receipts/payments` — `SELECT … FOR UPDATE` على السطور داخل ترانزاكشن التأكيد + إعادة قراءة قبل التحقق.
+- [x] **#11** `recurring.ts` — كل قالب (insert + تقديم nextRunDate) في ترانزاكشن واحد؛ `sourceId` مستقر؛ تقديم nextRunDate داخل حارس النجاح.
+- [x] **#12** `periods.ts:14-30` — إعادة الفتح تعكس قيد `YEAR_CLOSING` (عشان إعادة الإقفال ما تصطدمش بالقيد الفريد).
+- [x] **#17** `payroll.ts:199,217` — حدّ (`deductions+tax`) عند `gross` لكل سطر عشان الإجمالي يتوازن.
+- [x] **#19** `amazon-settlement.ts:374` — `sourceId` = مفتاح طبيعي ثابت (settlementId/هاش الصفوف) بدل تاريخ+عدد.
+- [ ] **#21** (→W5: P3 hardening) `sales-returns.ts:150`، `purchase-returns.ts:147` — أعِد حساب تكلفة المرتجع من حركات المستند الأصلي سيرفر-سايد؛ تجاهل سعر العميل.
 
 ### موجة 4 — قرارات + هجرات (بعد ما تحسم القسم 5)
 - [ ] **#20** `db/erp.ts:1905` — `employees.userId` → `onDelete: "set null"` (migration).
