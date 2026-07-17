@@ -1,5 +1,6 @@
 "use server";
 
+import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { orgSubscriptions } from "@/db/schema";
@@ -27,41 +28,43 @@ export type SubInput = {
  *  optionally applying a discount coupon to the price. */
 export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true; discounted?: number } | { error: string }> {
   await requireCapability("employee.manage");
-  if (!input.organizationId) return { error: "مؤسسة غير محددة" };
-  if (!STATUSES.includes(input.status)) return { error: "حالة غير صحيحة" };
+  return withPlatformScope(async () => {
+    if (!input.organizationId) return { error: "مؤسسة غير محددة" };
+    if (!STATUSES.includes(input.status)) return { error: "حالة غير صحيحة" };
 
-  const modules = input.enabledModules.filter((m) => (ALL_MODULES as readonly string[]).includes(m));
-  const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
-  if (expiresAt && isNaN(expiresAt.getTime())) return { error: "تاريخ الانتهاء غير صالح" };
+    const modules = input.enabledModules.filter((m) => (ALL_MODULES as readonly string[]).includes(m));
+    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+    if (expiresAt && isNaN(expiresAt.getTime())) return { error: "تاريخ الانتهاء غير صالح" };
 
-  let price = input.price ?? 0;
-  let couponId: string | null = null;
-  if (input.couponCode?.trim()) {
-    const coupon = await findRedeemableCoupon(input.couponCode);
-    if (!coupon) return { error: "الكوبون غير صالح أو منتهٍ أو مستنفد" };
-    price = applyDiscount(price, coupon.discountType, Number(coupon.value));
-    couponId = coupon.id;
-  }
+    let price = input.price ?? 0;
+    let couponId: string | null = null;
+    if (input.couponCode?.trim()) {
+      const coupon = await findRedeemableCoupon(input.couponCode);
+      if (!coupon) return { error: "الكوبون غير صالح أو منتهٍ أو مستنفد" };
+      price = applyDiscount(price, coupon.discountType, Number(coupon.value));
+      couponId = coupon.id;
+    }
 
-  const values = {
-    organizationId: input.organizationId,
-    status: input.status,
-    planId: input.planId || null,
-    planName: input.planName?.trim() || null,
-    interval: input.interval || null,
-    price: String(price),
-    enabledModules: modules,
-    maxUsers: input.maxUsers != null && input.maxUsers > 0 ? Math.floor(input.maxUsers) : null,
-    storageGb: input.storageGb != null && input.storageGb > 0 ? Math.floor(input.storageGb) : null,
-    expiresAt,
-    activatedByCodeId: couponId,
-    startedAt: input.status === "ACTIVE" || input.status === "TRIAL" ? new Date() : null,
-    updatedAt: new Date(),
-  };
+    const values = {
+      organizationId: input.organizationId,
+      status: input.status,
+      planId: input.planId || null,
+      planName: input.planName?.trim() || null,
+      interval: input.interval || null,
+      price: String(price),
+      enabledModules: modules,
+      maxUsers: input.maxUsers != null && input.maxUsers > 0 ? Math.floor(input.maxUsers) : null,
+      storageGb: input.storageGb != null && input.storageGb > 0 ? Math.floor(input.storageGb) : null,
+      expiresAt,
+      activatedByCodeId: couponId,
+      startedAt: input.status === "ACTIVE" || input.status === "TRIAL" ? new Date() : null,
+      updatedAt: new Date(),
+    };
 
-  await db.insert(orgSubscriptions).values(values)
-    .onConflictDoUpdate({ target: orgSubscriptions.organizationId, set: values });
-  if (couponId) await incrementRedemption(couponId);
-  revalidatePath("/admin/licensing");
-  return { ok: true, discounted: couponId ? price : undefined };
+    await db.insert(orgSubscriptions).values(values)
+      .onConflictDoUpdate({ target: orgSubscriptions.organizationId, set: values });
+    if (couponId) await incrementRedemption(couponId);
+    revalidatePath("/admin/licensing");
+    return { ok: true, discounted: couponId ? price : undefined };
+  });
 }

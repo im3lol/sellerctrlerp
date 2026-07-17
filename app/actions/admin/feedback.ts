@@ -1,5 +1,6 @@
 "use server";
 
+import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -27,20 +28,22 @@ const schema = z.object({
  */
 export async function replyFeedbackAction(id: string, input: unknown): Promise<Res> {
   await requireCapability("employee.manage");
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const d = parsed.data;
+  return withPlatformScope(async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const d = parsed.data;
 
-  const reply = d.reply?.trim() || null;
-  await db.update(feedback).set({
-    reply,
-    // Stamp only when there's actually an answer — repliedAt on an empty reply
-    // would show the tenant a timestamp with nothing attached to it.
-    repliedAt: reply ? new Date() : null,
-    status: d.status,
-    updatedAt: new Date(),
-  }).where(eq(feedback.id, id));
+    const reply = d.reply?.trim() || null;
+    await db.update(feedback).set({
+      reply,
+      // Stamp only when there's actually an answer — repliedAt on an empty reply
+      // would show the tenant a timestamp with nothing attached to it.
+      repliedAt: reply ? new Date() : null,
+      status: d.status,
+      updatedAt: new Date(),
+    }).where(eq(feedback.id, id));
 
-  refresh();
-  return { ok: true };
+    refresh();
+    return { ok: true };
+  });
 }
