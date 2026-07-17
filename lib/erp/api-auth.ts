@@ -15,7 +15,14 @@ import type { ErpPermission } from "@/lib/erp/permissions";
  * cookie. The token is signed with AUTH_SECRET (shared with next-auth).
  */
 const ISSUER = "sellerctrl-api";
-const secret = () => new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-change-me");
+// Fail closed: never fall back to a public constant. Without AUTH_SECRET an
+// attacker could mint valid tokens for any user. secret() throws → sign/verify
+// fail → the /api/v1 surface returns 401 rather than trusting a known key.
+const secret = () => {
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error("AUTH_SECRET is not set — refusing to sign/verify API tokens");
+  return new TextEncoder().encode(s);
+};
 
 /** Issue a 30-day access token for a user id. */
 export async function signApiToken(userId: string): Promise<string> {
