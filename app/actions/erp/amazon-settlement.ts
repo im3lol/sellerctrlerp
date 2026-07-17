@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "crypto";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { round2 as r2 } from "@/lib/erp/money";
@@ -369,9 +370,14 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
 
     try {
       const journalId = await db.transaction(async (tx) => {
+        // Stable natural key from the exact set of posted rows — NOT date+count,
+        // which collides when two uploads share the same max releaseDate and count,
+        // making the (org, sourceType, sourceId) unique index reject the second post
+        // and leaving genuinely-new rows permanently un-postable.
+        const sourceKey = createHash("sha256").update([...toPost.map((r) => r.id)].sort().join(",")).digest("hex").slice(0, 40);
         const jid = await postEntry(tx, {
           orgId: auth.orgId, date: entryDate, sourceType: "AMAZON_SETTLEMENT",
-          sourceId: `AMZ-${entryDate.toISOString()}-${toPost.length}`,
+          sourceId: `AMZ-${sourceKey}`,
           description: `تسوية أمازون — ${toPost.length} معاملة (مُفرج عنها)`,
           userId: auth.userId, lines,
         });
