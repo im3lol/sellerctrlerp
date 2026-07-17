@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { fiscalPeriods, accounts, journalEntries, journalEntryLines } from "@/db/schema";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { computeYearClosing } from "@/lib/erp/year-closing";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
@@ -18,11 +18,35 @@ export async function setPeriodStatusAction(id: string, status: string): Promise
   return withOrgScope(auth.orgId, false, async () => {
     if (!STATUSES.includes(status as (typeof STATUSES)[number])) return { error: "حالة غير صحيحة" };
 
+    const [period] = await db.select({ status: fiscalPeriods.status, endDate: fiscalPeriods.endDate })
+      .from(fiscalPeriods).where(and(eq(fiscalPeriods.id, id), eq(fiscalPeriods.organizationId, auth.orgId))).limit(1);
+    if (!period) return { error: "الفترة غير موجودة" };
+    const reopening = period.status === "CLOSED" && status !== "CLOSED";
+
     try {
-      await db
-        .update(fiscalPeriods)
-        .set({ status, lockedAt: status === "CLOSED" ? new Date() : null })
-        .where(and(eq(fiscalPeriods.id, id), eq(fiscalPeriods.organizationId, auth.orgId)));
+      await db.transaction(async (tx) => {
+        // Flip status first so the reversal below can post into the now-open period.
+        await tx
+          .update(fiscalPeriods)
+          .set({ status, lockedAt: status === "CLOSED" ? new Date() : null })
+          .where(and(eq(fiscalPeriods.id, id), eq(fiscalPeriods.organizationId, auth.orgId)));
+
+        if (reopening) {
+          // Reverse the year-closing entry so retained earnings is undone and the
+          // period's P&L is restored — otherwise a late adjustment can't be moved to
+          // retained earnings and the reopened ledger mixes pre-close/post-reopen state.
+          const closings = await tx.select({ id: journalEntries.id }).from(journalEntries)
+            .where(and(
+              eq(journalEntries.organizationId, auth.orgId),
+              eq(journalEntries.fiscalPeriodId, id),
+              eq(journalEntries.sourceType, "YEAR_CLOSING"),
+              eq(journalEntries.status, "POSTED"),
+            ));
+          for (const e of closings) {
+            await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: new Date(period.endDate), userId: auth.userId, reason: "إعادة فتح الفترة — عكس قيد الإقفال" });
+          }
+        }
+      });
     } catch {
       return { error: "تعذّر تحديث حالة الفترة" };
     }
@@ -146,12 +170,17 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
 
     try {
       await db.transaction(async (tx) => {
+        // Per-attempt sourceId so a period can be reopened (its closing entry reversed)
+        // and re-closed without colliding on the (org, sourceType, sourceId) unique index.
+        const prior = await tx.select({ n: sql<number>`count(*)::int` }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.fiscalPeriodId, periodId), eq(journalEntries.sourceType, "YEAR_CLOSING")));
+        const closeCount = prior[0]?.n ?? 0;
         await postEntry(tx, {
           orgId: auth.orgId,
           userId: auth.userId,
           date: period.endDate,
           sourceType: "YEAR_CLOSING",
-          sourceId: periodId,
+          sourceId: `${periodId}-${closeCount}`,
           description: `قيود إقفال السنة — ${period.name}`,
           journalType: "GENERAL",
           lines,
