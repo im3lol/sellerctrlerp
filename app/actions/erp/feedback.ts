@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { feedback } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 
@@ -34,13 +35,13 @@ export async function submitFeedbackAction(input: unknown): Promise<Res> {
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
 
-  const [r] = await db.insert(feedback).values({
+  const [r] = await withOrgScope(org.id, false, () => db.insert(feedback).values({
     organizationId: org.id,
     userId: user.id,
     kind: d.kind,
     subject: d.subject.trim(),
     message: d.message.trim(),
-  }).returning({ id: feedback.id });
+  }).returning({ id: feedback.id }));
 
   revalidatePath("/erp/feedback");
   revalidatePath("/admin/feedback");

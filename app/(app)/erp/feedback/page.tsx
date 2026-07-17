@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { feedback } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,10 +31,10 @@ export default async function FeedbackPage() {
   if (!user) redirect("/login");
   if (!org) redirect("/dashboard");
 
-  const mine = await db.select().from(feedback)
+  const mine = await withOrgScope(org.id, false, () => db.select().from(feedback)
     .where(eq(feedback.organizationId, org.id))
     .orderBy(desc(feedback.createdAt))
-    .limit(50);
+    .limit(50));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6" dir="rtl">

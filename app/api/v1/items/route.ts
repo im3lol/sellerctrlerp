@@ -1,3 +1,4 @@
+import { withOrgScope } from "@/lib/db-scope";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items } from "@/db/schema";
@@ -11,9 +12,11 @@ export async function GET(req: Request) {
   const orgId = await resolveOrgByApiKey(apiKeyFromRequest(req));
   if (!orgId) return Response.json({ error: "unauthorized" }, { status: 401 });
 
-  const rows = await db.select({
-    id: items.id, code: items.code, name: items.nameAr, sellPrice: items.sellPrice, minStock: items.minStock,
-  }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code));
+  return withOrgScope(orgId, false, async () => {
+    const rows = await db.select({
+      id: items.id, code: items.code, name: items.nameAr, sellPrice: items.sellPrice, minStock: items.minStock,
+    }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code));
 
-  return Response.json({ data: rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sellPrice: Number(r.sellPrice), minStock: Number(r.minStock) })) });
+    return Response.json({ data: rows.map((r) => ({ id: r.id, code: r.code, name: r.name, sellPrice: Number(r.sellPrice), minStock: Number(r.minStock) })) });
+  });
 }

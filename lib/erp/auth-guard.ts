@@ -13,6 +13,7 @@
 import { cache } from "react";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { organizationMembers } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/session";
 import { erpRoleHasPermission, erpRolePermissions, allErpPermissions, type ErpPermission } from "@/lib/erp/permissions";
@@ -36,13 +37,18 @@ export interface ErpAuthUser extends SessionUser {
  *  Cached per request — hit by requireErpModule + erpCan on every page/action. */
 export const getErpRole = cache(async (orgId: string, user: SessionUser): Promise<string | null> => {
   if (user.role === "system_admin") return "super_admin";
-  const [m] = await db
-    .select({ role: organizationMembers.role, isActive: organizationMembers.isActive })
-    .from(organizationMembers)
-    .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, user.id)))
-    .limit(1);
-  if (!m || !m.isActive) return null;
-  return m.role;
+  // Bootstrap read (runs before the request's tenant scope): scope it to the org
+  // being checked so the RLS-policied membership row is visible. An org the user
+  // isn't a member of simply yields no row → access denied.
+  return withOrgScope(orgId, false, async () => {
+    const [m] = await db
+      .select({ role: organizationMembers.role, isActive: organizationMembers.isActive })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, user.id)))
+      .limit(1);
+    if (!m || !m.isActive) return null;
+    return m.role;
+  });
 });
 
 export type MemberAccess = { role: string | null; permissions: Set<string> };
@@ -55,17 +61,21 @@ export type MemberAccess = { role: string | null; permissions: Set<string> };
  */
 export const getMemberAccess = cache(async (orgId: string, user: SessionUser): Promise<MemberAccess> => {
   if (user.role === "system_admin") return { role: "super_admin", permissions: new Set(allErpPermissions) };
-  const [m] = await db
-    .select({ role: organizationMembers.role, isActive: organizationMembers.isActive, overrides: organizationMembers.permissionOverrides })
-    .from(organizationMembers)
-    .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, user.id)))
-    .limit(1);
-  if (!m || !m.isActive) return { role: null, permissions: new Set() };
-  const perms = new Set<string>(erpRolePermissions[m.role] ?? []);
-  const ov = m.overrides ?? null;
-  for (const p of ov?.grant ?? []) perms.add(p);
-  for (const p of ov?.revoke ?? []) perms.delete(p);
-  return { role: m.role, permissions: perms };
+  // Bootstrap read (before the tenant scope): scope to the org being authorized so
+  // its RLS-policied membership row is readable; a non-member org yields no row.
+  return withOrgScope(orgId, false, async () => {
+    const [m] = await db
+      .select({ role: organizationMembers.role, isActive: organizationMembers.isActive, overrides: organizationMembers.permissionOverrides })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, user.id)))
+      .limit(1);
+    if (!m || !m.isActive) return { role: null, permissions: new Set() };
+    const perms = new Set<string>(erpRolePermissions[m.role] ?? []);
+    const ov = m.overrides ?? null;
+    for (const p of ov?.grant ?? []) perms.add(p);
+    for (const p of ov?.revoke ?? []) perms.delete(p);
+    return { role: m.role, permissions: perms };
+  });
 });
 
 /** Require an authenticated user who belongs to the given org. */

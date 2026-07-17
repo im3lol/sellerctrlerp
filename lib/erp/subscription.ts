@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { organizations, orgSubscriptions } from "@/db/schema";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 
@@ -30,7 +31,10 @@ const daysLeft = (end: Date | null): number | null =>
  * activates a plan. A row overrides this: live ACTIVE/TRIAL (and not past expiry)
  * grants its modules/caps; anything else locks.
  */
-export const getSubscriptionState = cache(async (orgId: string): Promise<SubState> => {
+export const getSubscriptionState = cache((orgId: string): Promise<SubState> =>
+  // Bootstrap read: runs before the tenant scope (it's part of deciding access),
+  // so scope it to orgId to make the RLS-policied org_subscriptions row visible.
+  withOrgScope(orgId, false, async () => {
   const [row] = await db
     .select({
       status: orgSubscriptions.status,
@@ -82,4 +86,4 @@ export const getSubscriptionState = cache(async (orgId: string): Promise<SubStat
     planId: row.planId ?? null,
     planName: row.planName ?? null,
   };
-});
+  }));

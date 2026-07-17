@@ -7,6 +7,7 @@ import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
 import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
+import { withPlatformScope } from "@/lib/db-scope";
 import { eq as _eq } from "drizzle-orm";
 import { users, organizations, organizationMembers, orgSubscriptions, plans, subscriptionRequests } from "@/db/schema";
 import { ALL_MODULES } from "@/lib/erp/module-list";
@@ -63,11 +64,14 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
 
   let orgId: string;
   try {
+    // Provisioning a brand-new tenant writes RLS-policied rows (members,
+    // subscription) for an org that has no session/scope yet → platform scope.
+    orgId = await withPlatformScope(async () => {
     const [org] = await db.insert(organizations).values({
       nameAr: d.companyName, nameEn: d.companyName,
       email: d.email, phone: d.phone || null, address: d.address || null, taxNumber: d.taxNumber || null,
     }).returning({ id: organizations.id });
-    orgId = org.id;
+    const orgId = org.id;
 
     const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
     const [user] = await db.insert(users).values({
@@ -98,12 +102,15 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
         });
       }
     }
+    return orgId;
+    });
   } catch {
     return { error: "تعذّر إنشاء الحساب — حاول مرة أخرى" };
   }
 
-  // Best-effort chart-of-accounts bootstrap; the tenant can re-run it from settings if it fails.
-  try { await initializeAccountingForOrg(orgId); } catch { /* non-fatal */ }
+  // Best-effort chart-of-accounts bootstrap (writes policied tables → platform scope);
+  // the tenant can re-run it from settings if it fails.
+  try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); } catch { /* non-fatal */ }
 
   try {
     await signIn("credentials", { email: d.email, password: d.password, redirectTo: "/dashboard" });

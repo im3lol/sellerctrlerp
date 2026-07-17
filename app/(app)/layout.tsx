@@ -4,6 +4,7 @@ import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms } from "@/db/schema";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
@@ -27,11 +28,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const access = activeOrg.org ? await getMemberAccess(activeOrg.org.id, user) : { role: null, permissions: new Set<string>() };
   const erpPermissions = [...access.permissions];
 
-  // Live platforms listed under the "المنصات" nav group.
+  // Live platforms listed under the "المنصات" nav group. The layout renders outside
+  // any page's loadErpPage scope, so this policied read must open its own org scope.
   const platforms = activeOrg.org
-    ? await db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
-        .where(and(eq(salesPlatforms.organizationId, activeOrg.org.id), eq(salesPlatforms.isActive, true)))
-        .orderBy(asc(salesPlatforms.name))
+    ? await withOrgScope(activeOrg.org.id, false, () =>
+        db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
+          .where(and(eq(salesPlatforms.organizationId, activeOrg.org!.id), eq(salesPlatforms.isActive, true)))
+          .orderBy(asc(salesPlatforms.name)))
     : [];
 
   return (

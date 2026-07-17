@@ -8,7 +8,7 @@ import { getCurrentUser, type SessionUser } from "@/lib/session";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
 import { orgHasModule, moduleOfPermission } from "@/lib/erp/entitlements";
-import { withOrgScope } from "@/lib/db-scope";
+import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 
 export const ACTIVE_ORG_COOKIE = "erp_org";
 
@@ -17,18 +17,23 @@ export type OrgSummary = { id: string; nameAr: string; nameEn: string };
 /** Organizations the user may access: all (system_admin) or active memberships.
  *  Cached per request — resolved on every ERP page via requireErpModule. */
 export const getUserOrganizations = cache(async (user: SessionUser): Promise<OrgSummary[]> => {
-  if (user.role === "system_admin") {
+  // Auth bootstrap: lists the user's orgs BEFORE any tenant scope exists, and
+  // reads the RLS-policied organization_members across all of them — so it must
+  // run in platform scope. The userId filter (or system_admin) is the control.
+  return withPlatformScope(async () => {
+    if (user.role === "system_admin") {
+      return db
+        .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
+        .from(organizations)
+        .orderBy(asc(organizations.createdAt));
+    }
     return db
       .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
-      .from(organizations)
+      .from(organizationMembers)
+      .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
+      .where(and(eq(organizationMembers.userId, user.id), eq(organizationMembers.isActive, true)))
       .orderBy(asc(organizations.createdAt));
-  }
-  return db
-    .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
-    .from(organizationMembers)
-    .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
-    .where(and(eq(organizationMembers.userId, user.id), eq(organizationMembers.isActive, true)))
-    .orderBy(asc(organizations.createdAt));
+  });
 });
 
 /** Resolve the active organization from the cookie (falling back to the first).

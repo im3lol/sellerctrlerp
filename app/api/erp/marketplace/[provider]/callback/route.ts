@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, platformCredentials } from "@/db/schema";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
@@ -33,22 +34,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const ex = await connector.oauth.exchangeCode(code, `${appUrl}/api/erp/marketplace/${provider.toLowerCase()}/callback`);
   if ("error" in ex) return back(false, ex.error);
 
-  // Resolve (or provision) the platform this connection belongs to.
-  const [existing] = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
-    .where(and(eq(salesPlatforms.organizationId, state.orgId), eq(salesPlatforms.code, connector.code))).limit(1);
-  let platformId = existing?.id ?? null;
-  if (!platformId && connector.code === "AMAZON") platformId = (await ensureAmazonPlatform(state.orgId)).platformId;
+  // Resolve/provision the platform + store the token, RLS-scoped to the signed
+  // state.orgId. The token exchange above ran unscoped (network I/O); the redirect
+  // MUST stay outside this block so its thrown NEXT_REDIRECT can't roll back the insert.
+  await withOrgScope(state.orgId, false, async () => {
+    const [existing] = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.organizationId, state.orgId), eq(salesPlatforms.code, connector.code))).limit(1);
+    let platformId = existing?.id ?? null;
+    if (!platformId && connector.code === "AMAZON") platformId = (await ensureAmazonPlatform(state.orgId)).platformId;
 
-  await db.insert(platformCredentials).values({
-    organizationId: state.orgId, platformId, provider: connector.code.toLowerCase(),
-    refreshToken: encryptSecret(ex.refreshToken),
-    sellerId: sellerId || null, marketplaceId: mp.marketplaceId, region: mp.region, updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: [platformCredentials.organizationId, platformCredentials.provider],
-    set: {
-      refreshToken: encryptSecret(ex.refreshToken), sellerId: sellerId || null,
-      marketplaceId: mp.marketplaceId, region: mp.region, platformId, updatedAt: new Date(),
-    },
+    await db.insert(platformCredentials).values({
+      organizationId: state.orgId, platformId, provider: connector.code.toLowerCase(),
+      refreshToken: encryptSecret(ex.refreshToken),
+      sellerId: sellerId || null, marketplaceId: mp.marketplaceId, region: mp.region, updatedAt: new Date(),
+    }).onConflictDoUpdate({
+      target: [platformCredentials.organizationId, platformCredentials.provider],
+      set: {
+        refreshToken: encryptSecret(ex.refreshToken), sellerId: sellerId || null,
+        marketplaceId: mp.marketplaceId, region: mp.region, platformId, updatedAt: new Date(),
+      },
+    });
   });
   return back(true);
 }

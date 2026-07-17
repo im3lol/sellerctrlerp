@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { plans, subscriptionRequests } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
@@ -32,29 +33,31 @@ export async function requestSubscriptionAction(input: SubRequestInput): Promise
   if (!method || !method.enabled) return { error: "طريقة دفع غير متاحة" };
   if (input.interval !== "MONTHLY" && input.interval !== "ANNUAL") return { error: "دورة غير صحيحة" };
 
-  const [plan] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.isActive, true))).limit(1);
-  if (!plan) return { error: "الباقة غير موجودة" };
+  return withOrgScope(org.id, false, async () => {
+    const [plan] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.isActive, true))).limit(1);
+    if (!plan) return { error: "الباقة غير موجودة" };
 
-  // One open request at a time.
-  const [pending] = await db.select({ id: subscriptionRequests.id }).from(subscriptionRequests)
-    .where(and(eq(subscriptionRequests.organizationId, org.id), eq(subscriptionRequests.status, "PENDING"))).limit(1);
-  if (pending) return { error: "لديك طلب اشتراك قيد المراجعة بالفعل" };
+    // One open request at a time.
+    const [pending] = await db.select({ id: subscriptionRequests.id }).from(subscriptionRequests)
+      .where(and(eq(subscriptionRequests.organizationId, org.id), eq(subscriptionRequests.status, "PENDING"))).limit(1);
+    if (pending) return { error: "لديك طلب اشتراك قيد المراجعة بالفعل" };
 
-  const price = input.interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
-  await db.insert(subscriptionRequests).values({
-    organizationId: org.id,
-    planId: plan.id,
-    planName: plan.name,
-    interval: input.interval,
-    price: String(price),
-    paymentMethod: input.paymentMethod,
-    paymentReference: input.paymentReference?.trim() || null,
-    note: input.note?.trim() || null,
-    requestedBy: user.id,
+    const price = input.interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
+    await db.insert(subscriptionRequests).values({
+      organizationId: org.id,
+      planId: plan.id,
+      planName: plan.name,
+      interval: input.interval,
+      price: String(price),
+      paymentMethod: input.paymentMethod,
+      paymentReference: input.paymentReference?.trim() || null,
+      note: input.note?.trim() || null,
+      requestedBy: user.id,
+    });
+
+    revalidatePath("/erp/settings/subscription");
+    return { ok: true };
   });
-
-  revalidatePath("/erp/settings/subscription");
-  return { ok: true };
 }
 
 /** The tenant's latest subscription request (for status display). */

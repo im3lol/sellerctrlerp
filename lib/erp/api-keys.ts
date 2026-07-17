@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withPlatformScope } from "@/lib/db-scope";
 import { apiKeys } from "@/db/schema";
 
 /** New high-entropy API key (shown once). */
@@ -23,11 +24,15 @@ export function keyHint(key: string): string {
 export async function resolveOrgByApiKey(key: string): Promise<string | null> {
   if (!key || !key.startsWith("sk_")) return null;
   const hash = hashApiKey(key);
-  const [row] = await db.select({ id: apiKeys.id, org: apiKeys.organizationId })
-    .from(apiKeys).where(and(eq(apiKeys.keyHash, hash), eq(apiKeys.isActive, true))).limit(1);
-  if (!row) return null;
-  await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-  return row.org;
+  // Bootstrap: the key IS what resolves the org, so this lookup runs before any
+  // tenant scope and reads the RLS-policied api_keys by hash → platform scope.
+  return withPlatformScope(async () => {
+    const [row] = await db.select({ id: apiKeys.id, org: apiKeys.organizationId })
+      .from(apiKeys).where(and(eq(apiKeys.keyHash, hash), eq(apiKeys.isActive, true))).limit(1);
+    if (!row) return null;
+    await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
+    return row.org;
+  });
 }
 
 /** Extract the key from a request (Authorization: Bearer … or x-api-key). */

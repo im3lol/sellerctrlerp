@@ -1,3 +1,4 @@
+import { runAsErp } from "@/lib/erp/api-auth";
 import { and, eq } from "drizzle-orm";
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { db } from "@/lib/db";
@@ -13,12 +14,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const auth = await authorizeApi(req, "sales.confirm");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
 
-  const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
-    .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
-  if (!so) return Response.json({ error: "الأمر غير موجود" }, { status: 404 });
-  if (so.status !== "DRAFT") return Response.json({ error: "الأمر مؤكّد بالفعل" }, { status: 400 });
+  return runAsErp(auth, async () => {
+    const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+    if (!so) return Response.json({ error: "الأمر غير موجود" }, { status: 404 });
+    if (so.status !== "DRAFT") return Response.json({ error: "الأمر مؤكّد بالفعل" }, { status: 400 });
 
-  await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
-  await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number} (موبايل)` });
-  return Response.json({ ok: true });
+    await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number} (موبايل)` });
+    return Response.json({ ok: true });
+  });
 }

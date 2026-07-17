@@ -16,7 +16,7 @@
 import { Pool } from "pg";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db"; // owner connection — seeds/cleans, bypasses RLS
-import { organizations, customers, items, materialRequests, materialRequestLines } from "@/db/schema";
+import { organizations, customers, items, materialRequests, materialRequestLines, users, organizationMembers } from "@/db/schema";
 
 const APPUSER_URL = process.env.APPUSER_DATABASE_URL ?? "postgres://appuser:appuser@localhost:5433/sellerctrl";
 
@@ -45,6 +45,14 @@ async function main() {
   await db.insert(materialRequestLines).values([
     { materialRequestId: mrA.id, itemId: itemA.id, quantity: "1" },
     { materialRequestId: mrB.id, itemId: itemB.id, quantity: "1" },
+  ]);
+
+  // A user who is a member of BOTH orgs — to exercise the auth-bootstrap reads
+  // (getUserOrganizations / getMemberAccess) that run BEFORE a tenant scope exists.
+  const [usr] = await db.insert(users).values({ name: "RLS Boot", email: `rls-boot-${Date.now()}@t.test`, passwordHash: "x" }).returning({ id: users.id });
+  await db.insert(organizationMembers).values([
+    { organizationId: orgA.id, userId: usr.id, role: "owner" },
+    { organizationId: orgB.id, userId: usr.id, role: "owner" },
   ]);
 
   const app = new Pool({ connectionString: APPUSER_URL });
@@ -130,12 +138,34 @@ async function main() {
       catch { threw = true; await c.query("rollback to savepoint s"); }
       check("line table: INSERT onto org B's parent (scope A) is blocked", threw);
     });
+
+    // ── AUTH BOOTSTRAP: the reads that resolve identity/org run BEFORE a scope ──
+    // These lock in the fix: getUserOrganizations must run in platform scope;
+    // getMemberAccess/getErpRole must run in the target-org scope.
+    // 9. WITHOUT a scope, the membership read returns 0 → this is exactly why the
+    //    guard would deny everyone if it ran unscoped (the pre-fix bug).
+    check("bootstrap: membership read with NO scope returns 0 (why the fix is needed)",
+      (await app.query("select 1 from organization_members where user_id=$1", [usr.id])).rowCount === 0);
+
+    // 10. getMemberAccess pattern: scope A sees the user's A-membership (grants access).
+    await inScope(orgA.id, false, async (c) => {
+      const rows = (await c.query("select organization_id from organization_members where user_id=$1", [usr.id])).rows;
+      check("bootstrap: getMemberAccess under withOrgScope(A) sees the A membership",
+        rows.length === 1 && rows[0].organization_id === orgA.id);
+    });
+
+    // 11. getUserOrganizations pattern: platform scope lists BOTH memberships.
+    await inScope(null, true, async (c) => {
+      const rows = (await c.query("select organization_id from organization_members where user_id=$1", [usr.id])).rows;
+      check("bootstrap: getUserOrganizations under withPlatformScope lists BOTH orgs", rows.length === 2);
+    });
   } finally {
     await app.end();
     await db.delete(customers).where(eq(customers.organizationId, orgA.id));
     await db.delete(customers).where(eq(customers.organizationId, orgB.id));
-    await db.delete(organizations).where(eq(organizations.id, orgA.id));
+    await db.delete(organizations).where(eq(organizations.id, orgA.id)); // cascades memberships
     await db.delete(organizations).where(eq(organizations.id, orgB.id));
+    await db.delete(users).where(eq(users.id, usr.id));
   }
 
   console.log(failures === 0 ? "\n✅ RLS leak test PASSED" : `\n❌ ${failures} check(s) FAILED`);
