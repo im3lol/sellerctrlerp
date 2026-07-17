@@ -13,14 +13,14 @@ export default async function AdminAcademyPage() {
   const rows = await listAllLessonsForAdmin();
   const list = rows.map((l) => ({
     id: l.id, slug: l.slug, title: l.title, module: l.module,
-    outcome: l.outcome, url: l.url, minutes: l.minutes,
+    outcome: l.outcome, url: l.url, body: l.body, minutes: l.minutes,
     level: l.level, sortOrder: l.sortOrder, isActive: l.isActive,
   }));
 
   return (
     <div className="space-y-6">
       <PageHeader title="الأكاديمية"
-        description="دروس شرح النظام كما يراها كل العملاء. الدرس بدون رابط يظهر «قريباً»." />
+        description="دروس شرح النظام كما يراها كل العملاء. الدرس يبقى متاحًا بفيديو أو شرح مكتوب — بدون الاتنين يظهر «قريباً»." />
       <AcademyManager lessons={list} />
     </div>
   );

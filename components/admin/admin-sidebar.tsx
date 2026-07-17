@@ -11,6 +11,8 @@ const NAV = [
   { label: "المؤسسات والاشتراكات", href: "/admin/licensing", icon: "Building2" },
   { label: "كوبونات الخصم", href: "/admin/coupons", icon: "Ticket" },
   { label: "الأكاديمية", href: "/admin/academy", icon: "GraduationCap" },
+  { label: "آخر التحديثات", href: "/admin/changelog", icon: "Sparkles" },
+  { label: "الاقتراحات والشكاوى", href: "/admin/feedback", icon: "MessageSquarePlus" },
   { label: "أدوات النظام", href: "/admin/system", icon: "Server" },
 ];
 

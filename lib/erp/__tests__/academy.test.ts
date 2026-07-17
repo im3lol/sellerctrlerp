@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { moduleCards, progress, isModuleKey, MODULE_ICONS, type Lesson } from "../academy";
+import { moduleCards, progress, isModuleKey, isLive, lessonHref, MODULE_ICONS, type Lesson } from "../academy";
 import { ALL_MODULES, MODULE_LABELS } from "../module-list";
 
-const lesson = (id: string, module: string, url?: string): Lesson => ({
+const lesson = (id: string, module: string, url?: string, body?: string): Lesson => ({
   id, slug: id, title: id, module: module as Lesson["module"],
-  outcome: null, url: url ?? null, minutes: null, level: "basic",
+  outcome: null, url: url ?? null, body: body ?? null, minutes: null, level: "basic",
 });
 
 describe("isModuleKey", () => {
@@ -64,9 +64,42 @@ describe("moduleCards", () => {
   });
 });
 
+describe("isLive", () => {
+  it("a video OR a doc is enough — neither is قريباً", () => {
+    // The whole point of docs: a lesson goes live without anything being recorded.
+    expect(isLive(lesson("a", "sales", "https://x"))).toBe(true);
+    expect(isLive(lesson("b", "sales", undefined, "## شرح"))).toBe(true);
+    expect(isLive(lesson("c", "sales", "https://x", "## شرح"))).toBe(true);
+    expect(isLive(lesson("d", "sales"))).toBe(false);
+  });
+});
+
+describe("lessonHref", () => {
+  it("a doc reads in-app; a video-only lesson goes straight to the video", () => {
+    // A page whose entire content is one outbound link is a wasted click.
+    expect(lessonHref(lesson("a", "sales", undefined, "## شرح"))).toBe("/erp/academy/sales/a");
+    expect(lessonHref(lesson("b", "sales", "https://x"))).toBe("https://x");
+  });
+
+  it("has both → the doc page wins, since it shows the video too", () => {
+    expect(lessonHref(lesson("c", "purchases", "https://x", "## شرح"))).toBe("/erp/academy/purchases/c");
+  });
+
+  it("قريباً has nowhere to go", () => {
+    expect(lessonHref(lesson("d", "sales"))).toBeNull();
+  });
+});
+
 describe("progress", () => {
-  it("a lesson with no url is قريباً", () => {
+  it("a lesson with neither video nor doc is قريباً", () => {
     expect(progress([lesson("a", "sales", "https://x"), lesson("b", "sales")]))
+      .toEqual({ total: 2, live: 1, soon: 1 });
+  });
+
+  it("counts a doc-only lesson as متاح", () => {
+    // Regression guard: the count used to key off url alone, which would have listed
+    // a written lesson as قريباً on the card while its page rendered fine.
+    expect(progress([lesson("a", "sales", undefined, "## شرح"), lesson("b", "sales")]))
       .toEqual({ total: 2, live: 1, soon: 1 });
   });
 

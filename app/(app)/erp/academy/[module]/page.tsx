@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { isModuleKey, listLessonsFor, progress, MODULE_ICONS, type Lesson } from "@/lib/erp/academy";
+import { isModuleKey, listLessonsFor, progress, isLive, lessonHref, MODULE_ICONS, type Lesson } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,13 +53,15 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
 }
 
 function LessonCard({ lesson }: { lesson: Lesson }) {
-  const live = !!lesson.url;
+  const live = isLive(lesson);
+  const href = lessonHref(lesson);
+  const icon = !live ? "Clock" : lesson.body ? "FileText" : "PlayCircle";
 
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Icon name={live ? "PlayCircle" : "Clock"} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
+          <Icon name={icon} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
           <span className="font-medium">{lesson.title}</span>
         </div>
         {!live && <Badge variant="secondary" className="shrink-0">قريباً</Badge>}
@@ -67,6 +70,8 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
         {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
         {lesson.level && <span>· {lesson.level === "basic" ? "أساسي" : "متقدّم"}</span>}
+        {/* Say the format before the click — a reader looking for text shouldn't land on a video. */}
+        {live && <span>· {lesson.body ? (lesson.url ? "مقال + فيديو" : "مقال") : "فيديو"}</span>}
       </div>
     </>
   );
@@ -78,9 +83,10 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
 
   // A قريباً lesson is deliberately not a link: a dead click teaches the user the
   // page lies, and then they stop trusting the ones that do work.
-  return live ? (
-    <a href={lesson.url!} target="_blank" rel="noopener noreferrer" className={className}>{body}</a>
-  ) : (
-    <div className={className}>{body}</div>
-  );
+  if (!live || !href) return <div className={className}>{body}</div>;
+
+  // A doc stays in the app; a bare video lives elsewhere, so it opens elsewhere.
+  return lesson.body
+    ? <Link href={href} className={className}>{body}</Link>
+    : <a href={href} target="_blank" rel="noopener noreferrer" className={className}>{body}</a>;
 }

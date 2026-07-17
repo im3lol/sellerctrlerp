@@ -17,11 +17,26 @@ export type Lesson = {
   title: string;
   module: ModuleKey;
   outcome: string | null;
-  /** Absent = قريباً. */
+  /** Video link. */
   url: string | null;
+  /** Written doc (markdown). */
+  body: string | null;
   minutes: number | null;
   level: "basic" | "advanced";
 };
+
+/**
+ * A lesson counts as ready once it has EITHER a video or a written doc.
+ *
+ * The single definition of «متاح» — every count, badge and link routes through it,
+ * so a lesson can never be listed as ready on one page and قريباً on another. Docs
+ * are the same lesson written down, not a parallel catalogue.
+ */
+export const isLive = (l: Pick<Lesson, "url" | "body">) => !!l.url || !!l.body;
+
+/** Has a doc → read it here; video only → the video is the lesson, go straight there. */
+export const lessonHref = (l: Lesson) =>
+  l.body ? `/erp/academy/${l.module}/${l.slug}` : l.url;
 
 /** Lives in module-list.ts (client-safe — this file imports the db). Re-exported for callers already reading it here. */
 export { MODULE_ICONS };
@@ -33,6 +48,7 @@ const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   module: r.module as ModuleKey,
   outcome: r.outcome,
   url: r.url,
+  body: r.body,
   minutes: r.minutes,
   level: (r.level === "advanced" ? "advanced" : "basic"),
 });
@@ -51,6 +67,14 @@ export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
     .where(and(eq(academyLessons.isActive, true), eq(academyLessons.module, module)))
     .orderBy(asc(academyLessons.sortOrder), asc(academyLessons.title));
   return rows.map(row);
+}
+
+/** One lesson by its slug — the doc page. Active only; a hidden lesson 404s. */
+export async function getLesson(slug: string): Promise<Lesson | null> {
+  const [r] = await db.select().from(academyLessons)
+    .where(and(eq(academyLessons.slug, slug), eq(academyLessons.isActive, true)))
+    .limit(1);
+  return r ? row(r) : null;
 }
 
 /** Every lesson including hidden ones — the admin list. */
@@ -81,7 +105,7 @@ export type ModuleCard = {
 export function moduleCards(lessons: Lesson[]): ModuleCard[] {
   return ALL_MODULES.map((module) => {
     const mine = lessons.filter((l) => l.module === module);
-    const live = mine.filter((l) => !!l.url).length;
+    const live = mine.filter(isLive).length;
     return {
       module,
       label: MODULE_LABELS[module] ?? module,
@@ -96,7 +120,7 @@ export function moduleCards(lessons: Lesson[]): ModuleCard[] {
 export type AcademyProgress = { total: number; live: number; soon: number };
 
 export function progress(lessons: Lesson[]): AcademyProgress {
-  const live = lessons.filter((l) => !!l.url).length;
+  const live = lessons.filter(isLive).length;
   return { total: lessons.length, live, soon: lessons.length - live };
 }
 

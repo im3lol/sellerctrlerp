@@ -2065,8 +2065,10 @@ export const openingBalanceLines = pgTable(
  * `module` matches ModuleKey (lib/erp/module-list.ts) — it drives both the grouping
  * on /erp/academy and the «اتعلّم» link inside that module.
  *
- * A lesson with no `url` renders as قريباً: a visible promise beats an invisible
- * gap. Fill the url in and it goes live.
+ * A lesson is قريباً until it has EITHER a video (`url`) or a written doc (`body`).
+ * Docs aren't a second system: the same lesson is the unit, and a lesson can be
+ * watched, read, or both. A visible promise beats an invisible gap — fill in either
+ * one and it goes live.
  */
 export const academyLessons = pgTable(
   "academy_lessons",
@@ -2076,10 +2078,12 @@ export const academyLessons = pgTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     module: text("module").notNull(),
-    /** One line: what the viewer can do after watching. */
+    /** One line: what the viewer can do after watching/reading. */
     outcome: text("outcome"),
-    /** Absent = قريباً. */
+    /** Video link. Absent + no body = قريباً. */
     url: text("url"),
+    /** The written doc (markdown). Absent + no url = قريباً. */
+    body: text("body"),
     minutes: integer("minutes"),
     level: text("level").notNull().default("basic"), // basic | advanced
     sortOrder: integer("sort_order").notNull().default(0),
@@ -2090,5 +2094,70 @@ export const academyLessons = pgTable(
   (t) => [
     uniqueIndex("academy_lessons_slug_idx").on(t.slug),
     index("academy_lessons_module_idx").on(t.module, t.sortOrder),
+  ],
+);
+
+/**
+ * «آخر التحديثات» — what shipped, written by the platform owner.
+ *
+ * NOT org-scoped, same reason as academy_lessons above: a release note is about
+ * SellerCtrl, not about one tenant's data. Every tenant reads the same list.
+ *
+ * `releasedAt` is the sort key and is set by the author, not by insert time: notes
+ * get written after the fact, and the list must read as the product's history rather
+ * than as the order someone happened to type them in.
+ */
+export const changelogEntries = pgTable(
+  "changelog_entries",
+  {
+    id: pk(),
+    title: text("title").notNull(),
+    /** The note itself (markdown). */
+    body: text("body").notNull(),
+    /** feature | improvement | fix */
+    kind: text("kind").notNull().default("feature"),
+    /** Which module it touched — null = the whole product. */
+    module: text("module"),
+    releasedAt: ts("released_at").notNull().defaultNow(),
+    /** Unpublished = written but not shown to tenants yet. */
+    isPublished: boolean("is_published").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("changelog_entries_released_idx").on(t.isPublished, t.releasedAt)],
+);
+
+/**
+ * اقتراح أو شكوى — what a tenant sends us.
+ *
+ * Org-scoped, UNLIKE the two tables above: this IS tenant data. A tenant reads only
+ * its own submissions (filter by organization_id, always). The platform owner reads
+ * across orgs at /admin/feedback — that cross-org read is the entire point of the
+ * inbox and is the one place it's allowed.
+ *
+ * `userId` is who sent it, kept so a reply reaches a person rather than a company.
+ * ON DELETE SET NULL: a submission outlives the employee who wrote it.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** suggestion | complaint */
+    kind: text("kind").notNull().default("suggestion"),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    /** open | seen | done */
+    status: text("status").notNull().default("open"),
+    /** The owner's answer — shown back to the tenant that sent it. */
+    reply: text("reply"),
+    repliedAt: ts("replied_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("feedback_org_idx").on(t.organizationId, t.createdAt),
+    index("feedback_status_idx").on(t.status, t.createdAt),
   ],
 );

@@ -337,6 +337,13 @@
       "when": 1784271440163,
       "tag": "0047_fair_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1784274954513,
+      "tag": "0048_classy_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

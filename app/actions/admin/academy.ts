@@ -19,6 +19,7 @@ function refresh() {
   revalidatePath("/admin/academy");
   revalidatePath("/erp/academy");
   revalidatePath("/erp/academy/[module]", "page");
+  revalidatePath("/erp/academy/[module]/[slug]", "page");
 }
 
 const schema = z.object({
@@ -26,9 +27,10 @@ const schema = z.object({
   title: z.string().min(2, "العنوان قصير جداً"),
   module: z.enum(ALL_MODULES),
   outcome: z.string().optional(),
-  // Empty = قريباً. A blank string must become null, not "", or the lesson would
-  // render as live and link nowhere.
+  // Both empty = قريباً. A blank string must become null, not "", or the lesson would
+  // render as live and go nowhere.
   url: z.string().url("رابط غير صحيح").optional().or(z.literal("")),
+  body: z.string().optional(),
   minutes: z.number().int().positive().optional().nullable(),
   level: z.enum(["basic", "advanced"]).default("basic"),
   sortOrder: z.number().int().default(0),
@@ -46,6 +48,7 @@ export async function saveLessonAction(input: unknown, id?: string): Promise<Res
     module: d.module,
     outcome: d.outcome?.trim() || null,
     url: d.url?.trim() || null,
+    body: d.body?.trim() || null,
     minutes: d.minutes ?? null,
     level: d.level,
     sortOrder: d.sortOrder,

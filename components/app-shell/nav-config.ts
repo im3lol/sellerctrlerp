@@ -205,11 +205,13 @@ export const NAV: NavSection[] = [
     // Product documentation, not tenant data — no capability gate: anyone signed in
     // can read how the system works, including someone deciding whether to buy a
     // module they don't have yet.
-    heading: "الأكاديمية",
+    heading: "الأكاديمية والدعم",
     href: "/erp/academy",
     icon: "GraduationCap",
     items: [
       { label: "كل الدروس", href: "/erp/academy", icon: "GraduationCap" },
+      { label: "آخر التحديثات", href: "/erp/whats-new", icon: "Sparkles" },
+      { label: "اقتراح أو شكوى", href: "/erp/feedback", icon: "MessageSquarePlus" },
     ],
   },
   {
