@@ -58,7 +58,7 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 
 ### موجة 3 — P2: صحّة الترحيل وآلة الحالات
 - [x] **#6** `sales-invoices.ts:200` — الفاتورة القائمة بذاتها ترفض الترحيل لو المخزن/5101/1104 ناقص (مرآة `deliveries.ts:193`).
-- [ ] **#7** (→W4: يحتاج ربط فاتورة↔أمر) `sales-orders.ts:175` + `purchase-orders.ts:170` — التحويل يسيب الأمر CONFIRMED؛ الحالة تتحرّك بترحيل الفاتورة (أو إعادة الفتح لـCONFIRMED عند حذف الفاتورة المسودّة).
+- [x] **#7** (→W4: يحتاج ربط فاتورة↔أمر) `sales-orders.ts:175` + `purchase-orders.ts:170` — التحويل يسيب الأمر CONFIRMED؛ الحالة تتحرّك بترحيل الفاتورة (أو إعادة الفتح لـCONFIRMED عند حذف الفاتورة المسودّة).
 - [x] **#9** `posting.ts:postDraft` — فحص `isLeaf` + `allowManualEntries` في نقطة الترحيل الواحدة.
 - [x] **#8** `deliveries/goods-receipts/receipts/payments` — `SELECT … FOR UPDATE` على السطور داخل ترانزاكشن التأكيد + إعادة قراءة قبل التحقق.
 - [x] **#11** `recurring.ts` — كل قالب (insert + تقديم nextRunDate) في ترانزاكشن واحد؛ `sourceId` مستقر؛ تقديم nextRunDate داخل حارس النجاح.
@@ -70,11 +70,11 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 ### موجة 4 — قرارات + هجرات (بعد ما تحسم القسم 5)
 - [x] **#20** `db/erp.ts:1905` — `employees.userId` → `onDelete: "set null"` (migration).
 - [x] **#5b** عزل الحضور — قراءة الرواتب اتقيّدت بـ`inArray` على موظفي الدورة (كانت تمسح كل المستخدمين). العمود org على `attendance` **مؤجّل**: الجدول dormant (بلا مسار كتابة في التطبيق)، فترحيل جدول مفيش حاجة بتكتبه سابق لأوانه — يتعمل مع ميزة clock-in. السقف موثّق عند القراءة.
-- [ ] **#16** انتهاء + نطاق مفاتيح API (migration `expiresAt`/`scope` + إنفاذ في `resolveOrgByApiKey`).
+- [x] **#16** انتهاء + نطاق مفاتيح API (migration `expiresAt`/`scope` + إنفاذ في `resolveOrgByApiKey`).
 - [x] **#10** إنفاذ دلالة `SOFT_CLOSED` في `ensurePeriod`.
-- [ ] **#18** خصم الإجازة بدون أجر من الراتب الشهري (proration — الآلية موجودة `workingDays`).
-- [ ] **#15** rate-limit/lockout على الدخول (ويب + `/api/v1/auth/login`).
-- [ ] reservations: استبعاد DRAFT من الحجز؟ (`availability.ts:48`).
+- [x] **#18** خصم الإجازة بدون أجر من الراتب الشهري (proration — الآلية موجودة `workingDays`).
+- [x] **#15** rate-limit/lockout على الدخول (ويب + `/api/v1/auth/login`).
+- [x] reservations: استبعاد DRAFT من الحجز؟ (`availability.ts:48`).
 
 ### موجة 5 — P3 تنظيف + إعادة هيكلة (تتدمج مع هدف الـIA)
 - [x] تعليم `fifo_layers` + `item_balances` الميتة.
