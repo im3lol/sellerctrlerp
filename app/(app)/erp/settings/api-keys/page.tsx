@@ -12,14 +12,20 @@ const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB"
 export default async function ApiKeysPage() {
   return loadErpPage("settings.view", async ({ orgId }) => {
     const rows = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, orgId)).orderBy(desc(apiKeys.createdAt));
-    const keys = rows.map((k) => ({ id: k.id, name: k.name, hint: k.keyHint, lastUsed: dt(k.lastUsedAt), active: k.isActive }));
+    const now = Date.now();
+    const keys = rows.map((k) => ({
+      id: k.id, name: k.name, hint: k.keyHint, lastUsed: dt(k.lastUsedAt), active: k.isActive,
+      scope: (k.scope === "read" ? "read" : "write") as "read" | "write",
+      expires: dt(k.expiresAt),
+      expired: !!k.expiresAt && new Date(k.expiresAt as unknown as string).getTime() <= now,
+    }));
 
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="KeyRound" title="مفاتيح الـ API" subtitle="اربط أنظمتك الخارجية بالبيانات عبر REST API" backHref="/erp/settings" />
         <ApiKeysManager keys={keys} />
         <Card>
-          <CardHeader><CardTitle className="text-base">نقاط النهاية المتاحة (قراءة فقط)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">نقاط النهاية المتاحة</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p className="text-muted-foreground">أرسل المفتاح في الترويسة <code dir="ltr">Authorization: Bearer &lt;key&gt;</code> أو <code dir="ltr">x-api-key</code>.</p>
             <ul className="space-y-1 font-mono text-xs" dir="ltr">

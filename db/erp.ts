@@ -1409,6 +1409,8 @@ export const apiKeys = pgTable(
     keyHash: text("key_hash").notNull(),
     keyHint: text("key_hint").notNull(), // masked display, e.g. sk_ab…yz
     isActive: boolean("is_active").notNull().default(true),
+    scope: text("scope").notNull().default("write"), // 'read' | 'write' — write implies read (Audit#16)
+    expiresAt: ts("expires_at"),                       // null = never expires (Audit#16)
     lastUsedAt: ts("last_used_at"),
     createdAt: createdAt(),
   },

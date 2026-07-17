@@ -3,7 +3,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, items } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { resolveOrgByApiKey, apiKeyFromRequest } from "@/lib/erp/api-keys";
+import { resolveApiKey, apiKeyFromRequest } from "@/lib/erp/api-keys";
 import { round2 } from "@/lib/erp/money";
 
 export const runtime = "nodejs";
@@ -17,8 +17,10 @@ const bad = (msg: string, status = 400) => Response.json({ error: msg }, { statu
 /** POST /api/v1/sales-orders — create a DRAFT sales order. customer + line items
  *  may be given by id or by code. Auth: Bearer <api key> / x-api-key. No GL/stock. */
 export async function POST(req: Request) {
-  const orgId = await resolveOrgByApiKey(apiKeyFromRequest(req));
-  if (!orgId) return bad("unauthorized", 401);
+  const auth = await resolveApiKey(apiKeyFromRequest(req));
+  if (!auth) return bad("unauthorized", 401);
+  if (auth.scope !== "write") return bad("this API key is read-only", 403);
+  const orgId = auth.orgId;
 
   return withOrgScope(orgId, false, async () => {
     let body: Body;
