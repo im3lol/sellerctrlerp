@@ -6,6 +6,7 @@ import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { fiscalPeriods, accounts, journalEntries, journalEntryLines } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";
+import { computeYearClosing } from "@/lib/erp/year-closing";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
 const STATUSES = ["OPEN", "SOFT_CLOSED", "CLOSED"] as const;
@@ -32,15 +33,7 @@ export async function setPeriodStatusAction(id: string, status: string): Promise
 
 // ── Year-end closing ─────────────────────────────────────────
 
-type ClosingLine = { code: string; nameAr: string; accountId: string; amount: number };
-
-export type YearClosingPreview = {
-  revenues: ClosingLine[];
-  expenses: ClosingLine[];
-  totalRevenue: number;
-  totalExpense: number;
-  netIncome: number;
-};
+export type YearClosingPreview = ReturnType<typeof computeYearClosing>;
 
 /** Preview the closing entries that would be generated for a fiscal period. */
 export async function previewYearClosingAction(
@@ -83,24 +76,9 @@ export async function previewYearClosingAction(
       )
       .groupBy(accounts.id);
 
-    const revenues: ClosingLine[] = [];
-    const expenses: ClosingLine[] = [];
-
-    for (const r of rows) {
-      const d = Number(r.debit), c = Number(r.credit);
-      if (r.type === "REVENUE") {
-        const amount = c - d; // natural credit balance
-        if (amount > 0) revenues.push({ code: r.code, nameAr: r.nameAr, accountId: r.id, amount });
-      } else {
-        const amount = d - c; // natural debit balance
-        if (amount > 0) expenses.push({ code: r.code, nameAr: r.nameAr, accountId: r.id, amount });
-      }
-    }
-
-    const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0);
-    const totalExpense = expenses.reduce((s, r) => s + r.amount, 0);
-
-    return { ok: true, preview: { revenues, expenses, totalRevenue, totalExpense, netIncome: totalRevenue - totalExpense } };
+    // Close every P&L account by its SIGNED balance (contra accounts like 4102
+    // returns included) — see lib/erp/year-closing.ts.
+    return { ok: true, preview: computeYearClosing(rows) };
   });
 }
 
@@ -121,7 +99,7 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
 
     const preview = await previewYearClosingAction(periodId);
     if (!preview.ok) return { error: preview.error };
-    const { revenues, expenses, netIncome } = preview.preview;
+    const { revenues, expenses, netIncome, plLines } = preview.preview;
 
     if (revenues.length === 0 && expenses.length === 0) {
       // Nothing to close — just lock the period
@@ -155,15 +133,11 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
       return created.id;
     });
 
-    // Build closing journal entry lines
-    const lines: { accountId: string; debit: number; credit: number; description: string }[] = [];
+    // Build closing journal entry lines — each P&L account on the side that zeroes
+    // its signed balance (from computeYearClosing), then the net to retained earnings.
+    const lines: { accountId: string; debit: number; credit: number; description: string }[] =
+      plLines.map((l) => ({ accountId: l.accountId, debit: l.debit, credit: l.credit, description: `إقفال ${l.nameAr}` }));
 
-    for (const r of revenues) {
-      lines.push({ accountId: r.accountId, debit: r.amount, credit: 0, description: `إقفال ${r.nameAr}` });
-    }
-    for (const e of expenses) {
-      lines.push({ accountId: e.accountId, debit: 0, credit: e.amount, description: `إقفال ${e.nameAr}` });
-    }
     if (netIncome > 0) {
       lines.push({ accountId: retainedId, debit: 0, credit: netIncome, description: "صافي ربح الفترة → أرباح محتجزة" });
     } else if (netIncome < 0) {
