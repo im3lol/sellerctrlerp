@@ -69,7 +69,7 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 
 ### موجة 4 — قرارات + هجرات (بعد ما تحسم القسم 5)
 - [x] **#20** `db/erp.ts:1905` — `employees.userId` → `onDelete: "set null"` (migration).
-- [ ] **#5b** عزل الحضور بالمؤسسة — عمود org/employee على `attendance` (migration + سياسة RLS).
+- [x] **#5b** عزل الحضور — قراءة الرواتب اتقيّدت بـ`inArray` على موظفي الدورة (كانت تمسح كل المستخدمين). العمود org على `attendance` **مؤجّل**: الجدول dormant (بلا مسار كتابة في التطبيق)، فترحيل جدول مفيش حاجة بتكتبه سابق لأوانه — يتعمل مع ميزة clock-in. السقف موثّق عند القراءة.
 - [ ] **#16** انتهاء + نطاق مفاتيح API (migration `expiresAt`/`scope` + إنفاذ في `resolveOrgByApiKey`).
 - [x] **#10** إنفاذ دلالة `SOFT_CLOSED` في `ensurePeriod`.
 - [ ] **#18** خصم الإجازة بدون أجر من الراتب الشهري (proration — الآلية موجودة `workingDays`).
