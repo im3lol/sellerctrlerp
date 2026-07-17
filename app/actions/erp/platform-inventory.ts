@@ -18,7 +18,7 @@ export type InventoryReconActionResult = ({ ok: true } & InventoryReconResult) |
  * shared reconcileInventory core (matches to items, compares to ERP stock).
  */
 export async function reconcilePlatformInventoryAction(platformId: string, formData: FormData): Promise<InventoryReconActionResult> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -52,7 +52,7 @@ export async function applyInventoryReconciliationAction(
   platformId: string,
   entries: { itemId: string; qty: number }[],
 ): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
   return withOrgScope(auth.orgId, false, async () => {

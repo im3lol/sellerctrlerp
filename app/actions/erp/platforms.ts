@@ -43,7 +43,7 @@ async function belongsToOrg(orgId: string, id: string | null | undefined, table:
  * default warehouse and settlement bank account.
  */
 export async function createPlatformAction(input: unknown): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -111,7 +111,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
  * overridable later). Amazon/FBA is the only live path today.
  */
 export async function provisionMarketplaceAction(input: { connector: string; fulfillment: string }): Promise<ActionState & { code?: string }> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     if (input.connector !== "AMAZON") return { error: "الربط الآلي متاح لأمازون فقط حاليًا" };
@@ -128,7 +128,7 @@ export async function provisionMarketplaceAction(input: { connector: string; ful
 
 /** Update a platform's name, integration type, warehouse, or bank account (code is immutable). */
 export async function updatePlatformAction(id: string, input: unknown): Promise<ActionState> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -185,7 +185,7 @@ export type PlatformImportResult =
  * Orders with any unmatched SKU are skipped and reported so codes can be linked first.
  */
 export async function importPlatformOrdersAction(platformId: string, ordersInput: unknown): Promise<PlatformImportResult> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -276,7 +276,7 @@ export type PlatformPaymentsResult =
  * separate step (posts Dr bank · Cr AR).
  */
 export async function importPlatformPaymentsAction(platformId: string, paymentsInput: unknown): Promise<PlatformPaymentsResult> {
-  const auth = await authorizeErp("sales.collect");
+  const auth = await authorizeErp("sales.collect", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -327,7 +327,7 @@ export async function importPlatformPaymentsAction(platformId: string, paymentsI
 
 /** Toggle a platform active/inactive. */
 export async function togglePlatformActiveAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const [p] = await db.select({ isActive: salesPlatforms.isActive }).from(salesPlatforms)

@@ -112,7 +112,7 @@ async function linkOrders(orgId: string, txns: SettlementTxn[]): Promise<Map<str
 }
 
 export async function previewAmazonSettlementAction(formData: FormData): Promise<SettlementPreview> {
-  const auth = await authorizeErp("accounting.create");
+  const auth = await authorizeErp("accounting.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const txns = await readTxns(formData);
@@ -231,7 +231,7 @@ async function processSettlementRefunds(orgId: string): Promise<{ created: numbe
 }
 
 export async function runAmazonSettlementAction(formData: FormData): Promise<SettlementResult> {
-  const auth = await authorizeErp("accounting.create");
+  const auth = await authorizeErp("accounting.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const txns = await readTxns(formData);

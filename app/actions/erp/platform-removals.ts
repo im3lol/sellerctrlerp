@@ -32,7 +32,7 @@ export type PlatformRemovalsResult =
  * reconciliation). Rows are aggregated per SKU.
  */
 export async function importPlatformRemovalsAction(platformId: string, rowsInput: unknown): Promise<PlatformRemovalsResult> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const orgId = auth.orgId;

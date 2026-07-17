@@ -15,7 +15,7 @@ const STATUS: Record<string, string> = {
 /** Excel export of a platform's sales orders. */
 export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code: codeParam } = await params;
-  const { orgId } = await requireErpModule("sales.view");
+  const { orgId } = await requireErpModule("sales.view", "marketplace");
 
   return withOrgScope(orgId, false, async () => {
     const [platform] = await db.select().from(salesPlatforms)

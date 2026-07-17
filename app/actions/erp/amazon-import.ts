@@ -30,7 +30,7 @@ async function readOrders(formData: FormData): Promise<{ orders: MarketplaceOrde
 
 /** Parse + match, returning what WOULD be imported — no writes. */
 export async function previewAmazonImportAction(formData: FormData): Promise<AmazonPreview> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = await readOrders(formData);
@@ -43,7 +43,7 @@ export async function previewAmazonImportAction(formData: FormData): Promise<Ama
 
 /** Parse + match + create/fulfil each eligible order (see ingestOrders). */
 export async function runAmazonImportAction(formData: FormData): Promise<ImportResult> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = await readOrders(formData);

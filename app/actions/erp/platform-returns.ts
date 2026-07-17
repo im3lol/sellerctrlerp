@@ -38,7 +38,7 @@ export type PlatformReturnsResult =
  * reported, not forced. Deduplicated by already-returned quantity per invoice+item.
  */
 export async function importPlatformReturnsAction(platformId: string, returnsInput: unknown): Promise<PlatformReturnsResult> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const orgId = auth.orgId;

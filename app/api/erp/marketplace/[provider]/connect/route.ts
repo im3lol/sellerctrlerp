@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
-  const { orgId } = await requireErpModule("sales.create");
+  const { orgId } = await requireErpModule("sales.create", "marketplace");
 
   const connector = getConnector(provider);
   if (!connector?.oauth) return new Response("موصّل غير مدعوم", { status: 404 });
