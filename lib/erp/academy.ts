@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
-import { ALL_MODULES, MODULE_LABELS, type ModuleKey } from "@/lib/erp/module-list";
+import { ALL_MODULES, MODULE_LABELS, MODULE_ICONS, type ModuleKey } from "@/lib/erp/module-list";
 
 /**
  * الأكاديمية — lessons that teach the product, owned by the platform and edited from
@@ -23,17 +23,8 @@ export type Lesson = {
   level: "basic" | "advanced";
 };
 
-/** Icon per module — mirrors the sidebar so the cards read as the same product. */
-export const MODULE_ICONS: Record<string, string> = {
-  accounting: "Calculator",
-  inventory: "Warehouse",
-  sales: "ShoppingCart",
-  purchases: "Truck",
-  investors: "Coins",
-  reports: "BarChart3",
-  hr: "UsersRound",
-  marketplace: "Store",
-};
+/** Lives in module-list.ts (client-safe — this file imports the db). Re-exported for callers already reading it here. */
+export { MODULE_ICONS };
 
 const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   id: r.id,

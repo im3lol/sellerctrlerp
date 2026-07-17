@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff } from "lucide-react";
 import { saveLessonAction, toggleLessonAction, deleteLessonAction } from "@/app/actions/admin/academy";
-import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
+import { ALL_MODULES, MODULE_LABELS, MODULE_ICONS } from "@/lib/erp/module-list";
+import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,19 +23,22 @@ export type AdminLesson = {
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
-function EditDialog({ lesson, onClose }: { lesson: AdminLesson | null; onClose: () => void }) {
+/** A new lesson opens inside a module section, so it arrives pre-filed there and last in line. */
+type Preset = { module: string; sortOrder: number };
+
+function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; preset?: Preset; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const isEdit = !!lesson;
 
   const [slug, setSlug] = useState(lesson?.slug ?? "");
   const [title, setTitle] = useState(lesson?.title ?? "");
-  const [module, setModule] = useState(lesson?.module ?? "accounting");
+  const [module, setModule] = useState(lesson?.module ?? preset?.module ?? "accounting");
   const [outcome, setOutcome] = useState(lesson?.outcome ?? "");
   const [url, setUrl] = useState(lesson?.url ?? "");
   const [minutes, setMinutes] = useState(lesson?.minutes ? String(lesson.minutes) : "");
   const [level, setLevel] = useState(lesson?.level ?? "basic");
-  const [sortOrder, setSortOrder] = useState(String(lesson?.sortOrder ?? 0));
+  const [sortOrder, setSortOrder] = useState(String(lesson?.sortOrder ?? preset?.sortOrder ?? 0));
 
   const save = () => start(async () => {
     const res = await saveLessonAction({
@@ -121,12 +125,27 @@ function EditDialog({ lesson, onClose }: { lesson: AdminLesson | null; onClose: 
 export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [dialog, setDialog] = useState<{ open: boolean; lesson: AdminLesson | null }>({ open: false, lesson: null });
+  const [dialog, setDialog] = useState<{ open: boolean; lesson: AdminLesson | null; preset?: Preset }>({ open: false, lesson: null });
   const [confirmDel, setConfirmDel] = useState<AdminLesson | null>(null);
   const [filter, setFilter] = useState("");
 
-  const shown = useMemo(
-    () => (filter ? lessons.filter((l) => l.module === filter) : lessons),
+  // One section per module, same order as the sidebar and as /erp/academy. Empty
+  // modules stay — the section with nothing in it is how the gap gets noticed.
+  const sections = useMemo(
+    () => ALL_MODULES.filter((m) => !filter || m === filter).map((module) => {
+      const mine = lessons.filter((l) => l.module === module);
+      return {
+        module,
+        lessons: mine,
+        live: mine.filter((l) => l.url && l.isActive).length,
+        nextSort: mine.reduce((max, l) => Math.max(max, l.sortOrder), 0) + 1,
+      };
+    }),
+    [lessons, filter],
+  );
+
+  const orphans = useMemo(
+    () => (filter ? [] : lessons.filter((l) => !(ALL_MODULES as readonly string[]).includes(l.module))),
     [lessons, filter],
   );
 
@@ -160,61 +179,106 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-right">العنوان</TableHead>
-                <TableHead className="text-right">الموديول</TableHead>
-                <TableHead className="text-right">الحالة</TableHead>
-                <TableHead className="text-right">المدة</TableHead>
-                <TableHead className="text-right">الترتيب</TableHead>
-                <TableHead className="w-28" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shown.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">لا توجد دروس.</TableCell></TableRow>
-              )}
-              {shown.map((l) => (
-                <TableRow key={l.id} className={l.isActive ? "" : "opacity-50"}>
-                  <TableCell>
-                    <div className="font-medium">{l.title}</div>
-                    <div className="text-xs text-muted-foreground" dir="ltr">{l.slug}</div>
-                  </TableCell>
-                  <TableCell>{MODULE_LABELS[l.module] ?? l.module}</TableCell>
-                  <TableCell>
-                    {!l.isActive
-                      ? <Badge variant="outline">مخفي</Badge>
-                      : l.url
-                        ? <Badge>متاح</Badge>
-                        : <Badge variant="secondary">قريباً</Badge>}
-                  </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{l.minutes ?? "—"}</TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{l.sortOrder}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(l.id)}
-                        title={l.isActive ? "إخفاء" : "إظهار"}>
-                        {l.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </Button>
+      {sections.map((s) => (
+        <Card key={s.module}>
+          <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <Icon name={MODULE_ICONS[s.module] ?? "GraduationCap"} className="size-[18px] text-muted-foreground" />
+              <span className="font-semibold">{MODULE_LABELS[s.module]}</span>
+              <span className="text-xs text-muted-foreground">
+                {s.lessons.length === 0 ? "لا توجد دروس" : `${s.lessons.length} درس · ${s.live} متاح`}
+              </span>
+            </div>
+            <Button variant="ghost" size="sm"
+              onClick={() => setDialog({ open: true, lesson: null, preset: { module: s.module, sortOrder: s.nextSort } })}>
+              <Plus className="size-4" /> أضف هنا
+            </Button>
+          </div>
+
+          {s.lessons.length > 0 && (
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">العنوان</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">المدة</TableHead>
+                    <TableHead className="text-right">الترتيب</TableHead>
+                    <TableHead className="w-28" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {s.lessons.map((l) => (
+                    <TableRow key={l.id} className={l.isActive ? "" : "opacity-50"}>
+                      <TableCell>
+                        <div className="font-medium">{l.title}</div>
+                        <div className="text-xs text-muted-foreground" dir="ltr">{l.slug}</div>
+                      </TableCell>
+                      <TableCell>
+                        {!l.isActive
+                          ? <Badge variant="outline">مخفي</Badge>
+                          : l.url
+                            ? <Badge>متاح</Badge>
+                            : <Badge variant="secondary">قريباً</Badge>}
+                      </TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">{l.minutes ?? "—"}</TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">{l.sortOrder}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(l.id)}
+                            title={l.isActive ? "إخفاء" : "إظهار"}>
+                            {l.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDialog({ open: true, lesson: l })}>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmDel(l)}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
+        </Card>
+      ))}
+
+      {orphans.length > 0 && (
+        // A lesson whose module isn't in the list belongs to no section — without this
+        // it would just disappear from the admin while still sitting in the table.
+        <Card className="border-destructive/50">
+          <div className="border-b px-4 py-3 text-sm font-semibold text-destructive">
+            دروس بموديول غير معروف — عدّل الموديول عشان تظهر للعملاء
+          </div>
+          <CardContent className="p-0">
+            <Table>
+              <TableBody>
+                {orphans.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>
+                      <div className="font-medium">{l.title}</div>
+                      <div className="text-xs text-muted-foreground" dir="ltr">{l.slug} · {l.module}</div>
+                    </TableCell>
+                    <TableCell className="w-28">
                       <Button variant="ghost" size="sm" onClick={() => setDialog({ open: true, lesson: l })}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmDel(l)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
-      {dialog.open && <EditDialog lesson={dialog.lesson} onClose={() => setDialog({ open: false, lesson: null })} />}
+      {dialog.open && (
+        <EditDialog lesson={dialog.lesson} preset={dialog.preset}
+          onClose={() => setDialog({ open: false, lesson: null })} />
+      )}
 
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
