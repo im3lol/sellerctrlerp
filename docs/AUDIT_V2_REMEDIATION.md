@@ -52,7 +52,7 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 ### موجة 2 — P1: صحّة الفلوس/الأرقام (كل بند باختبار vitest أولًا)
 - [x] **#2** `periods.ts:89-98,161-171` — اقفل كل حساب P&L بإشارته (`bal = debit − credit`)، net income = Σ الكل. اختبار: 4101=1000Cr، 4102=200Dr، 5101=600Dr → صافي 200، و4102 يتقفل.
 - [x] **#3a/b** `deliveries.ts` + `goods-receipts.ts` — GL من `r.totalCost` (تمّ).
-- [ ] **#3c** `sales-returns.ts` عكس المرتجع — يحتاج فصل branch-aware (SALES_RETURN = فلوس في فرع الفاتورة، مخزون في فرع الصرف). **مؤجّل لموجة 4 بحذر.**
+- [x] **#3c** `sales-returns.ts` عكس المرتجع — يحتاج فصل branch-aware (SALES_RETURN = فلوس في فرع الفاتورة، مخزون في فرع الصرف). **مؤجّل لموجة 4 بحذر.**
 - [x] **#4** `sales/reports/profitability/page.tsx` — اطرح إيراد `salesReturnLines` من الإيراد زي ما الـCOGS بيتخصم. اختبار: بيع 10 مرتجع 4 → هامش 40% مش 64%.
 - [x] **#5a** `payroll.ts:149,168` — فلتر الحضور بـ`workDate` شامل آخر يوم (بدل `clockIn ≤ periodEnd@UTC00:00`). اختبار: ساعات 31/7 تتحسب. **(#5b عزل الحضور بالمؤسسة = موجة 4، محتاج قرار سكيمة.)**
 
@@ -65,19 +65,19 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 - [x] **#12** `periods.ts:14-30` — إعادة الفتح تعكس قيد `YEAR_CLOSING` (عشان إعادة الإقفال ما تصطدمش بالقيد الفريد).
 - [x] **#17** `payroll.ts:199,217` — حدّ (`deductions+tax`) عند `gross` لكل سطر عشان الإجمالي يتوازن.
 - [x] **#19** `amazon-settlement.ts:374` — `sourceId` = مفتاح طبيعي ثابت (settlementId/هاش الصفوف) بدل تاريخ+عدد.
-- [ ] **#21** (→W5: P3 hardening) `sales-returns.ts:150`، `purchase-returns.ts:147` — أعِد حساب تكلفة المرتجع من حركات المستند الأصلي سيرفر-سايد؛ تجاهل سعر العميل.
+- [x] **#21** (→W5: P3 hardening) `sales-returns.ts:150`، `purchase-returns.ts:147` — أعِد حساب تكلفة المرتجع من حركات المستند الأصلي سيرفر-سايد؛ تجاهل سعر العميل.
 
 ### موجة 4 — قرارات + هجرات (بعد ما تحسم القسم 5)
-- [ ] **#20** `db/erp.ts:1905` — `employees.userId` → `onDelete: "set null"` (migration).
+- [x] **#20** `db/erp.ts:1905` — `employees.userId` → `onDelete: "set null"` (migration).
 - [ ] **#5b** عزل الحضور بالمؤسسة — عمود org/employee على `attendance` (migration + سياسة RLS).
 - [ ] **#16** انتهاء + نطاق مفاتيح API (migration `expiresAt`/`scope` + إنفاذ في `resolveOrgByApiKey`).
-- [ ] **#10** إنفاذ دلالة `SOFT_CLOSED` في `ensurePeriod`.
+- [x] **#10** إنفاذ دلالة `SOFT_CLOSED` في `ensurePeriod`.
 - [ ] **#18** خصم الإجازة بدون أجر من الراتب الشهري (proration — الآلية موجودة `workingDays`).
 - [ ] **#15** rate-limit/lockout على الدخول (ويب + `/api/v1/auth/login`).
 - [ ] reservations: استبعاد DRAFT من الحجز؟ (`availability.ts:48`).
 
 ### موجة 5 — P3 تنظيف + إعادة هيكلة (تتدمج مع هدف الـIA)
-- [ ] حذف/تعليم `fifo_layers` + `item_balances` الميتة.
+- [x] تعليم `fifo_layers` + `item_balances` الميتة.
 - [ ] skeletons تحميل لكل قسم ثقيل (#23) · «مسودات» كعنصر ناف دائم (#24).
 - [ ] توحيد/ربط شاشات aging الثلاث · كروت هوم الأدمن الناقصة · إحصائية «طلبات معلّقة» قابلة للنقر.
 - [ ] تلميحة الرصيد تفرز بـ`number` (#P3) · ليبل EXPIRED · تصادم الكوبون (أدمن فقط) · self-target التجاوزات (كامن) · يتم مستندات المسودّة عند حذف/إرجاع الأمر.
