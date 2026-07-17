@@ -2,6 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+import { fiscalYearBounds } from "@/lib/erp/default-chart";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -27,6 +28,53 @@ export type PostInput = {
 const cents = (n: number) => Math.round(Number(n || 0) * 100);
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
+/**
+ * Return the id of the OPEN fiscal period covering `date`, creating the year's period
+ * if none exists — so a posted entry is ALWAYS assigned to a real period.
+ *
+ * The old code left `fiscalPeriodId: null` whenever no period covered the date, which
+ * (a) detached the entry from any period and (b) skipped the CLOSED lock entirely —
+ * so an entry dated after year-end, or in a year nobody had opened, posted freely.
+ * Signup only seeds the current year, so the first entry of any new year hit this.
+ *
+ * Auto-create rather than hard-fail: blocking every post the moment the calendar
+ * rolls over is a footgun for a one-admin business. A CLOSED period still throws; only
+ * the "no period at all" gap is filled, and only with a plain calendar year.
+ *
+ * Race-safe: the (org, start, end) unique index + onConflictDoNothing means two
+ * concurrent first-posts of the same new year converge on one period.
+ */
+async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> {
+  const covering = () =>
+    tx.select({ id: fiscalPeriods.id, status: fiscalPeriods.status })
+      .from(fiscalPeriods)
+      .where(and(
+        eq(fiscalPeriods.organizationId, orgId),
+        lte(fiscalPeriods.startDate, date),
+        gte(fiscalPeriods.endDate, date),
+      ))
+      .limit(1);
+
+  const [existing] = await covering();
+  if (existing) {
+    if (existing.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
+    return existing.id;
+  }
+
+  const year = date.getUTCFullYear();
+  const [created] = await tx.insert(fiscalPeriods)
+    .values({ organizationId: orgId, name: `السنة المالية ${year}`, ...fiscalYearBounds(year), status: "OPEN" })
+    .onConflictDoNothing({ target: [fiscalPeriods.organizationId, fiscalPeriods.startDate, fiscalPeriods.endDate] })
+    .returning({ id: fiscalPeriods.id });
+  if (created) return created.id;
+
+  // Lost the create race — the winner's row is now visible.
+  const [now] = await covering();
+  if (!now) throw new Error("تعذّر تحديد الفترة المالية");
+  if (now.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
+  return now.id;
+}
+
 /** Next general journal-entry number JV-YYYY-NNNN for the org (atomic). */
 async function nextNumber(tx: Tx, orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(tx, orgId, "JV", year);
@@ -46,19 +94,9 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
     throw new Error(`القيد غير متوازن (مدين ${(debit / 100).toFixed(2)} ≠ دائن ${(credit / 100).toFixed(2)})`);
   }
 
-  // Resolve the open fiscal period covering the date (optional metadata).
-  const [period] = await tx
-    .select({ id: fiscalPeriods.id, status: fiscalPeriods.status })
-    .from(fiscalPeriods)
-    .where(
-      and(
-        eq(fiscalPeriods.organizationId, input.orgId),
-        lte(fiscalPeriods.startDate, input.date),
-        gte(fiscalPeriods.endDate, input.date),
-      ),
-    )
-    .limit(1);
-  if (period && period.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
+  // Assign to the open fiscal period covering the date (auto-creates the year if
+  // none exists; throws on a CLOSED period).
+  const periodId = await ensurePeriod(tx, input.orgId, input.date);
 
   // Prefer the requested journal type, else any active journal.
   let journalId: string | null = null;
@@ -86,7 +124,7 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
     .values({
       organizationId: input.orgId,
       journalId,
-      fiscalPeriodId: period?.id ?? null,
+      fiscalPeriodId: periodId,
       number,
       date: input.date,
       description: input.description,
@@ -111,23 +149,6 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
   );
 
   return entry.id;
-}
-
-/** Resolve the fiscal period covering a date; throws if it is CLOSED. */
-async function resolvePeriod(tx: Tx, orgId: string, date: Date) {
-  const [period] = await tx
-    .select({ id: fiscalPeriods.id, status: fiscalPeriods.status })
-    .from(fiscalPeriods)
-    .where(
-      and(
-        eq(fiscalPeriods.organizationId, orgId),
-        lte(fiscalPeriods.startDate, date),
-        gte(fiscalPeriods.endDate, date),
-      ),
-    )
-    .limit(1);
-  if (period && period.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
-  return period ?? null;
 }
 
 /**
@@ -156,7 +177,7 @@ export async function postDraft(
   if (debit !== credit) throw new Error("القيد غير متوازن");
 
   const date = new Date(entry.date);
-  const period = await resolvePeriod(tx, input.orgId, date);
+  const periodId = await ensurePeriod(tx, input.orgId, date);
   const number = await nextNumber(tx, input.orgId, date.getFullYear());
 
   await tx
@@ -164,7 +185,7 @@ export async function postDraft(
     .set({
       status: "POSTED",
       number,
-      fiscalPeriodId: period?.id ?? entry.fiscalPeriodId,
+      fiscalPeriodId: periodId,
       postedAt: new Date(),
       postedById: input.userId ?? null,
     })
@@ -195,7 +216,7 @@ export async function reverseEntry(
   if (srcLines.length === 0) throw new Error("القيد بلا بنود");
 
   const date = input.date ?? new Date();
-  const period = await resolvePeriod(tx, input.orgId, date);
+  const periodId = await ensurePeriod(tx, input.orgId, date);
   const number = await nextNumber(tx, input.orgId, date.getFullYear());
 
   const [rev] = await tx
@@ -203,7 +224,7 @@ export async function reverseEntry(
     .values({
       organizationId: input.orgId,
       journalId: entry.journalId,
-      fiscalPeriodId: period?.id ?? null,
+      fiscalPeriodId: periodId,
       number,
       date,
       reference: entry.number,

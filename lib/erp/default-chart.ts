@@ -45,6 +45,19 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
 ];
 
+/**
+ * The start/end of a calendar fiscal year (UTC). One definition, so the period that
+ * signup creates and the period that posting auto-creates for the same year have the
+ * exact same bounds — which is what lets the (org, start, end) unique index dedupe
+ * them instead of leaving two periods for one year.
+ */
+export function fiscalYearBounds(year: number): { startDate: Date; endDate: Date } {
+  return {
+    startDate: new Date(Date.UTC(year, 0, 1)),
+    endDate: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+  };
+}
+
 export const DEFAULT_JOURNALS = [
   { code: "GJ", nameAr: "اليومية العامة", type: "GENERAL", sequencePrefix: "JV" },
   { code: "SJ", nameAr: "يومية المبيعات", type: "SALES", sequencePrefix: "SI" },
@@ -127,8 +140,7 @@ export async function initializeAccountingForOrg(orgId: string): Promise<InitAcc
     await db.insert(fiscalPeriods).values({
       organizationId: orgId,
       name: `السنة المالية ${year}`,
-      startDate: new Date(Date.UTC(year, 0, 1)),
-      endDate: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+      ...fiscalYearBounds(year),
       status: "OPEN",
     });
     result.periodCreated = true;
