@@ -57,7 +57,7 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> 
 
   const [existing] = await covering();
   if (existing) {
-    if (existing.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
+    if (existing.status === "CLOSED" || existing.status === "SOFT_CLOSED") throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
     return existing.id;
   }
 
@@ -71,7 +71,7 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> 
   // Lost the create race — the winner's row is now visible.
   const [now] = await covering();
   if (!now) throw new Error("تعذّر تحديد الفترة المالية");
-  if (now.status === "CLOSED") throw new Error("الفترة المالية مقفلة");
+  if (now.status === "CLOSED" || now.status === "SOFT_CLOSED") throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
   return now.id;
 }
 
