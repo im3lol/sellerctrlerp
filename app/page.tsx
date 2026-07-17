@@ -388,7 +388,7 @@ function DashboardPreview() {
             </div>
           ))}
         </nav>
-        <div className="mt-auto pt-3 text-[9px] text-primary-foreground/50">SellerCtrl Workspace OS · v1.0</div>
+        <div className="mt-auto pt-3 text-[9px] text-primary-foreground/50">SellerCtrl · v1.0</div>
       </aside>
 
       {/* Main */}

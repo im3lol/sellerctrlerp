@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
 import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -86,6 +87,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         backHref="/erp/purchases/receipts"
         action={
           <div className="flex gap-2">
+            <PrintDocLink href={`/erp/purchases/receipts/${encodeURIComponent(grn.number)}/print`} />
             <BarcodePrintButton items={barcodeItems} printPageHref={`/erp/barcodes/receipt/${grn.id}`} />
             <ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />
           </div>

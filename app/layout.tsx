@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SellerCtrl Workspace OS",
+  title: "SellerCtrl",
   description: "نظام إدارة عمليات SellerCtrl — تحكم كامل في عملياتك من مكان واحد",
   appleWebApp: { capable: true, title: "SellerCtrl", statusBarStyle: "default" },
 };

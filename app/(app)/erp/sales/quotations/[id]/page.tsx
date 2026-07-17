@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { QuotationRowActions } from "@/components/erp/quotation-row-actions";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -38,7 +39,12 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   return (
     <div className="space-y-6">
       <ErpPageHeader icon="FileText" title={`عرض سعر ${qt.number}`} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/erp/sales/quotations"
-        action={<QuotationRowActions id={qt.id} status={qt.status} canManage={can("sales.create")} />} />
+        action={
+          <div className="flex gap-2">
+            <PrintDocLink href={`/erp/sales/quotations/${qt.id}/print`} />
+            <QuotationRowActions id={qt.id} status={qt.status} canManage={can("sales.create")} />
+          </div>
+        } />
       <Card>
         <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود العرض</CardTitle><Badge variant={st.variant}>{st.label}</Badge></CardHeader>
         <CardContent>

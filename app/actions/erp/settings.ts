@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { organizations, accountingConfigurations } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { putObject, publicUrl } from "@/lib/storage";
 
 
 const profileSchema = z.object({
@@ -16,6 +17,8 @@ const profileSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("بريد غير صالح").optional().or(z.literal("")),
+  // Printed on every document header. Empty = the header falls back to an initials tile.
+  logo: z.string().optional(),
   vatRate: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة"),
   poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
   fiscalYearStart: z.string().optional(),
@@ -33,6 +36,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
     address: formData.get("address") || undefined,
     phone: formData.get("phone") || undefined,
     email: formData.get("email") || "",
+    logo: formData.get("logo") || undefined,
     vatRate: formData.get("vatRate"),
     poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
     fiscalYearStart: formData.get("fiscalYearStart") || undefined,
@@ -49,6 +53,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       address: d.address || null,
       phone: d.phone || null,
       email: d.email || null,
+      logo: d.logo || null,
       vatRate: String(d.vatRate),
       poApprovalThreshold: String(d.poApprovalThreshold),
       fiscalYearStart: d.fiscalYearStart || null,
@@ -59,6 +64,37 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
   }
   revalidatePath("/erp/settings");
   return { ok: true };
+}
+
+/**
+ * Uploads the company logo that heads every printed document.
+ *
+ * Mirrors uploadItemImageAction (app/actions/erp/items.ts) — same storage helpers,
+ * same guards — but keyed under `org/<orgId>/` and gated on settings.edit rather than
+ * inventory.create.
+ *
+ * Returns the URL; the form puts it in a hidden field and the profile save persists
+ * it, so an upload that's never saved leaves the record untouched.
+ */
+export async function uploadOrgLogoAction(
+  formData: FormData,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const auth = await authorizeErp("settings.edit");
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "لم يتم اختيار صورة" };
+  if (!file.type.startsWith("image/")) return { ok: false, error: "الملف ليس صورة" };
+  if (file.size > 2 * 1024 * 1024) return { ok: false, error: "حجم الشعار يتجاوز 2MB" };
+
+  const safe = file.name.replace(/[^\w.\-]+/g, "_");
+  const key = `org/${auth.orgId}/logo-${Date.now()}-${safe}`;
+  try {
+    await putObject(key, Buffer.from(await file.arrayBuffer()), file.type);
+  } catch {
+    return { ok: false, error: "تعذّر رفع الشعار" };
+  }
+  return { ok: true, url: publicUrl(key) };
 }
 
 const CONFIG_FIELDS = [

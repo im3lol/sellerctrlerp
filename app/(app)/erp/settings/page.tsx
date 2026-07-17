@@ -40,6 +40,7 @@ export default async function ErpSettingsPage() {
     address: org?.address ?? null,
     phone: org?.phone ?? null,
     email: org?.email ?? null,
+    logo: org?.logo ?? null,
     vatRate: org?.vatRate ?? "14",
     fiscalYearStart: org?.fiscalYearStart ?? null,
     poApprovalThreshold: org?.poApprovalThreshold ?? "0",

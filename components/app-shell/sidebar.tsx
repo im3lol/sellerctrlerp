@@ -10,7 +10,7 @@ export function Sidebar({ role, erpPermissions, modules, platforms }: { role: Ro
       </div>
       <NavList role={role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} />
       <div className="border-t border-sidebar-border/40 p-4 text-xs text-sidebar-foreground/50">
-        SellerCtrl Workspace OS · v1.0
+        SellerCtrl · v1.0
       </div>
     </aside>
   );

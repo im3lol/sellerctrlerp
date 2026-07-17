@@ -207,7 +207,7 @@ fun SideNav(nav: NavController, current: String?, onNavigate: (String) -> Unit) 
             }
         }
         Box(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("SellerCtrl Workspace OS · v1.0", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+            Text("SellerCtrl · v1.0", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
         }
     }
 }
