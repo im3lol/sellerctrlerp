@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validatePassword, isPasswordValid, PASSWORD_MIN } from "@/lib/auth/password-policy";
+import { validatePassword, isPasswordValid, PASSWORD_MIN, lockoutAfterFailure, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES } from "@/lib/auth/password-policy";
 
 describe("validatePassword", () => {
   it("accepts a strong 12+ char password with all classes", () => {
@@ -22,5 +22,22 @@ describe("validatePassword", () => {
   it("rejects empty / whitespace-only", () => {
     expect(validatePassword("")).not.toBeNull();
     expect(isPasswordValid("            ")).toBe(false); // 12 spaces: length ok but no complexity
+  });
+});
+
+describe("lockoutAfterFailure", () => {
+  const now = Date.UTC(2026, 6, 18, 12, 0, 0);
+  it("increments the counter without locking below the threshold", () => {
+    const r = lockoutAfterFailure(3, now);
+    expect(r.failedLoginAttempts).toBe(4);
+    expect(r.lockedUntil).toBeNull();
+  });
+  it("freezes and resets the counter on the Nth failure", () => {
+    const r = lockoutAfterFailure(MAX_LOGIN_ATTEMPTS - 1, now);
+    expect(r.failedLoginAttempts).toBe(0);
+    expect(r.lockedUntil).toEqual(new Date(now + LOCKOUT_MINUTES * 60_000));
+  });
+  it("treats a negative/garbage prior count as zero", () => {
+    expect(lockoutAfterFailure(-5, now).failedLoginAttempts).toBe(1);
   });
 });
