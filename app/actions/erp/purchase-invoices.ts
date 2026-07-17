@@ -195,9 +195,15 @@ export async function deletePurchaseInvoiceAction(id: string): Promise<ActionSta
       await db.transaction(async (tx) => {
         await tx.delete(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
         await tx.delete(purchaseInvoices).where(eq(purchaseInvoices.id, inv.id));
+        // Reopen the source order if this draft came from a direct conversion (Audit#7).
+        if (inv.purchaseOrderId) {
+          await tx.update(purchaseOrders).set({ status: "CONFIRMED" })
+            .where(and(eq(purchaseOrders.id, inv.purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, "INVOICED")));
+        }
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `حذف مسودة فاتورة شراء ${inv.number}` });
       });
       revalidatePath("/erp/purchases/invoices");
+      revalidatePath("/erp/purchases/orders");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحذف" };

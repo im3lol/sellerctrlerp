@@ -1010,6 +1010,9 @@ export const salesInvoices = pgTable(
     // Set when the invoice is billed from a delivery note (stock + COGS already
     // posted at delivery, so this invoice bills revenue/AR only).
     deliveryNoteId: text("delivery_note_id"),
+    // Set when converted directly from a sales order — lets deleting the DRAFT
+    // invoice reopen the order to CONFIRMED (Audit#7).
+    salesOrderId: text("sales_order_id"),
     date: ts("date").notNull(),
     dueDate: ts("due_date"),
     status: text("status").notNull().default("DRAFT"),
@@ -1138,6 +1141,9 @@ export const purchaseInvoices = pgTable(
     // Set when billed from a goods receipt (stock + inventory already posted at
     // receipt against the GRNI clearing account; this invoice clears GRNI → AP).
     goodsReceiptId: text("goods_receipt_id"),
+    // Set when converted directly from a purchase order — lets deleting the DRAFT
+    // invoice reopen the order to CONFIRMED (Audit#7).
+    purchaseOrderId: text("purchase_order_id"),
     date: ts("date").notNull(),
     dueDate: ts("due_date"),
     status: text("status").notNull().default("DRAFT"),

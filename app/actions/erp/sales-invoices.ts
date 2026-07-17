@@ -257,8 +257,15 @@ export async function deleteSalesInvoiceAction(id: string): Promise<ActionState>
       await db.transaction(async (tx) => {
         await tx.delete(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
         await tx.delete(salesInvoices).where(eq(salesInvoices.id, inv.id));
+        // If this draft came from a direct order conversion, reopen the order so it
+        // can be re-invoiced instead of being stranded at INVOICED forever (Audit#7).
+        if (inv.salesOrderId) {
+          await tx.update(salesOrders).set({ status: "CONFIRMED" })
+            .where(and(eq(salesOrders.id, inv.salesOrderId), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, "INVOICED")));
+        }
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `حذف مسودة فاتورة بيع ${inv.number}` });
       });
+      revalidatePath("/erp/sales/orders");
       revalidatePath("/erp/sales/invoices");
       return { ok: true };
     } catch (e) {

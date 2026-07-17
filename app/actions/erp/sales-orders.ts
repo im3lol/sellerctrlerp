@@ -7,7 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers, items, deliveryNotes } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { getAvailability } from "@/lib/erp/availability";
@@ -172,6 +172,8 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
     });
     if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 
+    // Link invoice→order so deleting the draft invoice can reopen the order (Audit#7).
+    if (r.id) await db.update(salesInvoices).set({ salesOrderId: so.id }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
     await db.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "SALES_ORDER", entityId: so.id, entityNumber: so.number, summary: `تحويل أمر بيع ${so.number} إلى فاتورة (مسودة)` });
     revalidatePath("/erp/sales/orders");
