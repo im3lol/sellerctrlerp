@@ -1,5 +1,6 @@
 "use server";
 
+import { capPayrollDeductions } from "@/lib/erp/payroll-calc";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
@@ -199,9 +200,12 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
 
       const allowances  = n(emp.allowances);
       const grossPay    = basic + allowances;
-      const deductions  = n(emp.deductions);
       const taxAmount   = Math.round(grossPay * (n(emp.taxRate) / 100) * 100) / 100;
-      const netPay      = Math.max(0, grossPay - deductions - taxAmount);
+      // Cap deductions at gross so net never clamps to 0 while the deduction total
+      // still counts the full amount — that unbalances the run's JE (Audit#17).
+      const capped      = capPayrollDeductions(grossPay, n(emp.deductions), taxAmount);
+      const deductions  = capped.deductions;
+      const netPay      = capped.net;
 
       return {
         organizationId: auth.orgId,
