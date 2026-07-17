@@ -242,6 +242,11 @@ export const itemCodes = pgTable(
   ],
 );
 
+// ⚠️ DEAD TABLES — item_balances and fifo_layers are NOT read or written by any
+// application code. All live on-hand and costing derives from stock_movements
+// running balances (+ stock_batches for lots). Do NOT treat item_balances.avg_cost
+// or fifo_layers as authoritative; they are never populated and will be stale/empty.
+// Kept only to avoid a destructive drop; remove in a dedicated migration.
 export const itemBalances = pgTable(
   "item_balances",
   {
@@ -256,6 +261,7 @@ export const itemBalances = pgTable(
   (t) => [uniqueIndex("item_balances_unique").on(t.itemId, t.warehouseId)],
 );
 
+// ⚠️ DEAD TABLE — see the note on itemBalances above; nothing reads/writes this.
 export const fifoLayers = pgTable("fifo_layers", {
   id: pk(),
   organizationId: lineOrgId(),
