@@ -2049,3 +2049,46 @@ export const openingBalanceLines = pgTable(
   },
   (t) => [index("opening_balance_lines_parent_idx").on(t.openingBalanceId)],
 );
+
+
+/* ═══════════════ ACADEMY (الأكاديمية) ═══════════════ */
+
+/**
+ * Lessons that teach the product, managed by the platform owner from /admin/academy.
+ *
+ * DELIBERATELY NOT org-scoped — one of the very few tables here without an
+ * organization_id, alongside `plans` and `discount_coupons`. These are lessons about
+ * SellerCtrl itself, identical for every tenant; giving each org its own copy would
+ * mean the owner editing the same lesson once per customer. Every read is therefore
+ * global, and that is correct rather than a missing filter.
+ *
+ * `module` matches ModuleKey (lib/erp/module-list.ts) — it drives both the grouping
+ * on /erp/academy and the «اتعلّم» link inside that module.
+ *
+ * A lesson with no `url` renders as قريباً: a visible promise beats an invisible
+ * gap. Fill the url in and it goes live.
+ */
+export const academyLessons = pgTable(
+  "academy_lessons",
+  {
+    id: pk(),
+    /** Stable slug — used as the anchor/route, so renaming breaks shared links. */
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    module: text("module").notNull(),
+    /** One line: what the viewer can do after watching. */
+    outcome: text("outcome"),
+    /** Absent = قريباً. */
+    url: text("url"),
+    minutes: integer("minutes"),
+    level: text("level").notNull().default("basic"), // basic | advanced
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("academy_lessons_slug_idx").on(t.slug),
+    index("academy_lessons_module_idx").on(t.module, t.sortOrder),
+  ],
+);

@@ -1,165 +1,115 @@
+import { and, asc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { academyLessons } from "@/db/schema";
 import { ALL_MODULES, MODULE_LABELS, type ModuleKey } from "@/lib/erp/module-list";
 
 /**
- * الأكاديمية — the lesson catalogue.
+ * الأكاديمية — lessons that teach the product, owned by the platform and edited from
+ * /admin/academy.
  *
- * Deliberately a config file, not a table: these are lessons about *this product*,
- * identical for every tenant, so per-tenant rows and an admin screen to edit them
- * would be machinery with nothing to hold. They ship and version with the app. If
- * editing without a deploy ever matters, move it to /admin then — not before.
- *
- * A lesson with no `url` renders as قريباً. That is the point of listing it: an
- * empty slot is a visible promise, whereas an unlisted lesson is a gap nobody sees.
- * Fill the url in and it goes live — no other change needed.
+ * Not org-scoped anywhere in this file: see the note on the academy_lessons table.
+ * These are lessons about SellerCtrl, the same for every tenant, so a global read is
+ * correct here rather than a missing organizationId filter.
  */
 export type Lesson = {
-  /** Stable slug — used as the anchor, so don't rename it once it ships. */
   id: string;
+  slug: string;
   title: string;
-  /** What it teaches. Drives grouping AND the "اتعلّم" link inside that module. */
   module: ModuleKey;
+  outcome: string | null;
   /** Absent = قريباً. */
-  url?: string;
-  minutes?: number;
-  level?: "basic" | "advanced";
-  /** One line: what the viewer can do afterwards. */
-  outcome?: string;
+  url: string | null;
+  minutes: number | null;
+  level: "basic" | "advanced";
+};
+
+/** Icon per module — mirrors the sidebar so the cards read as the same product. */
+export const MODULE_ICONS: Record<string, string> = {
+  accounting: "Calculator",
+  inventory: "Warehouse",
+  sales: "ShoppingCart",
+  purchases: "Truck",
+  investors: "Coins",
+  reports: "BarChart3",
+  hr: "UsersRound",
+  marketplace: "Store",
+};
+
+const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
+  id: r.id,
+  slug: r.slug,
+  title: r.title,
+  module: r.module as ModuleKey,
+  outcome: r.outcome,
+  url: r.url,
+  minutes: r.minutes,
+  level: (r.level === "advanced" ? "advanced" : "basic"),
+});
+
+/** Active lessons, ordered as the owner arranged them. */
+export async function listLessons(): Promise<Lesson[]> {
+  const rows = await db.select().from(academyLessons)
+    .where(eq(academyLessons.isActive, true))
+    .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
+  return rows.map(row);
+}
+
+/** One module's lessons — the module index card and its page. */
+export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
+  const rows = await db.select().from(academyLessons)
+    .where(and(eq(academyLessons.isActive, true), eq(academyLessons.module, module)))
+    .orderBy(asc(academyLessons.sortOrder), asc(academyLessons.title));
+  return rows.map(row);
+}
+
+/** Every lesson including hidden ones — the admin list. */
+export async function listAllLessonsForAdmin() {
+  return db.select().from(academyLessons)
+    .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
+}
+
+export type ModuleCard = {
+  module: ModuleKey;
+  label: string;
+  icon: string;
+  total: number;
+  live: number;
+  soon: number;
 };
 
 /**
- * Ordered within each module: basics first. Cross-module lessons (e.g. the document
- * cycle) live with the module a user would look under, not in a "general" bucket
- * nobody opens.
+ * The index: one card per module, in sidebar order.
+ *
+ * Pure so it can be tested without a database — a wrong module key doesn't crash,
+ * the lesson just silently vanishes from its card, which is exactly the kind of
+ * quiet failure worth pinning.
+ *
+ * Modules with no lessons are kept, not dropped: an empty card is the honest signal
+ * that a module has nothing recorded yet. Hiding it hides the gap.
  */
-export const LESSONS: Lesson[] = [
-  /* ── البداية: أول أسبوع ───────────────────────────────── */
-  { id: "start-here", module: "accounting", level: "basic", minutes: 5,
-    title: "ابدأ من هنا — جولة في النظام",
-    outcome: "تعرف مكان كل موديول وإزاي تتنقّل بينهم." },
-  { id: "chart-of-accounts", module: "accounting", level: "basic", minutes: 8,
-    title: "دليل الحسابات — إعداده وتعديله",
-    outcome: "تفهم شجرة الحسابات وتضيف حساباتك." },
-  { id: "opening-balances", module: "accounting", level: "basic", minutes: 10,
-    title: "الأرصدة الافتتاحية — ترحيل شركة قائمة",
-    outcome: "تنقل أرصدة العملاء والموردين والمخزون والبنك من نظامك القديم." },
-  { id: "journal-entries", module: "accounting", level: "basic", minutes: 7,
-    title: "القيود اليومية والترحيل",
-    outcome: "تكتب قيدًا وتفهم يعني إيه «مُرحّل» ويعني إيه «مسودة»." },
-  { id: "fiscal-periods", module: "accounting", level: "advanced", minutes: 6,
-    title: "الفترات المالية وإقفال السنة",
-    outcome: "تقفل فترة وتمنع الترحيل عليها، وتعمل إقفال سنوي." },
-  { id: "bank-reconciliation", module: "accounting", level: "advanced", minutes: 9,
-    title: "المطابقة البنكية",
-    outcome: "تطابق كشف البنك مع القيود وتكتشف الفروقات." },
-  { id: "fixed-assets", module: "accounting", level: "advanced", minutes: 8,
-    title: "الأصول الثابتة — الاقتناء والإهلاك والاستبعاد",
-    outcome: "تسجّل أصلًا وتُرحّل إهلاكه الشهري وتستبعده بقيده الصحيح." },
-
-  /* ── المبيعات ─────────────────────────────────────────── */
-  { id: "sales-cycle", module: "sales", level: "basic", minutes: 10,
-    title: "دورة البيع كاملة — من عرض السعر للتحصيل",
-    outcome: "تمشي أمر بيع من العرض للتسليم للفاتورة لسند القبض." },
-  { id: "customers", module: "sales", level: "basic", minutes: 5,
-    title: "العملاء وحدود الائتمان",
-    outcome: "تضيف عميلًا وتحدد له حد ائتمان يمنع تجاوزه." },
-  { id: "sales-returns", module: "sales", level: "basic", minutes: 6,
-    title: "مرتجعات البيع والإشعارات الدائنة",
-    outcome: "ترجّع صنفًا وتفهم أثره على رصيد العميل والمخزون." },
-  { id: "recurring-invoices", module: "sales", level: "advanced", minutes: 5,
-    title: "الفواتير الدورية",
-    outcome: "تفوتر اشتراكًا شهريًا تلقائيًا." },
-
-  /* ── المشتريات ────────────────────────────────────────── */
-  { id: "purchase-cycle", module: "purchases", level: "basic", minutes: 10,
-    title: "دورة الشراء كاملة — من طلب المواد للسداد",
-    outcome: "تمشي أمر شراء من الطلب للاستلام للفاتورة لسند الصرف." },
-  { id: "grni", module: "purchases", level: "advanced", minutes: 7,
-    title: "بضاعة مستلمة لم تُفوتر (GRNI)",
-    outcome: "تفهم ليه الاستلام بيقيّد حساب وسيط وإزاي الفاتورة بتقفله." },
-  { id: "landed-costs", module: "purchases", level: "advanced", minutes: 6,
-    title: "التكاليف الإضافية على المشتريات",
-    outcome: "توزّع الشحن والجمارك على تكلفة الأصناف." },
-
-  /* ── المخزون ──────────────────────────────────────────── */
-  { id: "items", module: "inventory", level: "basic", minutes: 8,
-    title: "الأصناف والأكواد والباركود",
-    outcome: "تضيف صنفًا بأكواده وتطبع له ملصق باركود." },
-  { id: "stock-basics", module: "inventory", level: "basic", minutes: 7,
-    title: "الأرصدة ودفتر حركة المخزون",
-    outcome: "تقرأ رصيد أي صنف وتعرف كل حركة أثّرت فيه." },
-  { id: "adjustments-transfers", module: "inventory", level: "basic", minutes: 6,
-    title: "التسويات والتحويلات المخزنية",
-    outcome: "تسوّي فرق جرد وتحوّل بضاعة بين مخزنين." },
-  { id: "costing", module: "inventory", level: "advanced", minutes: 9,
-    title: "تكلفة المخزون وتقييمه",
-    outcome: "تفهم إزاي بتُحسب تكلفة البضاعة المباعة وتطابق قيمة المخزون مع المحاسبة." },
-  { id: "batches-expiry", module: "inventory", level: "advanced", minutes: 6,
-    title: "التشغيلات وتواريخ الصلاحية",
-    outcome: "تتابع صلاحية البضاعة وتمنع بيع المنتهي." },
-
-  /* ── المنصّات ─────────────────────────────────────────── */
-  { id: "amazon-connect", module: "marketplace", level: "basic", minutes: 8,
-    title: "ربط حساب أمازون",
-    outcome: "تربط حساب البائع وتسحب المنتجات والأوردرات تلقائيًا." },
-  { id: "marketplace-orders", module: "marketplace", level: "basic", minutes: 7,
-    title: "أوردرات المنصّات ودورتها التلقائية",
-    outcome: "تفهم إزاي الأوردر بيتحوّل لأمر بيع وفاتورة لوحده." },
-  { id: "settlements", module: "marketplace", level: "advanced", minutes: 9,
-    title: "تسويات أمازون والرسوم",
-    outcome: "ترفع ملف التسوية وتفهم قيد الرسوم والتحصيل." },
-
-  /* ── الموارد البشرية ──────────────────────────────────── */
-  { id: "employees-payroll", module: "hr", level: "basic", minutes: 8,
-    title: "الموظفون ومسير الرواتب",
-    outcome: "تضيف موظفًا وتعمل مسير رواتب وتُرحّله." },
-  { id: "leaves", module: "hr", level: "basic", minutes: 5,
-    title: "الإجازات وتقويم العطلات",
-    outcome: "تعتمد طلب إجازة وتضبط العطلات الرسمية." },
-
-  /* ── المستثمرون ───────────────────────────────────────── */
-  { id: "investors-capital", module: "investors", level: "basic", minutes: 7,
-    title: "رأس المال ونسب الملكية",
-    outcome: "تسجّل مساهمة مستثمر وتفهم إزاي بتُحسب نسبته." },
-  { id: "profit-distribution", module: "investors", level: "advanced", minutes: 7,
-    title: "توزيع الأرباح والسحوبات",
-    outcome: "توزّع أرباح فترة على الشركاء وتصرفها لهم." },
-
-  /* ── التقارير ─────────────────────────────────────────── */
-  { id: "financial-statements", module: "reports", level: "basic", minutes: 10,
-    title: "القوائم المالية — الدخل والمركز المالي",
-    outcome: "تقرأ قائمة الدخل والميزانية وتعرف مصدر كل رقم." },
-  { id: "aging", module: "reports", level: "basic", minutes: 6,
-    title: "أعمار الديون والتحصيل",
-    outcome: "تعرف مين متأخر عليك وبكام." },
-  { id: "profitability", module: "reports", level: "advanced", minutes: 8,
-    title: "ربحية المنتجات والتحليلات",
-    outcome: "تعرف أنهي صنف بيكسب فعلًا بعد التكلفة." },
-];
-
-export type ModuleLessons = { module: ModuleKey; label: string; lessons: Lesson[] };
-
-/**
- * Lessons grouped by module, in ALL_MODULES order so the page reads in the same
- * order as the sidebar. Modules with no lessons are dropped rather than shown empty.
- */
-export function lessonsByModule(lessons: Lesson[] = LESSONS): ModuleLessons[] {
-  return ALL_MODULES
-    .map((module) => ({
+export function moduleCards(lessons: Lesson[]): ModuleCard[] {
+  return ALL_MODULES.map((module) => {
+    const mine = lessons.filter((l) => l.module === module);
+    const live = mine.filter((l) => !!l.url).length;
+    return {
       module,
       label: MODULE_LABELS[module] ?? module,
-      lessons: lessons.filter((l) => l.module === module),
-    }))
-    .filter((g) => g.lessons.length > 0);
-}
-
-/** Lessons for one module — powers the «اتعلّم» link on each module overview. */
-export function lessonsFor(module: ModuleKey, lessons: Lesson[] = LESSONS): Lesson[] {
-  return lessons.filter((l) => l.module === module);
+      icon: MODULE_ICONS[module] ?? "GraduationCap",
+      total: mine.length,
+      live,
+      soon: mine.length - live,
+    };
+  });
 }
 
 export type AcademyProgress = { total: number; live: number; soon: number };
 
-export function progress(lessons: Lesson[] = LESSONS): AcademyProgress {
+export function progress(lessons: Lesson[]): AcademyProgress {
   const live = lessons.filter((l) => !!l.url).length;
   return { total: lessons.length, live, soon: lessons.length - live };
+}
+
+/** Whether a module key is one we actually have — guards the [module] route. */
+export function isModuleKey(v: string): v is ModuleKey {
+  return (ALL_MODULES as readonly string[]).includes(v);
 }

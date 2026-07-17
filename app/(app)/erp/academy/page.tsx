@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { lessonsByModule, progress, type Lesson } from "@/lib/erp/academy";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { listLessons, moduleCards, progress } from "@/lib/erp/academy";
+import { Card, CardContent } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -12,41 +11,34 @@ export const metadata = { title: "الأكاديمية" };
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 /**
- * الأكاديمية — how to use the system, grouped by the module each lesson explains.
+ * الأكاديمية — the index: one card per module.
  *
- * Grouped rather than a flat list on purpose: a flat list rots (forty links, half
- * broken, nobody able to see what's missing), while grouping keeps the page in the
- * sidebar's own order and makes a gap obvious. Lessons with no url show as قريباً —
- * a visible promise beats an invisible hole.
+ * Cards rather than one long list: a flat list of every lesson rots (dozens of
+ * links, no way to see what's missing), while an index answers the only question
+ * someone arrives with — "where's the bit about X?" — in one glance, and makes an
+ * empty module visible instead of hiding it.
  *
- * No org guard: this is product documentation, not tenant data. Any signed-in user
- * can read it, including one whose org doesn't have that module — reading how the
- * inventory works is how someone decides to buy it.
+ * No capability gate: product documentation isn't tenant data, and reading how a
+ * module works is how someone decides to buy it.
  */
 export default async function AcademyPage() {
   await requireUser();
 
-  const groups = lessonsByModule();
-  const p = progress();
+  const lessons = await listLessons();
+  const cards = moduleCards(lessons);
+  const p = progress(lessons);
 
   return (
     <div className="space-y-6" dir="rtl">
       <ErpPageHeader icon="GraduationCap" title="الأكاديمية"
-        subtitle="دروس قصيرة تشرح كل جزء في النظام — مرتّبة حسب الموديول" />
+        subtitle="دروس قصيرة تشرح كل جزء في النظام — اختر الموديول" />
 
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              كل درس بيقول لك تقدر تعمل إيه بعده. ابدأ بـ
-              <Link href="#accounting" className="mx-1 text-primary underline">ابدأ من هنا</Link>
-              لو أول مرة تدخل النظام.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              الدروس المعلَّمة «قريباً» بنسجّلها — لو محتاج واحد منها بسرعة قول لنا وهنقدّمه.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
+          <p className="text-sm text-muted-foreground">
+            كل درس بيقول لك تقدر تعمل إيه بعده. الدروس المعلَّمة «قريباً» بنسجّلها — لو محتاج واحد منها بسرعة قول لنا.
+          </p>
+          <div className="flex items-center gap-5 text-sm">
             <div className="text-center">
               <div className="text-2xl font-bold tabular-nums">{intf(p.live)}</div>
               <div className="text-xs text-muted-foreground">درس متاح</div>
@@ -59,56 +51,43 @@ export default async function AcademyPage() {
         </CardContent>
       </Card>
 
-      {groups.map((g) => (
-        // scroll-mt keeps the heading clear of the sticky topbar when linked to.
-        <section key={g.module} id={g.module} className="scroll-mt-20">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{g.label}</CardTitle>
-              <CardDescription>{intf(g.lessons.length)} درس</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2">
-                {g.lessons.map((l) => <LessonCard key={l.id} lesson={l} />)}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => {
+          const empty = c.total === 0;
+          return (
+            <Link
+              key={c.module}
+              href={empty ? "/erp/academy" : `/erp/academy/${c.module}`}
+              aria-disabled={empty}
+              // An empty module keeps its card — that's the honest signal nothing is
+              // recorded yet — but doesn't pretend to be a link.
+              className={cn(
+                "rounded-xl border border-border p-5 transition-colors",
+                empty ? "pointer-events-none opacity-60" : "hover:bg-muted",
+              )}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Icon name={c.icon} className="size-5" />
+                </div>
+                {c.total > 0 && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                    {intf(c.total)} درس
+                  </span>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </section>
-      ))}
+              <div className="mt-3 font-semibold">{c.label}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {empty
+                  ? "لا توجد دروس بعد"
+                  : c.soon === 0
+                    ? `${intf(c.live)} درس متاح`
+                    : `${intf(c.live)} متاح · ${intf(c.soon)} قريباً`}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
-  );
-}
-
-function LessonCard({ lesson }: { lesson: Lesson }) {
-  const live = !!lesson.url;
-
-  const body = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Icon name={live ? "PlayCircle" : "Clock"} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
-          <span className="font-medium">{lesson.title}</span>
-        </div>
-        {!live && <Badge variant="secondary" className="shrink-0">قريباً</Badge>}
-      </div>
-      {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
-      <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
-        {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
-        {lesson.level && <span>· {lesson.level === "basic" ? "أساسي" : "متقدّم"}</span>}
-      </div>
-    </>
-  );
-
-  const className = cn(
-    "flex flex-col gap-1 rounded-lg border border-border p-3 transition-colors",
-    live ? "hover:bg-muted" : "opacity-70",
-  );
-
-  // A لسه-مش-جاهز lesson is deliberately not a link — a dead click teaches the user
-  // the page lies, and they stop trusting the ones that do work.
-  return live ? (
-    <a href={lesson.url} target="_blank" rel="noopener noreferrer" className={className}>{body}</a>
-  ) : (
-    <div className={className}>{body}</div>
   );
 }
