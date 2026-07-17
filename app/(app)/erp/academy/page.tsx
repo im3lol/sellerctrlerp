@@ -36,12 +36,17 @@ export default async function AcademyPage() {
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
           <p className="text-sm text-muted-foreground">
-            كل درس بيقول لك تقدر تعمل إيه بعده. الدروس المعلَّمة «قريباً» بنسجّلها — لو محتاج واحد منها بسرعة قول لنا.
+            نوعان لكل موضوع: <b>فيديو</b> تتفرّج عليه، و<b>دليل مكتوب</b> بالصور تمشي وراه خطوة بخطوة.
+            المعلَّم «قريباً» بنجهّزه — لو محتاج حاجة بسرعة قول لنا.
           </p>
           <div className="flex items-center gap-5 text-sm">
             <div className="text-center">
-              <div className="text-2xl font-bold tabular-nums">{intf(p.live)}</div>
-              <div className="text-xs text-muted-foreground">درس متاح</div>
+              <div className="text-2xl font-bold tabular-nums">{intf(p.videos.live)}</div>
+              <div className="text-xs text-muted-foreground">فيديو</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold tabular-nums">{intf(p.docs.live)}</div>
+              <div className="text-xs text-muted-foreground">دليل</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold tabular-nums text-muted-foreground">{intf(p.soon)}</div>
@@ -77,13 +82,16 @@ export default async function AcademyPage() {
                 )}
               </div>
               <div className="mt-3 font-semibold">{c.label}</div>
+              {/* Both catalogues on the card: someone who wants to read shouldn't have
+                  to open the module to find out whether any guides exist. */}
               <div className="mt-1 text-sm text-muted-foreground">
                 {empty
                   ? "لا توجد دروس بعد"
-                  : c.soon === 0
-                    ? `${intf(c.live)} درس متاح`
-                    : `${intf(c.live)} متاح · ${intf(c.soon)} قريباً`}
+                  : `${intf(c.videos.live)} فيديو · ${intf(c.docs.live)} دليل`}
               </div>
+              {!empty && c.soon > 0 && (
+                <div className="mt-0.5 text-xs text-muted-foreground/70">{intf(c.soon)} قريباً</div>
+              )}
             </Link>
           );
         })}

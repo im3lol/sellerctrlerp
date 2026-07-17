@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { getLesson, isModuleKey, opensInApp, lessonFormat, FORMAT_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
+import { getLesson, isModuleKey, opensInApp, KIND_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { youtubeId, youtubeEmbedUrl } from "@/lib/erp/youtube";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,8 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 /**
- * A lesson: the video plays here and the article reads here. Both are the lesson —
- * neither is an afterthought hanging off the other.
+ * One lesson — a video شرح or a written دليل, whichever this row is.
  *
  * Only a video we can't embed skips this page (lessonHref sends it straight to its
  * host), since then the page really would be one outbound link.
@@ -36,8 +35,7 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
   // Nothing to show here — قريباً, or a video that only its own host can play.
   if (!opensInApp(lesson)) notFound();
 
-  const videoId = youtubeId(lesson.url);
-  const format = lessonFormat(lesson);
+  const videoId = lesson.kind === "video" ? youtubeId(lesson.url) : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
@@ -50,9 +48,13 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">{MODULE_LABELS[module]}</Badge>
-        <Badge variant="outline">{FORMAT_LABELS[format]}</Badge>
+        <Badge variant="outline">{KIND_LABELS[lesson.kind]}</Badge>
         <Badge variant="outline">{lesson.level === "basic" ? "أساسي" : "متقدّم"}</Badge>
-        {lesson.minutes && <span className="text-xs text-muted-foreground">{intf(lesson.minutes)} دقيقة</span>}
+        {lesson.minutes && (
+          <span className="text-xs text-muted-foreground">
+            {intf(lesson.minutes)} دقيقة {lesson.kind === "doc" ? "قراءة" : ""}
+          </span>
+        )}
       </div>
 
       {videoId && (
@@ -72,7 +74,7 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
       )}
 
       {/* A video we can't embed still deserves a way in. */}
-      {lesson.url && !videoId && (
+      {lesson.kind === "video" && lesson.url && !videoId && (
         <a href={lesson.url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:bg-muted">
           <Icon name="PlayCircle" className="size-5 shrink-0 text-primary" />

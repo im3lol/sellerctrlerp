@@ -2065,10 +2065,16 @@ export const openingBalanceLines = pgTable(
  * `module` matches ModuleKey (lib/erp/module-list.ts) — it drives both the grouping
  * on /erp/academy and the «اتعلّم» link inside that module.
  *
- * A lesson is قريباً until it has EITHER a video (`url`) or a written doc (`body`).
- * Docs aren't a second system: the same lesson is the unit, and a lesson can be
- * watched, read, or both. A visible promise beats an invisible gap — fill in either
- * one and it goes live.
+ * A lesson is EITHER a video شرح OR a written دليل — `kind` says which, and the two
+ * are separate catalogues that happen to share a table because the row is identical
+ * apart from where the content lives (`url` vs `body`). Splitting them into two
+ * tables would duplicate the module/order/visibility machinery for no gain.
+ *
+ * A video and a guide about the same topic are two rows with two slugs, deliberately:
+ * they're different explanations at different depths, not one lesson in two skins.
+ *
+ * قريباً = the row exists but its content field is still empty. A visible promise
+ * beats an invisible gap.
  */
 export const academyLessons = pgTable(
   "academy_lessons",
@@ -2078,11 +2084,13 @@ export const academyLessons = pgTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     module: text("module").notNull(),
+    /** video | doc — which catalogue this row belongs to. */
+    kind: text("kind").notNull().default("video"),
     /** One line: what the viewer can do after watching/reading. */
     outcome: text("outcome"),
-    /** Video link. Absent + no body = قريباً. */
+    /** kind=video: the YouTube link. Empty = قريباً. */
     url: text("url"),
-    /** The written doc (markdown). Absent + no url = قريباً. */
+    /** kind=doc: the guide itself (markdown, with screenshots). Empty = قريباً. */
     body: text("body"),
     minutes: integer("minutes"),
     level: text("level").notNull().default("basic"), // basic | advanced
@@ -2093,7 +2101,7 @@ export const academyLessons = pgTable(
   },
   (t) => [
     uniqueIndex("academy_lessons_slug_idx").on(t.slug),
-    index("academy_lessons_module_idx").on(t.module, t.sortOrder),
+    index("academy_lessons_module_idx").on(t.kind, t.module, t.sortOrder),
   ],
 );
 

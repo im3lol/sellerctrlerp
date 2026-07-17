@@ -1,15 +1,20 @@
 import { describe, it, expect } from "vitest";
 import {
-  moduleCards, progress, isModuleKey, isLive, lessonHref, opensInApp,
-  lessonFormat, FORMAT_LABELS, MODULE_ICONS, type Lesson,
+  moduleCards, progress, isModuleKey, isLive, lessonHref, opensInApp, byKind,
+  isLessonKind, KIND_LABELS, KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS,
+  type Lesson, type LessonKind,
 } from "../academy-core";
 import { ALL_MODULES, MODULE_LABELS } from "../module-list";
 
 const YT = "https://youtu.be/dQw4w9WgXcQ";
 
-const lesson = (id: string, module: string, url?: string, body?: string): Lesson => ({
-  id, slug: id, title: id, module: module as Lesson["module"],
-  outcome: null, url: url ?? null, body: body ?? null, minutes: null, level: "basic",
+const video = (id: string, module: string, url?: string): Lesson => ({
+  id, slug: id, title: id, module: module as Lesson["module"], kind: "video",
+  outcome: null, url: url ?? null, body: null, minutes: null, level: "basic",
+});
+const doc = (id: string, module: string, body?: string): Lesson => ({
+  id, slug: id, title: id, module: module as Lesson["module"], kind: "doc",
+  outcome: null, url: null, body: body ?? null, minutes: null, level: "basic",
 });
 
 describe("isModuleKey", () => {
@@ -24,37 +29,104 @@ describe("isModuleKey", () => {
   });
 });
 
+describe("isLessonKind", () => {
+  it("guards the two catalogues", () => {
+    expect(isLessonKind("video")).toBe(true);
+    expect(isLessonKind("doc")).toBe(true);
+    expect(isLessonKind("docs")).toBe(false);
+    expect(isLessonKind("")).toBe(false);
+  });
+
+  it("every kind has a label, a plural and an icon", () => {
+    for (const k of LESSON_KINDS) {
+      expect(KIND_LABELS[k], k).toBeTruthy();
+      expect(KIND_PLURAL[k], k).toBeTruthy();
+      expect(KIND_ICONS[k], k).toBeTruthy();
+    }
+  });
+});
+
+describe("isLive", () => {
+  it("each kind is judged on its OWN content field", () => {
+    // The whole point of the split: a video needs a link, a guide needs text.
+    expect(isLive(video("a", "sales", YT))).toBe(true);
+    expect(isLive(video("b", "sales"))).toBe(false);
+    expect(isLive(doc("c", "sales", "## شرح"))).toBe(true);
+    expect(isLive(doc("d", "sales"))).toBe(false);
+  });
+
+  it("a video is not live just because some text got left on the row", () => {
+    // A lesson flipped doc→video keeps its body in the DB until saved; it must read
+    // قريباً, not متاح, or the page opens onto an empty player.
+    const stale: Lesson = { ...video("e", "sales"), body: "## leftover" };
+    expect(isLive(stale)).toBe(false);
+  });
+
+  it("a guide is not live just because a url got left on the row", () => {
+    const stale: Lesson = { ...doc("f", "sales"), url: YT };
+    expect(isLive(stale)).toBe(false);
+  });
+});
+
+describe("lessonHref / opensInApp", () => {
+  it("a YouTube video opens in-app — it plays there", () => {
+    expect(lessonHref(video("a", "sales", YT))).toBe("/erp/academy/sales/a");
+    expect(opensInApp(video("a", "sales", YT))).toBe(true);
+  });
+
+  it("a guide opens in-app", () => {
+    expect(lessonHref(doc("b", "sales", "## شرح"))).toBe("/erp/academy/sales/b");
+  });
+
+  it("a video we cannot embed leaves for its own host", () => {
+    // Vimeo won't play in our page, so a page here would be one outbound link.
+    const v = video("c", "sales", "https://vimeo.com/123456");
+    expect(opensInApp(v)).toBe(false);
+    expect(lessonHref(v)).toBe("https://vimeo.com/123456");
+  });
+
+  it("قريباً has nowhere to go", () => {
+    expect(lessonHref(video("d", "sales"))).toBeNull();
+    expect(lessonHref(doc("e", "sales"))).toBeNull();
+  });
+});
+
+describe("byKind", () => {
+  it("splits the catalogues", () => {
+    const all = [video("a", "sales", YT), doc("b", "sales", "x"), video("c", "hr")];
+    expect(byKind(all, "video").map((l) => l.id)).toEqual(["a", "c"]);
+    expect(byKind(all, "doc").map((l) => l.id)).toEqual(["b"]);
+  });
+});
+
 describe("moduleCards", () => {
   it("returns one card per module, in sidebar order", () => {
-    const cards = moduleCards([]);
-    expect(cards.map((c) => c.module)).toEqual([...ALL_MODULES]);
+    expect(moduleCards([]).map((c) => c.module)).toEqual([...ALL_MODULES]);
   });
 
   it("keeps modules with no lessons — an empty card is the point", () => {
     // Dropping them would hide the gap; the card is how the owner sees what still
     // needs recording.
-    const cards = moduleCards([lesson("a", "sales")]);
+    const cards = moduleCards([video("a", "sales", YT)]);
     expect(cards).toHaveLength(ALL_MODULES.length);
     expect(cards.find((c) => c.module === "hr")!.total).toBe(0);
   });
 
-  it("counts live vs قريباً per module", () => {
+  it("counts each catalogue separately on the same card", () => {
     const cards = moduleCards([
-      lesson("a", "sales", "https://x"),
-      lesson("b", "sales"),
-      lesson("c", "sales"),
-      lesson("d", "hr", "https://y"),
+      video("a", "sales", YT), video("b", "sales"),
+      doc("c", "sales", "## x"), doc("d", "sales"), doc("e", "sales", "## y"),
     ]);
     const sales = cards.find((c) => c.module === "sales")!;
-    expect(sales).toMatchObject({ total: 3, live: 1, soon: 2 });
-    expect(cards.find((c) => c.module === "hr")).toMatchObject({ total: 1, live: 1, soon: 0 });
+    expect(sales.videos).toEqual({ total: 2, live: 1, soon: 1 });
+    expect(sales.docs).toEqual({ total: 3, live: 2, soon: 1 });
+    expect(sales).toMatchObject({ total: 5, live: 3, soon: 2 });
   });
 
   it("a lesson with an unknown module lands on no card", () => {
     // The owner picks the module from a fixed list, so this shouldn't happen — but
     // if it ever does it fails quietly (the lesson just disappears), so pin it.
-    const cards = moduleCards([lesson("a", "nonsense")]);
-    expect(cards.reduce((s, c) => s + c.total, 0)).toBe(0);
+    expect(moduleCards([video("a", "nonsense", YT)]).reduce((s, c) => s + c.total, 0)).toBe(0);
   });
 
   it("labels and icons come from the shared module list", () => {
@@ -69,75 +141,24 @@ describe("moduleCards", () => {
   });
 });
 
-describe("isLive", () => {
-  it("a video OR a doc is enough — neither is قريباً", () => {
-    // The whole point of docs: a lesson goes live without anything being recorded.
-    expect(isLive(lesson("a", "sales", "https://x"))).toBe(true);
-    expect(isLive(lesson("b", "sales", undefined, "## شرح"))).toBe(true);
-    expect(isLive(lesson("c", "sales", "https://x", "## شرح"))).toBe(true);
-    expect(isLive(lesson("d", "sales"))).toBe(false);
-  });
-});
-
-describe("lessonFormat", () => {
-  it("video and article are peers, and a lesson can be both", () => {
-    expect(lessonFormat(lesson("a", "sales", YT))).toBe("video");
-    expect(lessonFormat(lesson("b", "sales", undefined, "## شرح"))).toBe("doc");
-    expect(lessonFormat(lesson("c", "sales", YT, "## شرح"))).toBe("both");
-    expect(lessonFormat(lesson("d", "sales"))).toBe("soon");
-  });
-
-  it("every format has a label", () => {
-    for (const f of ["video", "doc", "both", "soon"] as const) expect(FORMAT_LABELS[f]).toBeTruthy();
-  });
-});
-
-describe("lessonHref", () => {
-  it("a YouTube lesson opens in-app — the video plays there", () => {
-    // It used to link straight out to YouTube, which took the customer out of the
-    // product to watch a lesson about the product.
-    expect(lessonHref(lesson("a", "sales", YT))).toBe("/erp/academy/sales/a");
-  });
-
-  it("an article opens in-app", () => {
-    expect(lessonHref(lesson("b", "sales", undefined, "## شرح"))).toBe("/erp/academy/sales/b");
-  });
-
-  it("both → one page that holds the video and the article", () => {
-    expect(lessonHref(lesson("c", "purchases", YT, "## شرح"))).toBe("/erp/academy/purchases/c");
-  });
-
-  it("a video we cannot embed still leaves for its own host", () => {
-    // Vimeo won't play in our page, so a page here would be one outbound link —
-    // a wasted click. Send them straight there.
-    expect(lessonHref(lesson("d", "sales", "https://vimeo.com/123456"))).toBe("https://vimeo.com/123456");
-    expect(opensInApp(lesson("d", "sales", "https://vimeo.com/123456"))).toBe(false);
-  });
-
-  it("…unless it also has an article, which we CAN show", () => {
-    expect(lessonHref(lesson("e", "sales", "https://vimeo.com/123456", "## شرح"))).toBe("/erp/academy/sales/e");
-  });
-
-  it("قريباً has nowhere to go", () => {
-    expect(lessonHref(lesson("f", "sales"))).toBeNull();
-    expect(opensInApp(lesson("f", "sales"))).toBe(false);
-  });
-});
-
 describe("progress", () => {
-  it("a lesson with neither video nor doc is قريباً", () => {
-    expect(progress([lesson("a", "sales", "https://x"), lesson("b", "sales")]))
-      .toEqual({ total: 2, live: 1, soon: 1 });
-  });
-
-  it("counts a doc-only lesson as متاح", () => {
-    // Regression guard: the count used to key off url alone, which would have listed
-    // a written lesson as قريباً on the card while its page rendered fine.
-    expect(progress([lesson("a", "sales", undefined, "## شرح"), lesson("b", "sales")]))
-      .toEqual({ total: 2, live: 1, soon: 1 });
+  it("reports the two catalogues plus the combined total", () => {
+    const p = progress([video("a", "sales", YT), video("b", "sales"), doc("c", "hr", "## x")]);
+    expect(p.videos).toEqual({ total: 2, live: 1, soon: 1 });
+    expect(p.docs).toEqual({ total: 1, live: 1, soon: 0 });
+    expect(p).toMatchObject({ total: 3, live: 2, soon: 1 });
   });
 
   it("empty catalogue", () => {
-    expect(progress([])).toEqual({ total: 0, live: 0, soon: 0 });
+    expect(progress([])).toMatchObject({ total: 0, live: 0, soon: 0 });
+  });
+
+  it("the split always adds back up to the whole", () => {
+    // Guards against a lesson being counted in one catalogue but not the total.
+    const all: Lesson[] = [video("a", "sales", YT), doc("b", "hr", "## x"), video("c", "hr")];
+    const p = progress(all);
+    for (const f of ["total", "live", "soon"] as const) {
+      expect(p.videos[f] + p.docs[f], f).toBe(p[f]);
+    }
   });
 });

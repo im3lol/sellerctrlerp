@@ -3,11 +3,15 @@ import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
 
 /**
- * Writes the first three lesson bodies — the ones a new customer needs in week one.
+ * The written guides — a catalogue of its own, separate from the video syllabus in
+ * seed-academy.ts. Same topic, different row: a guide is not a video's transcript.
  *
- * Fill-only: every update carries `isNull(body)`, so re-running this never touches a
- * lesson someone has since edited in /admin/academy. Same rule as enrichItems. To
- * rewrite one deliberately, clear its body in the admin first, or just edit it there.
+ * Slugs carry a `-guide` suffix so a topic can hold both a video and a guide while the
+ * slug stays globally unique (it's the route, so one slug must mean one page).
+ *
+ * Fill-only: the row is inserted if missing, and the body is written only where it is
+ * still null, so re-running never overwrites a guide edited in /admin/academy. To
+ * rewrite one deliberately, clear its body in the admin first.
  *
  * Run: npx tsx db/seed-academy-docs.ts
  */
@@ -526,23 +530,38 @@ const CHART_OF_ACCOUNTS = `
 **الخطوة الجاية**: درس **القيود اليومية والترحيل** — تكتب قيد بنفسك وتفهم «مُرحّل» و«مسودة».
 `.trim();
 
-const DOCS: Record<string, string> = {
-  "start-here": START_HERE,
-  "sales-cycle": SALES_CYCLE,
-  "opening-balances": OPENING_BALANCES,
-  "purchase-cycle": PURCHASE_CYCLE,
-  "items": ITEMS,
-  "chart-of-accounts": CHART_OF_ACCOUNTS,
-};
+const D = (
+  slug: string, module: string, title: string, outcome: string,
+  minutes: number, level: "basic" | "advanced", sortOrder: number, body: string,
+) => ({ slug: `${slug}-guide`, module, title, outcome, minutes, level, sortOrder, kind: "doc", body });
+
+export const GUIDES = [
+  D("start-here", "accounting", "ابدأ من هنا — جولة في النظام",
+    "تعرف مكان كل موديول وإزاي تتنقّل بينهم.", 5, "basic", 1, START_HERE),
+  D("chart-of-accounts", "accounting", "دليل الحسابات — إعداده وتعديله",
+    "تفهم شجرة الحسابات وتضيف حساباتك.", 8, "basic", 2, CHART_OF_ACCOUNTS),
+  D("opening-balances", "accounting", "الأرصدة الافتتاحية — ترحيل شركة قائمة",
+    "تنقل أرصدة العملاء والموردين والمخزون والبنك من نظامك القديم.", 10, "basic", 3, OPENING_BALANCES),
+  D("sales-cycle", "sales", "دورة البيع كاملة — من عرض السعر للتحصيل",
+    "تمشي أمر بيع من العرض للتسليم للفاتورة لسند القبض.", 10, "basic", 1, SALES_CYCLE),
+  D("purchase-cycle", "purchases", "دورة الشراء كاملة — من طلب المواد للسداد",
+    "تمشي أمر شراء من الطلب للاستلام للفاتورة لسند الصرف.", 10, "basic", 1, PURCHASE_CYCLE),
+  D("items", "inventory", "الأصناف والأكواد والباركود",
+    "تضيف صنفًا بأكواده وتطبع له ملصق باركود.", 8, "basic", 1, ITEMS),
+];
 
 export async function seedAcademyDocs() {
+  // Insert the rows that don't exist yet; a slug already present is left alone.
+  await db.insert(academyLessons).values(GUIDES).onConflictDoNothing({ target: academyLessons.slug });
+
+  // Then fill the body only where it's still empty — never clobber an edited guide.
   const written: string[] = [];
-  for (const [slug, body] of Object.entries(DOCS)) {
+  for (const g of GUIDES) {
     const res = await db.update(academyLessons)
-      .set({ body, updatedAt: new Date() })
-      .where(and(eq(academyLessons.slug, slug), isNull(academyLessons.body)))
+      .set({ body: g.body, updatedAt: new Date() })
+      .where(and(eq(academyLessons.slug, g.slug), isNull(academyLessons.body)))
       .returning({ slug: academyLessons.slug });
-    if (res.length) written.push(slug);
+    if (res.length) written.push(g.slug);
   }
   return written;
 }
@@ -550,7 +569,7 @@ export async function seedAcademyDocs() {
 if (require.main === module) {
   seedAcademyDocs()
     .then((w) => {
-      console.log(w.length ? `✅ wrote: ${w.join(", ")}` : "nothing to write (all already have a body)");
+      console.log(w.length ? `✅ guides written: ${w.join(", ")}` : "nothing to write (all guides already have a body)");
       process.exit(0);
     })
     .catch((e) => { console.error(e); process.exit(1); });

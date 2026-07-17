@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { ALL_MODULES } from "@/lib/erp/module-list";
+import { LESSON_KINDS } from "@/lib/erp/academy-core";
 
 type Res = { ok: true; id?: string } | { error: string };
 
@@ -26,8 +27,9 @@ const schema = z.object({
   slug: z.string().min(1, "المعرّف مطلوب").regex(/^[a-z0-9-]+$/, "المعرّف: حروف إنجليزية صغيرة وأرقام وشرطات فقط"),
   title: z.string().min(2, "العنوان قصير جداً"),
   module: z.enum(ALL_MODULES),
+  kind: z.enum(LESSON_KINDS).default("video"),
   outcome: z.string().optional(),
-  // Both empty = قريباً. A blank string must become null, not "", or the lesson would
+  // Empty = قريباً. A blank string must become null, not "", or the lesson would
   // render as live and go nowhere.
   url: z.string().url("رابط غير صحيح").optional().or(z.literal("")),
   body: z.string().optional(),
@@ -46,9 +48,13 @@ export async function saveLessonAction(input: unknown, id?: string): Promise<Res
     slug: d.slug.trim(),
     title: d.title.trim(),
     module: d.module,
+    kind: d.kind,
     outcome: d.outcome?.trim() || null,
-    url: d.url?.trim() || null,
-    body: d.body?.trim() || null,
+    // A lesson is one catalogue or the other, so only its own content field is kept.
+    // Enforced here, not just in the form: a lesson flipped video→doc must not keep a
+    // stale url, or isLive and the page would disagree about what the lesson is.
+    url: d.kind === "video" ? d.url?.trim() || null : null,
+    body: d.kind === "doc" ? d.body?.trim() || null : null,
     minutes: d.minutes ?? null,
     level: d.level,
     sortOrder: d.sortOrder,

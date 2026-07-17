@@ -12,7 +12,7 @@ import { AcademyManager } from "@/components/admin/academy-manager";
 export default async function AdminAcademyPage() {
   const rows = await listAllLessonsForAdmin();
   const list = rows.map((l) => ({
-    id: l.id, slug: l.slug, title: l.title, module: l.module,
+    id: l.id, slug: l.slug, title: l.title, module: l.module, kind: l.kind,
     outcome: l.outcome, url: l.url, body: l.body, minutes: l.minutes,
     level: l.level, sortOrder: l.sortOrder, isActive: l.isActive,
   }));
@@ -20,7 +20,7 @@ export default async function AdminAcademyPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="الأكاديمية"
-        description="دروس شرح النظام كما يراها كل العملاء. الدرس يبقى متاحًا بفيديو أو شرح مكتوب — بدون الاتنين يظهر «قريباً»." />
+        description="قائمتان منفصلتان لكل موديول: شروحات فيديو (يوتيوب) وأدلة مكتوبة بالصور. الدرس بدون محتوى يظهر «قريباً»." />
       <AcademyManager lessons={list} />
     </div>
   );

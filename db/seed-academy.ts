@@ -2,11 +2,15 @@ import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
 
 /**
- * Seeds the academy syllabus: the lesson list, all without urls, so the catalogue
- * arrives as a plan rather than an empty table.
+ * Seeds the VIDEO syllabus: the topic list, all without urls, so the catalogue arrives
+ * as a plan rather than an empty table.
  *
- * Idempotent — onConflictDoNothing on the slug — so it can be re-run after adding
- * new rows here without touching whatever the owner has edited in /admin/academy.
+ * Videos only — the written guides are separate rows with their own slugs, seeded by
+ * seed-academy-docs.ts. The two catalogues are independent by design: a topic can have
+ * a video, a guide, or both, and each is written on its own schedule.
+ *
+ * Idempotent — onConflictDoNothing on the slug — so it can be re-run after adding new
+ * rows here without touching whatever the owner has edited in /admin/academy.
  * Titles/urls are theirs to change; this only ever inserts what's missing.
  *
  * Run: npx tsx db/seed-academy.ts
@@ -14,7 +18,7 @@ import { academyLessons } from "@/db/schema";
 const L = (
   slug: string, module: string, title: string, outcome: string,
   minutes: number, level: "basic" | "advanced", sortOrder: number,
-) => ({ slug, module, title, outcome, minutes, level, sortOrder });
+) => ({ slug, module, title, outcome, minutes, level, sortOrder, kind: "video" });
 
 export const SYLLABUS = [
   /* المحاسبة */
@@ -71,6 +75,6 @@ export async function seedAcademy() {
 
 if (require.main === module) {
   seedAcademy()
-    .then((n) => { console.log(`✅ academy: ${n} lesson(s) inserted (existing rows untouched)`); process.exit(0); })
+    .then((n) => { console.log(`✅ academy videos: ${n} inserted (existing rows untouched)`); process.exit(0); })
     .catch((e) => { console.error(e); process.exit(1); });
 }

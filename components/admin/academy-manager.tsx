@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight, ImagePlus } from "lucide-react";
 import { saveLessonAction, toggleLessonAction, deleteLessonAction } from "@/app/actions/admin/academy";
+import { uploadAcademyImageAction } from "@/app/actions/admin/academy-image";
 import { ALL_MODULES, MODULE_LABELS, MODULE_ICONS } from "@/lib/erp/module-list";
 // academy-core, not academy: that one imports the db and would drag `pg` into this bundle.
-import { lessonFormat, FORMAT_LABELS } from "@/lib/erp/academy-core";
+import { LESSON_KINDS, KIND_LABELS, KIND_PLURAL, KIND_ICONS, type LessonKind } from "@/lib/erp/academy-core";
 import { youtubeId } from "@/lib/erp/youtube";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
@@ -21,18 +22,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { cn } from "@/lib/utils";
 
 export type AdminLesson = {
-  id: string; slug: string; title: string; module: string;
+  id: string; slug: string; title: string; module: string; kind: string;
   outcome: string | null; url: string | null; body: string | null; minutes: number | null;
   level: string; sortOrder: number; isActive: boolean;
 };
 
 const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
-/** Ready = a video OR a doc. Mirrors isLive in lib/erp/academy.ts — the customer's rule. */
-const live = (l: AdminLesson) => (!!l.url || !!l.body) && l.isActive;
+/** Ready = this row's own content field is filled. Mirrors isLive — the customer's rule. */
+const live = (l: AdminLesson) => (l.kind === "video" ? !!l.url : !!l.body) && l.isActive;
 
-/** A new lesson opens inside a module card, so it arrives pre-filed there and last in line. */
-type Preset = { module: string; sortOrder: number };
+/** A new lesson opens inside a module + catalogue, so it arrives pre-filed and last in line. */
+type Preset = { module: string; kind: LessonKind; sortOrder: number };
 
 function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; preset?: Preset; onClose: () => void }) {
   const router = useRouter();
@@ -42,6 +43,7 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
   const [slug, setSlug] = useState(lesson?.slug ?? "");
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [module, setModule] = useState(lesson?.module ?? preset?.module ?? "accounting");
+  const [kind, setKind] = useState<LessonKind>((lesson?.kind ?? preset?.kind ?? "video") as LessonKind);
   const [outcome, setOutcome] = useState(lesson?.outcome ?? "");
   const [url, setUrl] = useState(lesson?.url ?? "");
   const [body, setBody] = useState(lesson?.body ?? "");
@@ -49,27 +51,82 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
   const [level, setLevel] = useState(lesson?.level ?? "basic");
   const [sortOrder, setSortOrder] = useState(String(lesson?.sortOrder ?? preset?.sortOrder ?? 0));
 
-  // Live feedback while typing: whether the link will actually play, and what the
-  // customer ends up with. Both read the same rules the lesson page uses.
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Does the link actually play? Told now, while typing, not discovered by a customer.
   const yt = youtubeId(url);
-  const fmt = lessonFormat({ url: url.trim() || null, body: body.trim() || null });
+
+  /** Drops the uploaded screenshot in at the cursor, so it lands in the step being written. */
+  const insertImage = (mdUrl: string, alt: string) => {
+    const md = `\n\n![${alt}](${mdUrl})\n\n`;
+    const el = bodyRef.current;
+    if (!el) { setBody((b) => b + md); return; }
+    const at = el.selectionStart ?? body.length;
+    setBody(body.slice(0, at) + md + body.slice(at));
+  };
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await uploadAcademyImageAction(fd);
+    setUploading(false);
+    if (res.ok) { insertImage(res.url, file.name.replace(/\.\w+$/, "")); toast.success("تمت إضافة الصورة"); }
+    else toast.error(res.error);
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   const save = () => start(async () => {
     const res = await saveLessonAction({
-      slug, title, module, outcome, url, body,
+      slug, title, module, kind, outcome,
+      // Send only this catalogue's field — a kind flip must not leave the other one
+      // populated, or isLive and the page would disagree about what the lesson is.
+      url: kind === "video" ? url : "",
+      body: kind === "doc" ? body : "",
       minutes: minutes ? Number(minutes) : null,
       level, sortOrder: Number(sortOrder || 0),
     }, lesson?.id);
-    if ("ok" in res) { toast.success(isEdit ? "تم الحفظ" : "تمت إضافة الدرس"); router.refresh(); onClose(); }
+    if ("ok" in res) { toast.success(isEdit ? "تم الحفظ" : "تمت الإضافة"); router.refresh(); onClose(); }
     else toast.error(res.error);
   });
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" dir="rtl">
-        <DialogHeader><DialogTitle>{isEdit ? "تعديل درس" : "درس جديد"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? `تعديل ${KIND_LABELS[kind]}` : kind === "video" ? "فيديو جديد" : "دليل جديد"}
+          </DialogTitle>
+        </DialogHeader>
 
         <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>النوع *</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {LESSON_KINDS.map((k) => (
+                <button key={k} type="button" onClick={() => setKind(k)}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg border p-3 text-right transition-colors",
+                    kind === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
+                  )}>
+                  <Icon name={KIND_ICONS[k]} className="size-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <div className="text-sm font-medium">{KIND_LABELS[k]}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {k === "video" ? "رابط يوتيوب يتشغّل في الصفحة" : "شرح مكتوب بالصور"}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {isEdit && (
+              // The two catalogues are separate lists; changing this moves the lesson.
+              <p className="text-xs text-muted-foreground">تغيير النوع بينقل الدرس للقائمة التانية.</p>
+            )}
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="title">العنوان *</Label>
@@ -90,43 +147,49 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
             <p className="text-xs text-muted-foreground">ده اللي بيخلي المستخدم يعرف إن الدرس ده هيجاوب سؤاله — العنوان لوحده مابيكفيش.</p>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="url">رابط فيديو يوتيوب</Label>
-            <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/…" dir="ltr" />
-            {url.trim() ? (
-              yt ? (
-                <p className="text-xs text-emerald-600">✓ هيتشغّل جوّه النظام — الفيديو: {yt}</p>
+          {kind === "video" ? (
+            <div className="space-y-1">
+              <Label htmlFor="url">رابط فيديو يوتيوب</Label>
+              <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/…" dir="ltr" />
+              {url.trim() ? (
+                yt ? (
+                  <p className="text-xs text-emerald-600">✓ هيتشغّل جوّه النظام — الفيديو: {yt}</p>
+                ) : (
+                  // Say it now, not after a customer opens a lesson that dumps them
+                  // on another site.
+                  <p className="text-xs text-amber-600">
+                    مش رابط يوتيوب — الدرس هيبقى لينك بيفتح بره النظام بدل مشغّل الفيديو.
+                  </p>
+                )
               ) : (
-                // Say it now, not after the customer opens a lesson that dumps them
-                // on another site.
-                <p className="text-xs text-amber-600">
-                  مش رابط يوتيوب — الدرس هيبقى لينك بيفتح بره النظام بدل مشغّل الفيديو.
+                <p className="text-xs text-muted-foreground">
+                  الصق أي شكل من روابط يوتيوب (watch / youtu.be / shorts) — هيتشغّل داخل الصفحة. سيبه فاضي = «قريباً».
                 </p>
-              )
-            ) : (
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="body">الشرح (Markdown)</Label>
+                <div className="flex items-center gap-2">
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
+                  <Button type="button" variant="outline" size="sm" disabled={uploading}
+                    onClick={() => fileRef.current?.click()}>
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+                    {uploading ? "جارٍ الرفع…" : "أضف صورة"}
+                  </Button>
+                </div>
+              </div>
+              <Textarea id="body" ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={14}
+                className="font-mono text-xs"
+                placeholder={"## الخطوة الأولى\n\nافتح **المبيعات ← أوامر البيع** ودوس «أمر جديد».\n\n![شاشة أوامر البيع](…)\n\n- اختار العميل\n- ضيف الأصناف\n\n> الأمر بيفضل مسودة لحد ما تأكّده."} />
               <p className="text-xs text-muted-foreground">
-                الصق أي شكل من روابط يوتيوب (watch / youtu.be / shorts) — هيتشغّل داخل الصفحة.
+                <b>«أضف صورة»</b> بيرفع الـscreenshot ويحطه مكان المؤشر. يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول.
+                سيبه فاضي = «قريباً».
               </p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="body">الشرح المكتوب (Markdown)</Label>
-            <Textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} rows={12}
-              className="font-mono text-xs"
-              placeholder={"## الخطوة الأولى\n\nافتح **المبيعات ← أوامر البيع** ودوس «أمر جديد».\n\n- اختار العميل\n- ضيف الأصناف\n\n> ملاحظة: الأمر بيفضل مسودة لحد ما تأكّده."} />
-            <p className="text-xs text-muted-foreground">
-              يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول والروابط والصور.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
-            <span className="font-medium">الصيغة: </span>
-            {fmt === "both" ? "فيديو + مقال — الفيديو بيتشغّل فوق والمقال تحته في نفس الصفحة."
-              : fmt === "video" ? "فيديو — حط شرح مكتوب كمان لو عايز الاتنين."
-              : fmt === "doc" ? "مقال — حط رابط يوتيوب كمان لو عايز الاتنين."
-              : "قريباً — لسه مافيش فيديو ولا مقال، فالدرس هيظهر «قريباً» ومش هيتفتح."}
-          </div>
+            </div>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
@@ -175,17 +238,21 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
   const [confirmDel, setConfirmDel] = useState<AdminLesson | null>(null);
 
   // One card per module, sidebar order — the same index the customer sees at
-  // /erp/academy, so what you arrange here is what they get.
+  // /erp/academy, so what you arrange here is what they get. Each card carries both
+  // catalogues separately; sort order is per-catalogue, since they're two lists.
   const cards = useMemo(
     () => ALL_MODULES.map((module) => {
       const mine = lessons.filter((l) => l.module === module);
-      return {
-        module,
-        lessons: mine,
-        total: mine.length,
-        live: mine.filter(live).length,
-        nextSort: mine.reduce((max, l) => Math.max(max, l.sortOrder), 0) + 1,
+      const of = (k: LessonKind) => {
+        const rows = mine.filter((l) => l.kind === k);
+        return {
+          rows,
+          total: rows.length,
+          live: rows.filter(live).length,
+          nextSort: rows.reduce((max, l) => Math.max(max, l.sortOrder), 0) + 1,
+        };
       };
+      return { module, total: mine.length, live: mine.filter(live).length, video: of("video"), doc: of("doc") };
     }),
     [lessons],
   );
@@ -198,6 +265,8 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
   );
 
   const liveTotal = lessons.filter(live).length;
+  const videoLive = lessons.filter((l) => l.kind === "video" && live(l)).length;
+  const docLive = lessons.filter((l) => l.kind === "doc" && live(l)).length;
   const current = cards.find((c) => c.module === open);
 
   const toggle = (id: string) => start(async () => {
@@ -234,49 +303,53 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
     </>
   );
 
-  /* ── one module's lessons ── */
+  const rowActions = (l: AdminLesson) => (
+    <div className="flex gap-1">
+      <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(l.id)}
+        title={l.isActive ? "إخفاء" : "إظهار"}>
+        {l.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setDialog({ open: true, lesson: l })}>
+        <Pencil className="size-4" />
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setConfirmDel(l)}>
+        <Trash2 className="size-4 text-destructive" />
+      </Button>
+    </div>
+  );
+
+  /* ── one module: the two catalogues, side by side but separate ── */
   if (current) {
-    return (
-      <div className="space-y-4" dir="rtl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setOpen(null)}>
-              <ArrowRight className="size-4" /> كل الموديولات
-            </Button>
-            <div className="flex items-center gap-2">
-              <Icon name={MODULE_ICONS[current.module] ?? "GraduationCap"} className="size-[18px] text-muted-foreground" />
-              <span className="font-semibold">{MODULE_LABELS[current.module]}</span>
-              <span className="text-sm text-muted-foreground">
-                {current.total} درس · {current.live} متاح
-              </span>
-            </div>
+    const section = (kind: LessonKind, c: { rows: AdminLesson[]; total: number; live: number; nextSort: number }) => (
+      <Card key={kind}>
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <Icon name={KIND_ICONS[kind]} className="size-[18px] text-muted-foreground" />
+            <span className="font-semibold">{KIND_PLURAL[kind]}</span>
+            <span className="text-xs text-muted-foreground">
+              {c.total === 0 ? "لا يوجد بعد" : `${c.total} · ${c.live} متاح`}
+            </span>
           </div>
-          <Button size="sm"
-            onClick={() => setDialog({ open: true, lesson: null, preset: { module: current.module, sortOrder: current.nextSort } })}>
-            <Plus className="size-4" /> درس جديد
+          <Button variant="ghost" size="sm"
+            onClick={() => setDialog({ open: true, lesson: null, preset: { module: current.module, kind, sortOrder: c.nextSort } })}>
+            <Plus className="size-4" /> {kind === "video" ? "فيديو جديد" : "دليل جديد"}
           </Button>
         </div>
 
-        <Card>
+        {c.total > 0 && (
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">العنوان</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">الصيغة</TableHead>
                   <TableHead className="text-right">المدة</TableHead>
                   <TableHead className="text-right">الترتيب</TableHead>
                   <TableHead className="w-28" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {current.lessons.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                    لا توجد دروس في الموديول ده.
-                  </TableCell></TableRow>
-                )}
-                {current.lessons.map((l) => (
+                {c.rows.map((l) => (
                   <TableRow key={l.id} className={l.isActive ? "" : "opacity-50"}>
                     <TableCell>
                       <div className="font-medium">{l.title}</div>
@@ -285,35 +358,39 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                     <TableCell>
                       {!l.isActive
                         ? <Badge variant="outline">مخفي</Badge>
-                        : l.url || l.body
+                        : live(l)
                           ? <Badge>متاح</Badge>
                           : <Badge variant="secondary">قريباً</Badge>}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {l.url || l.body ? FORMAT_LABELS[lessonFormat(l)] : "—"}
-                    </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.minutes ?? "—"}</TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.sortOrder}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(l.id)}
-                          title={l.isActive ? "إخفاء" : "إظهار"}>
-                          {l.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDialog({ open: true, lesson: l })}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmDel(l)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    <TableCell>{rowActions(l)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+        )}
+      </Card>
+    );
+
+    return (
+      <div className="space-y-4" dir="rtl">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(null)}>
+            <ArrowRight className="size-4" /> كل الموديولات
+          </Button>
+          <div className="flex items-center gap-2">
+            <Icon name={MODULE_ICONS[current.module] ?? "GraduationCap"} className="size-[18px] text-muted-foreground" />
+            <span className="font-semibold">{MODULE_LABELS[current.module]}</span>
+            <span className="text-sm text-muted-foreground">
+              {current.video.live} فيديو · {current.doc.live} دليل · {current.total - current.live} قريباً
+            </span>
+          </div>
+        </div>
+
+        {section("video", current.video)}
+        {section("doc", current.doc)}
 
         {dialogs}
       </div>
@@ -325,11 +402,16 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
     <div className="space-y-4" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">
-          {lessons.length} درس · {liveTotal} متاح · {lessons.length - liveTotal} قريباً
+          {videoLive} فيديو · {docLive} دليل متاح · {lessons.length - liveTotal} قريباً
         </span>
-        <Button size="sm" onClick={() => setDialog({ open: true, lesson: null })}>
-          <Plus className="size-4" /> درس جديد
-        </Button>
+        <div className="flex gap-2">
+          {LESSON_KINDS.map((k) => (
+            <Button key={k} size="sm" variant={k === "video" ? "default" : "outline"}
+              onClick={() => setDialog({ open: true, lesson: null, preset: { module: "accounting", kind: k, sortOrder: 0 } })}>
+              <Plus className="size-4" /> {k === "video" ? "فيديو جديد" : "دليل جديد"}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -356,8 +438,11 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
             <div className="mt-1 text-sm text-muted-foreground">
               {c.total === 0
                 ? "لا توجد دروس — ابدأ من هنا"
-                : `${c.live} متاح · ${c.total - c.live} قريباً`}
+                : `${c.video.live} فيديو · ${c.doc.live} دليل`}
             </div>
+            {c.total > c.live && (
+              <div className="mt-0.5 text-xs text-muted-foreground/70">{c.total - c.live} قريباً</div>
+            )}
           </button>
         ))}
       </div>

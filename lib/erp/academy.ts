@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
 import { type ModuleKey } from "@/lib/erp/module-list";
-import { type Lesson } from "@/lib/erp/academy-core";
+import { isLessonKind, type Lesson } from "@/lib/erp/academy-core";
 
 /**
  * الأكاديمية — lesson queries. Server-only: it imports the db.
@@ -22,6 +22,9 @@ const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   slug: r.slug,
   title: r.title,
   module: r.module as ModuleKey,
+  // An unknown kind would slip past both catalogue filters and vanish; videos are the
+  // default, so an odd row shows up as a قريباً video rather than disappearing.
+  kind: isLessonKind(r.kind) ? r.kind : "video",
   outcome: r.outcome,
   url: r.url,
   body: r.body,
@@ -29,7 +32,7 @@ const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   level: (r.level === "advanced" ? "advanced" : "basic"),
 });
 
-/** Active lessons, ordered as the owner arranged them. */
+/** Active lessons — both catalogues, ordered as the owner arranged them. */
 export async function listLessons(): Promise<Lesson[]> {
   const rows = await db.select().from(academyLessons)
     .where(eq(academyLessons.isActive, true))
@@ -37,7 +40,7 @@ export async function listLessons(): Promise<Lesson[]> {
   return rows.map(row);
 }
 
-/** One module's lessons — the module index card and its page. */
+/** One module's lessons, both catalogues — the module page splits them by kind. */
 export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
   const rows = await db.select().from(academyLessons)
     .where(and(eq(academyLessons.isActive, true), eq(academyLessons.module, module)))

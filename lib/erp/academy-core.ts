@@ -9,73 +9,80 @@ import { isEmbeddable } from "@/lib/erp/youtube";
  * Reaching for academy.ts from a client component pulls `pg` into the browser bundle
  * and the build dies on "Can't resolve 'dns'" — same split as module-list.ts.
  */
+
+/**
+ * Two separate catalogues. A lesson is a video شرح OR a written دليل — never both.
+ *
+ * A video and a guide on the same topic are two rows: different explanations at
+ * different depths, for people who learn differently. Merging them into one row with
+ * two fields made the video an afterthought hanging under the article.
+ */
+export const LESSON_KINDS = ["video", "doc"] as const;
+export type LessonKind = (typeof LESSON_KINDS)[number];
+
+export const KIND_LABELS: Record<LessonKind, string> = { video: "فيديو", doc: "دليل" };
+export const KIND_ICONS: Record<LessonKind, string> = { video: "PlayCircle", doc: "FileText" };
+/** Plural, for section headings and counts. */
+export const KIND_PLURAL: Record<LessonKind, string> = { video: "شروحات فيديو", doc: "الأدلة المكتوبة" };
+
+export const isLessonKind = (v: string): v is LessonKind => (LESSON_KINDS as readonly string[]).includes(v);
+
 export type Lesson = {
   id: string;
   slug: string;
   title: string;
   module: ModuleKey;
+  kind: LessonKind;
   outcome: string | null;
-  /** YouTube link — plays embedded in the lesson page. */
+  /** kind=video: the YouTube link. */
   url: string | null;
-  /** Written article (markdown) — renders in the same page. */
+  /** kind=doc: the guide (markdown, with screenshots). */
   body: string | null;
   minutes: number | null;
   level: "basic" | "advanced";
 };
 
 /**
- * A lesson is ready once it has a video or an article.
+ * Ready = the row's own content field is filled. A video needs a link; a guide needs
+ * text. Checking the wrong field is how a lesson ends up listed as متاح and opening
+ * onto nothing.
  *
- * The single definition of «متاح» — every count, badge and link routes through it, so
- * a lesson can never read متاح on one page and قريباً on another.
+ * The single definition of «متاح» — every count, badge and link routes through it.
  */
-export const isLive = (l: Pick<Lesson, "url" | "body">) => !!l.url || !!l.body;
+export const isLive = (l: Pick<Lesson, "kind" | "url" | "body">) =>
+  l.kind === "video" ? !!l.url : !!l.body;
 
 /**
- * Video and article are equal formats — a lesson can be either or both, and the page
- * plays the video AND shows the article. Neither hangs off the other.
+ * A guide always opens in-app. A video opens in-app when we can embed it (YouTube);
+ * anything else (Vimeo, Drive) goes to its own host, because for those our page would
+ * be one outbound link and a wasted click.
  */
-export type LessonFormat = "video" | "doc" | "both" | "soon";
+export const opensInApp = (l: Pick<Lesson, "kind" | "url" | "body">) =>
+  l.kind === "doc" ? !!l.body : isEmbeddable(l.url);
 
-export function lessonFormat(l: Pick<Lesson, "url" | "body">): LessonFormat {
-  if (l.url && l.body) return "both";
-  if (l.url) return "video";
-  if (l.body) return "doc";
-  return "soon";
-}
+export const lessonHref = (l: Lesson) =>
+  opensInApp(l) ? `/erp/academy/${l.module}/${l.slug}` : l.url;
 
-export const FORMAT_LABELS: Record<LessonFormat, string> = {
-  video: "فيديو",
-  doc: "مقال",
-  both: "فيديو + مقال",
-  soon: "قريباً",
+export type Counts = { total: number; live: number; soon: number };
+
+const count = (lessons: Lesson[]): Counts => {
+  const live = lessons.filter(isLive).length;
+  return { total: lessons.length, live, soon: lessons.length - live };
 };
 
-/**
- * Where a lesson opens.
- *
- * In-app whenever we can actually show something there: a YouTube video plays
- * embedded, an article renders. Only a video we cannot embed (Vimeo, Drive, a bare
- * file) links straight out — for that one the page really would be a single outbound
- * link, and a wasted click.
- */
-export const lessonHref = (l: Lesson) =>
-  l.body || isEmbeddable(l.url) ? `/erp/academy/${l.module}/${l.slug}` : l.url;
-
-/** Whether the lesson opens inside the app (vs. jumping to the video's own host). */
-export const opensInApp = (l: Pick<Lesson, "url" | "body">) => !!l.body || isEmbeddable(l.url);
+export const byKind = (lessons: Lesson[], kind: LessonKind) => lessons.filter((l) => l.kind === kind);
 
 export type ModuleCard = {
   module: ModuleKey;
   label: string;
   icon: string;
-  total: number;
-  live: number;
-  soon: number;
-};
+  videos: Counts;
+  docs: Counts;
+} & Counts;
 
 /**
- * The index: one card per module, in sidebar order.
+ * The index: one card per module, in sidebar order, carrying both catalogues' counts
+ * so the card can say «٣ فيديو · ٥ دليل» without a second query.
  *
  * A wrong module key doesn't crash — the lesson just silently vanishes from its card,
  * which is exactly the kind of quiet failure worth pinning in a test.
@@ -86,26 +93,28 @@ export type ModuleCard = {
 export function moduleCards(lessons: Lesson[]): ModuleCard[] {
   return ALL_MODULES.map((module) => {
     const mine = lessons.filter((l) => l.module === module);
-    const live = mine.filter(isLive).length;
     return {
       module,
       label: MODULE_LABELS[module] ?? module,
       icon: MODULE_ICONS[module] ?? "GraduationCap",
-      total: mine.length,
-      live,
-      soon: mine.length - live,
+      videos: count(byKind(mine, "video")),
+      docs: count(byKind(mine, "doc")),
+      ...count(mine),
     };
   });
 }
 
-export type AcademyProgress = { total: number; live: number; soon: number };
+export type AcademyProgress = Counts & { videos: Counts; docs: Counts };
 
 export function progress(lessons: Lesson[]): AcademyProgress {
-  const live = lessons.filter(isLive).length;
-  return { total: lessons.length, live, soon: lessons.length - live };
+  return {
+    ...count(lessons),
+    videos: count(byKind(lessons, "video")),
+    docs: count(byKind(lessons, "doc")),
+  };
 }
 
-/** Whether a module key is one we actually have — guards the [module] route. */
+/** Whether a module key is one we actually have — guards the /erp/academy/[module] route. */
 export function isModuleKey(v: string): v is ModuleKey {
   return (ALL_MODULES as readonly string[]).includes(v);
 }

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { isModuleKey, listLessonsFor, progress, isLive, lessonHref, opensInApp, lessonFormat, FORMAT_LABELS, MODULE_ICONS, type Lesson } from "@/lib/erp/academy";
+import {
+  isModuleKey, listLessonsFor, progress, isLive, lessonHref, opensInApp, byKind,
+  KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS, type Lesson, type LessonKind,
+} from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +20,12 @@ export async function generateMetadata({ params }: { params: Promise<{ module: s
   return { title: label ? `الأكاديمية — ${label}` : "الأكاديمية" };
 }
 
-/** One module's lessons. Reached from the academy index or «اتعلّم» inside the module. */
+/**
+ * One module — videos and guides as two separate lists.
+ *
+ * Separate, not interleaved: someone arrives wanting to watch or wanting to read, and
+ * a mixed list makes them filter it in their head.
+ */
 export default async function AcademyModulePage({ params }: { params: Promise<{ module: string }> }) {
   await requireUser();
   const { module } = await params;
@@ -33,52 +41,72 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
         title={`الأكاديمية — ${MODULE_LABELS[module] ?? module}`}
-        subtitle={lessons.length === 0 ? "لا توجد دروس بعد" : `${intf(p.live)} متاح · ${intf(p.soon)} قريباً`}
+        subtitle={lessons.length === 0
+          ? "لا توجد دروس بعد"
+          : `${intf(p.videos.live)} فيديو · ${intf(p.docs.live)} دليل · ${intf(p.soon)} قريباً`}
         backHref="/erp/academy"
       />
 
       {lessons.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لسه مافيش دروس للموديول ده — بنسجّلها.
+            لسه مافيش دروس للموديول ده — بنجهّزها.
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {lessons.map((l) => <LessonCard key={l.id} lesson={l} />)}
-        </div>
+        LESSON_KINDS.map((kind) => (
+          <Section key={kind} kind={kind} lessons={byKind(lessons, kind)} />
+        ))
       )}
     </div>
   );
 }
 
-/** Video and article are peers, so each gets its own icon and neither outranks the other. */
-const FORMAT_ICONS: Record<string, string> = {
-  video: "PlayCircle",
-  doc: "FileText",
-  both: "MonitorPlay",
-  soon: "Clock",
-};
+function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] }) {
+  // An empty catalogue keeps its heading: «لا توجد أدلة» is information, a missing
+  // section just looks like the feature doesn't exist.
+  const live = lessons.filter(isLive).length;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon name={KIND_ICONS[kind]} className="size-[18px] text-muted-foreground" />
+        <h2 className="font-semibold">{KIND_PLURAL[kind]}</h2>
+        <span className="text-xs text-muted-foreground">
+          {lessons.length === 0 ? "لا يوجد بعد" : `${intf(live)} متاح · ${intf(lessons.length - live)} قريباً`}
+        </span>
+      </div>
+
+      {lessons.length === 0 ? (
+        <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
+          {kind === "video" ? "لسه مافيش فيديوهات هنا." : "لسه مافيش أدلة مكتوبة هنا."}
+        </CardContent></Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {lessons.map((l) => <LessonCard key={l.id} lesson={l} />)}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function LessonCard({ lesson }: { lesson: Lesson }) {
   const live = isLive(lesson);
   const href = lessonHref(lesson);
-  const format = lessonFormat(lesson);
 
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Icon name={FORMAT_ICONS[format]} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
+          <Icon name={live ? KIND_ICONS[lesson.kind] : "Clock"}
+            className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
           <span className="font-medium">{lesson.title}</span>
         </div>
         {!live && <Badge variant="secondary" className="shrink-0">قريباً</Badge>}
       </div>
       {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
-        {/* Say the format before the click — someone looking to read shouldn't land on a video. */}
-        {live && <span>{FORMAT_LABELS[format]}</span>}
-        {lesson.minutes && <span>· {intf(lesson.minutes)} دقيقة</span>}
+        {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
         {lesson.level && <span>· {lesson.level === "basic" ? "أساسي" : "متقدّم"}</span>}
       </div>
     </>
@@ -93,8 +121,6 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
   // page lies, and then they stop trusting the ones that do work.
   if (!live || !href) return <div className={className}>{body}</div>;
 
-  // Opens in-app whenever we can play or render it here; only a video we can't embed
-  // leaves for its own host.
   return opensInApp(lesson)
     ? <Link href={href} className={className}>{body}</Link>
     : <a href={href} target="_blank" rel="noopener noreferrer" className={className}>{body}</a>;
