@@ -1,7 +1,8 @@
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, items, stockMovements } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
+import { buildProfitability } from "@/lib/erp/profitability";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +30,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
-    const [revRows, cogsRows] = await Promise.all([
+    const [revRows, cogsRows, returnRows] = await Promise.all([
       db.select({
         itemId: salesInvoiceLines.itemId, code: items.code, name: items.nameAr,
         qty: sql<string>`sum(${salesInvoiceLines.quantity})`,
@@ -48,15 +49,24 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         .from(stockMovements)
         .where(and(eq(stockMovements.organizationId, orgId), inArray(stockMovements.referenceType, SALE_REFS), gte(stockMovements.date, fromD), lte(stockMovements.date, toD)))
         .groupBy(stockMovements.itemId),
+      // Money (invoice) returns reduce revenue; deliveryNoteId IS NULL = money return.
+      // totalAmount on a return line is quantity×unitPrice (net of VAT).
+      db.select({
+        itemId: salesReturnLines.itemId,
+        revenue: sql<string>`sum(${salesReturnLines.totalAmount})`,
+      })
+        .from(salesReturnLines)
+        .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
+        .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
+        .groupBy(salesReturnLines.itemId),
     ]);
 
     const cogsByItem = new Map(cogsRows.map((r) => [r.itemId, Number(r.cogs ?? 0)]));
-    let list = revRows.map((r) => {
-      const revenue = Number(r.revenue ?? 0);
-      const cogs = cogsByItem.get(r.itemId) ?? 0;
-      const profit = revenue - cogs;
-      return { code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue, cogs, profit, margin: revenue > 0 ? (profit / revenue) * 100 : 0 };
-    });
+    const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
+    let list = buildProfitability(
+      revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
+      returnsByItem, cogsByItem,
+    );
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name?.toLowerCase().includes(search));
     list.sort((a, b) => b.profit - a.profit);
 
