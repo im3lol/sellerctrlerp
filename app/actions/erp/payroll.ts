@@ -3,7 +3,7 @@
 import { capPayrollDeductions } from "@/lib/erp/payroll-calc";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   employees, payrollRuns, payrollLines, accounts,
@@ -171,17 +171,25 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     const hourlyIds = emps.filter((e) => e.payType === "HOURLY").map((e) => e.userId).filter((id): id is string => !!id);
     if (hourlyIds.length > 0) {
       const { attendance } = await import("@/db/schema");
+      // Scope the read to THIS run's hourly employees in SQL (was: fetch every user's
+      // rows in range, filter in JS). ponytail: attendance is keyed by user_id only, has
+      // no organization_id and no app write-path (dormant time-clock table). So a user who
+      // is hourly in two orgs would have one global clock stream both payrolls count — a
+      // real double-count that can't be split without an org column. Add org_id +
+      // RLS policy WHEN a clock-in feature is built; migrating a table nothing writes is
+      // premature. Until then the inArray keeps each run to its own employees' rows.
       const rows = await db
         .select({ userId: attendance.userId, totalSeconds: attendance.totalSeconds })
         .from(attendance)
         .where(
           and(
+            inArray(attendance.userId, hourlyIds),
             gte(attendance.workDate, startStr),
             lte(attendance.workDate, endStr),
           ),
         );
       for (const r of rows) {
-        if (r.userId && hourlyIds.includes(r.userId)) {
+        if (r.userId) {
           attendanceMap.set(r.userId, (attendanceMap.get(r.userId) ?? 0) + r.totalSeconds);
         }
       }
