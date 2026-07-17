@@ -3,8 +3,10 @@ import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { orgHasModule } from "@/lib/erp/entitlements";
 import { type ErpPermission } from "@/lib/erp/permissions";
 import { getErpContext } from "@/lib/erp/erp-context";
+import { withOrgScope } from "@/lib/db-scope";
 
 export type ActionState = { error?: string; ok?: boolean };
+export type ErpActionCtx = { orgId: string; userId: string; role: string };
 
 /**
  * Resolve the active org and enforce an ERP permission inside a server action.
@@ -41,4 +43,25 @@ export async function authorizeErp(
     return { error: "هذه الميزة غير مُفعّلة في باقتك" };
   }
   return { orgId: org.id, userId: user.id, role: access.role };
+}
+
+/**
+ * Wrap a server action: authorize, then run its body inside the tenant DB scope so
+ * every query is RLS-isolated. Returns the action's error shape when authorization
+ * fails (so `useActionState` still gets it) and otherwise the handler's result.
+ *
+ * `isAdmin` is always false here — even a system_admin operating in the tenant UI has
+ * picked one org via the cookie, so the cross-org bypass is reserved for /admin.
+ *
+ *   export const fooAction = (input: unknown) =>
+ *     withErpAction("sales.create", ({ orgId }) => coreFoo(orgId, input));
+ */
+export async function withErpAction<T>(
+  permission: ErpPermission,
+  handler: (ctx: ErpActionCtx) => Promise<T>,
+  moduleKey?: string,
+): Promise<T | { error: string }> {
+  const auth = await authorizeErp(permission, moduleKey);
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, () => handler(auth));
 }

@@ -8,6 +8,7 @@ import { getCurrentUser, type SessionUser } from "@/lib/session";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
 import { orgHasModule, moduleOfPermission } from "@/lib/erp/entitlements";
+import { withOrgScope } from "@/lib/db-scope";
 
 export const ACTIVE_ORG_COOKIE = "erp_org";
 
@@ -70,6 +71,27 @@ export async function requireErpModule(
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/erp/settings/subscription?locked=${mod}`);
   }
   return { orgId: org.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
+}
+
+/**
+ * Load an ERP page inside the tenant DB scope: guard the module, then run the page's
+ * data-loading + render with every query RLS-isolated to the active org.
+ *
+ *   export default (props) => loadErpPage("sales.view", async ({ orgId, can }) => {
+ *     const rows = await db.select()...;   // scoped
+ *     return <SalesInvoices rows={rows} canManage={can("sales.create")} />;
+ *   });
+ *
+ * isAdmin is false: a system_admin viewing the tenant workspace picked one org via the
+ * cookie, so cross-org stays reserved for /admin (withPlatformScope).
+ */
+export async function loadErpPage<T>(
+  permission: ErpPermission,
+  handler: (ctx: { orgId: string; role: string; can: (p: ErpPermission) => boolean }) => Promise<T>,
+  moduleOverride?: string,
+): Promise<T> {
+  const ctx = await requireErpModule(permission, moduleOverride);
+  return withOrgScope(ctx.orgId, false, () => handler(ctx));
 }
 
 /** Whether an ERP role may perform an action (super_admin bypasses). */

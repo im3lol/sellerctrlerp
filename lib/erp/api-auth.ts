@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { runWithErpContext } from "@/lib/erp/erp-context";
+import { withOrgScope } from "@/lib/db-scope";
 import type { SessionUser } from "@/lib/session";
 import type { ErpPermission } from "@/lib/erp/permissions";
 
@@ -62,9 +63,13 @@ export async function authorizeApi(req: Request, permission: ErpPermission): Pro
   return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p), permissions: access.permissions };
 }
 
-/** Run a cookie-bound server action (or a chain of them) as the API caller. */
+/** Run a cookie-bound server action (or a chain of them) as the API caller, inside the
+ *  tenant DB scope so every query the chain issues is RLS-isolated to the caller's org. */
 export function runAsErp<T>(auth: ApiAuth, fn: () => Promise<T>): Promise<T> {
-  return runWithErpContext({ userId: auth.userId, orgId: auth.orgId, role: auth.role, permissions: auth.permissions }, fn);
+  return runWithErpContext(
+    { userId: auth.userId, orgId: auth.orgId, role: auth.role, permissions: auth.permissions },
+    () => withOrgScope(auth.orgId, false, fn),
+  );
 }
 
 /**

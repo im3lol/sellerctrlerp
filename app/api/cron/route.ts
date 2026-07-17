@@ -5,6 +5,7 @@ import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
 import { prepareSync, markSync, syncProductsCore } from "@/lib/erp/marketplace/sync-core";
 import { sendEmail } from "@/lib/erp/email";
+import { withPlatformScope } from "@/lib/db-scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
   }
 
   const origin = process.env.APP_URL || new URL(req.url).origin;
+  // Cross-org daily job (no active tenant) — platform scope so per-org reads/writes
+  // for every organization bypass RLS.
+  return withPlatformScope(async () => {
   const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations);
   const now = new Date();
 
@@ -77,4 +81,5 @@ export async function GET(req: Request) {
   }
 
   return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, sent });
+  });
 }

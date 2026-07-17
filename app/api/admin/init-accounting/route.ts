@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
+import { withPlatformScope } from "@/lib/db-scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,11 +24,15 @@ export async function GET(req: Request) {
   const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? url.searchParams.get("token") ?? "";
   if (provided !== token) return Response.json({ error: "unauthorized" }, { status: 401 });
 
-  const orgs = await db.select({ id: organizations.id, nameAr: organizations.nameAr }).from(organizations);
-  const results: Array<{ org: string; nameAr: string } & Awaited<ReturnType<typeof initializeAccountingForOrg>>> = [];
-  for (const org of orgs) {
-    const r = await initializeAccountingForOrg(org.id);
-    results.push({ org: org.id, nameAr: org.nameAr, ...r });
-  }
-  return Response.json({ ok: true, orgs: results.length, results });
+  // Cross-org: reads every organization and writes into each one's tables. Platform
+  // scope so the per-org bootstrap writes bypass RLS (there's no single active tenant).
+  return withPlatformScope(async () => {
+    const orgs = await db.select({ id: organizations.id, nameAr: organizations.nameAr }).from(organizations);
+    const results: Array<{ org: string; nameAr: string } & Awaited<ReturnType<typeof initializeAccountingForOrg>>> = [];
+    for (const org of orgs) {
+      const r = await initializeAccountingForOrg(org.id);
+      results.push({ org: org.id, nameAr: org.nameAr, ...r });
+    }
+    return Response.json({ ok: true, orgs: results.length, results });
+  });
 }

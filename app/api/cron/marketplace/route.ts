@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { platformCredentials } from "@/db/schema";
 import { prepareSync, markSync, syncOrdersCore, syncProductsCore, incrementalFrom, SYNC_OVERLAP_MS } from "@/lib/erp/marketplace/sync-core";
+import { withPlatformScope } from "@/lib/db-scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Cross-org (all connections, every tenant) — platform scope so per-org sync
+  // reads/writes bypass RLS.
+  return withPlatformScope(async () => {
   const conns = await db.select({
     orgId: platformCredentials.organizationId, provider: platformCredentials.provider,
     lastSyncAt: platformCredentials.lastSyncAt, connectedAt: platformCredentials.connectedAt,
@@ -56,4 +60,5 @@ export async function GET(req: Request) {
   }
 
   return Response.json({ ok: true, connections: conns.length, ordersRun, newOrders: orders, productsRun, newProducts, errors });
+  });
 }
