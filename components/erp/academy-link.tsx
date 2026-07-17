@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listLessonsFor } from "@/lib/erp/academy";
+import { listLessonsFor, canSeeAcademy } from "@/lib/erp/academy";
 import type { ModuleKey } from "@/lib/erp/module-list";
 import { Icon } from "@/components/icon";
 
@@ -15,6 +15,11 @@ import { Icon } from "@/components/icon";
  * hides the last lesson.
  */
 export async function AcademyLink({ module }: { module: ModuleKey }) {
+  // While the academy is admin-only, this button must vanish too — it sits on six
+  // module overviews, and a link that bounces you to the dashboard is worse than no
+  // link.
+  if (!(await canSeeAcademy())) return null;
+
   const lessons = await listLessonsFor(module);
   if (lessons.length === 0) return null;
 

@@ -11,6 +11,24 @@ import { isEmbeddable } from "@/lib/erp/youtube";
  */
 
 /**
+ * TEMPORARY — the academy is hidden from tenants while the catalogue is still mostly
+ * «قريباً». Only the platform owner (system_admin) can reach it, so the guides can be
+ * written and reviewed against the real pages before customers see a half-empty
+ * catalogue.
+ *
+ * **Flip this to `false` to release it — that is the whole switch.** It drives the
+ * sidebar entry, the «اتعلّم» button inside every module, and the page guards, so
+ * they cannot drift apart and leave a link pointing at a page that redirects.
+ */
+export const ACADEMY_ADMIN_ONLY = true;
+
+/**
+ * The capability the academy's nav entry and pages require while hidden.
+ * `employee.manage` is system_admin-only (lib/rbac.ts MATRIX); undefined = everyone.
+ */
+export const ACADEMY_CAPABILITY = ACADEMY_ADMIN_ONLY ? "employee.manage" : undefined;
+
+/**
  * Two separate catalogues. A lesson is a video شرح OR a written دليل — never both.
  *
  * A video and a guide on the same topic are two rows: different explanations at

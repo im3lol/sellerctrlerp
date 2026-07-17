@@ -1,3 +1,5 @@
+import { ACADEMY_CAPABILITY } from "@/lib/erp/academy-core";
+
 export type NavItem = {
   label: string;
   href: string;
@@ -202,14 +204,18 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    // Product documentation, not tenant data — no capability gate: anyone signed in
-    // can read how the system works, including someone deciding whether to buy a
-    // module they don't have yet.
-    heading: "الأكاديمية والدعم",
-    href: "/erp/academy",
+    // Product documentation and support, not tenant data — no capability gate on the
+    // support items: anyone signed in can read how the system works or tell us it's
+    // broken.
+    heading: "الدعم",
+    // No href: the heading used to open the academy, which is hidden for now — the
+    // heading just toggles the group.
     icon: "GraduationCap",
     items: [
-      { label: "كل الدروس", href: "/erp/academy", icon: "GraduationCap" },
+      // Admin-only while the catalogue fills up (ACADEMY_ADMIN_ONLY). The capability
+      // comes from the same flag as the page guards so the entry can't outlive the
+      // pages' visibility. Remove the `capability` line when the flag flips.
+      { label: "الأكاديمية", href: "/erp/academy", icon: "GraduationCap", capability: ACADEMY_CAPABILITY },
       { label: "آخر التحديثات", href: "/erp/whats-new", icon: "Sparkles" },
       { label: "اقتراح أو شكوى", href: "/erp/feedback", icon: "MessageSquarePlus" },
     ],

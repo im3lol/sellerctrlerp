@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { listLessons, moduleCards, progress } from "@/lib/erp/academy";
+import { listLessons, moduleCards, progress, requireAcademyAccess } from "@/lib/erp/academy";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
@@ -18,11 +18,14 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
  * someone arrives with — "where's the bit about X?" — in one glance, and makes an
  * empty module visible instead of hiding it.
  *
- * No capability gate: product documentation isn't tenant data, and reading how a
- * module works is how someone decides to buy it.
+ * Hidden from tenants for now (ACADEMY_ADMIN_ONLY) — the catalogue is still mostly
+ * «قريباً», and a half-empty academy reads worse than none. It goes back to being
+ * ungated once it's filled in: product documentation isn't tenant data, and reading
+ * how a module works is how someone decides to buy it.
  */
 export default async function AcademyPage() {
   await requireUser();
+  await requireAcademyAccess();
 
   const lessons = await listLessons();
   const cards = moduleCards(lessons);

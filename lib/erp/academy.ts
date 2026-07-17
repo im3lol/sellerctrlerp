@@ -1,8 +1,11 @@
 import { and, asc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/rbac";
 import { type ModuleKey } from "@/lib/erp/module-list";
-import { isLessonKind, type Lesson } from "@/lib/erp/academy-core";
+import { isLessonKind, ACADEMY_ADMIN_ONLY, ACADEMY_CAPABILITY, type Lesson } from "@/lib/erp/academy-core";
 
 /**
  * الأكاديمية — lesson queries. Server-only: it imports the db.
@@ -16,6 +19,27 @@ import { isLessonKind, type Lesson } from "@/lib/erp/academy-core";
  * correct here rather than a missing organizationId filter.
  */
 export * from "@/lib/erp/academy-core";
+
+/**
+ * Whether this viewer may see the academy at all — see ACADEMY_ADMIN_ONLY.
+ *
+ * Used by the «اتعلّم» button, which must vanish rather than link somewhere the
+ * viewer gets bounced from.
+ */
+export async function canSeeAcademy(): Promise<boolean> {
+  if (!ACADEMY_ADMIN_ONLY) return true;
+  const user = await getCurrentUser();
+  return can(user?.role, "employee.manage");
+}
+
+/**
+ * Page guard for /erp/academy/**. Redirects to the dashboard like requireCapability,
+ * rather than 404ing — the pages exist and will be public again shortly; this is a
+ * curtain, not a missing route.
+ */
+export async function requireAcademyAccess(): Promise<void> {
+  if (!(await canSeeAcademy())) redirect("/dashboard");
+}
 
 const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   id: r.id,

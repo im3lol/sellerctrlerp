@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { getLesson, isModuleKey, opensInApp, KIND_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
+import { getLesson, isModuleKey, opensInApp, requireAcademyAccess, KIND_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { youtubeId, youtubeEmbedUrl } from "@/lib/erp/youtube";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  */
 export default async function LessonPage({ params }: { params: Promise<{ module: string; slug: string }> }) {
   await requireUser();
+  await requireAcademyAccess();
   const { module, slug } = await params;
   if (!isModuleKey(module)) notFound();
 

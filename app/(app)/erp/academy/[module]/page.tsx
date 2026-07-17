@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import {
   isModuleKey, listLessonsFor, progress, isLive, lessonHref, opensInApp, byKind,
-  KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS, type Lesson, type LessonKind,
+  requireAcademyAccess, KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS,
+  type Lesson, type LessonKind,
 } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ module: s
  */
 export default async function AcademyModulePage({ params }: { params: Promise<{ module: string }> }) {
   await requireUser();
+  await requireAcademyAccess();
   const { module } = await params;
   // The route is user-supplied; anything that isn't a real module key is a 404 rather
   // than an empty page pretending the module exists.

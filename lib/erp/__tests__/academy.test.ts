@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   moduleCards, progress, isModuleKey, isLive, lessonHref, opensInApp, byKind,
   isLessonKind, KIND_LABELS, KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS,
+  ACADEMY_ADMIN_ONLY, ACADEMY_CAPABILITY,
   type Lesson, type LessonKind,
 } from "../academy-core";
 import { ALL_MODULES, MODULE_LABELS } from "../module-list";
+import { can } from "../../rbac";
 
 const YT = "https://youtu.be/dQw4w9WgXcQ";
 
@@ -15,6 +17,25 @@ const video = (id: string, module: string, url?: string): Lesson => ({
 const doc = (id: string, module: string, body?: string): Lesson => ({
   id, slug: id, title: id, module: module as Lesson["module"], kind: "doc",
   outcome: null, url: null, body: body ?? null, minutes: null, level: "basic",
+});
+
+describe("ACADEMY_CAPABILITY — the hide switch", () => {
+  it("the capability it picks actually excludes tenants", () => {
+    // The whole hide rests on employee.manage being system_admin-only. If someone
+    // ever grants it to org_admin, the academy silently unhides for every customer
+    // and nothing else would catch it.
+    if (!ACADEMY_ADMIN_ONLY) return;
+    expect(ACADEMY_CAPABILITY).toBe("employee.manage");
+    expect(can("system_admin", "employee.manage")).toBe(true);
+    for (const role of ["org_admin", "ops_manager", "team_lead", "employee", "client"] as const) {
+      expect(can(role, "employee.manage"), `role "${role}" must not see the academy`).toBe(false);
+    }
+  });
+
+  it("flipping the flag off drops the gate entirely", () => {
+    // Pins the release path: one constant, and the nav entry stops being gated.
+    expect(ACADEMY_CAPABILITY).toBe(ACADEMY_ADMIN_ONLY ? "employee.manage" : undefined);
+  });
 });
 
 describe("isModuleKey", () => {
