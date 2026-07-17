@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, platformCredentials } from "@/db/schema";
 import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
@@ -19,34 +20,45 @@ export type ProductsSync = { ok: true; total: number; linked: number; created: n
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
-/** Load the connector, decrypted credential, platform ctx and settings — no auth. */
+/**
+ * Load the connector, decrypted credential, platform ctx and settings — no auth.
+ *
+ * The DB work self-scopes to the org so the caller need NOT hold an RLS scope
+ * across the whole sync (the sync interleaves multi-second SP-API fetches with
+ * DB writes; holding one connection/transaction the whole time would starve the
+ * pool). `withOrgScope` no-ops if a scope is already open (the cron wraps the
+ * whole loop in `withPlatformScope`), so the cron path is unchanged.
+ */
 export async function prepareSync(orgId: string, code: string): Promise<SyncPrep | { error: string }> {
   const connector = getConnector(code);
   if (!connector) return { error: "لا يوجد موصّل لهذه المنصة" };
   const provider = connector.code.toLowerCase();
 
-  const [row] = await db.select().from(platformCredentials)
-    .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))).limit(1);
-  if (!row) return { error: "المنصة غير مربوطة — اربط الحساب أولًا" };
-  const refreshToken = decryptSecret(row.refreshToken);
-  if (!refreshToken) return { error: "تعذّر فك تشفير التوكن — أعد ربط الحساب" };
-  const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
+  return withOrgScope(orgId, false, async () => {
+    const [row] = await db.select().from(platformCredentials)
+      .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))).limit(1);
+    if (!row) return { error: "المنصة غير مربوطة — اربط الحساب أولًا" };
+    const refreshToken = decryptSecret(row.refreshToken);
+    if (!refreshToken) return { error: "تعذّر فك تشفير التوكن — أعد ربط الحساب" };
+    const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
-  if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-  const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, autoInvoice: salesPlatforms.autoInvoice })
-    .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
-  if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
+    if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, autoInvoice: salesPlatforms.autoInvoice })
+      .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
+    if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-  const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoInvoice: p.autoInvoice };
-  const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory };
-  return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags };
+    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoInvoice: p.autoInvoice };
+    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory };
+    return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags };
+  });
 }
 
 export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
 
 export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date }> = {}) {
-  await db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
-    .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider)));
+  await withOrgScope(orgId, false, () =>
+    db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
+      .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
 }
 
 /**
@@ -56,9 +68,12 @@ export async function markSync(orgId: string, provider: string, patch: Partial<{
  */
 export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<ProductsSync> {
   if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
+  const org = p.orgId;
   try {
+    // Fetch OUTSIDE the DB scope (slow SP-API call), then ingest INSIDE a short
+    // org scope — so the DB connection isn't held across the network round-trip.
     const products = await p.connector.fetchProducts(p.cred, since);
-    const r = await ingestProducts(p.orgId, products, p.mode);
+    const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode));
 
     let images = 0, barcodes = 0, fields = 0, families = 0;
     const fetchCatalog = p.connector.fetchCatalog;
@@ -67,14 +82,17 @@ export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<Produ
       if (asins.length) {
         try {
           const records = await fetchCatalog(p.cred, asins);
-          const e = await enrichItems(p.orgId, records);
+          const e = await withOrgScope(org, false, () => enrichItems(org, records));
           images = e.images; barcodes = e.barcodes; fields = e.fields;
-          const fam = await linkVariationFamilies(p.orgId, records, async (parentAsins) => {
+          // linkVariationFamilies fetches the parent catalog via the callback; that
+          // secondary fetch runs inside this scope. ponytail: acceptable (parent set
+          // is small); split fetch/write inside ingest if it ever dominates.
+          const fam = await withOrgScope(org, false, () => linkVariationFamilies(org, records, async (parentAsins) => {
             const precs = await fetchCatalog(p.cred, parentAsins);
             const m = new Map<string, { name?: string; imageUrl?: string }>();
             for (const pr of precs) m.set(pr.asin, { name: pr.name, imageUrl: pr.imageUrl });
             return m;
-          });
+          }));
           families = fam.familiesLinked;
         } catch { /* enrichment is optional */ }
       }
@@ -89,8 +107,8 @@ export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<Produ
 export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: DateRange): Promise<OrdersSync> {
   if (!p.connector.fetchOrders) return { ok: false, error: "المنصة لا تدعم مزامنة الأوامر" };
   try {
-    const orders = await p.connector.fetchOrders(p.cred, range);
-    const r = await ingestOrders(p.orgId, userId, p.ctx, orders);
+    const orders = await p.connector.fetchOrders(p.cred, range); // slow fetch, unscoped
+    const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, p.ctx, orders));
     return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
@@ -100,9 +118,10 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
 /** Inventory: read-only reconciliation (a DRAFT adjustment is confirmed separately). */
 export async function syncInventoryCore(p: SyncPrep): Promise<InventorySync> {
   if (!p.connector.fetchInventory || !p.ctx.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
+  const wh = p.ctx.warehouseId;
   try {
-    const inv = await p.connector.fetchInventory(p.cred);
-    const rec = await reconcileInventory(p.orgId, { defaultWarehouseId: p.ctx.warehouseId }, inv);
+    const inv = await p.connector.fetchInventory(p.cred); // slow fetch, unscoped
+    const rec = await withOrgScope(p.orgId, false, () => reconcileInventory(p.orgId, { defaultWarehouseId: wh }, inv));
     if (!rec.ok) return { ok: false, error: rec.error };
     return { ok: true, matched: rec.result.matched, withDiff: rec.result.withDiff, unmatched: rec.result.unmatched };
   } catch (e) {
