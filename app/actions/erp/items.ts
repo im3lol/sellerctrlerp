@@ -8,10 +8,8 @@ import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { validateParentLink } from "@/lib/erp/item-family-core";
+import { prepareCodes, normalizeCode } from "@/lib/erp/item-codes";
 import { putObject, publicUrl } from "@/lib/storage";
-
-
-const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 const codeSchema = z.object({
   codeType: z.string().min(1),
@@ -44,11 +42,10 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
   const auth = await authorizeErp(d.id ? "inventory.edit" : "inventory.create");
   if ("error" in auth) return auth;
 
-  // Dedup codes by normalized value within this item.
-  const seen = new Set<string>();
-  const codes = d.codes
-    .map((c) => ({ codeType: c.codeType, code: c.code.trim(), normalizedCode: normalizeCode(c.code) }))
-    .filter((c) => c.code && c.normalizedCode && !seen.has(c.normalizedCode) && seen.add(c.normalizedCode));
+  // Dedup + flag the primary (the code the barcode label prints). Nothing here ever
+  // set isPrimary, so a barcode typed into the form was silently ignored and every
+  // label fell back to the internal item code. See prepareCodes.
+  const codes = prepareCodes(d.codes);
 
   // Variation family: validate the parent link (one level, no cycles, same org).
   const rawParent = d.parentItemId?.trim() || "";
@@ -102,7 +99,8 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
       await tx.delete(itemCodes).where(eq(itemCodes.itemId, id!));
       if (codes.length) {
         await tx.insert(itemCodes).values(codes.map((c) => ({
-          itemId: id!, organizationId: auth.orgId, codeType: c.codeType, code: c.code, normalizedCode: c.normalizedCode,
+          itemId: id!, organizationId: auth.orgId, codeType: c.codeType, code: c.code,
+          normalizedCode: c.normalizedCode, isPrimary: c.isPrimary,
         })));
       }
       return id!;
