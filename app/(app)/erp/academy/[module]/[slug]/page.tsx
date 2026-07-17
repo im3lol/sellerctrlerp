@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { getLesson, isModuleKey, MODULE_ICONS } from "@/lib/erp/academy";
+import { getLesson, isModuleKey, opensInApp, lessonFormat, FORMAT_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
+import { youtubeId, youtubeEmbedUrl } from "@/lib/erp/youtube";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -17,8 +18,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 /**
- * A written lesson. Reached only when the lesson has a body — a video-only lesson
- * links straight out, since a page whose whole content is one link is a wasted click.
+ * A lesson: the video plays here and the article reads here. Both are the lesson —
+ * neither is an afterthought hanging off the other.
+ *
+ * Only a video we can't embed skips this page (lessonHref sends it straight to its
+ * host), since then the page really would be one outbound link.
  */
 export default async function LessonPage({ params }: { params: Promise<{ module: string; slug: string }> }) {
   await requireUser();
@@ -28,7 +32,12 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
   const lesson = await getLesson(slug);
   // 404 on a mismatched module too, not just a missing slug: otherwise every lesson
   // is reachable under all eight modules and the breadcrumb lies.
-  if (!lesson || !lesson.body || lesson.module !== module) notFound();
+  if (!lesson || lesson.module !== module) notFound();
+  // Nothing to show here — قريباً, or a video that only its own host can play.
+  if (!opensInApp(lesson)) notFound();
+
+  const videoId = youtubeId(lesson.url);
+  const format = lessonFormat(lesson);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
@@ -41,27 +50,44 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">{MODULE_LABELS[module]}</Badge>
+        <Badge variant="outline">{FORMAT_LABELS[format]}</Badge>
         <Badge variant="outline">{lesson.level === "basic" ? "أساسي" : "متقدّم"}</Badge>
-        {lesson.minutes && (
-          <span className="text-xs text-muted-foreground">{intf(lesson.minutes)} دقيقة قراءة</span>
-        )}
+        {lesson.minutes && <span className="text-xs text-muted-foreground">{intf(lesson.minutes)} دقيقة</span>}
       </div>
 
-      {lesson.url && (
-        // Both formats: the same lesson, watched or read. Whichever the reader prefers.
+      {videoId && (
+        <Card className="overflow-hidden">
+          {/* 16:9 without an aspect-ratio dependency — the iframe fills the padded box. */}
+          <div className="relative w-full bg-black" style={{ paddingTop: "56.25%" }}>
+            <iframe
+              className="absolute inset-0 size-full"
+              src={youtubeEmbedUrl(videoId)}
+              title={lesson.title}
+              loading="lazy"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* A video we can't embed still deserves a way in. */}
+      {lesson.url && !videoId && (
         <a href={lesson.url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:bg-muted">
           <Icon name="PlayCircle" className="size-5 shrink-0 text-primary" />
           <div>
-            <div className="text-sm font-medium">اتفرّج على الدرس بدل ما تقراه</div>
-            <div className="text-xs text-muted-foreground">نفس المحتوى فيديو</div>
+            <div className="text-sm font-medium">شغّل الفيديو</div>
+            <div className="text-xs text-muted-foreground">هيفتح في تاب جديد</div>
           </div>
         </a>
       )}
 
-      <Card>
-        <CardContent className="pt-6"><DocBody body={lesson.body} /></CardContent>
-      </Card>
+      {lesson.body && (
+        <Card>
+          <CardContent className="pt-6"><DocBody body={lesson.body} /></CardContent>
+        </Card>
+      )}
     </div>
   );
 }

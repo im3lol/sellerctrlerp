@@ -1,45 +1,21 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { academyLessons } from "@/db/schema";
-import { ALL_MODULES, MODULE_LABELS, MODULE_ICONS, type ModuleKey } from "@/lib/erp/module-list";
+import { type ModuleKey } from "@/lib/erp/module-list";
+import { type Lesson } from "@/lib/erp/academy-core";
 
 /**
- * الأكاديمية — lessons that teach the product, owned by the platform and edited from
- * /admin/academy.
+ * الأكاديمية — lesson queries. Server-only: it imports the db.
+ *
+ * The rules (isLive, lessonFormat, lessonHref, moduleCards…) live in academy-core.ts
+ * and are re-exported below, so server callers keep one import while client components
+ * can reach for academy-core directly without dragging `pg` into the browser bundle.
  *
  * Not org-scoped anywhere in this file: see the note on the academy_lessons table.
  * These are lessons about SellerCtrl, the same for every tenant, so a global read is
  * correct here rather than a missing organizationId filter.
  */
-export type Lesson = {
-  id: string;
-  slug: string;
-  title: string;
-  module: ModuleKey;
-  outcome: string | null;
-  /** Video link. */
-  url: string | null;
-  /** Written doc (markdown). */
-  body: string | null;
-  minutes: number | null;
-  level: "basic" | "advanced";
-};
-
-/**
- * A lesson counts as ready once it has EITHER a video or a written doc.
- *
- * The single definition of «متاح» — every count, badge and link routes through it,
- * so a lesson can never be listed as ready on one page and قريباً on another. Docs
- * are the same lesson written down, not a parallel catalogue.
- */
-export const isLive = (l: Pick<Lesson, "url" | "body">) => !!l.url || !!l.body;
-
-/** Has a doc → read it here; video only → the video is the lesson, go straight there. */
-export const lessonHref = (l: Lesson) =>
-  l.body ? `/erp/academy/${l.module}/${l.slug}` : l.url;
-
-/** Lives in module-list.ts (client-safe — this file imports the db). Re-exported for callers already reading it here. */
-export { MODULE_ICONS };
+export * from "@/lib/erp/academy-core";
 
 const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
   id: r.id,
@@ -69,7 +45,7 @@ export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
   return rows.map(row);
 }
 
-/** One lesson by its slug — the doc page. Active only; a hidden lesson 404s. */
+/** One lesson by its slug — the lesson page. Active only; a hidden lesson 404s. */
 export async function getLesson(slug: string): Promise<Lesson | null> {
   const [r] = await db.select().from(academyLessons)
     .where(and(eq(academyLessons.slug, slug), eq(academyLessons.isActive, true)))
@@ -81,50 +57,4 @@ export async function getLesson(slug: string): Promise<Lesson | null> {
 export async function listAllLessonsForAdmin() {
   return db.select().from(academyLessons)
     .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
-}
-
-export type ModuleCard = {
-  module: ModuleKey;
-  label: string;
-  icon: string;
-  total: number;
-  live: number;
-  soon: number;
-};
-
-/**
- * The index: one card per module, in sidebar order.
- *
- * Pure so it can be tested without a database — a wrong module key doesn't crash,
- * the lesson just silently vanishes from its card, which is exactly the kind of
- * quiet failure worth pinning.
- *
- * Modules with no lessons are kept, not dropped: an empty card is the honest signal
- * that a module has nothing recorded yet. Hiding it hides the gap.
- */
-export function moduleCards(lessons: Lesson[]): ModuleCard[] {
-  return ALL_MODULES.map((module) => {
-    const mine = lessons.filter((l) => l.module === module);
-    const live = mine.filter(isLive).length;
-    return {
-      module,
-      label: MODULE_LABELS[module] ?? module,
-      icon: MODULE_ICONS[module] ?? "GraduationCap",
-      total: mine.length,
-      live,
-      soon: mine.length - live,
-    };
-  });
-}
-
-export type AcademyProgress = { total: number; live: number; soon: number };
-
-export function progress(lessons: Lesson[]): AcademyProgress {
-  const live = lessons.filter(isLive).length;
-  return { total: lessons.length, live, soon: lessons.length - live };
-}
-
-/** Whether a module key is one we actually have — guards the [module] route. */
-export function isModuleKey(v: string): v is ModuleKey {
-  return (ALL_MODULES as readonly string[]).includes(v);
 }

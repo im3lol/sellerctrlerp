@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { isModuleKey, listLessonsFor, progress, isLive, lessonHref, MODULE_ICONS, type Lesson } from "@/lib/erp/academy";
+import { isModuleKey, listLessonsFor, progress, isLive, lessonHref, opensInApp, lessonFormat, FORMAT_LABELS, MODULE_ICONS, type Lesson } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,26 +52,34 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
   );
 }
 
+/** Video and article are peers, so each gets its own icon and neither outranks the other. */
+const FORMAT_ICONS: Record<string, string> = {
+  video: "PlayCircle",
+  doc: "FileText",
+  both: "MonitorPlay",
+  soon: "Clock",
+};
+
 function LessonCard({ lesson }: { lesson: Lesson }) {
   const live = isLive(lesson);
   const href = lessonHref(lesson);
-  const icon = !live ? "Clock" : lesson.body ? "FileText" : "PlayCircle";
+  const format = lessonFormat(lesson);
 
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Icon name={icon} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
+          <Icon name={FORMAT_ICONS[format]} className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
           <span className="font-medium">{lesson.title}</span>
         </div>
         {!live && <Badge variant="secondary" className="shrink-0">قريباً</Badge>}
       </div>
       {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
-        {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
+        {/* Say the format before the click — someone looking to read shouldn't land on a video. */}
+        {live && <span>{FORMAT_LABELS[format]}</span>}
+        {lesson.minutes && <span>· {intf(lesson.minutes)} دقيقة</span>}
         {lesson.level && <span>· {lesson.level === "basic" ? "أساسي" : "متقدّم"}</span>}
-        {/* Say the format before the click — a reader looking for text shouldn't land on a video. */}
-        {live && <span>· {lesson.body ? (lesson.url ? "مقال + فيديو" : "مقال") : "فيديو"}</span>}
       </div>
     </>
   );
@@ -85,8 +93,9 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
   // page lies, and then they stop trusting the ones that do work.
   if (!live || !href) return <div className={className}>{body}</div>;
 
-  // A doc stays in the app; a bare video lives elsewhere, so it opens elsewhere.
-  return lesson.body
+  // Opens in-app whenever we can play or render it here; only a video we can't embed
+  // leaves for its own host.
+  return opensInApp(lesson)
     ? <Link href={href} className={className}>{body}</Link>
     : <a href={href} target="_blank" rel="noopener noreferrer" className={className}>{body}</a>;
 }

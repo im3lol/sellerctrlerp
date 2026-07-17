@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { saveLessonAction, toggleLessonAction, deleteLessonAction } from "@/app/actions/admin/academy";
 import { ALL_MODULES, MODULE_LABELS, MODULE_ICONS } from "@/lib/erp/module-list";
+// academy-core, not academy: that one imports the db and would drag `pg` into this bundle.
+import { lessonFormat, FORMAT_LABELS } from "@/lib/erp/academy-core";
+import { youtubeId } from "@/lib/erp/youtube";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +49,11 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
   const [level, setLevel] = useState(lesson?.level ?? "basic");
   const [sortOrder, setSortOrder] = useState(String(lesson?.sortOrder ?? preset?.sortOrder ?? 0));
 
+  // Live feedback while typing: whether the link will actually play, and what the
+  // customer ends up with. Both read the same rules the lesson page uses.
+  const yt = youtubeId(url);
+  const fmt = lessonFormat({ url: url.trim() || null, body: body.trim() || null });
+
   const save = () => start(async () => {
     const res = await saveLessonAction({
       slug, title, module, outcome, url, body,
@@ -83,21 +91,41 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
           </div>
 
           <div className="space-y-1">
+            <Label htmlFor="url">رابط فيديو يوتيوب</Label>
+            <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/…" dir="ltr" />
+            {url.trim() ? (
+              yt ? (
+                <p className="text-xs text-emerald-600">✓ هيتشغّل جوّه النظام — الفيديو: {yt}</p>
+              ) : (
+                // Say it now, not after the customer opens a lesson that dumps them
+                // on another site.
+                <p className="text-xs text-amber-600">
+                  مش رابط يوتيوب — الدرس هيبقى لينك بيفتح بره النظام بدل مشغّل الفيديو.
+                </p>
+              )
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                الصق أي شكل من روابط يوتيوب (watch / youtu.be / shorts) — هيتشغّل داخل الصفحة.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
             <Label htmlFor="body">الشرح المكتوب (Markdown)</Label>
             <Textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} rows={12}
               className="font-mono text-xs"
               placeholder={"## الخطوة الأولى\n\nافتح **المبيعات ← أوامر البيع** ودوس «أمر جديد».\n\n- اختار العميل\n- ضيف الأصناف\n\n> ملاحظة: الأمر بيفضل مسودة لحد ما تأكّده."} />
             <p className="text-xs text-muted-foreground">
-              يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول والروابط والصور. الدرس بشرح مكتوب بيتفتح جوّه النظام.
+              يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول والروابط والصور.
             </p>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="url">رابط الفيديو</Label>
-            <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/…" dir="ltr" />
-            <p className="text-xs text-muted-foreground">
-              الدرس يبقى «متاح» بفيديو <b>أو</b> شرح مكتوب — الاتنين مش لازم. الاتنين فاضيين = «قريباً».
-            </p>
+          <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
+            <span className="font-medium">الصيغة: </span>
+            {fmt === "both" ? "فيديو + مقال — الفيديو بيتشغّل فوق والمقال تحته في نفس الصفحة."
+              : fmt === "video" ? "فيديو — حط شرح مكتوب كمان لو عايز الاتنين."
+              : fmt === "doc" ? "مقال — حط رابط يوتيوب كمان لو عايز الاتنين."
+              : "قريباً — لسه مافيش فيديو ولا مقال، فالدرس هيظهر «قريباً» ومش هيتفتح."}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
@@ -262,7 +290,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                           : <Badge variant="secondary">قريباً</Badge>}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {[l.body && "مقال", l.url && "فيديو"].filter(Boolean).join(" + ") || "—"}
+                      {l.url || l.body ? FORMAT_LABELS[lessonFormat(l)] : "—"}
                     </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.minutes ?? "—"}</TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.sortOrder}</TableCell>

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { moduleCards, progress, isModuleKey, isLive, lessonHref, MODULE_ICONS, type Lesson } from "../academy";
+import {
+  moduleCards, progress, isModuleKey, isLive, lessonHref, opensInApp,
+  lessonFormat, FORMAT_LABELS, MODULE_ICONS, type Lesson,
+} from "../academy-core";
 import { ALL_MODULES, MODULE_LABELS } from "../module-list";
+
+const YT = "https://youtu.be/dQw4w9WgXcQ";
 
 const lesson = (id: string, module: string, url?: string, body?: string): Lesson => ({
   id, slug: id, title: id, module: module as Lesson["module"],
@@ -74,19 +79,48 @@ describe("isLive", () => {
   });
 });
 
-describe("lessonHref", () => {
-  it("a doc reads in-app; a video-only lesson goes straight to the video", () => {
-    // A page whose entire content is one outbound link is a wasted click.
-    expect(lessonHref(lesson("a", "sales", undefined, "## شرح"))).toBe("/erp/academy/sales/a");
-    expect(lessonHref(lesson("b", "sales", "https://x"))).toBe("https://x");
+describe("lessonFormat", () => {
+  it("video and article are peers, and a lesson can be both", () => {
+    expect(lessonFormat(lesson("a", "sales", YT))).toBe("video");
+    expect(lessonFormat(lesson("b", "sales", undefined, "## شرح"))).toBe("doc");
+    expect(lessonFormat(lesson("c", "sales", YT, "## شرح"))).toBe("both");
+    expect(lessonFormat(lesson("d", "sales"))).toBe("soon");
   });
 
-  it("has both → the doc page wins, since it shows the video too", () => {
-    expect(lessonHref(lesson("c", "purchases", "https://x", "## شرح"))).toBe("/erp/academy/purchases/c");
+  it("every format has a label", () => {
+    for (const f of ["video", "doc", "both", "soon"] as const) expect(FORMAT_LABELS[f]).toBeTruthy();
+  });
+});
+
+describe("lessonHref", () => {
+  it("a YouTube lesson opens in-app — the video plays there", () => {
+    // It used to link straight out to YouTube, which took the customer out of the
+    // product to watch a lesson about the product.
+    expect(lessonHref(lesson("a", "sales", YT))).toBe("/erp/academy/sales/a");
+  });
+
+  it("an article opens in-app", () => {
+    expect(lessonHref(lesson("b", "sales", undefined, "## شرح"))).toBe("/erp/academy/sales/b");
+  });
+
+  it("both → one page that holds the video and the article", () => {
+    expect(lessonHref(lesson("c", "purchases", YT, "## شرح"))).toBe("/erp/academy/purchases/c");
+  });
+
+  it("a video we cannot embed still leaves for its own host", () => {
+    // Vimeo won't play in our page, so a page here would be one outbound link —
+    // a wasted click. Send them straight there.
+    expect(lessonHref(lesson("d", "sales", "https://vimeo.com/123456"))).toBe("https://vimeo.com/123456");
+    expect(opensInApp(lesson("d", "sales", "https://vimeo.com/123456"))).toBe(false);
+  });
+
+  it("…unless it also has an article, which we CAN show", () => {
+    expect(lessonHref(lesson("e", "sales", "https://vimeo.com/123456", "## شرح"))).toBe("/erp/academy/sales/e");
   });
 
   it("قريباً has nowhere to go", () => {
-    expect(lessonHref(lesson("d", "sales"))).toBeNull();
+    expect(lessonHref(lesson("f", "sales"))).toBeNull();
+    expect(opensInApp(lesson("f", "sales"))).toBe(false);
   });
 });
 
