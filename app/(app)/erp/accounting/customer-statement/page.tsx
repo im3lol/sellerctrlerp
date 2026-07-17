@@ -6,6 +6,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FormCombobox } from "@/components/erp/form-combobox";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
+import { money } from "@/lib/erp/print-format";
 
 type Params = { searchParams: Promise<{ customerId?: string; from?: string; to?: string }> };
 
@@ -24,6 +26,7 @@ type TxRow = {
 
 export default async function CustomerStatementPage({ searchParams }: Params) {
   const { orgId } = await requireErpModule("accounting.view");
+  const currency = await getBaseCurrencyCode(orgId);
   const sp = await searchParams;
 
   const now = new Date();
@@ -203,18 +206,18 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
           {/* Summary header */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
-              { label: "رصيد الافتتاح",     value: fmt(openingBalance),  cls: "" },
-              { label: "إجمالي الفواتير",   value: fmt(txRows.reduce((s, r) => s + r.debit, 0)),   cls: "text-blue-600 dark:text-blue-400" },
-              { label: "إجمالي المقبوضات",  value: fmt(txRows.reduce((s, r) => s + r.credit, 0)),  cls: "text-emerald-600 dark:text-emerald-400" },
+              { label: "رصيد الافتتاح",     value: money(openingBalance, currency),  cls: "" },
+              { label: "إجمالي الفواتير",   value: money(txRows.reduce((s, r) => s + r.debit, 0), currency),   cls: "text-blue-600 dark:text-blue-400" },
+              { label: "إجمالي المقبوضات",  value: money(txRows.reduce((s, r) => s + r.credit, 0), currency),  cls: "text-emerald-600 dark:text-emerald-400" },
               {
                 label: closingBalance >= 0 ? "الرصيد المدين (مستحق)" : "رصيد زائد (دائن)",
-                value: fmt(Math.abs(closingBalance)),
+                value: money(Math.abs(closingBalance), currency),
                 cls: closingBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
               },
             ].map((t, i) => (
               <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
                 <p className="text-xs text-muted-foreground">{t.label}</p>
-                <p className={`mt-1 text-xl font-bold tabular-nums ${t.cls}`}>{t.value} ﷼</p>
+                <p className={`mt-1 text-xl font-bold tabular-nums ${t.cls}`}>{t.value}</p>
               </div>
             ))}
           </div>

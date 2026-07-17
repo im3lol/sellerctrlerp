@@ -3,6 +3,10 @@ import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
+// money() carries the single currency-symbol map — the same one the printed
+// documents use — so a تقرير ضريبة can't print a currency the invoices don't.
+import { money } from "@/lib/erp/print-format";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
 import { Button } from "@/components/ui/button";
@@ -81,6 +85,7 @@ function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string })
 /* ── Page ──────────────────────────────────────────────────── */
 export default async function VatReportPage({ searchParams }: Params) {
   const { orgId } = await requireErpModule("reports.view");
+  const currency = await getBaseCurrencyCode(orgId);
   const sp = await searchParams;
 
   // Default: current quarter
@@ -204,11 +209,11 @@ export default async function VatReportPage({ searchParams }: Params) {
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Tile label="الضريبة المحصّلة (مخرجات)"  value={`${fmt(outputVat)} ﷼`}  sub={`على مبيعات ${fmt(outputBase)} ﷼`}  accent="green" />
-        <Tile label="الضريبة المدفوعة (مدخلات)"  value={`${fmt(inputVat)} ﷼`}   sub={`على مشتريات ${fmt(inputBase)} ﷼`} accent="blue"  />
+        <Tile label="الضريبة المحصّلة (مخرجات)"  value={money(outputVat, currency)}  sub={`على مبيعات ${money(outputBase, currency)}`}  accent="green" />
+        <Tile label="الضريبة المدفوعة (مدخلات)"  value={money(inputVat, currency)}   sub={`على مشتريات ${money(inputBase, currency)}`} accent="blue"  />
         <Tile
           label={netVat >= 0 ? "صافي الضريبة المستحقة" : "ضريبة مستردّة"}
-          value={`${fmt(Math.abs(netVat))} ﷼`}
+          value={money(Math.abs(netVat), currency)}
           sub={netVat >= 0 ? "مستحق للهيئة" : "قابل للاسترداد"}
           accent={netVat >= 0 ? "red" : "green"}
         />
@@ -232,7 +237,7 @@ export default async function VatReportPage({ searchParams }: Params) {
                 ].map((row, i) => (
                   <tr key={i} className="border-b last:border-b-0 [&>td]:p-3">
                     <td className={row.cls}>{row.label}</td>
-                    <td className={`text-end tabular-nums ${row.cls}`}>{fmt(row.val)} ﷼</td>
+                    <td className={`text-end tabular-nums ${row.cls}`}>{money(row.val, currency)}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 bg-muted/30 font-bold [&>td]:p-3">
@@ -240,7 +245,7 @@ export default async function VatReportPage({ searchParams }: Params) {
                     {netVat >= 0 ? "صافي الضريبة المستحقة للهيئة" : "ضريبة مستردّة من الهيئة"}
                   </td>
                   <td className={`text-end tabular-nums ${netVat >= 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-                    {fmt(Math.abs(netVat))} ﷼
+                    {money(Math.abs(netVat), currency)}
                   </td>
                 </tr>
               </tbody>

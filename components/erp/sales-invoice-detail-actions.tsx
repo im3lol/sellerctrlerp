@@ -9,6 +9,7 @@ import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { waNumber } from "@/lib/phone";
 
 /** Draft sales invoice: post / delete. Posted: a "مرتجع" shortcut. */
 export function SalesInvoiceDetailActions({
@@ -47,7 +48,7 @@ export function SalesInvoiceDetailActions({
 
   const shareMsg = `فاتورة رقم: ${number}\nالمبلغ الإجمالي: ${fmt(totalAmount)}\nللاستفسار أو الدفع يرجى التواصل معنا.`;
 
-  const waPhone = customerPhone?.replace(/[\s\-\(\)]/g, "").replace(/^0/, "966");
+  const waPhone = waNumber(customerPhone);
   const waBtn = waPhone ? (
     <Button size="sm" variant="outline" asChild>
       <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}`} target="_blank" rel="noopener">
