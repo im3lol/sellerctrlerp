@@ -50,10 +50,11 @@ DATABASE_URL=<owner> APPUSER_DATABASE_URL=postgres://appuser:appuser@localhost:5
 - [x] **#22** `nav-config.ts:112` — صلاحية «مطابقة قيمة المخزون» → `erp.inventory.view`.
 
 ### موجة 2 — P1: صحّة الفلوس/الأرقام (كل بند باختبار vitest أولًا)
-- [ ] **#2** `periods.ts:89-98,161-171` — اقفل كل حساب P&L بإشارته (`bal = debit − credit`)، net income = Σ الكل. اختبار: 4101=1000Cr، 4102=200Dr، 5101=600Dr → صافي 200، و4102 يتقفل.
-- [ ] **#3** `deliveries.ts:434`، `goods-receipts.ts:435`، `sales-returns.ts:319` — رحّل GL من `totalCost` الراجع من `postStockMovement` (زي المسار الأمامي)، مش من التكلفة المخزّنة. اختبار: سيناريو إعادة التوسّط (100→131.25) يطابق GL=ledger.
-- [ ] **#4** `sales/reports/profitability/page.tsx` — اطرح إيراد `salesReturnLines` من الإيراد زي ما الـCOGS بيتخصم. اختبار: بيع 10 مرتجع 4 → هامش 40% مش 64%.
-- [ ] **#5a** `payroll.ts:149,168` — فلتر الحضور بـ`workDate` شامل آخر يوم (بدل `clockIn ≤ periodEnd@UTC00:00`). اختبار: ساعات 31/7 تتحسب. **(#5b عزل الحضور بالمؤسسة = موجة 4، محتاج قرار سكيمة.)**
+- [x] **#2** `periods.ts:89-98,161-171` — اقفل كل حساب P&L بإشارته (`bal = debit − credit`)، net income = Σ الكل. اختبار: 4101=1000Cr، 4102=200Dr، 5101=600Dr → صافي 200، و4102 يتقفل.
+- [x] **#3a/b** `deliveries.ts` + `goods-receipts.ts` — GL من `r.totalCost` (تمّ).
+- [ ] **#3c** `sales-returns.ts` عكس المرتجع — يحتاج فصل branch-aware (SALES_RETURN = فلوس في فرع الفاتورة، مخزون في فرع الصرف). **مؤجّل لموجة 4 بحذر.**
+- [x] **#4** `sales/reports/profitability/page.tsx` — اطرح إيراد `salesReturnLines` من الإيراد زي ما الـCOGS بيتخصم. اختبار: بيع 10 مرتجع 4 → هامش 40% مش 64%.
+- [x] **#5a** `payroll.ts:149,168` — فلتر الحضور بـ`workDate` شامل آخر يوم (بدل `clockIn ≤ periodEnd@UTC00:00`). اختبار: ساعات 31/7 تتحسب. **(#5b عزل الحضور بالمؤسسة = موجة 4، محتاج قرار سكيمة.)**
 
 ### موجة 3 — P2: صحّة الترحيل وآلة الحالات
 - [ ] **#6** `sales-invoices.ts:200` — الفاتورة القائمة بذاتها ترفض الترحيل لو المخزن/5101/1104 ناقص (مرآة `deliveries.ts:193`).
