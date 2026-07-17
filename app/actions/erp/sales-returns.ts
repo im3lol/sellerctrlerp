@@ -314,15 +314,40 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
     const d = new Date();
     try {
       await db.transaction(async (tx) => {
-        const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
-          .where(and(eq(journalEntries.organizationId, auth.orgId), inArray(journalEntries.sourceType, ["SALES_RETURN", "SALES_RETURN_COGS"]), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
-        for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
+        // Money side: only an INVOICE return (deliveryNoteId null) booked revenue/VAT/AR
+        // as sourceType SALES_RETURN — reverse it exactly (pure GL). A delivery return has
+        // no money entry (its SALES_RETURN entry is inventory, handled below).
+        if (!ret.deliveryNoteId) {
+          const moneyEntries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+            .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "SALES_RETURN"), eq(journalEntries.sourceId, ret.id), eq(journalEntries.status, "POSTED")));
+          for (const e of moneyEntries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء مرتجع ${ret.number}` });
+        }
 
+        // Inventory side (both branches): un-restock at the pinned batches' CURRENT cost,
+        // then post ONE fresh GL entry driven by that re-posted totalCost — so GL matches
+        // the stock ledger. The old code reverseEntry'd the inventory/COGS entry at the
+        // ORIGINAL cost, which drifted from the ledger when the lot re-averaged.
         const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
           .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "SALES_RETURN"), eq(stockMovements.referenceId, ret.id)));
+        let invValue = 0;
         for (const m of moves) {
           const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
-          await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "IN" ? "OUT" : "IN", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "SALES_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+          const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: m.type === "IN" ? "OUT" : "IN", quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "SALES_RETURN_CANCEL", referenceId: ret.id, reason: `إلغاء مرتجع ${ret.number}` });
+          invValue += r.totalCost;
+        }
+        invValue = round2(invValue);
+        if (invValue > 0) {
+          const A = await resolveAccountIds(auth.orgId, ["1104", "5101"]);
+          if (A["1104"] && A["5101"]) {
+            await postEntry(tx, {
+              orgId: auth.orgId, date: d, sourceType: "SALES_RETURN_CANCEL", sourceId: ret.id,
+              description: `عكس مخزون إلغاء مرتجع ${ret.number}`, journalType: "GENERAL", userId: auth.userId,
+              lines: [
+                { accountId: A["5101"], debit: invValue, credit: 0, description: `عكس ت.ب.م ${ret.number}` },
+                { accountId: A["1104"], debit: 0, credit: invValue, description: `عكس إرجاع مخزون ${ret.number}` },
+              ],
+            });
+          }
         }
 
         if (ret.deliveryNoteId) {
