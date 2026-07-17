@@ -96,6 +96,9 @@ export async function addUserToOrgAction(userId: string, role: string): Promise<
 export async function setMemberOverridesAction(userId: string, grant: string[], revoke: string[]): Promise<ActionState> {
   const auth = await authorizeErp("users.edit");
   if ("error" in auth) return auth;
+  // No self-override: users.edit lets you manage OTHERS, not grant yourself new
+  // permissions — that's privilege escalation. system_admin already has everything.
+  if (userId === auth.userId) return { error: "لا يمكنك تعديل صلاحيات نفسك" };
   return withOrgScope(auth.orgId, false, async () => {
     const org = { id: auth.orgId };
     const valid = new Set<string>(allErpPermissions);
