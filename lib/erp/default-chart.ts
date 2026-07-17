@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, accountingJournals, fiscalPeriods } from "@/db/schema";
+import { accounts, accountingJournals, fiscalPeriods, warehouses, currencies } from "@/db/schema";
 
 /**
  * Standard Arabic chart of accounts used to bootstrap a new organization.
@@ -73,17 +73,30 @@ export type InitAccountingResult = {
   accountsCreated: number;
   journalsCreated: number;
   periodCreated: boolean;
+  warehouseCreated: boolean;
+  currencyCreated: boolean;
   skipped: boolean;
 };
 
 /**
- * Idempotently bootstrap accounting for an organization: the standard chart of
- * accounts, the three default journals, and an OPEN fiscal period for the
- * current year. Each piece is only created when absent, so it is always safe to
- * re-run (e.g. as a per-tenant setup step or a repair action).
+ * Idempotently bootstrap a new organization so it's usable from the first login:
+ * the standard chart of accounts, the three default journals, an OPEN fiscal
+ * period for the current year, a default warehouse, and the EGP base currency.
+ *
+ * The warehouse and base currency belong here, not just in accounting: delivery
+ * notes and goods receipts carry a NOT NULL warehouse, so a tenant with zero
+ * warehouses can't move any stock — inventory is dead until one exists. And an
+ * explicit EGP base-currency row anchors FX and the currencies screen instead of
+ * relying on the implicit "EGP" fallback in getBaseCurrencyCode.
+ *
+ * Each piece is created only when absent, so it's always safe to re-run (signup
+ * best-effort, the settings repair action, the admin cross-org init).
  */
 export async function initializeAccountingForOrg(orgId: string): Promise<InitAccountingResult> {
-  const result: InitAccountingResult = { accountsCreated: 0, journalsCreated: 0, periodCreated: false, skipped: false };
+  const result: InitAccountingResult = {
+    accountsCreated: 0, journalsCreated: 0, periodCreated: false,
+    warehouseCreated: false, currencyCreated: false, skipped: false,
+  };
 
   const [{ n: acctCount }] = await db
     .select({ n: sql<number>`count(*)` })
@@ -119,6 +132,40 @@ export async function initializeAccountingForOrg(orgId: string): Promise<InitAcc
       status: "OPEN",
     });
     result.periodCreated = true;
+  }
+
+  // Default warehouse — without one, inventory/deliveries/receipts have nowhere to post.
+  const [{ n: whCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(warehouses)
+    .where(eq(warehouses.organizationId, orgId));
+  if (Number(whCount) === 0) {
+    await db.insert(warehouses).values({
+      organizationId: orgId,
+      code: "WH-01",
+      nameAr: "المستودع الرئيسي",
+      nameEn: "Main Warehouse",
+      type: "WAREHOUSE",
+    });
+    result.warehouseCreated = true;
+  }
+
+  // EGP base currency — Egypt-first. Makes the base explicit rather than an implicit fallback.
+  const [{ n: curCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(currencies)
+    .where(eq(currencies.organizationId, orgId));
+  if (Number(curCount) === 0) {
+    await db.insert(currencies).values({
+      organizationId: orgId,
+      code: "EGP",
+      nameAr: "جنيه مصري",
+      nameEn: "Egyptian Pound",
+      symbol: "ج.م",
+      isBase: true,
+      exchangeRate: "1",
+    });
+    result.currencyCreated = true;
   }
 
   return result;
