@@ -16,7 +16,7 @@
 import { Pool } from "pg";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db"; // owner connection — seeds/cleans, bypasses RLS
-import { organizations, customers } from "@/db/schema";
+import { organizations, customers, items, materialRequests, materialRequestLines } from "@/db/schema";
 
 const APPUSER_URL = process.env.APPUSER_DATABASE_URL ?? "postgres://appuser:appuser@localhost:5433/sellerctrl";
 
@@ -33,6 +33,18 @@ async function main() {
   await db.insert(customers).values([
     { organizationId: orgA.id, code: "CA1", nameAr: "عميل أ" },
     { organizationId: orgB.id, code: "CB1", nameAr: "عميل ب" },
+  ]);
+
+  // A line table + its parent chain per org, to prove denormalized-org isolation.
+  // organizationId on the line is OMITTED — the set_org trigger derives it from
+  // the parent (that's the whole mechanism; passing it would hide a trigger bug).
+  const [itemA] = await db.insert(items).values({ organizationId: orgA.id, code: "IA1", nameAr: "صنف أ" }).returning({ id: items.id });
+  const [itemB] = await db.insert(items).values({ organizationId: orgB.id, code: "IB1", nameAr: "صنف ب" }).returning({ id: items.id });
+  const [mrA] = await db.insert(materialRequests).values({ organizationId: orgA.id, number: "MRA1", date: new Date() }).returning({ id: materialRequests.id });
+  const [mrB] = await db.insert(materialRequests).values({ organizationId: orgB.id, number: "MRB1", date: new Date() }).returning({ id: materialRequests.id });
+  await db.insert(materialRequestLines).values([
+    { materialRequestId: mrA.id, itemId: itemA.id, quantity: "1" },
+    { materialRequestId: mrB.id, itemId: itemB.id, quantity: "1" },
   ]);
 
   const app = new Pool({ connectionString: APPUSER_URL });
@@ -92,6 +104,31 @@ async function main() {
     await inScope(null, true, async (c) => {
       const rows = (await c.query("select organization_id from customers where organization_id = any($1)", [[orgA.id, orgB.id]])).rows;
       check("platform scope: sees BOTH orgs (admin/cron bypass)", rows.length === 2);
+    });
+
+    // 6. line table: denormalized-org read isolation (filter-less query still only A)
+    await inScope(orgA.id, false, async (c) => {
+      const rows = (await c.query("select organization_id from material_request_lines")).rows;
+      check("line table: scope A sees only A's lines (denormalized org isolation)",
+        rows.length === 1 && rows[0].organization_id === orgA.id, `${rows.length} rows`);
+    });
+
+    // 7. line table INSERT: org omitted, the set_org trigger fills it from the parent
+    await inScope(orgA.id, false, async (c) => {
+      await c.query("insert into material_request_lines (material_request_id, item_id, quantity) values ($1,$2,'1')", [mrA.id, itemA.id]);
+      const rows = (await c.query("select organization_id from material_request_lines")).rows;
+      check("line table: INSERT onto A's parent fills org=A via trigger (no call-site org)",
+        rows.length === 2 && rows.every((r) => r.organization_id === orgA.id));
+    });
+
+    // 8. line table cross-org INSERT: pointing a line at org B's parent while in scope A
+    //    is blocked — the trigger's parent lookup can't see B's row → NULL → NOT NULL.
+    await inScope(orgA.id, false, async (c) => {
+      let threw = false;
+      await c.query("savepoint s");
+      try { await c.query("insert into material_request_lines (material_request_id, item_id, quantity) values ($1,$2,'1')", [mrB.id, itemA.id]); }
+      catch { threw = true; await c.query("rollback to savepoint s"); }
+      check("line table: INSERT onto org B's parent (scope A) is blocked", threw);
     });
   } finally {
     await app.end();

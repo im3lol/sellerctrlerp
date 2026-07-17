@@ -36,6 +36,12 @@ import { users } from "./schema";
 const pk = () => text("id").primaryKey().default(sql`(gen_random_uuid())::text`);
 const orgId = () =>
   text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" });
+// For line/child tables: same NOT NULL org column, but the DB `set_org` trigger
+// (migration 0050) derives it from the parent on INSERT — so it's optional in the
+// insert type ($defaultFn is client-only, never serialized → no DDL/snapshot drift).
+// The throwaway "" is always overwritten by the trigger; callers pass nothing.
+const lineOrgId = () =>
+  text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }).$defaultFn(() => "");
 const money = (name: string) => numeric(name, { precision: 18, scale: 4 });
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
@@ -240,6 +246,7 @@ export const itemBalances = pgTable(
   "item_balances",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     itemId: text("item_id").notNull().references(() => items.id),
     warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
     quantity: money("quantity").notNull().default("0"),
@@ -251,6 +258,7 @@ export const itemBalances = pgTable(
 
 export const fifoLayers = pgTable("fifo_layers", {
   id: pk(),
+  organizationId: lineOrgId(),
   itemId: text("item_id").notNull().references(() => items.id),
   warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
   quantity: money("quantity").notNull(),
@@ -391,6 +399,7 @@ export const stockTransfers = pgTable(
 
 export const stockTransferLines = pgTable("stock_transfer_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   stockTransferId: text("stock_transfer_id").notNull().references(() => stockTransfers.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   fromWarehouseId: text("from_warehouse_id").references(() => warehouses.id),
@@ -436,6 +445,7 @@ export const stockAdjustments = pgTable(
 
 export const stockAdjustmentLines = pgTable("stock_adjustment_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   stockAdjustmentId: text("stock_adjustment_id").notNull().references(() => stockAdjustments.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
@@ -469,6 +479,7 @@ export const materialRequests = pgTable(
 
 export const materialRequestLines = pgTable("material_request_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   materialRequestId: text("material_request_id").notNull().references(() => materialRequests.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -505,6 +516,7 @@ export const deliveryNotes = pgTable(
 
 export const deliveryNoteLines = pgTable("delivery_note_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   deliveryNoteId: text("delivery_note_id").notNull().references(() => deliveryNotes.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line issuing warehouse (falls back to the note's warehouse when null).
@@ -538,6 +550,7 @@ export const purchaseReceipts = pgTable(
 
 export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line receiving warehouse (falls back to the receipt's warehouse when null).
@@ -571,6 +584,7 @@ export const pickLists = pgTable(
 
 export const pickListLines = pgTable("pick_list_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   pickListId: text("pick_list_id").notNull().references(() => pickLists.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -797,6 +811,7 @@ export const journalEntryLines = pgTable(
   "journal_entry_lines",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     journalEntryId: text("journal_entry_id").notNull().references(() => journalEntries.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull().references(() => accounts.id),
     costCenterId: text("cost_center_id").references(() => costCenters.id),
@@ -1025,6 +1040,7 @@ export const salesInvoiceLines = pgTable(
   "sales_invoice_lines",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
     itemId: text("item_id").notNull().references(() => items.id),
     quantity: money("quantity").notNull(),
@@ -1067,6 +1083,7 @@ export const receiptVouchers = pgTable(
 
 export const receiptLines = pgTable("receipt_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   receiptVoucherId: text("receipt_voucher_id").notNull().references(() => receiptVouchers.id, { onDelete: "cascade" }),
   salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id),
   amount: money("amount").notNull(),
@@ -1145,6 +1162,7 @@ export const purchaseInvoices = pgTable(
 
 export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseInvoiceId: text("purchase_invoice_id").notNull().references(() => purchaseInvoices.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1185,6 +1203,7 @@ export const paymentVouchers = pgTable(
 
 export const paymentLines = pgTable("payment_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   paymentVoucherId: text("payment_voucher_id").notNull().references(() => paymentVouchers.id, { onDelete: "cascade" }),
   purchaseInvoiceId: text("purchase_invoice_id").notNull().references(() => purchaseInvoices.id),
   amount: money("amount").notNull(),
@@ -1300,6 +1319,7 @@ export const salesQuotations = pgTable(
 
 export const salesQuotationLines = pgTable("sales_quotation_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   quotationId: text("quotation_id").notNull().references(() => salesQuotations.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1332,6 +1352,7 @@ export const expenseClaims = pgTable(
 
 export const expenseClaimLines = pgTable("expense_claim_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   claimId: text("claim_id").notNull().references(() => expenseClaims.id, { onDelete: "cascade" }),
   expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
   amount: money("amount").notNull(),
@@ -1361,6 +1382,7 @@ export const recurringJournals = pgTable(
 
 export const recurringJournalLines = pgTable("recurring_journal_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   recurringJournalId: text("recurring_journal_id").notNull().references(() => recurringJournals.id, { onDelete: "cascade" }),
   accountId: text("account_id").notNull().references(() => accounts.id),
   debit: money("debit").notNull().default("0"),
@@ -1408,6 +1430,7 @@ export const recurringSalesInvoices = pgTable(
 
 export const recurringSalesInvoiceLines = pgTable("recurring_sales_invoice_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   recurringId: text("recurring_id").notNull().references(() => recurringSalesInvoices.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1448,6 +1471,7 @@ export const purchaseOrders = pgTable(
 
 export const purchaseOrderLines = pgTable("purchase_order_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseOrderId: text("purchase_order_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1504,6 +1528,7 @@ export const salesOrderLines = pgTable(
   "sales_order_lines",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
     itemId: text("item_id").notNull().references(() => items.id),
     // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
@@ -1672,6 +1697,7 @@ export const profitDistributions = pgTable("profit_distributions", {
 
 export const investorShares = pgTable("investor_shares", {
   id: pk(),
+  organizationId: lineOrgId(),
   distributionId: text("distribution_id").notNull().references(() => profitDistributions.id, { onDelete: "cascade" }),
   investorId: text("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
   ownershipPercent: money("ownership_percent").notNull().default("0"),
@@ -1725,6 +1751,7 @@ export const purchaseReturns = pgTable(
 
 export const purchaseReturnLines = pgTable("purchase_return_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseReturnId: text("purchase_return_id").notNull().references(() => purchaseReturns.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1764,6 +1791,7 @@ export const salesReturns = pgTable(
 
 export const salesReturnLines = pgTable("sales_return_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   salesReturnId: text("sales_return_id").notNull().references(() => salesReturns.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -2033,6 +2061,7 @@ export const openingBalanceLines = pgTable(
   "opening_balance_lines",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     openingBalanceId: text("opening_balance_id").notNull().references(() => openingBalances.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(), // ACCOUNT | CUSTOMER | SUPPLIER | ITEM
     accountId: text("account_id").references(() => accounts.id),
