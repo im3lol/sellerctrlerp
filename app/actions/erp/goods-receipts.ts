@@ -428,11 +428,13 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
         for (const m of moves) {
           const qty = Number(m.quantity), cost = Number(m.unitCost);
           const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
-          await postStockMovement(tx, {
+          // GL from the ledger's actual re-posted value, not the stored original
+          // cost (else GL drifts from the ledger when the pinned lot re-averaged).
+          const r = await postStockMovement(tx, {
             orgId: auth.orgId, itemId: m.itemId, warehouseId: grn.warehouseId, type: "OUT",
             quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
           });
-          value += round2(qty * cost);
+          value += r.totalCost;
           const pol = poByItem.get(m.itemId);
           if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${qty})` }).where(eq(purchaseOrderLines.id, pol.id));
         }

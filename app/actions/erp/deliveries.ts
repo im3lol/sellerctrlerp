@@ -427,11 +427,15 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
         for (const m of moves) {
           const qty = Number(m.quantity), cost = Number(m.unitCost);
           const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
-          await postStockMovement(tx, {
+          // Post the GL from the value the LEDGER actually re-posts (r.totalCost),
+          // not the stored original cost — otherwise GL and the stock ledger drift
+          // whenever the pinned lot re-averaged between the original move and now
+          // (shows as "غير مطابَق" in valuation). Mirrors the forward path.
+          const r = await postStockMovement(tx, {
             orgId: auth.orgId, itemId: m.itemId, warehouseId: dn.warehouseId, type: "IN",
             quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
           });
-          cogs += round2(qty * cost);
+          cogs += r.totalCost;
           const sol = soByItem.get(m.itemId);
           if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${qty})` }).where(eq(salesOrderLines.id, sol.id));
         }
