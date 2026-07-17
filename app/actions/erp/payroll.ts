@@ -151,6 +151,11 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
       return { error: "تاريخ الفترة غير صحيح" };
     }
+    // Filter attendance by the DATE column, inclusive — comparing the timestamptz
+    // clockIn against `new Date("2026-07-31")` (UTC midnight) dropped every hour
+    // worked on the last day of the period.
+    const startStr = periodStart.toISOString().slice(0, 10);
+    const endStr = periodEnd.toISOString().slice(0, 10);
 
     // Load active employees
     const emps = await db
@@ -170,8 +175,8 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
         .from(attendance)
         .where(
           and(
-            gte(attendance.clockIn, periodStart),
-            lte(attendance.clockIn, periodEnd),
+            gte(attendance.workDate, startStr),
+            lte(attendance.workDate, endStr),
           ),
         );
       for (const r of rows) {
