@@ -173,16 +173,6 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
 
     const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity, warehouseId: deliveryNoteLines.warehouseId })
       .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
-    const soLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
-      .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
-    const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
-
-    for (const dl of dnLines) {
-      const sol = soByItem.get(dl.itemId);
-      if (!sol) return { error: "أحد الأصناف غير موجود في أمر البيع" };
-      const remaining = round2(Number(sol.quantity) - Number(sol.deliveredQty));
-      if (Number(dl.quantity) > remaining + EPS) return { error: "الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
-    }
 
     const A = await resolveAccountIds(auth.orgId, ["5101", "1104"]);
     // Refuse rather than post stock without the matching GL entry: postStockMovement
@@ -195,6 +185,18 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
     const deliveryDate = new Date(dn.date);
     try {
       await db.transaction(async (tx) => {
+        // Lock the order lines FOR UPDATE and re-validate the "≤ remaining" check
+        // INSIDE the tx — otherwise two concurrent partial deliveries both read a
+        // stale deliveredQty, both pass, and the order is over-delivered (doubled COGS).
+        const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
+          .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id)).for("update");
+        const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+        for (const dl of dnLines) {
+          const sol = soByItem.get(dl.itemId);
+          if (!sol) throw new Error("أحد الأصناف غير موجود في أمر البيع");
+          const remaining = round2(Number(sol.quantity) - Number(sol.deliveredQty));
+          if (Number(dl.quantity) > remaining + EPS) throw new Error("الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
+        }
         let cogs = 0;
         for (const dl of dnLines) {
           const qty = Number(dl.quantity);

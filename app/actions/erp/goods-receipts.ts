@@ -169,23 +169,24 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
 
     const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
       .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
-    const poLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
-      .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
-    const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-
-    for (const gl of grnLines) {
-      const pol = poByItem.get(gl.itemId);
-      if (!pol) return { error: "أحد الأصناف غير موجود في أمر الشراء" };
-      const remaining = round2(Number(pol.quantity) - Number(pol.receivedQty));
-      if (Number(gl.quantity) > remaining + EPS) return { error: "الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة" };
-    }
-
     const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
 
     const receiptDate = new Date(grn.date);
     try {
       await db.transaction(async (tx) => {
+        // Lock the PO lines FOR UPDATE and re-validate "≤ remaining" inside the tx so
+        // two concurrent partial receipts can't both pass on a stale receivedQty and
+        // over-receive the order (doubled inventory + GRNI).
+        const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
+          .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id)).for("update");
+        const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+        for (const gl of grnLines) {
+          const pol = poByItem.get(gl.itemId);
+          if (!pol) throw new Error("أحد الأصناف غير موجود في أمر الشراء");
+          const remaining = round2(Number(pol.quantity) - Number(pol.receivedQty));
+          if (Number(gl.quantity) > remaining + EPS) throw new Error("الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
+        }
         let received = 0;
         for (const gl of grnLines) {
           const qty = Number(gl.quantity);

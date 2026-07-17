@@ -89,17 +89,18 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
     const ap = A["2101"] ? { id: A["2101"] } : undefined;
     if (!ap) return { error: "حساب الموردون (2101) غير موجود" };
 
-    let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
-    if (v.purchaseInvoiceId) {
-      [invoice] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
-        .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
-      if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
-        return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})` };
-      }
-    }
-
     try {
       await db.transaction(async (tx) => {
+        // Lock the invoice FOR UPDATE and re-check "≤ balanceDue" INSIDE the tx so two
+        // concurrent payments can't both pass on a stale balanceDue and over-pay it.
+        let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
+        if (v.purchaseInvoiceId) {
+          [invoice] = await tx.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
+            .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1).for("update");
+          if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
+            throw new Error(`المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})`);
+          }
+        }
         await postEntry(tx, {
           orgId: auth.orgId, date: new Date(v.date), sourceType: "PAYMENT_VOUCHER", sourceId: v.id,
           description: `سند صرف ${v.number}${invoice ? ` — فاتورة ${invoice.number}` : ""}`,
