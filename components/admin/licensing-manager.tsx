@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -144,7 +145,7 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
               const st = STATUS[o.status] ?? STATUS.NONE;
               return (
                 <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell className="font-medium"><Link href={`/admin/tenants/${o.id}`} className="hover:text-primary hover:underline">{o.name}</Link></TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                   <TableCell>{o.planName || <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-sm tabular-nums">{o.members.toLocaleString("ar-EG")}{o.maxUsers != null ? ` / ${o.maxUsers}` : ""}</TableCell>
