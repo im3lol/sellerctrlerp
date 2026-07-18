@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogIn, SlidersHorizontal, Wallet, Loader2 } from "lucide-react";
+import { LogIn, SlidersHorizontal, Wallet, Loader2, Download } from "lucide-react";
 import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { recordCollectionAction } from "@/app/actions/admin/collections";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export function TenantActions({ orgId }: { orgId: string }) {
       <Button size="sm" onClick={support} disabled={pending}><LogIn className="size-4" />دخول للدعم</Button>
       <Button size="sm" variant="outline" asChild><Link href="/admin/licensing"><SlidersHorizontal className="size-4" />تعديل الاشتراك</Link></Button>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Wallet className="size-4" />تسجيل تحصيل</Button>
+      <Button size="sm" variant="outline" asChild><a href={`/admin/tenants/${orgId}/backup`} download><Download className="size-4" />نسخة احتياطية</a></Button>
 
       <Dialog open={open} onOpenChange={(o) => !o && setOpen(false)}>
         <DialogContent dir="rtl">
