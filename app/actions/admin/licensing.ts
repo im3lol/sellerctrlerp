@@ -2,11 +2,13 @@
 
 import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orgSubscriptions } from "@/db/schema";
-import { requireCapability } from "@/lib/session";
+import { requireCapability, getCurrentUser } from "@/lib/session";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 import { findRedeemableCoupon, applyDiscount, incrementRedemption } from "@/lib/erp/coupons";
+import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
 const STATUSES = ["NONE", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"];
 
@@ -64,8 +66,23 @@ export async function setSubscriptionAction(input: SubInput): Promise<{ ok: true
       updatedAt: new Date(),
     };
 
+    // Capture the prior MRR contribution BEFORE the upsert, to log the movement.
+    const now = new Date();
+    const [prev] = await db.select({ status: orgSubscriptions.status, price: orgSubscriptions.price, interval: orgSubscriptions.interval, expiresAt: orgSubscriptions.expiresAt })
+      .from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, input.organizationId)).limit(1);
+    const oldLive = prev ? isLiveRevenue(prev.status, prev.expiresAt ? new Date(prev.expiresAt) : null, now) : false;
+    const oldMrr = oldLive ? normalizeMrr(Number(prev!.price), prev!.interval) : 0;
+    const newLive = isLiveRevenue(input.status, expiresAt, now);
+    const newMrr = newLive ? normalizeMrr(price, input.interval ?? null) : 0;
+
     await db.insert(orgSubscriptions).values(values)
       .onConflictDoUpdate({ target: orgSubscriptions.organizationId, set: values });
+
+    const type = classifyTransition({ oldMrr, newMrr, oldLive, newLive, newStatus: input.status });
+    if (type) {
+      const me = await getCurrentUser();
+      await recordSubscriptionEvent(db, { orgId: input.organizationId, type, planName: values.planName, interval: values.interval, mrrBefore: oldMrr, mrrAfter: newMrr, byUserId: me?.id ?? null, at: now });
+    }
     revalidatePath("/admin/licensing");
     return { ok: true, discounted: couponId ? price : undefined };
   });

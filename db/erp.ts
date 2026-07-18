@@ -21,6 +21,7 @@ import {
   integer,
   boolean,
   timestamp,
+  date,
   numeric,
   jsonb,
   uniqueIndex,
@@ -1904,6 +1905,48 @@ export const subscriptionRequests = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("subscription_requests_org_idx").on(t.organizationId), index("subscription_requests_status_idx").on(t.status)],
+);
+
+// Append-only log of every subscription state change, with the MRR delta it caused.
+// This is the ONLY source of true MRR-trend + churn history — orgSubscriptions is
+// upserted in place, so without this table the past is unrecoverable. History accrues
+// from the day this ships forward (no backfill possible). org-scoped (RLS policied);
+// read cross-tenant by the owner under withPlatformScope.
+export const subscriptionEvents = pgTable(
+  "subscription_events",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    type: text("type").notNull(),          // ACTIVATED | RENEWED | UPGRADED | DOWNGRADED | EXPIRED | CANCELLED | REACTIVATED
+    planName: text("plan_name"),
+    interval: text("interval"),            // MONTHLY | ANNUAL at the time of the event
+    mrrBefore: money("mrr_before").notNull().default("0"),
+    mrrAfter: money("mrr_after").notNull().default("0"),
+    mrrDelta: money("mrr_delta").notNull().default("0"),
+    note: text("note"),
+    byUserId: uuid("by_user_id").references(() => users.id, { onDelete: "set null" }),
+    at: ts("at").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscription_events_org_idx").on(t.organizationId), index("subscription_events_at_idx").on(t.at)],
+);
+
+// Daily platform-wide MRR snapshot written by the cron. Platform-global (no org),
+// so — like `plans`/`discount_coupons` — it is NOT RLS-policied. Powers the trend line.
+export const mrrSnapshots = pgTable(
+  "mrr_snapshots",
+  {
+    id: pk(),
+    snapshotDate: date("snapshot_date").notNull(),
+    mrr: money("mrr").notNull().default("0"),
+    arr: money("arr").notNull().default("0"),
+    activeCount: integer("active_count").notNull().default(0),
+    trialCount: integer("trial_count").notNull().default(0),
+    expiredCount: integer("expired_count").notNull().default(0),
+    orgCount: integer("org_count").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("mrr_snapshots_date_idx").on(t.snapshotDate)],
 );
 
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */

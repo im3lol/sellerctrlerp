@@ -6,6 +6,7 @@ import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDue
 import { prepareSync, markSync, syncProductsCore } from "@/lib/erp/marketplace/sync-core";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
+import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,9 +57,15 @@ export async function GET(req: Request) {
     } catch { /* skip a connection on error */ }
   }
 
+  // 1c) Platform SaaS metrics: mark any lapsed subscriptions as EXPIRED events, then
+  // snapshot today's MRR — the only source of trend/churn history.
+  let expired = 0;
+  try { expired = await sweepExpirations(now); } catch { /* non-fatal */ }
+  try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
+
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -80,6 +87,6 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, sent });
   });
 }

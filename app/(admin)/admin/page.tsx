@@ -3,7 +3,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";
-import { computePlatformMetrics } from "@/lib/erp/platform-metrics";
+import { computePlatformMetrics, getMrrTrend, getSubscriptionMovements } from "@/lib/erp/platform-metrics";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,26 @@ import { Badge } from "@/components/ui/badge";
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`;
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" });
+
+const EVENT_LABEL: Record<string, string> = { ACTIVATED: "تفعيل", RENEWED: "تجديد", UPGRADED: "ترقية", DOWNGRADED: "تخفيض", EXPIRED: "انتهاء", CANCELLED: "إلغاء" };
+
+/** Inline area chart of MRR over time — no external lib, theme-aware via the primary token. */
+function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
+  if (points.length < 2)
+    return <p className="grid h-[140px] place-items-center text-center text-sm text-muted-foreground">يتجمّع التاريخ من اليوم — ارجع بعد أيام لرؤية الاتجاه. 📈</p>;
+  const W = 600, H = 140, pad = 8;
+  const max = Math.max(...points.map((p) => p.mrr), 1), min = Math.min(...points.map((p) => p.mrr), 0);
+  const x = (i: number) => pad + (i / (points.length - 1)) * (W - 2 * pad);
+  const y = (v: number) => H - pad - ((v - min) / (max - min || 1)) * (H - 2 * pad);
+  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.mrr).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(points.length - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="اتجاه الإيراد الشهري المتكرر">
+      <path d={area} className="fill-primary/10" />
+      <path d={line} className="fill-none stroke-primary" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 
 const SECTIONS = [
   { label: "الباقات", desc: "خطط الاشتراك: الوحدات والحدود والأسعار.", href: "/admin/plans", icon: "Package" },
@@ -23,6 +43,8 @@ const SECTIONS = [
 export default async function AdminHome() {
   return withPlatformScope(async () => {
     const m = await computePlatformMetrics();
+    const trend = await getMrrTrend(90);
+    const { month: mv, recent } = await getSubscriptionMovements();
     const [{ coupons } = { coupons: 0 }] = await db
       .select({ coupons: sql<number>`count(*)::int` }).from(discountCoupons).where(sql`is_active`);
 
@@ -49,6 +71,44 @@ export default async function AdminHome() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* MRR trend + this-month movement */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardContent className="pt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 font-semibold"><Icon name="TrendingUp" className="size-4" />اتجاه الإيراد الشهري (MRR)</h3>
+                <span className="text-sm tabular-nums text-muted-foreground">{egp(m.mrr)}/شهر</span>
+              </div>
+              <MrrTrend points={trend} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="ArrowLeftRight" className="size-4" />حركة الشهر</h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex justify-between"><span className="text-muted-foreground">جديد</span><span className="tabular-nums text-emerald-600">+{egp(mv.newMrr)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">ترقيات</span><span className="tabular-nums text-emerald-600">+{egp(mv.expansionMrr)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">تخفيضات</span><span className="tabular-nums text-amber-600">−{egp(mv.contractionMrr)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">منسحب (churn)</span><span className="tabular-nums text-destructive">−{egp(mv.churnedMrr)}</span></li>
+                <li className="mt-1 flex justify-between border-t pt-2 font-medium"><span>الصافي</span><span className={`tabular-nums ${mv.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{mv.net >= 0 ? "+" : "−"}{egp(Math.abs(mv.net))}</span></li>
+              </ul>
+              {recent.length > 0 && (
+                <div className="mt-3 border-t pt-2">
+                  <div className="mb-1 text-xs text-muted-foreground">أحدث الأحداث</div>
+                  <ul className="space-y-1 text-xs">
+                    {recent.slice(0, 4).map((e, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2">
+                        <span className="truncate text-muted-foreground">{EVENT_LABEL[e.type] ?? e.type}{e.planName ? ` · ${e.planName}` : ""}</span>
+                        <span className={`shrink-0 tabular-nums ${e.mrrDelta >= 0 ? "text-emerald-600" : "text-destructive"}`}>{e.mrrDelta >= 0 ? "+" : "−"}{egp(Math.abs(e.mrrDelta))}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

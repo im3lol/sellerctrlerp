@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { plans, orgSubscriptions, subscriptionRequests } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
+import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
 type Res = { ok: true } | { error: string };
 
@@ -41,8 +42,18 @@ export async function approveRequestAction(id: string): Promise<Res> {
       expiresAt: addInterval(now, req.interval),
       updatedAt: now,
     };
+    // Prior MRR contribution, to log the activation/renewal/upgrade movement.
+    const [prev] = await db.select({ status: orgSubscriptions.status, price: orgSubscriptions.price, interval: orgSubscriptions.interval, expiresAt: orgSubscriptions.expiresAt })
+      .from(orgSubscriptions).where(eq(orgSubscriptions.organizationId, req.organizationId)).limit(1);
+    const oldLive = prev ? isLiveRevenue(prev.status, prev.expiresAt ? new Date(prev.expiresAt) : null, now) : false;
+    const oldMrr = oldLive ? normalizeMrr(Number(prev!.price), prev!.interval) : 0;
+    const newMrr = normalizeMrr(Number(req.price), req.interval); // approve always → live ACTIVE
+
     await db.insert(orgSubscriptions).values(values).onConflictDoUpdate({ target: orgSubscriptions.organizationId, set: values });
     await db.update(subscriptionRequests).set({ status: "APPROVED", reviewedBy: actor.id, reviewedAt: now }).where(eq(subscriptionRequests.id, id));
+
+    const type = classifyTransition({ oldMrr, newMrr, oldLive, newLive: true, newStatus: "ACTIVE" });
+    if (type) await recordSubscriptionEvent(db, { orgId: req.organizationId, type, planName: req.planName, interval: req.interval, mrrBefore: oldMrr, mrrAfter: newMrr, byUserId: actor.id, note: "من طلب اشتراك", at: now });
 
     revalidatePath("/admin/licensing");
     revalidatePath("/admin");
