@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -117,16 +117,57 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
   );
 }
 
+const DAY = 86_400_000;
+const mrrOf = (o: OrgSub) => (o.status === "ACTIVE" && (!o.expiresAt || new Date(o.expiresAt).getTime() > Date.now()) ? (o.interval === "ANNUAL" ? o.price / 12 : o.price) : 0);
+const daysLeftOf = (o: OrgSub) => (o.expiresAt ? Math.ceil((new Date(o.expiresAt).getTime() - Date.now()) / DAY) : null);
+const isAtRisk = (o: OrgSub) => { const d = daysLeftOf(o); return o.status === "EXPIRED" || o.status === "CANCELLED" || (o.status === "ACTIVE" && d != null && d <= 7); };
+
 export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
   const [editing, setEditing] = useState<OrgSub | null>(null);
   const [imp, startImp] = useTransition();
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("ALL");
+  const [sortK, setSortK] = useState("name");
+  const [riskOnly, setRiskOnly] = useState(false);
   const support = (id: string) => startImp(async () => {
     const r = await impersonateTenantAction(id); // redirects on success; returns on error
     if (r && "error" in r) toast.error(r.error);
   });
+
+  const view = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    let v = orgs.filter((o) =>
+      (!needle || o.name.toLowerCase().includes(needle)) &&
+      (statusF === "ALL" || o.status === statusF) &&
+      (!riskOnly || isAtRisk(o)),
+    );
+    const cmp: Record<string, (a: OrgSub, b: OrgSub) => number> = {
+      name: (a, b) => a.name.localeCompare(b.name, "ar"),
+      mrr: (a, b) => mrrOf(b) - mrrOf(a),
+      members: (a, b) => b.members - a.members,
+      expiry: (a, b) => (daysLeftOf(a) ?? Infinity) - (daysLeftOf(b) ?? Infinity),
+    };
+    return [...v].sort(cmp[sortK] ?? cmp.name);
+  }, [orgs, q, statusF, sortK, riskOnly]);
+
   return (
     <Card>
       <CardContent className="p-0">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث باسم المؤسسة…" className="h-9 max-w-xs" />
+          <select value={statusF} onChange={(e) => setStatusF(e.target.value)} className={`${selectCls} h-9 w-auto`}>
+            <option value="ALL">كل الحالات</option>
+            {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <select value={sortK} onChange={(e) => setSortK(e.target.value)} className={`${selectCls} h-9 w-auto`}>
+            <option value="name">ترتيب: الاسم</option>
+            <option value="mrr">ترتيب: الإيراد</option>
+            <option value="expiry">ترتيب: الأقرب انتهاءً</option>
+            <option value="members">ترتيب: المستخدمون</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground"><input type="checkbox" checked={riskOnly} onChange={(e) => setRiskOnly(e.target.checked)} className="size-4" />معرّض للخطر فقط</label>
+          <span className="ms-auto text-sm text-muted-foreground tabular-nums">{view.length} / {orgs.length}</span>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -141,7 +182,10 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orgs.map((o) => {
+            {view.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">لا مؤسسات مطابقة.</TableCell></TableRow>
+            )}
+            {view.map((o) => {
               const st = STATUS[o.status] ?? STATUS.NONE;
               return (
                 <TableRow key={o.id}>
