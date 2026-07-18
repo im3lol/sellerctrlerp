@@ -3,6 +3,7 @@
 export type AdminNavItem = { label: string; href: string; icon: string; desc: string; exact?: boolean };
 export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "نظرة عامة", href: "/admin", icon: "LayoutDashboard", exact: true, desc: "أداء المنصّة: الإيراد والاشتراكات والتجديدات." },
+  { label: "التحليلات", href: "/admin/analytics", icon: "ChartLine", desc: "التحويل والاحتفاظ وقيمة العميل (LTV/ARPU/churn)." },
   { label: "الباقات", href: "/admin/plans", icon: "Package", desc: "خطط الاشتراك: الوحدات والحدود والأسعار." },
   { label: "المؤسسات والاشتراكات", href: "/admin/licensing", icon: "Building2", desc: "الاشتراكات، الاستهلاك، طلبات التفعيل." },
   { label: "التحصيلات", href: "/admin/collections", icon: "Wallet", desc: "تسجيل مدفوعات المؤسسات مقابل الاشتراك." },

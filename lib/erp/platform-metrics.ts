@@ -206,6 +206,45 @@ export function sweepExpirations(now = new Date()): Promise<number> {
   });
 }
 
+/**
+ * Owner SaaS analytics — conversion, ARPU, LTV, churn — layered on the point-in-time
+ * metrics + the event log. Rates use the trailing 30 days; they only become meaningful
+ * once the event history has accrued (nothing to backfill).
+ */
+export function getOwnerAnalytics(now = new Date()): Promise<{
+  mrr: number; arr: number; activeCount: number; trialCount: number; expiredCount: number; orgCount: number;
+  arpu: number; conversionRate: number; convertedOrgs: number; newSignups30d: number;
+  newMrr30d: number; churnedMrr30d: number; churnRate: number; ltv: number | null;
+}> {
+  return withPlatformScope(async () => {
+    const m = await computePlatformMetrics(now);
+    const since = new Date(now.getTime() - 30 * DAY);
+
+    const events = await db
+      .select({ organizationId: subscriptionEvents.organizationId, type: subscriptionEvents.type, mrrDelta: subscriptionEvents.mrrDelta, at: subscriptionEvents.at })
+      .from(subscriptionEvents);
+    const converted = new Set(events.filter((e) => e.type === "ACTIVATED").map((e) => e.organizationId));
+    const recent = events.filter((e) => new Date(e.at).getTime() >= since.getTime());
+    const mv = summarizeMovements(recent.map((e) => ({ type: e.type, mrrDelta: e.mrrDelta })));
+
+    const [{ signups = 0 } = {}] = await db
+      .select({ signups: sql<number>`count(*)::int` }).from(organizations).where(gte(organizations.createdAt, since));
+
+    const arpu = m.activeCount > 0 ? round2(m.mrr / m.activeCount) : 0;
+    const conversionRate = m.orgCount > 0 ? round2((converted.size / m.orgCount) * 100) : 0;
+    // Monthly gross MRR churn = churned / the base that could have churned (current + churned).
+    const base = m.mrr + mv.churnedMrr;
+    const churnRate = base > 0 ? round2((mv.churnedMrr / base) * 100) : 0;
+    const ltv = churnRate > 0 ? round2(arpu / (churnRate / 100)) : null; // ARPU ÷ monthly churn
+
+    return {
+      mrr: m.mrr, arr: m.arr, activeCount: m.activeCount, trialCount: m.trialCount, expiredCount: m.expiredCount, orgCount: m.orgCount,
+      arpu, conversionRate, convertedOrgs: converted.size, newSignups30d: Number(signups),
+      newMrr30d: mv.newMrr, churnedMrr30d: mv.churnedMrr, churnRate, ltv,
+    };
+  });
+}
+
 /** Realized-revenue summary from the collections ledger: this month + all time + recent. */
 export function getCollectionsSummary(now = new Date(), recentLimit = 20): Promise<{
   thisMonth: number; allTime: number;
