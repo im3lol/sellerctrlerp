@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { Logo } from "@/components/brand/logo";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 
 // Standalone admin panel — its own shell, no ERP nav, system_admin ONLY. Anyone
@@ -28,7 +29,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
           <span className="font-semibold">لوحة الإدارة</span>
-          <div className="ms-auto">
+          <div className="ms-auto flex items-center gap-2">
+            <ThemeToggle />
             <UserMenu name={user.name} email={user.email} role={user.role} title={user.title} avatarUrl={user.avatarUrl} />
           </div>
         </header>

@@ -1,9 +1,7 @@
-import { Loader2 } from "lucide-react";
+import { PageSkeleton } from "@/components/erp/skeletons";
 
+// Global fallback for every (app) route — a structured page skeleton instead of a
+// bare spinner. Route-specific loading.tsx (dashboard, admin) override this.
 export default function Loading() {
-  return (
-    <div className="flex h-[60vh] items-center justify-center">
-      <Loader2 className="size-8 animate-spin text-primary" />
-    </div>
-  );
+  return <PageSkeleton />;
 }

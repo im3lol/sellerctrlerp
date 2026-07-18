@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${thmanyah.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" suppressHydrationWarning className={`${thmanyah.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground font-sans">
         <Providers>{children}</Providers>
       </body>
