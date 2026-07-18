@@ -7,7 +7,7 @@ import { emitErpEvent } from "@/lib/erp/realtime";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
 
-export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT";
+export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT" | "IMPERSONATE";
 
 export type AuditInput = {
   orgId: string;

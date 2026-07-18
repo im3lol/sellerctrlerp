@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { setSubscriptionAction } from "@/app/actions/admin/licensing";
+import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +118,11 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
 
 export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
   const [editing, setEditing] = useState<OrgSub | null>(null);
+  const [imp, startImp] = useTransition();
+  const support = (id: string) => startImp(async () => {
+    const r = await impersonateTenantAction(id); // redirects on success; returns on error
+    if (r && "error" in r) toast.error(r.error);
+  });
   return (
     <Card>
       <CardContent className="p-0">
@@ -145,7 +151,12 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
                   <TableCell className="text-sm tabular-nums">{fmtBytes(o.storageBytes)}{o.storageGb != null ? ` / ${o.storageGb} ج.ب` : ""}</TableCell>
                   <TableCell className="text-sm">{o.expiresAt || <span className="text-muted-foreground">بلا انتهاء</span>}</TableCell>
                   <TableCell className="text-sm">{o.status === "NONE" ? "الكل (افتراضي)" : `${o.enabledModules.length}/${ALL_MODULES.length}`}</TableCell>
-                  <TableCell><Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button>
+                      <Button size="sm" variant="ghost" disabled={imp} onClick={() => support(o.id)} title="دخول لمساحة المؤسسة للدعم">دخول للدعم</Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}

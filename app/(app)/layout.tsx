@@ -10,6 +10,8 @@ import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
 import { LiveRefresh } from "@/components/app-shell/live-refresh";
+import { Icon } from "@/components/icon";
+import { exitImpersonationAction } from "@/app/actions/admin/impersonate";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -55,6 +57,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           modules={enabledModules}
           platforms={platforms}
         />
+        {user.role === "system_admin" && activeOrg.org && (
+          <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">
+            <span className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
+              <Icon name="ShieldAlert" className="size-4" />
+              وضع الدعم — أنت داخل «{activeOrg.org.nameAr}» كمشرف المنصّة
+            </span>
+            <form action={exitImpersonationAction}>
+              <button type="submit" className="shrink-0 rounded-md border border-amber-500/50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400">
+                خروج للوحة الإدارة
+              </button>
+            </form>
+          </div>
+        )}
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
       {user.role !== "system_admin" && <OnboardingTour />}
