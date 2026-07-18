@@ -7,6 +7,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
 import { SettingsForm, type OrgProfile, type AccountOption, type AccountingConfig } from "@/components/erp/settings-form";
+import { listBackups } from "@/lib/erp/backup";
+
+const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : `${(b / 1024 / 1024).toFixed(1)} م.ب`);
+const bdt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" });
 
 const MANAGE_LINKS = [
   { label: "دليل الحسابات",       href: "/erp/accounting/chart",       icon: "Calculator" },
@@ -22,6 +26,7 @@ const MANAGE_LINKS = [
 export default async function ErpSettingsPage() {
   return loadErpPage("settings.view", async ({ orgId, role, can }) => {
     const canEdit = can("settings.edit");
+    const backups = canEdit ? await listBackups(orgId, 8) : [];
 
     const [[org], accs, [config]] = await Promise.all([
       db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1),
@@ -94,6 +99,19 @@ export default async function ErpSettingsPage() {
               <a href="/api/erp/backup" download className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                 <Icon name="Download" className="size-4" />تحميل نسخة من بياناتي
               </a>
+              {backups.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <div className="mb-2 text-sm font-medium text-muted-foreground">نسخ محفوظة تلقائيًا</div>
+                  <ul className="divide-y">
+                    {backups.map((b) => (
+                      <li key={b.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                        <span className="text-muted-foreground">{bdt(b.createdAt)} · {fmtBytes(b.sizeBytes)}</span>
+                        <a href={`/api/erp/backups/${b.id}`} className="text-primary hover:underline">تنزيل</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

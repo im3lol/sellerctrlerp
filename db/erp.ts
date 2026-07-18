@@ -1972,6 +1972,25 @@ export const subscriptionPayments = pgTable(
   (t) => [index("subscription_payments_org_idx").on(t.organizationId), index("subscription_payments_paid_idx").on(t.paidAt)],
 );
 
+// History of per-tenant backups stored in object storage (scheduled by the daily cron,
+// or manual). Holds the storage key + metadata so the owner/tenant can list and
+// re-download them; retention prunes old rows + their objects. org-scoped (RLS policied).
+export const backupRuns = pgTable(
+  "backup_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    storageKey: text("storage_key").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),   // gzipped size
+    totalRows: integer("total_rows").notNull().default(0),
+    tableCount: integer("table_count").notNull().default(0),
+    kind: text("kind").notNull().default("SCHEDULED"),        // SCHEDULED | MANUAL
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("backup_runs_org_idx").on(t.organizationId), index("backup_runs_created_idx").on(t.createdAt)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,

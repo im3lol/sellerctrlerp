@@ -101,6 +101,23 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
         </CardContent></Card>
       </div>
 
+      {/* Stored backups */}
+      <Card><CardContent className="pt-6">
+        <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="DatabaseBackup" className="size-4" />النسخ الاحتياطية المخزّنة</h3>
+        {t.backups.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">لا نسخ مخزّنة بعد — الكرون اليومي بيعمل نسخة تلقائيًا، أو استخدم زر «نسخة احتياطية» بالأعلى.</p>
+        ) : (
+          <ul className="divide-y">
+            {t.backups.map((b) => (
+              <li key={b.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div><span className="font-medium">{dt(b.createdAt)}</span> <Badge variant="secondary" className="ms-1">{b.kind === "MANUAL" ? "يدوي" : "تلقائي"}</Badge> <span className="text-xs text-muted-foreground">{int(b.totalRows)} صف · {fmtBytes(b.sizeBytes)}</span></div>
+                <a href={`/admin/tenants/${t.org.id}/backups/${b.id}`} className="text-primary hover:underline">تنزيل</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent></Card>
+
       {/* Collections history */}
       <Card><CardContent className="pt-6">
         <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="Receipt" className="size-4" />تاريخ التحصيلات</h3>

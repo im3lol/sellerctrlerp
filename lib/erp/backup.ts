@@ -1,8 +1,10 @@
 import "server-only";
 import { gzipSync } from "node:zlib";
-import { sql } from "drizzle-orm";
+import { sql, eq, and, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
+import { backupRuns } from "@/db/schema";
+import { putObject, deleteObject } from "@/lib/storage";
 
 export const BACKUP_VERSION = 1;
 
@@ -46,4 +48,41 @@ export function exportOrgData(orgId: string, orgName = "org"): Promise<OrgBackup
     const stamp = exportedAt.slice(0, 19).replace(/[:T]/g, "-");
     return { buffer, filename: `backup-${orgId}-${stamp}.json.gz`, totalRows, tableCount: tables.length, exportedAt };
   });
+}
+
+/**
+ * Export one org and store it in object storage, recording a backup_runs row. Call
+ * within an open scope (the cron runs under withPlatformScope; backup_runs is policied).
+ */
+export async function backupOrgToStorage(orgId: string, orgName: string, kind: "SCHEDULED" | "MANUAL" = "SCHEDULED", userId: string | null = null) {
+  const b = await exportOrgData(orgId, orgName);
+  const key = `backups/${orgId}/${b.filename}`;
+  await putObject(key, b.buffer, "application/gzip");
+  await db.insert(backupRuns).values({ organizationId: orgId, storageKey: key, sizeBytes: b.buffer.length, totalRows: b.totalRows, tableCount: b.tableCount, kind, createdById: userId });
+  return { key, ...b };
+}
+
+/** Recent stored backups for an org (newest first). Caller supplies the scope. */
+export function listBackups(orgId: string, limit = 20) {
+  return db.select({ id: backupRuns.id, storageKey: backupRuns.storageKey, sizeBytes: backupRuns.sizeBytes, totalRows: backupRuns.totalRows, kind: backupRuns.kind, createdAt: backupRuns.createdAt })
+    .from(backupRuns).where(eq(backupRuns.organizationId, orgId)).orderBy(desc(backupRuns.createdAt)).limit(limit);
+}
+
+/** Resolve a stored backup's object key for a run id, scoped to an org (null if not found). */
+export async function backupKeyFor(orgId: string, runId: string): Promise<string | null> {
+  const [row] = await db.select({ key: backupRuns.storageKey }).from(backupRuns)
+    .where(and(eq(backupRuns.id, runId), eq(backupRuns.organizationId, orgId))).limit(1);
+  return row?.key ?? null;
+}
+
+/** Keep only the newest `keep` backups per org; delete older rows + their objects. */
+export async function pruneBackups(orgId: string, keep = 14): Promise<number> {
+  const rows = await db.select({ id: backupRuns.id, storageKey: backupRuns.storageKey })
+    .from(backupRuns).where(eq(backupRuns.organizationId, orgId)).orderBy(desc(backupRuns.createdAt));
+  const old = rows.slice(keep);
+  for (const r of old) {
+    try { await deleteObject(r.storageKey); } catch { /* object may already be gone */ }
+    await db.delete(backupRuns).where(eq(backupRuns.id, r.id));
+  }
+  return old.length;
 }

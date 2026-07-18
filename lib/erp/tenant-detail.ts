@@ -4,6 +4,7 @@ import { withPlatformScope } from "@/lib/db-scope";
 import { organizations, orgSubscriptions, subscriptionEvents, subscriptionPayments, auditLogs } from "@/db/schema";
 import { normalizeMrr, isLiveRevenue } from "@/lib/erp/platform-metrics";
 import { orgActiveMemberCount, orgStorageBytes, orgLimits } from "@/lib/erp/plans";
+import { listBackups } from "@/lib/erp/backup";
 
 const DAY = 86_400_000;
 
@@ -47,6 +48,7 @@ export async function getTenantDetail(orgId: string, now = new Date()) {
     const members = await orgActiveMemberCount(orgId);
     const storageBytes = await orgStorageBytes(orgId);
     const limits = await orgLimits(orgId);
+    const backups = await listBackups(orgId, 10);
 
     const expiresAt = sub?.expiresAt ? new Date(sub.expiresAt) : null;
     const live = sub ? isLiveRevenue(sub.status, expiresAt, now) : false;
@@ -63,6 +65,7 @@ export async function getTenantDetail(orgId: string, now = new Date()) {
       collectedTotal: Number(collected),
       lastActivityAt: lastAudit?.at ? new Date(lastAudit.at) : null,
       usage: { members, storageBytes, maxUsers: limits.maxUsers, storageGb: limits.storageGb },
+      backups,
       mrr, live, daysLeft, health,
     };
   });
