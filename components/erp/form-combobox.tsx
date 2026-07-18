@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { ComboboxBase, type ComboOption } from "@/components/erp/combobox-base";
 
-export type FormComboOption = { id: string; label: string; hint?: string };
+export type FormComboOption = ComboOption;
 
 /**
- * Searchable combobox for NATIVE forms (server actions / method=GET). Mirrors the
- * in-cell CellCombobox UX — typeahead, suggestions on focus, portal panel — but is
- * self-contained: it keeps its own selection and submits the chosen id through a
- * hidden `<input name>` so it drops into an existing `<form>` in place of a
- * `<select name>`. On focus the field clears for typing; blur restores the label.
+ * Searchable combobox for NATIVE forms (server actions / method=GET). Same UX as
+ * CellCombobox, but self-contained: it keeps its own selection and submits the chosen
+ * id through a hidden `<input name>`, so it drops into an existing `<form>` in place of
+ * a `<select name>`. Thin wrapper over ComboboxBase.
  */
 export function FormCombobox({
   name,
@@ -27,80 +25,18 @@ export function FormCombobox({
   disabled?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState(defaultValue);
-  const [q, setQ] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const ddRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const reposition = () => {
-      const el = wrapRef.current;
-      if (el) { const r = el.getBoundingClientRect(); setRect({ top: r.bottom + 4, left: r.left, width: r.width }); }
-    };
-    reposition();
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
-    return () => { window.removeEventListener("scroll", reposition, true); window.removeEventListener("resize", reposition); };
-  }, [open]);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (wrapRef.current?.contains(t) || ddRef.current?.contains(t)) return;
-      setOpen(false); setEditing(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
-
-  const needle = q.trim().toLowerCase();
-  const filtered = (
-    needle
-      ? options.filter((o) => o.label.toLowerCase().includes(needle) || (o.hint ?? "").toLowerCase().includes(needle))
-      : options
-  ).slice(0, 50);
-
   const selectedLabel = options.find((o) => o.id === selectedId)?.label ?? "";
-  const pick = (o: FormComboOption) => { setSelectedId(o.id); setEditing(false); setOpen(false); setQ(""); };
-
-  const panel = open && rect && filtered.length > 0
-    ? createPortal(
-        <div
-          ref={ddRef}
-          style={{ position: "fixed", top: rect.top, left: rect.left, width: Math.max(rect.width, 240), zIndex: 9999 }}
-          className="max-h-72 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg"
-        >
-          {filtered.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => pick(o)}
-              className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-right text-sm hover:bg-accent hover:text-accent-foreground"
-            >
-              <span>{o.label}</span>
-              {o.hint && <span className="font-mono text-xs text-muted-foreground">{o.hint}</span>}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )
-    : null;
-
   return (
-    <div ref={wrapRef}>
+    <div>
       <input type="hidden" name={name} value={selectedId} />
-      <Input
-        value={editing ? q : selectedLabel}
+      <ComboboxBase
+        displayValue={selectedLabel}
+        options={options}
+        onPick={(o) => setSelectedId(o.id)}
         placeholder={placeholder}
-        autoComplete="off"
         disabled={disabled}
-        onFocus={() => { setEditing(true); setQ(""); setOpen(true); }}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        minWidthClass=""
       />
-      {panel}
     </div>
   );
 }
