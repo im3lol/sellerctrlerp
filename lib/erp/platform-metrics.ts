@@ -1,7 +1,8 @@
 import { desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
-import { organizations, orgSubscriptions, subscriptionRequests, subscriptionEvents, mrrSnapshots, subscriptionPayments } from "@/db/schema";
+import { organizations, orgSubscriptions, subscriptionRequests, subscriptionEvents, mrrSnapshots, subscriptionPayments, auditLogs } from "@/db/schema";
+import { and, inArray, or } from "drizzle-orm";
 import { TRIAL_DAYS } from "@/lib/erp/subscription";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -267,6 +268,63 @@ export function getCollectionsSummary(now = new Date(), recentLimit = 20): Promi
       thisMonth: Number(month), allTime: Number(all),
       recent: recent.map((r) => ({ id: r.id, orgId: r.orgId, orgName: r.orgName ?? "—", amount: Number(r.amount), method: r.method, reference: r.reference, paidAt: new Date(r.paidAt) })),
     };
+  });
+}
+
+/**
+ * Owner alert counts for the "needs attention" strip: subscriptions expiring within 7
+ * days, pending activation requests, new signups (7d), and churned (7d).
+ */
+export function getOwnerAlerts(now = new Date()): Promise<{ expiring7d: number; pendingRequests: number; newSignups7d: number; churned7d: number }> {
+  return withPlatformScope(async () => {
+    const m = await computePlatformMetrics(now);
+    const since = new Date(now.getTime() - 7 * DAY);
+    const [{ signups = 0 } = {}] = await db.select({ signups: sql<number>`count(*)::int` }).from(organizations).where(gte(organizations.createdAt, since));
+    const [{ churned = 0 } = {}] = await db.select({ churned: sql<number>`count(*)::int` })
+      .from(subscriptionEvents).where(and(gte(subscriptionEvents.at, since), inArray(subscriptionEvents.type, ["EXPIRED", "CANCELLED"])));
+    return {
+      expiring7d: m.expiringSoon.filter((e) => e.daysLeft <= 7).length,
+      pendingRequests: m.pendingRequests,
+      newSignups7d: Number(signups),
+      churned7d: Number(churned),
+    };
+  });
+}
+
+export type ActivityItem = { at: Date; orgId: string; orgName: string; kind: "impersonate" | "collection" | "subscription"; label: string; detail: string | null; amount: number | null };
+
+/**
+ * Auditable owner-activity feed: platform-admin actions (support logins, recorded
+ * collections) from audit_logs + subscription state changes from the event log, merged
+ * and time-ordered across all tenants.
+ */
+export function getAdminActivity(limit = 40): Promise<ActivityItem[]> {
+  return withPlatformScope(async () => {
+    const audits = await db
+      .select({ at: auditLogs.createdAt, orgId: auditLogs.organizationId, orgName: organizations.nameAr, action: auditLogs.action, entityType: auditLogs.entityType, summary: auditLogs.summary })
+      .from(auditLogs).leftJoin(organizations, eq(organizations.id, auditLogs.organizationId))
+      .where(or(eq(auditLogs.action, "IMPERSONATE"), eq(auditLogs.entityType, "SUBSCRIPTION_PAYMENT")))
+      .orderBy(desc(auditLogs.createdAt)).limit(limit);
+
+    const events = await db
+      .select({ at: subscriptionEvents.at, orgId: subscriptionEvents.organizationId, orgName: organizations.nameAr, type: subscriptionEvents.type, planName: subscriptionEvents.planName, mrrDelta: subscriptionEvents.mrrDelta })
+      .from(subscriptionEvents).leftJoin(organizations, eq(organizations.id, subscriptionEvents.organizationId))
+      .orderBy(desc(subscriptionEvents.at)).limit(limit);
+
+    const EV: Record<string, string> = { ACTIVATED: "تفعيل اشتراك", RENEWED: "تجديد", UPGRADED: "ترقية باقة", DOWNGRADED: "تخفيض باقة", EXPIRED: "انتهاء اشتراك", CANCELLED: "إلغاء اشتراك" };
+    const merged: ActivityItem[] = [
+      ...audits.map((a): ActivityItem => ({
+        at: new Date(a.at), orgId: a.orgId, orgName: a.orgName ?? "—",
+        kind: a.action === "IMPERSONATE" ? "impersonate" : "collection",
+        label: a.action === "IMPERSONATE" ? "دخول للدعم" : "تسجيل تحصيل",
+        detail: a.summary ?? null, amount: null,
+      })),
+      ...events.map((e): ActivityItem => ({
+        at: new Date(e.at), orgId: e.orgId, orgName: e.orgName ?? "—", kind: "subscription",
+        label: EV[e.type] ?? e.type, detail: e.planName ?? null, amount: Number(e.mrrDelta) || null,
+      })),
+    ];
+    return merged.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limit);
   });
 }
 

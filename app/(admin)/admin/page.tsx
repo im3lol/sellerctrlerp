@@ -3,7 +3,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";
-import { computePlatformMetrics, getMrrTrend, getSubscriptionMovements, getCollectionsSummary } from "@/lib/erp/platform-metrics";
+import { computePlatformMetrics, getMrrTrend, getSubscriptionMovements, getCollectionsSummary, getOwnerAlerts } from "@/lib/erp/platform-metrics";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +43,13 @@ export default async function AdminHome() {
     const trend = await getMrrTrend(90);
     const { month: mv, recent } = await getSubscriptionMovements();
     const collected = await getCollectionsSummary();
+    const alerts = await getOwnerAlerts();
+    const alertChips = [
+      alerts.pendingRequests > 0 && { txt: `${int(alerts.pendingRequests)} طلب تفعيل معلّق`, href: "/admin/licensing", tone: "amber" },
+      alerts.expiring7d > 0 && { txt: `${int(alerts.expiring7d)} اشتراك ينتهي هذا الأسبوع`, href: "/admin/licensing", tone: "amber" },
+      alerts.churned7d > 0 && { txt: `${int(alerts.churned7d)} انسحاب هذا الأسبوع`, href: "/admin/analytics", tone: "red" },
+      alerts.newSignups7d > 0 && { txt: `${int(alerts.newSignups7d)} تسجيل جديد هذا الأسبوع`, href: "/admin/analytics", tone: "green" },
+    ].filter(Boolean) as { txt: string; href: string; tone: string }[];
     const [{ coupons } = { coupons: 0 }] = await db
       .select({ coupons: sql<number>`count(*)::int` }).from(discountCoupons).where(sql`is_active`);
 
@@ -57,6 +64,18 @@ export default async function AdminHome() {
     return (
       <div className="space-y-6">
         <PageHeader title="لوحة الإدارة" description="أداء المنصّة كـ SaaS — الإيراد والاشتراكات والتجديدات، منفصلة عن استخدام الـ ERP." />
+
+        {alertChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 p-3">
+            <Icon name="Bell" className="size-4 text-muted-foreground" />
+            {alertChips.map((c, i) => (
+              <Link key={i} href={c.href} className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                c.tone === "red" ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+                : c.tone === "green" ? "border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                : "border-amber-500/40 text-amber-600 hover:bg-amber-500/10"}`}>{c.txt}</Link>
+            ))}
+          </div>
+        )}
 
         {/* Hero KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">

@@ -8,6 +8,7 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "المؤسسات والاشتراكات", href: "/admin/licensing", icon: "Building2", desc: "الاشتراكات، الاستهلاك، طلبات التفعيل." },
   { label: "التحصيلات", href: "/admin/collections", icon: "Wallet", desc: "تسجيل مدفوعات المؤسسات مقابل الاشتراك." },
   { label: "كوبونات الخصم", href: "/admin/coupons", icon: "Ticket", desc: "أكواد خصم تُطبَّق على سعر الاشتراك." },
+  { label: "سجل النشاط", href: "/admin/activity", icon: "History", desc: "دخول الدعم والتحصيلات وتغييرات الاشتراكات." },
   { label: "الأكاديمية", href: "/admin/academy", icon: "GraduationCap", desc: "محتوى التدريب والشرح للمنتج." },
   { label: "آخر التحديثات", href: "/admin/changelog", icon: "Sparkles", desc: "ملاحظات الإصدارات المعروضة للعملاء." },
   { label: "الاقتراحات والشكاوى", href: "/admin/feedback", icon: "MessageSquarePlus", desc: "صندوق ملاحظات المؤسسات عبر النظام." },
