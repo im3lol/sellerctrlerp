@@ -8,6 +8,7 @@ import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ADMIN_NAV } from "@/components/admin/admin-nav";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`;
@@ -33,13 +34,8 @@ function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
   );
 }
 
-const SECTIONS = [
-  { label: "الباقات", desc: "خطط الاشتراك: الوحدات والحدود والأسعار.", href: "/admin/plans", icon: "Package" },
-  { label: "المؤسسات والاشتراكات", desc: "الاشتراكات، الاستهلاك، طلبات التفعيل.", href: "/admin/licensing", icon: "Building2" },
-  { label: "التحصيلات", desc: "تسجيل مدفوعات المؤسسات مقابل الاشتراك.", href: "/admin/collections", icon: "Wallet" },
-  { label: "كوبونات الخصم", desc: "أكواد خصم على سعر الاشتراك.", href: "/admin/coupons", icon: "Ticket" },
-  { label: "أدوات النظام", desc: "حالة الخادم وقاعدة البيانات والتخزين.", href: "/admin/system", icon: "Server" },
-] as const;
+// Every admin section except the overview itself — single source (no drift).
+const SECTIONS = ADMIN_NAV.filter((n) => n.href !== "/admin");
 
 export default async function AdminHome() {
   return withPlatformScope(async () => {
