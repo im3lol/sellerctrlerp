@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { JournalTable } from "@/components/erp/journal-table";
+import { selectCls } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 const SOURCE: Record<string, string> = {
@@ -30,7 +31,6 @@ const SOURCE: Record<string, string> = {
 const SOURCE_FILTER = ["MANUAL", "SALES_INVOICE", "PURCHASE_INVOICE", "RECEIPT_VOUCHER", "PAYMENT_VOUCHER", "SALES_RETURN", "PURCHASE_RETURN", "REVERSAL", "STOCK_ADJUSTMENT"];
 
 const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 type SP = { q?: string; status?: string; source?: string; from?: string; to?: string; page?: string };
 

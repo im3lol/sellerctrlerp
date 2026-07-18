@@ -15,13 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 export type AdminEntry = {
   id: string; title: string; body: string; kind: string;
   module: string | null; releasedAt: string; isPublished: boolean;
 };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 function EditDialog({ entry, today, onClose }: { entry: AdminEntry | null; today: string; onClose: () => void }) {
   const router = useRouter();

@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { GoodsReceiptsTable } from "@/components/erp/goods-receipts-table";
+import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"]];
 
 type SP = { [k: string]: string | string[] | undefined };

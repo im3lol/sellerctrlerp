@@ -15,12 +15,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Account = { id: string; code: string; name: string };
 type EditLine = { accountId: string; debit: string; credit: string; description: string };
 export type RJ = { id: string; name: string; description: string; frequency: string; nextRunDate: string; isActive: boolean; lines: { accountId: string; debit: number; credit: number; description: string }[] };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nl = (): EditLine => ({ accountId: "", debit: "", credit: "", description: "" });
 

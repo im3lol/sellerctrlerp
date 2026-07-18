@@ -11,12 +11,11 @@ import { PAYMENT_METHODS, WALLET_NUMBER } from "@/lib/erp/payment-info";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
 
 const egp = (n: number) => n.toLocaleString("ar-EG");
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const STEPS = ["بيانات الشركة", "الوحدات", "الباقة والتجربة"];
 
 export function SignupWizard({ plans }: { plans: PlanCard[] }) {

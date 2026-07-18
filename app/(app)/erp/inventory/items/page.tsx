@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemsTable } from "@/components/erp/items-table";
+import { selectCls } from "@/lib/utils";
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const PER_PAGE = 20;
 

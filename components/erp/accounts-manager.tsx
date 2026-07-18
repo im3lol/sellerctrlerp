@@ -17,6 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { selectCls } from "@/lib/utils";
 
 export type Account = {
   id: string; code: string; nameAr: string; nameEn: string | null;
@@ -27,7 +28,6 @@ const TYPE_LABELS: Record<string, string> = {
   ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات",
 };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm";
 
 function SubmitBtn() {
   const { pending } = useFormStatus();

@@ -11,13 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type OpenOrder = { id: string; number: string; customerId: string | null; dateLabel: string };
 type Line = DeliverableLine & { warehouseId: string; now: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export function DeliveryForm({

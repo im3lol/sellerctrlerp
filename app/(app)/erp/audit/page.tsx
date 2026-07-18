@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 20;
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const dt = (d: Date) => new Date(d).toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 const ACTION: Record<string, { ar: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {

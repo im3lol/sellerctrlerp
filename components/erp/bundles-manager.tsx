@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
+import { selectCls } from "@/lib/utils";
 
 type ItemOpt = { id: string; code: string | null; name: string | null };
 type Wh = { id: string; name: string };
@@ -21,7 +22,6 @@ type Comp = { id: string; name: string | null; code: string | null; quantity: nu
 export type Bundle = { parentItemId: string; name: string; code: string | null; components: Comp[] };
 type Assembly = { number: string; date: string; quantity: number; totalCost: number; kit: string; warehouse: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function BomDialog({ bundle, items, onClose }: { bundle: Bundle | null; items: ItemOpt[]; onClose: () => void }) {

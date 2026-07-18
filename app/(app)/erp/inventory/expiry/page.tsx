@@ -11,12 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { Pagination } from "@/components/erp/pagination";
+import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 const STATUS_OPTIONS: [string, string][] = [["EXPIRED", "منتهي"], ["NEAR", "قرب الانتهاء"], ["OK", "سليم"]];
 

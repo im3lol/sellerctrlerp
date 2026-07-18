@@ -17,13 +17,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { ItemPicker } from "@/components/erp/item-picker";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
 type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number };
 export type RSI = { id: string; customerId: string; customer: string; frequency: string; nextRunDate: string; isActive: boolean; notes: string; total: number; lines: Line[] };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nl = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });

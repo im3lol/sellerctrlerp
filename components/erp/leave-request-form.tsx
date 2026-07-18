@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Employee = { id: string; label: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employees: Employee[]; orgName: string; holidays?: string[] }) {
   const router = useRouter();

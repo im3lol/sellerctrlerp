@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function BalanceSheetPage({

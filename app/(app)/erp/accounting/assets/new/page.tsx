@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { createAssetAction } from "@/app/actions/erp/fixed-assets";
 import { FormCombobox } from "@/components/erp/form-combobox";
+import { selectCls } from "@/lib/utils";
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 const CATEGORIES = [
   ["BUILDING", "مباني"], ["VEHICLE", "مركبات"], ["EQUIPMENT", "معدات"],

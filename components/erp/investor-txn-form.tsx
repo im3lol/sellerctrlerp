@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { FormCombobox } from "@/components/erp/form-combobox";
 import { createInvestmentAction, createWithdrawalAction } from "@/app/actions/erp/investor-equity";
+import { selectCls } from "@/lib/utils";
 
 export type Opt = { id: string; label: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 /**
  * Records capital in (`investment`) or money out (`withdrawal`).

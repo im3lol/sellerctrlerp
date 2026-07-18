@@ -17,13 +17,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Icon } from "@/components/icon";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type CostCenter = {
   id: string; code: string; nameAr: string; nameEn: string | null; parentId: string | null; isActive: boolean;
 };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm";
 
 function SubmitBtn() {
   const { pending } = useFormStatus();

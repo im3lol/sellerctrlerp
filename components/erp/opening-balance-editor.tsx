@@ -11,7 +11,7 @@ import { Icon } from "@/components/icon";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { saveOpeningBalanceAction, postOpeningBalanceAction } from "@/app/actions/erp/opening-balance";
 import { totals, validateOpening, type OpeningKind, type OpeningLine } from "@/lib/erp/opening-balance";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type Opt = { id: string; label: string };
 type Row = {
@@ -24,7 +24,6 @@ type Row = {
 };
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const blank = (kind: OpeningKind = "ACCOUNT"): Row =>
   ({ kind, ref: "", refLabel: "", warehouseId: "", warehouseLabel: "", debit: "", credit: "", quantity: "", unitCost: "" });
 

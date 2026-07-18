@@ -15,6 +15,7 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
@@ -25,7 +26,6 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
 export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[] }) {

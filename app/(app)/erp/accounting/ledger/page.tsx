@@ -7,10 +7,10 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 export default async function GeneralLedgerPage({
   searchParams,

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type InboxItem = {
   id: string; kind: string; subject: string; message: string;
@@ -32,7 +32,6 @@ const TABS = [
   { value: "", label: "الكل" },
 ];
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }) {
   const router = useRouter();

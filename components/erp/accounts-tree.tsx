@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Icon } from "@/components/icon";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type Account = {
   id: string; code: string; nameAr: string; nameEn: string | null;
@@ -28,7 +28,6 @@ export type Account = {
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات",
 };
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm";
 const money = (n: number) => Math.abs(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Balance label: net = debit − credit → Dr if ≥0, Cr if <0. */

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectCls } from "@/lib/utils";
 
 export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
@@ -21,7 +22,6 @@ export type AccountOption = { id: string; code: string; nameAr: string; type: st
 
 export type AccountingConfig = Record<string, string | null> | null;
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function SaveBtn({ label = "حفظ" }: { label?: string }) {
   const { pending } = useFormStatus();

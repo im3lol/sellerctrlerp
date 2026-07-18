@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
 import { ItemCombobox } from "@/components/erp/item-combobox";
+import { selectCls } from "@/lib/utils";
 
 const CODE_TYPES = ["BARCODE", "SKU", "ASIN", "UPC", "EAN", "FNSKU", "AMAZON", "NOON", "OTHER"] as const;
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 
 type CodeRow = { codeType: string; code: string };
 export type ItemFormInitial = {

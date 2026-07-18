@@ -9,9 +9,9 @@ import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesLedgerTable } from "@/components/erp/sales-ledger-table";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
+import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 20;
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 const DOC_TYPES: [string, string][] = [
   ["ORDER", "أوامر البيع"],

@@ -15,13 +15,13 @@ import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; taxAmount: number };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });

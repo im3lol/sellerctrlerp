@@ -11,12 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type BillableReceipt = { id: string; number: string; supplierId: string | null; dateLabel: string };
 type CurrencyOption = { code: string; nameAr: string; isBase: boolean; exchangeRate: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 

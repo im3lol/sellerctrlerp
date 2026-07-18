@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemPickerField } from "@/components/erp/item-picker-field";
+import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 50;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qfmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 const TYPE_OPTIONS: [string, string][] = [["IN", "وارد"], ["OUT", "منصرف"], ["ADJ", "تسوية"]];
 

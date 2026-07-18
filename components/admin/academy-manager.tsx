@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type AdminLesson = {
   id: string; slug: string; title: string; module: string; kind: string;
@@ -27,7 +27,6 @@ export type AdminLesson = {
   level: string; sortOrder: number; isActive: boolean;
 };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 /** Ready = this row's own content field is filled. Mirrors isLive — the customer's rule. */
 const live = (l: AdminLesson) => (l.kind === "video" ? !!l.url : !!l.body) && l.isActive;

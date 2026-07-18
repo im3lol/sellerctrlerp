@@ -10,12 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 export type Member = { userId: string; name: string; email: string; role: string; isSystemAdmin: boolean; grant: string[]; revoke: string[] };
 export type Assignable = { id: string; name: string; email: string };
 type Catalog = { key: string; label: string; perms: { key: string; action: string }[] }[];
 
-const selectCls = "flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 type OverrideState = "inherit" | "grant" | "revoke";
 
 function OverridesDialog({

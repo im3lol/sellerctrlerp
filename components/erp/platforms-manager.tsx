@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
@@ -24,7 +25,6 @@ type Platform = {
 type Option = { id: string; nameAr: string };
 type ConnectorInfo = { code: string; label: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
 // Brand tiles for the automatic picker. Monochrome logos in /public/logos —

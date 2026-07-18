@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { LEAVE_TYPES } from "@/lib/erp/leave";
+import { selectCls } from "@/lib/utils";
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function LeaveReportPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {

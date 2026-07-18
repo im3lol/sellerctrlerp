@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { selectCls } from "@/lib/utils";
 
 type Acc = { id: string; label: string };
 type Line = { id: string; date: string; number: string; description: string; debit: number; credit: number; reconciled: boolean };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function ReconciliationClient({ accounts, selectedAccountId, lines }: { accounts: Acc[]; selectedAccountId: string; lines: Line[] }) {
