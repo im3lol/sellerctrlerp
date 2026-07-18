@@ -1949,6 +1949,29 @@ export const mrrSnapshots = pgTable(
   (t) => [uniqueIndex("mrr_snapshots_date_idx").on(t.snapshotDate)],
 );
 
+// Platform collections ledger: money the OWNER received from a tenant for their SaaS
+// subscription (realized revenue), distinct from MRR (contracted). Recorded by the
+// owner after an offline InstaPay/bank transfer. org-scoped (RLS policied).
+export const subscriptionPayments = pgTable(
+  "subscription_payments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    amount: money("amount").notNull().default("0"),
+    currency: text("currency").notNull().default("EGP"),
+    method: text("method").notNull().default("INSTAPAY"),   // INSTAPAY | BANK | VISA | CASH | OTHER
+    reference: text("reference"),                            // wallet/transfer txn no.
+    paidAt: ts("paid_at").notNull(),
+    periodStart: date("period_start"),                       // optional: which subscription period it covers
+    periodEnd: date("period_end"),
+    note: text("note"),
+    subscriptionRequestId: text("subscription_request_id"),  // link to the request it settled (no FK: soft)
+    recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscription_payments_org_idx").on(t.organizationId), index("subscription_payments_paid_idx").on(t.paidAt)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,

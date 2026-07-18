@@ -3,7 +3,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";
-import { computePlatformMetrics, getMrrTrend, getSubscriptionMovements } from "@/lib/erp/platform-metrics";
+import { computePlatformMetrics, getMrrTrend, getSubscriptionMovements, getCollectionsSummary } from "@/lib/erp/platform-metrics";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +36,7 @@ function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
 const SECTIONS = [
   { label: "الباقات", desc: "خطط الاشتراك: الوحدات والحدود والأسعار.", href: "/admin/plans", icon: "Package" },
   { label: "المؤسسات والاشتراكات", desc: "الاشتراكات، الاستهلاك، طلبات التفعيل.", href: "/admin/licensing", icon: "Building2" },
+  { label: "التحصيلات", desc: "تسجيل مدفوعات المؤسسات مقابل الاشتراك.", href: "/admin/collections", icon: "Wallet" },
   { label: "كوبونات الخصم", desc: "أكواد خصم على سعر الاشتراك.", href: "/admin/coupons", icon: "Ticket" },
   { label: "أدوات النظام", desc: "حالة الخادم وقاعدة البيانات والتخزين.", href: "/admin/system", icon: "Server" },
 ] as const;
@@ -45,6 +46,7 @@ export default async function AdminHome() {
     const m = await computePlatformMetrics();
     const trend = await getMrrTrend(90);
     const { month: mv, recent } = await getSubscriptionMovements();
+    const collected = await getCollectionsSummary();
     const [{ coupons } = { coupons: 0 }] = await db
       .select({ coupons: sql<number>`count(*)::int` }).from(discountCoupons).where(sql`is_active`);
 
@@ -165,13 +167,22 @@ export default async function AdminHome() {
         </div>
 
         {/* Secondary counters */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
           <Link href="/admin/licensing" className="block">
             <Card className={m.pendingRequests ? "border-amber-500/40 bg-amber-500/5 transition-colors hover:border-amber-500" : "transition-colors hover:border-primary"}>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Clock" className="size-4" />طلبات تفعيل معلّقة</div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">{int(m.pendingRequests)}</div>
                 {m.pendingRequests > 0 && <div className="text-xs text-amber-600">تحتاج مراجعة ←</div>}
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/admin/collections" className="block">
+            <Card className="transition-colors hover:border-primary">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Wallet" className="size-4" />محصّل هذا الشهر</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums">{egp(collected.thisMonth)}</div>
+                <div className="text-xs text-muted-foreground">الإجمالي {egp(collected.allTime)}</div>
               </CardContent>
             </Card>
           </Link>

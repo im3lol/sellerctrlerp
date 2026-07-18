@@ -1,7 +1,7 @@
 import { desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
-import { organizations, orgSubscriptions, subscriptionRequests, subscriptionEvents, mrrSnapshots } from "@/db/schema";
+import { organizations, orgSubscriptions, subscriptionRequests, subscriptionEvents, mrrSnapshots, subscriptionPayments } from "@/db/schema";
 import { TRIAL_DAYS } from "@/lib/erp/subscription";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -203,6 +203,31 @@ export function sweepExpirations(now = new Date()): Promise<number> {
       await recordSubscriptionEvent(db, { orgId: r.organization_id, type: "EXPIRED", planName: r.plan_name, interval: r.interval, mrrBefore: mrr, mrrAfter: 0, note: "انتهاء تلقائي", at: now });
     }
     return rows.length;
+  });
+}
+
+/** Realized-revenue summary from the collections ledger: this month + all time + recent. */
+export function getCollectionsSummary(now = new Date(), recentLimit = 20): Promise<{
+  thisMonth: number; allTime: number;
+  recent: { id: string; orgId: string; orgName: string; amount: number; method: string; reference: string | null; paidAt: Date }[];
+}> {
+  return withPlatformScope(async () => {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [{ month = 0, all = 0 } = {}] = await db
+      .select({
+        month: sql<number>`coalesce(sum(${subscriptionPayments.amount}) filter (where ${subscriptionPayments.paidAt} >= ${monthStart}), 0)`,
+        all: sql<number>`coalesce(sum(${subscriptionPayments.amount}), 0)`,
+      })
+      .from(subscriptionPayments);
+    const recent = await db
+      .select({ id: subscriptionPayments.id, orgId: subscriptionPayments.organizationId, orgName: organizations.nameAr, amount: subscriptionPayments.amount, method: subscriptionPayments.method, reference: subscriptionPayments.reference, paidAt: subscriptionPayments.paidAt })
+      .from(subscriptionPayments)
+      .leftJoin(organizations, eq(organizations.id, subscriptionPayments.organizationId))
+      .orderBy(desc(subscriptionPayments.paidAt)).limit(recentLimit);
+    return {
+      thisMonth: Number(month), allTime: Number(all),
+      recent: recent.map((r) => ({ id: r.id, orgId: r.orgId, orgName: r.orgName ?? "—", amount: Number(r.amount), method: r.method, reference: r.reference, paidAt: new Date(r.paidAt) })),
+    };
   });
 }
 

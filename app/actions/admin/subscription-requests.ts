@@ -4,7 +4,7 @@ import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { plans, orgSubscriptions, subscriptionRequests } from "@/db/schema";
+import { plans, orgSubscriptions, subscriptionRequests, subscriptionPayments } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
@@ -55,7 +55,16 @@ export async function approveRequestAction(id: string): Promise<Res> {
     const type = classifyTransition({ oldMrr, newMrr, oldLive, newLive: true, newStatus: "ACTIVE" });
     if (type) await recordSubscriptionEvent(db, { orgId: req.organizationId, type, planName: req.planName, interval: req.interval, mrrBefore: oldMrr, mrrAfter: newMrr, byUserId: actor.id, note: "من طلب اشتراك", at: now });
 
+    // Record the collection the request settles → realized-revenue ledger.
+    await db.insert(subscriptionPayments).values({
+      organizationId: req.organizationId, amount: req.price, currency: "EGP", method: req.paymentMethod,
+      reference: req.paymentReference, paidAt: now, periodStart: now.toISOString().slice(0, 10),
+      periodEnd: values.expiresAt.toISOString().slice(0, 10), subscriptionRequestId: req.id,
+      note: "تفعيل من طلب اشتراك", recordedBy: actor.id,
+    });
+
     revalidatePath("/admin/licensing");
+    revalidatePath("/admin/collections");
     revalidatePath("/admin");
     return { ok: true };
   });
