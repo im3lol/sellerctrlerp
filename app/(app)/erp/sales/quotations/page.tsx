@@ -9,6 +9,8 @@ import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { QuotationsTable } from "@/components/erp/quotations-table";
 
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default async function QuotationsPage() {
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.create");
@@ -23,10 +25,23 @@ export default async function QuotationsPage() {
       .where(eq(salesQuotations.organizationId, orgId))
       .orderBy(desc(salesQuotations.date), desc(salesQuotations.number));
 
+    // Rows are already loaded (no pagination) → summarize in JS, no extra query.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const totalValue = rows.reduce((s, r) => s + Number(r.total ?? 0), 0);
+    const validValue = rows.reduce((s, r) => s + (r.validUntil && new Date(r.validUntil).toISOString().slice(0, 10) >= todayIso ? Number(r.total ?? 0) : 0), 0);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="FileText" title="عروض الأسعار" subtitle={`${rows.length} عرض`} backHref="/erp/sales"
           action={canManage ? <Button asChild><Link href="/erp/sales/quotations/new"><Icon name="Plus" className="size-4" />عرض جديد</Link></Button> : undefined} />
+
+        {rows.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي قيمة العروض</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة العروض السارية</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(validValue)}</p></CardContent></Card>
+          </div>
+        )}
+
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (

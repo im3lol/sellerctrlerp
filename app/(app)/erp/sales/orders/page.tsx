@@ -13,6 +13,7 @@ import { SalesOrdersTable } from "@/components/erp/sales-orders-table";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_DELIVERED", "تسليم جزئي"],
   ["DELIVERED", "تم التسليم"], ["INVOICED", "مفوتر"], ["CANCELLED", "ملغى"],
@@ -40,10 +41,19 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     if (to) conds.push(lte(salesOrders.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [custList, [{ total }]] = await Promise.all([
+    const [custList, [{ total }], [sum]] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ total: count() }).from(salesOrders).where(where),
+      // Filter-aware pipeline value: total, still-open (not invoiced/cancelled), invoiced.
+      db.select({
+        value: sql<string>`coalesce(sum(${salesOrders.totalAmount}), 0)`,
+        open: sql<string>`coalesce(sum(${salesOrders.totalAmount}) filter (where ${salesOrders.status} not in ('INVOICED','CANCELLED')), 0)`,
+        invoiced: sql<string>`coalesce(sum(${salesOrders.totalAmount}) filter (where ${salesOrders.status} = 'INVOICED'), 0)`,
+      }).from(salesOrders).where(where),
     ]);
+    const totalValue = Number(sum?.value ?? 0);
+    const openValue = Number(sum?.open ?? 0);
+    const invoicedValue = Number(sum?.invoiced ?? 0);
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -119,6 +129,13 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
             </div>
           ) : undefined}
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي القيمة</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة الأوامر المفتوحة</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{money(openValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المفوترة</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(invoicedValue)}</p></CardContent></Card>
+        </div>
+
         <Card>
           <CardContent className="space-y-4 pt-6">
             <details open={hasFilters} className="rounded-lg border">
