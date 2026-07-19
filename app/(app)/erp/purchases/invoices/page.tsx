@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers, purchaseReturns } from "@/db/schema";
@@ -13,6 +13,7 @@ import { PurchaseInvoicesTable } from "@/components/erp/purchase-invoices-table"
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["POSTED", "مرحّلة"], ["PARTIAL_PAID", "مدفوعة جزئياً"], ["PAID", "مدفوعة"], ["CANCELLED", "ملغاة"],
 ];
@@ -40,10 +41,17 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
     if (to) conds.push(lte(purchaseInvoices.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [supList, [{ total }]] = await Promise.all([
+    const [supList, [{ total }], [sum]] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ total: count() }).from(purchaseInvoices).where(where),
+      // Filter-aware money totals (whole result set, not just the page).
+      db.select({
+        value: sql<string>`coalesce(sum(${purchaseInvoices.totalAmount}), 0)`,
+        due: sql<string>`coalesce(sum(${purchaseInvoices.balanceDue}), 0)`,
+      }).from(purchaseInvoices).where(where),
     ]);
+    const totalValue = Number(sum?.value ?? 0);
+    const totalDue = Number(sum?.due ?? 0);
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -102,6 +110,13 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
             <Button asChild><Link href="/erp/purchases/invoices/new"><Icon name="Plus" className="size-4" />فاتورة شراء</Link></Button>
           ) : undefined}
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي القيمة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المدفوع</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalValue - totalDue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المتبقّي (مستحق)</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalDue > 0 ? "text-amber-600" : ""}`}>{money(totalDue)}</p></CardContent></Card>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>الفواتير</CardTitle>
