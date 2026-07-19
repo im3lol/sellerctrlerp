@@ -163,7 +163,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "ORDER", status: r.status,
         qtyTotal: Number(q?.total ?? 0), qtyReceived: Number(q?.received ?? 0), qtyRejected: null,
         subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount),
-        tax: num(r.tax), total: num(r.total), href: `/erp/purchases/orders/${r.number}`,
+        tax: num(r.tax), total: num(r.total), href: `/purchases/orders/${r.number}`,
       });
     }
   }
@@ -203,7 +203,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
         supplierName: (r.supplierId && supMap.get(r.supplierId)) || "—", docType: "RECEIPT", status: r.status,
         qtyTotal: recv + rej, qtyReceived: recv, qtyRejected: rej,
         subtotal: null, shipping: null, discount: null, tax: null, total: null,
-        href: `/erp/purchases/receipts/${r.number}`,
+        href: `/purchases/receipts/${r.number}`,
       });
     }
   }
@@ -241,7 +241,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "INVOICE", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: null, qtyRejected: null,
         subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount),
-        tax: num(r.tax), total: num(r.total), href: `/erp/purchases/invoices/${r.number}`,
+        tax: num(r.tax), total: num(r.total), href: `/purchases/invoices/${r.number}`,
       });
     }
   }
@@ -277,7 +277,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
         supplierName: supMap.get(r.supplierId) ?? "—", docType: "RETURN", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: null, qtyRejected: null,
         subtotal: null, shipping: null, discount: null, tax: null, total: num(r.total),
-        href: `/erp/purchases/returns/${r.number}`,
+        href: `/purchases/returns/${r.number}`,
       });
     }
   }

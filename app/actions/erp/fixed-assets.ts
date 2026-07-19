@@ -91,8 +91,8 @@ export async function createAssetAction(input: {
         return row.id;
       });
 
-      revalidatePath("/erp/accounting/assets");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/accounting/assets");
+      revalidatePath("/accounting/journal");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الأصل" };
@@ -211,7 +211,7 @@ export async function postMonthlyDepreciationAction(input: {
       }
     });
 
-    revalidatePath("/erp/accounting/assets");
+    revalidatePath("/accounting/assets");
     return { ok: true, count: posted, skipped: skipped.length ? skipped : undefined };
   });
 }
@@ -341,9 +341,9 @@ export async function disposeAssetAction(input: {
       return { error: e instanceof Error ? e.message : "تعذّر ترحيل قيد الاستبعاد" };
     }
 
-    revalidatePath("/erp/accounting/assets");
-    revalidatePath(`/erp/accounting/assets/${input.id}`);
-    revalidatePath("/erp/accounting/journal");
+    revalidatePath("/accounting/assets");
+    revalidatePath(`/accounting/assets/${input.id}`);
+    revalidatePath("/accounting/journal");
     return { ok: true };
   });
 }

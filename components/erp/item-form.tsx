@@ -76,7 +76,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       });
       if (r.ok) {
         toast.success("تم حفظ الصنف");
-        router.push(r.id ? `/erp/inventory/items/${r.id}` : "/erp/inventory/items");
+        router.push(r.id ? `/inventory/items/${r.id}` : "/inventory/items");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -187,7 +187,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push("/erp/inventory/items")}>إلغاء</Button>
+        <Button variant="outline" onClick={() => router.push("/inventory/items")}>إلغاء</Button>
         <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}حفظ الصنف</Button>
       </div>
     </div>

@@ -86,7 +86,7 @@ export function SalesInvoiceFromDeliveryForm({
       );
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — أكّدها لاعتمادها");
-        router.push(r.invoiceId ? `/erp/sales/invoices/${r.invoiceId}` : "/erp/sales/invoices");
+        router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -99,7 +99,7 @@ export function SalesInvoiceFromDeliveryForm({
           <CardTitle>بيانات فاتورة البيع</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الفاتورة</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/invoices")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/invoices")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

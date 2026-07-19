@@ -64,7 +64,7 @@ export async function createPaymentVoucherAction(input: unknown): Promise<SaveVo
         cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
       }).returning({ id: paymentVouchers.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند صرف ${number} (مسودة)`, metadata: { amount } });
-      revalidatePath("/erp/purchases/payments");
+      revalidatePath("/purchases/payments");
       return { ok: true, id: v.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ سند الصرف" };
@@ -121,9 +121,9 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
         await tx.update(paymentVouchers).set({ status: "POSTED" }).where(eq(paymentVouchers.id, v.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند صرف ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
       });
-      revalidatePath("/erp/purchases/payments");
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/purchases/payments");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
@@ -142,7 +142,7 @@ export async function deletePaymentVoucherAction(id: string): Promise<ActionStat
     if (!v) return { error: "السند غير موجود" };
     if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
     await db.delete(paymentVouchers).where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId)));
-    revalidatePath("/erp/purchases/payments");
+    revalidatePath("/purchases/payments");
     return { ok: true };
   });
 }

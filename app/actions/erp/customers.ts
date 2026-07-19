@@ -56,8 +56,8 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
       return { error: msg };
     }
 
-    revalidatePath("/erp/sales/customers");
-    revalidatePath("/erp/sales");
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
     return { ok: true };
   });
 }
@@ -79,8 +79,8 @@ export async function linkCustomerPortalUserAction(input: {
 
     if (!input.email) {
       await db.update(customers).set({ portalUserId: null, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
-      revalidatePath("/erp/sales/customers");
-      revalidatePath("/erp/sales");
+      revalidatePath("/sales/customers");
+      revalidatePath("/sales");
       return { ok: true };
     }
 
@@ -89,8 +89,8 @@ export async function linkCustomerPortalUserAction(input: {
     if (usr.role !== "client") return { error: "المستخدم ليس بدور العميل (client)" };
 
     await db.update(customers).set({ portalUserId: usr.id, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
-    revalidatePath("/erp/sales/customers");
-    revalidatePath("/erp/sales");
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
     return { ok: true };
   });
 }
@@ -104,8 +104,8 @@ export async function deleteCustomerAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون العميل مرتبطاً بفواتير" };
     }
-    revalidatePath("/erp/sales/customers");
-    revalidatePath("/erp/sales");
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
     return { ok: true };
   });
 }

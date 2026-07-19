@@ -18,7 +18,7 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
   return withOrgScope(auth.orgId, false, async () => {
     const r = await createAdjustment(auth.orgId, auth.userId, input);
     if ("error" in r) return { error: r.error };
-    revalidatePath("/erp/inventory/adjustments");
+    revalidatePath("/inventory/adjustments");
     return { ok: true, id: r.id };
   });
 }
@@ -30,10 +30,10 @@ export async function confirmStockAdjustmentAction(id: string): Promise<ActionSt
   return withOrgScope(auth.orgId, false, async () => {
     const r = await confirmAdjustment(auth.orgId, auth.userId, id);
     if ("error" in r) return { error: r.error };
-    revalidatePath("/erp/inventory/adjustments");
-    revalidatePath("/erp/inventory/stock");
-    revalidatePath("/erp/inventory/ledger");
-    revalidatePath("/erp/accounting/journal");
+    revalidatePath("/inventory/adjustments");
+    revalidatePath("/inventory/stock");
+    revalidatePath("/inventory/ledger");
+    revalidatePath("/accounting/journal");
     return { ok: true };
   });
 }
@@ -50,7 +50,7 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
     if (adj.status !== "DRAFT") return { error: "لا يمكن حذف تسوية مُرحّلة" };
 
     await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
-    revalidatePath("/erp/inventory/adjustments");
+    revalidatePath("/inventory/adjustments");
     return { ok: true };
   });
 }

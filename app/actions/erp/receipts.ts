@@ -64,7 +64,7 @@ export async function createReceiptVoucherAction(input: unknown): Promise<SaveVo
         cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
       }).returning({ id: receiptVouchers.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند قبض ${number} (مسودة)`, metadata: { amount } });
-      revalidatePath("/erp/sales/receipts");
+      revalidatePath("/sales/receipts");
       return { ok: true, id: v.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ سند القبض" };
@@ -122,9 +122,9 @@ export async function confirmReceiptVoucherAction(id: string): Promise<ActionSta
         await tx.update(receiptVouchers).set({ status: "POSTED" }).where(eq(receiptVouchers.id, v.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند قبض ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
       });
-      revalidatePath("/erp/sales/receipts");
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/sales/receipts");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
@@ -143,7 +143,7 @@ export async function deleteReceiptVoucherAction(id: string): Promise<ActionStat
     if (!v) return { error: "السند غير موجود" };
     if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
     await db.delete(receiptVouchers).where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId)));
-    revalidatePath("/erp/sales/receipts");
+    revalidatePath("/sales/receipts");
     return { ok: true };
   });
 }

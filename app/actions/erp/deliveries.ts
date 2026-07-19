@@ -136,7 +136,7 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: number, summary: `حفظ مسودة إذن صرف ${number} من أمر بيع ${so.number}` });
         return dn.id;
       });
-      revalidatePath("/erp/sales/deliveries");
+      revalidatePath("/sales/deliveries");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التسليم" };
@@ -225,9 +225,9 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: dn.number, relation: "FULFILLS" });
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `تأكيد إذن صرف ${dn.number} من أمر بيع ${so.number} (${newStatus === "DELIVERED" ? "كامل" : "جزئي"})`, metadata: { cogs } });
       });
-      revalidatePath("/erp/sales/deliveries");
-      revalidatePath("/erp/sales/orders");
-      revalidatePath(`/erp/sales/deliveries/${dn.number}`);
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/deliveries/${dn.number}`);
       return { ok: true, id: dn.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر تأكيد التسليم" };
@@ -250,7 +250,7 @@ export async function deleteDeliveryAction(deliveryId: string): Promise<ActionSt
         await tx.delete(deliveryNotes).where(eq(deliveryNotes.id, dn.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `حذف مسودة إذن صرف ${dn.number}` });
       });
-      revalidatePath("/erp/sales/deliveries");
+      revalidatePath("/sales/deliveries");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحذف" };
@@ -384,8 +384,8 @@ export async function convertDeliveryToInvoiceAction(
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة بيع ${number} من إذن صرف ${dn.number}`, metadata: { total: built.total } });
         return inv.id;
       });
-      revalidatePath("/erp/sales/deliveries");
-      revalidatePath("/erp/sales/invoices");
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/invoices");
       return { ok: true, invoiceId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
@@ -456,9 +456,9 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
         if (dn.salesOrderId) await recomputeSalesOrderStatus(tx, dn.salesOrderId);
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `عكس إذن صرف ${dn.number} — أُعيد فتح الأمر`, metadata: { cogs } });
       });
-      revalidatePath("/erp/sales/deliveries");
-      revalidatePath("/erp/sales/orders");
-      revalidatePath(`/erp/sales/deliveries/${dn.number}`);
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/deliveries/${dn.number}`);
       return { ok: true, id: dn.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر عكس الصرف" };

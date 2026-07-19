@@ -18,9 +18,9 @@ type Res = { ok: true; id?: string } | { error: string };
  */
 function refresh() {
   revalidatePath("/admin/academy");
-  revalidatePath("/erp/academy");
-  revalidatePath("/erp/academy/[module]", "page");
-  revalidatePath("/erp/academy/[module]/[slug]", "page");
+  revalidatePath("/academy");
+  revalidatePath("/academy/[module]", "page");
+  revalidatePath("/academy/[module]/[slug]", "page");
 }
 
 const schema = z.object({

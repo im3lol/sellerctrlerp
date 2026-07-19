@@ -300,9 +300,9 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     const deferredHeld = txns.filter((t) => t.status !== "Released").length;
     if (toPost.length === 0) {
       const ret0 = await processSettlementRefunds(auth.orgId);
-      revalidatePath("/erp/sales/orders");
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/sales/deliveries");
       return { ok: true, imported, updated, posted: 0, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
     }
 
@@ -414,10 +414,10 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     }
 
     const ret = await processSettlementRefunds(auth.orgId);
-    revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/sales/invoices");
-    revalidatePath("/erp/sales/deliveries");
-    revalidatePath("/erp/accounting");
+    revalidatePath("/sales/orders");
+    revalidatePath("/sales/invoices");
+    revalidatePath("/sales/deliveries");
+    revalidatePath("/accounting");
     return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched, unlinkedReceivable: unlinkedAr || undefined };
   });
 }

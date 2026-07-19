@@ -53,8 +53,8 @@ export async function runAmazonImportAction(formData: FormData): Promise<ImportR
     const ctx: PlatformCtx = { platformId, customerId, warehouseId, channel: CHANNEL, label: LABEL };
     const result = await ingestOrders(auth.orgId, auth.userId, ctx, parsed.orders);
 
-    revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/accounting");
+    revalidatePath("/sales/orders");
+    revalidatePath("/accounting");
     return { ok: true, ...result };
   });
 }

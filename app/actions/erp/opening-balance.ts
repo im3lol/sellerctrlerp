@@ -122,7 +122,7 @@ export async function saveOpeningBalanceAction(input: unknown): Promise<ActionSt
         return head.id;
       });
 
-      revalidatePath("/erp/settings/opening-balance");
+      revalidatePath("/settings/opening-balance");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الأرصدة الافتتاحية" };
@@ -263,9 +263,9 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "OPENING_BALANCE", entityId: id, summary: `ترحيل الأرصدة الافتتاحية — مدين ${t.debit} / دائن ${t.credit}` });
-      revalidatePath("/erp/settings/opening-balance");
-      revalidatePath("/erp/accounting/journal");
-      revalidatePath("/erp/inventory/stock");
+      revalidatePath("/settings/opening-balance");
+      revalidatePath("/accounting/journal");
+      revalidatePath("/inventory/stock");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";

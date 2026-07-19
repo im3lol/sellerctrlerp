@@ -20,9 +20,9 @@ export type Notifications = {
 
 // Entity type → detail route base (documents route by their readable number).
 const ENTITY_PATH: Record<string, string> = {
-  SALES_ORDER: "/erp/sales/orders", SALES_INVOICE: "/erp/sales/invoices", DELIVERY_NOTE: "/erp/sales/deliveries",
-  SALES_RETURN: "/erp/sales/returns", PURCHASE_ORDER: "/erp/purchases/orders", PURCHASE_INVOICE: "/erp/purchases/invoices",
-  GOODS_RECEIPT: "/erp/purchases/receipts", PURCHASE_RETURN: "/erp/purchases/returns", JOURNAL_ENTRY: "/erp/accounting/journal",
+  SALES_ORDER: "/sales/orders", SALES_INVOICE: "/sales/invoices", DELIVERY_NOTE: "/sales/deliveries",
+  SALES_RETURN: "/sales/returns", PURCHASE_ORDER: "/purchases/orders", PURCHASE_INVOICE: "/purchases/invoices",
+  GOODS_RECEIPT: "/purchases/receipts", PURCHASE_RETURN: "/purchases/returns", JOURNAL_ENTRY: "/accounting/journal",
 };
 
 /** Org-scoped notification counts + recent activity. Session-free so the daily

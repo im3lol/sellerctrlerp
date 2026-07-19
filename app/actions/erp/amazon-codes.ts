@@ -162,7 +162,7 @@ export async function createItemsFromSkusAction(
         if (codeValues.length) await tx.insert(itemCodes).values(codeValues).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
         return inserted.length;
       });
-      revalidatePath("/erp/inventory/items");
+      revalidatePath("/inventory/items");
       return { ok: true, created };
     } catch {
       return { ok: false, error: "تعذّر إنشاء الأصناف" };

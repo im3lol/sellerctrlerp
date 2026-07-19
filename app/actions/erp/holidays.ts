@@ -24,7 +24,7 @@ export async function createHolidayAction(input: unknown): Promise<ActionState> 
     const d = parsed.data;
     try {
       await db.insert(holidays).values({ organizationId: auth.orgId, date: new Date(d.date + "T00:00:00"), nameAr: d.nameAr });
-      revalidatePath("/erp/hr/holidays");
+      revalidatePath("/hr/holidays");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر الحفظ";
@@ -39,7 +39,7 @@ export async function deleteHolidayAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(holidays).where(and(eq(holidays.id, id), eq(holidays.organizationId, auth.orgId)));
-    revalidatePath("/erp/hr/holidays");
+    revalidatePath("/hr/holidays");
     return { ok: true };
   });
 }

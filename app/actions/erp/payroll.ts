@@ -107,8 +107,8 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
       await db.insert(employees).values(values);
     }
 
-    revalidatePath("/erp/hr/employees");
-    revalidatePath("/erp/hr"); // headcount + payroll cost on the module overview
+    revalidatePath("/hr/employees");
+    revalidatePath("/hr"); // headcount + payroll cost on the module overview
     revalidatePath("/admin/users");
     return { ok: true };
   });
@@ -128,8 +128,8 @@ export async function toggleEmployeeActiveAction(id: string): Promise<ActionStat
     await db.update(employees).set({ isActive: !emp.isActive, updatedAt: new Date() })
       .where(eq(employees.id, id));
 
-    revalidatePath("/erp/hr/employees");
-    revalidatePath("/erp/hr"); // activating/deactivating changes the active headcount
+    revalidatePath("/hr/employees");
+    revalidatePath("/hr"); // activating/deactivating changes the active headcount
     return { ok: true };
   });
 }
@@ -283,7 +283,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
       return run.id;
     });
 
-    revalidatePath("/erp/hr/payroll");
+    revalidatePath("/hr/payroll");
     return { ok: true, id: runId };
   });
 }
@@ -344,8 +344,8 @@ export async function confirmPayrollRunAction(id: string): Promise<ActionState> 
         .where(eq(payrollRuns.id, run.id));
     });
 
-    revalidatePath("/erp/hr/payroll");
-    revalidatePath(`/erp/hr/payroll/${id}`);
+    revalidatePath("/hr/payroll");
+    revalidatePath(`/hr/payroll/${id}`);
     return { ok: true };
   });
 }
@@ -402,8 +402,8 @@ export async function reversePayrollRunAction(id: string, reason: string): Promi
         .where(eq(payrollRuns.id, run.id));
     });
 
-    revalidatePath("/erp/hr/payroll");
-    revalidatePath(`/erp/hr/payroll/${id}`);
+    revalidatePath("/hr/payroll");
+    revalidatePath(`/hr/payroll/${id}`);
     return { ok: true };
   });
 }

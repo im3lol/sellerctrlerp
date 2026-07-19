@@ -114,9 +114,9 @@ export async function createInvestmentAction(input: unknown): Promise<ActionStat
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "INVESTMENT", entityId: id, summary: `مساهمة رأس مال ${amount} — ${inv.name}` });
-      revalidatePath("/erp/investors");
-      revalidatePath("/erp/investors/investments");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/investors");
+      revalidatePath("/investors/investments");
+      revalidatePath("/accounting/journal");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر تسجيل المساهمة" };
@@ -199,9 +199,9 @@ export async function createWithdrawalAction(input: unknown): Promise<ActionStat
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "INVESTOR_WITHDRAWAL", entityId: id, summary: `${d.type === "capital" ? "سحب رأس مال" : "صرف أرباح"} ${amount} — ${inv.name}` });
-      revalidatePath("/erp/investors");
-      revalidatePath("/erp/investors/withdrawals");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/investors");
+      revalidatePath("/investors/withdrawals");
+      revalidatePath("/accounting/journal");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر تسجيل السحب" };
@@ -259,7 +259,7 @@ export async function createDistributionAction(input: unknown): Promise<ActionSt
         return row.id;
       });
 
-      revalidatePath("/erp/investors/distributions");
+      revalidatePath("/investors/distributions");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إنشاء التوزيع" };
@@ -313,9 +313,9 @@ export async function confirmDistributionAction(id: string): Promise<ActionState
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PROFIT_DISTRIBUTION", entityId: id, summary: `ترحيل توزيع أرباح ${dist.periodName} — ${total}` });
-      revalidatePath("/erp/investors");
-      revalidatePath("/erp/investors/distributions");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/investors");
+      revalidatePath("/investors/distributions");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
@@ -335,7 +335,7 @@ export async function deleteDistributionAction(id: string): Promise<ActionState>
     if (!d) return { error: "التوزيع غير موجود" };
     if (d.status !== "DRAFT") return { error: "لا يمكن حذف توزيع مُرحّل — اعكسه بدلاً من ذلك" };
     await db.delete(profitDistributions).where(and(eq(profitDistributions.id, id), eq(profitDistributions.organizationId, auth.orgId)));
-    revalidatePath("/erp/investors/distributions");
+    revalidatePath("/investors/distributions");
     return { ok: true };
   });
 }

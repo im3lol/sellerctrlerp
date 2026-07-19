@@ -104,8 +104,8 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_INVOICE", entityId: id, entityNumber: number, summary: `إنشاء فاتورة بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/sales");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/sales");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الفاتورة مستخدم — أعد المحاولة" : "تعذّر حفظ الفاتورة" };
@@ -232,10 +232,10 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة بيع ${inv.number}`, metadata: { total } });
         return eid;
       });
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/sales/deliveries");
-      revalidatePath("/erp/sales/orders");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath("/accounting/journal");
       return { ok: true, entryId };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر الترحيل";
@@ -265,8 +265,8 @@ export async function deleteSalesInvoiceAction(id: string): Promise<ActionState>
         }
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `حذف مسودة فاتورة بيع ${inv.number}` });
       });
-      revalidatePath("/erp/sales/orders");
-      revalidatePath("/erp/sales/invoices");
+      revalidatePath("/sales/orders");
+      revalidatePath("/sales/invoices");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحذف" };

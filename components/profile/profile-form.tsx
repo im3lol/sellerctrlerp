@@ -39,7 +39,7 @@ export function ProfileForm({ name, email }: { name: string; email: string }) {
         <p className="text-xs text-muted-foreground">لا يمكن تغيير البريد الإلكتروني.</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        لتغيير كلمة المرور استخدم <a href="/erp/settings/security" className="underline">صفحة الأمان</a> (تتطلب كلمة المرور الحالية).
+        لتغيير كلمة المرور استخدم <a href="/settings/security" className="underline">صفحة الأمان</a> (تتطلب كلمة المرور الحالية).
       </p>
       <Submit />
     </form>

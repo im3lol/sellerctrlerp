@@ -122,7 +122,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
                 <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "نشط" : "غير نشط"}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button asChild size="sm" variant="outline"><Link href={`/erp/accounting/banks/${r.id}`}><FileText className="size-4" />الكشف</Link></Button>
+                    <Button asChild size="sm" variant="outline"><Link href={`/accounting/banks/${r.id}`}><FileText className="size-4" />الكشف</Link></Button>
                     {canEdit && (
                       <>
                         <Button size="icon" variant="ghost" onClick={() => setEditing(r)} aria-label="تعديل"><Pencil className="size-4" /></Button>

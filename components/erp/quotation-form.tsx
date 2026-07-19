@@ -53,7 +53,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines });
-      if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/erp/sales/quotations/${r.id}` : "/erp/sales/quotations"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -65,7 +65,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
           <CardTitle>بيانات عرض السعر</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ العرض</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/quotations")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/quotations")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

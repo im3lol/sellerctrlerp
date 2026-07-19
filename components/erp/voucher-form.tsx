@@ -66,7 +66,7 @@ export function VoucherForm({
   };
 
   const partyLabel = isReceipt ? "العميل" : "المورد";
-  const dest = isReceipt ? "/erp/sales/receipts" : "/erp/purchases/payments";
+  const dest = isReceipt ? "/sales/receipts" : "/purchases/payments";
 
   const submit = () =>
     start(async () => {

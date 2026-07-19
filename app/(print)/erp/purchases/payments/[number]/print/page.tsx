@@ -50,7 +50,7 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
         org={org}
         title="سند صرف"
         number={pv.number}
-        backHref={`/erp/purchases/payments/${encodeURIComponent(raw)}`}
+        backHref={`/purchases/payments/${encodeURIComponent(raw)}`}
         meta={[{ label: "التاريخ", value: dt(pv.date) }]}
         parties={[
           {

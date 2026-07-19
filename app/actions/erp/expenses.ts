@@ -52,7 +52,7 @@ export async function createExpenseAction(input: unknown): Promise<SaveExpenseSt
         payee: payee || null, reference: reference || null, notes: notes || null,
       }).returning({ id: expenses.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "EXPENSE", entityId: e.id, entityNumber: number, summary: `إنشاء مصروف ${number} (مسودة)`, metadata: { amount } });
-      revalidatePath("/erp/accounting/expenses");
+      revalidatePath("/accounting/expenses");
       return { ok: true, id: e.id };
     } catch (err) {
       return { error: err instanceof Error ? err.message : "تعذّر حفظ المصروف" };
@@ -86,8 +86,8 @@ export async function confirmExpenseAction(id: string): Promise<ActionState> {
         await tx.update(expenses).set({ status: "POSTED" }).where(eq(expenses.id, e.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "EXPENSE", entityId: e.id, entityNumber: e.number, summary: `تأكيد وترحيل مصروف ${e.number}`, metadata: { amount } });
       });
-      revalidatePath("/erp/accounting/expenses");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/accounting/expenses");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "تعذّر تأكيد المصروف";
@@ -106,7 +106,7 @@ export async function deleteExpenseAction(id: string): Promise<ActionState> {
     if (!e) return { error: "المصروف غير موجود" };
     if (e.status !== "DRAFT") return { error: "لا يمكن حذف مصروف مؤكّد" };
     await db.delete(expenses).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId)));
-    revalidatePath("/erp/accounting/expenses");
+    revalidatePath("/accounting/expenses");
     return { ok: true };
   });
 }

@@ -64,7 +64,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
     } catch {
       return { error: "تعذّر حفظ بيانات المنشأة" };
     }
-    revalidatePath("/erp/settings");
+    revalidatePath("/settings");
     return { ok: true };
   });
 }
@@ -131,7 +131,7 @@ export async function saveAccountingConfigAction(_prev: ActionState, formData: F
     } catch {
       return { error: "تعذّر حفظ الضبط المحاسبي" };
     }
-    revalidatePath("/erp/settings");
+    revalidatePath("/settings");
     return { ok: true };
   });
 }

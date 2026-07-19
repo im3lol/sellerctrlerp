@@ -46,7 +46,7 @@ export async function createMaterialRequestAction(input: unknown): Promise<SaveS
         return mr.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "MATERIAL_REQUEST", entityId: id, summary: "إنشاء طلب مواد (مسودة)" });
-      revalidatePath("/erp/purchases/requisitions");
+      revalidatePath("/purchases/requisitions");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -65,8 +65,8 @@ export async function approveMaterialRequestAction(id: string): Promise<ActionSt
     if (mr.status !== "DRAFT") return { error: "الطلب معتمد بالفعل" };
     await db.update(materialRequests).set({ status: "APPROVED", approvedBy: auth.userId, updatedAt: new Date() })
       .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
-    revalidatePath("/erp/purchases/requisitions");
-    revalidatePath(`/erp/purchases/requisitions/${id}`);
+    revalidatePath("/purchases/requisitions");
+    revalidatePath(`/purchases/requisitions/${id}`);
     return { ok: true };
   });
 }
@@ -81,7 +81,7 @@ export async function deleteMaterialRequestAction(id: string): Promise<ActionSta
     if (!mr) return { error: "الطلب غير موجود" };
     if (mr.status === "APPROVED") return { error: "لا يمكن حذف طلب معتمد" };
     await db.delete(materialRequests).where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
-    revalidatePath("/erp/purchases/requisitions");
+    revalidatePath("/purchases/requisitions");
     return { ok: true };
   });
 }

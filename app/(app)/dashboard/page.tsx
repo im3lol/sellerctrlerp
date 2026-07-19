@@ -10,16 +10,16 @@ import { TrendChart } from "@/components/charts/trend-chart";
 import { Icon } from "@/components/icon";
 
 const TILES: { label: string; href: string; icon: string; module: string; desc: string }[] = [
-  { label: "المحاسبة", href: "/erp/accounting", icon: "Calculator", module: "accounting", desc: "دليل الحسابات، القيود، التقارير المالية" },
+  { label: "المحاسبة", href: "/accounting", icon: "Calculator", module: "accounting", desc: "دليل الحسابات، القيود، التقارير المالية" },
   // Both point at the module overview, like المحاسبة above. المبيعات used to jump
   // straight to the order list because /erp/sales was the customer file, not a
   // module landing page.
-  { label: "المبيعات", href: "/erp/sales", icon: "ShoppingCart", module: "sales", desc: "العملاء، أوامر البيع، الفواتير، أمازون" },
-  { label: "المشتريات", href: "/erp/purchases", icon: "Truck", module: "purchases", desc: "الموردون، أوامر الشراء، الاستلام، الفواتير" },
-  { label: "المخزون", href: "/erp/inventory", icon: "Boxes", module: "inventory", desc: "الأصناف، الأرصدة، الحركة، التسويات" },
-  { label: "الموارد البشرية", href: "/erp/hr", icon: "UserCog", module: "hr", desc: "الموظفون، الإجازات، مسير الرواتب" },
-  { label: "المستثمرون", href: "/erp/investors", icon: "Coins", module: "investors", desc: "المستثمرون وحصصهم" },
-  { label: "التقارير", href: "/erp/reports", icon: "ChartPie", module: "reports", desc: "ميزان المراجعة، الدخل، الميزانية، الضريبة" },
+  { label: "المبيعات", href: "/sales", icon: "ShoppingCart", module: "sales", desc: "العملاء، أوامر البيع، الفواتير، أمازون" },
+  { label: "المشتريات", href: "/purchases", icon: "Truck", module: "purchases", desc: "الموردون، أوامر الشراء، الاستلام، الفواتير" },
+  { label: "المخزون", href: "/inventory", icon: "Boxes", module: "inventory", desc: "الأصناف، الأرصدة، الحركة، التسويات" },
+  { label: "الموارد البشرية", href: "/hr", icon: "UserCog", module: "hr", desc: "الموظفون، الإجازات، مسير الرواتب" },
+  { label: "المستثمرون", href: "/investors", icon: "Coins", module: "investors", desc: "المستثمرون وحصصهم" },
+  { label: "التقارير", href: "/reports", icon: "ChartPie", module: "reports", desc: "ميزان المراجعة، الدخل، الميزانية، الضريبة" },
 ];
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -50,22 +50,22 @@ export default async function DashboardPage() {
   try { salesTrend = org ? await getSalesTrend(org.id, 30) : []; } catch { salesTrend = []; }
   const pendingTiles = pending
     ? [
-        { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/erp/accounting/journal", icon: "BookText" },
-        { label: "فواتير بيع مسودة", hint: "المبيعات", count: pending.siDraft, href: "/erp/sales/invoices", icon: "ReceiptText" },
-        { label: "فواتير شراء مسودة", hint: "المشتريات", count: pending.piDraft, href: "/erp/purchases/invoices", icon: "ReceiptText" },
-        { label: "أوامر بيع بانتظار الشحن", hint: "المبيعات", count: pending.soAwaiting, href: "/erp/sales/orders", icon: "ClipboardList" },
-        { label: "أوامر شراء بانتظار الاستلام", hint: "المشتريات", count: pending.poAwaiting, href: "/erp/purchases/orders", icon: "PackageCheck" },
+        { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/accounting/journal", icon: "BookText" },
+        { label: "فواتير بيع مسودة", hint: "المبيعات", count: pending.siDraft, href: "/sales/invoices", icon: "ReceiptText" },
+        { label: "فواتير شراء مسودة", hint: "المشتريات", count: pending.piDraft, href: "/purchases/invoices", icon: "ReceiptText" },
+        { label: "أوامر بيع بانتظار الشحن", hint: "المبيعات", count: pending.soAwaiting, href: "/sales/orders", icon: "ClipboardList" },
+        { label: "أوامر شراء بانتظار الاستلام", hint: "المشتريات", count: pending.poAwaiting, href: "/purchases/orders", icon: "PackageCheck" },
       ]
     : [];
 
   const kpis = ov
     ? [
-        { label: "صافي الربح", value: money(ov.net), href: "/erp/reports/income-statement", tone: ov.net >= 0 ? "text-emerald-600" : "text-destructive" },
-        { label: "النقدية والبنك", value: money(ov.cash), href: "/erp/accounting/ledger", tone: "" },
-        { label: "ذمم مدينة (عملاء)", value: money(ov.ar), href: "/erp/sales/aging", tone: "" },
-        { label: "ذمم دائنة (موردون)", value: money(ov.ap), href: "/erp/purchases/aging", tone: "" },
-        { label: "قيمة المخزون", value: money(ov.inventoryValue), href: "/erp/inventory/stock", tone: "" },
-        { label: "مبيعات هذا الشهر", value: money(ov.salesMonth), href: "/erp/sales/invoices", tone: "" },
+        { label: "صافي الربح", value: money(ov.net), href: "/reports/income-statement", tone: ov.net >= 0 ? "text-emerald-600" : "text-destructive" },
+        { label: "النقدية والبنك", value: money(ov.cash), href: "/accounting/ledger", tone: "" },
+        { label: "ذمم مدينة (عملاء)", value: money(ov.ar), href: "/sales/aging", tone: "" },
+        { label: "ذمم دائنة (موردون)", value: money(ov.ap), href: "/purchases/aging", tone: "" },
+        { label: "قيمة المخزون", value: money(ov.inventoryValue), href: "/inventory/stock", tone: "" },
+        { label: "مبيعات هذا الشهر", value: money(ov.salesMonth), href: "/sales/invoices", tone: "" },
       ]
     : [];
 
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
       </div>
 
       {subBanner && (
-        <Link href="/erp/settings/subscription" className={`flex items-center justify-between rounded-2xl border p-4 ${subBanner.cls}`}>
+        <Link href="/settings/subscription" className={`flex items-center justify-between rounded-2xl border p-4 ${subBanner.cls}`}>
           <span className="text-sm font-medium">{subBanner.text}</span>
           <span className="text-sm underline">إدارة الاشتراك ←</span>
         </Link>
@@ -100,10 +100,10 @@ export default async function DashboardPage() {
 
           {(ov.lowStock > 0 || ov.outOfStock > 0 || ov.overdueAR > 0 || ov.nearExpiryCount > 0) && (
             <div className="flex flex-wrap gap-2 text-sm">
-              {ov.overdueAR > 0 && <Link href="/erp/sales/aging" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-destructive hover:bg-destructive/10">ذمم متأخرة: {money(ov.overdueAR)}</Link>}
-              {ov.outOfStock > 0 && <Link href="/erp/inventory/reorder" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-destructive hover:bg-destructive/10">أصناف نافدة: {intl(ov.outOfStock)}</Link>}
-              {ov.lowStock > 0 && <Link href="/erp/inventory/reorder" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">مخزون منخفض: {intl(ov.lowStock)}</Link>}
-              {ov.nearExpiryCount > 0 && <Link href="/erp/inventory/expiry" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">قرب انتهاء الصلاحية: {intl(ov.nearExpiryCount)}</Link>}
+              {ov.overdueAR > 0 && <Link href="/sales/aging" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-destructive hover:bg-destructive/10">ذمم متأخرة: {money(ov.overdueAR)}</Link>}
+              {ov.outOfStock > 0 && <Link href="/inventory/reorder" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-destructive hover:bg-destructive/10">أصناف نافدة: {intl(ov.outOfStock)}</Link>}
+              {ov.lowStock > 0 && <Link href="/inventory/reorder" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">مخزون منخفض: {intl(ov.lowStock)}</Link>}
+              {ov.nearExpiryCount > 0 && <Link href="/inventory/expiry" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400">قرب انتهاء الصلاحية: {intl(ov.nearExpiryCount)}</Link>}
             </div>
           )}
           {salesTrend.some((s) => s.value > 0) && (

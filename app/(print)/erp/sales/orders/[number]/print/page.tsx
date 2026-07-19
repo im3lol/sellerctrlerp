@@ -53,7 +53,7 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         org={org}
         title="أمر بيع"
         number={so.number}
-        backHref={`/erp/sales/orders/${encodeURIComponent(raw)}`}
+        backHref={`/sales/orders/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(so.date) },
           ...(so.dueDate ? [{ label: "التسليم", value: dt(so.dueDate) }] : []),

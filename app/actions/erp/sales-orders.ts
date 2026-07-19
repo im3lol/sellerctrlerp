@@ -104,7 +104,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
         return so.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
-      revalidatePath("/erp/sales/orders");
+      revalidatePath("/sales/orders");
       return { ok: true, id, warning };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
@@ -123,8 +123,8 @@ export async function confirmSalesOrderAction(id: string): Promise<ActionState> 
     if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
     await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
-    revalidatePath("/erp/sales/orders");
-    revalidatePath(`/erp/sales/orders/${id}`);
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${id}`);
     return { ok: true };
   });
 }
@@ -145,7 +145,7 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
     }
     await db.delete(salesOrders).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
-    revalidatePath("/erp/sales/orders");
+    revalidatePath("/sales/orders");
     return { ok: true };
   });
 }
@@ -176,8 +176,8 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
     if (r.id) await db.update(salesInvoices).set({ salesOrderId: so.id }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
     await db.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "SALES_ORDER", entityId: so.id, entityNumber: so.number, summary: `تحويل أمر بيع ${so.number} إلى فاتورة (مسودة)` });
-    revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/sales/invoices");
+    revalidatePath("/sales/orders");
+    revalidatePath("/sales/invoices");
     return { ok: true, invoiceId: r.id };
   });
 }
@@ -212,7 +212,7 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
         count++;
       }
     }
-    revalidatePath("/erp/sales/orders");
+    revalidatePath("/sales/orders");
     return { ok: true, count };
   });
 }
@@ -238,7 +238,7 @@ export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
     }
     await db.update(salesOrders).set({ status: "CANCELLED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
-    revalidatePath("/erp/sales/orders");
+    revalidatePath("/sales/orders");
     return { ok: true };
   });
 }
@@ -257,8 +257,8 @@ export async function revertSalesOrderToDraftAction(id: string): Promise<ActionS
     if (lines.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) return { error: "اعكس الصرف/الفاتورة أولاً قبل إعادة فتح الأمر" };
     await db.update(salesOrders).set({ status: "DRAFT" }).where(eq(salesOrders.id, id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إعادة فتح أمر بيع ${so.number} كمسودة` });
-    revalidatePath("/erp/sales/orders");
-    revalidatePath(`/erp/sales/orders/${id}`);
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${id}`);
     return { ok: true };
   });
 }

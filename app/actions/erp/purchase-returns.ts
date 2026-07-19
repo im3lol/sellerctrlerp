@@ -99,7 +99,7 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مشتريات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
-      revalidatePath("/erp/purchases/invoices");
+      revalidatePath("/purchases/invoices");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
@@ -163,9 +163,9 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
           await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
           await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن استلام ${grn.number}`, metadata: { net } });
         });
-        revalidatePath("/erp/purchases/receipts");
-        revalidatePath("/erp/purchases/orders");
-        revalidatePath("/erp/accounting/journal");
+        revalidatePath("/purchases/receipts");
+        revalidatePath("/purchases/orders");
+        revalidatePath("/accounting/journal");
         return { ok: true };
       } catch (e) {
         return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
@@ -242,8 +242,8 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
       });
 
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
@@ -265,7 +265,7 @@ export async function returnFromPurchaseInvoiceAction(invoiceId: string, picks: 
   if (!created.ok || !created.id) return created;
   const posted = await confirmPurchaseReturnAction(created.id);
   if (!posted.ok) return { error: posted.error, id: created.id };
-  revalidatePath("/erp/purchases/invoices");
+  revalidatePath("/purchases/invoices");
   return { ok: true, id: created.id };
 }
 
@@ -285,7 +285,7 @@ export async function deletePurchaseReturnAction(id: string): Promise<ActionStat
       await tx.delete(purchaseReturns).where(and(eq(purchaseReturns.id, id), eq(purchaseReturns.organizationId, auth.orgId)));
     });
 
-    revalidatePath("/erp/purchases/invoices");
+    revalidatePath("/purchases/invoices");
     return { ok: true };
   });
 }
@@ -338,8 +338,8 @@ export async function reversePurchaseReturnAction(id: string): Promise<ActionSta
         await tx.update(purchaseReturns).set({ status: "CANCELLED" }).where(eq(purchaseReturns.id, ret.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مشتريات ${ret.number}`, metadata: { total } });
       });
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
@@ -400,7 +400,7 @@ export async function createReceiptReturnAction(input: unknown): Promise<SaveRet
         return ret.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_RETURN", entityId: id, entityNumber: number, summary: `مرتجع إذن استلام ${grn.number} (مسودة)`, metadata: { net } });
-      revalidatePath("/erp/purchases/receipts");
+      revalidatePath("/purchases/receipts");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };

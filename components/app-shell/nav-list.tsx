@@ -33,7 +33,7 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
   // Merge live platform links into the dynamic "المنصات" group.
   const withDynamic = (section: NavSection): NavSection =>
     section.dynamicKey === "platforms" && platforms?.length
-      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/erp/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
+      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
       : section;
 
   // A module is open if it contains the active route. Users can toggle modules

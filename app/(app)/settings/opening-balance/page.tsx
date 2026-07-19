@@ -1,0 +1,93 @@
+import { and, asc, eq } from "drizzle-orm";
+import { loadErpPage } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines } from "@/db/schema";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { OpeningBalanceEditor } from "@/components/erp/opening-balance-editor";
+
+/**
+ * Where a company that already exists gets onto the product: what it owed, was owed,
+ * held in stock and had in the bank the day before go-live.
+ *
+ * Until this existed the only way in was hand-writing journal entries and faking
+ * stock adjustments, which is why onboarding stalled for every real customer.
+ */
+export default async function OpeningBalancePage() {
+  return loadErpPage("accounting.create", async ({ orgId }) => {
+    const [head, accs, custs, supps, itms, whs] = await Promise.all([
+      db.select().from(openingBalances).where(eq(openingBalances.organizationId, orgId)).limit(1),
+      db.select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr }).from(accounts)
+        .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true))).orderBy(asc(accounts.code)),
+      db.select({ id: customers.id, code: customers.code, nameAr: customers.nameAr }).from(customers)
+        .where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
+      db.select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr }).from(suppliers)
+        .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
+      db.select({ id: items.id, code: items.code, nameAr: items.nameAr }).from(items)
+        .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)).limit(500),
+      db.select({ id: warehouses.id, code: warehouses.code, nameAr: warehouses.nameAr }).from(warehouses)
+        .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
+    ]);
+
+    const existing = head[0];
+    const savedLines = existing
+      ? await db.select().from(openingBalanceLines).where(eq(openingBalanceLines.openingBalanceId, existing.id))
+      : [];
+
+    const label = (code: string, name: string | null) => `${code} — ${name ?? ""}`.trim();
+    const accOpts = accs.map((a) => ({ id: a.id, label: label(a.code, a.nameAr) }));
+    const custOpts = custs.map((c) => ({ id: c.id, label: label(c.code, c.nameAr) }));
+    const suppOpts = supps.map((s) => ({ id: s.id, label: label(s.code, s.nameAr) }));
+    const itemOpts = itms.map((i) => ({ id: i.id, label: label(i.code, i.nameAr) }));
+    const whOpts = whs.map((w) => ({ id: w.id, label: label(w.code, w.nameAr) }));
+
+    const byId = new Map([...accOpts, ...custOpts, ...suppOpts, ...itemOpts].map((o) => [o.id, o.label]));
+    const whById = new Map(whOpts.map((o) => [o.id, o.label]));
+
+    const initial = savedLines.map((l) => {
+      const ref = l.accountId ?? l.customerId ?? l.supplierId ?? l.itemId ?? "";
+      return {
+        kind: l.kind as "ACCOUNT" | "CUSTOMER" | "SUPPLIER" | "ITEM",
+        ref,
+        refLabel: byId.get(ref) ?? "",
+        warehouseId: l.warehouseId ?? "",
+        warehouseLabel: l.warehouseId ? whById.get(l.warehouseId) ?? "" : "",
+        debit: Number(l.debit) ? String(Number(l.debit)) : "",
+        credit: Number(l.credit) ? String(Number(l.credit)) : "",
+        quantity: l.quantity != null ? String(Number(l.quantity)) : "",
+        unitCost: l.unitCost != null ? String(Number(l.unitCost)) : "",
+      };
+    });
+
+    // Default to yesterday: balances are stated as at the day before go-live.
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const date = existing ? new Date(existing.date).toISOString().slice(0, 10) : y.toISOString().slice(0, 10);
+
+    return (
+      <div className="space-y-6" dir="rtl">
+        <ErpPageHeader icon="Upload" title="الأرصدة الافتتاحية"
+          subtitle="ما كانت عليه الشركة قبل بدء التشغيل — يُرحَّل مرة واحدة" backHref="/settings" />
+
+        {custs.length + supps.length + itms.length === 0 && (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              سجّل العملاء والموردين والأصناف أولاً (أو استوردهم من «الاستيراد والتصدير») ثم أدخل أرصدتهم الافتتاحية هنا.
+            </CardContent>
+          </Card>
+        )}
+
+        <OpeningBalanceEditor
+          posted={existing?.status === "POSTED"}
+          date={date}
+          initial={initial}
+          accounts={accOpts}
+          customers={custOpts}
+          suppliers={suppOpts}
+          items={itemOpts}
+          warehouses={whOpts}
+        />
+      </div>
+    );
+  });
+}

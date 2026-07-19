@@ -97,7 +97,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
 
         return platform.id;
       });
-      revalidatePath("/erp/platforms");
+      revalidatePath("/platforms");
       return { ok: true, id };
     } catch {
       return { error: "تعذّر إنشاء المنصة" };
@@ -118,7 +118,7 @@ export async function provisionMarketplaceAction(input: { connector: string; ful
     if (input.fulfillment !== "FBA") return { error: "نوع التنفيذ المتاح حاليًا هو FBA فقط" };
     try {
       await ensureAmazonPlatform(auth.orgId); // creates platform + customer + FBA warehouse + Amazon Wallet bank
-      revalidatePath("/erp/platforms");
+      revalidatePath("/platforms");
       return { ok: true, code: "amazon" };
     } catch {
       return { error: "تعذّر التجهيز التلقائي" };
@@ -156,7 +156,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       bankAccountId: bankAccountId || null,
       updatedAt: new Date(),
     }).where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, auth.orgId)));
-    revalidatePath("/erp/platforms");
+    revalidatePath("/platforms");
     return { ok: true };
   });
 }
@@ -251,8 +251,8 @@ export async function importPlatformOrdersAction(platformId: string, ordersInput
       } catch { /* skip a failed row, keep importing the rest */ }
     }
 
-    revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/platforms/[code]/import", "page");
+    revalidatePath("/sales/orders");
+    revalidatePath("/platforms/[code]/import", "page");
     return { ok: true, created, skippedDuplicate, unmatched: [...unmatched] };
   });
 }
@@ -319,8 +319,8 @@ export async function importPlatformPaymentsAction(platformId: string, paymentsI
         seen.add(p.reference); created++;
       } catch { /* skip a failed row, keep importing */ }
     }
-    revalidatePath("/erp/sales/receipts");
-    revalidatePath("/erp/platforms/[code]/import", "page");
+    revalidatePath("/sales/receipts");
+    revalidatePath("/platforms/[code]/import", "page");
     return { ok: true, created, skippedDuplicate };
   });
 }
@@ -335,7 +335,7 @@ export async function togglePlatformActiveAction(id: string): Promise<ActionStat
     if (!p) return { error: "المنصة غير موجودة" };
     await db.update(salesPlatforms).set({ isActive: !p.isActive, updatedAt: new Date() })
       .where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, auth.orgId)));
-    revalidatePath("/erp/platforms");
+    revalidatePath("/platforms");
     return { ok: true };
   });
 }

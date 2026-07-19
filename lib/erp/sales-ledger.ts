@@ -158,7 +158,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         customerName: custMap.get(r.customerId) ?? "—", docType: "ORDER", status: r.status,
         qtyTotal: Number(q?.total ?? 0), qtyDelivered: Number(q?.delivered ?? 0),
         subtotal: num(r.subtotal), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
-        href: `/erp/sales/orders/${r.number}`,
+        href: `/sales/orders/${r.number}`,
       });
     }
   }
@@ -194,7 +194,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         customerName: (r.customerId && custMap.get(r.customerId)) || "—", docType: "DELIVERY", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
         subtotal: null, discount: null, tax: null, total: null,
-        href: `/erp/sales/deliveries/${r.number}`,
+        href: `/sales/deliveries/${r.number}`,
       });
     }
   }
@@ -232,7 +232,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         customerName: custMap.get(r.customerId) ?? "—", docType: "INVOICE", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
         subtotal: num(r.subtotal), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
-        href: `/erp/sales/invoices/${r.number}`,
+        href: `/sales/invoices/${r.number}`,
       });
     }
   }
@@ -268,7 +268,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         customerName: custMap.get(r.customerId) ?? "—", docType: "RETURN", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
         subtotal: null, discount: null, tax: null, total: num(r.total),
-        href: `/erp/sales/returns/${r.number}`,
+        href: `/sales/returns/${r.number}`,
       });
     }
   }

@@ -54,7 +54,7 @@ export function InvoiceReturnForm({
         : await createPurchaseReturnAction({ purchaseInvoiceId: invoiceId, date, lines: picks });
       if (r.ok) {
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
-        router.push(`/erp/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
+        router.push(`/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
         router.refresh();
       } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
     });

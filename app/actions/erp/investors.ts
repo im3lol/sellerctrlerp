@@ -53,7 +53,7 @@ export async function saveInvestorAction(_prev: ActionState, formData: FormData)
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-    revalidatePath("/erp/investors");
+    revalidatePath("/investors");
     return { ok: true };
   });
 }
@@ -67,7 +67,7 @@ export async function deleteInvestorAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون المستثمر مرتبطاً بحركات" };
     }
-    revalidatePath("/erp/investors");
+    revalidatePath("/investors");
     return { ok: true };
   });
 }

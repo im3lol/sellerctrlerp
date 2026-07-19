@@ -14,7 +14,7 @@ type Res = { ok: true; id?: string } | { error: string };
 // public landing (ISR). Refresh all three so an edit is visible immediately.
 function revalidatePlans() {
   revalidatePath("/admin/plans");
-  revalidatePath("/erp/settings/subscription");
+  revalidatePath("/settings/subscription");
   revalidatePath("/");
 }
 

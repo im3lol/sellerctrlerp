@@ -55,7 +55,7 @@ export async function requestSubscriptionAction(input: SubRequestInput): Promise
       requestedBy: user.id,
     });
 
-    revalidatePath("/erp/settings/subscription");
+    revalidatePath("/settings/subscription");
     return { ok: true };
   });
 }

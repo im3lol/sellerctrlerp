@@ -37,7 +37,7 @@ export function SalesInvoiceDetailActions({
 
   const printBtn = (
     <Button size="sm" variant="outline" asChild>
-      <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/print`} target="_blank">
+      <Link href={`/sales/invoices/${encodeURIComponent(number)}/print`} target="_blank">
         <Icon name="Printer" className="size-4" />طباعة
       </Link>
     </Button>
@@ -77,7 +77,7 @@ export function SalesInvoiceDetailActions({
         {waBtn}
         {emailBtn}
         {canManage && (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/erp/sales/invoices")}>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/sales/invoices")}>
             <Icon name="Trash2" className="size-4 text-destructive" />حذف
           </Button>
         )}
@@ -92,12 +92,12 @@ export function SalesInvoiceDetailActions({
       <div className="flex flex-wrap gap-2">
         {canCollect && hasBalance && (
           <Button size="sm" asChild>
-            <Link href={`/erp/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
+            <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
           </Button>
         )}
         {canManage && (
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+            <Link href={`/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
           </Button>
         )}
         {printBtn}

@@ -62,7 +62,7 @@ export async function upsertCurrencyAction(input: CurrencyInput): Promise<Action
     } catch {
       return { error: "تعذّر حفظ العملة" };
     }
-    revalidatePath("/erp/settings/currencies");
+    revalidatePath("/settings/currencies");
     return { ok: true };
   });
 }
@@ -81,7 +81,7 @@ export async function toggleCurrencyActiveAction(id: string): Promise<ActionStat
     if (cur.isBase) return { error: "لا يمكن إلغاء تفعيل العملة الأساسية" };
 
     await db.update(currencies).set({ isActive: !cur.isActive }).where(eq(currencies.id, id));
-    revalidatePath("/erp/settings/currencies");
+    revalidatePath("/settings/currencies");
     return { ok: true };
   });
 }
@@ -128,7 +128,7 @@ export async function upsertExchangeRateAction(input: RateInput): Promise<Action
     } catch {
       return { error: "تعذّر حفظ سعر الصرف" };
     }
-    revalidatePath("/erp/settings/currencies");
+    revalidatePath("/settings/currencies");
     return { ok: true };
   });
 }

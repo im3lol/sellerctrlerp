@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // The ERP moved off the /erp prefix (sellerctrl.com/inventory, not /erp/inventory).
+  // Redirect old links/bookmarks so nothing 404s. /api/erp stays as-is.
+  async redirects() {
+    return [
+      { source: "/erp", destination: "/dashboard", permanent: true },
+      { source: "/erp/:path*", destination: "/:path*", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

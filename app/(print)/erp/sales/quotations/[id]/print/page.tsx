@@ -57,7 +57,7 @@ export default async function PrintQuotationPage({ params }: Params) {
         org={org}
         title="عرض سعر"
         number={q.number}
-        backHref={`/erp/sales/quotations/${q.id}`}
+        backHref={`/sales/quotations/${q.id}`}
         meta={[
           { label: "التاريخ", value: dt(q.date) },
           ...(q.validUntil ? [{ label: "ساري حتى", value: dt(q.validUntil) }] : []),

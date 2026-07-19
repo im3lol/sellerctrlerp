@@ -29,7 +29,7 @@ export async function createApiKeyAction(input: unknown): Promise<(ActionState &
 
     const key = generateApiKey();
     await db.insert(apiKeys).values({ organizationId: auth.orgId, name, scope, expiresAt, keyHash: hashApiKey(key), keyHint: keyHint(key) });
-    revalidatePath("/erp/settings/api-keys");
+    revalidatePath("/settings/api-keys");
     return { ok: true, key };
   });
 }
@@ -40,7 +40,7 @@ export async function revokeApiKeyAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.update(apiKeys).set({ isActive: false }).where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, auth.orgId)));
-    revalidatePath("/erp/settings/api-keys");
+    revalidatePath("/settings/api-keys");
     return { ok: true };
   });
 }

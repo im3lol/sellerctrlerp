@@ -61,7 +61,7 @@ export async function upsertRecurringSalesInvoiceAction(input: unknown): Promise
         })));
         return rid!;
       });
-      revalidatePath("/erp/sales/recurring");
+      revalidatePath("/sales/recurring");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -78,7 +78,7 @@ export async function toggleRecurringSalesInvoiceAction(id: string): Promise<Act
     if (!r) return { error: "القالب غير موجود" };
     await db.update(recurringSalesInvoices).set({ isActive: !r.isActive, updatedAt: new Date() })
       .where(and(eq(recurringSalesInvoices.id, id), eq(recurringSalesInvoices.organizationId, auth.orgId)));
-    revalidatePath("/erp/sales/recurring");
+    revalidatePath("/sales/recurring");
     return { ok: true };
   });
 }
@@ -88,7 +88,7 @@ export async function deleteRecurringSalesInvoiceAction(id: string): Promise<Act
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(recurringSalesInvoices).where(and(eq(recurringSalesInvoices.id, id), eq(recurringSalesInvoices.organizationId, auth.orgId)));
-    revalidatePath("/erp/sales/recurring");
+    revalidatePath("/sales/recurring");
     return { ok: true };
   });
 }

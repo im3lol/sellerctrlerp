@@ -79,7 +79,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
                   {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
                   <TableCell>
-                    <Link href={`/erp/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                    <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
                   <TableCell>{r.customer ?? "—"}</TableCell>
@@ -91,7 +91,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {actionable && <TableCell />}
                     <TableCell className="ps-8">
-                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>

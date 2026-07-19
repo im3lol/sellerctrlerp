@@ -49,7 +49,7 @@ export function JournalEntryActions({
         <Button
           variant="outline"
           disabled={pending}
-          onClick={() => run(() => deleteDraftEntryAction(entryId), "تم حذف المسودة", "/erp/accounting/journal")}
+          onClick={() => run(() => deleteDraftEntryAction(entryId), "تم حذف المسودة", "/accounting/journal")}
         >
           <Icon name="Trash2" className="size-4" />حذف
         </Button>

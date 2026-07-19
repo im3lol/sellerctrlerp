@@ -79,7 +79,7 @@ export const opensInApp = (l: Pick<Lesson, "kind" | "url" | "body">) =>
   l.kind === "doc" ? !!l.body : isEmbeddable(l.url);
 
 export const lessonHref = (l: Lesson) =>
-  opensInApp(l) ? `/erp/academy/${l.module}/${l.slug}` : l.url;
+  opensInApp(l) ? `/academy/${l.module}/${l.slug}` : l.url;
 
 export type Counts = { total: number; live: number; soon: number };
 

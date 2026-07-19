@@ -52,10 +52,10 @@ export async function upsertRecurringExpenseAction(input: unknown): Promise<Save
     try {
       if (d.id) {
         await db.update(recurringExpenses).set(values).where(and(eq(recurringExpenses.id, d.id), eq(recurringExpenses.organizationId, auth.orgId)));
-        revalidatePath("/erp/accounting/expenses/recurring"); return { ok: true, id: d.id };
+        revalidatePath("/accounting/expenses/recurring"); return { ok: true, id: d.id };
       }
       const [r] = await db.insert(recurringExpenses).values(values).returning({ id: recurringExpenses.id });
-      revalidatePath("/erp/accounting/expenses/recurring"); return { ok: true, id: r.id };
+      revalidatePath("/accounting/expenses/recurring"); return { ok: true, id: r.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
     }
@@ -71,7 +71,7 @@ export async function toggleRecurringExpenseAction(id: string): Promise<ActionSt
     if (!r) return { error: "القالب غير موجود" };
     await db.update(recurringExpenses).set({ isActive: !r.isActive, updatedAt: new Date() })
       .where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.organizationId, auth.orgId)));
-    revalidatePath("/erp/accounting/expenses/recurring");
+    revalidatePath("/accounting/expenses/recurring");
     return { ok: true };
   });
 }
@@ -81,7 +81,7 @@ export async function deleteRecurringExpenseAction(id: string): Promise<ActionSt
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(recurringExpenses).where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.organizationId, auth.orgId)));
-    revalidatePath("/erp/accounting/expenses/recurring");
+    revalidatePath("/accounting/expenses/recurring");
     return { ok: true };
   });
 }

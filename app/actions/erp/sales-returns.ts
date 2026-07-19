@@ -104,7 +104,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_RETURN", entityId: id, entityNumber: number, summary: `إنشاء مرتجع مبيعات ${number} (مسودة)`, metadata: { total, invoice: inv.number } });
-      revalidatePath("/erp/sales/invoices");
+      revalidatePath("/sales/invoices");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };
@@ -166,9 +166,9 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
           await tx.update(salesReturns).set({ status: "POSTED" }).where(eq(salesReturns.id, ret.id));
           await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد مرتجع إذن صرف ${dn.number}`, metadata: { net } });
         });
-        revalidatePath("/erp/sales/deliveries");
-        revalidatePath("/erp/sales/orders");
-        revalidatePath("/erp/accounting/journal");
+        revalidatePath("/sales/deliveries");
+        revalidatePath("/sales/orders");
+        revalidatePath("/accounting/journal");
         return { ok: true };
       } catch (e) {
         return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
@@ -257,8 +257,8 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مبيعات ${ret.number}`, metadata: { total, invoice: inv.number } });
       });
 
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر ترحيل المرتجع" };
@@ -280,7 +280,7 @@ export async function returnFromSalesInvoiceAction(invoiceId: string, picks: Ret
   if (!created.ok || !created.id) return created;
   const posted = await confirmSalesReturnAction(created.id);
   if (!posted.ok) return { error: posted.error, id: created.id };
-  revalidatePath("/erp/sales/invoices");
+  revalidatePath("/sales/invoices");
   return { ok: true, id: created.id };
 }
 
@@ -300,7 +300,7 @@ export async function deleteSalesReturnAction(id: string): Promise<ActionState> 
       await tx.delete(salesReturns).where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId)));
     });
 
-    revalidatePath("/erp/sales/invoices");
+    revalidatePath("/sales/invoices");
     return { ok: true };
   });
 }
@@ -379,8 +379,8 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
         await tx.update(salesReturns).set({ status: "CANCELLED" }).where(eq(salesReturns.id, ret.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `إلغاء مرتجع مبيعات ${ret.number}`, metadata: { total } });
       });
-      revalidatePath("/erp/sales/invoices");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إلغاء المرتجع" };
@@ -441,7 +441,7 @@ export async function createDeliveryReturnAction(input: unknown): Promise<SaveRe
         return ret.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_RETURN", entityId: id, entityNumber: number, summary: `مرتجع إذن صرف ${dn.number} (مسودة)`, metadata: { net } });
-      revalidatePath("/erp/sales/deliveries");
+      revalidatePath("/sales/deliveries");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ المرتجع" };

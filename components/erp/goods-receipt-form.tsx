@@ -82,7 +82,7 @@ export function GoodsReceiptForm({
       const r = await createReceiptFromOrderAction(orderId, picks, date);
       if (r.ok) {
         toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
-        router.push(r.id ? `/erp/purchases/receipts/${r.id}` : "/erp/purchases/receipts");
+        router.push(r.id ? `/purchases/receipts/${r.id}` : "/purchases/receipts");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -95,7 +95,7 @@ export function GoodsReceiptForm({
           <CardTitle>بيانات إذن الاستلام</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الاستلام</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/receipts")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/receipts")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

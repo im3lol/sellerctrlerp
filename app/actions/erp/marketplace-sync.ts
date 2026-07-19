@@ -24,7 +24,7 @@ export async function syncProductsAction(code: string): Promise<ProductsSync> {
   if (!p.flags.products) return { ok: false, error: "مزامنة المنتجات موقوفة لهذه المنصّة" };
   const r = await syncProductsCore(p);
   if (r.ok) await markSync(p.orgId, p.provider, { lastSyncStatus: "ok", productsSyncedAt: new Date() });
-  revalidatePath("/erp/inventory/items");
+  revalidatePath("/inventory/items");
   return r;
 }
 
@@ -39,7 +39,7 @@ export async function syncOrdersAction(code: string): Promise<OrdersSync> {
   const from = new Date(to.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const r = await syncOrdersCore(p, auth.userId, { from, to });
   if (r.ok) await markSync(p.orgId, p.provider, { lastSyncStatus: "ok" });
-  revalidatePath("/erp/sales/orders");
+  revalidatePath("/sales/orders");
   return r;
 }
 
@@ -51,6 +51,6 @@ export async function syncInventoryAction(code: string): Promise<InventorySync> 
   if ("error" in p) return { ok: false, error: p.error };
   if (!p.flags.inventory) return { ok: false, error: "مزامنة المخزون موقوفة لهذه المنصّة" };
   const r = await syncInventoryCore(p);
-  revalidatePath(`/erp/platforms/${p.provider}`);
+  revalidatePath(`/platforms/${p.provider}`);
   return r;
 }

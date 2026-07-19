@@ -58,7 +58,7 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
         return qt.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "QUOTATION", entityId: id, summary: "إنشاء عرض سعر (مسودة)" });
-      revalidatePath("/erp/sales/quotations");
+      revalidatePath("/sales/quotations");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -77,8 +77,8 @@ export async function setQuotationStatusAction(id: string, status: string): Prom
     if (!qt) return { error: "العرض غير موجود" };
     await db.update(salesQuotations).set({ status, updatedAt: new Date() })
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
-    revalidatePath("/erp/sales/quotations");
-    revalidatePath(`/erp/sales/quotations/${id}`);
+    revalidatePath("/sales/quotations");
+    revalidatePath(`/sales/quotations/${id}`);
     return { ok: true };
   });
 }
@@ -93,7 +93,7 @@ export async function deleteQuotationAction(id: string): Promise<ActionState> {
     if (!qt) return { error: "العرض غير موجود" };
     if (qt.status === "ACCEPTED") return { error: "لا يمكن حذف عرض مقبول" };
     await db.delete(salesQuotations).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
-    revalidatePath("/erp/sales/quotations");
+    revalidatePath("/sales/quotations");
     return { ok: true };
   });
 }

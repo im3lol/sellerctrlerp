@@ -27,14 +27,14 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المحاسبة والمالية",
     icon: "Calculator",
     reports: [
-      { key: "trial-balance", label: "ميزان المراجعة", view: "/erp/reports", excel: "/api/erp/reports/trial-balance/export", dates: "range" },
-      { key: "income-statement", label: "قائمة الدخل", view: "/erp/reports/income-statement", excel: "/api/erp/reports/income-statement/export", dates: "range" },
-      { key: "balance-sheet", label: "الميزانية العمومية", view: "/erp/reports/balance-sheet", excel: "/api/erp/reports/balance-sheet/export", dates: "asOf" },
-      { key: "cash-flow", label: "التدفق النقدي", view: "/erp/reports/cash-flow", excel: "/api/erp/reports/cash-flow/export", dates: "range" },
-      { key: "vat", label: "ضريبة القيمة المضافة", view: "/erp/reports/vat", excel: "/api/erp/reports/vat/export", dates: "range" },
-      { key: "ratios", label: "المؤشرات المالية", view: "/erp/reports/ratios", excel: "/api/erp/reports/ratios/export", dates: "none" },
-      { key: "cost-centers", label: "أرباح مراكز التكلفة", view: "/erp/reports/cost-centers", excel: "/api/erp/reports/cost-centers/export", dates: "range" },
-      { key: "fx", label: "إعادة تقييم العملات", view: "/erp/reports/fx-revaluation", excel: "/api/erp/reports/fx-revaluation/export", dates: "none" },
+      { key: "trial-balance", label: "ميزان المراجعة", view: "/reports", excel: "/api/erp/reports/trial-balance/export", dates: "range" },
+      { key: "income-statement", label: "قائمة الدخل", view: "/reports/income-statement", excel: "/api/erp/reports/income-statement/export", dates: "range" },
+      { key: "balance-sheet", label: "الميزانية العمومية", view: "/reports/balance-sheet", excel: "/api/erp/reports/balance-sheet/export", dates: "asOf" },
+      { key: "cash-flow", label: "التدفق النقدي", view: "/reports/cash-flow", excel: "/api/erp/reports/cash-flow/export", dates: "range" },
+      { key: "vat", label: "ضريبة القيمة المضافة", view: "/reports/vat", excel: "/api/erp/reports/vat/export", dates: "range" },
+      { key: "ratios", label: "المؤشرات المالية", view: "/reports/ratios", excel: "/api/erp/reports/ratios/export", dates: "none" },
+      { key: "cost-centers", label: "أرباح مراكز التكلفة", view: "/reports/cost-centers", excel: "/api/erp/reports/cost-centers/export", dates: "range" },
+      { key: "fx", label: "إعادة تقييم العملات", view: "/reports/fx-revaluation", excel: "/api/erp/reports/fx-revaluation/export", dates: "none" },
     ],
   },
   {
@@ -42,11 +42,11 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المبيعات والعملاء",
     icon: "ShoppingCart",
     reports: [
-      { key: "sales-profit", label: "ربحية المنتجات", view: "/erp/sales/reports/profitability", excel: "/api/erp/sales/profitability/export", dates: "range" },
-      { key: "sales-customers", label: "ترتيب العملاء", view: "/erp/sales/reports/customers", excel: "/api/erp/sales/customers/export", dates: "range" },
-      { key: "sales-items", label: "تقرير أصناف المبيعات", view: "/erp/sales/reports/items", excel: "/api/erp/sales/items/export", dates: "range" },
-      { key: "sales-ledger", label: "دفتر المبيعات", view: "/erp/sales/reports/ledger", excel: "/api/erp/sales/ledger/export", dates: "range" },
-      { key: "sales-aging", label: "أعمار الذمم المدينة", view: "/erp/sales/aging", excel: "/api/erp/sales/aging/export", dates: "asOf" },
+      { key: "sales-profit", label: "ربحية المنتجات", view: "/sales/reports/profitability", excel: "/api/erp/sales/profitability/export", dates: "range" },
+      { key: "sales-customers", label: "ترتيب العملاء", view: "/sales/reports/customers", excel: "/api/erp/sales/customers/export", dates: "range" },
+      { key: "sales-items", label: "تقرير أصناف المبيعات", view: "/sales/reports/items", excel: "/api/erp/sales/items/export", dates: "range" },
+      { key: "sales-ledger", label: "دفتر المبيعات", view: "/sales/reports/ledger", excel: "/api/erp/sales/ledger/export", dates: "range" },
+      { key: "sales-aging", label: "أعمار الذمم المدينة", view: "/sales/aging", excel: "/api/erp/sales/aging/export", dates: "asOf" },
     ],
   },
   {
@@ -54,9 +54,9 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المشتريات والموردون",
     icon: "Truck",
     reports: [
-      { key: "purch-suppliers", label: "ترتيب الموردين", view: "/erp/purchases/reports/suppliers", excel: "/api/erp/purchases/suppliers/export", dates: "range" },
-      { key: "purch-ledger", label: "دفتر المشتريات", view: "/erp/purchases/reports/ledger", excel: "/api/erp/purchases/ledger/export", dates: "range" },
-      { key: "purch-aging", label: "أعمار الذمم الدائنة", view: "/erp/purchases/aging", excel: "/api/erp/purchases/aging/export", dates: "asOf" },
+      { key: "purch-suppliers", label: "ترتيب الموردين", view: "/purchases/reports/suppliers", excel: "/api/erp/purchases/suppliers/export", dates: "range" },
+      { key: "purch-ledger", label: "دفتر المشتريات", view: "/purchases/reports/ledger", excel: "/api/erp/purchases/ledger/export", dates: "range" },
+      { key: "purch-aging", label: "أعمار الذمم الدائنة", view: "/purchases/aging", excel: "/api/erp/purchases/aging/export", dates: "asOf" },
     ],
   },
   {
@@ -64,10 +64,10 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المخزون",
     icon: "Boxes",
     reports: [
-      { key: "inv-stock", label: "أرصدة المخزون", view: "/erp/inventory/stock", excel: "/api/erp/inventory/stock/export", dates: "none" },
-      { key: "inv-ledger", label: "دفتر حركة المخزون", view: "/erp/inventory/ledger", excel: "/api/erp/inventory/ledger/export", dates: "range" },
-      { key: "inv-dead", label: "المخزون الراكد", view: "/erp/inventory/dead-stock", excel: "/api/erp/inventory/dead-stock/export", dates: "none" },
-      { key: "inv-expiry", label: "تنبيهات انتهاء الصلاحية", view: "/erp/inventory/expiry", excel: "/api/erp/inventory/expiry/export", dates: "none" },
+      { key: "inv-stock", label: "أرصدة المخزون", view: "/inventory/stock", excel: "/api/erp/inventory/stock/export", dates: "none" },
+      { key: "inv-ledger", label: "دفتر حركة المخزون", view: "/inventory/ledger", excel: "/api/erp/inventory/ledger/export", dates: "range" },
+      { key: "inv-dead", label: "المخزون الراكد", view: "/inventory/dead-stock", excel: "/api/erp/inventory/dead-stock/export", dates: "none" },
+      { key: "inv-expiry", label: "تنبيهات انتهاء الصلاحية", view: "/inventory/expiry", excel: "/api/erp/inventory/expiry/export", dates: "none" },
     ],
   },
   {
@@ -75,7 +75,7 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "الموارد البشرية",
     icon: "UsersRound",
     reports: [
-      { key: "hr-leaves", label: "أرصدة الإجازات", view: "/erp/hr/leaves/report", excel: "/api/erp/hr/leaves/report/export", dates: "range" },
+      { key: "hr-leaves", label: "أرصدة الإجازات", view: "/hr/leaves/report", excel: "/api/erp/hr/leaves/report/export", dates: "range" },
     ],
   },
 ];

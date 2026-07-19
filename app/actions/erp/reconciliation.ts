@@ -23,7 +23,7 @@ export async function setLinesReconciledAction(reconcileIds: string[], unreconci
       await db.update(journalEntryLines).set({ reconciled: false, reconciledAt: null })
         .where(and(inArray(journalEntryLines.id, unreconcileIds), orgFilter));
     }
-    revalidatePath("/erp/accounting/reconciliation");
+    revalidatePath("/accounting/reconciliation");
     return { ok: true };
   });
 }

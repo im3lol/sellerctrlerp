@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const back = (ok: boolean, msg?: string) =>
-    redirect(`/erp/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`);
+    redirect(`/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`);
 
   const connector = getConnector(provider);
   if (!connector?.oauth) return back(false, "موصّل غير مدعوم");

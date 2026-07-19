@@ -133,7 +133,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
         return grn.id;
       });
-      revalidatePath("/erp/purchases/receipts");
+      revalidatePath("/purchases/receipts");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" };
@@ -219,9 +219,9 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "PURCHASE_ORDER", fromId: po.id, fromNumber: po.number, toType: "GOODS_RECEIPT", toId: grn.id, toNumber: grn.number, relation: "FULFILLS" });
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `تأكيد إذن استلام ${grn.number} من أمر شراء ${po.number} (${newStatus === "RECEIVED" ? "كامل" : "جزئي"})`, metadata: { received } });
       });
-      revalidatePath("/erp/purchases/receipts");
-      revalidatePath("/erp/purchases/orders");
-      revalidatePath(`/erp/purchases/receipts/${grn.number}`);
+      revalidatePath("/purchases/receipts");
+      revalidatePath("/purchases/orders");
+      revalidatePath(`/purchases/receipts/${grn.number}`);
       return { ok: true, id: grn.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر تأكيد الاستلام" };
@@ -244,7 +244,7 @@ export async function deleteReceiptAction(receiptId: string): Promise<ActionStat
         await tx.delete(purchaseReceipts).where(eq(purchaseReceipts.id, grn.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `حذف مسودة إذن استلام ${grn.number}` });
       });
-      revalidatePath("/erp/purchases/receipts");
+      revalidatePath("/purchases/receipts");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحذف" };
@@ -385,8 +385,8 @@ export async function convertReceiptToInvoiceAction(
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: number, summary: `مسودة فاتورة شراء ${number} من إذن استلام ${grn.number}`, metadata: { total: built.total } });
         return inv.id;
       });
-      revalidatePath("/erp/purchases/receipts");
-      revalidatePath("/erp/purchases/invoices");
+      revalidatePath("/purchases/receipts");
+      revalidatePath("/purchases/invoices");
       return { ok: true, invoiceId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
@@ -454,9 +454,9 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
         if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `عكس إذن استلام ${grn.number} — أُعيد فتح الأمر`, metadata: { value } });
       });
-      revalidatePath("/erp/purchases/receipts");
-      revalidatePath("/erp/purchases/orders");
-      revalidatePath(`/erp/purchases/receipts/${grn.number}`);
+      revalidatePath("/purchases/receipts");
+      revalidatePath("/purchases/orders");
+      revalidatePath(`/purchases/receipts/${grn.number}`);
       return { ok: true, id: grn.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر عكس الاستلام" };

@@ -13,7 +13,7 @@ type Res = { ok: true; id?: string } | { error: string };
 
 function refresh() {
   revalidatePath("/admin/changelog");
-  revalidatePath("/erp/whats-new");
+  revalidatePath("/whats-new");
 }
 
 const schema = z.object({

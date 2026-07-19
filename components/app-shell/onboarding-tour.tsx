@@ -77,14 +77,14 @@ const TOURS: Record<string, Step[]> = {
 /** Map the current path to a tour key (module), or null when none applies. */
 function routeKey(path: string): string | null {
   if (path === "/dashboard") return "home";
-  if (path.startsWith("/erp/platforms")) return "platforms";
-  if (path.startsWith("/erp/purchases")) return "purchases";
-  if (path.startsWith("/erp/sales")) return "sales";
-  if (path.startsWith("/erp/inventory")) return "inventory";
-  if (path.startsWith("/erp/accounting")) return "accounting";
-  if (path.startsWith("/erp/hr")) return "hr";
-  if (path.startsWith("/erp/investors")) return "investors";
-  if (path.startsWith("/erp/reports")) return "reports";
+  if (path.startsWith("/platforms")) return "platforms";
+  if (path.startsWith("/purchases")) return "purchases";
+  if (path.startsWith("/sales")) return "sales";
+  if (path.startsWith("/inventory")) return "inventory";
+  if (path.startsWith("/accounting")) return "accounting";
+  if (path.startsWith("/hr")) return "hr";
+  if (path.startsWith("/investors")) return "investors";
+  if (path.startsWith("/reports")) return "reports";
   return null;
 }
 

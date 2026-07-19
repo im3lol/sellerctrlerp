@@ -73,7 +73,7 @@ export async function requireErpModule(
     const mod = moduleOverride ?? moduleOfPermission(permission);
     // Locked (trial lapsed / no active plan) or module not in the plan → send to
     // the in-app subscription page to pick a plan.
-    if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/erp/settings/subscription?locked=${mod}`);
+    if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/settings/subscription?locked=${mod}`);
   }
   return { orgId: org.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
 }

@@ -13,7 +13,7 @@ export async function importSalesOrdersCSV(csvText: string): Promise<DocImportRe
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const r = await importSalesOrdersCore(auth.orgId, auth.userId, csvText);
-    revalidatePath("/erp/sales/orders");
+    revalidatePath("/sales/orders");
     return r;
   });
 }
@@ -23,7 +23,7 @@ export async function importPurchaseOrdersCSV(csvText: string): Promise<DocImpor
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const r = await importPurchaseOrdersCore(auth.orgId, auth.userId, csvText);
-    revalidatePath("/erp/purchases/orders");
+    revalidatePath("/purchases/orders");
     return r;
   });
 }
@@ -33,7 +33,7 @@ export async function importStockTransfersCSV(csvText: string): Promise<DocImpor
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const r = await importStockTransfersCore(auth.orgId, auth.userId, csvText);
-    revalidatePath("/erp/inventory/transfers");
+    revalidatePath("/inventory/transfers");
     return r;
   });
 }

@@ -65,7 +65,7 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
       });
 
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (${lines.length} صنف، مسودة)`, metadata: { lines: lines.length } });
-      revalidatePath("/erp/inventory/transfers");
+      revalidatePath("/inventory/transfers");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التحويل" };
@@ -131,9 +131,9 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: ls.length } });
       });
 
-      revalidatePath("/erp/inventory/transfers");
-      revalidatePath("/erp/inventory/stock");
-      revalidatePath("/erp/inventory/ledger");
+      revalidatePath("/inventory/transfers");
+      revalidatePath("/inventory/stock");
+      revalidatePath("/inventory/ledger");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
@@ -155,7 +155,7 @@ export async function deleteStockTransferAction(id: string): Promise<ActionState
     if (tr.status !== "DRAFT") return { error: "لا يمكن حذف تحويل مُرحّل" };
 
     await db.delete(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
-    revalidatePath("/erp/inventory/transfers");
+    revalidatePath("/inventory/transfers");
     return { ok: true };
   });
 }

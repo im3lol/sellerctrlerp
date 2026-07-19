@@ -88,7 +88,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
                   {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
-                    <Link href={`/erp/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                    <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
                       <div className="mt-0.5 flex items-center gap-1">
                         {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
@@ -117,7 +117,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {canManage && <TableCell />}
                     <TableCell className="ps-8">
-                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>

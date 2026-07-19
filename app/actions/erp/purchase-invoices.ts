@@ -76,8 +76,8 @@ export async function createPurchaseInvoiceAction(input: unknown): Promise<SaveI
         return inv.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_INVOICE", entityId: id, entityNumber: number, summary: `إنشاء فاتورة شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/purchases");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/purchases");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الفاتورة مستخدم — أعد المحاولة" : "تعذّر حفظ الفاتورة" };
@@ -170,10 +170,10 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
         await tx.update(purchaseInvoices).set({ status: "POSTED" }).where(eq(purchaseInvoices.id, inv.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `ترحيل فاتورة شراء ${inv.number}`, metadata: { total } });
       });
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/purchases/receipts");
-      revalidatePath("/erp/purchases/orders");
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/purchases/receipts");
+      revalidatePath("/purchases/orders");
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر الترحيل";
@@ -202,8 +202,8 @@ export async function deletePurchaseInvoiceAction(id: string): Promise<ActionSta
         }
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_INVOICE", entityId: inv.id, entityNumber: inv.number, summary: `حذف مسودة فاتورة شراء ${inv.number}` });
       });
-      revalidatePath("/erp/purchases/invoices");
-      revalidatePath("/erp/purchases/orders");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/purchases/orders");
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحذف" };

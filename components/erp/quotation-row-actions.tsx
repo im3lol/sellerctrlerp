@@ -28,7 +28,7 @@ export function QuotationRowActions({ id, status, canManage }: { id: string; sta
         </>
       )}
       {status === "ACCEPTED" && (
-        <Button size="sm" asChild><Link href={`/erp/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر بيع</Link></Button>
+        <Button size="sm" asChild><Link href={`/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر بيع</Link></Button>
       )}
       {status !== "ACCEPTED" && (
         <Button size="icon" variant="ghost" disabled={pending} aria-label="حذف" onClick={() => run(() => deleteQuotationAction(id), "تم الحذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>

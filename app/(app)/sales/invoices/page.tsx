@@ -1,0 +1,178 @@
+import Link from "next/link";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { loadErpPage } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { salesInvoices, customers, salesReturns } from "@/db/schema";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { SalesInvoicesTable } from "@/components/erp/sales-invoices-table";
+import { selectCls } from "@/lib/utils";
+
+const PER_PAGE = 10;
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const STATUS_OPTIONS: [string, string][] = [
+  ["DRAFT", "مسودة"], ["POSTED", "مرحّلة"], ["PARTIAL_PAID", "مدفوعة جزئياً"], ["PAID", "مدفوعة"], ["CANCELLED", "ملغاة"],
+];
+
+type SP = { [k: string]: string | string[] | undefined };
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+export default async function SalesInvoicesPage({ searchParams }: { searchParams: Promise<SP> }) {
+  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
+    const canManage = can("sales.create");
+    const canPost = can("accounting.post");
+    const sp = await searchParams;
+    const q = one(sp.q).trim();
+    const fStatus = one(sp.status);
+    const fCustomer = one(sp.customer);
+    const from = one(sp.from);
+    const to = one(sp.to);
+    const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+
+    const conds = [eq(salesInvoices.organizationId, orgId)];
+    if (q) conds.push(ilike(salesInvoices.number, `%${q}%`));
+    if (fStatus) conds.push(eq(salesInvoices.status, fStatus));
+    if (fCustomer) conds.push(eq(salesInvoices.customerId, fCustomer));
+    if (from) conds.push(gte(salesInvoices.date, new Date(from)));
+    if (to) conds.push(lte(salesInvoices.date, new Date(to + "T23:59:59")));
+    const where = and(...conds);
+
+    const [custList, [{ total }], [sum]] = await Promise.all([
+      db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
+      db.select({ total: count() }).from(salesInvoices).where(where),
+      // Filter-aware money totals (whole result set, not just the page).
+      db.select({
+        value: sql<string>`coalesce(sum(${salesInvoices.totalAmount}), 0)`,
+        due: sql<string>`coalesce(sum(${salesInvoices.balanceDue}), 0)`,
+      }).from(salesInvoices).where(where),
+    ]);
+    const totalValue = Number(sum?.value ?? 0);
+    const totalDue = Number(sum?.due ?? 0);
+    const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
+    const safePage = Math.min(page, pages);
+
+    const tableRows = await db
+      .select({
+        id: salesInvoices.id, number: salesInvoices.number, date: salesInvoices.date, status: salesInvoices.status,
+        total: salesInvoices.totalAmount, balanceDue: salesInvoices.balanceDue, customer: customers.nameAr,
+      })
+      .from(salesInvoices)
+      .leftJoin(customers, eq(salesInvoices.customerId, customers.id))
+      .where(where)
+      .orderBy(desc(salesInvoices.date), desc(salesInvoices.number))
+      .limit(PER_PAGE)
+      .offset((safePage - 1) * PER_PAGE);
+
+    // Attach each invoice's returns (credit notes) as linked rows shown under it.
+    const invIds = tableRows.map((r) => r.id);
+    const retRows = invIds.length
+      ? await db.select({ id: salesReturns.id, number: salesReturns.number, date: salesReturns.date, total: salesReturns.totalAmount, status: salesReturns.status, invId: salesReturns.salesInvoiceId })
+          .from(salesReturns)
+          .where(and(eq(salesReturns.organizationId, orgId), inArray(salesReturns.salesInvoiceId, invIds)))
+          .orderBy(desc(salesReturns.date), desc(salesReturns.number))
+      : [];
+    const retsByInv = new Map<string, { id: string; number: string; date: Date; total: string | null; status: string }[]>();
+    for (const r of retRows) {
+      if (!r.invId) continue;
+      const list = retsByInv.get(r.invId) ?? [];
+      list.push({ id: r.id, number: r.number, date: r.date, total: r.total, status: r.status });
+      retsByInv.set(r.invId, list);
+    }
+    const rows = tableRows.map((r) => ({
+      ...r,
+      returned: (retsByInv.get(r.id) ?? []).some((x) => x.status === "POSTED"),
+      returns: retsByInv.get(r.id) ?? [],
+    }));
+
+    const hasFilters = Boolean(q || fStatus || fCustomer || from || to);
+    const qs = (p: number) => {
+      const u = new URLSearchParams();
+      if (q) u.set("q", q);
+      if (fStatus) u.set("status", fStatus);
+      if (fCustomer) u.set("customer", fCustomer);
+      if (from) u.set("from", from);
+      if (to) u.set("to", to);
+      u.set("page", String(p));
+      return `?${u.toString()}`;
+    };
+
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader
+          icon="ReceiptText"
+          title="فواتير البيع"
+          subtitle={`${total} فاتورة`}
+          action={canManage ? (
+            <Button asChild><Link href="/sales/invoices/new"><Icon name="Plus" className="size-4" />فاتورة بيع</Link></Button>
+          ) : undefined}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي القيمة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المُحصّل</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalValue - totalDue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المتبقّي (مستحق)</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalDue > 0 ? "text-amber-600" : ""}`}>{money(totalDue)}</p></CardContent></Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>الفواتير</CardTitle>
+            <CardDescription>فواتير البيع تُحفظ مسودة ثم تُؤكَّد (تُرحّل محاسبياً). حدّد عدّة مسودات لتأكيدها أو حذفها دفعةً واحدة.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <details open={hasFilters} className="rounded-lg border">
+              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
+                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+              </summary>
+              <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+                <div className="space-y-1"><Label htmlFor="q">رقم الفاتورة</Label><Input id="q" name="q" defaultValue={q} placeholder="SI-2026-..." /></div>
+                <div className="space-y-1">
+                  <Label htmlFor="status">الحالة</Label>
+                  <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
+                    <option value="">الكل</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="customer">العميل</Label>
+                  <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
+                    <option value="">الكل</option>
+                    {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="flex gap-2 sm:col-span-5">
+                  <Button type="submit">تطبيق</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/invoices">مسح</Link></Button>}
+                </div>
+              </form>
+            </details>
+
+            {tableRows.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
+            ) : (
+              <>
+                <SalesInvoicesTable rows={rows} canManage={canManage} canPost={canPost} />
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>صفحة {safePage} من {pages}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
+                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  });
+}

@@ -40,7 +40,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts
       const r = await createExpenseAction({ expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes });
       if (r.ok) {
         toast.success("تم حفظ المصروف (مسودة) — أكّده للترحيل");
-        router.push("/erp/accounting/expenses");
+        router.push("/accounting/expenses");
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر الحفظ");

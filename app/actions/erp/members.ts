@@ -57,7 +57,7 @@ export async function inviteMemberAction(input: { name: string; email: string; r
         return u.id;
       });
       await tryRecordAudit({ orgId, userId: actorId, action: "CREATE", entityType: "MEMBER", entityId: newUserId, entityNumber: email, summary: `دعوة عضو ${name} (${erpRoleLabels[role] ?? role})` });
-      revalidatePath("/erp/settings/permissions");
+      revalidatePath("/settings/permissions");
       return { ok: true };
     } catch {
       return { error: "تعذّر إنشاء العضو" };
@@ -85,7 +85,7 @@ export async function addUserToOrgAction(userId: string, role: string): Promise<
     await db.insert(organizationMembers).values({ organizationId: org.id, userId, role });
   }
   revalidatePath(`/admin/users/${userId}`);
-  revalidatePath("/erp/hr/employees");
+  revalidatePath("/hr/employees");
   return { ok: true };
 }
 
@@ -107,7 +107,7 @@ export async function setMemberOverridesAction(userId: string, grant: string[], 
     const overrides = g.length || r.length ? { grant: g, revoke: r } : null;
     await db.update(organizationMembers).set({ permissionOverrides: overrides })
       .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId)));
-    revalidatePath("/erp/settings/permissions");
+    revalidatePath("/settings/permissions");
     revalidatePath(`/admin/users/${userId}`);
     return { ok: true };
   });
@@ -122,7 +122,7 @@ export async function removeUserFromOrgAction(userId: string): Promise<ActionSta
     await db.delete(organizationMembers)
       .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId)));
     revalidatePath(`/admin/users/${userId}`);
-    revalidatePath("/erp/hr/employees");
+    revalidatePath("/hr/employees");
     return { ok: true };
   });
 }

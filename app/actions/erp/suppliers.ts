@@ -50,8 +50,8 @@ export async function saveSupplierAction(_prev: ActionState, formData: FormData)
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-    revalidatePath("/erp/purchases/suppliers");
-    revalidatePath("/erp/purchases");
+    revalidatePath("/purchases/suppliers");
+    revalidatePath("/purchases");
     return { ok: true };
   });
 }
@@ -65,8 +65,8 @@ export async function deleteSupplierAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون المورد مرتبطاً بفواتير" };
     }
-    revalidatePath("/erp/purchases/suppliers");
-    revalidatePath("/erp/purchases");
+    revalidatePath("/purchases/suppliers");
+    revalidatePath("/purchases");
     return { ok: true };
   });
 }

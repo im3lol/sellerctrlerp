@@ -91,12 +91,12 @@ describe("isLive", () => {
 
 describe("lessonHref / opensInApp", () => {
   it("a YouTube video opens in-app — it plays there", () => {
-    expect(lessonHref(video("a", "sales", YT))).toBe("/erp/academy/sales/a");
+    expect(lessonHref(video("a", "sales", YT))).toBe("/academy/sales/a");
     expect(opensInApp(video("a", "sales", YT))).toBe(true);
   });
 
   it("a guide opens in-app", () => {
-    expect(lessonHref(doc("b", "sales", "## شرح"))).toBe("/erp/academy/sales/b");
+    expect(lessonHref(doc("b", "sales", "## شرح"))).toBe("/academy/sales/b");
   });
 
   it("a video we cannot embed leaves for its own host", () => {

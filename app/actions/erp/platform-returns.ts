@@ -109,8 +109,8 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
       if (!restocked) restockFailed++;
     }
 
-    revalidatePath("/erp/sales/returns");
-    revalidatePath("/erp/platforms/[code]/import", "page");
+    revalidatePath("/sales/returns");
+    revalidatePath("/platforms/[code]/import", "page");
     return { ok: true, created, skippedDuplicate, noOrder, noInvoice, notOnInvoice, unmatchedSku, failed, restockFailed, unmatchedSkus: [...unmatchedSkus].slice(0, 30) };
   });
 }

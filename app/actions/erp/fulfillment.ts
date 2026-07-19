@@ -25,8 +25,8 @@ export async function fulfillOrderAction(orderId: string): Promise<ActionState> 
 
     const f = await fulfillOrder(auth.orgId, orderId);
     if (!f.ok) return { error: f.error };
-    revalidatePath("/erp/sales/orders");
-    revalidatePath(`/erp/sales/orders/${encodeURIComponent(so.number)}`);
+    revalidatePath("/sales/orders");
+    revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
   });
 }

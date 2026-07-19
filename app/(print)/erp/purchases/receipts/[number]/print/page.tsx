@@ -61,7 +61,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
         org={org}
         title="إذن استلام"
         number={grn.number}
-        backHref={`/erp/purchases/receipts/${encodeURIComponent(raw)}`}
+        backHref={`/purchases/receipts/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(grn.date) },
           { label: "الحالة", value: STATUS[grn.status] ?? grn.status },

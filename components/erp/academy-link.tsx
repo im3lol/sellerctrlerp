@@ -25,7 +25,7 @@ export async function AcademyLink({ module }: { module: ModuleKey }) {
 
   return (
     <Link
-      href={`/erp/academy/${module}`}
+      href={`/academy/${module}`}
       className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       <Icon name="GraduationCap" className="size-4" />

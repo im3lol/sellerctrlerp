@@ -57,7 +57,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         org={org}
         title="أمر شراء"
         number={po.number}
-        backHref={`/erp/purchases/orders/${encodeURIComponent(raw)}`}
+        backHref={`/purchases/orders/${encodeURIComponent(raw)}`}
         // No delivery-date column on purchase orders — only `date`.
         meta={[
           { label: "التاريخ", value: dt(po.date) },

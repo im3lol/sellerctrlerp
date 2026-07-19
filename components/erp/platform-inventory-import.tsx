@@ -40,7 +40,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
     if (entries.length === 0) return toast.error("لا توجد فروق للمطابقة");
     startApply(async () => {
       const r = await applyInventoryReconciliationAction(platformId, entries);
-      if (r.ok) { toast.success("تم إنشاء تسوية مخزون (مسودة) — أكّدها لترحيلها"); router.push(r.id ? `/erp/inventory/adjustments/${r.id}` : "/erp/inventory/adjustments"); router.refresh(); }
+      if (r.ok) { toast.success("تم إنشاء تسوية مخزون (مسودة) — أكّدها لترحيلها"); router.push(r.id ? `/inventory/adjustments/${r.id}` : "/inventory/adjustments"); router.refresh(); }
       else toast.error(r.error);
     });
   };

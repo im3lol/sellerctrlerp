@@ -90,7 +90,7 @@ export function TransferForm({
         date, notes,
         lines: ready.map((l) => ({ itemId: l.itemId, fromWarehouseId: l.fromWh, toWarehouseId: l.toWh, quantity: Number(l.quantity) })),
       });
-      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/erp/inventory/transfers"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/inventory/transfers"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 

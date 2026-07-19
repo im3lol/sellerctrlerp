@@ -67,7 +67,7 @@ export async function upsertRecurringJournalAction(input: unknown): Promise<Res>
         })));
         return rjId!;
       });
-      revalidatePath("/erp/accounting/recurring-journals");
+      revalidatePath("/accounting/recurring-journals");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -84,7 +84,7 @@ export async function toggleRecurringJournalAction(id: string): Promise<ActionSt
     if (!r) return { error: "القالب غير موجود" };
     await db.update(recurringJournals).set({ isActive: !r.isActive, updatedAt: new Date() })
       .where(and(eq(recurringJournals.id, id), eq(recurringJournals.organizationId, auth.orgId)));
-    revalidatePath("/erp/accounting/recurring-journals");
+    revalidatePath("/accounting/recurring-journals");
     return { ok: true };
   });
 }
@@ -94,7 +94,7 @@ export async function deleteRecurringJournalAction(id: string): Promise<ActionSt
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(recurringJournals).where(and(eq(recurringJournals.id, id), eq(recurringJournals.organizationId, auth.orgId)));
-    revalidatePath("/erp/accounting/recurring-journals");
+    revalidatePath("/accounting/recurring-journals");
     return { ok: true };
   });
 }

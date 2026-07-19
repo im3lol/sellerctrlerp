@@ -95,7 +95,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
       const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
       if (r.ok) {
         toast.success("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
-        router.push(r.id ? `/erp/purchases/orders/${r.id}` : "/erp/purchases/orders");
+        router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -108,7 +108,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
           <CardTitle>بيانات أمر الشراء</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/orders")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

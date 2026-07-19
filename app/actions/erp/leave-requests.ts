@@ -51,7 +51,7 @@ export async function createLeaveRequestAction(input: unknown): Promise<SaveStat
         return row.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "LEAVE_REQUEST", entityId: id, summary: `طلب إجازة لـ ${employeeName} (${days} يوم)` });
-      revalidatePath("/erp/hr/leaves");
+      revalidatePath("/hr/leaves");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -71,7 +71,7 @@ async function setStatus(id: string, status: "APPROVED" | "REJECTED"): Promise<A
     await db.update(leaveRequests).set({ status, approvedBy: auth.userId, approvedAt: new Date(), updatedAt: new Date() })
       .where(and(eq(leaveRequests.id, id), eq(leaveRequests.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: status === "APPROVED" ? "CONFIRM" : "CANCEL", entityType: "LEAVE_REQUEST", entityId: id, entityNumber: row.number, summary: `${status === "APPROVED" ? "اعتماد" : "رفض"} إجازة ${row.number} — ${row.employeeName}` });
-    revalidatePath("/erp/hr/leaves");
+    revalidatePath("/hr/leaves");
     return { ok: true };
   });
 }
@@ -89,7 +89,7 @@ export async function deleteLeaveRequestAction(id: string): Promise<ActionState>
     if (!row) return { error: "الطلب غير موجود" };
     if (row.status !== "DRAFT") return { error: "لا يمكن حذف طلب تم البتّ فيه" };
     await db.delete(leaveRequests).where(and(eq(leaveRequests.id, id), eq(leaveRequests.organizationId, auth.orgId)));
-    revalidatePath("/erp/hr/leaves");
+    revalidatePath("/hr/leaves");
     return { ok: true };
   });
 }

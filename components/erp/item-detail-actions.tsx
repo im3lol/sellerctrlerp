@@ -16,13 +16,13 @@ export function ItemDetailActions({ itemId, canEdit, canDelete }: { itemId: stri
   const del = () =>
     start(async () => {
       const r = await deleteItemAction(itemId);
-      if (r.ok) { toast.success("تم حذف الصنف"); router.push("/erp/inventory/items"); router.refresh(); }
+      if (r.ok) { toast.success("تم حذف الصنف"); router.push("/inventory/items"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحذف");
     });
 
   return (
     <div className="flex gap-2">
-      {canEdit && <Button asChild variant="outline" size="sm"><Link href={`/erp/inventory/items/${itemId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></Button>}
+      {canEdit && <Button asChild variant="outline" size="sm"><Link href={`/inventory/items/${itemId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></Button>}
       {canDelete && <Button variant="ghost" size="sm" disabled={pending} onClick={del}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
     </div>
   );

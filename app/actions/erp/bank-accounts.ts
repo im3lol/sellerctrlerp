@@ -39,12 +39,12 @@ export async function upsertBankAccountAction(input: {
         .update(bankAccounts)
         .set(values)
         .where(and(eq(bankAccounts.id, input.id), eq(bankAccounts.organizationId, orgId)));
-      revalidatePath("/erp/accounting/banks");
+      revalidatePath("/accounting/banks");
       return { ok: true, id: input.id };
     }
 
     const [row] = await db.insert(bankAccounts).values(values).returning({ id: bankAccounts.id });
-    revalidatePath("/erp/accounting/banks");
+    revalidatePath("/accounting/banks");
     return { ok: true, id: row.id };
   });
 }
@@ -63,7 +63,7 @@ export async function toggleBankAccountActiveAction(id: string): Promise<ActionS
       .update(bankAccounts)
       .set({ isActive: !ba.isActive, updatedAt: new Date() })
       .where(eq(bankAccounts.id, id));
-    revalidatePath("/erp/accounting/banks");
+    revalidatePath("/accounting/banks");
     return { ok: true };
   });
 }
@@ -96,7 +96,7 @@ export async function deleteBankAccountAction(id: string): Promise<ActionState> 
     }
 
     await db.delete(bankAccounts).where(and(eq(bankAccounts.id, id), eq(bankAccounts.organizationId, orgId)));
-    revalidatePath("/erp/accounting/banks");
+    revalidatePath("/accounting/banks");
     return { ok: true };
   });
 }
@@ -135,7 +135,7 @@ export async function addStatementLineAction(input: {
       credit: String(credit),
     });
 
-    revalidatePath(`/erp/accounting/banks/${input.bankAccountId}`);
+    revalidatePath(`/accounting/banks/${input.bankAccountId}`);
     return { ok: true };
   });
 }
@@ -155,7 +155,7 @@ export async function toggleStatementLineReconciledAction(lineId: string): Promi
       .set({ isReconciled: !line.isReconciled })
       .where(eq(bankStatementLines.id, lineId));
 
-    revalidatePath(`/erp/accounting/banks/${line.bankAccountId}`);
+    revalidatePath(`/accounting/banks/${line.bankAccountId}`);
     return { ok: true };
   });
 }
@@ -171,7 +171,7 @@ export async function deleteStatementLineAction(lineId: string): Promise<ActionS
     if (!line) return { error:"السطر غير موجود" };
 
     await db.delete(bankStatementLines).where(eq(bankStatementLines.id, lineId));
-    revalidatePath(`/erp/accounting/banks/${line.bankAccountId}`);
+    revalidatePath(`/accounting/banks/${line.bankAccountId}`);
     return { ok: true };
   });
 }

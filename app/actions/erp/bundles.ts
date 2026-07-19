@@ -45,7 +45,7 @@ export async function setBundleComponentsAction(input: unknown): Promise<ActionS
         organizationId: auth.orgId, parentItemId, componentItemId, quantity: String(quantity),
       })));
     });
-    revalidatePath("/erp/inventory/bundles");
+    revalidatePath("/inventory/bundles");
     return { ok: true };
   });
 }
@@ -56,7 +56,7 @@ export async function deleteBundleAction(parentItemId: string): Promise<ActionSt
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(itemComponents).where(and(eq(itemComponents.organizationId, auth.orgId), eq(itemComponents.parentItemId, parentItemId)));
-    revalidatePath("/erp/inventory/bundles");
+    revalidatePath("/inventory/bundles");
     return { ok: true };
   });
 }
@@ -122,8 +122,8 @@ export async function assembleAction(input: unknown): Promise<ActionState & { id
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "ASSEMBLY", entityId: asm.id, entityNumber: number, summary: `تجميع ${number} — ${quantity} وحدة`, metadata: { totalCost } });
         return asm.id;
       });
-      revalidatePath("/erp/inventory/bundles");
-      revalidatePath("/erp/inventory/stock");
+      revalidatePath("/inventory/bundles");
+      revalidatePath("/inventory/stock");
       return { ok: true, id };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر التجميع";

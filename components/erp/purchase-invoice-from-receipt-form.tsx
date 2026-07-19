@@ -84,7 +84,7 @@ export function PurchaseInvoiceFromReceiptForm({
       const r = await convertReceiptToInvoiceAction(receiptId, date, notes || undefined, currencyCode, isForeign ? rate : undefined);
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — رحّلها لاعتمادها");
-        router.push(r.invoiceId ? `/erp/purchases/invoices/${r.invoiceId}` : "/erp/purchases/invoices");
+        router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -97,7 +97,7 @@ export function PurchaseInvoiceFromReceiptForm({
           <CardTitle>بيانات فاتورة الشراء</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الفاتورة</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/invoices")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/invoices")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

@@ -60,7 +60,7 @@ export async function saveAccountAction(_prev: ActionState, formData: FormData):
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-    revalidatePath("/erp/accounting");
+    revalidatePath("/accounting");
     return { ok: true };
   });
 }
@@ -80,8 +80,8 @@ export async function initializeChartAction(): Promise<ActionState> {
     } catch {
       return { error: "تعذّرت تهيئة دليل الحسابات" };
     }
-    revalidatePath("/erp/accounting/chart");
-    revalidatePath("/erp/accounting");
+    revalidatePath("/accounting/chart");
+    revalidatePath("/accounting");
     return { ok: true };
   });
 }
@@ -95,7 +95,7 @@ export async function deleteAccountAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون الحساب مستخدماً في قيود" };
     }
-    revalidatePath("/erp/accounting");
+    revalidatePath("/accounting");
     return { ok: true };
   });
 }

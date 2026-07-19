@@ -50,8 +50,8 @@ export async function saveBudgetAction(input: {
       }
     });
 
-    revalidatePath(`/erp/accounting/budget/${year}`);
-    revalidatePath(`/erp/accounting/budget/${year}/report`);
+    revalidatePath(`/accounting/budget/${year}`);
+    revalidatePath(`/accounting/budget/${year}/report`);
     return { ok: true };
   });
 }

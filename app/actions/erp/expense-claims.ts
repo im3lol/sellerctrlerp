@@ -60,7 +60,7 @@ export async function createExpenseClaimAction(input: unknown): Promise<SaveStat
         return claim.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "EXPENSE_CLAIM", entityId: id, summary: `إنشاء مطالبة مصروفات لـ ${d.employeeName} (مسودة)` });
-      revalidatePath("/erp/hr/expense-claims");
+      revalidatePath("/hr/expense-claims");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
@@ -98,9 +98,9 @@ export async function approveExpenseClaimAction(id: string): Promise<ActionState
         await tx.update(expenseClaims).set({ status: "APPROVED", updatedAt: new Date() }).where(eq(expenseClaims.id, claim.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "EXPENSE_CLAIM", entityId: claim.id, entityNumber: claim.number, summary: `اعتماد وترحيل مطالبة ${claim.number}`, metadata: { total } });
       });
-      revalidatePath("/erp/hr/expense-claims");
-      revalidatePath(`/erp/hr/expense-claims/${id}`);
-      revalidatePath("/erp/accounting/journal");
+      revalidatePath("/hr/expense-claims");
+      revalidatePath(`/hr/expense-claims/${id}`);
+      revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر الاعتماد";
@@ -119,7 +119,7 @@ export async function deleteExpenseClaimAction(id: string): Promise<ActionState>
     if (!claim) return { error: "المطالبة غير موجودة" };
     if (claim.status !== "DRAFT") return { error: "لا يمكن حذف مطالبة معتمدة" };
     await db.delete(expenseClaims).where(and(eq(expenseClaims.id, id), eq(expenseClaims.organizationId, auth.orgId)));
-    revalidatePath("/erp/hr/expense-claims");
+    revalidatePath("/hr/expense-claims");
     return { ok: true };
   });
 }

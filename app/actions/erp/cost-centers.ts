@@ -50,7 +50,7 @@ export async function saveCostCenterAction(_prev: ActionState, formData: FormDat
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-    revalidatePath("/erp/accounting/cost-centers");
+    revalidatePath("/accounting/cost-centers");
     return { ok: true };
   });
 }
@@ -64,7 +64,7 @@ export async function deleteCostCenterAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون المركز مستخدماً في قيود" };
     }
-    revalidatePath("/erp/accounting/cost-centers");
+    revalidatePath("/accounting/cost-centers");
     return { ok: true };
   });
 }

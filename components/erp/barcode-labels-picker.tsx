@@ -25,7 +25,7 @@ export function BarcodeLabelsPicker() {
     const valid = rows.filter((r) => r.itemId && r.qty > 0);
     if (!valid.length) return toast.error("أضف صنفاً واحداً على الأقل");
     const spec = valid.map((r) => `${r.itemId}:${Math.round(r.qty)}`).join(",");
-    window.open(`/erp/barcodes/batch?items=${encodeURIComponent(spec)}`, "_blank");
+    window.open(`/barcodes/batch?items=${encodeURIComponent(spec)}`, "_blank");
   };
 
   return (

@@ -61,13 +61,13 @@ export function TransfersTable({ rows, canManage }: { rows: Row[]; canManage: bo
                     {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}
                   </TableCell>
                 )}
-                <TableCell><Link href={`/erp/inventory/transfers/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
+                <TableCell><Link href={`/inventory/transfers/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className="max-w-[200px] truncate text-muted-foreground">{r.notes ?? "—"}</TableCell>
                 <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
                 <TableCell>
-                  <Link href={`/erp/inventory/transfers/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+                  <Link href={`/inventory/transfers/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
                     {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
                   </Link>
                 </TableCell>

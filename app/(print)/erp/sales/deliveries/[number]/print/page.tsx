@@ -56,7 +56,7 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
         org={org}
         title="إذن صرف"
         number={dn.number}
-        backHref={`/erp/sales/deliveries/${encodeURIComponent(raw)}`}
+        backHref={`/sales/deliveries/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(dn.date) },
           { label: "الحالة", value: STATUS[dn.status] ?? dn.status },

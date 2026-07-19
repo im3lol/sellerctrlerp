@@ -90,7 +90,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
       if (r.ok) {
         toast.success("تم حفظ أمر البيع (مسودة) — أكّده");
         if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
-        router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh();
+        router.push(r.id ? `/sales/orders/${r.id}` : "/sales/orders"); router.refresh();
       }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -103,7 +103,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
           <CardTitle>بيانات أمر البيع</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/orders")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

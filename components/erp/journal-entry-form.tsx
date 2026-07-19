@@ -87,7 +87,7 @@ export function JournalEntryForm({
       const r = await createManualEntryAction(payload);
       if (r.ok) {
         toast.success(mode === "post" ? "تم ترحيل القيد" : "تم حفظ المسودة");
-        router.push("/erp/accounting/journal");
+        router.push("/accounting/journal");
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر الحفظ");

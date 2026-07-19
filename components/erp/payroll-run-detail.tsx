@@ -116,7 +116,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             </Badge>
             {run.journalEntryId && (
               <Link
-                href={`/erp/accounting/journal/${run.journalEntryId}`}
+                href={`/accounting/journal/${run.journalEntryId}`}
                 className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> عرض القيد

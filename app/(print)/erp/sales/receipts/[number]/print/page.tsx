@@ -41,7 +41,7 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
         org={org}
         title="سند قبض"
         number={rv.number}
-        backHref={`/erp/sales/receipts/${encodeURIComponent(raw)}`}
+        backHref={`/sales/receipts/${encodeURIComponent(raw)}`}
         meta={[{ label: "التاريخ", value: dt(rv.date) }]}
         parties={[
           {

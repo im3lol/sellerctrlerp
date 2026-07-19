@@ -29,7 +29,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
   const diff = stmt - cleared;
   const dirty = lines.some((l) => !!checks[l.id] !== l.reconciled);
 
-  const onAccount = (id: string) => router.push(`/erp/accounting/reconciliation${id ? `?account=${id}` : ""}`);
+  const onAccount = (id: string) => router.push(`/accounting/reconciliation${id ? `?account=${id}` : ""}`);
 
   const save = () => start(async () => {
     const toRec = lines.filter((l) => checks[l.id] && !l.reconciled).map((l) => l.id);

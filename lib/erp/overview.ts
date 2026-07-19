@@ -82,7 +82,7 @@ async function pnlTrend(orgId: string): Promise<{ label: string; revenue: number
 /**
  * Single source of truth for the ERP "overview" figures (financial + inventory +
  * this-month trade + alerts) for one org. Shared by the ERP dashboard
- * (`/erp/dashboard`) and the unified home dashboard (`/dashboard`) so both read
+ * (`/dashboard`) and the unified home dashboard (`/dashboard`) so both read
  * the same numbers. All queries are org-scoped.
  */
 export async function getErpOverview(orgId: string): Promise<ErpOverview> {

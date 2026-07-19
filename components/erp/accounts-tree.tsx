@@ -184,7 +184,7 @@ export function AccountsTree({
           <Icon name={hasKids ? "Folder" : "FileText"} className={cn("size-4 shrink-0", hasKids ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{a.code}</span>
           {a.isLeaf ? (
-            <Link href={`/erp/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title="عرض دفتر الأستاذ">
+            <Link href={`/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title="عرض دفتر الأستاذ">
               {a.nameAr}
             </Link>
           ) : (
@@ -196,7 +196,7 @@ export function AccountsTree({
             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {a.isLeaf && (
                 <Button asChild variant="ghost" size="icon" className="size-7" aria-label="دفتر الأستاذ">
-                  <Link href={`/erp/accounting/ledger?account=${a.id}`}><Icon name="BookOpen" className="size-3.5" /></Link>
+                  <Link href={`/accounting/ledger?account=${a.id}`}><Icon name="BookOpen" className="size-3.5" /></Link>
                 </Button>
               )}
               {canManage && (

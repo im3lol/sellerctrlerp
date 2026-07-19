@@ -26,7 +26,7 @@ function OptionCard({ href, download, onClick, icon, title, subtitle, disabled }
 export function PlatformActions({ code, isAmazon }: { code: string; isAmazon: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Choice>("choose");
-  const base = `/erp/platforms/${code}`;
+  const base = `/platforms/${code}`;
   const paymentsTab = isAmazon ? "settlement" : "payments";
   const close = () => { setOpen(false); setMode("choose"); };
 

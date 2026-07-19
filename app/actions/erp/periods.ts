@@ -50,7 +50,7 @@ export async function setPeriodStatusAction(id: string, status: string): Promise
     } catch {
       return { error: "تعذّر تحديث حالة الفترة" };
     }
-    revalidatePath("/erp/accounting/periods");
+    revalidatePath("/accounting/periods");
     return { ok: true };
   });
 }
@@ -131,7 +131,7 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
         .update(fiscalPeriods)
         .set({ status: "CLOSED", lockedAt: new Date() })
         .where(eq(fiscalPeriods.id, periodId));
-      revalidatePath("/erp/accounting/periods");
+      revalidatePath("/accounting/periods");
       return { ok: true };
     }
 
@@ -196,7 +196,7 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
       return { error: msg.includes("duplicate") ? "يوجد قيد إقفال لهذه الفترة بالفعل" : "فشل إقفال السنة" };
     }
 
-    revalidatePath("/erp/accounting/periods");
+    revalidatePath("/accounting/periods");
     return { ok: true };
   });
 }

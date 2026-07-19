@@ -21,8 +21,8 @@ export function VouchersTable({ rows, canManage, type }: { rows: VoucherRow[]; c
   const sel = useSelection();
   const isReceipt = type === "receipt";
   const partyLabel = isReceipt ? "العميل" : "المورد";
-  const invoiceBase = isReceipt ? "/erp/sales/invoices" : "/erp/purchases/invoices";
-  const printBase = isReceipt ? "/erp/sales/receipts" : "/erp/purchases/payments";
+  const invoiceBase = isReceipt ? "/sales/invoices" : "/purchases/invoices";
+  const printBase = isReceipt ? "/sales/receipts" : "/purchases/payments";
   const bulkAction = isReceipt ? bulkReceiptVouchersAction : bulkPaymentVouchersAction;
 
   const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);

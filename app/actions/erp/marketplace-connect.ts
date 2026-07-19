@@ -14,7 +14,7 @@ export async function disconnectMarketplaceAction(provider: string): Promise<{ o
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(platformCredentials)
       .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
-    revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
+    revalidatePath(`/platforms/${provider.toLowerCase()}`);
     return { ok: true };
   });
 }
@@ -26,7 +26,7 @@ export async function setAutoSyncAction(provider: string, enabled: boolean): Pro
   return withOrgScope(auth.orgId, false, async () => {
     await db.update(platformCredentials).set({ autoSync: enabled, updatedAt: new Date() })
       .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, provider.toLowerCase())));
-    revalidatePath(`/erp/platforms/${provider.toLowerCase()}`);
+    revalidatePath(`/platforms/${provider.toLowerCase()}`);
     return { ok: true };
   });
 }

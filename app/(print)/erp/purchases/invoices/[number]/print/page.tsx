@@ -49,7 +49,7 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
         org={org}
         title="فاتورة شراء"
         number={inv.number}
-        backHref={`/erp/purchases/invoices/${encodeURIComponent(raw)}`}
+        backHref={`/purchases/invoices/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(inv.date) },
           ...(inv.dueDate ? [{ label: "الاستحقاق", value: dt(inv.dueDate) }] : []),

@@ -107,9 +107,9 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
         }
         return id!;
       });
-      revalidatePath("/erp/inventory");
-      revalidatePath("/erp/inventory/items");
-      revalidatePath(`/erp/inventory/items/${itemId}`);
+      revalidatePath("/inventory");
+      revalidatePath("/inventory/items");
+      revalidatePath(`/inventory/items/${itemId}`);
       return { ok: true, id: itemId };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
@@ -146,9 +146,9 @@ export async function setItemParentAction(childId: string, parentId: string | nu
     await db.update(items)
       .set({ parentItemId: parentId, variationValue: parentId ? (variationValue?.trim() || null) : null })
       .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId)));
-    revalidatePath("/erp/inventory/items");
-    revalidatePath(`/erp/inventory/items/${childId}`);
-    if (parentId) revalidatePath(`/erp/inventory/items/${parentId}`);
+    revalidatePath("/inventory/items");
+    revalidatePath(`/inventory/items/${childId}`);
+    if (parentId) revalidatePath(`/inventory/items/${parentId}`);
     return { ok: true };
   });
 }
@@ -162,7 +162,7 @@ export async function deleteItemAction(id: string): Promise<ActionState> {
     } catch {
       return { error: "تعذّر الحذف — قد يكون الصنف مرتبطاً بحركات" };
     }
-    revalidatePath("/erp/inventory/items");
+    revalidatePath("/inventory/items");
     return { ok: true };
   });
 }
@@ -234,7 +234,7 @@ export async function bulkDeleteItemsAction(input: { ids?: string[]; all?: Items
         }
       }
     }
-    revalidatePath("/erp/inventory/items");
+    revalidatePath("/inventory/items");
     return { ok: true, deleted, blocked };
   });
 }

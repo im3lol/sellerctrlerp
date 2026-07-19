@@ -13,7 +13,7 @@ type Res = { ok: true } | { error: string };
 function refresh() {
   revalidatePath("/admin/feedback");
   // The tenant's own page shows the reply and the status, so it has to move too.
-  revalidatePath("/erp/feedback");
+  revalidatePath("/feedback");
 }
 
 const schema = z.object({

@@ -43,7 +43,7 @@ export async function submitFeedbackAction(input: unknown): Promise<Res> {
     message: d.message.trim(),
   }).returning({ id: feedback.id }));
 
-  revalidatePath("/erp/feedback");
+  revalidatePath("/feedback");
   revalidatePath("/admin/feedback");
   return { ok: true, id: r.id };
 }

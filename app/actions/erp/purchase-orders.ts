@@ -71,7 +71,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
         return po.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
-      revalidatePath("/erp/purchases/orders");
+      revalidatePath("/purchases/orders");
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
@@ -98,8 +98,8 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
 
     await db.update(purchaseOrders).set({ status: "CONFIRMED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
-    revalidatePath("/erp/purchases/orders");
-    revalidatePath(`/erp/purchases/orders/${id}`);
+    revalidatePath("/purchases/orders");
+    revalidatePath(`/purchases/orders/${id}`);
     return { ok: true };
   });
 }
@@ -116,8 +116,8 @@ export async function approvePurchaseOrderAction(id: string): Promise<ActionStat
     if (po.approvedAt) return { error: "الأمر معتمد بالفعل" };
     await db.update(purchaseOrders).set({ approvedBy: auth.userId, approvedAt: new Date() }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `اعتماد أمر شراء ${po.number}` });
-    revalidatePath("/erp/purchases/orders");
-    revalidatePath(`/erp/purchases/orders/${id}`);
+    revalidatePath("/purchases/orders");
+    revalidatePath(`/purchases/orders/${id}`);
     return { ok: true };
   });
 }
@@ -138,7 +138,7 @@ export async function deletePurchaseOrderAction(id: string): Promise<ActionState
     }
     await db.delete(purchaseOrders).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `حذف أمر شراء ${po.number}` });
-    revalidatePath("/erp/purchases/orders");
+    revalidatePath("/purchases/orders");
     return { ok: true };
   });
 }
@@ -171,8 +171,8 @@ export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<A
     if (r.id) await db.update(purchaseInvoices).set({ purchaseOrderId: po.id }).where(and(eq(purchaseInvoices.id, r.id), eq(purchaseInvoices.organizationId, auth.orgId)));
     await db.update(purchaseOrders).set({ status: "INVOICED" }).where(eq(purchaseOrders.id, po.id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "PURCHASE_ORDER", entityId: po.id, entityNumber: po.number, summary: `تحويل أمر شراء ${po.number} إلى فاتورة (مسودة)` });
-    revalidatePath("/erp/purchases/orders");
-    revalidatePath("/erp/purchases/invoices");
+    revalidatePath("/purchases/orders");
+    revalidatePath("/purchases/invoices");
     return { ok: true, invoiceId: r.id };
   });
 }
@@ -195,7 +195,7 @@ export async function cancelPurchaseOrderAction(id: string): Promise<ActionState
     }
     await db.update(purchaseOrders).set({ status: "CANCELLED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إلغاء أمر شراء ${po.number}` });
-    revalidatePath("/erp/purchases/orders");
+    revalidatePath("/purchases/orders");
     return { ok: true };
   });
 }
@@ -231,7 +231,7 @@ export async function bulkPurchaseOrdersAction(op: "confirm" | "cancel" | "delet
         count++;
       }
     }
-    revalidatePath("/erp/purchases/orders");
+    revalidatePath("/purchases/orders");
     return { ok: true, count };
   });
 }
@@ -250,8 +250,8 @@ export async function revertPurchaseOrderToDraftAction(id: string): Promise<Acti
     if (lines.some((l) => Number(l.r) > 0 || Number(l.inv) > 0)) return { error: "اعكس الاستلام/الفاتورة أولاً قبل إعادة فتح الأمر" };
     await db.update(purchaseOrders).set({ status: "DRAFT" }).where(eq(purchaseOrders.id, id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إعادة فتح أمر شراء ${po.number} كمسودة` });
-    revalidatePath("/erp/purchases/orders");
-    revalidatePath(`/erp/purchases/orders/${id}`);
+    revalidatePath("/purchases/orders");
+    revalidatePath(`/purchases/orders/${id}`);
     return { ok: true };
   });
 }
