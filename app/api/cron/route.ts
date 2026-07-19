@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
+import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,7 @@ export async function GET(req: Request) {
   let expired = 0;
   try { expired = await sweepExpirations(now); } catch { /* non-fatal */ }
   try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
+  try { await pruneReportDownloads(7); } catch { /* non-fatal */ }
 
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
   // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.

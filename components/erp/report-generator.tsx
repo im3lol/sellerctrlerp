@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { recordReportDownloadAction } from "@/app/actions/erp/report-downloads";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,6 +19,7 @@ export function ReportGenerator() {
   const [from, setFrom] = useState(yearStartISO());
   const [to, setTo] = useState(todayISO());
   const [format, setFormat] = useState<"pdf" | "excel">("pdf");
+  const router = useRouter();
 
   const activeModule = REPORT_MODULES.find((m) => m.key === moduleKey) ?? null;
 
@@ -26,7 +29,12 @@ export function ReportGenerator() {
   const run = () => {
     if (!report) return;
     const qs = reportQuery(report.dates, from, to);
-    if (format === "excel" && report.excel) {
+    const fmt = format === "excel" && report.excel ? "excel" : "pdf";
+    // Log the download so it appears in the re-download list, then refresh it.
+    recordReportDownloadAction({ reportKey: report.key, label: report.label, format: fmt, params: qs })
+      .then(() => router.refresh())
+      .catch(() => {});
+    if (fmt === "excel" && report.excel) {
       window.location.href = report.excel + (qs ? `?${qs}` : "");
     } else {
       const sep = qs ? `${qs}&` : "";

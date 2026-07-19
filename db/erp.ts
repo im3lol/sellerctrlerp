@@ -1991,6 +1991,24 @@ export const backupRuns = pgTable(
   (t) => [index("backup_runs_org_idx").on(t.organizationId), index("backup_runs_created_idx").on(t.createdAt)],
 );
 
+/** History of reports generated from the report center — for quick re-download.
+ *  We store the request (key + params + format), not the file; re-download
+ *  regenerates from the export route / print view. Kept ~1 week. org-scoped. */
+export const reportDownloads = pgTable(
+  "report_downloads",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    reportKey: text("report_key").notNull(),
+    label: text("label").notNull(),
+    format: text("format").notNull(),        // pdf | excel
+    params: text("params").notNull().default(""), // query string, e.g. "from=…&to=…"
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("report_downloads_org_idx").on(t.organizationId), index("report_downloads_created_idx").on(t.createdAt)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,
