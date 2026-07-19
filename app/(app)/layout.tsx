@@ -10,6 +10,7 @@ import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
 import { LiveRefresh } from "@/components/app-shell/live-refresh";
+import { PrintTrigger } from "@/components/erp/print-trigger";
 import { Icon } from "@/components/icon";
 import { exitImpersonationAction } from "@/app/actions/admin/impersonate";
 import type { Role } from "@/lib/rbac";
@@ -74,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       {user.role !== "system_admin" && <OnboardingTour />}
       <LiveRefresh />
+      <PrintTrigger />
     </div>
   );
 }
