@@ -59,6 +59,12 @@ export default async function BalanceSheetPage({
         />
         <ReportTabs active="/erp/reports/balance-sheet" />
 
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الأصول</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(totalAssets)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الخصوم</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(totalLiabilities)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">حقوق الملكية</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalEquity >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(totalEquity)}</p></CardContent></Card>
+        </div>
+
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>

@@ -3,6 +3,7 @@ import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
+import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -50,6 +51,18 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي المشتريات (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tSpend)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الذمم المستحقة للموردين</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(tAp)}</p></CardContent></Card>
         </div>
+
+        {list.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>أعلى الموردين مشتريات</CardTitle>
+              <CardDescription>أعلى ٨ موردين حسب قيمة المشتريات.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.spend }))} valueLabel="المشتريات" money height={240} />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

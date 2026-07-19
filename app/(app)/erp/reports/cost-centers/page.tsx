@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts, costCenters } from "@/db/schema";
+import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -60,6 +61,24 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي المصروف</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-destructive">{fmt(tExp)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>
         </div>
+
+        {list.some((r) => r.revenue > 0 || r.expense > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>الإيراد مقابل المصروف حسب المركز</CardTitle>
+              <CardDescription>أبرز ٨ مراكز تكلفة (حسب الصافي).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GroupedBarChart
+                data={list.slice(0, 8).map((r) => ({ label: r.name, revenue: r.revenue, expense: r.expense }))}
+                series={[
+                  { key: "revenue", name: "الإيراد", color: "#0d9488" },
+                  { key: "expense", name: "المصروف", color: "#d97706" },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
