@@ -32,9 +32,9 @@ export const REPORT_MODULES: ReportModule[] = [
       { key: "balance-sheet", label: "الميزانية العمومية", view: "/erp/reports/balance-sheet", excel: "/api/erp/reports/balance-sheet/export", dates: "asOf" },
       { key: "cash-flow", label: "التدفق النقدي", view: "/erp/reports/cash-flow", excel: "/api/erp/reports/cash-flow/export", dates: "range" },
       { key: "vat", label: "ضريبة القيمة المضافة", view: "/erp/reports/vat", excel: "/api/erp/reports/vat/export", dates: "range" },
-      { key: "ratios", label: "المؤشرات المالية", view: "/erp/reports/ratios", excel: null, dates: "none" },
-      { key: "cost-centers", label: "أرباح مراكز التكلفة", view: "/erp/reports/cost-centers", excel: null, dates: "range" },
-      { key: "fx", label: "إعادة تقييم العملات", view: "/erp/reports/fx-revaluation", excel: null, dates: "none" },
+      { key: "ratios", label: "المؤشرات المالية", view: "/erp/reports/ratios", excel: "/api/erp/reports/ratios/export", dates: "none" },
+      { key: "cost-centers", label: "أرباح مراكز التكلفة", view: "/erp/reports/cost-centers", excel: "/api/erp/reports/cost-centers/export", dates: "range" },
+      { key: "fx", label: "إعادة تقييم العملات", view: "/erp/reports/fx-revaluation", excel: "/api/erp/reports/fx-revaluation/export", dates: "none" },
     ],
   },
   {
@@ -42,9 +42,9 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المبيعات والعملاء",
     icon: "ShoppingCart",
     reports: [
-      { key: "sales-profit", label: "ربحية المنتجات", view: "/erp/sales/reports/profitability", excel: null, dates: "range" },
-      { key: "sales-customers", label: "ترتيب العملاء", view: "/erp/sales/reports/customers", excel: null, dates: "range" },
-      { key: "sales-items", label: "تقرير أصناف المبيعات", view: "/erp/sales/reports/items", excel: null, dates: "range" },
+      { key: "sales-profit", label: "ربحية المنتجات", view: "/erp/sales/reports/profitability", excel: "/api/erp/sales/profitability/export", dates: "range" },
+      { key: "sales-customers", label: "ترتيب العملاء", view: "/erp/sales/reports/customers", excel: "/api/erp/sales/customers/export", dates: "range" },
+      { key: "sales-items", label: "تقرير أصناف المبيعات", view: "/erp/sales/reports/items", excel: "/api/erp/sales/items/export", dates: "range" },
       { key: "sales-ledger", label: "دفتر المبيعات", view: "/erp/sales/reports/ledger", excel: "/api/erp/sales/ledger/export", dates: "range" },
       { key: "sales-aging", label: "أعمار الذمم المدينة", view: "/erp/sales/aging", excel: "/api/erp/sales/aging/export", dates: "asOf" },
     ],
@@ -54,7 +54,7 @@ export const REPORT_MODULES: ReportModule[] = [
     label: "المشتريات والموردون",
     icon: "Truck",
     reports: [
-      { key: "purch-suppliers", label: "ترتيب الموردين", view: "/erp/purchases/reports/suppliers", excel: null, dates: "range" },
+      { key: "purch-suppliers", label: "ترتيب الموردين", view: "/erp/purchases/reports/suppliers", excel: "/api/erp/purchases/suppliers/export", dates: "range" },
       { key: "purch-ledger", label: "دفتر المشتريات", view: "/erp/purchases/reports/ledger", excel: "/api/erp/purchases/ledger/export", dates: "range" },
       { key: "purch-aging", label: "أعمار الذمم الدائنة", view: "/erp/purchases/aging", excel: "/api/erp/purchases/aging/export", dates: "asOf" },
     ],
@@ -66,8 +66,8 @@ export const REPORT_MODULES: ReportModule[] = [
     reports: [
       { key: "inv-stock", label: "أرصدة المخزون", view: "/erp/inventory/stock", excel: "/api/erp/inventory/stock/export", dates: "none" },
       { key: "inv-ledger", label: "دفتر حركة المخزون", view: "/erp/inventory/ledger", excel: "/api/erp/inventory/ledger/export", dates: "range" },
-      { key: "inv-dead", label: "المخزون الراكد", view: "/erp/inventory/dead-stock", excel: null, dates: "none" },
-      { key: "inv-expiry", label: "تنبيهات انتهاء الصلاحية", view: "/erp/inventory/expiry", excel: null, dates: "none" },
+      { key: "inv-dead", label: "المخزون الراكد", view: "/erp/inventory/dead-stock", excel: "/api/erp/inventory/dead-stock/export", dates: "none" },
+      { key: "inv-expiry", label: "تنبيهات انتهاء الصلاحية", view: "/erp/inventory/expiry", excel: "/api/erp/inventory/expiry/export", dates: "none" },
     ],
   },
   {
