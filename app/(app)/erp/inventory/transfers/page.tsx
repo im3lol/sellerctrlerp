@@ -36,7 +36,12 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     if (to) conds.push(lte(stockTransfers.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [{ total }] = await db.select({ total: count() }).from(stockTransfers).where(where);
+    const [[{ total }], statusRows] = await Promise.all([
+      db.select({ total: count() }).from(stockTransfers).where(where),
+      db.select({ status: stockTransfers.status, c: count() }).from(stockTransfers).where(where).groupBy(stockTransfers.status),
+    ]);
+    const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
+    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DRAFT" ? "text-amber-600" : "text-emerald-600" }));
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -80,6 +85,13 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
             ) : undefined
           }
         />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {statCards.map((s) => (
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+          ))}
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>سجل التحويلات</CardTitle>
