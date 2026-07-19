@@ -37,10 +37,14 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     if (to) conds.push(lte(deliveryNotes.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [custList, [{ total }]] = await Promise.all([
+    const [custList, [{ total }], statusRows] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ total: count() }).from(deliveryNotes).where(where),
+      db.select({ status: deliveryNotes.status, c: count() }).from(deliveryNotes).where(where).groupBy(deliveryNotes.status),
     ]);
+    const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
+    // amber = delivered but not yet invoiced → still owed a bill.
+    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DELIVERED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -107,6 +111,13 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
             <Button asChild><Link href="/erp/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن صرف</Link></Button>
           ) : undefined}
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {statCards.map((s) => (
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+          ))}
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>إذون الصرف</CardTitle>

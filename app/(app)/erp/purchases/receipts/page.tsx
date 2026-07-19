@@ -37,10 +37,14 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     if (to) conds.push(lte(purchaseReceipts.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [supList, [{ total }]] = await Promise.all([
+    const [supList, [{ total }], statusRows] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ total: count() }).from(purchaseReceipts).where(where),
+      db.select({ status: purchaseReceipts.status, c: count() }).from(purchaseReceipts).where(where).groupBy(purchaseReceipts.status),
     ]);
+    const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
+    // amber = received but not yet invoiced → an unbilled goods-received liability.
+    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "RECEIVED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -108,6 +112,13 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
             <Button asChild><Link href="/erp/purchases/receipts/new"><Icon name="Plus" className="size-4" />إذن استلام</Link></Button>
           ) : undefined}
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {statCards.map((s) => (
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+          ))}
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>إذون استلام البضاعة</CardTitle>

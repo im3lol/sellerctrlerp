@@ -13,6 +13,7 @@ import { AdjustmentsTable } from "@/components/erp/adjustments-table";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["POSTED", "مرحّل"]];
 
@@ -36,7 +37,17 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
     if (to) conds.push(lte(stockAdjustments.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [{ total }] = await db.select({ total: count() }).from(stockAdjustments).where(where);
+    const [[{ total }], [sum]] = await Promise.all([
+      db.select({ total: count() }).from(stockAdjustments).where(where),
+      // Filter-aware value impact of POSTED adjustments (drafts haven't hit the books).
+      db.select({
+        inc: sql<string>`coalesce(sum(${stockAdjustments.totalValue}) filter (where ${stockAdjustments.status} = 'POSTED' and ${stockAdjustments.totalValue} > 0), 0)`,
+        dec: sql<string>`coalesce(sum(${stockAdjustments.totalValue}) filter (where ${stockAdjustments.status} = 'POSTED' and ${stockAdjustments.totalValue} < 0), 0)`,
+      }).from(stockAdjustments).where(where),
+    ]);
+    const incValue = Number(sum?.inc ?? 0);
+    const decValue = Number(sum?.dec ?? 0); // negative
+    const netValue = incValue + decValue;
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -86,6 +97,13 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
             ) : undefined
           }
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">زيادة القيمة (مرحّلة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(incValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">نقص القيمة (مرحّلة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{money(Math.abs(decValue))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">صافي الأثر</div><p className={`mt-1 text-2xl font-bold tabular-nums ${netValue >= 0 ? "text-emerald-600" : "text-destructive"}`}>{money(netValue)}</p></CardContent></Card>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>سجل التسويات</CardTitle>
