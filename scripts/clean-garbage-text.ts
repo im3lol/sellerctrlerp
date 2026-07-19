@@ -26,7 +26,9 @@ const apply = process.argv.includes("--fix");
 
 // A value is garbage only if it CONTAINS a '?' AND is made up solely of
 // question marks, punctuation and whitespace — so a legit "متى؟" is never touched.
-const GARBAGE = (col: string) => `${col} ~ '\\?' AND ${col} ~ '^[[:space:][:punct:]?]+$'`;
+// Cast to ::text so exotic types information_schema still labels text/varchar
+// (citext, domains) can't break the regex operator.
+const GARBAGE = (col: string) => `(${col})::text ~ '\\?' AND (${col})::text ~ '^[[:space:][:punct:]?]+$'`;
 
 // Mirror lib/db's TLS decision so this connects the same way against Supabase.
 const isLocal = /@(localhost|127\.0\.0\.1|postgres)[:/]/.test(connectionString);
