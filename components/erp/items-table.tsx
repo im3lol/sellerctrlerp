@@ -112,7 +112,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                       : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                   </div>
                 </TableCell>
-                <TableCell className="font-mono"><Link href={`/erp/inventory/items/${r.id}`} className="text-primary underline">{r.code}</Link></TableCell>
+                <TableCell className="font-mono"><Link href={`/erp/inventory/items/${encodeURIComponent(r.code)}`} className="text-primary underline">{r.code}</Link></TableCell>
                 <TableCell className="max-w-[360px]">
                   <div className="flex items-center gap-2">
                     <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>

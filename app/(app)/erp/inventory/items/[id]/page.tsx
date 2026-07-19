@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, itemCodes, warehouses } from "@/db/schema";
@@ -19,8 +19,13 @@ const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // URL carries the item CODE; old UUID links still resolve. ponytail: a code
+  // with a literal "/" would split the segment — none in use; encode on links.
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
-    const [item] = await db.select().from(items).where(and(eq(items.id, id), eq(items.organizationId, orgId))).limit(1);
+    const [item] = await db.select().from(items)
+      .where(and(eq(items.organizationId, orgId), isUuid ? or(eq(items.id, id), eq(items.code, id)) : eq(items.code, id)))
+      .limit(1);
     if (!item) notFound();
 
     const codes = await db.select({ codeType: itemCodes.codeType, code: itemCodes.code }).from(itemCodes).where(eq(itemCodes.itemId, item.id));
