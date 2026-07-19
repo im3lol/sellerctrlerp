@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const OPEN = ["POSTED", "PARTIAL_PAID"];
@@ -59,7 +60,7 @@ export default async function FxRevaluationPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BadgeDollarSign" title="إعادة تقييم العملات الأجنبية" subtitle="الأرباح/الخسائر غير المحققة على الأرصدة الأجنبية المفتوحة" />
+        <ErpPageHeader icon="BadgeDollarSign" title="إعادة تقييم العملات الأجنبية" subtitle="الأرباح/الخسائر غير المحققة على الأرصدة الأجنبية المفتوحة" action={<ReportToolbar />} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">العملة الأساسية</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{base}</p></CardContent></Card>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -67,7 +68,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="PackageX" title="المخزون الراكد وبطيء الحركة" subtitle="رأس المال المحبوس في بضاعة لا تتحرك" />
+        <ErpPageHeader icon="PackageX" title="المخزون الراكد وبطيء الحركة" subtitle="رأس المال المحبوس في بضاعة لا تتحرك" action={<ReportToolbar />} />
 
         <FilterBar active={!!q || days !== 90} clearHref="/erp/inventory/dead-stock">
           <div className="space-y-2">

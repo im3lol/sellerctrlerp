@@ -9,6 +9,7 @@ import { getBaseCurrencyCode } from "@/lib/erp/currency";
 import { money } from "@/lib/erp/print-format";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,9 +183,7 @@ export default async function VatReportPage({ searchParams }: Params) {
           title="تقرير ضريبة القيمة المضافة"
           subtitle="ملخّص الضريبة المحصّلة على المبيعات والضريبة المدفوعة على المشتريات"
           action={
-            <Button asChild variant="outline">
-              <a href={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
-            </Button>
+            <ReportToolbar excel={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`} />
           }
         />
         <ReportTabs active="/erp/reports/vat" />

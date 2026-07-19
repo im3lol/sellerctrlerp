@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { selectCls } from "@/lib/utils";
 
@@ -54,13 +55,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
           title="أرصدة المخزون"
           subtitle={`قيمة المخزون ${fmt(totals.value)} — من دفتر المخزون`}
           backHref="/erp/inventory"
-          action={
-            lines.length > 0 ? (
-              <Button asChild variant="outline">
-                <a href={exportHref}><Icon name="Download" className="size-4" />تحميل Excel</a>
-              </Button>
-            ) : undefined
-          }
+          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} />}
         />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">

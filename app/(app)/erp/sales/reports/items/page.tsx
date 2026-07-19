@@ -6,6 +6,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (v: unknown) =>
@@ -63,6 +64,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
           icon="BarChart3"
           title="تقرير مبيعات الأصناف"
           subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
+          action={<ReportToolbar />}
         />
 
         <ItemSalesFilters from={from} to={to} q={search} />

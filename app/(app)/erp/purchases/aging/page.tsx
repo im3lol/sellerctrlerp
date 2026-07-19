@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { AgingTable } from "@/components/erp/aging-table";
 import { selectCls } from "@/lib/utils";
 
@@ -44,11 +45,7 @@ export default async function ApAgingPage({ searchParams }: { searchParams: Prom
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="Truck" title="أعمار ذمم الموردين" subtitle="أرصدة مستحقة للموردين من فواتير الشراء المُرحّلة" backHref="/erp/purchases"
-          action={grand > 0 ? (
-            <Button asChild variant="outline">
-              <a href={`/api/erp/purchases/aging/export?asOf=${asOf}`}><Icon name="Download" className="size-4" />Excel</a>
-            </Button>
-          ) : undefined}
+          action={<ReportToolbar excel={grand > 0 ? `/api/erp/purchases/aging/export?asOf=${asOf}` : undefined} />}
         />
 
         <Card>

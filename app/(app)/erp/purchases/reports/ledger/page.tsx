@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { PurchasesLedgerTable } from "@/components/erp/purchases-ledger-table";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { selectCls } from "@/lib/utils";
@@ -65,13 +66,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
           icon="BookOpen"
           title="تقرير دفتر المشتريات"
           subtitle={`${totalRows} حركة`}
-          action={
-            totalRows > 0 ? (
-              <Button asChild variant="outline">
-                <a href={exportHref}><Icon name="Download" className="size-4" />تحميل Excel</a>
-              </Button>
-            ) : undefined
-          }
+          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} />}
         />
         <Card>
           <CardHeader>

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { Pagination } from "@/components/erp/pagination";
 import { selectCls } from "@/lib/utils";
@@ -43,7 +44,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarClock" title="تنبيهات انتهاء الصلاحية" subtitle={`${rows.length} دفعة`} backHref="/erp/inventory" />
+        <ErpPageHeader icon="CalendarClock" title="تنبيهات انتهاء الصلاحية" subtitle={`${rows.length} دفعة`} backHref="/erp/inventory" action={<ReportToolbar />} />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">منتهية</div><div className="text-2xl font-bold text-destructive">{intl(totals.expiredCount)}</div></CardContent></Card>

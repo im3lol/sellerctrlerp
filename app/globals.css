@@ -139,3 +139,23 @@
     background-color: hsl(var(--primary) / 0.15);
   }
 }
+
+/* Clean print / save-as-PDF for report pages: drop the app chrome (sidebar,
+   topbar) and any element marked `.no-print`, and print the main content
+   full-width. The dedicated (print) document pages have no aside/header, so
+   this is a no-op there. */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+}

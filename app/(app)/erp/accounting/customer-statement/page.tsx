@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, receiptVouchers, salesReturns } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FormCombobox } from "@/components/erp/form-combobox";
@@ -168,6 +169,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
           title="كشف حساب العميل"
           subtitle="عرض كل المعاملات (فواتير · مقبوضات · مرتجعات) لعميل محدد خلال فترة"
           backHref="/erp/accounting"
+          action={selectedId ? <ReportToolbar /> : undefined}
         />
 
         {/* Filters */}

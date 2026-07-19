@@ -2,6 +2,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ratio = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
@@ -50,7 +51,7 @@ export default async function RatiosReportPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" />
+        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar />} />
 
         <div>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">السيولة</h2>

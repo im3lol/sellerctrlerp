@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -75,9 +76,7 @@ export default async function IncomeStatementPage({
           title="قائمة الدخل"
           subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
           action={
-            <Button asChild variant="outline">
-              <a href={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
-            </Button>
+            <ReportToolbar excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`} />
           }
         />
         <ReportTabs active="/erp/reports/income-statement" />

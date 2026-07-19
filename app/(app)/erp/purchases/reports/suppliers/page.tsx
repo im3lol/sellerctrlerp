@@ -7,6 +7,7 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -43,7 +44,7 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب الموردين" subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل" />
+        <ErpPageHeader icon="Users" title="ترتيب الموردين" subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">

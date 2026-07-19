@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,9 +53,7 @@ export default async function BalanceSheetPage({
       <div className="space-y-6">
         <ErpPageHeader icon="Scale" title="الميزانية العمومية" subtitle={`كما في ${to} — من القيود المُرحّلة`}
           action={
-            <Button asChild variant="outline">
-              <a href={`/api/erp/reports/balance-sheet/export?to=${to}`}><Icon name="Download" className="size-4" />Excel</a>
-            </Button>
+            <ReportToolbar excel={`/api/erp/reports/balance-sheet/export?to=${to}`} />
           }
         />
         <ReportTabs active="/erp/reports/balance-sheet" />

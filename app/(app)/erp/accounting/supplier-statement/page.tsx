@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, purchaseInvoices, paymentVouchers, purchaseReturns } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FormCombobox } from "@/components/erp/form-combobox";
@@ -164,6 +165,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
           title="كشف حساب المورّد"
           subtitle="عرض كل المعاملات (فواتير · مدفوعات · مرتجعات) لمورّد محدد خلال فترة"
           backHref="/erp/accounting"
+          action={selectedId ? <ReportToolbar /> : undefined}
         />
 
         <form method="GET" className="flex flex-wrap items-end gap-3">

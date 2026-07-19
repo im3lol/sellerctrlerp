@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportTabs } from "@/components/erp/report-tabs";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { BarChart } from "@/components/charts/bar-chart";
 
 const fmt   = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 });
@@ -32,9 +33,7 @@ export default async function CashFlowPage({
       <div className="space-y-6">
         <ErpPageHeader icon="ArrowLeftRight" title="التدفق النقدي" subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
           action={
-            <Button asChild variant="outline">
-              <a href={`/api/erp/reports/cash-flow/export?${new URLSearchParams({ from, to }).toString()}`}><Icon name="Download" className="size-4" />Excel</a>
-            </Button>
+            <ReportToolbar excel={`/api/erp/reports/cash-flow/export?${new URLSearchParams({ from, to }).toString()}`} />
           }
         />
         <ReportTabs active="/erp/reports/cash-flow" />

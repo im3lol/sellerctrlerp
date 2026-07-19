@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ReportToolbar } from "@/components/erp/report-toolbar";
 import { ItemPickerField } from "@/components/erp/item-picker-field";
 import { selectCls } from "@/lib/utils";
 
@@ -62,13 +63,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
           title="دفتر حركة المخزون"
           subtitle={itemLabel || "أحدث حركات المخزون"}
           backHref="/erp/inventory"
-          action={
-            rows.length > 0 ? (
-              <Button asChild variant="outline">
-                <a href={exportHref}><Icon name="Download" className="size-4" />تحميل Excel</a>
-              </Button>
-            ) : undefined
-          }
+          action={<ReportToolbar excel={rows.length > 0 ? exportHref : undefined} />}
         />
 
         <Card>
