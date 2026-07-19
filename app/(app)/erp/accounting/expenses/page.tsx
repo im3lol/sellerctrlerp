@@ -47,11 +47,16 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       .leftJoin(cat, eq(cat.id, expenses.expenseAccountId))
       .leftJoin(cash, eq(cash.id, expenses.cashAccountId));
 
-    const [[{ count }], [{ posted }], rows] = await Promise.all([
+    const [[{ count }], [sums], rows] = await Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(expenses).leftJoin(cat, eq(cat.id, expenses.expenseAccountId)).where(where),
-      db.select({ posted: sql<string>`coalesce(sum(${expenses.amount}) filter (where ${expenses.status} = 'POSTED'), 0)` }).from(expenses).leftJoin(cat, eq(cat.id, expenses.expenseAccountId)).where(where),
+      db.select({
+        posted: sql<string>`coalesce(sum(${expenses.amount}) filter (where ${expenses.status} = 'POSTED'), 0)`,
+        draft: sql<string>`coalesce(sum(${expenses.amount}) filter (where ${expenses.status} = 'DRAFT'), 0)`,
+      }).from(expenses).leftJoin(cat, eq(cat.id, expenses.expenseAccountId)).where(where),
       base.where(where).orderBy(desc(expenses.date), desc(expenses.number)).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE),
     ]);
+    const postedValue = Number(sums?.posted ?? 0);
+    const draftValue = Number(sums?.draft ?? 0);
 
     const total = Number(count);
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -62,7 +67,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         <ErpPageHeader
           icon="Wallet"
           title="المصروفات"
-          subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} مصروف — مُرحّل ${fmt(posted)}`}
+          subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} مصروف`}
           action={
             <div className="flex gap-2">
               <Button variant="outline" asChild><Link href="/erp/accounting/expenses/recurring"><Icon name="Repeat" className="size-4" />المتكررة</Link></Button>
@@ -70,6 +75,11 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
             </div>
           }
         />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">المصروفات المُرحّلة</div><p className="mt-1 text-2xl font-bold tabular-nums">{fmt(String(postedValue))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مسودة (غير مُرحّلة)</div><p className={`mt-1 text-2xl font-bold tabular-nums ${draftValue > 0 ? "text-amber-600" : ""}`}>{fmt(String(draftValue))}</p></CardContent></Card>
+        </div>
 
         <FilterBar active={hasFilters} clearHref="/erp/accounting/expenses">
           <div className="space-y-2">

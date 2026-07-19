@@ -31,6 +31,7 @@ const SOURCE: Record<string, string> = {
 const SOURCE_FILTER = ["MANUAL", "SALES_INVOICE", "PURCHASE_INVOICE", "RECEIPT_VOUCHER", "PAYMENT_VOUCHER", "SALES_RETURN", "PURCHASE_RETURN", "REVERSAL", "STOCK_ADJUSTMENT"];
 
 const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
+const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type SP = { q?: string; status?: string; source?: string; from?: string; to?: string; page?: string };
 
@@ -55,8 +56,14 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     const where = and(...conds);
 
-    const [[{ count }], rows] = await Promise.all([
+    const [[{ count }], [sum], rows] = await Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(journalEntries).where(where),
+      // Filter-aware: posted value (Σ debit) + posted/draft entry counts.
+      db.select({
+        postedValue: sql<string>`coalesce(sum(${journalEntryLines.debit}) filter (where ${journalEntries.status} = 'POSTED'), 0)`,
+        postedCount: sql<number>`count(distinct ${journalEntries.id}) filter (where ${journalEntries.status} = 'POSTED')`,
+        draftCount: sql<number>`count(distinct ${journalEntries.id}) filter (where ${journalEntries.status} = 'DRAFT')`,
+      }).from(journalEntries).leftJoin(journalEntryLines, eq(journalEntryLines.journalEntryId, journalEntries.id)).where(where),
       db
         .select({
           id: journalEntries.id,
@@ -112,6 +119,12 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             </div>
           }
         />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي القيمة المُرحّلة</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(Number(sum?.postedValue ?? 0))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيود مُرحّلة</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{num(Number(sum?.postedCount ?? 0))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مسودة (غير مُرحّلة)</div><p className={`mt-1 text-2xl font-bold tabular-nums ${Number(sum?.draftCount ?? 0) > 0 ? "text-amber-600" : ""}`}>{num(Number(sum?.draftCount ?? 0))}</p></CardContent></Card>
+        </div>
 
         <Card>
           <details open={hasFilters} className="group">
