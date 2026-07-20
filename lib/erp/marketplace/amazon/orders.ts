@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson } from "./client";
+import { spJson, paced } from "./client";
 import { round2 } from "@/lib/erp/money";
 import type { Credential } from "../connector";
 import type { MarketplaceOrder, DateRange } from "../dto";
@@ -7,7 +7,6 @@ import type { MarketplaceOrder, DateRange } from "../dto";
 // Direct orders source: Orders API v0 (getOrders + getOrderItems) — JSON, no
 // async report. Replaces the all-orders flat-file report in the connector.
 
-const MAX_ORDERS = 200; // bound a single sync (Orders/Items APIs are rate-limited)
 
 type Money = { Amount?: string | number };
 type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string };
@@ -40,7 +39,9 @@ async function fetchOrderItems(cred: Credential, orderId: string): Promise<ApiOr
   let next: string | undefined;
   for (let page = 0; page < 20; page++) {
     const qs = new URLSearchParams(next ? { NextToken: next } : {});
-    const res = await spJson<ItemsResponse>(cred, `/orders/v0/orders/${encodeURIComponent(orderId)}/orderItems${qs.toString() ? `?${qs}` : ""}`);
+    // getOrderItems: 0.5 req/s sustained → pace at 2.1s between calls.
+    const res = await paced("orders:items", 2100, () =>
+      spJson<ItemsResponse>(cred, `/orders/v0/orders/${encodeURIComponent(orderId)}/orderItems${qs.toString() ? `?${qs}` : ""}`));
     items.push(...(res.payload?.OrderItems ?? []));
     next = res.payload?.NextToken;
     if (!next) break;
@@ -52,17 +53,29 @@ export async function fetchOrders(cred: Credential, range: DateRange): Promise<M
   if (!cred.marketplaceId) return [];
   const orders: ApiOrder[] = [];
   let next: string | undefined;
-  for (let page = 0; page < 30 && orders.length < MAX_ORDERS; page++) {
-    const qs = new URLSearchParams({ MarketplaceIds: cred.marketplaceId, CreatedAfter: range.from.toISOString() });
-    if (next) qs.set("NextToken", next);
-    const res = await spJson<OrdersResponse>(cred, `/orders/v0/orders?${qs}`);
+  // Walk every page in the window. getOrders returns ≤100/page; when NextToken is
+  // set Amazon ignores the other filters, so we send it alone. spFetch backs off on
+  // 429/503, keeping us inside the rate limits. Runs in the background worker, so a
+  // long walk is fine. ponytail: 500-page (~50k orders) runaway guard — raise if a
+  // single backfill ever needs more.
+  // "updated" → LastUpdatedAfter (catches status/price changes on existing orders,
+  // e.g. pending→shipped); "created" → CreatedAfter (all orders placed since).
+  const dateFilter: Record<string, string> = range.mode === "updated"
+    ? { LastUpdatedAfter: range.from.toISOString() }
+    : { CreatedAfter: range.from.toISOString() };
+  for (let page = 0; page < 500; page++) {
+    const qs = next
+      ? new URLSearchParams({ NextToken: next })
+      : new URLSearchParams({ MarketplaceIds: cred.marketplaceId, ...dateFilter, MaxResultsPerPage: "100" });
+    // getOrders: ~1 req/s sustained (burst 20) → pace at 1.1s between pages.
+    const res = await paced("orders:list", 1100, () => spJson<OrdersResponse>(cred, `/orders/v0/orders?${qs}`));
     orders.push(...(res.payload?.Orders ?? []));
     next = res.payload?.NextToken;
     if (!next) break;
   }
 
   const out: MarketplaceOrder[] = [];
-  for (const o of orders.slice(0, MAX_ORDERS)) {
+  for (const o of orders) {
     if (!o.AmazonOrderId) continue;
     // Cancelled orders are matched by id to tear down an existing SO — no need to
     // pull their line items (skips a rate-limited call per cancellation).

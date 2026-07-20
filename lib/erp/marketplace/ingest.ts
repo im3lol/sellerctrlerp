@@ -2,13 +2,14 @@ import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes, salesOrders, salesOrderLines, warehouses } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
+import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { fulfillOrder, cancelMarketplaceOrder } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
-import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview } from "./classify";
+import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview, type ItemResolver } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
 import type { CatalogRecord } from "./connector";
@@ -33,6 +34,7 @@ export type IngestResult = {
   stockBlocked: { externalId: string; reason: string }[];
   skippedDuplicate: number;
   skippedUnmatched: number;
+  autoCreated: number; // stub items created for unknown SKUs (order kept DRAFT)
   failed: number;
 };
 
@@ -80,6 +82,47 @@ async function existingOrders(orgId: string, channel: string): Promise<Map<strin
   return m;
 }
 
+/**
+ * Auto-create a stub catalog item for every order-line SKU not yet in the catalog,
+ * so the order imports instead of being skipped. The stub carries the order's name
+ * + sell price but no cost and needs_review=true — callers keep such orders DRAFT
+ * (never auto-post) until a human sets the cost. Returns the count created.
+ */
+async function ensureItemsForOrders(orgId: string, orders: MarketplaceOrder[], resolve: ItemResolver): Promise<number> {
+  const missing = new Map<string, { code: string; altCode?: string; name?: string; price: number }>();
+  for (const o of orders) {
+    if (o.status === "Canceled") continue; // a cancellation tears down; no item needed
+    for (const l of o.lines) {
+      if (!l.code || resolve(l.code, l.altCode).itemId) continue;
+      const key = normalizeCode(l.code);
+      if (!key || missing.has(key)) continue;
+      missing.set(key, { code: l.code, altCode: l.altCode, name: l.name, price: l.unitPrice });
+    }
+  }
+  if (missing.size === 0) return 0;
+
+  const list = [...missing.values()];
+  const codes = await nextItemCodes(orgId, list.length);
+  const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
+  const pushCode = (itemId: string, codeType: string, code: string) => {
+    const c = (code || "").trim(); const norm = normalizeCode(c);
+    if (c && norm) codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
+  };
+  await db.transaction(async (tx) => {
+    for (const slice of chunk(list.map((p, i) => ({ p, code: codes[i] })), 500)) {
+      const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
+        organizationId: orgId, code, nameAr: (p.name || p.code).trim(),
+        sellPrice: String(round2(p.price || 0)), needsReview: true,
+      }))).returning({ id: items.id });
+      inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
+    }
+    for (const slice of chunk(codeValues, 500)) {
+      await tx.insert(itemCodes).values(slice).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
+    }
+  });
+  return list.length;
+}
+
 /** Parse+match preview (no writes). */
 export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "channel">, orders: MarketplaceOrder[]): Promise<OrdersPreview> {
   const resolve = await buildMatcher(orgId, orders);
@@ -94,7 +137,16 @@ export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "chann
  * movement. Idempotent via (org, channel, externalId).
  */
 export async function ingestOrders(orgId: string, userId: string | null, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
-  const resolve = await buildMatcher(orgId, orders);
+  let resolve = await buildMatcher(orgId, orders);
+  // Unknown SKUs → auto-create review stubs so the order imports; re-resolve so
+  // those lines now match. Orders touching a review item are forced DRAFT below.
+  const autoCreated = await ensureItemsForOrders(orgId, orders, resolve);
+  if (autoCreated) resolve = await buildMatcher(orgId, orders);
+  const reviewIds = new Set(
+    (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
+  );
+  const hasReviewItem = (o: PreviewOrder) => o.lines.some((l) => l.itemId && reviewIds.has(l.itemId));
+
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
 
@@ -110,16 +162,24 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
           organizationId: orgId, number, customerId: ctx.customerId, date: d, status,
           subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
           totalAmount: String(round2(o.subtotal + o.shippingTotal)),
-          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, notes: `${ctx.label} ${o.externalId}`,
+          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status, notes: `${ctx.label} ${o.externalId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
         await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId: ctx.warehouseId,
           quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
         })));
-        if (userId) await tryRecordAudit({
-          orgId, userId, action: "CREATE", entityType: "SALES_ORDER",
+        // Always log — userId is null for the automatic (cron/worker) sync, which the
+        // audit card shows as "تلقائي (النظام)". A manual sync carries the actor.
+        const actor = userId ?? null;
+        await tryRecordAudit({
+          orgId, userId: actor, action: "CREATE", entityType: "SALES_ORDER",
           entityId: so.id, entityNumber: so.number,
           summary: `استيراد أمر بيع ${so.number} من ${ctx.label} (${o.externalId})`, metadata: { channel: ctx.channel, externalOrderId: o.externalId, total: o.total },
+        });
+        // Born confirmed = Amazon already marked it Shipped → record the confirmation too.
+        if (status === "CONFIRMED") await tryRecordAudit({
+          orgId, userId: actor, action: "CONFIRM", entityType: "SALES_ORDER",
+          entityId: so.id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number} (مشحون على أمازون)`,
         });
         return so.id;
       });
@@ -135,8 +195,33 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     else failed++;
   };
 
+  // Re-write a still-editable DRAFT order's lines + totals + channel status from the
+  // latest fetch. Backfills prices Amazon only reveals once an order leaves Pending.
+  const refreshDraft = async (existingId: string, o: PreviewOrder) => {
+    const newTotal = round2(o.subtotal + o.shippingTotal);
+    const [prev] = await db.select({ total: salesOrders.totalAmount }).from(salesOrders).where(eq(salesOrders.id, existingId));
+    const changed = prev != null && Math.abs(Number(prev.total) - newTotal) > 0.001;
+    await db.transaction(async (tx) => {
+      await tx.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, existingId));
+      if (o.lines.length) await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
+        salesOrderId: existingId, itemId: l.itemId!, warehouseId: ctx.warehouseId,
+        quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
+      })));
+      await tx.update(salesOrders).set({
+        subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
+        totalAmount: String(newTotal), channelStatus: o.status, updatedAt: new Date(),
+      }).where(eq(salesOrders.id, existingId));
+    });
+    // Log only a real change (e.g. Amazon released the price after Pending) — not every no-op refresh.
+    if (changed) await tryRecordAudit({
+      orgId, userId: userId ?? null, action: "UPDATE", entityType: "SALES_ORDER",
+      entityId: existingId, summary: `تحديث تلقائي: تحديث بيانات الأمر من أمازون (الإجمالي ${Number(prev!.total)} ← ${newTotal})`,
+    });
+  };
+
   for (const o of toCreate) {
-    const shipped = o.status === "Shipped";
+    // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o);
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -145,6 +230,12 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of transitions) {
     if (!o.existingId) continue;
+    if (!o.lines.every((l) => l.itemId)) continue; // a line without an item → leave as-is
+    // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
+    if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
+    if (hasReviewItem(o)) continue; // needs item review → stay DRAFT, don't advance
+    // Only advance once Amazon marks it Shipped; a still-Pending order just got refreshed.
+    if (o.status !== "Shipped") continue;
     if (o.existingStatus === "DRAFT") {
       const c = await confirmSalesOrderAction(o.existingId);
       if (!c.ok) { failed++; continue; }
@@ -158,12 +249,19 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   for (const o of toCancel) {
     if (!o.existingId) continue;
     const r = await cancelMarketplaceOrder(orgId, o.existingId);
-    if (r.ok) cancelled++;
+    if (r.ok) {
+      cancelled++;
+      await db.update(salesOrders).set({ channelStatus: "Canceled" }).where(eq(salesOrders.id, o.existingId));
+      await tryRecordAudit({
+        orgId, userId: userId ?? null, action: "CANCEL", entityType: "SALES_ORDER",
+        entityId: o.existingId, summary: `إلغاء أمر بيع (${o.externalId}) — ملغى على أمازون`,
+      });
+    }
   }
 
   return {
     created, transitioned, fulfilled, cancelled, stockBlocked,
-    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, failed,
+    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, autoCreated, failed,
   };
 }
 
@@ -290,14 +388,21 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   await db.transaction(async (tx) => {
     if (toCreate.length) {
       const codes = await nextItemCodes(orgId, toCreate.length);
-      const inserted = await tx.insert(items).values(toCreate.map((p, i) => ({
-        organizationId: orgId, code: codes[i], nameAr: (p.name || p.code).trim(), sellPrice: String(round2(p.sellPrice || 0)),
-      }))).returning({ id: items.id });
-      inserted.forEach((it, i) => { pushCode(it.id, "SKU", toCreate[i].code); if (toCreate[i].altCode) pushCode(it.id, "ASIN", toCreate[i].altCode!); });
-      result.created = inserted.length;
+      // Chunk the multi-row INSERT: one giant .values([...11k]) overflows Drizzle's
+      // query-node assembly (Maximum call stack) and blows Postgres's 65k param cap.
+      const rows = toCreate.map((p, i) => ({ p, code: codes[i] }));
+      let created = 0;
+      for (const slice of chunk(rows, 500)) {
+        const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
+          organizationId: orgId, code, nameAr: (p.name || p.code).trim(), sellPrice: String(round2(p.sellPrice || 0)),
+        }))).returning({ id: items.id });
+        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
+        created += inserted.length;
+      }
+      result.created = created;
     }
-    if (codeValues.length) {
-      await tx.insert(itemCodes).values(codeValues).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
+    for (const slice of chunk(codeValues, 500)) {
+      await tx.insert(itemCodes).values(slice).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
     }
   });
 
@@ -361,11 +466,11 @@ export async function enrichItems(orgId: string, records: CatalogRecord[]): Prom
     }
   }
 
-  if (codeValues.length) {
-    const inserted = await db.insert(itemCodes).values(codeValues)
+  for (const slice of chunk(codeValues, 500)) {
+    const inserted = await db.insert(itemCodes).values(slice)
       .onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] })
       .returning({ id: itemCodes.id });
-    result.barcodes = inserted.length;
+    result.barcodes += inserted.length;
   }
   return result;
 }

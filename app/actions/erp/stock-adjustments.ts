@@ -8,6 +8,7 @@ import { stockAdjustments } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { createAdjustment, confirmAdjustment } from "@/lib/erp/inventory-writes";
+import { tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveAdjustmentState = ActionState & { id?: string };
 
@@ -18,6 +19,7 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
   return withOrgScope(auth.orgId, false, async () => {
     const r = await createAdjustment(auth.orgId, auth.userId, input);
     if ("error" in r) return { error: r.error };
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_ADJUSTMENT", entityId: r.id, summary: "إنشاء تسوية مخزون (مسودة)" });
     revalidatePath("/inventory/adjustments");
     return { ok: true, id: r.id };
   });
@@ -30,6 +32,7 @@ export async function confirmStockAdjustmentAction(id: string): Promise<ActionSt
   return withOrgScope(auth.orgId, false, async () => {
     const r = await confirmAdjustment(auth.orgId, auth.userId, id);
     if ("error" in r) return { error: r.error };
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_ADJUSTMENT", entityId: id, summary: "تأكيد وترحيل تسوية مخزون" });
     revalidatePath("/inventory/adjustments");
     revalidatePath("/inventory/stock");
     revalidatePath("/inventory/ledger");
@@ -50,6 +53,7 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
     if (adj.status !== "DRAFT") return { error: "لا يمكن حذف تسوية مُرحّلة" };
 
     await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "STOCK_ADJUSTMENT", entityId: id, summary: "حذف تسوية مخزون (مسودة)" });
     revalidatePath("/inventory/adjustments");
     return { ok: true };
   });

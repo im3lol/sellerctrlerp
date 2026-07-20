@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
+import { DocAuditCard } from "@/components/erp/document-detail";
+import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -21,6 +23,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
     const [adj] = await db.select().from(stockAdjustments)
       .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();
+    const audit = await getDocumentAudit(orgId, adj.id);
 
     const lines = await db
       .select({
@@ -102,6 +105,8 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
             </Table>
           </CardContent>
         </Card>
+
+        <DocAuditCard rows={audit} />
       </div>
     );
   });

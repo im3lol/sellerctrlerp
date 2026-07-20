@@ -54,8 +54,10 @@ export function classifyOrders(
     }
 
     if (ex) {
-      const doneStatus = ex.status === "CANCELLED" || ex.status === "DELIVERED" || ex.status === "INVOICED";
-      if (o.status === "Shipped" && fullyMatched && !doneStatus) transitions.push({ ...po, existingId: ex.id, existingStatus: ex.status });
+      // A DRAFT order is still editable: refresh it every pull (price backfill +
+      // channel-status update, and advance it when Amazon marks it Shipped). Once
+      // it's confirmed/delivered/invoiced it's frozen — a re-pull is a duplicate.
+      if (ex.status === "DRAFT") transitions.push({ ...po, existingId: ex.id, existingStatus: ex.status });
       else duplicates.push(po);
       continue;
     }

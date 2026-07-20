@@ -155,6 +155,7 @@ export async function deleteStockTransferAction(id: string): Promise<ActionState
     if (tr.status !== "DRAFT") return { error: "لا يمكن حذف تحويل مُرحّل" };
 
     await db.delete(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "STOCK_TRANSFER", entityId: id, summary: "حذف تحويل مخزني (مسودة)" });
     revalidatePath("/inventory/transfers");
     return { ok: true };
   });

@@ -31,6 +31,34 @@ export type MarketplaceInventory = {
   onHand: number;
 };
 
+/** Full FBA inventory breakdown per SKU (getInventorySummaries details=true). `total`
+ *  is all owned units; the rest explain WHERE they are — the Inventory Auditor uses
+ *  this to classify a difference (temporary: receiving/reserved/researching vs a real
+ *  loss: damaged/lost). */
+export type MarketplaceInventoryDetail = {
+  code: string;        // seller SKU
+  asin?: string;
+  fnsku?: string;
+  title: string;
+  total: number;               // totalQuantity — all units Amazon holds for the seller
+  fulfillable: number;         // available to sell now
+  inboundWorking: number;
+  inboundShipped: number;
+  inboundReceiving: number;    // arrived at FC, being checked in
+  reservedTotal: number;
+  reservedCustomerOrder: number;
+  reservedTransshipment: number;
+  reservedFcProcessing: number;
+  unfulfillableTotal: number;  // damaged/defective/expired — owned but not sellable
+  warehouseDamaged: number;
+  customerDamaged: number;
+  carrierDamaged: number;
+  distributorDamaged: number;
+  defective: number;
+  expired: number;
+  researching: number;         // Amazon investigating a discrepancy
+};
+
 /** A marketplace listing — matched to an item by `code` (SKU) or `altCode` (ASIN). */
 export type MarketplaceProduct = {
   code: string;      // seller SKU
@@ -54,4 +82,8 @@ export type MarketplaceSettlement = {
   total: number; // net cash effect
 };
 
-export type DateRange = { from: Date; to: Date };
+// `mode` picks the Amazon date filter: "created" (all orders placed in the window —
+// used by the manual date backfill) or "updated" (orders whose status/price CHANGED
+// since — used by the incremental watermark sync, so it catches pending→shipped and
+// price backfills, not just brand-new orders). Default "created".
+export type DateRange = { from: Date; to: Date; mode?: "created" | "updated" };

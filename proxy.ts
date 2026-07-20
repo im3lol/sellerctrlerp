@@ -23,7 +23,8 @@ export default auth((req) => {
     path.startsWith("/api/cron") || // Vercel Cron — authed by CRON_SECRET in the route, not session
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
     path.startsWith("/_next") ||
-    path.startsWith("/brand");
+    path.startsWith("/brand") ||
+    path.startsWith("/sounds"); // static notification chimes — no auth needed
 
   // The admin panel is a fully separate surface: ONLY the platform owner
   // (system_admin) may enter. Anyone else — unauthenticated OR a signed-in tenant

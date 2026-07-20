@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { organizations, platformCredentials } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
-import { prepareSync, markSync, syncProductsCore } from "@/lib/erp/marketplace/sync-core";
+import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
+import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
@@ -44,18 +45,19 @@ export async function GET(req: Request) {
     try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
   }
 
-  // 1b) Daily marketplace product/catalog refresh (heavy — kept OUT of the
-  // per-minute cron so it never starves normal requests of DB connections).
+  // 1b) Daily marketplace discovery — ENQUEUE one incremental discovery job per
+  // auto-sync connection (the BullMQ worker does the actual SP-API pull, so this
+  // stays light and never starves DB connections). Replaces the old per-minute
+  // cron + inline heavy sync. No Redis → skipped (queue unavailable).
   let productsRun = 0;
-  const conns = await db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider })
+  const conns = await db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider, productsSyncedAt: platformCredentials.productsSyncedAt, connectedAt: platformCredentials.connectedAt })
     .from(platformCredentials).where(eq(platformCredentials.autoSync, true));
   for (const c of conns) {
     try {
-      const prep = await prepareSync(c.orgId, c.provider.toUpperCase());
-      if ("error" in prep || !prep.flags.products || !prep.connector.fetchProducts) continue;
-      const r = await syncProductsCore(prep);
-      productsRun++;
-      if (r.ok) await markSync(c.orgId, c.provider, { productsSyncedAt: now });
+      const since = c.productsSyncedAt
+        ? incrementalFrom(new Date(c.productsSyncedAt), c.connectedAt ? new Date(c.connectedAt) : null, now.getTime()).toISOString()
+        : undefined;
+      if (await enqueue(QUEUES.discovery, { orgId: c.orgId, provider: c.provider, since })) productsRun++;
     } catch { /* skip a connection on error */ }
   }
 

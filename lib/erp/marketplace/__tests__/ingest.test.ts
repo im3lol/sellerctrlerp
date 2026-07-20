@@ -27,11 +27,12 @@ describe("classifyOrders routing", () => {
     expect(r.unmatched.map((u) => u.code)).toContain("MYSTERY");
   });
 
-  it("treats an already-imported order as a duplicate when not a shipped transition", () => {
+  it("re-pulls an existing DRAFT order as a transition (price/status refresh)", () => {
     const existing = new Map([["A3", { id: "so_3", status: "DRAFT" }]]);
     const r = classifyOrders([order("A3", "Pending", ["KNOWN1"])], resolve, existing);
-    expect(r.duplicates).toHaveLength(1);
-    expect(r.transitions).toHaveLength(0);
+    expect(r.transitions).toHaveLength(1);
+    expect(r.transitions[0].existingId).toBe("so_3");
+    expect(r.duplicates).toHaveLength(0);
   });
 
   it("transitions an existing DRAFT order that is now Shipped + fully matched", () => {

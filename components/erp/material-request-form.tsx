@@ -61,7 +61,7 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell><ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" min="0" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}

@@ -144,7 +144,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
                           : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
                       <td className="p-2">
-                        {isItem ? <Input type="number" step="0.01" min="0" value={r.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /> : null}
+                        {isItem ? <Input type="number" step="1" min="0" value={r.quantity} onChange={(e) => set(i, { quantity: e.target.value.replace(/[^\d]/g, "") })} /> : null}
                       </td>
                       <td className="p-2">
                         {isItem ? <Input type="number" step="0.01" min="0" value={r.unitCost} onChange={(e) => set(i, { unitCost: e.target.value })} /> : null}

@@ -65,7 +65,7 @@ function BomDialog({ bundle, items, onClose }: { bundle: Bundle | null; items: I
           {rows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
               <div className="flex-1"><CellCombobox selectedLabel={labelById.get(r.componentItemId) ?? ""} options={opts.filter((o) => o.id !== parentItemId)} onSelect={(id) => setRow(i, { componentItemId: id })} placeholder="ابحث عن المكوّن…" /></div>
-              <Input type="number" step="0.001" min="0" value={r.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-24" placeholder="كمية" />
+              <Input type="number" step="1" min="1" value={r.quantity} onChange={(e) => setRow(i, { quantity: e.target.value.replace(/[^\d]/g, "") })} className="w-24" placeholder="كمية" />
               <Button variant="ghost" size="icon" onClick={() => removeRow(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
             </div>
           ))}
@@ -99,7 +99,7 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">سيتم خصم المكوّنات من المستودع وإنتاج الحزمة كمخزون قابل للبيع بتكلفة مكوّناتها.</p>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>الكمية المراد تجميعها</Label><Input type="number" step="1" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>الكمية المراد تجميعها</Label><Input type="number" step="1" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^\d]/g, ""))} /></div>
           <div className="space-y-1.5"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
         <div className="space-y-1.5">

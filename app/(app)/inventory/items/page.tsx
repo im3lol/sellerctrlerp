@@ -26,6 +26,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
     const fStatus = one(sp.status); // active | inactive | ""
     const fCategory = one(sp.category);
     const fMissing = one(sp.missing); // image | codes | ""
+    const fReview = one(sp.review) === "1"; // items auto-created from orders, awaiting review
     const showRelated = one(sp.related) === "1"; // also list the whole variation family of matched items
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
@@ -42,6 +43,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
     }
     if (fStatus === "active") conds.push(eq(items.isActive, true));
     if (fStatus === "inactive") conds.push(eq(items.isActive, false));
+    if (fReview) conds.push(eq(items.needsReview, true));
     if (fCategory) conds.push(eq(items.categoryId, fCategory));
     if (fMissing === "image") conds.push(isNull(items.image));
     if (fMissing === "codes") {

@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { QuotationRowActions } from "@/components/erp/quotation-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { DocAuditCard } from "@/components/erp/document-detail";
+import { getDocumentAudit } from "@/lib/erp/audit";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,6 +29,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
     }).from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
     if (!qt) notFound();
+    const audit = await getDocumentAudit(orgId, qt.id);
 
     const lines = await db.select({ name: items.nameAr, code: items.code, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount })
       .from(salesQuotationLines).innerJoin(items, eq(items.id, salesQuotationLines.itemId))
@@ -70,6 +73,8 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             {qt.notes && <p className="mt-3 text-sm text-muted-foreground">ملاحظات: {qt.notes}</p>}
           </CardContent>
         </Card>
+
+        <DocAuditCard rows={audit} />
       </div>
     );
   });

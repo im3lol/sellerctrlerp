@@ -8,7 +8,7 @@ import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
-import type { DateRange } from "@/lib/erp/marketplace/dto";
+import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
@@ -17,6 +17,8 @@ export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean
 export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags };
 
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
+/** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
+export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
@@ -55,7 +57,7 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
 
 export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
 
-export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date }> = {}) {
+export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date; ordersSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
     db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
       .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
@@ -66,41 +68,104 @@ export async function markSync(orgId: string, provider: string, patch: Partial<{
  * Pass `since` for an incremental pull (only listings changed since then) — fast,
  * and doesn't re-run the whole catalog; omit it for a full sync/reconciliation.
  */
+/** Ingest a fetched product list + run best-effort catalog enrichment. Shared by
+ *  the incremental sync (syncProductsCore) and the full import (importProductsCore). */
+async function ingestAndEnrich(p: SyncPrep, products: MarketplaceProduct[]): Promise<ProductsSync> {
+  const org = p.orgId;
+  const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode));
+
+  let images = 0, barcodes = 0, fields = 0, families = 0;
+  const fetchCatalog = p.connector.fetchCatalog;
+  if (fetchCatalog) {
+    const asins = [...new Set(products.map((x) => x.altCode).filter((a): a is string => !!a))];
+    if (asins.length) {
+      try {
+        const records = await fetchCatalog(p.cred, asins);
+        const e = await withOrgScope(org, false, () => enrichItems(org, records));
+        images = e.images; barcodes = e.barcodes; fields = e.fields;
+        // linkVariationFamilies fetches the parent catalog via the callback; that
+        // secondary fetch runs inside this scope. ponytail: acceptable (parent set
+        // is small); split fetch/write inside ingest if it ever dominates.
+        const fam = await withOrgScope(org, false, () => linkVariationFamilies(org, records, async (parentAsins) => {
+          const precs = await fetchCatalog(p.cred, parentAsins);
+          const m = new Map<string, { name?: string; imageUrl?: string }>();
+          for (const pr of precs) m.set(pr.asin, { name: pr.name, imageUrl: pr.imageUrl });
+          return m;
+        }));
+        families = fam.familiesLinked;
+      } catch { /* enrichment is optional */ }
+    }
+  }
+  return { ok: true, ...r, images, barcodes, fields, families };
+}
+
 export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<ProductsSync> {
   if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
-  const org = p.orgId;
   try {
     // Fetch OUTSIDE the DB scope (slow SP-API call), then ingest INSIDE a short
     // org scope — so the DB connection isn't held across the network round-trip.
     const products = await p.connector.fetchProducts(p.cred, since);
-    const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode));
-
-    let images = 0, barcodes = 0, fields = 0, families = 0;
-    const fetchCatalog = p.connector.fetchCatalog;
-    if (fetchCatalog) {
-      const asins = [...new Set(products.map((x) => x.altCode).filter((a): a is string => !!a))];
-      if (asins.length) {
-        try {
-          const records = await fetchCatalog(p.cred, asins);
-          const e = await withOrgScope(org, false, () => enrichItems(org, records));
-          images = e.images; barcodes = e.barcodes; fields = e.fields;
-          // linkVariationFamilies fetches the parent catalog via the callback; that
-          // secondary fetch runs inside this scope. ponytail: acceptable (parent set
-          // is small); split fetch/write inside ingest if it ever dominates.
-          const fam = await withOrgScope(org, false, () => linkVariationFamilies(org, records, async (parentAsins) => {
-            const precs = await fetchCatalog(p.cred, parentAsins);
-            const m = new Map<string, { name?: string; imageUrl?: string }>();
-            for (const pr of precs) m.set(pr.asin, { name: pr.name, imageUrl: pr.imageUrl });
-            return m;
-          }));
-          families = fam.familiesLinked;
-        } catch { /* enrichment is optional */ }
-      }
-    }
-    return { ok: true, ...r, images, barcodes, fields, families };
+    return await ingestAndEnrich(p, products);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المنتجات" };
   }
+}
+
+/**
+ * Full catalog import — complete enumeration via `fetchFullProducts` (Amazon Reports
+ * API, no 1000 cap), falling back to `fetchProducts` (inventory+listings merge) if the
+ * report path fails, so the import always completes. Slow (minutes) → workers only.
+ */
+export async function importProductsCore(p: SyncPrep): Promise<ProductsSync> {
+  try {
+    let products: MarketplaceProduct[];
+    if (p.connector.fetchFullProducts) {
+      try {
+        products = await p.connector.fetchFullProducts(p.cred);
+      } catch (e) {
+        if (!p.connector.fetchProducts) throw e;
+        products = await p.connector.fetchProducts(p.cred); // report failed → live fallback
+      }
+    } else if (p.connector.fetchProducts) {
+      products = await p.connector.fetchProducts(p.cred);
+    } else {
+      return { ok: false, error: "المنصة لا تدعم مزامنة المنتجات" };
+    }
+    return await ingestAndEnrich(p, products);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "فشل الاستيراد" };
+  }
+}
+
+// --- Background full product sync -------------------------------------------
+// A full pull is LONG (11k+ SKUs from FBA inventory + catalog enrichment ≈ minutes)
+// — too long for a synchronous browser request (the connection drops). Run it
+// fire-and-forget on this long-lived Node process; the UI polls getProductSyncState.
+// ponytail: in-memory + single-process (one Docker container). Move to a DB/redis
+// job row only if the app ever runs multiple instances.
+type ProductSyncState = { phase: "running" | "done" | "error"; result?: ProductsSync; at: number };
+const productSyncJobs = new Map<string, ProductSyncState>();
+const jobKey = (orgId: string, provider: string) => `${orgId}:${provider}`;
+
+export function getProductSyncState(orgId: string, provider: string): ProductSyncState | null {
+  return productSyncJobs.get(jobKey(orgId, provider)) ?? null;
+}
+
+/** Kick off a full product sync in the background; returns immediately. */
+export function startProductSync(p: SyncPrep): { started: boolean; alreadyRunning: boolean } {
+  const key = jobKey(p.orgId, p.provider);
+  if (productSyncJobs.get(key)?.phase === "running") return { started: false, alreadyRunning: true };
+  productSyncJobs.set(key, { phase: "running", at: Date.now() });
+  void (async () => {
+    try {
+      const r = await syncProductsCore(p);
+      if (r.ok) await markSync(p.orgId, p.provider, { lastSyncStatus: "ok", productsSyncedAt: new Date() });
+      productSyncJobs.set(key, { phase: r.ok ? "done" : "error", result: r, at: Date.now() });
+    } catch (e) {
+      productSyncJobs.set(key, { phase: "error", result: { ok: false, error: e instanceof Error ? e.message : "فشل السحب" }, at: Date.now() });
+    }
+  })();
+  return { started: true, alreadyRunning: false };
 }
 
 /** Orders: pull the given window and drive the sales-order cycle. userId=null in cron. */

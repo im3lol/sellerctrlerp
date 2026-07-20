@@ -44,7 +44,7 @@ export function BarcodeLabelsPicker() {
                 {rows.map((r, i) => (
                   <TableRow key={r.itemId}>
                     <TableCell className="font-medium">{r.label}</TableCell>
-                    <TableCell><Input type="number" min="1" max="500" value={r.qty} onChange={(e) => setQty(i, Number(e.target.value))} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="1" max="500" value={r.qty} onChange={(e) => setQty(i, Math.max(0, Math.trunc(Number(e.target.value) || 0)))} /></TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>
                 ))}

@@ -151,7 +151,7 @@ export function DeliveryForm({
                     </TableCell>
                     <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
                     <TableCell className={`tabular-nums ${short ? "text-destructive" : "text-muted-foreground"}`}>{qtyf(stock)}</TableCell>
-                    <TableCell><Input type="number" step="0.001" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                   </TableRow>
                 );
               })}

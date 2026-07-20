@@ -117,6 +117,7 @@ export const NAV: NavSection[] = [
       { label: "التحويلات المخزنية", href: "/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view", group: "العمليات" },
       { label: "الحزم والمجموعات", href: "/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view", group: "العمليات" },
 
+      { label: "تدقيق مخزون FBA", href: "/inventory/reconciliation", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
       { label: "تنبيهات إعادة الطلب", href: "/inventory/reorder", icon: "TriangleAlert", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
       { label: "المخزون الراكد", href: "/inventory/dead-stock", icon: "PackageX", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },
       { label: "تنبيهات انتهاء الصلاحية", href: "/inventory/expiry", icon: "CalendarClock", capability: "erp.inventory.view", group: "التنبيهات والأدوات" },

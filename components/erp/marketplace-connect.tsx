@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plug, PlugZap, Loader2, RefreshCw } from "lucide-react";
+import { Plug, PlugZap, Loader2, RefreshCw, ClipboardCheck, ShoppingCart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { disconnectMarketplaceAction, setAutoSyncAction } from "@/app/actions/erp/marketplace-connect";
+import { startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
+import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
 import { SyncProgress } from "@/components/erp/sync-progress";
+import { AuditProgress } from "@/components/erp/audit-progress";
+import { OrdersProgress } from "@/components/erp/orders-progress";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
@@ -24,8 +29,25 @@ export function MarketplaceConnect({
 }) {
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [pending, start] = useTransition();
+  const [auditPending, startAudit] = useTransition();
+  const [auditOpen, setAuditOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [autoSync, setAutoSync] = useState(conn.autoSync);
+  const [ordersSince, setOrdersSince] = useState("");
+  const [ordersOpen, setOrdersOpen] = useState(false);
+  const [ordersPending, startOrders] = useTransition();
+
+  const runAudit = () => startAudit(async () => {
+    const r = await startInventoryAuditAction(provider);
+    if (!r.ok) { toast.error(r.error); return; }
+    setAuditOpen(true); // background job → show the progress popup
+  });
+
+  const syncOrdersFrom = () => startOrders(async () => {
+    const r = await startOrdersSyncAction(provider, ordersSince || undefined);
+    if (!r.ok) { toast.error(r.error); return; }
+    setOrdersOpen(true); // background job → show the progress popup
+  });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
@@ -57,15 +79,32 @@ export function MarketplaceConnect({
           <Button onClick={() => setSyncOpen(true)} disabled={syncOpen} className="bg-emerald-600 hover:bg-emerald-700">
             {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
           </Button>
+          <Button variant="outline" onClick={runAudit} disabled={auditPending} title="مطابقة كميات مخزون FBA مع النظام وعرض الحالات (قراءة فقط)">
+            {auditPending ? <Loader2 className="size-4 animate-spin" /> : <ClipboardCheck className="size-4" />}تدقيق المخزون
+          </Button>
           <Button variant="outline" onClick={disconnect} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
           </Button>
+          {/* Sync sales from a chosen start date (one-off / backfill). */}
+          <div className="flex w-full flex-wrap items-end gap-2 border-t pt-3">
+            <div className="space-y-1.5">
+              <label htmlFor="ordersSince" className="text-sm font-medium">مزامنة المبيعات من تاريخ</label>
+              <input id="ordersSince" type="date" value={ordersSince} onChange={(e) => setOrdersSince(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
+            </div>
+            <Button variant="outline" onClick={syncOrdersFrom} disabled={ordersPending}>
+              {ordersPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}سحب المبيعات
+            </Button>
+            <span className="text-xs text-muted-foreground">اتركه فارغًا = آخر ٣٠ يومًا. بيجيب الطلبات من التاريخ ده لحد دلوقتي.</span>
+          </div>
+
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input type="checkbox" className="size-4 rounded border-input" checked={autoSync} onChange={(e) => toggleAuto(e.target.checked)} disabled={pending} />
-            مزامنة تلقائية (كل دقيقة)
+            المزامنة التلقائية (طلبات فورية + اكتشاف منتجات يومي)
           </label>
-          <span className="w-full text-xs text-muted-foreground">تسحب المنتجات (ربط/إنشاء) والمبيعات (آخر ٣٠ يوم) والمخزون (مطابقة تؤكّدها). التسويات تُرفع يدويًا. المزامنة التلقائية تجيب المبيعات الجديدة أول بأول.</span>
+          <span className="w-full text-xs text-muted-foreground">لما تكون مفعّلة: الطلبات الجديدة من أمازون تدخل النظام تلقائيًا خلال دقائق (وإشعار في الجرس)، والمنتجات الجديدة تُكتشف مرة يوميًا. «مزامنة الآن» تسحب الكتالوج كاملًا.</span>
           <SyncProgress code={provider} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
+          <AuditProgress code={provider} open={auditOpen} onClose={() => setAuditOpen(false)} />
+          <OrdersProgress code={provider} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
         </CardContent>
       </Card>
     );

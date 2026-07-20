@@ -217,6 +217,9 @@ export const items = pgTable(
     weight: text("weight"),      // e.g. "0.5 kg"
     dimensions: text("dimensions"), // e.g. "10 × 5 × 3 cm"
     image: text("image"),
+    // Auto-created from a marketplace order whose SKU wasn't in the catalog. Has a
+    // name+price from the order but no cost — its orders stay DRAFT until reviewed.
+    needsReview: boolean("needs_review").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1527,6 +1530,9 @@ export const salesOrders = pgTable(
     channel: text("channel").notNull().default("MANUAL"), // MANUAL, AMAZON, NOON
     platformId: text("platform_id").references(() => salesPlatforms.id),
     externalOrderId: text("external_order_id"),
+    // Raw marketplace order status (Pending/Shipped/Canceled/…) for display, kept in
+    // sync on every pull. Distinct from `status` (our internal document lifecycle).
+    channelStatus: text("channel_status"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1618,6 +1624,8 @@ export const platformCredentials = pgTable(
     lastSyncStatus: text("last_sync_status"),
     autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
+    ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
+    openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],
@@ -1989,6 +1997,78 @@ export const backupRuns = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("backup_runs_org_idx").on(t.organizationId), index("backup_runs_created_idx").on(t.createdAt)],
+);
+
+/** One row per background marketplace-sync run (Amazon product import/discovery/
+ *  enrichment via the BullMQ workers). Observability: counts + timing + error.
+ *  Job state itself lives in Redis; this is the durable audit trail. org-scoped. */
+export const syncRuns = pgTable(
+  "sync_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    provider: text("provider").notNull().default("amazon"),
+    marketplace: text("marketplace"),
+    kind: text("kind").notNull(),                              // IMPORT | DISCOVERY | DETAILS | IMAGES | PRICING | INVENTORY
+    status: text("status").notNull().default("RUNNING"),       // RUNNING | OK | FAILED
+    productsProcessed: integer("products_processed").notNull().default(0),
+    newProducts: integer("new_products").notNull().default(0),
+    updatedProducts: integer("updated_products").notNull().default(0),
+    failedProducts: integer("failed_products").notNull().default(0),
+    apiRequests: integer("api_requests").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: ts("finished_at"),
+  },
+  (t) => [index("sync_runs_org_idx").on(t.organizationId), index("sync_runs_started_idx").on(t.startedAt)],
+);
+
+/** Inventory Auditor run — a read-only snapshot comparing Amazon FBA quantities to
+ *  the ERP. Never changes stock; it detects + classifies differences. org-scoped. */
+export const inventoryAudits = pgTable(
+  "inventory_audits",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    provider: text("provider").notNull().default("amazon"),
+    marketplace: text("marketplace"),
+    warehouseId: text("warehouse_id"),
+    status: text("status").notNull().default("RUNNING"), // RUNNING | OK | FAILED
+    totalSkus: integer("total_skus").notNull().default(0),
+    matched: integer("matched").notNull().default(0),
+    unmatched: integer("unmatched").notNull().default(0),
+    withDiff: integer("with_diff").notNull().default(0),
+    lost: integer("lost").notNull().default(0),
+    damaged: integer("damaged").notNull().default(0),
+    error: text("error"),
+    createdAt: createdAt(),
+    finishedAt: ts("finished_at"),
+  },
+  (t) => [index("inventory_audits_org_idx").on(t.organizationId), index("inventory_audits_created_idx").on(t.createdAt)],
+);
+
+/** One SKU's line in an audit snapshot: ERP qty vs Amazon's FBA breakdown + status. */
+export const inventoryAuditLines = pgTable(
+  "inventory_audit_lines",
+  {
+    id: pk(),
+    auditId: text("audit_id").notNull().references(() => inventoryAudits.id, { onDelete: "cascade" }),
+    organizationId: orgId(),
+    code: text("code").notNull(),          // seller SKU
+    asin: text("asin"),
+    itemId: text("item_id"),               // null = unmatched
+    itemName: text("item_name"),
+    erpQty: numeric("erp_qty", { precision: 18, scale: 3 }).notNull().default("0"),
+    amazonTotal: integer("amazon_total").notNull().default(0),
+    available: integer("available").notNull().default(0),
+    reserved: integer("reserved").notNull().default(0),
+    inbound: integer("inbound").notNull().default(0),
+    damaged: integer("damaged").notNull().default(0),
+    researching: integer("researching").notNull().default(0),
+    diff: numeric("diff", { precision: 18, scale: 3 }).notNull().default("0"),
+    status: text("status").notNull(),      // MATCHED | RECEIVING | FOUND | RESEARCHING | DAMAGED | LOST | UNMATCHED
+  },
+  (t) => [index("inventory_audit_lines_audit_idx").on(t.auditId), index("inventory_audit_lines_org_idx").on(t.organizationId)],
 );
 
 /** History of reports generated from the report center — for quick re-download.

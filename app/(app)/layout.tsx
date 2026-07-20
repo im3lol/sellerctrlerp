@@ -10,6 +10,7 @@ import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
 import { LiveRefresh } from "@/components/app-shell/live-refresh";
+import { SoundEffects } from "@/components/app-shell/sound-effects";
 import { PrintTrigger } from "@/components/erp/print-trigger";
 import { Icon } from "@/components/icon";
 import { exitImpersonationAction } from "@/app/actions/admin/impersonate";
@@ -73,8 +74,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
-      {user.role !== "system_admin" && <OnboardingTour />}
+      {user.role !== "system_admin" && <OnboardingTour dismissed={user.tourDismissed} />}
       <LiveRefresh />
+      <SoundEffects />
       <PrintTrigger />
     </div>
   );

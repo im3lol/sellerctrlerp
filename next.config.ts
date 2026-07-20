@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone",
   // Keep heavy server-only deps out of the Turbopack bundle — loaded as native
   // node modules at runtime. Big win for cold-compile time in dev.
-  serverExternalPackages: ["pg", "bcryptjs", "xlsx"],
+  serverExternalPackages: ["pg", "bcryptjs", "xlsx", "bullmq", "ioredis"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

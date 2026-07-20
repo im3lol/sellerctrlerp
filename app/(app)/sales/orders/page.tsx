@@ -58,7 +58,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const safePage = Math.min(page, pages);
 
     const rows = await db
-      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId })
+      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus })
       .from(salesOrders)
       .leftJoin(customers, eq(customers.id, salesOrders.customerId))
       .where(where)

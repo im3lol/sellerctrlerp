@@ -154,11 +154,11 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
                 <TableHead className="text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
                 <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-20 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-24 text-start">خصم</TableHead>
-                <TableHead className="w-24 text-start">ضريبة</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="w-40 text-center">الكمية</TableHead>
+                <TableHead className="w-56 text-center">السعر</TableHead>
+                <TableHead className="w-52 text-center">خصم</TableHead>
+                <TableHead className="w-52 text-center">ضريبة</TableHead>
+                <TableHead className="w-40 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -182,10 +182,10 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
                       />
                     </TableCell>
                     <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="1" className="min-w-[6rem] text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[9rem] text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[8rem] text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[8rem] text-base" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
                     <TableCell className="font-medium">{fmt(round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>

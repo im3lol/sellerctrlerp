@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { JournalEntryActions } from "@/components/erp/journal-entry-actions";
+import { DocAuditCard } from "@/components/erp/document-detail";
+import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) =>
   Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -68,6 +70,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
       reversalNumber = rev?.number ?? null;
     }
 
+    const audit = await getDocumentAudit(orgId, entry.id);
     const totalDebit = lines.reduce((s, l) => s + Number(l.debit), 0);
     const totalCredit = lines.reduce((s, l) => s + Number(l.credit), 0);
     const st = STATUS[entry.status] ?? { label: entry.status, variant: "secondary" as const };
@@ -149,6 +152,8 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
             </Table>
           </CardContent>
         </Card>
+
+        <DocAuditCard rows={audit} />
       </div>
     );
   });

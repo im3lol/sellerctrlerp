@@ -71,7 +71,7 @@ export function DocAuditCard({ rows }: { rows: AuditRow[] }) {
                 <Badge variant="outline" className="mt-0.5 shrink-0">{ACTION_AR[r.action] ?? r.action}</Badge>
                 <div>
                   <div>{r.summary ?? "—"}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{dtt(r.createdAt)} · {r.userName ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{dtt(r.createdAt)} · {r.userName ?? "تلقائي (النظام)"}</div>
                 </div>
               </li>
             ))}

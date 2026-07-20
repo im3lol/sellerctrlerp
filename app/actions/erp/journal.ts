@@ -195,6 +195,7 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
       if (!entry) return { error: "القيد غير موجود" };
       if (entry.status !== "DRAFT") return { error: "لا يمكن حذف قيد مُرحّل — استخدم العكس" };
       await db.delete(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId)));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "حذف قيد يومية (مسودة)" });
       revalidatePath("/accounting/journal");
       return { ok: true };
     } catch {

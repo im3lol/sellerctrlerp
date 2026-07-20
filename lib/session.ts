@@ -13,6 +13,7 @@ export type SessionUser = {
   role: Role;
   avatarUrl: string | null;
   title: string | null;
+  tourDismissed: boolean;
 };
 
 /**
@@ -32,6 +33,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     role: u.role as Role,
     avatarUrl: u.avatarUrl,
     title: u.title,
+    tourDismissed: u.tourDismissed,
   };
 });
 

@@ -97,8 +97,8 @@ export function InvoiceReturnForm({
                   <TableCell className={l.remaining > 0 ? "font-medium" : "text-muted-foreground"}>{qtyf(l.remaining)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>
-                    <Input type="number" step="0.001" min="0" max={l.remaining} disabled={l.remaining <= 0}
-                      value={qtys[l.itemId] ?? ""} onChange={(e) => setQtys((p) => ({ ...p, [l.itemId]: e.target.value }))} />
+                    <Input type="number" step="1" min="0" max={l.remaining} disabled={l.remaining <= 0}
+                      value={qtys[l.itemId] ?? ""} onChange={(e) => setQtys((p) => ({ ...p, [l.itemId]: e.target.value.replace(/[^\d]/g, "") }))} />
                   </TableCell>
                 </TableRow>
               ))}

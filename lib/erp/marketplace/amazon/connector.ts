@@ -3,9 +3,11 @@ import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
 import { fetchCatalog } from "./catalog";
-import { fetchListings } from "./listings";
+import { fetchListings, mergeProducts } from "./listings";
+import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
-import { fetchInventory } from "./inventory";
+import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
+import type { MarketplaceProduct } from "../dto";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
   code: m.code, name: m.name, region: m.region, marketplaceId: m.marketplaceId,
@@ -37,8 +39,21 @@ export const amazonConnector: MarketplaceConnector = {
     },
   },
   // Direct SP-API endpoints (JSON, synchronous) — no async report polling.
-  fetchProducts(cred, since) {
-    return fetchListings(cred, since);
+  // Incremental (since set): only changed listings — fast, ≤1000 changes is plenty.
+  // Full (no since): searchListingsItems is capped at 1000 by Amazon, so enumerate
+  // the WHOLE FBA catalog via getInventorySummaries (uncapped) and overlay price
+  // from the listings slice. FBM/listings-only SKUs are still included.
+  async fetchProducts(cred, since): Promise<MarketplaceProduct[]> {
+    if (since) return fetchListings(cred, since);
+    const [listings, invProducts] = await Promise.all([
+      fetchListings(cred).catch(() => [] as MarketplaceProduct[]),
+      fetchInventoryProducts(cred),
+    ]);
+    return mergeProducts(invProducts, listings);
+  },
+  // Full import: the Reports API (complete, no 1000 cap). Slow/async — workers only.
+  fetchFullProducts(cred) {
+    return fetchFullListings(cred);
   },
   fetchCatalog(cred, asins) {
     return fetchCatalog(cred, asins);
@@ -48,5 +63,8 @@ export const amazonConnector: MarketplaceConnector = {
   },
   fetchInventory(cred) {
     return fetchInventory(cred);
+  },
+  fetchInventoryDetail(cred) {
+    return fetchInventoryDetail(cred);
   },
 };

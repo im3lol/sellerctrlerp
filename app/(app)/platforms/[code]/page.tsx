@@ -3,7 +3,8 @@ import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items } from "@/db/schema";
+import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { AuditStats } from "@/components/erp/audit-summary";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -144,6 +145,24 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     const connectable = connector?.oauth;
     const conn = connectable ? await getConnection(orgId, connector.code) : null;
 
+    // Latest FBA inventory audit (read-only) — a compact summary here; the full
+    // report is its own page (/inventory/reconciliation).
+    let audit: typeof inventoryAudits.$inferSelect | null = null;
+    let amazonFbaQty = 0; // total units Amazon holds in FBA, from the last audit snapshot
+    if (isAmazon) {
+      try {
+        const [a] = await db.select().from(inventoryAudits)
+          .where(and(eq(inventoryAudits.organizationId, orgId), eq(inventoryAudits.provider, "amazon")))
+          .orderBy(desc(inventoryAudits.createdAt)).limit(1);
+        if (a) {
+          audit = a;
+          const [{ s }] = await db.select({ s: sql<string>`coalesce(sum(${inventoryAuditLines.amazonTotal}),0)` })
+            .from(inventoryAuditLines).where(and(eq(inventoryAuditLines.organizationId, orgId), eq(inventoryAuditLines.auditId, a.id)));
+          amazonFbaQty = Number(s ?? 0);
+        }
+      } catch { /* best-effort — a slow query degrades this section, not the page */ }
+    }
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
@@ -172,10 +191,35 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           </div>
         )}
 
+        {isAmazon && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>تدقيق مخزون FBA</CardTitle>
+                  <CardDescription>مطابقة كميات أمازون مع مخزن «{platform.warehouseName ?? "غير محدد"}» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.</CardDescription>
+                </div>
+                {audit && <Link href="/inventory/reconciliation" className="shrink-0 text-sm text-primary hover:underline">التقرير الكامل ←</Link>}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!audit ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">لا يوجد تدقيق بعد — اضغط «تدقيق المخزون» بالأعلى لمطابقة كميات FBA مع النظام.</div>
+              ) : (
+                <>
+                  <AuditStats audit={audit} />
+                  <div className="text-xs text-muted-foreground">آخر تدقيق: {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} · يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل</Link>.</div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Kpi label="عدد المنتجات" value={int(productCount)} hint="أصناف الكتالوج النشطة" />
-          <Kpi label="كمية المخزون" value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
+          <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />
+          <Kpi label="مخزون النظام (FBA)" value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
           <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
           <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
           <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />

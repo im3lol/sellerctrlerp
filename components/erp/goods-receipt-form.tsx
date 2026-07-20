@@ -162,8 +162,8 @@ export function GoodsReceiptForm({
                   </TableCell>
                   <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
                   <TableCell className="tabular-nums text-muted-foreground">{qtyf(l.stockByWarehouse[l.warehouseId] ?? 0)}</TableCell>
-                  <TableCell><Input type="number" step="0.001" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value })} /></TableCell>
-                  <TableCell><Input type="number" step="0.001" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                   <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder="اختياري" /> : <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell>{l.isPerishable ? <Input type="date" value={l.expiryDate} onChange={(e) => setLine(l.itemId, { expiryDate: e.target.value })} /> : <span className="text-muted-foreground">—</span>}</TableCell>
                 </TableRow>
