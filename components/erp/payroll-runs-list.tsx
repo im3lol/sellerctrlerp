@@ -36,7 +36,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
       <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
         <FileText className="mx-auto mb-3 h-8 w-8 opacity-40" />
         <p className="text-sm">لا توجد مسيرات رواتب بعد</p>
-        <Link href="/erp/hr/payroll/new" className="mt-2 inline-block text-sm text-primary hover:underline">
+        <Link href="/hr/payroll/new" className="mt-2 inline-block text-sm text-primary hover:underline">
           إنشاء أول مسير
         </Link>
       </div>
@@ -78,7 +78,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
               </td>
               <td>
                 <Link
-                  href={`/erp/hr/payroll/${r.id}`}
+                  href={`/hr/payroll/${r.id}`}
                   className="text-xs text-primary hover:underline"
                 >
                   عرض

@@ -98,7 +98,7 @@ export function AdjustmentForm({
         })),
       };
       const r = await createStockAdjustmentAction(payload);
-      if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — أكّدها للترحيل"); router.push("/erp/inventory/adjustments"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — أكّدها للترحيل"); router.push("/inventory/adjustments"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 
@@ -174,7 +174,7 @@ export function AdjustmentForm({
                       </td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.001" className="w-28" value={l.counted} onChange={(e) => updateLine(l.key, { counted: e.target.value })} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="1" min="0" className="w-28" value={l.counted} onChange={(e) => updateLine(l.key, { counted: e.target.value.replace(/[^\d]/g, "") })} /></td>
                       <td className="px-2 py-2"><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.key, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? "مطلوب" : "تلقائي"} /></td>
                       <td className="px-2 py-2">
                         <div className={`flex h-9 items-center px-2 text-sm font-bold ${!hasCount ? "text-muted-foreground" : delta > 0 ? "text-emerald-600" : delta < 0 ? "text-destructive" : ""}`}>

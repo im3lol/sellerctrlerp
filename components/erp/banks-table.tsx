@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 export type BankRow = {
   id: string; nameAr: string; bankName: string | null; accountNumber: string | null; iban: string | null;
@@ -21,7 +22,6 @@ export type BankRow = {
 };
 type Account = { id: string; code: string; nameAr: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Account[]; onClose: () => void }) {
@@ -122,7 +122,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
                 <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "نشط" : "غير نشط"}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button asChild size="sm" variant="outline"><Link href={`/erp/accounting/banks/${r.id}`}><FileText className="size-4" />الكشف</Link></Button>
+                    <Button asChild size="sm" variant="outline"><Link href={`/accounting/banks/${r.id}`}><FileText className="size-4" />الكشف</Link></Button>
                     {canEdit && (
                       <>
                         <Button size="icon" variant="ghost" onClick={() => setEditing(r)} aria-label="تعديل"><Pencil className="size-4" /></Button>

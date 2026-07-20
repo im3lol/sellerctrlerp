@@ -9,11 +9,19 @@ const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone",
   // Keep heavy server-only deps out of the Turbopack bundle — loaded as native
   // node modules at runtime. Big win for cold-compile time in dev.
-  serverExternalPackages: ["pg", "bcryptjs", "xlsx"],
+  serverExternalPackages: ["pg", "bcryptjs", "xlsx", "bullmq", "ioredis"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+  },
+  // The ERP moved off the /erp prefix (sellerctrl.com/inventory, not /erp/inventory).
+  // Redirect old links/bookmarks so nothing 404s. /api/erp stays as-is.
+  async redirects() {
+    return [
+      { source: "/erp", destination: "/dashboard", permanent: true },
+      { source: "/erp/:path*", destination: "/:path*", permanent: true },
+    ];
   },
 };
 

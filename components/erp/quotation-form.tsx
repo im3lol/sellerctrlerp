@@ -53,7 +53,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines });
-      if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/erp/sales/quotations/${r.id}` : "/erp/sales/quotations"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -65,7 +65,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
           <CardTitle>بيانات عرض السعر</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ العرض</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/quotations")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/quotations")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -92,7 +92,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell><ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => pickItem(i, it)} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>

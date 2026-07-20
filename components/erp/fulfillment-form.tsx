@@ -54,7 +54,7 @@ export function FulfillmentForm({
         // Both are now drafts: land on the new document to confirm.
         toast.success(isDelivery ? "تم حفظ إذن الصرف (مسودة) — أكّده لترحيله" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
         const newId = "id" in r ? (r as { id?: string }).id : undefined;
-        const base = isDelivery ? "/erp/sales/deliveries" : "/erp/purchases/receipts";
+        const base = isDelivery ? "/sales/deliveries" : "/purchases/receipts";
         router.push(newId ? `${base}/${newId}` : dest);
         router.refresh();
       } else {

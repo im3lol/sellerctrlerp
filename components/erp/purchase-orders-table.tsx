@@ -86,7 +86,7 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
                   {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
-                    <Link href={`/erp/purchases/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                    <Link href={`/purchases/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
                   <TableCell>{r.supplier ?? "—"}</TableCell>
@@ -109,7 +109,7 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {canManage && <TableCell />}
                     <TableCell className="ps-8">
-                      <Link href={`/erp/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <Link href={`/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>

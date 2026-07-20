@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
@@ -34,39 +35,41 @@ export async function createPaymentVoucherAction(input: unknown): Promise<SaveVo
   const auth = await authorizeErp("purchases.pay");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { supplierId, purchaseInvoiceId, cashAccountId, amount, date, paymentMethod, reference, notes } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { supplierId, purchaseInvoiceId, cashAccountId, amount, date, paymentMethod, reference, notes } = parsed.data;
 
-  const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
-    .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
-  if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
+    const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
+      .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
+    if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
 
-  const [cash] = await db.select({ id: accounts.id, type: accounts.type, isLeaf: accounts.isLeaf })
-    .from(accounts).where(and(eq(accounts.id, cashAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
-  if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
+    const [cash] = await db.select({ id: accounts.id, type: accounts.type, isLeaf: accounts.isLeaf })
+      .from(accounts).where(and(eq(accounts.id, cashAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
+    if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
 
-  if (purchaseInvoiceId) {
-    const [inv] = await db.select({ supplierId: purchaseInvoices.supplierId, balanceDue: purchaseInvoices.balanceDue })
-      .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
-    if (!inv) return { error: "الفاتورة غير موجودة" };
-    if (inv.supplierId !== supplierId) return { error: "الفاتورة لا تخص هذا المورد" };
-    if (amount > Number(inv.balanceDue) + 0.001) return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(inv.balanceDue).toFixed(2)})` };
-  }
+    if (purchaseInvoiceId) {
+      const [inv] = await db.select({ supplierId: purchaseInvoices.supplierId, balanceDue: purchaseInvoices.balanceDue })
+        .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
+      if (!inv) return { error: "الفاتورة غير موجودة" };
+      if (inv.supplierId !== supplierId) return { error: "الفاتورة لا تخص هذا المورد" };
+      if (amount > Number(inv.balanceDue) + 0.001) return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(inv.balanceDue).toFixed(2)})` };
+    }
 
-  const d = new Date(date);
-  const number = await nextNumber(auth.orgId, d.getFullYear());
-  try {
-    const [v] = await db.insert(paymentVouchers).values({
-      organizationId: auth.orgId, number, supplierId, purchaseInvoiceId: purchaseInvoiceId || null,
-      cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
-    }).returning({ id: paymentVouchers.id });
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند صرف ${number} (مسودة)`, metadata: { amount } });
-    revalidatePath("/erp/purchases/payments");
-    return { ok: true, id: v.id };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ سند الصرف" };
-  }
+    const d = new Date(date);
+    const number = await nextNumber(auth.orgId, d.getFullYear());
+    try {
+      const [v] = await db.insert(paymentVouchers).values({
+        organizationId: auth.orgId, number, supplierId, purchaseInvoiceId: purchaseInvoiceId || null,
+        cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
+      }).returning({ id: paymentVouchers.id });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند صرف ${number} (مسودة)`, metadata: { amount } });
+      revalidatePath("/purchases/payments");
+      return { ok: true, id: v.id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ سند الصرف" };
+    }
+  });
 }
 
 /** Confirm (post) a DRAFT payment: Dr AP · Cr Cash/Bank; settle the invoice + supplier balance. */
@@ -74,69 +77,74 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
   const auth = await authorizeErp("purchases.pay");
   if ("error" in auth) return auth;
 
-  const [v] = await db.select().from(paymentVouchers)
-    .where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId))).limit(1);
-  if (!v) return { error: "السند غير موجود" };
-  if (v.status !== "DRAFT") return { error: "السند مؤكّد بالفعل" };
-  if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select().from(paymentVouchers)
+      .where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "DRAFT") return { error: "السند مؤكّد بالفعل" };
+    if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
 
-  const amount = Number(v.amount);
-  const A = await resolveAccountIds(auth.orgId, ["2101"]);
-  const ap = A["2101"] ? { id: A["2101"] } : undefined;
-  if (!ap) return { error: "حساب الموردون (2101) غير موجود" };
+    const amount = Number(v.amount);
+    const A = await resolveAccountIds(auth.orgId, ["2101"]);
+    const ap = A["2101"] ? { id: A["2101"] } : undefined;
+    if (!ap) return { error: "حساب الموردون (2101) غير موجود" };
 
-  let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
-  if (v.purchaseInvoiceId) {
-    [invoice] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
-      .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
-    if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
-      return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})` };
-    }
-  }
-
-  try {
-    await db.transaction(async (tx) => {
-      await postEntry(tx, {
-        orgId: auth.orgId, date: new Date(v.date), sourceType: "PAYMENT_VOUCHER", sourceId: v.id,
-        description: `سند صرف ${v.number}${invoice ? ` — فاتورة ${invoice.number}` : ""}`,
-        journalType: "GENERAL", userId: auth.userId,
-        lines: [
-          { accountId: ap.id, debit: amount, credit: 0, description: "للمورد" },
-          { accountId: v.cashAccountId!, debit: 0, credit: amount, description: `صرف ${v.number}` },
-        ],
+    try {
+      await db.transaction(async (tx) => {
+        // Lock the invoice FOR UPDATE and re-check "≤ balanceDue" INSIDE the tx so two
+        // concurrent payments can't both pass on a stale balanceDue and over-pay it.
+        let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
+        if (v.purchaseInvoiceId) {
+          [invoice] = await tx.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
+            .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1).for("update");
+          if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
+            throw new Error(`المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})`);
+          }
+        }
+        await postEntry(tx, {
+          orgId: auth.orgId, date: new Date(v.date), sourceType: "PAYMENT_VOUCHER", sourceId: v.id,
+          description: `سند صرف ${v.number}${invoice ? ` — فاتورة ${invoice.number}` : ""}`,
+          journalType: "GENERAL", userId: auth.userId,
+          lines: [
+            { accountId: ap.id, debit: amount, credit: 0, description: "للمورد" },
+            { accountId: v.cashAccountId!, debit: 0, credit: amount, description: `صرف ${v.number}` },
+          ],
+        });
+        await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${amount}` }).where(eq(suppliers.id, v.supplierId));
+        if (invoice) {
+          const newBal = round2(Number(invoice.balanceDue) - amount);
+          await tx.update(purchaseInvoices).set({
+            paidAmount: String(round2(Number(invoice.paidAmount) + amount)),
+            balanceDue: String(newBal), status: newBal <= 0.01 ? "PAID" : "PARTIAL_PAID",
+          }).where(eq(purchaseInvoices.id, invoice.id));
+        }
+        await tx.update(paymentVouchers).set({ status: "POSTED" }).where(eq(paymentVouchers.id, v.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند صرف ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
       });
-      await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${amount}` }).where(eq(suppliers.id, v.supplierId));
-      if (invoice) {
-        const newBal = round2(Number(invoice.balanceDue) - amount);
-        await tx.update(purchaseInvoices).set({
-          paidAmount: String(round2(Number(invoice.paidAmount) + amount)),
-          balanceDue: String(newBal), status: newBal <= 0.01 ? "PAID" : "PARTIAL_PAID",
-        }).where(eq(purchaseInvoices.id, invoice.id));
-      }
-      await tx.update(paymentVouchers).set({ status: "POSTED" }).where(eq(paymentVouchers.id, v.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند صرف ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
-    });
-    revalidatePath("/erp/purchases/payments");
-    revalidatePath("/erp/purchases/invoices");
-    revalidatePath("/erp/accounting/journal");
-    return { ok: true };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
-    return { error: msg.includes("unique") || msg.includes("23505") ? "السند مؤكّد بالفعل" : msg };
-  }
+      revalidatePath("/purchases/payments");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
+      return { error: msg.includes("unique") || msg.includes("23505") ? "السند مؤكّد بالفعل" : msg };
+    }
+  });
 }
 
 /** Delete a DRAFT payment voucher. */
 export async function deletePaymentVoucherAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.pay");
   if ("error" in auth) return auth;
-  const [v] = await db.select({ status: paymentVouchers.status }).from(paymentVouchers)
-    .where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId))).limit(1);
-  if (!v) return { error: "السند غير موجود" };
-  if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
-  await db.delete(paymentVouchers).where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId)));
-  revalidatePath("/erp/purchases/payments");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select({ status: paymentVouchers.status }).from(paymentVouchers)
+      .where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
+    await db.delete(paymentVouchers).where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId)));
+    revalidatePath("/purchases/payments");
+    return { ok: true };
+  });
 }
 
 /** Bulk confirm(post)/delete DRAFT payment vouchers; ineligible rows skipped. */

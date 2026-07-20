@@ -1,29 +1,15 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { customers, users } from "@/db/schema";
-import { getActiveOrg } from "@/lib/erp/org";
-import { getErpRole } from "@/lib/erp/auth-guard";
-import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
+import { authorizeErp } from "@/lib/erp/action-auth";
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 
 export type ActionState = { error?: string; ok?: boolean };
-
-/** Resolve the active org and enforce an ERP permission for a server action. */
-async function authorize(permission: ErpPermission): Promise<{ orgId: string } | { error: string }> {
-  const { user, org } = await getActiveOrg();
-  if (!user) return { error: "غير مصرح بالدخول" };
-  if (!org) return { error: "لم يتم تحديد المؤسسة" };
-  const role = await getErpRole(org.id, user);
-  if (!role) return { error: "غير مصرح بالوصول إلى هذه المؤسسة" };
-  if (role !== "super_admin" && !erpRoleHasPermission(role, permission)) {
-    return { error: "ليس لديك صلاحية لهذا الإجراء" };
-  }
-  return { orgId: org.id };
-}
 
 const schema = z.object({
   code: z.string().min(1, "الكود مطلوب"),
@@ -36,82 +22,92 @@ const schema = z.object({
 
 export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = (formData.get("id") as string) || "";
-  const auth = await authorize(id ? "sales.edit" : "sales.create");
+  const auth = await authorizeErp(id ? "sales.edit" : "sales.create");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse({
-    code: formData.get("code"),
-    nameAr: formData.get("nameAr"),
-    phone: formData.get("phone") || undefined,
-    email: formData.get("email") || "",
-    creditLimit: formData.get("creditLimit") || 0,
-    paymentTerms: formData.get("paymentTerms") || 30,
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse({
+      code: formData.get("code"),
+      nameAr: formData.get("nameAr"),
+      phone: formData.get("phone") || undefined,
+      email: formData.get("email") || "",
+      creditLimit: formData.get("creditLimit") || 0,
+      paymentTerms: formData.get("paymentTerms") || 30,
+    });
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const data = {
-    code: parsed.data.code,
-    nameAr: parsed.data.nameAr,
-    phone: parsed.data.phone || null,
-    email: parsed.data.email || null,
-    creditLimit: String(parsed.data.creditLimit),
-    paymentTerms: parsed.data.paymentTerms,
-  };
+    const data = {
+      code: parsed.data.code,
+      nameAr: parsed.data.nameAr,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || null,
+      creditLimit: String(parsed.data.creditLimit),
+      paymentTerms: parsed.data.paymentTerms,
+    };
 
-  try {
-    if (id) {
-      await db.update(customers).set(data).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
-    } else {
-      await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+    try {
+      if (id) {
+        await db.update(customers).set(data).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
+      } else {
+        await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+      }
+    } catch (e) {
+      const msg = e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ";
+      return { error: msg };
     }
-  } catch (e) {
-    const msg = e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ";
-    return { error: msg };
-  }
 
-  revalidatePath("/erp/sales");
-  return { ok: true };
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
+    return { ok: true };
+  });
 }
 
 export async function linkCustomerPortalUserAction(input: {
   customerId: string;
   email: string;
 }): Promise<ActionState> {
-  const auth = await authorize("sales.edit");
+  const auth = await authorizeErp("sales.edit");
   if ("error" in auth) return auth;
 
-  const [cust] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(and(eq(customers.id, input.customerId), eq(customers.organizationId, auth.orgId)))
-    .limit(1);
-  if (!cust) return { error: "العميل غير موجود" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [cust] = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.id, input.customerId), eq(customers.organizationId, auth.orgId)))
+      .limit(1);
+    if (!cust) return { error: "العميل غير موجود" };
 
-  if (!input.email) {
-    await db.update(customers).set({ portalUserId: null, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
-    revalidatePath("/erp/sales");
+    if (!input.email) {
+      await db.update(customers).set({ portalUserId: null, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
+      revalidatePath("/sales/customers");
+      revalidatePath("/sales");
+      return { ok: true };
+    }
+
+    const [usr] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, input.email)).limit(1);
+    if (!usr) return { error: "لا يوجد مستخدم بهذا البريد الإلكتروني" };
+    if (usr.role !== "client") return { error: "المستخدم ليس بدور العميل (client)" };
+
+    await db.update(customers).set({ portalUserId: usr.id, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
     return { ok: true };
-  }
-
-  const [usr] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, input.email)).limit(1);
-  if (!usr) return { error: "لا يوجد مستخدم بهذا البريد الإلكتروني" };
-  if (usr.role !== "client") return { error: "المستخدم ليس بدور العميل (client)" };
-
-  await db.update(customers).set({ portalUserId: usr.id, updatedAt: new Date() }).where(eq(customers.id, input.customerId));
-  revalidatePath("/erp/sales");
-  return { ok: true };
+  });
 }
 
 export async function deleteCustomerAction(id: string): Promise<ActionState> {
-  const auth = await authorize("sales.edit");
+  const auth = await authorizeErp("sales.edit");
   if ("error" in auth) return auth;
-  try {
-    await db.delete(customers).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
-  } catch {
-    return { error: "تعذّر الحذف — قد يكون العميل مرتبطاً بفواتير" };
-  }
-  revalidatePath("/erp/sales");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    try {
+      await db.delete(customers).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
+    } catch {
+      return { error: "تعذّر الحذف — قد يكون العميل مرتبطاً بفواتير" };
+    }
+    revalidatePath("/sales/customers");
+    revalidatePath("/sales");
+    return { ok: true };
+  });
 }
 
 export async function bulkDeleteCustomersAction(ids: string[]): Promise<BulkResult> {

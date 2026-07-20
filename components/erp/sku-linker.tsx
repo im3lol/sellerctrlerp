@@ -117,7 +117,7 @@ export function SkuLinker() {
               <Badge className="bg-emerald-600">مربوطة سابقاً: {preview.alreadyLinked}</Badge>
               <Badge variant="destructive">غير مربوطة: {preview.rows.length}</Badge>
               {autoCount > 0 && <Badge variant="outline">مُقترح تلقائياً: {autoCount}</Badge>}
-              <Link href="/erp/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>
+              <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>
             </div>
           )}
         </CardContent>

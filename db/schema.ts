@@ -45,7 +45,14 @@ export const users = pgTable(
     role: userRoleEnum("role").notNull().default("employee"),
     avatarUrl: text("avatar_url"),
     title: text("title"), // المسمى الوظيفي
+    // User dismissed the onboarding tour for good (server-side so it survives
+    // localStorage resets — e.g. a changed tunnel origin).
+    tourDismissed: boolean("tour_dismissed").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
+    // Login brute-force lockout: consecutive failed attempts; account frozen until
+    // lockedUntil. Both cleared on a successful sign-in. (Audit#15)
+    failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
     hiredAt: timestamp("hired_at", { withTimezone: true }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

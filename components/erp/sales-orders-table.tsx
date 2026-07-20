@@ -26,9 +26,20 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[]; channel?: string; externalOrderId?: string | null };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[]; channel?: string; externalOrderId?: string | null; channelStatus?: string | null };
 
 const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون" };
+
+// Raw marketplace order status → Arabic badge. معلق (pending payment/unshipped),
+// مكتمل (shipped), ملغى (canceled), مسترد (refunded).
+const CHANNEL_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive"; cls?: string }> = {
+  Pending: { label: "معلّق", variant: "secondary", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  Unshipped: { label: "معلّق", variant: "secondary", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  PartiallyShipped: { label: "شحن جزئي", variant: "secondary", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  Shipped: { label: "مكتمل", variant: "default", cls: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
+  Canceled: { label: "ملغى", variant: "destructive" },
+  Refunded: { label: "مسترد", variant: "destructive" },
+};
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
@@ -88,10 +99,15 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
                   {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
-                    <Link href={`/erp/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
+                    <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
                       <div className="mt-0.5 flex items-center gap-1">
                         {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
+                        {r.channelStatus && CHANNEL_STATUS[r.channelStatus] && (
+                          <Badge variant={CHANNEL_STATUS[r.channelStatus].variant} className={`text-[10px] ${CHANNEL_STATUS[r.channelStatus].cls ?? ""}`}>
+                            {CHANNEL_STATUS[r.channelStatus].label}
+                          </Badge>
+                        )}
                         <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">{r.externalOrderId}</span>
                       </div>
                     )}
@@ -117,7 +133,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                   <TableRow key={rt.id} className="bg-destructive/5">
                     {canManage && <TableCell />}
                     <TableCell className="ps-8">
-                      <Link href={`/erp/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
+                      <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>

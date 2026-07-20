@@ -1,4 +1,4 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceSettlement, MarketplaceProduct, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceSettlement, MarketplaceProduct, DateRange } from "./dto";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
 export type Credential = {
@@ -42,8 +42,14 @@ export interface MarketplaceConnector {
     exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
   };
   fetchProducts?(cred: Credential, since?: Date): Promise<MarketplaceProduct[]>;
+  /** Complete catalog enumeration for the initial import (e.g. Amazon Reports API) —
+   *  no result cap, but async/slow, so only ever called from a background worker. */
+  fetchFullProducts?(cred: Credential): Promise<MarketplaceProduct[]>;
   fetchCatalog?(cred: Credential, asins: string[]): Promise<CatalogRecord[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
+  /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
+   *  the Inventory Auditor's data source. */
+  fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
   fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;
 }

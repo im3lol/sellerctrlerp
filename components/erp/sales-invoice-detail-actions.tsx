@@ -9,6 +9,7 @@ import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { waNumber } from "@/lib/phone";
 
 /** Draft sales invoice: post / delete. Posted: a "مرتجع" shortcut. */
 export function SalesInvoiceDetailActions({
@@ -36,7 +37,7 @@ export function SalesInvoiceDetailActions({
 
   const printBtn = (
     <Button size="sm" variant="outline" asChild>
-      <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/print`} target="_blank">
+      <Link href={`/sales/invoices/${encodeURIComponent(number)}/print`} target="_blank">
         <Icon name="Printer" className="size-4" />طباعة
       </Link>
     </Button>
@@ -47,7 +48,7 @@ export function SalesInvoiceDetailActions({
 
   const shareMsg = `فاتورة رقم: ${number}\nالمبلغ الإجمالي: ${fmt(totalAmount)}\nللاستفسار أو الدفع يرجى التواصل معنا.`;
 
-  const waPhone = customerPhone?.replace(/[\s\-\(\)]/g, "").replace(/^0/, "966");
+  const waPhone = waNumber(customerPhone);
   const waBtn = waPhone ? (
     <Button size="sm" variant="outline" asChild>
       <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}`} target="_blank" rel="noopener">
@@ -76,7 +77,7 @@ export function SalesInvoiceDetailActions({
         {waBtn}
         {emailBtn}
         {canManage && (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/erp/sales/invoices")}>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/sales/invoices")}>
             <Icon name="Trash2" className="size-4 text-destructive" />حذف
           </Button>
         )}
@@ -91,12 +92,12 @@ export function SalesInvoiceDetailActions({
       <div className="flex flex-wrap gap-2">
         {canCollect && hasBalance && (
           <Button size="sm" asChild>
-            <Link href={`/erp/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
+            <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
           </Button>
         )}
         {canManage && (
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/erp/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+            <Link href={`/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
           </Button>
         )}
         {printBtn}

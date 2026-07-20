@@ -34,7 +34,7 @@ export function ExpenseClaimsTable({ rows, canManage }: { rows: Row[]; canManage
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}</TableCell>}
-                <TableCell><Link href={`/erp/hr/expense-claims/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
+                <TableCell><Link href={`/hr/expense-claims/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.employee}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>

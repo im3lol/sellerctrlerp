@@ -15,13 +15,13 @@ import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; taxAmount: number };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -95,7 +95,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
       const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
       if (r.ok) {
         toast.success("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
-        router.push(r.id ? `/erp/purchases/orders/${r.id}` : "/erp/purchases/orders");
+        router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -108,7 +108,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
           <CardTitle>بيانات أمر الشراء</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/orders")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -161,7 +161,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
                   <TableCell>
                     <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })} />
                   </TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>

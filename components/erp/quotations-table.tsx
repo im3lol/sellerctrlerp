@@ -42,7 +42,7 @@ export function QuotationsTable({ rows, canDelete }: { rows: Row[]; canDelete: b
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 {canDelete && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" /></TableCell>}
-                <TableCell><Link href={`/erp/sales/quotations/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
+                <TableCell><Link href={`/sales/quotations/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.customer ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.validUntil ? dt(r.validUntil) : "—"}</TableCell>

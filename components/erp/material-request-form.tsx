@@ -31,7 +31,7 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const r = await createMaterialRequestAction({ date, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })) });
-      if (r.ok) { toast.success("تم حفظ طلب المواد (مسودة)"); router.push(r.id ? `/erp/purchases/requisitions/${r.id}` : "/erp/purchases/requisitions"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ طلب المواد (مسودة)"); router.push(r.id ? `/purchases/requisitions/${r.id}` : "/purchases/requisitions"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -43,7 +43,7 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
           <CardTitle>بيانات طلب المواد</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الطلب</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/purchases/requisitions")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/requisitions")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -61,7 +61,7 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell><ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" min="0" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}

@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq, or, ilike, inArray, isNull, notInArray } from "drizzle-orm";
 import { z } from "zod";
@@ -8,10 +9,8 @@ import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { validateParentLink } from "@/lib/erp/item-family-core";
+import { prepareCodes, normalizeCode } from "@/lib/erp/item-codes";
 import { putObject, publicUrl } from "@/lib/storage";
-
-
-const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 const codeSchema = z.object({
   codeType: z.string().min(1),
@@ -44,76 +43,78 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
   const auth = await authorizeErp(d.id ? "inventory.edit" : "inventory.create");
   if ("error" in auth) return auth;
 
-  // Dedup codes by normalized value within this item.
-  const seen = new Set<string>();
-  const codes = d.codes
-    .map((c) => ({ codeType: c.codeType, code: c.code.trim(), normalizedCode: normalizeCode(c.code) }))
-    .filter((c) => c.code && c.normalizedCode && !seen.has(c.normalizedCode) && seen.add(c.normalizedCode));
+  // Dedup + flag the primary (the code the barcode label prints). Nothing here ever
+  // set isPrimary, so a barcode typed into the form was silently ignored and every
+  // label fell back to the internal item code. See prepareCodes.
+  return withOrgScope(auth.orgId, false, async () => {
+    const codes = prepareCodes(d.codes);
 
-  // Variation family: validate the parent link (one level, no cycles, same org).
-  const rawParent = d.parentItemId?.trim() || "";
-  let parentItemId: string | null = null;
-  let variationValue: string | null = null;
-  if (rawParent && rawParent !== d.id) {
-    const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
-      .where(and(eq(items.id, rawParent), eq(items.organizationId, auth.orgId))).limit(1);
-    let childHasChildren = false;
-    if (d.id) {
-      const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
-        .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, d.id)));
-      childHasChildren = Number(c?.n ?? 0) > 0;
+    // Variation family: validate the parent link (one level, no cycles, same org).
+    const rawParent = d.parentItemId?.trim() || "";
+    let parentItemId: string | null = null;
+    let variationValue: string | null = null;
+    if (rawParent && rawParent !== d.id) {
+      const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
+        .where(and(eq(items.id, rawParent), eq(items.organizationId, auth.orgId))).limit(1);
+      let childHasChildren = false;
+      if (d.id) {
+        const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
+          .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, d.id)));
+        childHasChildren = Number(c?.n ?? 0) > 0;
+      }
+      const err = validateParentLink({
+        childId: d.id ?? "__new__", parentId: rawParent,
+        parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren,
+      });
+      if (err) return { error: err };
+      parentItemId = rawParent;
+      variationValue = d.variationValue?.trim() || null;
     }
-    const err = validateParentLink({
-      childId: d.id ?? "__new__", parentId: rawParent,
-      parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren,
-    });
-    if (err) return { error: err };
-    parentItemId = rawParent;
-    variationValue = d.variationValue?.trim() || null;
-  }
 
-  const data = {
-    code: d.code.trim(),
-    nameAr: d.nameAr.trim(),
-    nameEn: d.nameEn?.trim() || null,
-    description: d.description?.trim() || null,
-    sellPrice: String(d.sellPrice),
-    minStock: String(d.minStock),
-    isPerishable: d.isPerishable,
-    shelfLifeDays: d.isPerishable ? (d.shelfLifeDays ?? null) : null,
-    image: d.image?.trim() || null,
-    brand: d.brand?.trim() || null,
-    weight: d.weight?.trim() || null,
-    dimensions: d.dimensions?.trim() || null,
-    parentItemId,
-    variationValue,
-  };
+    const data = {
+      code: d.code.trim(),
+      nameAr: d.nameAr.trim(),
+      nameEn: d.nameEn?.trim() || null,
+      description: d.description?.trim() || null,
+      sellPrice: String(d.sellPrice),
+      minStock: String(d.minStock),
+      isPerishable: d.isPerishable,
+      shelfLifeDays: d.isPerishable ? (d.shelfLifeDays ?? null) : null,
+      image: d.image?.trim() || null,
+      brand: d.brand?.trim() || null,
+      weight: d.weight?.trim() || null,
+      dimensions: d.dimensions?.trim() || null,
+      parentItemId,
+      variationValue,
+    };
 
-  try {
-    const itemId = await db.transaction(async (tx) => {
-      let id = d.id;
-      if (id) {
-        await tx.update(items).set(data).where(and(eq(items.id, id), eq(items.organizationId, auth.orgId)));
-      } else {
-        const [row] = await tx.insert(items).values({ ...data, organizationId: auth.orgId }).returning({ id: items.id });
-        id = row.id;
-      }
-      // Replace the item's external codes.
-      await tx.delete(itemCodes).where(eq(itemCodes.itemId, id!));
-      if (codes.length) {
-        await tx.insert(itemCodes).values(codes.map((c) => ({
-          itemId: id!, organizationId: auth.orgId, codeType: c.codeType, code: c.code, normalizedCode: c.normalizedCode,
-        })));
-      }
-      return id!;
-    });
-    revalidatePath("/erp/inventory");
-    revalidatePath("/erp/inventory/items");
-    revalidatePath(`/erp/inventory/items/${itemId}`);
-    return { ok: true, id: itemId };
-  } catch (e) {
-    return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
-  }
+    try {
+      const itemId = await db.transaction(async (tx) => {
+        let id = d.id;
+        if (id) {
+          await tx.update(items).set(data).where(and(eq(items.id, id), eq(items.organizationId, auth.orgId)));
+        } else {
+          const [row] = await tx.insert(items).values({ ...data, organizationId: auth.orgId }).returning({ id: items.id });
+          id = row.id;
+        }
+        // Replace the item's external codes.
+        await tx.delete(itemCodes).where(eq(itemCodes.itemId, id!));
+        if (codes.length) {
+          await tx.insert(itemCodes).values(codes.map((c) => ({
+            itemId: id!, organizationId: auth.orgId, codeType: c.codeType, code: c.code,
+            normalizedCode: c.normalizedCode, isPrimary: c.isPrimary,
+          })));
+        }
+        return id!;
+      });
+      revalidatePath("/inventory");
+      revalidatePath("/inventory/items");
+      revalidatePath(`/inventory/items/${itemId}`);
+      return { ok: true, id: itemId };
+    } catch (e) {
+      return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
+    }
+  });
 }
 
 /**
@@ -125,41 +126,45 @@ export async function setItemParentAction(childId: string, parentId: string | nu
   const auth = await authorizeErp("inventory.edit");
   if ("error" in auth) return auth;
 
-  const [child] = await db.select({ id: items.id }).from(items)
-    .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId))).limit(1);
-  if (!child) return { error: "الصنف غير موجود" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [child] = await db.select({ id: items.id }).from(items)
+      .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId))).limit(1);
+    if (!child) return { error: "الصنف غير موجود" };
 
-  if (parentId) {
-    const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
-      .where(and(eq(items.id, parentId), eq(items.organizationId, auth.orgId))).limit(1);
-    const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
-      .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, childId)));
-    const err = validateParentLink({
-      childId, parentId,
-      parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren: Number(c?.n ?? 0) > 0,
-    });
-    if (err) return { error: err };
-  }
+    if (parentId) {
+      const [parent] = await db.select({ id: items.id, parentItemId: items.parentItemId }).from(items)
+        .where(and(eq(items.id, parentId), eq(items.organizationId, auth.orgId))).limit(1);
+      const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(items)
+        .where(and(eq(items.organizationId, auth.orgId), eq(items.parentItemId, childId)));
+      const err = validateParentLink({
+        childId, parentId,
+        parentExists: !!parent, parentHasParent: !!parent?.parentItemId, childHasChildren: Number(c?.n ?? 0) > 0,
+      });
+      if (err) return { error: err };
+    }
 
-  await db.update(items)
-    .set({ parentItemId: parentId, variationValue: parentId ? (variationValue?.trim() || null) : null })
-    .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId)));
-  revalidatePath("/erp/inventory/items");
-  revalidatePath(`/erp/inventory/items/${childId}`);
-  if (parentId) revalidatePath(`/erp/inventory/items/${parentId}`);
-  return { ok: true };
+    await db.update(items)
+      .set({ parentItemId: parentId, variationValue: parentId ? (variationValue?.trim() || null) : null })
+      .where(and(eq(items.id, childId), eq(items.organizationId, auth.orgId)));
+    revalidatePath("/inventory/items");
+    revalidatePath(`/inventory/items/${childId}`);
+    if (parentId) revalidatePath(`/inventory/items/${parentId}`);
+    return { ok: true };
+  });
 }
 
 export async function deleteItemAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("inventory.delete");
   if ("error" in auth) return auth;
-  try {
-    await db.delete(items).where(and(eq(items.id, id), eq(items.organizationId, auth.orgId)));
-  } catch {
-    return { error: "تعذّر الحذف — قد يكون الصنف مرتبطاً بحركات" };
-  }
-  revalidatePath("/erp/inventory/items");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    try {
+      await db.delete(items).where(and(eq(items.id, id), eq(items.organizationId, auth.orgId)));
+    } catch {
+      return { error: "تعذّر الحذف — قد يكون الصنف مرتبطاً بحركات" };
+    }
+    revalidatePath("/inventory/items");
+    return { ok: true };
+  });
 }
 
 export type ItemsFilter = { q?: string; status?: string; category?: string; missing?: string };
@@ -200,36 +205,38 @@ export async function bulkDeleteItemsAction(input: { ids?: string[]; all?: Items
   const auth = await authorizeErp("inventory.delete");
   if ("error" in auth) return { ok: false, error: auth.error };
 
-  let ids: string[];
-  if (input.ids?.length) {
-    ids = (await db.select({ id: items.id }).from(items)
-      .where(and(eq(items.organizationId, auth.orgId), inArray(items.id, input.ids)))).map((r) => r.id);
-  } else if (input.all) {
-    ids = await matchingItemIds(auth.orgId, input.all);
-  } else {
-    return { ok: false, error: "لم تحدّد أصنافًا" };
-  }
-  if (!ids.length) return { ok: false, error: "لا توجد أصناف للحذف" };
+  return withOrgScope(auth.orgId, false, async () => {
+    let ids: string[];
+    if (input.ids?.length) {
+      ids = (await db.select({ id: items.id }).from(items)
+        .where(and(eq(items.organizationId, auth.orgId), inArray(items.id, input.ids)))).map((r) => r.id);
+    } else if (input.all) {
+      ids = await matchingItemIds(auth.orgId, input.all);
+    } else {
+      return { ok: false, error: "لم تحدّد أصنافًا" };
+    }
+    if (!ids.length) return { ok: false, error: "لا توجد أصناف للحذف" };
 
-  let deleted = 0, blocked = 0;
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200);
-    try {
-      const res = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), inArray(items.id, chunk))).returning({ id: items.id });
-      deleted += res.length;
-    } catch {
-      // A referenced item aborts the chunk's transaction — retry per item to
-      // delete the deletable ones and skip the blocked (referenced) ones.
-      for (const id of chunk) {
-        try {
-          const r = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), eq(items.id, id))).returning({ id: items.id });
-          if (r.length) deleted++; else blocked++;
-        } catch { blocked++; }
+    let deleted = 0, blocked = 0;
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      try {
+        const res = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), inArray(items.id, chunk))).returning({ id: items.id });
+        deleted += res.length;
+      } catch {
+        // A referenced item aborts the chunk's transaction — retry per item to
+        // delete the deletable ones and skip the blocked (referenced) ones.
+        for (const id of chunk) {
+          try {
+            const r = await db.delete(items).where(and(eq(items.organizationId, auth.orgId), eq(items.id, id))).returning({ id: items.id });
+            if (r.length) deleted++; else blocked++;
+          } catch { blocked++; }
+        }
       }
     }
-  }
-  revalidatePath("/erp/inventory/items");
-  return { ok: true, deleted, blocked };
+    revalidatePath("/inventory/items");
+    return { ok: true, deleted, blocked };
+  });
 }
 
 /** Upload an item image to object storage; returns its public URL. */

@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
@@ -34,39 +35,41 @@ export async function createReceiptVoucherAction(input: unknown): Promise<SaveVo
   const auth = await authorizeErp("sales.collect");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { customerId, salesInvoiceId, cashAccountId, amount, date, paymentMethod, reference, notes } = parsed.data;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { customerId, salesInvoiceId, cashAccountId, amount, date, paymentMethod, reference, notes } = parsed.data;
 
-  const [cust] = await db.select({ id: customers.id }).from(customers)
-    .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
-  if (!cust) return { error: "العميل غير موجود في هذه المؤسسة" };
+    const [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
+    if (!cust) return { error: "العميل غير موجود في هذه المؤسسة" };
 
-  const [cash] = await db.select({ id: accounts.id, type: accounts.type, isLeaf: accounts.isLeaf })
-    .from(accounts).where(and(eq(accounts.id, cashAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
-  if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
+    const [cash] = await db.select({ id: accounts.id, type: accounts.type, isLeaf: accounts.isLeaf })
+      .from(accounts).where(and(eq(accounts.id, cashAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
+    if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
 
-  if (salesInvoiceId) {
-    const [inv] = await db.select({ customerId: salesInvoices.customerId, balanceDue: salesInvoices.balanceDue })
-      .from(salesInvoices).where(and(eq(salesInvoices.id, salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
-    if (!inv) return { error: "الفاتورة غير موجودة" };
-    if (inv.customerId !== customerId) return { error: "الفاتورة لا تخص هذا العميل" };
-    if (amount > Number(inv.balanceDue) + 0.001) return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(inv.balanceDue).toFixed(2)})` };
-  }
+    if (salesInvoiceId) {
+      const [inv] = await db.select({ customerId: salesInvoices.customerId, balanceDue: salesInvoices.balanceDue })
+        .from(salesInvoices).where(and(eq(salesInvoices.id, salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+      if (!inv) return { error: "الفاتورة غير موجودة" };
+      if (inv.customerId !== customerId) return { error: "الفاتورة لا تخص هذا العميل" };
+      if (amount > Number(inv.balanceDue) + 0.001) return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(inv.balanceDue).toFixed(2)})` };
+    }
 
-  const d = new Date(date);
-  const number = await nextNumber(auth.orgId, d.getFullYear());
-  try {
-    const [v] = await db.insert(receiptVouchers).values({
-      organizationId: auth.orgId, number, customerId, salesInvoiceId: salesInvoiceId || null,
-      cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
-    }).returning({ id: receiptVouchers.id });
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند قبض ${number} (مسودة)`, metadata: { amount } });
-    revalidatePath("/erp/sales/receipts");
-    return { ok: true, id: v.id };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ سند القبض" };
-  }
+    const d = new Date(date);
+    const number = await nextNumber(auth.orgId, d.getFullYear());
+    try {
+      const [v] = await db.insert(receiptVouchers).values({
+        organizationId: auth.orgId, number, customerId, salesInvoiceId: salesInvoiceId || null,
+        cashAccountId, status: "DRAFT", amount: String(amount), date: d, paymentMethod, reference: reference || null, notes: notes || null,
+      }).returning({ id: receiptVouchers.id });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند قبض ${number} (مسودة)`, metadata: { amount } });
+      revalidatePath("/sales/receipts");
+      return { ok: true, id: v.id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ سند القبض" };
+    }
+  });
 }
 
 /** Confirm (post) a DRAFT receipt: Dr Cash/Bank · Cr AR; settle the invoice + customer balance. */
@@ -74,69 +77,75 @@ export async function confirmReceiptVoucherAction(id: string): Promise<ActionSta
   const auth = await authorizeErp("sales.collect");
   if ("error" in auth) return auth;
 
-  const [v] = await db.select().from(receiptVouchers)
-    .where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId))).limit(1);
-  if (!v) return { error: "السند غير موجود" };
-  if (v.status !== "DRAFT") return { error: "السند مؤكّد بالفعل" };
-  if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select().from(receiptVouchers)
+      .where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "DRAFT") return { error: "السند مؤكّد بالفعل" };
+    if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
 
-  const amount = Number(v.amount);
-  const A = await resolveAccountIds(auth.orgId, ["1103"]);
-  const ar = A["1103"] ? { id: A["1103"] } : undefined;
-  if (!ar) return { error: "حساب العملاء (1103) غير موجود" };
+    const amount = Number(v.amount);
+    const A = await resolveAccountIds(auth.orgId, ["1103"]);
+    const ar = A["1103"] ? { id: A["1103"] } : undefined;
+    if (!ar) return { error: "حساب العملاء (1103) غير موجود" };
 
-  let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
-  if (v.salesInvoiceId) {
-    [invoice] = await db.select({ id: salesInvoices.id, number: salesInvoices.number, balanceDue: salesInvoices.balanceDue, paidAmount: salesInvoices.paidAmount })
-      .from(salesInvoices).where(and(eq(salesInvoices.id, v.salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
-    if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
-      return { error: `المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})` };
-    }
-  }
-
-  try {
-    await db.transaction(async (tx) => {
-      await postEntry(tx, {
-        orgId: auth.orgId, date: new Date(v.date), sourceType: "RECEIPT_VOUCHER", sourceId: v.id,
-        description: `سند قبض ${v.number}${invoice ? ` — فاتورة ${invoice.number}` : ""}`,
-        journalType: "GENERAL", userId: auth.userId,
-        lines: [
-          { accountId: v.cashAccountId!, debit: amount, credit: 0, description: `تحصيل ${v.number}` },
-          { accountId: ar.id, debit: 0, credit: amount, description: "من العميل" },
-        ],
+    try {
+      await db.transaction(async (tx) => {
+        // Lock the invoice FOR UPDATE and re-check "≤ balanceDue" INSIDE the tx so two
+        // concurrent receipts can't both pass on a stale balanceDue and over-pay it
+        // (driving balanceDue negative).
+        let invoice: { id: string; number: string; balanceDue: string; paidAmount: string } | undefined;
+        if (v.salesInvoiceId) {
+          [invoice] = await tx.select({ id: salesInvoices.id, number: salesInvoices.number, balanceDue: salesInvoices.balanceDue, paidAmount: salesInvoices.paidAmount })
+            .from(salesInvoices).where(and(eq(salesInvoices.id, v.salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1).for("update");
+          if (invoice && amount > Number(invoice.balanceDue) + 0.001) {
+            throw new Error(`المبلغ أكبر من المتبقّي على الفاتورة (${Number(invoice.balanceDue).toFixed(2)})`);
+          }
+        }
+        await postEntry(tx, {
+          orgId: auth.orgId, date: new Date(v.date), sourceType: "RECEIPT_VOUCHER", sourceId: v.id,
+          description: `سند قبض ${v.number}${invoice ? ` — فاتورة ${invoice.number}` : ""}`,
+          journalType: "GENERAL", userId: auth.userId,
+          lines: [
+            { accountId: v.cashAccountId!, debit: amount, credit: 0, description: `تحصيل ${v.number}` },
+            { accountId: ar.id, debit: 0, credit: amount, description: "من العميل" },
+          ],
+        });
+        await tx.update(customers).set({ balance: sql`${customers.balance} - ${amount}` }).where(eq(customers.id, v.customerId));
+        if (invoice) {
+          const newBal = round2(Number(invoice.balanceDue) - amount);
+          await tx.update(salesInvoices).set({
+            paidAmount: String(round2(Number(invoice.paidAmount) + amount)),
+            balanceDue: String(newBal), status: newBal <= 0.01 ? "PAID" : "PARTIAL_PAID",
+          }).where(eq(salesInvoices.id, invoice.id));
+        }
+        await tx.update(receiptVouchers).set({ status: "POSTED" }).where(eq(receiptVouchers.id, v.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند قبض ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
       });
-      await tx.update(customers).set({ balance: sql`${customers.balance} - ${amount}` }).where(eq(customers.id, v.customerId));
-      if (invoice) {
-        const newBal = round2(Number(invoice.balanceDue) - amount);
-        await tx.update(salesInvoices).set({
-          paidAmount: String(round2(Number(invoice.paidAmount) + amount)),
-          balanceDue: String(newBal), status: newBal <= 0.01 ? "PAID" : "PARTIAL_PAID",
-        }).where(eq(salesInvoices.id, invoice.id));
-      }
-      await tx.update(receiptVouchers).set({ status: "POSTED" }).where(eq(receiptVouchers.id, v.id));
-      await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `تأكيد وترحيل سند قبض ${v.number}`, metadata: { amount, invoice: invoice?.number ?? null } });
-    });
-    revalidatePath("/erp/sales/receipts");
-    revalidatePath("/erp/sales/invoices");
-    revalidatePath("/erp/accounting/journal");
-    return { ok: true };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
-    return { error: msg.includes("unique") || msg.includes("23505") ? "السند مؤكّد بالفعل" : msg };
-  }
+      revalidatePath("/sales/receipts");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر تأكيد السند";
+      return { error: msg.includes("unique") || msg.includes("23505") ? "السند مؤكّد بالفعل" : msg };
+    }
+  });
 }
 
 /** Delete a DRAFT receipt voucher. */
 export async function deleteReceiptVoucherAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.collect");
   if ("error" in auth) return auth;
-  const [v] = await db.select({ status: receiptVouchers.status }).from(receiptVouchers)
-    .where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId))).limit(1);
-  if (!v) return { error: "السند غير موجود" };
-  if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
-  await db.delete(receiptVouchers).where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId)));
-  revalidatePath("/erp/sales/receipts");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select({ status: receiptVouchers.status }).from(receiptVouchers)
+      .where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
+    await db.delete(receiptVouchers).where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId)));
+    revalidatePath("/sales/receipts");
+    return { ok: true };
+  });
 }
 
 /** Bulk confirm(post)/delete DRAFT receipt vouchers; ineligible rows skipped. */

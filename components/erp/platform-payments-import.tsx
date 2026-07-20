@@ -9,8 +9,8 @@ import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectCls } from "@/lib/utils";
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const guess = (headers: string[], keys: string[]) => {
   const idx = headers.findIndex((h) => keys.some((k) => h.toLowerCase().includes(k)));
   return idx >= 0 ? String(idx) : "";

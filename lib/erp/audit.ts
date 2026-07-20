@@ -2,11 +2,12 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, users } from "@/db/schema";
 import { sql } from "drizzle-orm";
+import { emitErpEvent } from "@/lib/erp/realtime";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
 
-export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT";
+export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT" | "IMPERSONATE";
 
 export type AuditInput = {
   orgId: string;
@@ -37,6 +38,8 @@ export async function recordAudit(exec: Exec, input: AuditInput): Promise<void> 
     summary: input.summary ?? null,
     metadata: input.metadata ?? null,
   });
+  // Live-notify subscribers (web SSE + mobile SSE). Every mutation logs here.
+  emitErpEvent(input.orgId, { action: input.action, entity: input.entityType, id: input.entityId, number: input.entityNumber });
 }
 
 /** Fire-and-forget audit on the shared db connection; never throws. */

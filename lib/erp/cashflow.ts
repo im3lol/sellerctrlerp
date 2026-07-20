@@ -37,7 +37,11 @@ export type CashFlow = {
 
 /** Indirect-method cash-flow statement for one org over [startDate, endDate]. */
 export async function getCashFlow(orgId: string, startDate: Date, endDate: Date): Promise<CashFlow> {
-  const periodBalances = await accountBalances({ orgId, from: startDate, to: endDate });
+  // excludeClosing: the year-closing entry moves P&L into retained earnings without
+  // any cash movement. Left in, it zeroes `netIncome` for a closed period and shows
+  // the profit as a retained-earnings movement in financing instead — right total,
+  // wrong section. Dropping it keeps the profit in operating, where it belongs.
+  const periodBalances = await accountBalances({ orgId, from: startDate, to: endDate, excludeClosing: true });
 
   const beginDate = new Date(startDate);
   beginDate.setDate(beginDate.getDate() - 1);

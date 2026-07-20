@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
-import { syncProductsAction, syncOrdersAction, syncInventoryAction } from "@/app/actions/erp/marketplace-sync";
+import { syncProductsAction, productsSyncStatusAction, syncOrdersAction, syncInventoryAction } from "@/app/actions/erp/marketplace-sync";
+import type { ProductSyncStatus } from "@/lib/erp/marketplace/sync-core";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const productsDetail = (s: ProductSyncStatus) =>
+  `${s.total ?? 0} منتج · ${s.created ?? 0} جديد · ${s.linked ?? 0} مربوط`;
 
 type Status = "pending" | "running" | "done" | "error";
 type Step = { key: string; label: string; icon: React.ReactNode; status: Status; detail: string };
@@ -46,14 +51,39 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
     }
   }
 
+  // Products run in the BACKGROUND server-side (a full 11k pull takes minutes,
+  // longer than the browser holds the request). ATTACH to a job that's already
+  // running instead of starting a duplicate; only enqueue a fresh import when idle.
+  // Then poll until done — closing the popup doesn't stop the server job.
+  async function runProducts() {
+    set("products", "running", "جاري التحقق…");
+    const cur = await productsSyncStatusAction(code).catch(() => null);
+    if (cur?.phase === "done") { set("products", "done", productsDetail(cur)); return; }
+    if (cur?.phase === "error") { set("products", "error", cur.error ?? "فشل السحب"); return; }
+    if (cur?.phase !== "running") { // idle or unreachable → start a fresh import
+      const s = await syncProductsAction(code);
+      if (!s.ok) { set("products", "error", s.error ?? "فشل"); return; }
+    }
+    for (let i = 0; i < 450; i++) { // ~30 min ceiling at 4s
+      set("products", "running", "جاري السحب من أمازون… (السحب الكامل قد يستغرق عدة دقائق)");
+      await sleep(4000);
+      let st: ProductSyncStatus;
+      try { st = await productsSyncStatusAction(code); } catch { continue; }
+      if (st.phase === "done") { set("products", "done", productsDetail(st)); return; }
+      if (st.phase === "error") { set("products", "error", st.error ?? "فشل السحب"); return; }
+      // running/idle → keep polling
+    }
+    set("products", "running", "لا تزال المزامنة شغّالة في الخلفية — حدّث الصفحة بعد قليل لرؤية النتيجة.");
+  }
+
   async function run() {
     const jobs: Promise<unknown>[] = [];
-    if (flags.products) jobs.push(step("products", () => syncProductsAction(code), (r) => `${r.total} منتج · ${r.created} جديد · ${r.linked} مربوط${r.alreadyLinked ? ` · ${r.alreadyLinked} موجود` : ""}${r.skippedUnmatched ? ` · ${r.skippedUnmatched} محتاج ASIN` : ""}\n${r.images} صورة · ${r.barcodes} باركود · ${r.families} عائلة`));
+    if (flags.products) jobs.push(runProducts());
     if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة${r.cancelled ? ` · ${r.cancelled} ملغى` : ""}`));
     if (flags.inventory) jobs.push(step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
     await Promise.allSettled(jobs);
     setRunning(false);
-    router.refresh();
+    router.refresh(); // one refresh at the end → updates the product-count card
   }
 
   const close = () => { started.current = false; onClose(); };
@@ -67,7 +97,9 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
         <div className="flex items-center gap-2 font-semibold">
           <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة أمازون
         </div>
-        {!running && <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="إغلاق"><X className="size-4" /></button>}
+        {/* Always closable: the full product sync runs server-side and keeps
+            going after the popup closes. */}
+        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="إغلاق"><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">

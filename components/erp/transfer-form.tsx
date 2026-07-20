@@ -90,7 +90,7 @@ export function TransferForm({
         date, notes,
         lines: ready.map((l) => ({ itemId: l.itemId, fromWarehouseId: l.fromWh, toWarehouseId: l.toWh, quantity: Number(l.quantity) })),
       });
-      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/erp/inventory/transfers"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/inventory/transfers"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 
@@ -164,7 +164,7 @@ export function TransferForm({
                           onSelect={(id) => updateLine(l.key, { toWh: id })} />
                       </td>
                       <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? q(avail) : "—"}</div></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.001" min="0" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: e.target.value })} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></td>
                       <td className="px-2 py-2 text-center">
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.key)} aria-label="حذف"><Icon name="Trash2" className="size-4 text-destructive" /></Button>
                       </td>

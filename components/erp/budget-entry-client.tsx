@@ -96,7 +96,7 @@ export function BudgetEntryClient({
             حفظ الميزانية
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/erp/accounting/budget/${year}/report`}>
+            <Link href={`/accounting/budget/${year}/report`}>
               <Icon name="BarChart2" className="size-4" />عرض التقرير
             </Link>
           </Button>

@@ -36,6 +36,10 @@ export async function getAvailability(orgId: string, itemIds: string[]): Promise
   const onHand = new Map((onHandRows.rows as { item_id: string; qty: string }[]).map((r) => [r.item_id, Number(r.qty)]));
 
   // Reserved = undelivered qty per open sales order line.
+  // ponytail: DRAFT orders reserve too (only CANCELLED is excluded) — deliberate.
+  // Reserving early is the no-oversell side; excluding DRAFT would free that stock
+  // for another sale and risk overselling once the draft is confirmed. Flip to also
+  // exclude DRAFT only if the business wants drafts to be non-committal quotes.
   const resRows = await db
     .select({
       itemId: salesOrderLines.itemId,

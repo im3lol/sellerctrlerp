@@ -1,0 +1,87 @@
+import { and, asc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { academyLessons } from "@/db/schema";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/rbac";
+import { type ModuleKey } from "@/lib/erp/module-list";
+import { isLessonKind, ACADEMY_ADMIN_ONLY, ACADEMY_CAPABILITY, type Lesson } from "@/lib/erp/academy-core";
+
+/**
+ * الأكاديمية — lesson queries. Server-only: it imports the db.
+ *
+ * The rules (isLive, lessonFormat, lessonHref, moduleCards…) live in academy-core.ts
+ * and are re-exported below, so server callers keep one import while client components
+ * can reach for academy-core directly without dragging `pg` into the browser bundle.
+ *
+ * Not org-scoped anywhere in this file: see the note on the academy_lessons table.
+ * These are lessons about SellerCtrl, the same for every tenant, so a global read is
+ * correct here rather than a missing organizationId filter.
+ */
+export * from "@/lib/erp/academy-core";
+
+/**
+ * Whether this viewer may see the academy at all — see ACADEMY_ADMIN_ONLY.
+ *
+ * Used by the «اتعلّم» button, which must vanish rather than link somewhere the
+ * viewer gets bounced from.
+ */
+export async function canSeeAcademy(): Promise<boolean> {
+  if (!ACADEMY_ADMIN_ONLY) return true;
+  const user = await getCurrentUser();
+  return can(user?.role, "employee.manage");
+}
+
+/**
+ * Page guard for /erp/academy/**. Redirects to the dashboard like requireCapability,
+ * rather than 404ing — the pages exist and will be public again shortly; this is a
+ * curtain, not a missing route.
+ */
+export async function requireAcademyAccess(): Promise<void> {
+  if (!(await canSeeAcademy())) redirect("/dashboard");
+}
+
+const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
+  id: r.id,
+  slug: r.slug,
+  title: r.title,
+  module: r.module as ModuleKey,
+  // An unknown kind would slip past both catalogue filters and vanish; videos are the
+  // default, so an odd row shows up as a قريباً video rather than disappearing.
+  kind: isLessonKind(r.kind) ? r.kind : "video",
+  outcome: r.outcome,
+  url: r.url,
+  body: r.body,
+  minutes: r.minutes,
+  level: (r.level === "advanced" ? "advanced" : "basic"),
+});
+
+/** Active lessons — both catalogues, ordered as the owner arranged them. */
+export async function listLessons(): Promise<Lesson[]> {
+  const rows = await db.select().from(academyLessons)
+    .where(eq(academyLessons.isActive, true))
+    .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
+  return rows.map(row);
+}
+
+/** One module's lessons, both catalogues — the module page splits them by kind. */
+export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
+  const rows = await db.select().from(academyLessons)
+    .where(and(eq(academyLessons.isActive, true), eq(academyLessons.module, module)))
+    .orderBy(asc(academyLessons.sortOrder), asc(academyLessons.title));
+  return rows.map(row);
+}
+
+/** One lesson by its slug — the lesson page. Active only; a hidden lesson 404s. */
+export async function getLesson(slug: string): Promise<Lesson | null> {
+  const [r] = await db.select().from(academyLessons)
+    .where(and(eq(academyLessons.slug, slug), eq(academyLessons.isActive, true)))
+    .limit(1);
+  return r ? row(r) : null;
+}
+
+/** Every lesson including hidden ones — the admin list. */
+export async function listAllLessonsForAdmin() {
+  return db.select().from(academyLessons)
+    .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
+}

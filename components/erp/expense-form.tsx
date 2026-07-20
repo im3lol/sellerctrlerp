@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Account = { id: string; code: string; name: string };
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts: Account[]; cashAccounts: Account[] }) {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts
       const r = await createExpenseAction({ expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes });
       if (r.ok) {
         toast.success("تم حفظ المصروف (مسودة) — أكّده للترحيل");
-        router.push("/erp/accounting/expenses");
+        router.push("/accounting/expenses");
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر الحفظ");

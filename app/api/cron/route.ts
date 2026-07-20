@@ -3,8 +3,13 @@ import { db } from "@/lib/db";
 import { organizations, platformCredentials } from "@/db/schema";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
-import { prepareSync, markSync, syncProductsCore } from "@/lib/erp/marketplace/sync-core";
+import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
+import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { sendEmail } from "@/lib/erp/email";
+import { withPlatformScope } from "@/lib/db-scope";
+import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
+import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
+import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +31,9 @@ export async function GET(req: Request) {
   }
 
   const origin = process.env.APP_URL || new URL(req.url).origin;
+  // Cross-org daily job (no active tenant) — platform scope so per-org reads/writes
+  // for every organization bypass RLS.
+  return withPlatformScope(async () => {
   const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations);
   const now = new Date();
 
@@ -37,34 +45,49 @@ export async function GET(req: Request) {
     try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
   }
 
-  // 1b) Daily marketplace product/catalog refresh (heavy — kept OUT of the
-  // per-minute cron so it never starves normal requests of DB connections).
+  // 1b) Daily marketplace discovery — ENQUEUE one incremental discovery job per
+  // auto-sync connection (the BullMQ worker does the actual SP-API pull, so this
+  // stays light and never starves DB connections). Replaces the old per-minute
+  // cron + inline heavy sync. No Redis → skipped (queue unavailable).
   let productsRun = 0;
-  const conns = await db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider })
+  const conns = await db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider, productsSyncedAt: platformCredentials.productsSyncedAt, connectedAt: platformCredentials.connectedAt })
     .from(platformCredentials).where(eq(platformCredentials.autoSync, true));
   for (const c of conns) {
     try {
-      const prep = await prepareSync(c.orgId, c.provider.toUpperCase());
-      if ("error" in prep || !prep.flags.products || !prep.connector.fetchProducts) continue;
-      const r = await syncProductsCore(prep);
-      productsRun++;
-      if (r.ok) await markSync(c.orgId, c.provider, { productsSyncedAt: now });
+      const since = c.productsSyncedAt
+        ? incrementalFrom(new Date(c.productsSyncedAt), c.connectedAt ? new Date(c.connectedAt) : null, now.getTime()).toISOString()
+        : undefined;
+      if (await enqueue(QUEUES.discovery, { orgId: c.orgId, provider: c.provider, since })) productsRun++;
     } catch { /* skip a connection on error */ }
+  }
+
+  // 1c) Platform SaaS metrics: mark any lapsed subscriptions as EXPIRED events, then
+  // snapshot today's MRR — the only source of trend/churn history.
+  let expired = 0;
+  try { expired = await sweepExpirations(now); } catch { /* non-fatal */ }
+  try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
+  try { await pruneReportDownloads(7); } catch { /* non-fatal */ }
+
+  // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
+  // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.
+  let backedUp = 0;
+  for (const org of orgs) {
+    try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch { /* skip org (e.g. storage unconfigured) */ }
   }
 
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
     const n = await computeNotifications(org.id);
     const lines: string[] = [];
-    if (n.pendingDrafts) lines.push(row("📝 مسودات بانتظار التأكيد", n.pendingDrafts, `${origin}/erp/drafts`));
-    if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/erp/accounting/aging`));
-    if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/erp/accounting/aging`));
-    if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/erp/inventory/reorder`));
-    if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/erp/inventory/expiry`));
+    if (n.pendingDrafts) lines.push(row("📝 مسودات بانتظار التأكيد", n.pendingDrafts, `${origin}/drafts`));
+    if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
+    if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
+    if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));
+    if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/inventory/expiry`));
     if (lines.length === 0) continue;
 
     const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
@@ -76,5 +99,6 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, sent });
+  });
 }

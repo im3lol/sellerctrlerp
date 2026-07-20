@@ -1,8 +1,17 @@
-import { and, or, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, or, eq, ilike, inArray, asc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes } from "@/db/schema";
+import { items, itemCodes, warehouses } from "@/db/schema";
 import { getAvailability } from "@/lib/erp/availability";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+
+/** Active warehouses for the org (for mobile pickers). */
+export async function listWarehouses(orgId: string): Promise<{ id: string; name: string }[]> {
+  const rows = await db.select({ id: warehouses.id, name: warehouses.nameAr })
+    .from(warehouses)
+    .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
+    .orderBy(asc(warehouses.nameAr));
+  return rows.map((r) => ({ id: r.id, name: r.name }));
+}
 
 /** Canonical form for scan/exact match: uppercase, alphanumerics only. */
 export function normalizeCode(s: string): string {

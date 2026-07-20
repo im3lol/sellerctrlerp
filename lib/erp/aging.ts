@@ -1,3 +1,6 @@
+/** Which invoices count as open for aging: a live invoice with a balance left. */
+export { liveInvoice as openForAging } from "./invoice-status";
+
 export type AgingBucket = "current" | "d30" | "d60" | "d90" | "d90plus";
 
 export const AGING_BUCKETS: AgingBucket[] = ["current", "d30", "d60", "d90", "d90plus"];

@@ -26,7 +26,7 @@ export function RequisitionRowActions({ id, status, canManage }: { id: string; s
       )}
       {status === "APPROVED" && (
         <Button size="sm" variant="outline" asChild>
-          <Link href={`/erp/purchases/orders/new?fromRequisition=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر شراء</Link>
+          <Link href={`/purchases/orders/new?fromRequisition=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر شراء</Link>
         </Button>
       )}
     </div>

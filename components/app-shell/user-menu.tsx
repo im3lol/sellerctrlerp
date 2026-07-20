@@ -57,13 +57,13 @@ export function UserMenu({
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <a href="/erp/settings/subscription" className="cursor-pointer">
+          <a href="/settings/subscription" className="cursor-pointer">
             <CreditCard className="size-4" />
             الاشتراك والباقة
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <a href="/erp/settings/security" className="cursor-pointer">
+          <a href="/settings/security" className="cursor-pointer">
             <ShieldCheck className="size-4" />
             الأمان وكلمة المرور
           </a>

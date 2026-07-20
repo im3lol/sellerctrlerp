@@ -67,7 +67,7 @@ export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: bool
                   </TableCell>
                 )}
                 <TableCell className="font-mono">
-                  <Link href={`/erp/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
+                  <Link href={`/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
                 </TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>

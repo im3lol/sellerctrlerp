@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
+import { runWithErpContext } from "@/lib/erp/erp-context";
+import { withOrgScope } from "@/lib/db-scope";
 import type { SessionUser } from "@/lib/session";
 import type { ErpPermission } from "@/lib/erp/permissions";
 
@@ -13,7 +15,14 @@ import type { ErpPermission } from "@/lib/erp/permissions";
  * cookie. The token is signed with AUTH_SECRET (shared with next-auth).
  */
 const ISSUER = "sellerctrl-api";
-const secret = () => new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-change-me");
+// Fail closed: never fall back to a public constant. Without AUTH_SECRET an
+// attacker could mint valid tokens for any user. secret() throws → sign/verify
+// fail → the /api/v1 surface returns 401 rather than trusting a known key.
+const secret = () => {
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error("AUTH_SECRET is not set — refusing to sign/verify API tokens");
+  return new TextEncoder().encode(s);
+};
 
 /** Issue a 30-day access token for a user id. */
 export async function signApiToken(userId: string): Promise<string> {
@@ -26,7 +35,7 @@ export async function signApiToken(userId: string): Promise<string> {
     .sign(secret());
 }
 
-export type ApiAuth = { userId: string; orgId: string; role: string; can: (p: ErpPermission) => boolean };
+export type ApiAuth = { userId: string; orgId: string; role: string; can: (p: ErpPermission) => boolean; permissions: Set<string> };
 export type ApiAuthError = { error: string; status: number };
 export const isApiError = (r: ApiAuth | ApiAuthError): r is ApiAuthError => "error" in r;
 
@@ -58,5 +67,45 @@ export async function authorizeApi(req: Request, permission: ErpPermission): Pro
   if (!access.role) return { error: "forbidden_org", status: 403 };
   if (!access.permissions.has(permission)) return { error: "forbidden", status: 403 };
 
-  return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p) };
+  return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p), permissions: access.permissions };
+}
+
+/** Run a cookie-bound server action (or a chain of them) as the API caller, inside the
+ *  tenant DB scope so every query the chain issues is RLS-isolated to the caller's org. */
+export function runAsErp<T>(auth: ApiAuth, fn: () => Promise<T>): Promise<T> {
+  return runWithErpContext(
+    { userId: auth.userId, orgId: auth.orgId, role: auth.role, permissions: auth.permissions },
+    () => withOrgScope(auth.orgId, false, fn),
+  );
+}
+
+/**
+ * Member-level auth for contentless endpoints (the SSE change stream). Accepts
+ * the token from the `Authorization` header OR a `?token=` query param (an
+ * EventSource cannot set headers), and the org from `X-Org-Id` OR `?org=`. No
+ * specific ERP permission — the stream only signals "something changed".
+ */
+export async function authorizeApiMember(req: Request): Promise<{ orgId: string; userId: string } | ApiAuthError> {
+  const url = new URL(req.url);
+  const token = (req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? url.searchParams.get("token") ?? "").trim();
+  if (!token) return { error: "unauthorized", status: 401 };
+
+  let userId: string;
+  try {
+    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER });
+    userId = String(payload.sub ?? "");
+  } catch {
+    return { error: "invalid_token", status: 401 };
+  }
+  if (!userId) return { error: "invalid_token", status: 401 };
+
+  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!u || !u.isActive) return { error: "unauthorized", status: 401 };
+
+  const orgId = (req.headers.get("x-org-id") ?? url.searchParams.get("org") ?? "").trim();
+  if (!orgId) return { error: "org_required", status: 400 };
+
+  const access = await getMemberAccess(orgId, { id: u.id, role: u.role } as SessionUser);
+  if (!access.role) return { error: "forbidden_org", status: 403 };
+  return { orgId, userId: u.id };
 }

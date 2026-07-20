@@ -5,14 +5,14 @@ import { db } from "@/lib/db";
 // columns (number, date, status, organization_id) and route by number.
 // ponytail: hardcoded table names (no user input) so sql.raw is safe.
 export const DRAFT_DOCS = [
-  { table: "sales_orders", label: "أمر بيع", path: "/erp/sales/orders" },
-  { table: "sales_invoices", label: "فاتورة بيع", path: "/erp/sales/invoices" },
-  { table: "delivery_notes", label: "إذن صرف", path: "/erp/sales/deliveries" },
-  { table: "purchase_orders", label: "أمر شراء", path: "/erp/purchases/orders" },
-  { table: "purchase_invoices", label: "فاتورة شراء", path: "/erp/purchases/invoices" },
-  { table: "purchase_receipts", label: "إذن استلام", path: "/erp/purchases/receipts" },
-  { table: "receipt_vouchers", label: "سند قبض", path: "/erp/sales/receipts" },
-  { table: "payment_vouchers", label: "سند صرف", path: "/erp/purchases/payments" },
+  { table: "sales_orders", label: "أمر بيع", path: "/sales/orders" },
+  { table: "sales_invoices", label: "فاتورة بيع", path: "/sales/invoices" },
+  { table: "delivery_notes", label: "إذن صرف", path: "/sales/deliveries" },
+  { table: "purchase_orders", label: "أمر شراء", path: "/purchases/orders" },
+  { table: "purchase_invoices", label: "فاتورة شراء", path: "/purchases/invoices" },
+  { table: "purchase_receipts", label: "إذن استلام", path: "/purchases/receipts" },
+  { table: "receipt_vouchers", label: "سند قبض", path: "/sales/receipts" },
+  { table: "payment_vouchers", label: "سند صرف", path: "/purchases/payments" },
 ] as const;
 
 export type DraftDoc = { number: string; label: string; path: string; date: Date };

@@ -15,6 +15,7 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
@@ -25,7 +26,6 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
 export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[] }) {
@@ -90,7 +90,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
       if (r.ok) {
         toast.success("تم حفظ أمر البيع (مسودة) — أكّده");
         if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
-        router.push(r.id ? `/erp/sales/orders/${r.id}` : "/erp/sales/orders"); router.refresh();
+        router.push(r.id ? `/sales/orders/${r.id}` : "/sales/orders"); router.refresh();
       }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -103,7 +103,7 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
           <CardTitle>بيانات أمر البيع</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/orders")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -154,11 +154,11 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
                 <TableHead className="text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
                 <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-20 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-24 text-start">خصم</TableHead>
-                <TableHead className="w-24 text-start">ضريبة</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="w-40 text-center">الكمية</TableHead>
+                <TableHead className="w-56 text-center">السعر</TableHead>
+                <TableHead className="w-52 text-center">خصم</TableHead>
+                <TableHead className="w-52 text-center">ضريبة</TableHead>
+                <TableHead className="w-40 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -182,10 +182,10 @@ export function SalesOrderForm({ customers, items, orgName, defaultCustomerId, c
                       />
                     </TableCell>
                     <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="1" className="min-w-[6rem] text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[9rem] text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[8rem] text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="min-w-[8rem] text-base" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
                     <TableCell className="font-medium">{fmt(round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>

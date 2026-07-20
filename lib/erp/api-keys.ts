@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withPlatformScope } from "@/lib/db-scope";
 import { apiKeys } from "@/db/schema";
 
 /** New high-entropy API key (shown once). */
@@ -18,16 +19,28 @@ export function keyHint(key: string): string {
   return `${key.slice(0, 7)}…${key.slice(-4)}`;
 }
 
-/** Resolve the organization for a presented key (active only); bumps lastUsedAt.
- *  Returns null when the key is unknown/revoked. */
-export async function resolveOrgByApiKey(key: string): Promise<string | null> {
+export type ApiKeyScope = "read" | "write";
+
+/** Resolve a presented key to its org + scope (active + unexpired only); bumps
+ *  lastUsedAt. Returns null when the key is unknown/revoked/expired. */
+export async function resolveApiKey(key: string): Promise<{ orgId: string; scope: ApiKeyScope } | null> {
   if (!key || !key.startsWith("sk_")) return null;
   const hash = hashApiKey(key);
-  const [row] = await db.select({ id: apiKeys.id, org: apiKeys.organizationId })
-    .from(apiKeys).where(and(eq(apiKeys.keyHash, hash), eq(apiKeys.isActive, true))).limit(1);
-  if (!row) return null;
-  await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-  return row.org;
+  // Bootstrap: the key IS what resolves the org, so this lookup runs before any
+  // tenant scope and reads the RLS-policied api_keys by hash → platform scope.
+  return withPlatformScope(async () => {
+    const [row] = await db.select({ id: apiKeys.id, org: apiKeys.organizationId, scope: apiKeys.scope, expiresAt: apiKeys.expiresAt })
+      .from(apiKeys).where(and(eq(apiKeys.keyHash, hash), eq(apiKeys.isActive, true))).limit(1);
+    if (!row) return null;
+    if (row.expiresAt && new Date(row.expiresAt) <= new Date()) return null; // expired
+    await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
+    return { orgId: row.org, scope: (row.scope === "read" ? "read" : "write") as ApiKeyScope };
+  });
+}
+
+/** Back-compat: resolve just the org for callers that don't gate on scope. */
+export async function resolveOrgByApiKey(key: string): Promise<string | null> {
+  return (await resolveApiKey(key))?.orgId ?? null;
 }
 
 /** Extract the key from a request (Authorization: Bearer … or x-api-key). */

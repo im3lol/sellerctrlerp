@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
@@ -24,7 +25,6 @@ type Platform = {
 type Option = { id: string; nameAr: string };
 type ConnectorInfo = { code: string; label: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
 // Brand tiles for the automatic picker. Monochrome logos in /public/logos —
@@ -66,7 +66,7 @@ function PlatformDialog({
   // Automatic setup: provision everything (platform + customer + FBA warehouse + Amazon Wallet bank).
   const provision = (fulfillment: string) => start(async () => {
     const r = await provisionMarketplaceAction({ connector: autoConnector!, fulfillment });
-    if (r.ok) { toast.success("تم تجهيز أمازون: عميل + مخزن FBA + محفظة Amazon Wallet"); onClose(); router.push(`/erp/platforms/${r.code ?? "amazon"}`); }
+    if (r.ok) { toast.success("تم تجهيز أمازون: عميل + مخزن FBA + محفظة Amazon Wallet"); onClose(); router.push(`/platforms/${r.code ?? "amazon"}`); }
     else toast.error(r.error ?? "تعذّر التجهيز");
   });
 
@@ -270,7 +270,7 @@ export function PlatformsManager({
               {platforms.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <Link href={`/erp/platforms/${p.code.toLowerCase()}`} className="font-medium text-primary hover:underline">{p.name}</Link>
+                    <Link href={`/platforms/${p.code.toLowerCase()}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                     <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
                   </TableCell>
                   <TableCell>{p.customerName ?? <span className="text-muted-foreground">—</span>}</TableCell>
@@ -280,7 +280,7 @@ export function PlatformsManager({
                   <TableCell>
                     <div className="flex gap-1">
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/erp/platforms/${p.code.toLowerCase()}/import`}><Upload className="size-4" />استيراد</Link>
+                        <Link href={`/platforms/${p.code.toLowerCase()}/import`}><Upload className="size-4" />استيراد</Link>
                       </Button>
                       {canManage && (
                         <>

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Sparkles, X, ArrowLeft, ArrowRight } from "lucide-react";
+import { Sparkles, X, ArrowLeft, ArrowRight, EyeOff } from "lucide-react";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { dismissTourAction } from "@/app/actions/erp/onboarding";
 
 type Step = { icon: string; title: string; body: string };
 
@@ -77,38 +78,43 @@ const TOURS: Record<string, Step[]> = {
 /** Map the current path to a tour key (module), or null when none applies. */
 function routeKey(path: string): string | null {
   if (path === "/dashboard") return "home";
-  if (path.startsWith("/erp/platforms")) return "platforms";
-  if (path.startsWith("/erp/purchases")) return "purchases";
-  if (path.startsWith("/erp/sales")) return "sales";
-  if (path.startsWith("/erp/inventory")) return "inventory";
-  if (path.startsWith("/erp/accounting")) return "accounting";
-  if (path.startsWith("/erp/hr")) return "hr";
-  if (path.startsWith("/erp/investors")) return "investors";
-  if (path.startsWith("/erp/reports")) return "reports";
+  if (path.startsWith("/platforms")) return "platforms";
+  if (path.startsWith("/purchases")) return "purchases";
+  if (path.startsWith("/sales")) return "sales";
+  if (path.startsWith("/inventory")) return "inventory";
+  if (path.startsWith("/accounting")) return "accounting";
+  if (path.startsWith("/hr")) return "hr";
+  if (path.startsWith("/investors")) return "investors";
+  if (path.startsWith("/reports")) return "reports";
   return null;
 }
 
-export function OnboardingTour() {
+export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
   const pathname = usePathname();
   const key = routeKey(pathname);
   const steps = key ? TOURS[key] : null;
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  // Permanently off for this user (server-persisted, so it survives a localStorage
+  // reset such as a changed tunnel origin). Once true, nothing renders.
+  const [killed, setKilled] = useState(dismissed);
 
   // Auto-open a module's tour the first time it's visited (tracked per module).
   useEffect(() => {
-    if (!key || typeof window === "undefined") return;
+    if (!key || killed || typeof window === "undefined") return;
     if (localStorage.getItem(`sc_tour_${key}`)) return;
     const t = setTimeout(() => { setStep(0); setOpen(true); }, 700);
     return () => clearTimeout(t);
-  }, [key]);
+  }, [key, killed]);
 
-  if (!steps) return null;
+  if (!steps || killed) return null;
 
   const markSeen = () => { try { localStorage.setItem(`sc_tour_${key}`, "1"); } catch {} };
   const close = () => { setOpen(false); markSeen(); };
   const reopen = () => { setStep(0); setOpen(true); };
+  // End it everywhere, for good.
+  const killForever = () => { setOpen(false); setKilled(true); void dismissTourAction(); };
 
   const S = steps[step];
   const isLast = step === steps.length - 1;
@@ -157,6 +163,15 @@ export function OnboardingTour() {
                 )}
               </div>
             </div>
+
+            {/* Prominent, obvious permanent-off — a customer must be able to find it. */}
+            <button
+              type="button"
+              onClick={killForever}
+              className="flex w-full items-center justify-center gap-2 border-t bg-muted/40 px-6 py-3.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <EyeOff className="size-4" /> عدم عرض الجولة التعريفية نهائياً
+            </button>
           </div>
         </div>
       )}

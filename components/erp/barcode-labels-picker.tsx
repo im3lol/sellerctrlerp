@@ -25,7 +25,7 @@ export function BarcodeLabelsPicker() {
     const valid = rows.filter((r) => r.itemId && r.qty > 0);
     if (!valid.length) return toast.error("أضف صنفاً واحداً على الأقل");
     const spec = valid.map((r) => `${r.itemId}:${Math.round(r.qty)}`).join(",");
-    window.open(`/erp/barcodes/batch?items=${encodeURIComponent(spec)}`, "_blank");
+    window.open(`/barcodes/batch?items=${encodeURIComponent(spec)}`, "_blank");
   };
 
   return (
@@ -44,7 +44,7 @@ export function BarcodeLabelsPicker() {
                 {rows.map((r, i) => (
                   <TableRow key={r.itemId}>
                     <TableCell className="font-medium">{r.label}</TableCell>
-                    <TableCell><Input type="number" min="1" max="500" value={r.qty} onChange={(e) => setQty(i, Number(e.target.value))} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="1" max="500" value={r.qty} onChange={(e) => setQty(i, Math.max(0, Math.trunc(Number(e.target.value) || 0)))} /></TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>
                 ))}

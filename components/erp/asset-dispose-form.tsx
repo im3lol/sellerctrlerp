@@ -7,9 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { FormCombobox } from "@/components/erp/form-combobox";
 import { disposeAssetAction } from "@/app/actions/erp/fixed-assets";
 
-export function AssetDisposeForm({ assetId, assetName }: { assetId: string; assetName: string }) {
+export type CashAccountOption = { id: string; label: string };
+
+export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
+  assetId: string;
+  assetName: string;
+  /** Cash/bank leaf accounts — which one received the sale proceeds. */
+  cashAccounts?: CashAccountOption[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -23,6 +31,7 @@ export function AssetDisposeForm({ assetId, assetName }: { assetId: string; asse
         id: assetId,
         disposalDate: String(fd.get("disposalDate")),
         disposalProceeds: fd.get("disposalProceeds") ? Number(fd.get("disposalProceeds")) : undefined,
+        proceedsAccountId: String(fd.get("proceedsAccountId") ?? "") || undefined,
         notes: String(fd.get("notes") ?? ""),
       });
       if (res.ok) { toast.success("تم تسجيل الاستبعاد"); router.refresh(); setOpen(false); }
@@ -54,6 +63,13 @@ export function AssetDisposeForm({ assetId, assetName }: { assetId: string; asse
             <Label htmlFor="disposalProceeds">متحصّلات البيع (إن وُجدت)</Label>
             <Input id="disposalProceeds" name="disposalProceeds" type="number" step="0.01" min="0" placeholder="0.00" />
           </div>
+          {cashAccounts.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor="proceedsAccountId">حساب استلام المتحصّلات</Label>
+              <FormCombobox name="proceedsAccountId" options={cashAccounts} placeholder="النقدية / البنك… (مطلوب عند وجود متحصّلات)" />
+              <p className="text-xs text-muted-foreground">يُرحَّل قيد الاستبعاد: النقدية ومجمع الإهلاك مدينان، وحساب الأصل دائن، والفرق ربح أو خسارة.</p>
+            </div>
+          )}
           <div className="space-y-1">
             <Label htmlFor="notes">سبب الاستبعاد</Label>
             <Input id="notes" name="notes" placeholder="بيع / خردة / تلف…" />

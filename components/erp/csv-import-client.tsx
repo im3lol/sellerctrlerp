@@ -11,16 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Icon } from "@/components/icon";
 
 const CUSTOMER_TEMPLATE = `code,nameAr,phone,email,creditLimit,paymentTerms
-C001,شركة الأمل,0501234567,info@amal.sa,50000,30
-C002,مؤسسة النجاح,0551234567,,10000,15`;
+C001,شركة الأمل,01012345678,info@amal.com,50000,30
+C002,مؤسسة النجاح,01123456789,,10000,15`;
 
 const ITEMS_TEMPLATE = `code,nameAr,nameEn,sellPrice,minStock,description,isActive
 ITM001,كرسي مكتبي,Office Chair,250.00,5,كرسي دوار مريح,true
 ITM002,طاولة اجتماعات,Meeting Table,1200.00,2,,true`;
 
 const SUPPLIERS_TEMPLATE = `code,nameAr,phone,email,address,paymentTerms
-S001,مورد الشرق,0501112222,info@east.sa,الرياض,30
-S002,شركة الإمداد,0553334444,,جدة,45`;
+S001,مورد الشرق,01011122233,info@east.com,القاهرة,30
+S002,شركة الإمداد,01233344455,,الإسكندرية,45`;
 
 // Transactional templates: one row per line, grouped by the `ref` column.
 const SALES_ORDER_TEMPLATE = `ref,date,customer,item,quantity,unitPrice

@@ -38,6 +38,13 @@ to every live database. The source of truth for the schema is
 migration history is [`db/migrations/`](../db/migrations). Do not re-run these
 unless you are provisioning a database that predates a specific patch.
 
+## Data maintenance
+
+- `clean-garbage-text.ts` — scans every text column for cells that are entirely
+  `?`/punctuation (e.g. `??? ??????` from bad manual input) and, with `--fix`,
+  replaces them with a placeholder. Dry-run by default. Point `DATABASE_URL` at
+  the **owner** connection for prod. `npx tsx scripts/clean-garbage-text.ts [--fix]`
+
 ## utils/ — repo-hygiene helpers (still useful)
 
 - `scan-ar-digits.mjs` — fails if any UI file renders Arabic-Indic digits (٠١٢٣).

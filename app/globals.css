@@ -139,3 +139,55 @@
     background-color: hsl(var(--primary) / 0.15);
   }
 }
+
+/* Clean print / save-as-PDF for report pages: drop the app chrome (sidebar,
+   topbar) and any element marked `.no-print`, and print the main content
+   full-width. The dedicated (print) document pages have no aside/header, so
+   this is a no-op there. */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+}
+
+/* Hide native number-input spin buttons — the up/down arrows crowd the value in
+   tight table cells (order/invoice line editors). The number stays fully visible;
+   users type the value instead of stepping it. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* In-cell line-editor inputs (numbers) and comboboxes should fill the cell with no
+   nested box — the table's own gridlines already separate cells. A boxed input
+   inside a bordered cell wastes width and hides the value. Focus shows a ring. */
+td input:not([type="checkbox"]):not([type="radio"]) {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+/* Numbers read best centered in their cell. */
+td input[type="number"] {
+  text-align: center;
+}
+/* Soft tint on focus instead of a hard box — keeps the row calm. */
+td input:not([type="checkbox"]):not([type="radio"]):focus,
+td input:not([type="checkbox"]):not([type="radio"]):focus-visible {
+  background-color: hsl(var(--ring) / 0.09) !important;
+  border-radius: 6px;
+}

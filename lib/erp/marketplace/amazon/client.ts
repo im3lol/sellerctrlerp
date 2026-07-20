@@ -22,6 +22,26 @@ async function getAccessToken(refreshToken: string): Promise<string> {
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+// Proactive rate limiting: SP-API operations have tight per-second quotas
+// (getOrderItems 0.5/s, getOrders ~1/s burst). Firing calls back-to-back blows
+// the quota and triggers "You exceeded your quota" 429s that outlast our backoff.
+// `paced` serializes calls sharing a key and spaces their starts by minIntervalMs,
+// so we stay under the limit instead of only reacting to 429s. Per-process (one
+// worker), which matches SP-API's per-account limits.
+const gateChain = new Map<string, Promise<unknown>>();
+const gateLast = new Map<string, number>();
+export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
+  const run = async (): Promise<T> => {
+    const gap = Date.now() - (gateLast.get(key) ?? 0);
+    if (gap < minIntervalMs) await sleep(minIntervalMs - gap);
+    gateLast.set(key, Date.now());
+    return fn();
+  };
+  const next = (gateChain.get(key) ?? Promise.resolve()).then(run, run); // serialize past failures too
+  gateChain.set(key, next.catch(() => {}));
+  return next;
+}
+
 /**
  * Call an SP-API path for a connection. Adds the access token + region host and
  * retries 429/503 with backoff (respects Retry-After). Returns the raw Response.
@@ -34,9 +54,11 @@ export async function spFetch(cred: Credential, path: string, init: RequestInit 
     headers: { "x-amz-access-token": token, "content-type": "application/json", ...(init.headers ?? {}) },
     cache: "no-store",
   });
-  if ((res.status === 429 || res.status === 503) && attempt < 4) {
+  if ((res.status === 429 || res.status === 503) && attempt < 8) {
+    // Amazon often omits Retry-After on quota 429s; the throttle can be ~1/min, so
+    // grow the wait up to 60s instead of giving up after a few short retries.
     const retryAfter = Number(res.headers.get("retry-after"));
-    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 1000);
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : Math.min(2 ** attempt, 60) * 1000);
     return spFetch(cred, path, init, attempt + 1);
   }
   return res;

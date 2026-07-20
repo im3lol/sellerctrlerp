@@ -130,23 +130,17 @@ export async function deleteUserAction(userId: string): Promise<ActionState> {
 
 const profileSchema = z.object({
   name: z.string().min(2, "الاسم قصير جداً"),
-  password: z.string().optional(),
 });
 
+// Profile update is name-only. Password changes go through changePasswordAction
+// (account.ts) which enforces the full policy + current-password re-auth + history —
+// this action must never be a weaker parallel path.
 export async function updateProfileAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
-  const parsed = profileSchema.safeParse({
-    name: formData.get("name"),
-    password: formData.get("password") || undefined,
-  });
+  const parsed = profileSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const update: Record<string, unknown> = { name: parsed.data.name, updatedAt: new Date() };
-  if (parsed.data.password) {
-    if (parsed.data.password.length < 6) return { error: "كلمة المرور 6 أحرف على الأقل" };
-    update.passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  }
-  await db.update(users).set(update).where(eq(users.id, user.id));
+  await db.update(users).set({ name: parsed.data.name, updatedAt: new Date() }).where(eq(users.id, user.id));
   revalidatePath("/profile");
   return { ok: true };
 }

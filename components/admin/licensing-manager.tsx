@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { setSubscriptionAction } from "@/app/actions/admin/licensing";
+import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 export type OrgSub = { id: string; name: string; status: string; planId: string; planName: string; interval: string; price: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null; members: number; storageBytes: number; expiresAt: string };
 export type PlanOpt = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} م.ب` : `${(b / 1024 ** 3).toFixed(2)} ج.ب`);
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ACTIVE: { label: "مفعّل", variant: "default" }, TRIAL: { label: "تجريبي", variant: "secondary" },
@@ -115,11 +117,57 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
   );
 }
 
+const DAY = 86_400_000;
+const mrrOf = (o: OrgSub) => (o.status === "ACTIVE" && (!o.expiresAt || new Date(o.expiresAt).getTime() > Date.now()) ? (o.interval === "ANNUAL" ? o.price / 12 : o.price) : 0);
+const daysLeftOf = (o: OrgSub) => (o.expiresAt ? Math.ceil((new Date(o.expiresAt).getTime() - Date.now()) / DAY) : null);
+const isAtRisk = (o: OrgSub) => { const d = daysLeftOf(o); return o.status === "EXPIRED" || o.status === "CANCELLED" || (o.status === "ACTIVE" && d != null && d <= 7); };
+
 export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
   const [editing, setEditing] = useState<OrgSub | null>(null);
+  const [imp, startImp] = useTransition();
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("ALL");
+  const [sortK, setSortK] = useState("name");
+  const [riskOnly, setRiskOnly] = useState(false);
+  const support = (id: string) => startImp(async () => {
+    const r = await impersonateTenantAction(id); // redirects on success; returns on error
+    if (r && "error" in r) toast.error(r.error);
+  });
+
+  const view = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    let v = orgs.filter((o) =>
+      (!needle || o.name.toLowerCase().includes(needle)) &&
+      (statusF === "ALL" || o.status === statusF) &&
+      (!riskOnly || isAtRisk(o)),
+    );
+    const cmp: Record<string, (a: OrgSub, b: OrgSub) => number> = {
+      name: (a, b) => a.name.localeCompare(b.name, "ar"),
+      mrr: (a, b) => mrrOf(b) - mrrOf(a),
+      members: (a, b) => b.members - a.members,
+      expiry: (a, b) => (daysLeftOf(a) ?? Infinity) - (daysLeftOf(b) ?? Infinity),
+    };
+    return [...v].sort(cmp[sortK] ?? cmp.name);
+  }, [orgs, q, statusF, sortK, riskOnly]);
+
   return (
     <Card>
       <CardContent className="p-0">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث باسم المؤسسة…" className="h-9 max-w-xs" />
+          <select value={statusF} onChange={(e) => setStatusF(e.target.value)} className={`${selectCls} h-9 w-auto`}>
+            <option value="ALL">كل الحالات</option>
+            {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <select value={sortK} onChange={(e) => setSortK(e.target.value)} className={`${selectCls} h-9 w-auto`}>
+            <option value="name">ترتيب: الاسم</option>
+            <option value="mrr">ترتيب: الإيراد</option>
+            <option value="expiry">ترتيب: الأقرب انتهاءً</option>
+            <option value="members">ترتيب: المستخدمون</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground"><input type="checkbox" checked={riskOnly} onChange={(e) => setRiskOnly(e.target.checked)} className="size-4" />معرّض للخطر فقط</label>
+          <span className="ms-auto text-sm text-muted-foreground tabular-nums">{view.length} / {orgs.length}</span>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -134,18 +182,26 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orgs.map((o) => {
+            {view.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">لا مؤسسات مطابقة.</TableCell></TableRow>
+            )}
+            {view.map((o) => {
               const st = STATUS[o.status] ?? STATUS.NONE;
               return (
                 <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell className="font-medium"><Link href={`/admin/tenants/${o.id}`} className="hover:text-primary hover:underline">{o.name}</Link></TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                   <TableCell>{o.planName || <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-sm tabular-nums">{o.members.toLocaleString("ar-EG")}{o.maxUsers != null ? ` / ${o.maxUsers}` : ""}</TableCell>
                   <TableCell className="text-sm tabular-nums">{fmtBytes(o.storageBytes)}{o.storageGb != null ? ` / ${o.storageGb} ج.ب` : ""}</TableCell>
                   <TableCell className="text-sm">{o.expiresAt || <span className="text-muted-foreground">بلا انتهاء</span>}</TableCell>
                   <TableCell className="text-sm">{o.status === "NONE" ? "الكل (افتراضي)" : `${o.enabledModules.length}/${ALL_MODULES.length}`}</TableCell>
-                  <TableCell><Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button>
+                      <Button size="sm" variant="ghost" disabled={imp} onClick={() => support(o.id)} title="دخول لمساحة المؤسسة للدعم">دخول للدعم</Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}

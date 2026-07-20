@@ -44,7 +44,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
     if (lines.some((l) => !l.expenseAccountId || !(l.amount > 0))) return toast.error("أكمل بنود المصروف");
     start(async () => {
       const r = await createExpenseClaimAction({ employeeName, cashAccountId, date, notes, lines });
-      if (r.ok) { toast.success("تم حفظ المطالبة (مسودة)"); router.push(r.id ? `/erp/hr/expense-claims/${r.id}` : "/erp/hr/expense-claims"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ المطالبة (مسودة)"); router.push(r.id ? `/hr/expense-claims/${r.id}` : "/hr/expense-claims"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -56,7 +56,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
           <CardTitle>بيانات المطالبة</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المطالبة</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/hr/expense-claims")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/hr/expense-claims")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

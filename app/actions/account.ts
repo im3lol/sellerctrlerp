@@ -81,7 +81,7 @@ export async function enableMfaAction(code: string): Promise<ActionState & { bac
   const backupCodes = Array.from({ length: 8 }, () => randomBytes(5).toString("hex")); // 10-char codes
   const hashed = await Promise.all(backupCodes.map((c) => bcrypt.hash(c, BCRYPT_COST)));
   await db.update(users).set({ mfaEnabled: true, mfaBackupCodes: hashed }).where(eq(users.id, sessionUser.id));
-  revalidatePath("/erp/settings/security");
+  revalidatePath("/settings/security");
   return { ok: true, backupCodes };
 }
 
@@ -91,6 +91,6 @@ export async function disableMfaAction(password: string): Promise<ActionState> {
   const [user] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, sessionUser.id)).limit(1);
   if (!user || !(await verifyCurrentPassword(user.hash, password))) return { error: "كلمة المرور غير صحيحة" };
   await db.update(users).set({ mfaEnabled: false, mfaSecret: null, mfaBackupCodes: null }).where(eq(users.id, sessionUser.id));
-  revalidatePath("/erp/settings/security");
+  revalidatePath("/settings/security");
   return { ok: true };
 }

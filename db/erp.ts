@@ -21,6 +21,7 @@ import {
   integer,
   boolean,
   timestamp,
+  date,
   numeric,
   jsonb,
   uniqueIndex,
@@ -36,6 +37,12 @@ import { users } from "./schema";
 const pk = () => text("id").primaryKey().default(sql`(gen_random_uuid())::text`);
 const orgId = () =>
   text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" });
+// For line/child tables: same NOT NULL org column, but the DB `set_org` trigger
+// (migration 0050) derives it from the parent on INSERT — so it's optional in the
+// insert type ($defaultFn is client-only, never serialized → no DDL/snapshot drift).
+// The throwaway "" is always overwritten by the trigger; callers pass nothing.
+const lineOrgId = () =>
+  text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }).$defaultFn(() => "");
 const money = (name: string) => numeric(name, { precision: 18, scale: 4 });
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
@@ -210,6 +217,9 @@ export const items = pgTable(
     weight: text("weight"),      // e.g. "0.5 kg"
     dimensions: text("dimensions"), // e.g. "10 × 5 × 3 cm"
     image: text("image"),
+    // Auto-created from a marketplace order whose SKU wasn't in the catalog. Has a
+    // name+price from the order but no cost — its orders stay DRAFT until reviewed.
+    needsReview: boolean("needs_review").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -236,10 +246,16 @@ export const itemCodes = pgTable(
   ],
 );
 
+// ⚠️ DEAD TABLES — item_balances and fifo_layers are NOT read or written by any
+// application code. All live on-hand and costing derives from stock_movements
+// running balances (+ stock_batches for lots). Do NOT treat item_balances.avg_cost
+// or fifo_layers as authoritative; they are never populated and will be stale/empty.
+// Kept only to avoid a destructive drop; remove in a dedicated migration.
 export const itemBalances = pgTable(
   "item_balances",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     itemId: text("item_id").notNull().references(() => items.id),
     warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
     quantity: money("quantity").notNull().default("0"),
@@ -249,8 +265,10 @@ export const itemBalances = pgTable(
   (t) => [uniqueIndex("item_balances_unique").on(t.itemId, t.warehouseId)],
 );
 
+// ⚠️ DEAD TABLE — see the note on itemBalances above; nothing reads/writes this.
 export const fifoLayers = pgTable("fifo_layers", {
   id: pk(),
+  organizationId: lineOrgId(),
   itemId: text("item_id").notNull().references(() => items.id),
   warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
   quantity: money("quantity").notNull(),
@@ -284,11 +302,32 @@ export const stockMovements = pgTable(
   },
   (t) => [
     uniqueIndex("stock_movements_org_number_idx").on(t.organizationId, t.number),
-    index("stock_movements_item_wh_idx").on(t.organizationId, t.itemId, t.warehouseId),
-    // Covers DISTINCT ON (item_id, wh_id) ORDER BY item_id, wh_id, created_at DESC, number DESC
-    // used by stock-balance queries — without this PostgreSQL does a full table scan + sort.
-    // Apply with: CREATE INDEX CONCURRENTLY stock_movements_balance_idx ON
-    //   stock_movements (organization_id, item_id, warehouse_id, created_at DESC, number DESC);
+    // (org, item, warehouse) is a strict prefix of stock_movements_balance_idx below,
+    // so that index already serves every lookup this one did — verified on EXPLAIN.
+    // Keeping both only cost writes on the busiest table in the system and gave the
+    // planner a narrower index to prefer, which is how the balance index ended up
+    // looking unused.
+    // index("stock_movements_item_wh_idx") — removed, redundant prefix.
+    // Serves priorBalance: WHERE org+item+warehouse ORDER BY created_at DESC,
+    // number DESC LIMIT 1 — the hottest read in the system (postStockMovement runs
+    // it for every line of every posted document).
+    //
+    // ALL-ASC IS CORRECT HERE. DO NOT "FIX" IT TO DESC — measured, it changes
+    // nothing, and rebuilding this index on a large table is not free:
+    //   · priorBalance already gets "Index Scan Backward using
+    //     stock_movements_balance_idx", 0.04ms over 50k movements on one
+    //     item+warehouse. `ORDER BY a DESC, b DESC` is the exact reverse of the
+    //     index, and a btree reads backwards just as cheaply. (Backward also yields
+    //     NULLS FIRST, which is what a bare `ORDER BY x DESC` asks for — whereas
+    //     drizzle's .desc() would emit DESC NULLS LAST and match nothing.)
+    //   · The DISTINCT ON in getStockBalances does not use this index in either
+    //     direction and never will: Postgres has no index skip-scan, so it reads
+    //     every row of the org regardless, and seq-scan + sort beats an ordered
+    //     scan plus 50k random heap fetches. A/B at 5000 items × 10 movements gives
+    //     byte-identical plans for the ASC and DESC versions.
+    // A mixed-direction index would only pay off for a mixed ORDER BY
+    // (e.g. item ASC, created_at DESC) that the planner actually chooses — not the
+    // case for any query here.
     index("stock_movements_balance_idx").on(t.organizationId, t.itemId, t.warehouseId, t.createdAt, t.number),
     index("stock_movements_ref_idx").on(t.referenceType, t.referenceId),
   ],
@@ -370,13 +409,16 @@ export const stockTransfers = pgTable(
 
 export const stockTransferLines = pgTable("stock_transfer_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   stockTransferId: text("stock_transfer_id").notNull().references(() => stockTransfers.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   fromWarehouseId: text("from_warehouse_id").references(() => warehouses.id),
   toWarehouseId: text("to_warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(),
   notes: text("notes"),
-});
+}, (t) => [
+  index("stock_transfer_lines_transfer_idx").on(t.stockTransferId),
+]);
 
 /**
  * Stock adjustment document (count correction / damage / surplus). The header
@@ -413,6 +455,7 @@ export const stockAdjustments = pgTable(
 
 export const stockAdjustmentLines = pgTable("stock_adjustment_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   stockAdjustmentId: text("stock_adjustment_id").notNull().references(() => stockAdjustments.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
@@ -423,7 +466,9 @@ export const stockAdjustmentLines = pgTable("stock_adjustment_lines", {
   totalValue: money("total_value").notNull().default("0"),
   movementId: text("movement_id"), // the ADJ stock movement for this line, set on confirm
   notes: text("notes"),
-});
+}, (t) => [
+  index("stock_adjustment_lines_adj_idx").on(t.stockAdjustmentId),
+]);
 
 export const materialRequests = pgTable(
   "material_requests",
@@ -444,13 +489,16 @@ export const materialRequests = pgTable(
 
 export const materialRequestLines = pgTable("material_request_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   materialRequestId: text("material_request_id").notNull().references(() => materialRequests.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   fulfilledQty: money("fulfilled_qty").notNull().default("0"),
   uomId: text("uom_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("material_request_lines_req_idx").on(t.materialRequestId),
+]);
 
 export const deliveryNotes = pgTable(
   "delivery_notes",
@@ -468,11 +516,17 @@ export const deliveryNotes = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("delivery_notes_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("delivery_notes_org_number_idx").on(t.organizationId, t.number),
+    // Order → delivery → invoice: walked by the delivery list, the invoice-from-
+    // delivery flow, and the Amazon settlement's subledger lookup.
+    index("delivery_notes_order_idx").on(t.salesOrderId),
+  ],
 );
 
 export const deliveryNoteLines = pgTable("delivery_note_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   deliveryNoteId: text("delivery_note_id").notNull().references(() => deliveryNotes.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line issuing warehouse (falls back to the note's warehouse when null).
@@ -480,7 +534,10 @@ export const deliveryNoteLines = pgTable("delivery_note_lines", {
   quantity: money("quantity").notNull(),
   salesInvoiceLineId: text("sales_invoice_line_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("delivery_note_lines_dn_idx").on(t.deliveryNoteId),
+  index("delivery_note_lines_item_idx").on(t.itemId),
+]);
 
 export const purchaseReceipts = pgTable(
   "purchase_receipts",
@@ -503,6 +560,7 @@ export const purchaseReceipts = pgTable(
 
 export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line receiving warehouse (falls back to the receipt's warehouse when null).
@@ -513,7 +571,10 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_receipt_lines_grn_idx").on(t.purchaseReceiptId),
+  index("purchase_receipt_lines_item_idx").on(t.itemId),
+]);
 
 export const pickLists = pgTable(
   "pick_lists",
@@ -533,13 +594,16 @@ export const pickLists = pgTable(
 
 export const pickListLines = pgTable("pick_list_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   pickListId: text("pick_list_id").notNull().references(() => pickLists.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   pickedQty: money("picked_qty").notNull().default("0"),
   salesInvoiceId: text("sales_invoice_id"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("pick_list_lines_list_idx").on(t.pickListId),
+]);
 
 /* ════════════════════════ ACCOUNTING ══════════════════════ */
 
@@ -757,6 +821,7 @@ export const journalEntryLines = pgTable(
   "journal_entry_lines",
   {
     id: pk(),
+    organizationId: lineOrgId(),
     journalEntryId: text("journal_entry_id").notNull().references(() => journalEntries.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull().references(() => accounts.id),
     costCenterId: text("cost_center_id").references(() => costCenters.id),
@@ -770,6 +835,10 @@ export const journalEntryLines = pgTable(
     reconciledAt: ts("reconciled_at"),
   },
   (t) => [
+    // The join key of every financial statement, and of postDraft/reverseEntry
+    // fetching one entry's lines. Postgres does not index a FK for you, so without
+    // this, posting a single entry seq-scans the whole table (200k+ rows/yr).
+    index("journal_entry_lines_entry_idx").on(t.journalEntryId),
     index("journal_entry_lines_account_idx").on(t.accountId),
     index("journal_entry_lines_cost_center_idx").on(t.costCenterId),
   ],
@@ -945,6 +1014,9 @@ export const salesInvoices = pgTable(
     // Set when the invoice is billed from a delivery note (stock + COGS already
     // posted at delivery, so this invoice bills revenue/AR only).
     deliveryNoteId: text("delivery_note_id"),
+    // Set when converted directly from a sales order — lets deleting the DRAFT
+    // invoice reopen the order to CONFIRMED (Audit#7).
+    salesOrderId: text("sales_order_id"),
     date: ts("date").notNull(),
     dueDate: ts("due_date"),
     status: text("status").notNull().default("DRAFT"),
@@ -965,20 +1037,37 @@ export const salesInvoices = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("sales_invoices_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("sales_invoices_org_number_idx").on(t.organizationId, t.number),
+    // The dashboard and every invoice list filter org + status and sort/bound by
+    // date; the org+number unique above cannot serve that, so they were seq-scanning
+    // the table (one of them scans everything just to return the latest 5).
+    index("sales_invoices_org_status_date_idx").on(t.organizationId, t.status, t.date.desc()),
+    // Overdue AR.
+    index("sales_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
+    index("sales_invoices_customer_idx").on(t.customerId),
+  ],
 );
 
-export const salesInvoiceLines = pgTable("sales_invoice_lines", {
-  id: pk(),
-  salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
-  itemId: text("item_id").notNull().references(() => items.id),
-  quantity: money("quantity").notNull(),
-  unitPrice: money("unit_price").notNull(),
-  discountAmount: money("discount_amount").notNull().default("0"),
-  taxAmount: money("tax_amount").notNull().default("0"),
-  totalAmount: money("total_amount").notNull(),
-  costAmount: money("cost_amount").notNull().default("0"),
-});
+export const salesInvoiceLines = pgTable(
+  "sales_invoice_lines",
+  {
+    id: pk(),
+    organizationId: lineOrgId(),
+    salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id),
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull(),
+    discountAmount: money("discount_amount").notNull().default("0"),
+    taxAmount: money("tax_amount").notNull().default("0"),
+    totalAmount: money("total_amount").notNull(),
+    costAmount: money("cost_amount").notNull().default("0"),
+  },
+  (t) => [
+    index("sales_invoice_lines_inv_idx").on(t.salesInvoiceId),
+    index("sales_invoice_lines_item_idx").on(t.itemId),
+  ],
+);
 
 export const receiptVouchers = pgTable(
   "receipt_vouchers",
@@ -1007,10 +1096,14 @@ export const receiptVouchers = pgTable(
 
 export const receiptLines = pgTable("receipt_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   receiptVoucherId: text("receipt_voucher_id").notNull().references(() => receiptVouchers.id, { onDelete: "cascade" }),
   salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id),
   amount: money("amount").notNull(),
-});
+}, (t) => [
+  index("receipt_lines_voucher_idx").on(t.receiptVoucherId),
+  index("receipt_lines_invoice_idx").on(t.salesInvoiceId),
+]);
 
 /* ══════════════════ CRM — SALES PIPELINE ══════════════════ */
 
@@ -1052,6 +1145,9 @@ export const purchaseInvoices = pgTable(
     // Set when billed from a goods receipt (stock + inventory already posted at
     // receipt against the GRNI clearing account; this invoice clears GRNI → AP).
     goodsReceiptId: text("goods_receipt_id"),
+    // Set when converted directly from a purchase order — lets deleting the DRAFT
+    // invoice reopen the order to CONFIRMED (Audit#7).
+    purchaseOrderId: text("purchase_order_id"),
     date: ts("date").notNull(),
     dueDate: ts("due_date"),
     status: text("status").notNull().default("DRAFT"),
@@ -1071,11 +1167,18 @@ export const purchaseInvoices = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("purchase_invoices_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("purchase_invoices_org_number_idx").on(t.organizationId, t.number),
+    // Mirror of sales_invoices — same dashboard/list/aging access pattern.
+    index("purchase_invoices_org_status_date_idx").on(t.organizationId, t.status, t.date.desc()),
+    index("purchase_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
+    index("purchase_invoices_supplier_idx").on(t.supplierId),
+  ],
 );
 
 export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseInvoiceId: text("purchase_invoice_id").notNull().references(() => purchaseInvoices.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1084,7 +1187,10 @@ export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
   totalAmount: money("total_amount").notNull(),
-});
+}, (t) => [
+  index("purchase_invoice_lines_inv_idx").on(t.purchaseInvoiceId),
+  index("purchase_invoice_lines_item_idx").on(t.itemId),
+]);
 
 export const paymentVouchers = pgTable(
   "payment_vouchers",
@@ -1113,10 +1219,14 @@ export const paymentVouchers = pgTable(
 
 export const paymentLines = pgTable("payment_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   paymentVoucherId: text("payment_voucher_id").notNull().references(() => paymentVouchers.id, { onDelete: "cascade" }),
   purchaseInvoiceId: text("purchase_invoice_id").notNull().references(() => purchaseInvoices.id),
   amount: money("amount").notNull(),
-});
+}, (t) => [
+  index("payment_lines_voucher_idx").on(t.paymentVoucherId),
+  index("payment_lines_invoice_idx").on(t.purchaseInvoiceId),
+]);
 
 // General operating expense (not tied to a supplier invoice): pay from cash/bank
 // against an expense category. Confirming posts Dr expense · Cr cash/bank.
@@ -1225,13 +1335,16 @@ export const salesQuotations = pgTable(
 
 export const salesQuotationLines = pgTable("sales_quotation_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   quotationId: text("quotation_id").notNull().references(() => salesQuotations.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
-});
+}, (t) => [
+  index("sales_quotation_lines_qt_idx").on(t.quotationId),
+]);
 
 // Employee expense claim: an employee submits multiple expense lines; approving it
 // posts Dr each expense category / Cr cash/bank (reimbursement) via the engine.
@@ -1255,11 +1368,14 @@ export const expenseClaims = pgTable(
 
 export const expenseClaimLines = pgTable("expense_claim_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   claimId: text("claim_id").notNull().references(() => expenseClaims.id, { onDelete: "cascade" }),
   expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
   amount: money("amount").notNull(),
   description: text("description"),
-});
+}, (t) => [
+  index("expense_claim_lines_claim_idx").on(t.claimId),
+]);
 
 // Recurring journal template (accruals, prepaid amortisation, allocations…). The
 // daily cron materialises a DRAFT journal entry each time it's due; a human posts it.
@@ -1282,12 +1398,15 @@ export const recurringJournals = pgTable(
 
 export const recurringJournalLines = pgTable("recurring_journal_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   recurringJournalId: text("recurring_journal_id").notNull().references(() => recurringJournals.id, { onDelete: "cascade" }),
   accountId: text("account_id").notNull().references(() => accounts.id),
   debit: money("debit").notNull().default("0"),
   credit: money("credit").notNull().default("0"),
   description: text("description"),
-});
+}, (t) => [
+  index("recurring_journal_lines_tpl_idx").on(t.recurringJournalId),
+]);
 
 // Per-tenant API keys for the read-only public REST API (/api/v1/*). Only the
 // SHA-256 hash is stored; the plaintext key is shown once at creation.
@@ -1300,6 +1419,8 @@ export const apiKeys = pgTable(
     keyHash: text("key_hash").notNull(),
     keyHint: text("key_hint").notNull(), // masked display, e.g. sk_ab…yz
     isActive: boolean("is_active").notNull().default(true),
+    scope: text("scope").notNull().default("write"), // 'read' | 'write' — write implies read (Audit#16)
+    expiresAt: ts("expires_at"),                       // null = never expires (Audit#16)
     lastUsedAt: ts("last_used_at"),
     createdAt: createdAt(),
   },
@@ -1327,13 +1448,16 @@ export const recurringSalesInvoices = pgTable(
 
 export const recurringSalesInvoiceLines = pgTable("recurring_sales_invoice_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   recurringId: text("recurring_id").notNull().references(() => recurringSalesInvoices.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
-});
+}, (t) => [
+  index("recurring_sales_invoice_lines_tpl_idx").on(t.recurringId),
+]);
 
 export const purchaseOrders = pgTable(
   "purchase_orders",
@@ -1365,6 +1489,7 @@ export const purchaseOrders = pgTable(
 
 export const purchaseOrderLines = pgTable("purchase_order_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseOrderId: text("purchase_order_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
@@ -1376,7 +1501,10 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   taxAmount: money("tax_amount").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_order_lines_order_idx").on(t.purchaseOrderId),
+  index("purchase_order_lines_item_idx").on(t.itemId),
+]);
 
 export const salesOrders = pgTable(
   "sales_orders",
@@ -1402,6 +1530,9 @@ export const salesOrders = pgTable(
     channel: text("channel").notNull().default("MANUAL"), // MANUAL, AMAZON, NOON
     platformId: text("platform_id").references(() => salesPlatforms.id),
     externalOrderId: text("external_order_id"),
+    // Raw marketplace order status (Pending/Shipped/Canceled/…) for display, kept in
+    // sync on every pull. Distinct from `status` (our internal document lifecycle).
+    channelStatus: text("channel_status"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1414,21 +1545,31 @@ export const salesOrders = pgTable(
   ],
 );
 
-export const salesOrderLines = pgTable("sales_order_lines", {
-  id: pk(),
-  salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
-  itemId: text("item_id").notNull().references(() => items.id),
-  // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
-  warehouseId: text("warehouse_id").references(() => warehouses.id),
-  quantity: money("quantity").notNull(),
-  deliveredQty: money("delivered_qty").notNull().default("0"),
-  invoicedQty: money("invoiced_qty").notNull().default("0"),
-  unitPrice: money("unit_price").notNull().default("0"),
-  discountAmount: money("discount_amount").notNull().default("0"),
-  taxAmount: money("tax_amount").notNull().default("0"),
-  totalAmount: money("total_amount").notNull().default("0"),
-  notes: text("notes"),
-});
+export const salesOrderLines = pgTable(
+  "sales_order_lines",
+  {
+    id: pk(),
+    organizationId: lineOrgId(),
+    salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id),
+    // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    quantity: money("quantity").notNull(),
+    deliveredQty: money("delivered_qty").notNull().default("0"),
+    invoicedQty: money("invoiced_qty").notNull().default("0"),
+    unitPrice: money("unit_price").notNull().default("0"),
+    discountAmount: money("discount_amount").notNull().default("0"),
+    taxAmount: money("tax_amount").notNull().default("0"),
+    totalAmount: money("total_amount").notNull().default("0"),
+    notes: text("notes"),
+  },
+  (t) => [
+    index("sales_order_lines_order_idx").on(t.salesOrderId),
+    // getAvailability joins this per item on every item search / order save to work
+    // out what is reserved — the hottest interactive read in the app.
+    index("sales_order_lines_item_idx").on(t.itemId),
+  ],
+);
 
 /* ═══════════════ SALES PLATFORMS (منصات البيع) ═══════════════ */
 
@@ -1483,6 +1624,8 @@ export const platformCredentials = pgTable(
     lastSyncStatus: text("last_sync_status"),
     autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
+    ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
+    openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],
@@ -1577,6 +1720,7 @@ export const profitDistributions = pgTable("profit_distributions", {
 
 export const investorShares = pgTable("investor_shares", {
   id: pk(),
+  organizationId: lineOrgId(),
   distributionId: text("distribution_id").notNull().references(() => profitDistributions.id, { onDelete: "cascade" }),
   investorId: text("investor_id").notNull().references(() => investors.id, { onDelete: "cascade" }),
   ownershipPercent: money("ownership_percent").notNull().default("0"),
@@ -1620,18 +1764,26 @@ export const purchaseReturns = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("purchase_returns_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("purchase_returns_org_number_idx").on(t.organizationId, t.number),
+    // Mirror of sales_returns — the prior-returns lookup in createPurchaseReturnAction.
+    index("purchase_returns_invoice_idx").on(t.purchaseInvoiceId),
+    index("purchase_returns_receipt_idx").on(t.purchaseReceiptId),
+  ],
 );
 
 export const purchaseReturnLines = pgTable("purchase_return_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   purchaseReturnId: text("purchase_return_id").notNull().references(() => purchaseReturns.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   unitPrice: money("unit_price").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("purchase_return_lines_ret_idx").on(t.purchaseReturnId),
+]);
 
 export const salesReturns = pgTable(
   "sales_returns",
@@ -1651,18 +1803,27 @@ export const salesReturns = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number)],
+  (t) => [
+    uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number),
+    // createSalesReturnAction sums prior POSTED returns for the invoice/delivery to
+    // work out what is still returnable — one lookup per credit note.
+    index("sales_returns_invoice_idx").on(t.salesInvoiceId),
+    index("sales_returns_delivery_idx").on(t.deliveryNoteId),
+  ],
 );
 
 export const salesReturnLines = pgTable("sales_return_lines", {
   id: pk(),
+  organizationId: lineOrgId(),
   salesReturnId: text("sales_return_id").notNull().references(() => salesReturns.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   unitPrice: money("unit_price").notNull().default("0"),
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
-});
+}, (t) => [
+  index("sales_return_lines_ret_idx").on(t.salesReturnId),
+]);
 
 /* ═══════════════ PLATFORM / LICENSING (SaaS) ══════════════ */
 
@@ -1754,6 +1915,180 @@ export const subscriptionRequests = pgTable(
   (t) => [index("subscription_requests_org_idx").on(t.organizationId), index("subscription_requests_status_idx").on(t.status)],
 );
 
+// Append-only log of every subscription state change, with the MRR delta it caused.
+// This is the ONLY source of true MRR-trend + churn history — orgSubscriptions is
+// upserted in place, so without this table the past is unrecoverable. History accrues
+// from the day this ships forward (no backfill possible). org-scoped (RLS policied);
+// read cross-tenant by the owner under withPlatformScope.
+export const subscriptionEvents = pgTable(
+  "subscription_events",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    type: text("type").notNull(),          // ACTIVATED | RENEWED | UPGRADED | DOWNGRADED | EXPIRED | CANCELLED | REACTIVATED
+    planName: text("plan_name"),
+    interval: text("interval"),            // MONTHLY | ANNUAL at the time of the event
+    mrrBefore: money("mrr_before").notNull().default("0"),
+    mrrAfter: money("mrr_after").notNull().default("0"),
+    mrrDelta: money("mrr_delta").notNull().default("0"),
+    note: text("note"),
+    byUserId: uuid("by_user_id").references(() => users.id, { onDelete: "set null" }),
+    at: ts("at").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscription_events_org_idx").on(t.organizationId), index("subscription_events_at_idx").on(t.at)],
+);
+
+// Daily platform-wide MRR snapshot written by the cron. Platform-global (no org),
+// so — like `plans`/`discount_coupons` — it is NOT RLS-policied. Powers the trend line.
+export const mrrSnapshots = pgTable(
+  "mrr_snapshots",
+  {
+    id: pk(),
+    snapshotDate: date("snapshot_date").notNull(),
+    mrr: money("mrr").notNull().default("0"),
+    arr: money("arr").notNull().default("0"),
+    activeCount: integer("active_count").notNull().default(0),
+    trialCount: integer("trial_count").notNull().default(0),
+    expiredCount: integer("expired_count").notNull().default(0),
+    orgCount: integer("org_count").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("mrr_snapshots_date_idx").on(t.snapshotDate)],
+);
+
+// Platform collections ledger: money the OWNER received from a tenant for their SaaS
+// subscription (realized revenue), distinct from MRR (contracted). Recorded by the
+// owner after an offline InstaPay/bank transfer. org-scoped (RLS policied).
+export const subscriptionPayments = pgTable(
+  "subscription_payments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    amount: money("amount").notNull().default("0"),
+    currency: text("currency").notNull().default("EGP"),
+    method: text("method").notNull().default("INSTAPAY"),   // INSTAPAY | BANK | VISA | CASH | OTHER
+    reference: text("reference"),                            // wallet/transfer txn no.
+    paidAt: ts("paid_at").notNull(),
+    periodStart: date("period_start"),                       // optional: which subscription period it covers
+    periodEnd: date("period_end"),
+    note: text("note"),
+    subscriptionRequestId: text("subscription_request_id"),  // link to the request it settled (no FK: soft)
+    recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscription_payments_org_idx").on(t.organizationId), index("subscription_payments_paid_idx").on(t.paidAt)],
+);
+
+// History of per-tenant backups stored in object storage (scheduled by the daily cron,
+// or manual). Holds the storage key + metadata so the owner/tenant can list and
+// re-download them; retention prunes old rows + their objects. org-scoped (RLS policied).
+export const backupRuns = pgTable(
+  "backup_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    storageKey: text("storage_key").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),   // gzipped size
+    totalRows: integer("total_rows").notNull().default(0),
+    tableCount: integer("table_count").notNull().default(0),
+    kind: text("kind").notNull().default("SCHEDULED"),        // SCHEDULED | MANUAL
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("backup_runs_org_idx").on(t.organizationId), index("backup_runs_created_idx").on(t.createdAt)],
+);
+
+/** One row per background marketplace-sync run (Amazon product import/discovery/
+ *  enrichment via the BullMQ workers). Observability: counts + timing + error.
+ *  Job state itself lives in Redis; this is the durable audit trail. org-scoped. */
+export const syncRuns = pgTable(
+  "sync_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    provider: text("provider").notNull().default("amazon"),
+    marketplace: text("marketplace"),
+    kind: text("kind").notNull(),                              // IMPORT | DISCOVERY | DETAILS | IMAGES | PRICING | INVENTORY
+    status: text("status").notNull().default("RUNNING"),       // RUNNING | OK | FAILED
+    productsProcessed: integer("products_processed").notNull().default(0),
+    newProducts: integer("new_products").notNull().default(0),
+    updatedProducts: integer("updated_products").notNull().default(0),
+    failedProducts: integer("failed_products").notNull().default(0),
+    apiRequests: integer("api_requests").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: ts("finished_at"),
+  },
+  (t) => [index("sync_runs_org_idx").on(t.organizationId), index("sync_runs_started_idx").on(t.startedAt)],
+);
+
+/** Inventory Auditor run — a read-only snapshot comparing Amazon FBA quantities to
+ *  the ERP. Never changes stock; it detects + classifies differences. org-scoped. */
+export const inventoryAudits = pgTable(
+  "inventory_audits",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    provider: text("provider").notNull().default("amazon"),
+    marketplace: text("marketplace"),
+    warehouseId: text("warehouse_id"),
+    status: text("status").notNull().default("RUNNING"), // RUNNING | OK | FAILED
+    totalSkus: integer("total_skus").notNull().default(0),
+    matched: integer("matched").notNull().default(0),
+    unmatched: integer("unmatched").notNull().default(0),
+    withDiff: integer("with_diff").notNull().default(0),
+    lost: integer("lost").notNull().default(0),
+    damaged: integer("damaged").notNull().default(0),
+    error: text("error"),
+    createdAt: createdAt(),
+    finishedAt: ts("finished_at"),
+  },
+  (t) => [index("inventory_audits_org_idx").on(t.organizationId), index("inventory_audits_created_idx").on(t.createdAt)],
+);
+
+/** One SKU's line in an audit snapshot: ERP qty vs Amazon's FBA breakdown + status. */
+export const inventoryAuditLines = pgTable(
+  "inventory_audit_lines",
+  {
+    id: pk(),
+    auditId: text("audit_id").notNull().references(() => inventoryAudits.id, { onDelete: "cascade" }),
+    organizationId: orgId(),
+    code: text("code").notNull(),          // seller SKU
+    asin: text("asin"),
+    itemId: text("item_id"),               // null = unmatched
+    itemName: text("item_name"),
+    erpQty: numeric("erp_qty", { precision: 18, scale: 3 }).notNull().default("0"),
+    amazonTotal: integer("amazon_total").notNull().default(0),
+    available: integer("available").notNull().default(0),
+    reserved: integer("reserved").notNull().default(0),
+    inbound: integer("inbound").notNull().default(0),
+    damaged: integer("damaged").notNull().default(0),
+    researching: integer("researching").notNull().default(0),
+    diff: numeric("diff", { precision: 18, scale: 3 }).notNull().default("0"),
+    status: text("status").notNull(),      // MATCHED | RECEIVING | FOUND | RESEARCHING | DAMAGED | LOST | UNMATCHED
+  },
+  (t) => [index("inventory_audit_lines_audit_idx").on(t.auditId), index("inventory_audit_lines_org_idx").on(t.organizationId)],
+);
+
+/** History of reports generated from the report center — for quick re-download.
+ *  We store the request (key + params + format), not the file; re-download
+ *  regenerates from the export route / print view. Kept ~1 week. org-scoped. */
+export const reportDownloads = pgTable(
+  "report_downloads",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    reportKey: text("report_key").notNull(),
+    label: text("label").notNull(),
+    format: text("format").notNull(),        // pdf | excel
+    params: text("params").notNull().default(""), // query string, e.g. "from=…&to=…"
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("report_downloads_org_idx").on(t.organizationId), index("report_downloads_created_idx").on(t.createdAt)],
+);
+
 /* ═══════════════ HR & PAYROLL ═══════════════════════════════ */
 
 // Payroll configuration per employee per organisation. When payType=HOURLY,
@@ -1764,7 +2099,7 @@ export const employees = pgTable(
     id: pk(),
     organizationId: orgId(),
     // Nullable: an employee may be payroll-only, with no system login (userId null).
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     fullName: text("full_name"), // used when there is no linked user account
     employeeCode: text("employee_code"),
     position: text("position"),
@@ -1879,5 +2214,184 @@ export const payrollLines = pgTable(
   (t) => [
     uniqueIndex("payroll_lines_run_emp_idx").on(t.payrollRunId, t.employeeId),
     index("payroll_lines_run_idx").on(t.payrollRunId),
+  ],
+);
+
+/* ═══════════════ OPENING BALANCES (أرصدة افتتاحية) ═══════════════ */
+
+/**
+ * The one-time migration document: what the company already owed, was owed, held
+ * in stock and had in the bank on the day it started using this system.
+ *
+ * Without this there is no way onto the product except hand-writing journal entries
+ * and faking stock adjustments, which is why every onboarding stalled.
+ *
+ * Everything balances against 3002 (حساب الأرصدة الافتتاحية), created on first use.
+ * Posting is one-way and once per org — it is a statement about a moment in time,
+ * not a document you keep editing.
+ */
+export const openingBalances = pgTable(
+  "opening_balances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    /** As-of date: the day before go-live. Balances are stated as at this date. */
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | POSTED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("opening_balances_org_status_idx").on(t.organizationId, t.status)],
+);
+
+/**
+ * One line per thing being brought over.
+ *
+ *  ACCOUNT  — a GL account's balance (cash, bank, loans, capital…): debit/credit.
+ *  CUSTOMER — what a customer owed. Posts to 1103 AND creates an opening invoice,
+ *             so the debt shows in AR aging and can actually be collected against.
+ *  SUPPLIER — mirror of CUSTOMER against 2101.
+ *  ITEM     — stock on hand: quantity × unitCost, through the stock ledger.
+ */
+export const openingBalanceLines = pgTable(
+  "opening_balance_lines",
+  {
+    id: pk(),
+    organizationId: lineOrgId(),
+    openingBalanceId: text("opening_balance_id").notNull().references(() => openingBalances.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // ACCOUNT | CUSTOMER | SUPPLIER | ITEM
+    accountId: text("account_id").references(() => accounts.id),
+    customerId: text("customer_id").references(() => customers.id),
+    supplierId: text("supplier_id").references(() => suppliers.id),
+    itemId: text("item_id").references(() => items.id),
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    /** ACCOUNT/CUSTOMER/SUPPLIER. For ITEM these are derived from qty × unitCost. */
+    debit: money("debit").notNull().default("0"),
+    credit: money("credit").notNull().default("0"),
+    quantity: money("quantity"),
+    unitCost: money("unit_cost"),
+    notes: text("notes"),
+  },
+  (t) => [index("opening_balance_lines_parent_idx").on(t.openingBalanceId)],
+);
+
+
+/* ═══════════════ ACADEMY (الأكاديمية) ═══════════════ */
+
+/**
+ * Lessons that teach the product, managed by the platform owner from /admin/academy.
+ *
+ * DELIBERATELY NOT org-scoped — one of the very few tables here without an
+ * organization_id, alongside `plans` and `discount_coupons`. These are lessons about
+ * SellerCtrl itself, identical for every tenant; giving each org its own copy would
+ * mean the owner editing the same lesson once per customer. Every read is therefore
+ * global, and that is correct rather than a missing filter.
+ *
+ * `module` matches ModuleKey (lib/erp/module-list.ts) — it drives both the grouping
+ * on /erp/academy and the «اتعلّم» link inside that module.
+ *
+ * A lesson is EITHER a video شرح OR a written دليل — `kind` says which, and the two
+ * are separate catalogues that happen to share a table because the row is identical
+ * apart from where the content lives (`url` vs `body`). Splitting them into two
+ * tables would duplicate the module/order/visibility machinery for no gain.
+ *
+ * A video and a guide about the same topic are two rows with two slugs, deliberately:
+ * they're different explanations at different depths, not one lesson in two skins.
+ *
+ * قريباً = the row exists but its content field is still empty. A visible promise
+ * beats an invisible gap.
+ */
+export const academyLessons = pgTable(
+  "academy_lessons",
+  {
+    id: pk(),
+    /** Stable slug — used as the anchor/route, so renaming breaks shared links. */
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    module: text("module").notNull(),
+    /** video | doc — which catalogue this row belongs to. */
+    kind: text("kind").notNull().default("video"),
+    /** One line: what the viewer can do after watching/reading. */
+    outcome: text("outcome"),
+    /** kind=video: the YouTube link. Empty = قريباً. */
+    url: text("url"),
+    /** kind=doc: the guide itself (markdown, with screenshots). Empty = قريباً. */
+    body: text("body"),
+    minutes: integer("minutes"),
+    level: text("level").notNull().default("basic"), // basic | advanced
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("academy_lessons_slug_idx").on(t.slug),
+    index("academy_lessons_module_idx").on(t.kind, t.module, t.sortOrder),
+  ],
+);
+
+/**
+ * «آخر التحديثات» — what shipped, written by the platform owner.
+ *
+ * NOT org-scoped, same reason as academy_lessons above: a release note is about
+ * SellerCtrl, not about one tenant's data. Every tenant reads the same list.
+ *
+ * `releasedAt` is the sort key and is set by the author, not by insert time: notes
+ * get written after the fact, and the list must read as the product's history rather
+ * than as the order someone happened to type them in.
+ */
+export const changelogEntries = pgTable(
+  "changelog_entries",
+  {
+    id: pk(),
+    title: text("title").notNull(),
+    /** The note itself (markdown). */
+    body: text("body").notNull(),
+    /** feature | improvement | fix */
+    kind: text("kind").notNull().default("feature"),
+    /** Which module it touched — null = the whole product. */
+    module: text("module"),
+    releasedAt: ts("released_at").notNull().defaultNow(),
+    /** Unpublished = written but not shown to tenants yet. */
+    isPublished: boolean("is_published").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("changelog_entries_released_idx").on(t.isPublished, t.releasedAt)],
+);
+
+/**
+ * اقتراح أو شكوى — what a tenant sends us.
+ *
+ * Org-scoped, UNLIKE the two tables above: this IS tenant data. A tenant reads only
+ * its own submissions (filter by organization_id, always). The platform owner reads
+ * across orgs at /admin/feedback — that cross-org read is the entire point of the
+ * inbox and is the one place it's allowed.
+ *
+ * `userId` is who sent it, kept so a reply reaches a person rather than a company.
+ * ON DELETE SET NULL: a submission outlives the employee who wrote it.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** suggestion | complaint */
+    kind: text("kind").notNull().default("suggestion"),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    /** open | seen | done */
+    status: text("status").notNull().default("open"),
+    /** The owner's answer — shown back to the tenant that sent it. */
+    reply: text("reply"),
+    repliedAt: ts("replied_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("feedback_org_idx").on(t.organizationId, t.createdAt),
+    index("feedback_status_idx").on(t.status, t.createdAt),
   ],
 );

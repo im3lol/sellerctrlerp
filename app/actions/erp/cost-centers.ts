@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -21,45 +22,49 @@ export async function saveCostCenterAction(_prev: ActionState, formData: FormDat
   const auth = await authorizeErp("accounting.create");
   if ("error" in auth) return auth;
 
-  const parsed = schema.safeParse({
-    code: formData.get("code"),
-    nameAr: formData.get("nameAr"),
-    nameEn: formData.get("nameEn") || undefined,
-    parentId: formData.get("parentId") || undefined,
-    isActive: formData.get("isActive") === "on",
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  if (id && parsed.data.parentId === id) return { error: "لا يمكن جعل المركز أباً لنفسه" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse({
+      code: formData.get("code"),
+      nameAr: formData.get("nameAr"),
+      nameEn: formData.get("nameEn") || undefined,
+      parentId: formData.get("parentId") || undefined,
+      isActive: formData.get("isActive") === "on",
+    });
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    if (id && parsed.data.parentId === id) return { error: "لا يمكن جعل المركز أباً لنفسه" };
 
-  const data = {
-    code: parsed.data.code,
-    nameAr: parsed.data.nameAr,
-    nameEn: parsed.data.nameEn || null,
-    parentId: parsed.data.parentId || null,
-    isActive: parsed.data.isActive,
-  };
+    const data = {
+      code: parsed.data.code,
+      nameAr: parsed.data.nameAr,
+      nameEn: parsed.data.nameEn || null,
+      parentId: parsed.data.parentId || null,
+      isActive: parsed.data.isActive,
+    };
 
-  try {
-    if (id) {
-      await db.update(costCenters).set(data).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, auth.orgId)));
-    } else {
-      await db.insert(costCenters).values({ ...data, organizationId: auth.orgId });
+    try {
+      if (id) {
+        await db.update(costCenters).set(data).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, auth.orgId)));
+      } else {
+        await db.insert(costCenters).values({ ...data, organizationId: auth.orgId });
+      }
+    } catch (e) {
+      return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
-  } catch (e) {
-    return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
-  }
-  revalidatePath("/erp/accounting/cost-centers");
-  return { ok: true };
+    revalidatePath("/accounting/cost-centers");
+    return { ok: true };
+  });
 }
 
 export async function deleteCostCenterAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("accounting.create");
   if ("error" in auth) return auth;
-  try {
-    await db.delete(costCenters).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, auth.orgId)));
-  } catch {
-    return { error: "تعذّر الحذف — قد يكون المركز مستخدماً في قيود" };
-  }
-  revalidatePath("/erp/accounting/cost-centers");
-  return { ok: true };
+  return withOrgScope(auth.orgId, false, async () => {
+    try {
+      await db.delete(costCenters).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, auth.orgId)));
+    } catch {
+      return { error: "تعذّر الحذف — قد يكون المركز مستخدماً في قيود" };
+    }
+    revalidatePath("/accounting/cost-centers");
+    return { ok: true };
+  });
 }

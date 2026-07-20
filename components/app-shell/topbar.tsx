@@ -7,6 +7,7 @@ import { NavList } from "@/components/app-shell/nav-list";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import type { Role } from "@/lib/rbac";
@@ -52,6 +53,7 @@ export function Topbar({
 
       {/* Actions (pushed to the end / left in RTL) */}
       <div className="ms-auto flex items-center gap-2">
+        <ThemeToggle />
         <NotificationBell />
         <OrgSwitcher orgs={orgs} activeId={activeOrgId} />
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />

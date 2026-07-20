@@ -151,7 +151,7 @@ export function AmazonImport() {
             </Table>
             <div className="mt-4">
               <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
-                <Link href="/erp/sales/orders/import/link"><Icon name="Link" className="size-4" />اربط الأكواد بالأصناف</Link>
+                <Link href="/sales/orders/import/link"><Icon name="Link" className="size-4" />اربط الأكواد بالأصناف</Link>
               </Button>
             </div>
           </CardContent>

@@ -1,11 +1,14 @@
 "use server";
 
+import { createHash } from "crypto";
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { round2 as r2 } from "@/lib/erp/money";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts } from "@/db/schema";
+import { accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices, salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
+import { liveInvoice } from "@/lib/erp/invoice-status";
 import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { returnFromSalesInvoiceAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -27,7 +30,17 @@ export type SettlementPreview =
   | { ok: false; error: string };
 
 export type SettlementResult =
-  | { ok: true; imported: number; updated: number; posted: number; deferredHeld: number; returnsCreated: number; returnsUnmatched: string[]; journalNumber?: string }
+  | {
+      ok: true; imported: number; updated: number; posted: number; deferredHeld: number;
+      returnsCreated: number; returnsUnmatched: string[]; journalNumber?: string;
+      /**
+       * AR credited in the GL that found no invoice to apply it against (the
+       * settlement row was never matched to a sales order). This is the remaining
+       * way GL 1103 and the customer subledger can drift, so it is reported
+       * instead of being silently absorbed.
+       */
+      unlinkedReceivable?: number;
+    }
   | { ok: false; error: string };
 
 async function readTxns(formData: FormData): Promise<SettlementTxn[] | { error: string }> {
@@ -100,33 +113,35 @@ async function linkOrders(orgId: string, txns: SettlementTxn[]): Promise<Map<str
 }
 
 export async function previewAmazonSettlementAction(formData: FormData): Promise<SettlementPreview> {
-  const auth = await authorizeErp("accounting.create");
+  const auth = await authorizeErp("accounting.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  const txns = await readTxns(formData);
-  if ("error" in txns) return { ok: false, error: txns.error };
+  return withOrgScope(auth.orgId, false, async () => {
+    const txns = await readTxns(formData);
+    if ("error" in txns) return { ok: false, error: txns.error };
 
-  const byType: Record<string, number> = {};
-  for (const t of txns) byType[t.type] = (byType[t.type] || 0) + 1;
-  const released = txns.filter((t) => t.status === "Released");
-  const deferred = txns.length - released.length;
+    const byType: Record<string, number> = {};
+    for (const t of txns) byType[t.type] = (byType[t.type] || 0) + 1;
+    const released = txns.filter((t) => t.status === "Released");
+    const deferred = txns.length - released.length;
 
-  // How many are new (not already imported by dedup key)?
-  const keys = txns.map(settlementDedupKey);
-  const existing = keys.length
-    ? await db.select({ k: marketplaceSettlementTxns.dedupKey }).from(marketplaceSettlementTxns)
-        .where(and(eq(marketplaceSettlementTxns.organizationId, auth.orgId), inArray(marketplaceSettlementTxns.dedupKey, keys)))
-    : [];
-  const existingKeys = new Set(existing.map((e) => e.k));
-  const newCount = keys.filter((k) => !existingKeys.has(k)).length;
+    // How many are new (not already imported by dedup key)?
+    const keys = txns.map(settlementDedupKey);
+    const existing = keys.length
+      ? await db.select({ k: marketplaceSettlementTxns.dedupKey }).from(marketplaceSettlementTxns)
+          .where(and(eq(marketplaceSettlementTxns.organizationId, auth.orgId), inArray(marketplaceSettlementTxns.dedupKey, keys)))
+      : [];
+    const existingKeys = new Set(existing.map((e) => e.k));
+    const newCount = keys.filter((k) => !existingKeys.has(k)).length;
 
-  const gl = aggregateGL(released);
-  // Only released rows that are new OR not yet posted will actually post; for a
-  // simple preview we show the full released aggregate.
-  return {
-    ok: true, total: txns.length, newCount, byType,
-    released: released.length, deferred,
-    gl: { ...gl, toPost: released.length },
-  };
+    const gl = aggregateGL(released);
+    // Only released rows that are new OR not yet posted will actually post; for a
+    // simple preview we show the full released aggregate.
+    return {
+      ok: true, total: txns.length, newCount, byType,
+      released: released.length, deferred,
+      gl: { ...gl, toPost: released.length },
+    };
+  });
 }
 
 /**
@@ -217,120 +232,192 @@ async function processSettlementRefunds(orgId: string): Promise<{ created: numbe
 }
 
 export async function runAmazonSettlementAction(formData: FormData): Promise<SettlementResult> {
-  const auth = await authorizeErp("accounting.create");
+  const auth = await authorizeErp("accounting.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  const txns = await readTxns(formData);
-  if ("error" in txns) return { ok: false, error: txns.error };
-  if (txns.length === 0) return { ok: false, error: "لا توجد معاملات في الملف" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const txns = await readTxns(formData);
+    if ("error" in txns) return { ok: false, error: txns.error };
+    if (txns.length === 0) return { ok: false, error: "لا توجد معاملات في الملف" };
 
-  const accs = await ensureAmazonAccounts(auth.orgId);
-  if ("error" in accs) return { ok: false, error: accs.error };
+    const accs = await ensureAmazonAccounts(auth.orgId);
+    if ("error" in accs) return { ok: false, error: accs.error };
 
-  // Unify under the AMAZON platform: route transfers to the platform's own bank
-  // account (its GL account) when one is configured; otherwise keep default 1102.
-  const plat = await ensureAmazonPlatform(auth.orgId);
-  if (plat.bankAccountId) {
-    const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
-      .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, auth.orgId))).limit(1);
-    if (ba?.gl) accs.bank = ba.gl;
-  }
+    // Unify under the AMAZON platform: route transfers to the platform's own bank
+    // account (its GL account) when one is configured; otherwise keep default 1102.
+    const plat = await ensureAmazonPlatform(auth.orgId);
+    if (plat.bankAccountId) {
+      const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
+        .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, auth.orgId))).limit(1);
+      if (ba?.gl) accs.bank = ba.gl;
+    }
 
-  const orderMap = await linkOrders(auth.orgId, txns);
+    const orderMap = await linkOrders(auth.orgId, txns);
 
-  // Upsert every row (idempotent). On conflict, refresh status/release/link only.
-  const values = txns.map((t) => ({
-    organizationId: auth.orgId, channel: CHANNEL, settlementId: t.settlementId || null, type: t.type,
-    orderId: t.orderId || null, sku: t.sku || null, description: t.description || null,
-    quantity: String(t.quantity), postedAt: t.postedAt, status: t.status, releaseDate: t.releaseDate,
-    productSales: String(t.productSales), shippingCredits: String(t.shippingCredits), promotionalRebates: String(t.promotionalRebates),
-    sellingFees: String(t.sellingFees), fbaFees: String(t.fbaFees), otherTransactionFees: String(t.otherTransactionFees),
-    other: String(t.other), total: String(t.total), dedupKey: settlementDedupKey(t),
-    salesOrderId: (t.orderId && orderMap.get(t.orderId)) || null,
-  }));
+    // Upsert every row (idempotent). On conflict, refresh status/release/link only.
+    const values = txns.map((t) => ({
+      organizationId: auth.orgId, channel: CHANNEL, settlementId: t.settlementId || null, type: t.type,
+      orderId: t.orderId || null, sku: t.sku || null, description: t.description || null,
+      quantity: String(t.quantity), postedAt: t.postedAt, status: t.status, releaseDate: t.releaseDate,
+      productSales: String(t.productSales), shippingCredits: String(t.shippingCredits), promotionalRebates: String(t.promotionalRebates),
+      sellingFees: String(t.sellingFees), fbaFees: String(t.fbaFees), otherTransactionFees: String(t.otherTransactionFees),
+      other: String(t.other), total: String(t.total), dedupKey: settlementDedupKey(t),
+      salesOrderId: (t.orderId && orderMap.get(t.orderId)) || null,
+    }));
 
-  const beforeCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
-    .where(eq(marketplaceSettlementTxns.organizationId, auth.orgId)))[0]?.n ?? 0;
+    const beforeCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
+      .where(eq(marketplaceSettlementTxns.organizationId, auth.orgId)))[0]?.n ?? 0;
 
-  // Chunk the upsert to keep parameter counts sane.
-  for (let i = 0; i < values.length; i += 500) {
-    await db.insert(marketplaceSettlementTxns).values(values.slice(i, i + 500)).onConflictDoUpdate({
-      target: [marketplaceSettlementTxns.organizationId, marketplaceSettlementTxns.dedupKey],
-      set: {
-        status: sql`excluded.status`,
-        releaseDate: sql`excluded.release_date`,
-        salesOrderId: sql`coalesce(excluded.sales_order_id, ${marketplaceSettlementTxns.salesOrderId})`,
-      },
-    });
-  }
-  const afterCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
-    .where(eq(marketplaceSettlementTxns.organizationId, auth.orgId)))[0]?.n ?? 0;
-  const imported = Number(afterCount) - Number(beforeCount);
-  const updated = txns.length - imported;
-
-  // Post the released, not-yet-posted rows as one aggregated journal entry.
-  const toPost = await db.select({
-    id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type,
-    productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
-    promotionalRebates: marketplaceSettlementTxns.promotionalRebates, sellingFees: marketplaceSettlementTxns.sellingFees,
-    fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
-    other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate,
-  }).from(marketplaceSettlementTxns).where(and(
-    eq(marketplaceSettlementTxns.organizationId, auth.orgId),
-    eq(marketplaceSettlementTxns.status, "Released"),
-    isNull(marketplaceSettlementTxns.journalEntryId),
-  ));
-
-  const deferredHeld = txns.filter((t) => t.status !== "Released").length;
-  if (toPost.length === 0) {
-    const ret0 = await processSettlementRefunds(auth.orgId);
-    revalidatePath("/erp/sales/orders");
-    revalidatePath("/erp/sales/invoices");
-    revalidatePath("/erp/sales/deliveries");
-    return { ok: true, imported, updated, posted: 0, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
-  }
-
-  const rows = toPost.map((r) => ({
-    type: r.type,
-    productSales: Number(r.productSales), shippingCredits: Number(r.shippingCredits), promotionalRebates: Number(r.promotionalRebates),
-    sellingFees: Number(r.sellingFees), fbaFees: Number(r.fbaFees), otherTransactionFees: Number(r.otherTransactionFees),
-    other: Number(r.other), total: Number(r.total),
-  }));
-  const gl = aggregateGL(rows);
-  const line = (accountId: string, amount: number, description: string) =>
-    ({ accountId, debit: amount >= 0 ? amount : 0, credit: amount < 0 ? -amount : 0, description });
-  const lines = [
-    line(accs.clearing, gl.clearing, "صافي رصيد أمازون"),
-    line(accs.fees, gl.fees, "رسوم أمازون (عمولة + FBA + أخرى)"),
-    line(accs.bank, gl.bank, "تحويلات أمازون إلى البنك"),
-    line(accs.receivable, -gl.receivable, "تحصيل ذمم أمازون (مقابل فواتير البيع)"),
-  ].filter((l) => l.debit !== 0 || l.credit !== 0);
-
-  const entryDate = toPost.reduce<Date | null>((mx, r) => {
-    const d = r.releaseDate ? new Date(r.releaseDate) : null;
-    return d && (!mx || d > mx) ? d : mx;
-  }, null) ?? new Date();
-
-  try {
-    const journalId = await db.transaction(async (tx) => {
-      const jid = await postEntry(tx, {
-        orgId: auth.orgId, date: entryDate, sourceType: "AMAZON_SETTLEMENT",
-        sourceId: `AMZ-${entryDate.toISOString()}-${toPost.length}`,
-        description: `تسوية أمازون — ${toPost.length} معاملة (مُفرج عنها)`,
-        userId: auth.userId, lines,
+    // Chunk the upsert to keep parameter counts sane.
+    for (let i = 0; i < values.length; i += 500) {
+      await db.insert(marketplaceSettlementTxns).values(values.slice(i, i + 500)).onConflictDoUpdate({
+        target: [marketplaceSettlementTxns.organizationId, marketplaceSettlementTxns.dedupKey],
+        set: {
+          status: sql`excluded.status`,
+          releaseDate: sql`excluded.release_date`,
+          salesOrderId: sql`coalesce(excluded.sales_order_id, ${marketplaceSettlementTxns.salesOrderId})`,
+        },
       });
-      await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
-        .where(inArray(marketplaceSettlementTxns.id, toPost.map((r) => r.id)));
-      return jid;
-    });
-    void journalId;
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "تعذّر ترحيل قيد التسوية" };
-  }
+    }
+    const afterCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
+      .where(eq(marketplaceSettlementTxns.organizationId, auth.orgId)))[0]?.n ?? 0;
+    const imported = Number(afterCount) - Number(beforeCount);
+    const updated = txns.length - imported;
 
-  const ret = await processSettlementRefunds(auth.orgId);
-  revalidatePath("/erp/sales/orders");
-  revalidatePath("/erp/sales/invoices");
-  revalidatePath("/erp/sales/deliveries");
-  revalidatePath("/erp/accounting");
-  return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
+    // Post the released, not-yet-posted rows as one aggregated journal entry.
+    const toPost = await db.select({
+      id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type,
+      productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
+      promotionalRebates: marketplaceSettlementTxns.promotionalRebates, sellingFees: marketplaceSettlementTxns.sellingFees,
+      fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
+      other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate,
+      salesOrderId: marketplaceSettlementTxns.salesOrderId,
+    }).from(marketplaceSettlementTxns).where(and(
+      eq(marketplaceSettlementTxns.organizationId, auth.orgId),
+      eq(marketplaceSettlementTxns.status, "Released"),
+      isNull(marketplaceSettlementTxns.journalEntryId),
+    ));
+
+    const deferredHeld = txns.filter((t) => t.status !== "Released").length;
+    if (toPost.length === 0) {
+      const ret0 = await processSettlementRefunds(auth.orgId);
+      revalidatePath("/sales/orders");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/sales/deliveries");
+      return { ok: true, imported, updated, posted: 0, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
+    }
+
+    const rows = toPost.map((r) => ({
+      type: r.type,
+      productSales: Number(r.productSales), shippingCredits: Number(r.shippingCredits), promotionalRebates: Number(r.promotionalRebates),
+      sellingFees: Number(r.sellingFees), fbaFees: Number(r.fbaFees), otherTransactionFees: Number(r.otherTransactionFees),
+      other: Number(r.other), total: Number(r.total),
+    }));
+    const gl = aggregateGL(rows);
+    const line = (accountId: string, amount: number, description: string) =>
+      ({ accountId, debit: amount >= 0 ? amount : 0, credit: amount < 0 ? -amount : 0, description });
+    const lines = [
+      line(accs.clearing, gl.clearing, "صافي رصيد أمازون"),
+      line(accs.fees, gl.fees, "رسوم أمازون (عمولة + FBA + أخرى)"),
+      line(accs.bank, gl.bank, "تحويلات أمازون إلى البنك"),
+      line(accs.receivable, -gl.receivable, "تحصيل ذمم أمازون (مقابل فواتير البيع)"),
+    ].filter((l) => l.debit !== 0 || l.credit !== 0);
+
+    const entryDate = toPost.reduce<Date | null>((mx, r) => {
+      const d = r.releaseDate ? new Date(r.releaseDate) : null;
+      return d && (!mx || d > mx) ? d : mx;
+    }, null) ?? new Date();
+
+    // ── Customer subledger ────────────────────────────────────────────────
+    // The entry above credits AR (1103) for money Amazon collected on our behalf.
+    // Crediting the control account alone left customers.balance and the invoice's
+    // balanceDue untouched, so for every marketplace seller GL 1103 drifted from the
+    // subledger permanently: the invoice never left AR aging, and its credit limit
+    // stayed consumed by money already banked. /erp/accounting/control-reconciliation
+    // exists to assert exactly this invariant.
+    //
+    // Apply per order the same figure aggregateGL credits (productSales +
+    // shippingCredits + promotionalRebates + other), so the two sides move together
+    // by construction. A Refund carries negative amounts and correctly puts the debt
+    // back. Resolved order → delivery → invoice in one query, not per row.
+    const arByOrder = new Map<string, number>();
+    for (const r of toPost) {
+      if (!r.salesOrderId) continue;
+      if (r.type !== "Order" && r.type !== "Refund") continue;
+      const amt = Number(r.productSales) + Number(r.shippingCredits) + Number(r.promotionalRebates) + Number(r.other);
+      arByOrder.set(r.salesOrderId, (arByOrder.get(r.salesOrderId) ?? 0) + amt);
+    }
+    const orderIds = [...arByOrder.keys()];
+    const invoiceRows = orderIds.length
+      ? await db.select({
+          invoiceId: salesInvoices.id,
+          customerId: salesInvoices.customerId,
+          orderId: deliveryNotes.salesOrderId,
+        })
+        .from(salesInvoices)
+        .innerJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+        .where(and(
+          eq(salesInvoices.organizationId, auth.orgId),
+          liveInvoice(salesInvoices.status),
+          inArray(deliveryNotes.salesOrderId, orderIds),
+        ))
+      : [];
+    const invByOrder = new Map(invoiceRows.filter((r) => r.orderId).map((r) => [r.orderId!, r]));
+    // AR credited in the GL with no invoice to apply it to — the one case that can
+    // still drift, so it is surfaced rather than swallowed.
+    const unlinkedAr = r2([...arByOrder.entries()]
+      .filter(([oid]) => !invByOrder.has(oid))
+      .reduce((s, [, amt]) => s + amt, 0));
+
+    try {
+      const journalId = await db.transaction(async (tx) => {
+        // Stable natural key from the exact set of posted rows — NOT date+count,
+        // which collides when two uploads share the same max releaseDate and count,
+        // making the (org, sourceType, sourceId) unique index reject the second post
+        // and leaving genuinely-new rows permanently un-postable.
+        const sourceKey = createHash("sha256").update([...toPost.map((r) => r.id)].sort().join(",")).digest("hex").slice(0, 40);
+        const jid = await postEntry(tx, {
+          orgId: auth.orgId, date: entryDate, sourceType: "AMAZON_SETTLEMENT",
+          sourceId: `AMZ-${sourceKey}`,
+          description: `تسوية أمازون — ${toPost.length} معاملة (مُفرج عنها)`,
+          userId: auth.userId, lines,
+        });
+        // Same transaction as the entry above: the control account and the subledger
+        // move together or neither moves.
+        for (const [orderId, amount] of arByOrder) {
+          const inv = invByOrder.get(orderId);
+          if (!inv) continue;
+          const amt = r2(amount);
+          if (amt === 0) continue;
+          // A settlement really is a collection, so paidAmount and status move too —
+          // unlike a credit note, which reduces the debt without paying it. Postgres
+          // evaluates every SET expression against the old row, so the CASE agrees
+          // with the balanceDue expression beside it.
+          await tx.update(salesInvoices)
+            .set({
+              balanceDue: sql`${salesInvoices.balanceDue} - ${amt}`,
+              paidAmount: sql`${salesInvoices.paidAmount} + ${amt}`,
+              status: sql`CASE WHEN ${salesInvoices.balanceDue} - ${amt} <= 0.01 THEN 'PAID' ELSE 'PARTIAL_PAID' END`,
+            })
+            .where(eq(salesInvoices.id, inv.invoiceId));
+          await tx.update(customers)
+            .set({ balance: sql`${customers.balance} - ${amt}` })
+            .where(eq(customers.id, inv.customerId));
+        }
+
+        await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
+          .where(inArray(marketplaceSettlementTxns.id, toPost.map((r) => r.id)));
+        return jid;
+      });
+      void journalId;
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "تعذّر ترحيل قيد التسوية" };
+    }
+
+    const ret = await processSettlementRefunds(auth.orgId);
+    revalidatePath("/sales/orders");
+    revalidatePath("/sales/invoices");
+    revalidatePath("/sales/deliveries");
+    revalidatePath("/accounting");
+    return { ok: true, imported, updated, posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched, unlinkedReceivable: unlinkedAr || undefined };
+  });
 }

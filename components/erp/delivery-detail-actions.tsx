@@ -31,7 +31,7 @@ export function DeliveryDetailActions({ id, number, status, canManage }: { id: s
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد إذن الصرف وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد الصرف
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteDeliveryAction(id), "تم حذف المسودة", "/erp/sales/deliveries")}>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteDeliveryAction(id), "تم حذف المسودة", "/sales/deliveries")}>
           <Icon name="Trash2" className="size-4 text-destructive" />حذف
         </Button>
       </div>
@@ -45,14 +45,14 @@ export function DeliveryDetailActions({ id, number, status, canManage }: { id: s
         if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة بيع من هذا الإذن؟" }))) return;
         start(async () => {
           const r = await convertDeliveryToInvoiceAction(id);
-          if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/erp/sales/invoices/${r.invoiceId}` : "/erp/sales/invoices"); router.refresh(); }
+          if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
           else toast.error(r.error ?? "تعذّر التحويل");
         });
       })();
     return (
       <div className="flex flex-wrap gap-2">
         {status === "DELIVERED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => router.push(`/erp/sales/deliveries/${encodeURIComponent(number)}/return`)}>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => router.push(`/sales/deliveries/${encodeURIComponent(number)}/return`)}>
           <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
         </Button>
       </div>

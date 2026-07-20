@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { requireErpModule } from "@/lib/erp/org";
+import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import {
   purchaseReceipts, purchaseReceiptLines,
@@ -110,18 +110,19 @@ export default async function BarcodePrintPage({ params }: Params) {
   const { type, id } = await params;
   if (!["receipt", "delivery", "transfer"].includes(type)) notFound();
 
-  const { orgId } = await requireErpModule("inventory.view");
-  const labelItems = await fetchItems(type, id, orgId);
-  if (!labelItems) notFound();
+  return loadErpPage("inventory.view", async ({ orgId }) => {
+    const labelItems = await fetchItems(type, id, orgId);
+    if (!labelItems) notFound();
 
-  // Expand: qty=3 → 3 identical label entries
-  const labels: Omit<LabelItem, "quantity">[] = [];
-  for (const item of labelItems) {
-    for (let i = 0; i < item.quantity; i++) {
-      labels.push({ itemCode: item.itemCode, itemName: item.itemName, barcode: item.barcode });
+    // Expand: qty=3 → 3 identical label entries
+    const labels: Omit<LabelItem, "quantity">[] = [];
+    for (const item of labelItems) {
+      for (let i = 0; i < item.quantity; i++) {
+        labels.push({ itemCode: item.itemCode, itemName: item.itemName, barcode: item.barcode });
+      }
     }
-  }
 
-  const docType = TYPE_LABELS[type] ?? type;
-  return <BarcodeLabelSheet labels={labels} title={docType} />;
+    const docType = TYPE_LABELS[type] ?? type;
+    return <BarcodeLabelSheet labels={labels} title={docType} />;
+  });
 }

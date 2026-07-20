@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Employee = { id: string; label: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
 
 export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employees: Employee[]; orgName: string; holidays?: string[] }) {
   const router = useRouter();
@@ -35,7 +35,7 @@ export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employ
     if (days <= 0) return toast.error("تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية");
     start(async () => {
       const r = await createLeaveRequestAction({ employeeId, leaveType, startDate, endDate, reason });
-      if (r.ok) { toast.success("تم حفظ طلب الإجازة (مسودة)"); router.push("/erp/hr/leaves"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ طلب الإجازة (مسودة)"); router.push("/hr/leaves"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -47,7 +47,7 @@ export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employ
           <CardTitle>بيانات الطلب</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الطلب</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/hr/leaves")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/hr/leaves")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

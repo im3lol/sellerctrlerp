@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { searchItems, scanItem } from "@/lib/erp/inventory-queries";
 
@@ -23,12 +24,16 @@ export type ItemSearchResult = {
 export async function searchItemsAction(query: string): Promise<ItemSearchResult[]> {
   const auth = await authorizeErp("inventory.view");
   if ("error" in auth) return [];
-  return searchItems(auth.orgId, query);
+  return withOrgScope(auth.orgId, false, async () => {
+    return searchItems(auth.orgId, query);
+  });
 }
 
 /** Exact barcode/SKU lookup (scan) — the single matching item or null. */
 export async function scanItemAction(code: string): Promise<ItemSearchResult | null> {
   const auth = await authorizeErp("inventory.view");
   if ("error" in auth) return null;
-  return scanItem(auth.orgId, code);
+  return withOrgScope(auth.orgId, false, async () => {
+    return scanItem(auth.orgId, code);
+  });
 }

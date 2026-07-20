@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "next/cache";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
@@ -29,27 +30,31 @@ async function readOrders(formData: FormData): Promise<{ orders: MarketplaceOrde
 
 /** Parse + match, returning what WOULD be imported — no writes. */
 export async function previewAmazonImportAction(formData: FormData): Promise<AmazonPreview> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  const parsed = await readOrders(formData);
-  if ("error" in parsed) return { ok: false, error: parsed.error };
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = await readOrders(formData);
+    if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const preview = await previewOrders(auth.orgId, { channel: CHANNEL }, parsed.orders);
-  return { ok: true, cancelledCount: parsed.cancelledCount, zeroQtyCount: parsed.zeroQtyCount, ...preview };
+    const preview = await previewOrders(auth.orgId, { channel: CHANNEL }, parsed.orders);
+    return { ok: true, cancelledCount: parsed.cancelledCount, zeroQtyCount: parsed.zeroQtyCount, ...preview };
+  });
 }
 
 /** Parse + match + create/fulfil each eligible order (see ingestOrders). */
 export async function runAmazonImportAction(formData: FormData): Promise<ImportResult> {
-  const auth = await authorizeErp("sales.create");
+  const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
-  const parsed = await readOrders(formData);
-  if ("error" in parsed) return { ok: false, error: parsed.error };
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = await readOrders(formData);
+    if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const { platformId, customerId, warehouseId } = await ensureAmazonPlatform(auth.orgId);
-  const ctx: PlatformCtx = { platformId, customerId, warehouseId, channel: CHANNEL, label: LABEL };
-  const result = await ingestOrders(auth.orgId, auth.userId, ctx, parsed.orders);
+    const { platformId, customerId, warehouseId } = await ensureAmazonPlatform(auth.orgId);
+    const ctx: PlatformCtx = { platformId, customerId, warehouseId, channel: CHANNEL, label: LABEL };
+    const result = await ingestOrders(auth.orgId, auth.userId, ctx, parsed.orders);
 
-  revalidatePath("/erp/sales/orders");
-  revalidatePath("/erp/accounting");
-  return { ok: true, ...result };
+    revalidatePath("/sales/orders");
+    revalidatePath("/accounting");
+    return { ok: true, ...result };
+  });
 }

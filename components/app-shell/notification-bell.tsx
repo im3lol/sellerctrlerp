@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, FileClock, CheckCheck } from "lucide-react";
+import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, FileClock, CheckCheck, ShoppingCart, Volume2, VolumeX } from "lucide-react";
 import { getNotificationsAction } from "@/app/actions/erp/notifications";
 import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { playChime, isSoundOn, setSoundOn } from "@/lib/sound";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const rtf = new Intl.RelativeTimeFormat("ar-EG", { numeric: "auto" });
@@ -22,18 +23,30 @@ export function NotificationBell() {
   // Attention counter, not per-message read state: "mark all as read" acknowledges
   // the current total; the badge reappears only when something new pushes it higher.
   const [ackTotal, setAckTotal] = useState<number>(-1);
+  const [soundOn, setSound] = useState(true);
   const seenRef = useRef<string>("");
+  const lastTotalRef = useRef<number | null>(null); // to chime only when the count rises
 
-  const load = () => getNotificationsAction(seenRef.current || undefined).then(setN).catch(() => {});
+  const load = () => getNotificationsAction(seenRef.current || undefined).then((data) => {
+    setN(data);
+    const prev = lastTotalRef.current;
+    if (prev !== null && data.total > prev) playChime("notify"); // new notification arrived
+    lastTotalRef.current = data.total;
+  }).catch(() => {});
   useEffect(() => {
     seenRef.current = localStorage.getItem("notif_seen_at") ?? new Date().toISOString();
     localStorage.setItem("notif_seen_at", seenRef.current);
     setAckTotal(Number(localStorage.getItem("notif_ack_total") ?? -1));
+    setSound(isSoundOn());
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, []);
 
+  // Opening the panel only clears the red badge — it must NOT reset the "since"
+  // window, or the new items you opened to read would vanish instantly.
+  const acknowledgeBadge = () => { const t = n?.total ?? 0; setAckTotal(t); localStorage.setItem("notif_ack_total", String(t)); load(); };
+  // Reset the since-window (clears the "new" rows) — only on explicit mark-all-read.
   const markSeen = () => { const now = new Date().toISOString(); seenRef.current = now; localStorage.setItem("notif_seen_at", now); load(); };
   const markAllRead = () => {
     const t = n?.total ?? 0;
@@ -45,12 +58,14 @@ export function NotificationBell() {
   const showBadge = total > 0 && total > ackTotal;
 
   const rows = [
-    { show: !!n?.pendingDrafts, icon: <FileClock className="size-4" />, tone: "amber", label: "مسودات بانتظار التأكيد", count: n?.pendingDrafts ?? 0, href: "/erp/drafts" },
-    { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/erp/audit" },
-    { show: !!n?.lowStock, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/erp/inventory/reorder" },
-    { show: !!n?.expiring, icon: <CalendarClock className="size-4" />, tone: "amber", label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/erp/inventory/expiry" },
-    { show: !!n?.overdueAR, icon: <Clock className="size-4" />, tone: "red", label: `فواتير بيع متأخرة${n?.overdueTotal ? ` (${int(n.overdueTotal)})` : ""}`, count: n?.overdueAR ?? 0, href: "/erp/accounting/aging" },
-    { show: !!n?.overdueAP, icon: <Clock className="size-4" />, tone: "red", label: `فواتير شراء متأخرة${n?.overdueAPTotal ? ` (${int(n.overdueAPTotal)})` : ""}`, count: n?.overdueAP ?? 0, href: "/erp/accounting/aging" },
+    { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: "طلبات أمازون جديدة", count: n?.newOrders ?? 0, href: "/sales/orders" },
+    { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف من أمازون تحتاج مراجعة", count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
+    { show: !!n?.pendingDrafts, icon: <FileClock className="size-4" />, tone: "amber", label: "مسودات بانتظار التأكيد", count: n?.pendingDrafts ?? 0, href: "/drafts" },
+    { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/audit" },
+    { show: !!n?.lowStock, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/inventory/reorder" },
+    { show: !!n?.expiring, icon: <CalendarClock className="size-4" />, tone: "amber", label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/inventory/expiry" },
+    { show: !!n?.overdueAR, icon: <Clock className="size-4" />, tone: "red", label: `فواتير بيع متأخرة${n?.overdueTotal ? ` (${int(n.overdueTotal)})` : ""}`, count: n?.overdueAR ?? 0, href: "/accounting/aging" },
+    { show: !!n?.overdueAP, icon: <Clock className="size-4" />, tone: "red", label: `فواتير شراء متأخرة${n?.overdueAPTotal ? ` (${int(n.overdueAPTotal)})` : ""}`, count: n?.overdueAP ?? 0, href: "/accounting/aging" },
   ].filter((r) => r.show);
 
   const toneCls: Record<string, string> = {
@@ -60,7 +75,7 @@ export function NotificationBell() {
   };
 
   return (
-    <Popover onOpenChange={(o) => o && markSeen()}>
+    <Popover onOpenChange={(o) => o && acknowledgeBadge()}>
       <PopoverTrigger className="relative grid size-10 place-items-center rounded-lg hover:bg-accent" aria-label="الإشعارات">
         <Bell className="size-5" />
         {showBadge && (
@@ -74,6 +89,14 @@ export function NotificationBell() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">الإشعارات</span>
             {total > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground">{int(total)}</span>}
+            <button
+              onClick={() => { const next = !soundOn; setSound(next); setSoundOn(next); }}
+              className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+              aria-label={soundOn ? "كتم نغمات الإشعارات" : "تشغيل نغمات الإشعارات"}
+              title={soundOn ? "النغمات مفعّلة" : "النغمات مكتومة"}
+            >
+              {soundOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+            </button>
           </div>
           {total > 0 && (
             <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10">

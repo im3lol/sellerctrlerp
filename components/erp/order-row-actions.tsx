@@ -37,8 +37,8 @@ export function OrderRowActions({
   if (!canManage || status === "INVOICED") return null;
 
   const isSales = type === "sales";
-  const invoiceDest = isSales ? "/erp/sales/invoices" : "/erp/purchases/invoices";
-  const fulfillPath = isSales ? `/erp/sales/orders/${orderId}/deliver` : `/erp/purchases/orders/${orderId}/receive`;
+  const invoiceDest = isSales ? "/sales/invoices" : "/purchases/invoices";
+  const fulfillPath = isSales ? `/sales/orders/${orderId}/deliver` : `/purchases/orders/${orderId}/receive`;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
     void (async () => {
@@ -55,7 +55,7 @@ export function OrderRowActions({
   if (status === "CANCELLED") {
     return (
       <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/erp/sales/orders" : "/erp/purchases/orders")}>
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders")}>
         <Icon name="Trash2" className="size-4 text-destructive" />حذف
       </Button>
     );

@@ -1,0 +1,149 @@
+import Link from "next/link";
+import { and, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { loadErpPage } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { stockTransfers, stockTransferLines } from "@/db/schema";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Icon } from "@/components/icon";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { TransfersTable } from "@/components/erp/transfers-table";
+import { selectCls } from "@/lib/utils";
+
+const PER_PAGE = 10;
+
+const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["POSTED", "مرحّل"]];
+
+type SP = { [k: string]: string | string[] | undefined };
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+export default async function TransfersPage({ searchParams }: { searchParams: Promise<SP> }) {
+  return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+    const canManage = can("inventory.create");
+    const sp = await searchParams;
+    const q = one(sp.q).trim();
+    const fStatus = one(sp.status);
+    const from = one(sp.from);
+    const to = one(sp.to);
+    const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+
+    const conds = [eq(stockTransfers.organizationId, orgId)];
+    if (q) conds.push(ilike(stockTransfers.number, `%${q}%`));
+    if (fStatus) conds.push(eq(stockTransfers.status, fStatus));
+    if (from) conds.push(gte(stockTransfers.date, new Date(from)));
+    if (to) conds.push(lte(stockTransfers.date, new Date(to + "T23:59:59")));
+    const where = and(...conds);
+
+    const [[{ total }], statusRows] = await Promise.all([
+      db.select({ total: count() }).from(stockTransfers).where(where),
+      db.select({ status: stockTransfers.status, c: count() }).from(stockTransfers).where(where).groupBy(stockTransfers.status),
+    ]);
+    const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
+    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DRAFT" ? "text-amber-600" : "text-emerald-600" }));
+    const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
+    const safePage = Math.min(page, pages);
+
+    const heads = await db
+      .select({ id: stockTransfers.id, number: stockTransfers.number, date: stockTransfers.date, notes: stockTransfers.notes, status: stockTransfers.status })
+      .from(stockTransfers)
+      .where(where)
+      .orderBy(desc(stockTransfers.date), desc(stockTransfers.number))
+      .limit(PER_PAGE)
+      .offset((safePage - 1) * PER_PAGE);
+
+    const ids = heads.map((h) => h.id);
+    const agg = ids.length
+      ? await db.select({ tid: stockTransferLines.stockTransferId, c: count() }).from(stockTransferLines)
+          .where(inArray(stockTransferLines.stockTransferId, ids)).groupBy(stockTransferLines.stockTransferId)
+      : [];
+    const aggMap = new Map(agg.map((a) => [a.tid, a]));
+
+    const hasFilters = Boolean(q || fStatus || from || to);
+    const qs = (p: number) => {
+      const u = new URLSearchParams();
+      if (q) u.set("q", q);
+      if (fStatus) u.set("status", fStatus);
+      if (from) u.set("from", from);
+      if (to) u.set("to", to);
+      u.set("page", String(p));
+      return `?${u.toString()}`;
+    };
+
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader
+          icon="ArrowLeftRight"
+          title="التحويلات المخزنية"
+          subtitle={`${total} تحويل`}
+          action={
+            canManage ? (
+              <Button asChild>
+                <Link href="/inventory/transfers/new"><Icon name="Plus" className="size-4" />تحويل جديد</Link>
+              </Button>
+            ) : undefined
+          }
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {statCards.map((s) => (
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>سجل التحويلات</CardTitle>
+            <CardDescription>نقل البضاعة بين المستودعات بنفس التكلفة (لا يؤثّر على إجمالي قيمة المخزون). تُحفظ مسودة ثم تُؤكَّد.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <details open={hasFilters} className="rounded-lg border">
+              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
+                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+              </summary>
+              <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
+                <div className="space-y-1"><Label htmlFor="q">رقم التحويل</Label><Input id="q" name="q" defaultValue={q} placeholder="TR-2026-..." /></div>
+                <div className="space-y-1">
+                  <Label htmlFor="status">الحالة</Label>
+                  <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
+                    <option value="">الكل</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="flex gap-2 sm:col-span-4">
+                  <Button type="submit">تطبيق</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/transfers">مسح</Link></Button>}
+                </div>
+              </form>
+            </details>
+
+            {heads.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد تحويلات مطابقة." : "لا توجد تحويلات بعد."}</div>
+            ) : (
+              <>
+                <TransfersTable
+                  canManage={can("inventory.confirm") || can("inventory.create")}
+                  rows={heads.map((r) => ({ ...r, count: Number(aggMap.get(r.id)?.c ?? 0) }))}
+                />
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>صفحة {safePage} من {pages}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
+                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  });
+}

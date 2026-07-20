@@ -11,12 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type BillableDelivery = { id: string; number: string; customerId: string | null; dateLabel: string };
 type CurrencyOption = { code: string; nameAr: string; isBase: boolean; exchangeRate: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
@@ -86,7 +86,7 @@ export function SalesInvoiceFromDeliveryForm({
       );
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — أكّدها لاعتمادها");
-        router.push(r.invoiceId ? `/erp/sales/invoices/${r.invoiceId}` : "/erp/sales/invoices");
+        router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -99,7 +99,7 @@ export function SalesInvoiceFromDeliveryForm({
           <CardTitle>بيانات فاتورة البيع</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الفاتورة</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/invoices")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/invoices")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

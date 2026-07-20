@@ -11,13 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type OpenOrder = { id: string; number: string; customerId: string | null; dateLabel: string };
 type Line = DeliverableLine & { warehouseId: string; now: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export function DeliveryForm({
@@ -74,7 +74,7 @@ export function DeliveryForm({
       const r = await createDeliveryFromOrderAction(orderId, picks, date);
       if (r.ok) {
         toast.success("تم حفظ إذن الصرف (مسودة) — أكّده لترحيله");
-        router.push(r.id ? `/erp/sales/deliveries/${r.id}` : "/erp/sales/deliveries");
+        router.push(r.id ? `/sales/deliveries/${r.id}` : "/sales/deliveries");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -87,7 +87,7 @@ export function DeliveryForm({
           <CardTitle>بيانات إذن الصرف</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ إذن الصرف</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/erp/sales/deliveries")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/deliveries")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -151,7 +151,7 @@ export function DeliveryForm({
                     </TableCell>
                     <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
                     <TableCell className={`tabular-nums ${short ? "text-destructive" : "text-muted-foreground"}`}>{qtyf(stock)}</TableCell>
-                    <TableCell><Input type="number" step="0.001" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                   </TableRow>
                 );
               })}

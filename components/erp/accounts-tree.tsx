@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Icon } from "@/components/icon";
-import { cn } from "@/lib/utils";
+import { cn, selectCls } from "@/lib/utils";
 
 export type Account = {
   id: string; code: string; nameAr: string; nameEn: string | null;
@@ -28,7 +28,6 @@ export type Account = {
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات",
 };
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm";
 const money = (n: number) => Math.abs(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Balance label: net = debit − credit → Dr if ≥0, Cr if <0. */
@@ -185,7 +184,7 @@ export function AccountsTree({
           <Icon name={hasKids ? "Folder" : "FileText"} className={cn("size-4 shrink-0", hasKids ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{a.code}</span>
           {a.isLeaf ? (
-            <Link href={`/erp/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title="عرض دفتر الأستاذ">
+            <Link href={`/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title="عرض دفتر الأستاذ">
               {a.nameAr}
             </Link>
           ) : (
@@ -197,7 +196,7 @@ export function AccountsTree({
             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {a.isLeaf && (
                 <Button asChild variant="ghost" size="icon" className="size-7" aria-label="دفتر الأستاذ">
-                  <Link href={`/erp/accounting/ledger?account=${a.id}`}><Icon name="BookOpen" className="size-3.5" /></Link>
+                  <Link href={`/accounting/ledger?account=${a.id}`}><Icon name="BookOpen" className="size-3.5" /></Link>
                 </Button>
               )}
               {canManage && (

@@ -15,7 +15,7 @@ export function ReturnDetailActions({ id, type, status, canManage, dest: destPro
   const [pending, start] = useTransition();
   if (!canManage) return null;
 
-  const dest = destProp ?? (type === "sales" ? "/erp/sales/invoices" : "/erp/purchases/invoices");
+  const dest = destProp ?? (type === "sales" ? "/sales/invoices" : "/purchases/invoices");
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) => {
     void (async () => {
       if (!(await confirm({ danger: /حذف|إلغاء|عكس/.test(ok) }))) return;

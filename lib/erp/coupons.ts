@@ -21,6 +21,18 @@ export function applyDiscount(price: number, discountType: string, value: number
   return Math.max(0, Math.round(p * 100) / 100);
 }
 
-export async function incrementRedemption(id: string): Promise<void> {
-  await db.update(discountCoupons).set({ redemptions: sql`${discountCoupons.redemptions} + 1`, updatedAt: new Date() }).where(eq(discountCoupons.id, id));
+/**
+ * Atomically consume one redemption, enforcing the cap in the WHERE clause so two
+ * concurrent redemptions can't both pass the read-side check in findRedeemableCoupon
+ * and over-redeem. Returns false when the cap is already reached (lost the race).
+ */
+export async function incrementRedemption(id: string): Promise<boolean> {
+  const rows = await db.update(discountCoupons)
+    .set({ redemptions: sql`${discountCoupons.redemptions} + 1`, updatedAt: new Date() })
+    .where(and(
+      eq(discountCoupons.id, id),
+      or(isNull(discountCoupons.maxRedemptions), sql`${discountCoupons.redemptions} < ${discountCoupons.maxRedemptions}`)!,
+    ))
+    .returning({ id: discountCoupons.id });
+  return rows.length > 0;
 }

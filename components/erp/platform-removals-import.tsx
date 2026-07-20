@@ -10,8 +10,8 @@ import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectCls } from "@/lib/utils";
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => keys.some((k) => x.toLowerCase().includes(k))); return i >= 0 ? String(i) : ""; };
 
@@ -117,7 +117,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
             <div>إجمالي المُتلَف: <b>{int(result.totalDisposed)}</b> · المُرتجَع للبائع: <b>{int(result.totalReturned)}</b> وحدة.</div>
             <div>طوبق <b>{int(result.matchedItems)}</b> صنف · تم إتلاف <b>{int(result.matchedDisposedUnits)}</b> وحدة (خسارة).</div>
             {result.adjustmentId && (
-              <div>📝 <Link href={`/erp/inventory/adjustments/${result.adjustmentId}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
+              <div>📝 <Link href={`/inventory/adjustments/${result.adjustmentId}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
             )}
             {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} SKU غير مربوط: <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
           </div>

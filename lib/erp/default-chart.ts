@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, accountingJournals, fiscalPeriods } from "@/db/schema";
+import { accounts, accountingJournals, fiscalPeriods, warehouses, currencies } from "@/db/schema";
 
 /**
  * Standard Arabic chart of accounts used to bootstrap a new organization.
@@ -36,12 +36,27 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "4101", nameAr: "إيرادات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4102", nameAr: "مردودات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4201", nameAr: "فائض المخزون (أرباح جرد)", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
+  { code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "5", nameAr: "المصروفات", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: false, parent: null },
   { code: "5101", nameAr: "تكلفة البضاعة المباعة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5201", nameAr: "مصروفات عمومية وإدارية", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5301", nameAr: "عجز وتالف المخزون (خسائر جرد)", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5302", nameAr: "فروق أسعار مرتجعات الشراء", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
+  { code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
 ];
+
+/**
+ * The start/end of a calendar fiscal year (UTC). One definition, so the period that
+ * signup creates and the period that posting auto-creates for the same year have the
+ * exact same bounds — which is what lets the (org, start, end) unique index dedupe
+ * them instead of leaving two periods for one year.
+ */
+export function fiscalYearBounds(year: number): { startDate: Date; endDate: Date } {
+  return {
+    startDate: new Date(Date.UTC(year, 0, 1)),
+    endDate: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+  };
+}
 
 export const DEFAULT_JOURNALS = [
   { code: "GJ", nameAr: "اليومية العامة", type: "GENERAL", sequencePrefix: "JV" },
@@ -71,17 +86,30 @@ export type InitAccountingResult = {
   accountsCreated: number;
   journalsCreated: number;
   periodCreated: boolean;
+  warehouseCreated: boolean;
+  currencyCreated: boolean;
   skipped: boolean;
 };
 
 /**
- * Idempotently bootstrap accounting for an organization: the standard chart of
- * accounts, the three default journals, and an OPEN fiscal period for the
- * current year. Each piece is only created when absent, so it is always safe to
- * re-run (e.g. as a per-tenant setup step or a repair action).
+ * Idempotently bootstrap a new organization so it's usable from the first login:
+ * the standard chart of accounts, the three default journals, an OPEN fiscal
+ * period for the current year, a default warehouse, and the EGP base currency.
+ *
+ * The warehouse and base currency belong here, not just in accounting: delivery
+ * notes and goods receipts carry a NOT NULL warehouse, so a tenant with zero
+ * warehouses can't move any stock — inventory is dead until one exists. And an
+ * explicit EGP base-currency row anchors FX and the currencies screen instead of
+ * relying on the implicit "EGP" fallback in getBaseCurrencyCode.
+ *
+ * Each piece is created only when absent, so it's always safe to re-run (signup
+ * best-effort, the settings repair action, the admin cross-org init).
  */
 export async function initializeAccountingForOrg(orgId: string): Promise<InitAccountingResult> {
-  const result: InitAccountingResult = { accountsCreated: 0, journalsCreated: 0, periodCreated: false, skipped: false };
+  const result: InitAccountingResult = {
+    accountsCreated: 0, journalsCreated: 0, periodCreated: false,
+    warehouseCreated: false, currencyCreated: false, skipped: false,
+  };
 
   const [{ n: acctCount }] = await db
     .select({ n: sql<number>`count(*)` })
@@ -112,11 +140,44 @@ export async function initializeAccountingForOrg(orgId: string): Promise<InitAcc
     await db.insert(fiscalPeriods).values({
       organizationId: orgId,
       name: `السنة المالية ${year}`,
-      startDate: new Date(Date.UTC(year, 0, 1)),
-      endDate: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+      ...fiscalYearBounds(year),
       status: "OPEN",
     });
     result.periodCreated = true;
+  }
+
+  // Default warehouse — without one, inventory/deliveries/receipts have nowhere to post.
+  const [{ n: whCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(warehouses)
+    .where(eq(warehouses.organizationId, orgId));
+  if (Number(whCount) === 0) {
+    await db.insert(warehouses).values({
+      organizationId: orgId,
+      code: "WH-01",
+      nameAr: "المستودع الرئيسي",
+      nameEn: "Main Warehouse",
+      type: "WAREHOUSE",
+    });
+    result.warehouseCreated = true;
+  }
+
+  // EGP base currency — Egypt-first. Makes the base explicit rather than an implicit fallback.
+  const [{ n: curCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(currencies)
+    .where(eq(currencies.organizationId, orgId));
+  if (Number(curCount) === 0) {
+    await db.insert(currencies).values({
+      organizationId: orgId,
+      code: "EGP",
+      nameAr: "جنيه مصري",
+      nameEn: "Egyptian Pound",
+      symbol: "ج.م",
+      isBase: true,
+      exchangeRate: "1",
+    });
+    result.currencyCreated = true;
   }
 
   return result;

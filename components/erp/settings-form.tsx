@@ -1,19 +1,20 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
-import { saveOrgProfileAction, saveAccountingConfigAction } from "@/app/actions/erp/settings";
+import { saveOrgProfileAction, saveAccountingConfigAction, uploadOrgLogoAction } from "@/app/actions/erp/settings";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectCls } from "@/lib/utils";
 
 export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
-  address: string | null; phone: string | null; email: string | null;
+  address: string | null; phone: string | null; email: string | null; logo: string | null;
   vatRate: string; fiscalYearStart: string | null; poApprovalThreshold: string;
 };
 
@@ -21,11 +22,65 @@ export type AccountOption = { id: string; code: string; nameAr: string; type: st
 
 export type AccountingConfig = Record<string, string | null> | null;
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function SaveBtn({ label = "حفظ" }: { label?: string }) {
   const { pending } = useFormStatus();
   return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{label}</Button>;
+}
+
+/**
+ * The logo that heads every printed document.
+ *
+ * Uploads immediately and parks the URL in a hidden input, so it only sticks once the
+ * profile form is saved — an upload the user then abandons doesn't change the record.
+ */
+function LogoField({ initial, disabled }: { initial: string | null; disabled: boolean }) {
+  const [url, setUrl] = useState(initial ?? "");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await uploadOrgLogoAction(fd);
+    setBusy(false);
+    if (res.ok) { setUrl(res.url); toast.success("تم رفع الشعار — احفظ البيانات لتثبيته"); }
+    else toast.error(res.error);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <Label>شعار الشركة</Label>
+      <input type="hidden" name="logo" value={url} />
+      <div className="flex items-center gap-3">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="" className="size-14 rounded-xl border object-contain" />
+        ) : (
+          <div className="flex size-14 items-center justify-center rounded-xl border border-dashed text-xs text-muted-foreground">
+            بدون
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
+        <Button type="button" variant="outline" size="sm" disabled={disabled || busy}
+          onClick={() => fileRef.current?.click()}>
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+          {busy ? "جارٍ الرفع…" : url ? "تغيير" : "رفع شعار"}
+        </Button>
+        {url && (
+          <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => setUrl("")}>
+            <X className="size-4" /> إزالة
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        يظهر في ترويسة كل مستند مطبوع. بدون شعار، بيظهر مربّع بأول حروف اسم الشركة. الحد 2MB.
+      </p>
+    </div>
+  );
 }
 
 /** GL-account selector restricted to a subset of account types. */
@@ -83,6 +138,7 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="phone">الهاتف</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="email">البريد الإلكتروني</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>
                 <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">العنوان</Label><Input id="address" name="address" defaultValue={profile.address ?? ""} /></div>
+                <LogoField initial={profile.logo} disabled={!canEdit} />
               </div>
               {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ البيانات" /></div>}
             </fieldset>

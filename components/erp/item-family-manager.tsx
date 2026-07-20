@@ -91,7 +91,7 @@ export function ItemFamilyManager({
                           {isCurrent ? (
                             <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
                           ) : (
-                            <Link href={`/erp/inventory/items/${m.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
+                            <Link href={`/inventory/items/${encodeURIComponent(m.code)}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
                           )}
                         </div>
                       </div>

@@ -12,10 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { selectCls } from "@/lib/utils";
 
 export type Coupon = { id: string; code: string; description: string; discountType: string; value: number; isActive: boolean; maxRedemptions: number | null; redemptions: number; expiresAt: string };
 
-const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-sm";
 const fmtVal = (c: Coupon) => c.discountType === "PERCENT" ? `${c.value}%` : `${c.value.toLocaleString("ar-EG")} خصم`;
 
 function EditDialog({ coupon, onClose }: { coupon: Coupon | null; onClose: () => void }) {

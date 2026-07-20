@@ -1,5 +1,6 @@
 "use server";
 
+import { withOrgScope } from "@/lib/db-scope";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms } from "@/db/schema";
@@ -17,27 +18,29 @@ export type InventoryReconActionResult = ({ ok: true } & InventoryReconResult) |
  * shared reconcileInventory core (matches to items, compares to ERP stock).
  */
 export async function reconcilePlatformInventoryAction(platformId: string, formData: FormData): Promise<InventoryReconActionResult> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
-  const [platform] = await db.select({ id: salesPlatforms.id, defaultWarehouseId: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
-    .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
-  if (!platform) return { ok: false, error: "المنصة غير موجودة" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [platform] = await db.select({ id: salesPlatforms.id, defaultWarehouseId: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
+    if (!platform) return { ok: false, error: "المنصة غير موجودة" };
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "ارفع ملف دفتر المخزون أولاً" };
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) return { ok: false, error: "ارفع ملف دفتر المخزون أولاً" };
 
-  let inventory: MarketplaceInventory[];
-  try {
-    const summary = parseInventoryLedger(await file.text());
-    inventory = [...summary.perSku].map(([code, onHand]) => ({ code, title: summary.titles.get(code) ?? "", onHand }));
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "تعذّرت قراءة الملف" };
-  }
+    let inventory: MarketplaceInventory[];
+    try {
+      const summary = parseInventoryLedger(await file.text());
+      inventory = [...summary.perSku].map(([code, onHand]) => ({ code, title: summary.titles.get(code) ?? "", onHand }));
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "تعذّرت قراءة الملف" };
+    }
 
-  const r = await reconcileInventory(auth.orgId, platform, inventory);
-  if (!r.ok) return r;
-  return { ok: true, ...r.result };
+    const r = await reconcileInventory(auth.orgId, platform, inventory);
+    if (!r.ok) return r;
+    return { ok: true, ...r.result };
+  });
 }
 
 /**
@@ -49,21 +52,23 @@ export async function applyInventoryReconciliationAction(
   platformId: string,
   entries: { itemId: string; qty: number }[],
 ): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
-  const auth = await authorizeErp("inventory.create");
+  const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
-  const [platform] = await db.select({ warehouseId: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
-    .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
-  if (!platform?.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
-  const clean = entries.filter((e) => e.itemId && Number.isFinite(e.qty) && e.qty >= 0);
-  if (clean.length === 0) return { ok: false, error: "لا توجد بنود للمطابقة" };
-  if (clean.length > 500) return { ok: false, error: "عدد كبير من البنود — طابق حتى 500 صنف في المرة" };
+  return withOrgScope(auth.orgId, false, async () => {
+    const [platform] = await db.select({ warehouseId: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
+    if (!platform?.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
+    const clean = entries.filter((e) => e.itemId && Number.isFinite(e.qty) && e.qty >= 0);
+    if (clean.length === 0) return { ok: false, error: "لا توجد بنود للمطابقة" };
+    if (clean.length > 500) return { ok: false, error: "عدد كبير من البنود — طابق حتى 500 صنف في المرة" };
 
-  const r = await createStockAdjustmentAction({
-    date: new Date().toISOString().slice(0, 10),
-    reason: "مطابقة مخزون المنصة",
-    lines: clean.map((e) => ({ itemId: e.itemId, warehouseId: platform.warehouseId!, mode: "set", value: e.qty })),
+    const r = await createStockAdjustmentAction({
+      date: new Date().toISOString().slice(0, 10),
+      reason: "مطابقة مخزون المنصة",
+      lines: clean.map((e) => ({ itemId: e.itemId, warehouseId: platform.warehouseId!, mode: "set", value: e.qty })),
+    });
+    if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء التسوية" };
+    return { ok: true, id: r.id };
   });
-  if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء التسوية" };
-  return { ok: true, id: r.id };
 }

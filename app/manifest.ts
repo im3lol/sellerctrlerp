@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
  *  shell its name/theme/icons. Colors from --brand-blue (#0A33D1). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "SellerCtrl Workspace OS",
+    name: "SellerCtrl",
     short_name: "SellerCtrl",
     description: "نظام إدارة عمليات SellerCtrl — تحكم كامل في عملياتك من مكان واحد",
     start_url: "/dashboard",

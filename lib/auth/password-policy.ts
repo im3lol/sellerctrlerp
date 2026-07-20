@@ -23,3 +23,20 @@ export function validatePassword(pw: string): string | null {
 
 /** Convenience boolean for client-side form validity. */
 export const isPasswordValid = (pw: string): boolean => validatePassword(pw) === null;
+
+// ── Login brute-force lockout (Audit#15) ──────────────────────────
+export const MAX_LOGIN_ATTEMPTS = 10;   // consecutive failures before a freeze
+export const LOCKOUT_MINUTES = 15;      // freeze window; bounds the lock-out-a-user DoS
+
+/**
+ * Next lockout state after ONE failed sign-in. When the incremented count reaches
+ * MAX_LOGIN_ATTEMPTS the account freezes for LOCKOUT_MINUTES and the counter resets;
+ * otherwise the counter just grows. Pure so it's unit-testable without a DB.
+ */
+export function lockoutAfterFailure(currentAttempts: number, now: number): { failedLoginAttempts: number; lockedUntil: Date | null } {
+  const attempts = Math.max(0, currentAttempts) + 1;
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
+    return { failedLoginAttempts: 0, lockedUntil: new Date(now + LOCKOUT_MINUTES * 60_000) };
+  }
+  return { failedLoginAttempts: attempts, lockedUntil: null };
+}

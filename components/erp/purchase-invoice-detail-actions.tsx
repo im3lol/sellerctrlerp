@@ -28,7 +28,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
 
   const printBtn = (
     <Button size="sm" variant="outline" asChild>
-      <a href={`/erp/purchases/invoices/${encodeURIComponent(number)}/print`} target="_blank" rel="noopener">
+      <a href={`/purchases/invoices/${encodeURIComponent(number)}/print`} target="_blank" rel="noopener">
         <Icon name="Printer" className="size-4" />طباعة
       </a>
     </Button>
@@ -44,7 +44,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
         )}
         {printBtn}
         {canManage && (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/erp/purchases/invoices")}>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/purchases/invoices")}>
             <Icon name="Trash2" className="size-4 text-destructive" />حذف
           </Button>
         )}
@@ -57,7 +57,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     return (
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" asChild>
-          <Link href={`/erp/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+          <Link href={`/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
         </Button>
         {printBtn}
       </div>

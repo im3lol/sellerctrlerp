@@ -50,7 +50,7 @@ export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDel
                     <SelectBox checked={checked} onChange={() => sel.toggle(r.id)} label="تحديد" />
                   </TableCell>
                 )}
-                <TableCell><Link href={`/erp/purchases/requisitions/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
+                <TableCell><Link href={`/purchases/requisitions/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.requester ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">{Number(r.lineCount)}</TableCell>
