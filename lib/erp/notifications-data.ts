@@ -13,6 +13,7 @@ export type Notifications = {
   overdueAP: number;
   overdueAPTotal: number;
   pendingDrafts: number;
+  stockWaiting: number;
   newActivity: number;
   newOrders: number;
   needsReview: number;
@@ -44,7 +45,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const ZERO = Promise.resolve({ rows: [{ n: 0 }] } as { rows: { n: number }[] });
   const ZERO_TOTAL = Promise.resolve({ rows: [{ n: 0, total: "0" }] } as { rows: { n: number; total: string }[] });
 
-  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes] = await Promise.all([
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id FROM items i
@@ -88,6 +89,11 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM items
       WHERE organization_id = ${orgId} AND needs_review = true AND is_active = true`) : ZERO,
+    // DRAFT delivery notes parked by the auto-flow because stock was short — the
+    // "بانتظار توفّر المخزون" marker (see STOCK_WAIT_MARK in lib/erp/fulfillment.ts).
+    can("sales.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM delivery_notes
+      WHERE organization_id = ${orgId} AND status = 'DRAFT' AND notes LIKE 'بانتظار توفّر المخزون%'`) : ZERO,
   ]);
 
   const lowStock = Number(low.rows[0]?.n ?? 0);
@@ -99,6 +105,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const newActivity = Number(since_[0]?.n ?? 0);
   const newOrders = Number(newOrdersRes.rows[0]?.n ?? 0);
   const needsReview = Number(reviewRes.rows[0]?.n ?? 0);
+  const stockWaiting = Number(stockWaitRes.rows[0]?.n ?? 0);
   const recent: Activity[] = activity
     .filter((a) => { const p = ENTITY_PERM[a.entityType]; return !p || can(p); }) // only docs this member can see
     .slice(0, 8)
@@ -106,5 +113,5 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
       const base = ENTITY_PATH[a.entityType];
       return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
     });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, newActivity, newOrders, needsReview, total: lowStock + expiring + overdueAR + overdueAP + drafts + newActivity + newOrders + needsReview, recent };
+  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview, recent };
 }

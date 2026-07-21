@@ -17,7 +17,7 @@ import { selectCls } from "@/lib/utils";
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
-  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean; autoPostSettlements: boolean; autoInvoice: boolean;
+  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean; autoPostSettlements: boolean; autoMode: string;
   customerName: string | null; customerId: string | null;
   warehouseId: string | null; warehouseName: string | null;
   bankAccountId: string | null; bankName: string | null;
@@ -61,7 +61,7 @@ function PlatformDialog({
   const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
   const [syncSettlements, setSyncSettlements] = useState(platform?.syncSettlements ?? true);
   const [autoPostSettlements, setAutoPostSettlements] = useState(platform?.autoPostSettlements ?? false);
-  const [autoInvoice, setAutoInvoice] = useState(platform?.autoInvoice ?? true);
+  const [autoMode, setAutoMode] = useState(platform?.autoMode ?? "invoice");
   const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
 
@@ -76,7 +76,7 @@ function PlatformDialog({
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
     if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, syncSettlements, autoPostSettlements, autoInvoice, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
+      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, syncSettlements, autoPostSettlements, autoMode, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
       const r = isEdit
         ? await updatePlatformAction(platform!.id, payload)
         : await createPlatformAction({ ...payload, code });
@@ -191,11 +191,13 @@ function PlatformDialog({
           <p className="text-xs text-muted-foreground">اختر ما يسحبه زر «مزامنة الآن» لهذه المنصّة.</p>
         </div>
         <div className="space-y-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-            <input type="checkbox" className="size-4 rounded border-input" checked={autoInvoice} onChange={(e) => setAutoInvoice(e.target.checked)} />
-            الفوترة التلقائية عند اكتمال الأمر
-          </label>
-          <p className="text-xs text-muted-foreground">مفعّل: الأمر المكتمل يمرّ أمر بيع → إذن صرف → فاتورة مُرحّلة تلقائيًا. مُطفأ: يقف عند إذن الصرف وتُصدر الفاتورة يدويًا.</p>
+          <label className="text-sm font-medium">المعالجة التلقائية للأوردر</label>
+          <select className={selectCls} value={autoMode} onChange={(e) => setAutoMode(e.target.value)}>
+            <option value="invoice">أمر بيع + إذن صرف + فاتورة (الدورة كاملة)</option>
+            <option value="deliver">أمر بيع + إذن صرف</option>
+            <option value="order">أمر بيع فقط</option>
+          </select>
+          <p className="text-xs text-muted-foreground">تحدّد لأي مرحلة يمرّ الأوردر تلقائيًا. لو المخزون غير متوفر وقت الصرف، يُحفظ إذن الصرف كمسودة ويصلك إشعار «بانتظار توفّر المخزون» — بدون أي حركة سالبة.</p>
         </div>
         <div className="space-y-2">
           <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">

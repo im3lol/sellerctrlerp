@@ -20,7 +20,7 @@ export default async function PlatformsPage() {
         syncInventory: salesPlatforms.syncInventory,
         syncSettlements: salesPlatforms.syncSettlements,
         autoPostSettlements: salesPlatforms.autoPostSettlements,
-        autoInvoice: salesPlatforms.autoInvoice,
+        autoMode: salesPlatforms.autoMode,
         isActive: salesPlatforms.isActive,
         customerName: customers.nameAr,
         customerId: salesPlatforms.customerId,
