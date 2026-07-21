@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 import { round2 } from "@/lib/erp/money";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -9,6 +9,7 @@ import { requireErpModule } from "@/lib/erp/org";
 import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { buildDisposalLines } from "@/lib/erp/asset-disposal";
 import { planAssetAcquisition, type AssetAcquisition } from "@/lib/erp/asset-acquisition";
 
@@ -223,23 +224,28 @@ export async function postMonthlyDepreciationAction(input: {
  * ensureAmazonAccounts uses rather than making every org re-bootstrap its chart.
  */
 async function ensureDisposalAccounts(orgId: string, tx: Tx): Promise<{ gain: string; loss: string }> {
-  const accs = await tx.select({ id: accounts.id, code: accounts.code }).from(accounts).where(eq(accounts.organizationId, orgId));
-  const byCode = new Map(accs.map((a) => [a.code, a.id]));
-  let gain = byCode.get("4202");
-  if (!gain) {
-    const [r] = await tx.insert(accounts).values({
-      organizationId: orgId, code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT",
-      parentId: byCode.get("4") ?? null, isLeaf: true,
-    }).returning({ id: accounts.id });
-    gain = r.id;
-  }
-  let loss = byCode.get("5303");
-  if (!loss) {
-    const [r] = await tx.insert(accounts).values({
-      organizationId: orgId, code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT",
-      parentId: byCode.get("5") ?? null, isLeaf: true,
-    }).returning({ id: accounts.id });
-    loss = r.id;
+  // Configured accounts (assetDisposalGain/Loss) win; else create the default codes.
+  const ov = await resolveAccountIds(orgId, ["4202", "5303"], tx);
+  let gain = ov["4202"];
+  let loss = ov["5303"];
+  if (!gain || !loss) {
+    const parents = await tx.select({ id: accounts.id, code: accounts.code }).from(accounts)
+      .where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["4", "5"])));
+    const byCode = new Map(parents.map((a) => [a.code, a.id]));
+    if (!gain) {
+      const [r] = await tx.insert(accounts).values({
+        organizationId: orgId, code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT",
+        parentId: byCode.get("4") ?? null, isLeaf: true,
+      }).returning({ id: accounts.id });
+      gain = r.id;
+    }
+    if (!loss) {
+      const [r] = await tx.insert(accounts).values({
+        organizationId: orgId, code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT",
+        parentId: byCode.get("5") ?? null, isLeaf: true,
+      }).returning({ id: accounts.id });
+      loss = r.id;
+    }
   }
   return { gain, loss };
 }

@@ -171,6 +171,11 @@ export function SettingsForm({
                 <AccountSelect name="inventorySurplusAccountId" label="فائض المخزون" accounts={accounts} defaultValue={cfg.inventorySurplusAccountId} types={["REVENUE"]} />
                 <AccountSelect name="inventoryDeficitAccountId" label="عجز وتالف المخزون" accounts={accounts} defaultValue={cfg.inventoryDeficitAccountId} types={["EXPENSE"]} />
                 <AccountSelect name="purchaseReturnVarianceAccountId" label="فروق أسعار مرتجعات الشراء" accounts={accounts} defaultValue={cfg.purchaseReturnVarianceAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="openingEquityAccountId" label="حساب الأرصدة الافتتاحية" accounts={accounts} defaultValue={cfg.openingEquityAccountId} types={["EQUITY"]} />
+                <AccountSelect name="amazonClearingAccountId" label="رصيد أمازون الوسيط" accounts={accounts} defaultValue={cfg.amazonClearingAccountId} types={["ASSET"]} />
+                <AccountSelect name="amazonFeesAccountId" label="رسوم أمازون" accounts={accounts} defaultValue={cfg.amazonFeesAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="assetDisposalGainAccountId" label="أرباح بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalGainAccountId} types={["REVENUE"]} />
+                <AccountSelect name="assetDisposalLossAccountId" label="خسائر بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalLossAccountId} types={["EXPENSE"]} />
               </div>
               {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ الضبط" /></div>}
             </fieldset>

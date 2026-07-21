@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses, bankAccounts, accounts } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts } from "@/db/schema";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 
 export type AmazonPlatform = { platformId: string; customerId: string; warehouseId: string; bankAccountId: string | null };
 
@@ -13,10 +14,11 @@ async function ensureAmazonBank(orgId: string): Promise<string> {
   const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
     .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "محفظة أمازون"))).limit(1);
   if (existing) return existing.id;
-  const [gl] = await db.select({ id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "1102"), eq(accounts.isLeaf, true))).limit(1);
+  // Link to the org's configured bank GL account (bankAccountId override) or the
+  // default 1102 — the same account the settlement posting routes transfers to.
+  const glId = (await resolveAccountIds(orgId, ["1102"]))["1102"] ?? null;
   const [row] = await db.insert(bankAccounts)
-    .values({ organizationId: orgId, nameAr: "محفظة أمازون", bankName: "أمازون", glAccountId: gl?.id ?? null })
+    .values({ organizationId: orgId, nameAr: "محفظة أمازون", bankName: "أمازون", glAccountId: glId })
     .returning({ id: bankAccounts.id });
   return row.id;
 }

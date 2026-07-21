@@ -779,6 +779,11 @@ export const accountingConfigurations = pgTable(
     inventorySurplusAccountId: text("inventory_surplus_account_id"),      // 4201 فائض المخزون
     inventoryDeficitAccountId: text("inventory_deficit_account_id"),      // 5301 عجز/تالف المخزون
     purchaseReturnVarianceAccountId: text("purchase_return_variance_account_id"), // 5302 فروق أسعار مرتجعات الشراء
+    openingEquityAccountId: text("opening_equity_account_id"),            // 3002 حساب الأرصدة الافتتاحية
+    amazonClearingAccountId: text("amazon_clearing_account_id"),          // 1108 رصيد أمازون الوسيط
+    amazonFeesAccountId: text("amazon_fees_account_id"),                  // 5203 رسوم أمازون
+    assetDisposalGainAccountId: text("asset_disposal_gain_account_id"),   // 4202 أرباح بيع أصول
+    assetDisposalLossAccountId: text("asset_disposal_loss_account_id"),   // 5303 خسائر بيع أصول
     salesJournalId: text("sales_journal_id"),
     purchaseJournalId: text("purchase_journal_id"),
     cashJournalId: text("cash_journal_id"),

@@ -46,11 +46,12 @@ const schema = z.object({
   lines: z.array(lineSchema).min(1, "أضف بندًا واحدًا على الأقل"),
 });
 
-/** 3002 — the other side of every opening line. Created on first use. */
+/** The opening-balance equity account — the other side of every opening line.
+ *  Uses the org's configured account (openingEquityAccountId) when set, else the
+ *  default 3002, created on first use. */
 async function ensureOpeningAccount(orgId: string, tx: Tx): Promise<string> {
-  const [found] = await tx.select({ id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "3002"))).limit(1);
-  if (found) return found.id;
+  const resolved = (await resolveAccountIds(orgId, ["3002"], tx))["3002"];
+  if (resolved) return resolved;
   const [parent] = await tx.select({ id: accounts.id }).from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "3"))).limit(1);
   const [row] = await tx.insert(accounts).values({

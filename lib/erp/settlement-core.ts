@@ -8,6 +8,7 @@ import {
   salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { returnFromSalesInvoiceAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -44,29 +45,37 @@ export function aggregateGL(rows: { type: string; productSales: number; shipping
   return { receivable: r2(receivable), fees: r2(fees), bank: r2(bank), clearing: r2(clearing) };
 }
 
-/** Get-or-create the Amazon clearing (asset) + Amazon fees (expense) accounts. */
+/** Get-or-create the Amazon clearing (asset) + Amazon fees (expense) accounts.
+ *  Resolves the org's configured accounts (receivable/bank/clearing/fees) via the
+ *  override layer; only creates 1108/5203 with default codes when neither an
+ *  override nor an existing account is found. */
 async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; fees: string; receivable: string; bank: string } | { error: string }> {
-  const accs = await db.select({ id: accounts.id, code: accounts.code }).from(accounts).where(eq(accounts.organizationId, orgId));
-  const byCode = new Map(accs.map((a) => [a.code, a.id]));
-  const receivable = byCode.get("1103");
-  const bank = byCode.get("1102");
+  const ov = await resolveAccountIds(orgId, ["1103", "1102", "1108", "5203"]);
+  const receivable = ov["1103"];
+  const bank = ov["1102"];
   if (!receivable || !bank) return { error: "أنشئ دليل الحسابات القياسي أولاً (حسابات الذمم/البنك غير موجودة)" };
 
-  let clearing = byCode.get("1108");
-  if (!clearing) {
-    const [r] = await db.insert(accounts).values({
-      organizationId: orgId, code: "1108", nameAr: "رصيد أمازون الوسيط", type: "ASSET", normalBalance: "DEBIT",
-      parentId: byCode.get("11") ?? null, isLeaf: true,
-    }).returning({ id: accounts.id });
-    clearing = r.id;
-  }
-  let fees = byCode.get("5203");
-  if (!fees) {
-    const [r] = await db.insert(accounts).values({
-      organizationId: orgId, code: "5203", nameAr: "رسوم أمازون", type: "EXPENSE", normalBalance: "DEBIT",
-      parentId: byCode.get("5") ?? null, isLeaf: true,
-    }).returning({ id: accounts.id });
-    fees = r.id;
+  let clearing = ov["1108"];
+  let fees = ov["5203"];
+  if (!clearing || !fees) {
+    // Only load the rollup parents when we actually need to create an account.
+    const parents = await db.select({ id: accounts.id, code: accounts.code }).from(accounts)
+      .where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["11", "5"])));
+    const byCode = new Map(parents.map((a) => [a.code, a.id]));
+    if (!clearing) {
+      const [r] = await db.insert(accounts).values({
+        organizationId: orgId, code: "1108", nameAr: "رصيد أمازون الوسيط", type: "ASSET", normalBalance: "DEBIT",
+        parentId: byCode.get("11") ?? null, isLeaf: true,
+      }).returning({ id: accounts.id });
+      clearing = r.id;
+    }
+    if (!fees) {
+      const [r] = await db.insert(accounts).values({
+        organizationId: orgId, code: "5203", nameAr: "رسوم أمازون", type: "EXPENSE", normalBalance: "DEBIT",
+        parentId: byCode.get("5") ?? null, isLeaf: true,
+      }).returning({ id: accounts.id });
+      fees = r.id;
+    }
   }
   return { clearing, fees, receivable, bank };
 }

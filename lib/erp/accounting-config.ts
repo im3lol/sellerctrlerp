@@ -29,6 +29,11 @@ const FIELD_FOR_CODE: Record<string, keyof Override> = {
   "4201": "inventorySurplusAccountId",
   "5301": "inventoryDeficitAccountId",
   "5302": "purchaseReturnVarianceAccountId",
+  "3002": "openingEquityAccountId",
+  "1108": "amazonClearingAccountId",
+  "5203": "amazonFeesAccountId",
+  "4202": "assetDisposalGainAccountId",
+  "5303": "assetDisposalLossAccountId",
 };
 
 type Override = {
@@ -46,6 +51,11 @@ type Override = {
   inventorySurplusAccountId: string | null;
   inventoryDeficitAccountId: string | null;
   purchaseReturnVarianceAccountId: string | null;
+  openingEquityAccountId: string | null;
+  amazonClearingAccountId: string | null;
+  amazonFeesAccountId: string | null;
+  assetDisposalGainAccountId: string | null;
+  assetDisposalLossAccountId: string | null;
 };
 
 /**
