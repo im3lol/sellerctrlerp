@@ -80,12 +80,12 @@ export default async function InventoryDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {kpis.map((k) => (
             <Card key={k.label}>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
-                  <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>{k.value}</div>
+              <CardContent className="flex items-center justify-between gap-2 py-5">
+                <div className="min-w-0">
+                  <div className="truncate text-sm text-muted-foreground">{k.label}</div>
+                  <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", k.tone)} title={k.value}>{k.value}</div>
                 </div>
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-5" /></div>
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-5" /></div>
               </CardContent>
             </Card>
           ))}
@@ -104,7 +104,7 @@ export default async function InventoryDashboardPage() {
                 <div className="space-y-3">
                   {topItems.map((r) => (
                     <div key={r.id} className="space-y-1">
-                      <div className="flex justify-between text-sm"><span className="truncate">{r.name}</span><span className="font-medium tabular-nums">{money(Number(r.val))}</span></div>
+                      <div className="flex justify-between gap-2 text-sm"><span className="min-w-0 truncate" title={r.name}>{r.name}</span><span className="shrink-0 font-medium tabular-nums">{money(Number(r.val))}</span></div>
                       <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((Number(r.val) / maxVal) * 100, 2)}%` }} /></div>
                     </div>
                   ))}

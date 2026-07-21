@@ -85,7 +85,6 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
         or(
           ilike(items.code, `%${fProduct}%`),
           ilike(items.nameAr, `%${fProduct}%`),
-          ilike(items.nameEn, `%${fProduct}%`),
         ),
       ));
     matchedItemIds = its.map((i) => i.id);
@@ -99,7 +98,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   };
 
   const supList = await db
-    .select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr, nameEn: suppliers.nameEn })
+    .select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr })
     .from(suppliers)
     .where(eq(suppliers.organizationId, orgId))
     .orderBy(asc(suppliers.code));
@@ -120,8 +119,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     matchedSupplierIds = supList
       .filter((s) =>
         (s.code ?? "").toLowerCase().includes(q) ||
-        (s.nameAr ?? "").toLowerCase().includes(q) ||
-        (s.nameEn ?? "").toLowerCase().includes(q),
+        (s.nameAr ?? "").toLowerCase().includes(q),
       )
       .map((s) => s.id);
   }

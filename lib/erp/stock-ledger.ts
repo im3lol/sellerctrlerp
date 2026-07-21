@@ -69,7 +69,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
   const page = Math.max(1, filters.page ?? 1);
 
   const [itemList, whList] = await Promise.all([
-    db.select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn })
+    db.select({ id: items.id, code: items.code, nameAr: items.nameAr })
       .from(items)
       .where(and(eq(items.organizationId, orgId), eq(items.isActive, true)))
       .orderBy(asc(items.code)),
@@ -80,7 +80,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
   ]);
 
   const it = itemId ? itemList.find((i) => i.id === itemId) : undefined;
-  const itemLabel = it ? `${it.code} — ${it.nameAr ?? it.nameEn ?? ""}` : "";
+  const itemLabel = it ? `${it.code} — ${it.nameAr ?? ""}` : "";
 
   const conds: SQL[] = [eq(stockMovements.organizationId, orgId)];
   if (itemId) conds.push(eq(stockMovements.itemId, itemId));
@@ -118,7 +118,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
       reason: stockMovements.reason,
       itemId: stockMovements.itemId,
       itemCode: items.code,
-      itemName: sql<string>`coalesce(${items.nameAr}, ${items.nameEn}, ${items.code})`,
+      itemName: sql<string>`coalesce(${items.nameAr}, ${items.code})`,
       warehouse: warehouses.nameAr,
       quantity: stockMovements.quantity,
       unitCost: stockMovements.unitCost,

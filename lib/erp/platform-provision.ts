@@ -37,7 +37,7 @@ export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatfor
     let [cust] = await db.select({ id: customers.id }).from(customers)
       .where(and(eq(customers.organizationId, orgId), eq(customers.code, "AMZN"))).limit(1);
     if (!cust) [cust] = await db.insert(customers)
-      .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون", nameEn: "Amazon" }).returning({ id: customers.id });
+      .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون" }).returning({ id: customers.id });
     customerId = cust.id;
   }
 

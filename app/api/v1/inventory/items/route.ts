@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 }
 
 /** POST /api/v1/inventory/items — create/update an item.
- *  Body: { id?, code, nameAr, nameEn?, sellPrice?, minStock?, isPerishable?, codes?:[{codeType,code}] }. */
+ *  Body: { id?, code, nameAr, sellPrice?, minStock?, isPerishable?, codes?:[{codeType,code}] }. */
 export async function POST(req: Request) {
   const auth = await authorizeApi(req, "inventory.create");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });

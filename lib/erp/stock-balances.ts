@@ -56,7 +56,7 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
       SELECT DISTINCT ON (sm.item_id, sm.warehouse_id)
         sm.item_id AS item_id,
         i.code AS item_code,
-        coalesce(i.name_ar, i.name_en, i.code) AS item_name,
+        coalesce(i.name_ar, i.code) AS item_name,
         sm.warehouse_id AS warehouse_id,
         coalesce(w.name_ar, w.name_en, w.code) AS warehouse_name,
         coalesce(i.min_stock, 0) AS min_stock,

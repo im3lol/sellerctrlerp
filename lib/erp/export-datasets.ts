@@ -51,11 +51,11 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
   },
   items: {
     title: "الأصناف", module: "inventory.view",
-    headers: ["الكود", "الاسم", "بالإنجليزية", "سعر البيع", "أقل مخزون", "أعلى مخزون", "قابل للتلف", "نشط"],
-    colWidths: [16, 28, 22, 12, 12, 12, 10, 8],
+    headers: ["الكود", "الاسم", "سعر البيع", "أقل مخزون", "أعلى مخزون", "قابل للتلف", "نشط"],
+    colWidths: [16, 28, 12, 12, 12, 10, 8],
     fetch: async (orgId) => {
       const rows = await db.select().from(items).where(eq(items.organizationId, orgId)).orderBy(items.code);
-      return rows.map((i) => [i.code, i.nameAr, i.nameEn, num(i.sellPrice), num(i.minStock), i.maxStock == null ? "" : num(i.maxStock), yn(i.isPerishable), yn(i.isActive)]);
+      return rows.map((i) => [i.code, i.nameAr, num(i.sellPrice), num(i.minStock), i.maxStock == null ? "" : num(i.maxStock), yn(i.isPerishable), yn(i.isActive)]);
     },
   },
   "sales-orders": {

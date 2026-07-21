@@ -27,7 +27,7 @@ export async function getItemFamily(
   const headId = item.parentItemId ?? item.id;
 
   const rows = await db
-    .select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn, image: items.image, sellPrice: items.sellPrice, variationValue: items.variationValue, parentItemId: items.parentItemId })
+    .select({ id: items.id, code: items.code, nameAr: items.nameAr, image: items.image, sellPrice: items.sellPrice, variationValue: items.variationValue, parentItemId: items.parentItemId })
     .from(items)
     .where(and(eq(items.organizationId, orgId), sql`(${items.id} = ${headId} OR ${items.parentItemId} = ${headId})`));
 
@@ -59,7 +59,7 @@ export async function getItemFamily(
   const toMember = (r: (typeof rows)[number]): FamilyMember => ({
     id: r.id,
     code: r.code,
-    name: r.nameAr || r.nameEn || r.code,
+    name: r.nameAr || r.code,
     image: r.image,
     variationValue: r.variationValue,
     sellPrice: Number(r.sellPrice),

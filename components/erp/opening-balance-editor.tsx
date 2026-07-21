@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { confirm } from "@/components/erp/confirm";
 import {
-  saveOpeningBalanceAction, postOpeningBalanceAction, reverseOpeningBalanceAction,
+  saveOpeningBalanceAction, startOpeningPostAction, openingPostStatusAction, reverseOpeningBalanceAction,
   searchItemsAction, parseOpeningCsvAction,
 } from "@/app/actions/erp/opening-balance";
 import { totals, validateOpening, OPENING_EQUITY_CODE, type OpeningKind, type OpeningLine } from "@/lib/erp/opening-balance";
@@ -30,9 +30,24 @@ type Row = {
 type CsvRow = Awaited<ReturnType<typeof parseOpeningCsvAction>>[number];
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// A bulk CSV import can add thousands of rows; rendering them all as live pickers
+// freezes the browser. Render at most this many editable rows per section — the
+// rest stay in state (saved + posted), just not drawn.
+const RENDER_CAP = 100;
 let KEY = 0;
 const blank = (kind: OpeningKind): Row =>
   ({ key: ++KEY, kind, ref: "", refLabel: "", warehouseId: "", warehouseLabel: "", debit: "", credit: "", quantity: "", unitCost: "", reference: "", dueDate: "" });
+
+/** Note shown under a section table when rows are capped for rendering. */
+function MoreNote({ total }: { total: number }) {
+  if (total <= RENDER_CAP) return null;
+  const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
+  return (
+    <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+      عرض أول {n(RENDER_CAP)} من {n(total)} صف — الباقي مستورد ومحفوظ وسيُرحّل (غير معروض لتفادي تجميد المتصفح).
+    </p>
+  );
+}
 
 /** In-cell item picker backed by a server search — the catalog is too large to ship. */
 function ItemPicker({ label, onPick }: { label: string; onPick: (id: string, label: string) => void }) {
@@ -142,9 +157,8 @@ function CsvImport({ kind, onAdd }: { kind: OpeningKind; onAdd: (rows: CsvRow[])
  * the Opening Balance Equity account, with a live balance check and CSV import.
  * Totals/validation run through the same pure functions the server posts with.
  */
-export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, initial, accounts, customers, suppliers, warehouses }: {
-  postedId: string | null;
-  reversible: boolean;
+export function OpeningBalanceEditor({ posted, date: initialDate, initial, accounts, customers, suppliers, warehouses }: {
+  posted: { id: string; date: string }[];
   date: string;
   initial: Omit<Row, "key">[];
   accounts: Opt[]; customers: Opt[]; suppliers: Opt[]; warehouses: Opt[];
@@ -153,6 +167,9 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
   const [date, setDate] = useState(initialDate);
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, key: ++KEY })));
   const [pending, start] = useTransition();
+  const [posting, setPosting] = useState<{ done: number; total: number } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const lines: OpeningLine[] = useMemo(() => rows.map((r) => ({
     kind: r.kind,
@@ -181,15 +198,26 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
     const res = await saveOpeningBalanceAction({ date, lines });
     if (!res.ok || !res.id) { toast.error(res.error ?? "تعذّر الحفظ"); return; }
     if (!thenPost) { toast.success("تم حفظ المسودة"); router.refresh(); return; }
-    const p = await postOpeningBalanceAction(res.id);
-    if (p.ok) { toast.success("تم ترحيل الأرصدة الافتتاحية"); router.refresh(); }
-    else toast.error(p.error ?? "تعذّر الترحيل");
+    // Post runs in the BACKGROUND (an 11k-item post takes minutes); poll for a live
+    // "done / total" line instead of blocking the request.
+    const s0 = await startOpeningPostAction(res.id);
+    if (!s0.ok) { toast.error(s0.error ?? "تعذّر بدء الترحيل"); return; }
+    const id = res.id;
+    setPosting({ done: 0, total: s0.total ?? lines.length });
+    pollRef.current = setInterval(async () => {
+      const st = await openingPostStatusAction(id);
+      if (st.phase === "running") { setPosting({ done: st.done, total: st.total }); return; }
+      if (pollRef.current) clearInterval(pollRef.current);
+      setPosting(null);
+      if (st.phase === "error") toast.error(st.error ?? "تعذّر الترحيل");
+      else toast.success("تم ترحيل الأرصدة الافتتاحية");
+      router.refresh();
+    }, 1500);
   });
 
-  const reverse = () => start(async () => {
-    if (!postedId) return;
-    if (!(await confirm({ title: "إلغاء ترحيل الأرصدة الافتتاحية؟", description: "سيُعكس القيد وتُلغى الفواتير الافتتاحية وتُزال حركات المخزون، ثم تعود مسودة للتعديل.", danger: true }))) return;
-    const r = await reverseOpeningBalanceAction(postedId);
+  const reverse = (id: string) => start(async () => {
+    if (!(await confirm({ title: "إلغاء ترحيل الأرصدة الافتتاحية؟", description: "سيُعكس القيد وتُلغى الفواتير الافتتاحية وتُزال حركات المخزون، ثم تعود مسودة للتعديل. (متاح فقط قبل أي معاملة على الأرصدة).", danger: true }))) return;
+    const r = await reverseOpeningBalanceAction(id);
     if (r.ok) { toast.success("تم إلغاء الترحيل — عادت مسودة"); router.refresh(); }
     else toast.error(r.error ?? "تعذّر الإلغاء");
   });
@@ -205,27 +233,21 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
     return b;
   })]);
 
-  // ── POSTED view: summary + reverse ──
-  if (postedId) {
-    return (
-      <Card>
-        <CardContent className="space-y-3 py-8 text-center">
-          <Icon name="CheckCircle2" className="mx-auto size-8 text-emerald-600" />
-          <p className="font-medium">الأرصدة الافتتاحية مُرحّلة</p>
-          <p className="mx-auto max-w-md text-sm text-muted-foreground">
-            تُرحَّل مرة واحدة — فهي تصف لحظة واحدة. للتصحيح، ألغِ الترحيل (متاح فقط قبل أي تحصيل/سداد/بيع على الأرصدة) ثم عدّل وأعد الترحيل.
-          </p>
-          {reversible
-            ? <Button variant="outline" disabled={pending} onClick={reverse}><Icon name="Undo2" className="size-4" /> إلغاء الترحيل والتعديل</Button>
-            : <p className="text-xs text-amber-600">تمّت معاملات على الأرصدة الافتتاحية — التصحيح الآن بقيد يومية.</p>}
-        </CardContent>
-      </Card>
-    );
-  }
-
   const numCell = "w-32";
   return (
     <div className="space-y-4" dir="rtl">
+      {posted.length > 0 && (
+        <Card><CardContent className="space-y-2 pt-6">
+          <div className="flex items-center gap-2 text-sm font-medium"><Icon name="CheckCircle2" className="size-4 text-emerald-600" /> أرصدة افتتاحية مُرحّلة</div>
+          {posted.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+              <span className="text-muted-foreground">مُرحّلة بتاريخ {p.date}</span>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => reverse(p.id)}><Icon name="Undo2" className="size-4" /> إلغاء الترحيل</Button>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">تقدر تضيف أرصدة إضافية بالأسفل (مثلاً الحسابات أو العملاء) وترحّلها بشكل منفصل — كل ترحيل يضيف ولا يكرّر. الإلغاء متاح فقط قبل أي معاملة على الأرصدة.</p>
+        </CardContent></Card>
+      )}
       <Card>
         <CardContent className="flex flex-wrap items-end justify-between gap-4 pt-6">
           <div className="space-y-1">
@@ -262,7 +284,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
               <thead className="text-right text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">الحساب</th><th className={cn("p-2 font-medium", numCell)}>مدين</th><th className={cn("p-2 font-medium", numCell)}>دائن</th><th className="w-10" />
               </tr></thead>
-              <tbody>{byKind("ACCOUNT").map((r) => (
+              <tbody>{byKind("ACCOUNT").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
                   <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={accounts} placeholder="اختر الحساب…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.debit} onChange={(e) => set(r.key, { debit: e.target.value, credit: "" })} /></td>
@@ -271,6 +293,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
                 </tr>
               ))}</tbody>
             </table></div>
+            <MoreNote total={byKind("ACCOUNT").length} />
             <Button type="button" variant="outline" size="sm" onClick={() => add("ACCOUNT")}><Icon name="Plus" className="size-4" /> إضافة حساب</Button>
           </CardContent></Card>
         </TabsContent>
@@ -284,7 +307,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
               <thead className="text-right text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">العميل</th><th className="p-2 font-medium w-32">رقم الفاتورة</th><th className="p-2 font-medium w-40">تاريخ الاستحقاق</th><th className={cn("p-2 font-medium", numCell)}>المبلغ (مدين)</th><th className="w-10" />
               </tr></thead>
-              <tbody>{byKind("CUSTOMER").map((r) => (
+              <tbody>{byKind("CUSTOMER").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
                   <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={customers} placeholder="اختر العميل…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
                   <td className="p-2"><Input value={r.reference} placeholder="اختياري" onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
@@ -294,6 +317,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
                 </tr>
               ))}</tbody>
             </table></div>
+            <MoreNote total={byKind("CUSTOMER").length} />
             <Button type="button" variant="outline" size="sm" onClick={() => add("CUSTOMER")}><Icon name="Plus" className="size-4" /> فاتورة عميل</Button>
           </CardContent></Card>
         </TabsContent>
@@ -307,7 +331,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
               <thead className="text-right text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">المورّد</th><th className="p-2 font-medium w-32">رقم الفاتورة</th><th className="p-2 font-medium w-40">تاريخ الاستحقاق</th><th className={cn("p-2 font-medium", numCell)}>المبلغ (دائن)</th><th className="w-10" />
               </tr></thead>
-              <tbody>{byKind("SUPPLIER").map((r) => (
+              <tbody>{byKind("SUPPLIER").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
                   <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={suppliers} placeholder="اختر المورّد…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
                   <td className="p-2"><Input value={r.reference} placeholder="اختياري" onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
@@ -317,6 +341,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
                 </tr>
               ))}</tbody>
             </table></div>
+            <MoreNote total={byKind("SUPPLIER").length} />
             <Button type="button" variant="outline" size="sm" onClick={() => add("SUPPLIER")}><Icon name="Plus" className="size-4" /> فاتورة مورّد</Button>
           </CardContent></Card>
         </TabsContent>
@@ -329,7 +354,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
               <thead className="text-right text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">الصنف</th><th className="p-2 font-medium w-44">المخزن</th><th className="p-2 font-medium w-24">الكمية</th><th className="p-2 font-medium w-32">تكلفة الوحدة</th><th className="p-2 font-medium w-32">القيمة</th><th className="w-10" />
               </tr></thead>
-              <tbody>{byKind("ITEM").map((r) => (
+              <tbody>{byKind("ITEM").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
                   <td className="p-2"><ItemPicker label={r.refLabel} onPick={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
                   <td className="p-2"><CellCombobox selectedLabel={r.warehouseLabel} options={warehouses} placeholder="المخزن…" onSelect={(id, label) => set(r.key, { warehouseId: id, warehouseLabel: label })} /></td>
@@ -340,6 +365,7 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
                 </tr>
               ))}</tbody>
             </table></div>
+            <MoreNote total={byKind("ITEM").length} />
             <Button type="button" variant="outline" size="sm" onClick={() => add("ITEM")}><Icon name="Plus" className="size-4" /> إضافة صنف</Button>
           </CardContent></Card>
         </TabsContent>
@@ -347,9 +373,21 @@ export function OpeningBalanceEditor({ postedId, reversible, date: initialDate, 
 
       <Card><CardContent className="space-y-3 pt-6">
         {problem && <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{problem}</p>}
+        {posting && (
+          <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2"><Icon name="Loader2" className="size-4 animate-spin" /> جارٍ الترحيل في الخلفية…</span>
+              <span className="tabular-nums font-medium">{posting.done.toLocaleString("ar-EG-u-nu-latn")} / {posting.total.toLocaleString("ar-EG-u-nu-latn")}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-all" style={{ width: `${posting.total ? Math.round((posting.done / posting.total) * 100) : 0}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground">يعمل بهدوء في الخلفية — تقدر تسيب الصفحة مفتوحة، وسيكتمل دون تحميل على السيرفر.</p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={pending || !!problem} onClick={() => save(false)}>حفظ كمسودة</Button>
-          <Button size="sm" disabled={pending || !!problem} onClick={() => save(true)}>حفظ وترحيل</Button>
+          <Button size="sm" variant="outline" disabled={pending || !!posting || !!problem} onClick={() => save(false)}>حفظ كمسودة</Button>
+          <Button size="sm" disabled={pending || !!posting || !!problem} onClick={() => save(true)}>حفظ وترحيل</Button>
         </div>
         <p className="text-xs text-muted-foreground">الترحيل ينشئ القيد الافتتاحي + فاتورة لكل رصيد طرف + حركة مخزون لكل صنف. يمكن إلغاء الترحيل قبل أي معاملة على الأرصدة.</p>
       </CardContent></Card>

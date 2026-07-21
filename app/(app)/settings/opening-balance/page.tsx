@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines } from "@/db/schema";
@@ -17,8 +17,8 @@ export default async function OpeningBalancePage() {
   return loadErpPage("accounting.create", async ({ orgId }) => {
     // Accounts/customers/suppliers stay client-side (bounded); items are searched
     // server-side (the catalog can be tens of thousands of rows).
-    const [head, accs, custs, supps, whs] = await Promise.all([
-      db.select().from(openingBalances).where(eq(openingBalances.organizationId, orgId)).limit(1),
+    const [allOb, accs, custs, supps, whs] = await Promise.all([
+      db.select().from(openingBalances).where(eq(openingBalances.organizationId, orgId)).orderBy(desc(openingBalances.createdAt)),
       db.select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr }).from(accounts)
         .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true))).orderBy(asc(accounts.code)),
       db.select({ id: customers.id, code: customers.code, nameAr: customers.nameAr }).from(customers)
@@ -29,9 +29,12 @@ export default async function OpeningBalancePage() {
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
     ]);
 
-    const existing = head[0];
-    const savedLines = existing
-      ? await db.select().from(openingBalanceLines).where(eq(openingBalanceLines.openingBalanceId, existing.id))
+    // The editor edits the single open DRAFT; POSTED ones are shown as reversible
+    // history so more sections can be added and posted separately over time.
+    const draft = allOb.find((o) => o.status === "DRAFT") ?? null;
+    const posted = allOb.filter((o) => o.status === "POSTED");
+    const savedLines = draft
+      ? await db.select().from(openingBalanceLines).where(eq(openingBalanceLines.openingBalanceId, draft.id))
       : [];
 
     // Resolve labels only for the items actually referenced by saved lines.
@@ -70,7 +73,7 @@ export default async function OpeningBalancePage() {
     // Default to the first day of the current fiscal year — the professional convention.
     const now = new Date();
     const fyStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-    const date = existing ? new Date(existing.date).toISOString().slice(0, 10) : fyStart.toISOString().slice(0, 10);
+    const date = (draft ?? posted[0]) ? new Date((draft ?? posted[0]).date).toISOString().slice(0, 10) : fyStart.toISOString().slice(0, 10);
 
     return (
       <div className="space-y-6" dir="rtl">
@@ -86,8 +89,7 @@ export default async function OpeningBalancePage() {
         )}
 
         <OpeningBalanceEditor
-          postedId={existing?.status === "POSTED" ? existing.id : null}
-          reversible={existing?.status === "POSTED"}
+          posted={posted.map((o) => ({ id: o.id, date: new Date(o.date).toISOString().slice(0, 10) }))}
           date={date}
           initial={initial}
           accounts={accOpts}

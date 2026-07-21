@@ -39,7 +39,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         ? (await db.select({ id: itemCodes.itemId }).from(itemCodes)
             .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`))).limit(200)).map((r) => r.id)
         : [];
-      const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`), ilike(items.nameEn, `%${q}%`)];
+      const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`)];
       if (codeItemIds.length) search.push(inArray(items.id, [...new Set(codeItemIds)]));
       conds.push(or(...search)!);
     }

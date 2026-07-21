@@ -99,12 +99,10 @@ export async function saveOpeningBalanceAction(input: unknown): Promise<ActionSt
     const owned = await assertOwned(auth.orgId, d.lines as OpeningLine[]);
     if (owned) return { error: owned };
 
-    // One opening balance per org — it states a single moment, and a second POSTED one
-    // would double every balance it touches.
-    const [posted] = await db.select({ id: openingBalances.id }).from(openingBalances)
-      .where(and(eq(openingBalances.organizationId, auth.orgId), eq(openingBalances.status, "POSTED"))).limit(1);
-    if (posted) return { error: "توجد أرصدة افتتاحية مُرحّلة بالفعل — لا يمكن ترحيل أكثر من واحدة" };
-
+    // Opening balances can be entered in stages (e.g. stock now, receivables later) —
+    // each is its own DRAFT → POSTED document + journal, so a second post ADDS the new
+    // figures rather than double-counting the first. (Re-entering the SAME item/party
+    // is a user error, not something this guard can safely catch.)
     try {
       const id = await db.transaction(async (tx) => {
         // Replace any existing draft rather than accumulate half-finished attempts.
@@ -116,7 +114,7 @@ export async function saveOpeningBalanceAction(input: unknown): Promise<ActionSt
           organizationId: auth.orgId, date, status: "DRAFT", notes: d.notes?.trim() || null,
         }).returning({ id: openingBalances.id });
 
-        await tx.insert(openingBalanceLines).values(d.lines.map((l) => ({
+        const values = d.lines.map((l) => ({
           openingBalanceId: head.id, kind: l.kind,
           accountId: l.accountId || null, customerId: l.customerId || null,
           supplierId: l.supplierId || null, itemId: l.itemId || null, warehouseId: l.warehouseId || null,
@@ -126,7 +124,12 @@ export async function saveOpeningBalanceAction(input: unknown): Promise<ActionSt
           reference: l.reference?.trim() || null,
           dueDate: l.dueDate ? new Date(l.dueDate) : null,
           notes: l.notes?.trim() || null,
-        })));
+        }));
+        // Chunk the insert: a single 11k-row .values() overflows Postgres's 65k
+        // parameter cap. 500 rows × ~13 cols stays well under it.
+        for (let i = 0; i < values.length; i += 500) {
+          await tx.insert(openingBalanceLines).values(values.slice(i, i + 500));
+        }
         return head.id;
       });
 
@@ -157,10 +160,57 @@ export async function saveOpeningBalanceAction(input: unknown): Promise<ActionSt
 export async function postOpeningBalanceAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("accounting.post");
   if ("error" in auth) return auth;
+  return runOpeningPost(auth.orgId, auth.userId, id);
+}
 
-  return withOrgScope(auth.orgId, false, async () => {
+// ── Background post + live progress ──────────────────────────────────────────
+// An 11k-item post runs for minutes; doing it in the request would time out and
+// gives no progress. So the client saves the draft then starts a BACKGROUND job
+// and polls openingPostStatusAction for a "X / Y" line. In-memory state — single
+// Docker app instance, same pattern as the marketplace product sync.
+type OpeningPostState = { phase: "running" | "done" | "error"; done: number; total: number; error?: string; at: number };
+const openingPostJobs = new Map<string, OpeningPostState>();
+const opKey = (orgId: string, id: string) => `${orgId}:${id}`;
+
+/** Start the post in the background; returns at once with the total to expect. */
+export async function startOpeningPostAction(id: string): Promise<ActionState & { total?: number }> {
+  const auth = await authorizeErp("accounting.post");
+  if ("error" in auth) return auth;
+  const key = opKey(auth.orgId, id);
+  if (openingPostJobs.get(key)?.phase === "running") return { ok: true };
+  const cnt = await withOrgScope(auth.orgId, false, () =>
+    db.select({ n: sql<number>`count(*)` }).from(openingBalanceLines).where(eq(openingBalanceLines.openingBalanceId, id)));
+  const total = Number(cnt[0]?.n ?? 0);
+  if (total === 0) return { error: "لا توجد بنود للترحيل" };
+  openingPostJobs.set(key, { phase: "running", done: 0, total, at: Date.now() });
+  const orgId = auth.orgId, userId = auth.userId;
+  void (async () => {
+    try {
+      const r = await runOpeningPost(orgId, userId, id, (done) => { const s = openingPostJobs.get(key); if (s) s.done = done; });
+      openingPostJobs.set(key, r.ok ? { phase: "done", done: total, total, at: Date.now() } : { phase: "error", done: 0, total, error: r.error, at: Date.now() });
+    } catch (e) {
+      openingPostJobs.set(key, { phase: "error", done: 0, total, error: e instanceof Error ? e.message : "تعذّر الترحيل", at: Date.now() });
+    }
+  })();
+  return { ok: true, total };
+}
+
+/** Poll the background post — the client shows a "done / total" progress line. */
+export async function openingPostStatusAction(id: string): Promise<{ phase: "running" | "done" | "error" | "idle"; done: number; total: number; error?: string }> {
+  const auth = await authorizeErp("accounting.post");
+  if ("error" in auth) return { phase: "idle", done: 0, total: 0 };
+  const s = openingPostJobs.get(opKey(auth.orgId, id));
+  if (!s) return { phase: "idle", done: 0, total: 0 };
+  if (s.phase !== "running") { revalidatePath("/settings/opening-balance"); revalidatePath("/inventory/stock"); }
+  return { phase: s.phase, done: s.done, total: s.total, error: s.error };
+}
+
+/** The post core — takes orgId/userId (so a background job can run it) and fires
+ *  onProgress after each line so the caller can surface a live count. */
+async function runOpeningPost(orgId: string, userId: string | null, id: string, onProgress?: (done: number) => void): Promise<ActionState> {
+  return withOrgScope(orgId, false, async () => {
     const [head] = await db.select().from(openingBalances)
-      .where(and(eq(openingBalances.id, id), eq(openingBalances.organizationId, auth.orgId))).limit(1);
+      .where(and(eq(openingBalances.id, id), eq(openingBalances.organizationId, orgId))).limit(1);
     if (!head) return { error: "الأرصدة الافتتاحية غير موجودة" };
     if (head.status !== "DRAFT") return { error: "مُرحّلة بالفعل" };
 
@@ -189,12 +239,12 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
     let apWarehouse: string | null = null;
     if (needsAp) {
       const [w] = await db.select({ id: warehouses.id }).from(warehouses)
-        .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true)))
+        .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
         .orderBy(warehouses.code).limit(1);
       if (!w) return { error: "أنشئ مخزنًا واحدًا على الأقل قبل ترحيل أرصدة الموردين" };
       apWarehouse = w.id;
     }
-    const A = await resolveAccountIds(auth.orgId, ["1103", "2101", "1104"]);
+    const A = await resolveAccountIds(orgId, ["1103", "2101", "1104"]);
     if (needsAr && !A["1103"]) return { error: "حساب العملاء (1103) غير موجود" };
     if (needsAp && !A["2101"]) return { error: "حساب الموردين (2101) غير موجود" };
     if (needsInv && !A["1104"]) return { error: "حساب المخزون (1104) غير موجود" };
@@ -212,8 +262,14 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
           .returning({ id: openingBalances.id });
         if (claimed.length === 0) throw new Error("ALREADY_POSTED");
 
-        const openingAccount = await ensureOpeningAccount(auth.orgId, tx);
+        const openingAccount = await ensureOpeningAccount(orgId, tx);
         const glLines: { accountId: string; debit: number; credit: number; description: string }[] = [];
+        let processed = 0;
+        // Control accounts (AR/AP/inventory) are aggregated into ONE GL line each —
+        // the per-party/per-item detail lives in the opening invoices + stock ledger,
+        // and a line-per-row journal would (a) blow postEntry's param cap at 11k+ items
+        // and (b) bloat the ledger with thousands of identical control-account lines.
+        let arTotal = 0, apTotal = 0, stockTotal = 0;
 
         for (const l of lines) {
           const w = weigh(l);
@@ -223,10 +279,10 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
           }
 
           if (l.kind === "CUSTOMER") {
-            const number = await nextDocumentNumber(tx, auth.orgId, "SI", year);
+            const number = await nextDocumentNumber(tx, orgId, "SI", year);
             const due = l.dueDate ? new Date(l.dueDate) : date;
             const [inv] = await tx.insert(salesInvoices).values({
-              organizationId: auth.orgId, number, customerId: l.customerId!, date,
+              organizationId: orgId, number, customerId: l.customerId!, date,
               dueDate: due, status: "POSTED",
               subtotal: String(w.debit), discountAmount: "0", taxAmount: "0", totalAmount: String(w.debit),
               paidAmount: "0", balanceDue: String(w.debit),
@@ -235,14 +291,14 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
             await tx.update(openingBalanceLines).set({ postedRefId: inv.id }).where(eq(openingBalanceLines.id, l.lineId));
             await tx.update(customers).set({ balance: sql`${customers.balance} + ${w.debit}` })
               .where(eq(customers.id, l.customerId!));
-            glLines.push({ accountId: A["1103"]!, debit: w.debit, credit: 0, description: `رصيد افتتاحي — ${number}` });
+            arTotal += w.debit;
           }
 
           if (l.kind === "SUPPLIER") {
-            const number = await nextDocumentNumber(tx, auth.orgId, "PI", year);
+            const number = await nextDocumentNumber(tx, orgId, "PI", year);
             const due = l.dueDate ? new Date(l.dueDate) : date;
             const [inv] = await tx.insert(purchaseInvoices).values({
-              organizationId: auth.orgId, number, supplierId: l.supplierId!, date,
+              organizationId: orgId, number, supplierId: l.supplierId!, date,
               warehouseId: apWarehouse!, dueDate: due, status: "POSTED",
               subtotal: String(w.credit), discountAmount: "0", taxAmount: "0", totalAmount: String(w.credit),
               paidAmount: "0", balanceDue: String(w.credit),
@@ -251,32 +307,41 @@ export async function postOpeningBalanceAction(id: string): Promise<ActionState>
             await tx.update(openingBalanceLines).set({ postedRefId: inv.id }).where(eq(openingBalanceLines.id, l.lineId));
             await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${w.credit}` })
               .where(eq(suppliers.id, l.supplierId!));
-            glLines.push({ accountId: A["2101"]!, debit: 0, credit: w.credit, description: `رصيد افتتاحي — ${number}` });
+            apTotal += w.credit;
           }
 
           if (l.kind === "ITEM") {
             const r = await postStockMovement(tx, {
-              orgId: auth.orgId, itemId: l.itemId!, warehouseId: l.warehouseId!, type: "IN",
+              orgId, itemId: l.itemId!, warehouseId: l.warehouseId!, type: "IN",
               quantity: Number(l.quantity), unitCost: Number(l.unitCost), date,
               referenceType: "OPENING_BALANCE", referenceId: id, reason: "رصيد افتتاحي",
             });
-            glLines.push({ accountId: A["1104"]!, debit: round2(r.totalCost), credit: 0, description: "مخزون افتتاحي" });
+            stockTotal += r.totalCost;
           }
+
+          // Report progress every 25 lines (and let the event loop serve status polls).
+          if (++processed % 25 === 0) { onProgress?.(processed); await Promise.resolve(); }
         }
+        onProgress?.(processed);
+
+        // One aggregated line per control account (keeps the journal small).
+        if (arTotal > 0) glLines.push({ accountId: A["1103"]!, debit: round2(arTotal), credit: 0, description: "أرصدة العملاء الافتتاحية" });
+        if (apTotal > 0) glLines.push({ accountId: A["2101"]!, debit: 0, credit: round2(apTotal), description: "أرصدة الموردين الافتتاحية" });
+        if (stockTotal > 0) glLines.push({ accountId: A["1104"]!, debit: round2(stockTotal), credit: 0, description: "المخزون الافتتاحي" });
 
         // 3002 takes whatever makes it balance.
         if (t.balancing > 0) glLines.push({ accountId: openingAccount, debit: 0, credit: t.balancing, description: "حساب الأرصدة الافتتاحية" });
         else if (t.balancing < 0) glLines.push({ accountId: openingAccount, debit: -t.balancing, credit: 0, description: "حساب الأرصدة الافتتاحية" });
 
         await postEntry(tx, {
-          orgId: auth.orgId, userId: auth.userId,
+          orgId, userId,
           sourceType: "OPENING_BALANCE", sourceId: id, date,
           description: "الأرصدة الافتتاحية", journalType: "GENERAL",
           lines: glLines,
         });
       });
 
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "OPENING_BALANCE", entityId: id, summary: `ترحيل الأرصدة الافتتاحية — مدين ${t.debit} / دائن ${t.credit}` });
+      await tryRecordAudit({ orgId, userId, action: "POST", entityType: "OPENING_BALANCE", entityId: id, summary: `ترحيل الأرصدة الافتتاحية — مدين ${t.debit} / دائن ${t.credit}` });
       revalidatePath("/settings/opening-balance");
       revalidatePath("/accounting/journal");
       revalidatePath("/inventory/stock");

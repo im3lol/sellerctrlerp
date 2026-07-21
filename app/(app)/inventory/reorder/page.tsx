@@ -21,7 +21,7 @@ export default async function ReorderPage() {
         FROM stock_movements WHERE organization_id = ${orgId}
         ORDER BY item_id, warehouse_id, created_at DESC, number DESC
       )
-      SELECT i.code, coalesce(i.name_ar, i.name_en, i.code) AS name,
+      SELECT i.code, coalesce(i.name_ar, i.code) AS name,
              coalesce(i.min_stock, 0) AS min_stock, i.max_stock,
              coalesce(sum(l.balance_quantity), 0) AS on_hand
       FROM items i

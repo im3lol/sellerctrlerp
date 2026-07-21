@@ -24,6 +24,7 @@ export type CatalogRecord = {
   identifiers: CatalogIdentifier[];
   parentAsin?: string;   // set on a variation child
   variationValue?: string; // e.g. "Red / L"
+  category?: string;     // browse-node leaf display name → item category
 };
 
 export type OAuthExchange = { refreshToken: string } | { error: string };

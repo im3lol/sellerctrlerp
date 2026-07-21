@@ -27,7 +27,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
       <div className="space-y-6">
         <ErpPageHeader icon="Package" title={`تعديل ${item.code}`} subtitle="تعديل بيانات الصنف وأكواده وصورته" backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
         <ItemForm initial={{
-          id: item.id, code: item.code, nameAr: item.nameAr ?? "", nameEn: item.nameEn ?? "",
+          id: item.id, code: item.code, nameAr: item.nameAr ?? "",
           description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",
           isPerishable: item.isPerishable, shelfLifeDays: item.shelfLifeDays,
           image: item.image ?? "", brand: item.brand, weight: item.weight, dimensions: item.dimensions, codes,

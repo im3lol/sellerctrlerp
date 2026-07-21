@@ -44,7 +44,7 @@ export async function getExpiryReport(orgId: string, filters: ExpiryFilters) {
     .select({
       id: stockBatches.id,
       itemCode: items.code,
-      itemName: sql<string>`coalesce(${items.nameAr}, ${items.nameEn}, ${items.code})`,
+      itemName: sql<string>`coalesce(${items.nameAr}, ${items.code})`,
       warehouse: warehouses.nameAr,
       warehouseId: stockBatches.warehouseId,
       batchNo: stockBatches.batchNo,

@@ -39,12 +39,11 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
   const conds = [
     ilike(items.code, `%${q}%`),
     ilike(items.nameAr, `%${q}%`),
-    ilike(items.nameEn, `%${q}%`),
   ];
   if (codeItemIds.length) conds.push(inArray(items.id, codeItemIds));
 
   const rows = await db
-    .select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn, sellPrice: items.sellPrice, image: items.image })
+    .select({ id: items.id, code: items.code, nameAr: items.nameAr, sellPrice: items.sellPrice, image: items.image })
     .from(items)
     .where(and(eq(items.organizationId, orgId), eq(items.isActive, true), or(...conds)))
     .limit(15);
@@ -75,7 +74,7 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
   return rows.map((r) => ({
     id: r.id,
     code: r.code,
-    name: r.nameAr || r.nameEn || r.code,
+    name: r.nameAr || r.code,
     sellPrice: Number(r.sellPrice),
     image: r.image,
     stock: stockBy.get(r.id) ?? 0,

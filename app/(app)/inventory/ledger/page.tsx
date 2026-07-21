@@ -80,7 +80,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   defaultId={itemId}
                   defaultLabel={itemLabel}
                   placeholder="ابحث بالاسم أو الكود… (اتركه فارغاً لكل الأصناف)"
-                  options={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? i.nameEn ?? ""}`, hint: i.code }))}
+                  options={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}`, hint: i.code }))}
                 />
               </div>
               <div className="space-y-1">
@@ -121,7 +121,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">الصنف</TableHead>
+                      <TableHead className="w-[22rem] text-start">الصنف</TableHead>
                       <TableHead className="text-start">الحركة</TableHead>
                       <TableHead className="text-start">المستند</TableHead>
                       <TableHead className="text-start">المستودع</TableHead>
@@ -140,7 +140,19 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                       return (
                         <TableRow key={i}>
                           <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                          <TableCell>{r.itemId ? <Link href={`/inventory/items/${r.itemId}`} className="hover:underline"><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</Link> : <><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</>}</TableCell>
+                          <TableCell className="max-w-[22rem] whitespace-normal">
+                            {r.itemId ? (
+                              <Link href={`/inventory/items/${r.itemId}`} className="hover:underline">
+                                <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={r.itemName ?? undefined}>{r.itemName}</div>
+                                <div className="font-mono text-xs text-muted-foreground">{r.itemCode}</div>
+                              </Link>
+                            ) : (
+                              <>
+                                <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={r.itemName ?? undefined}>{r.itemName}</div>
+                                <div className="font-mono text-xs text-muted-foreground">{r.itemCode}</div>
+                              </>
+                            )}
+                          </TableCell>
                           <TableCell><Badge variant={variant}>{t.label}</Badge></TableCell>
                           <TableCell>{MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}</TableCell>
                           <TableCell>{r.warehouse ?? "—"}</TableCell>
