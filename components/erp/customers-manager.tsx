@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveCustomerAction, deleteCustomerAction, bulkDeleteCustomersAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
+import { exportCustomersCsvAction } from "@/app/actions/erp/exports";
+import { ExportCsvButton } from "@/components/erp/export-csv-button";
 import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,7 +158,12 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
       else toast.error(r.error ?? "تعذّر الحذف");
     });
 
-  const addBtn = canManage ? <Button onClick={openCreate}><Plus className="size-4" />عميل جديد</Button> : undefined;
+  const addBtn = (
+    <div className="flex items-center gap-2">
+      <ExportCsvButton action={exportCustomersCsvAction} />
+      {canManage && <Button onClick={openCreate}><Plus className="size-4" />عميل جديد</Button>}
+    </div>
+  );
 
   return (
     <div className="space-y-6">

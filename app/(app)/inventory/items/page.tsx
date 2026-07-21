@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemsTable } from "@/components/erp/items-table";
+import { ExportCsvButton } from "@/components/erp/export-csv-button";
+import { exportItemsCsvAction } from "@/app/actions/erp/exports";
 import { selectCls } from "@/lib/utils";
 
 const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -109,9 +111,12 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           title="الأصناف"
           subtitle={`${total} صنف`}
           backHref="/inventory"
-          action={canManage ? (
-            <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>
-          ) : undefined}
+          action={
+            <div className="flex items-center gap-2">
+              <ExportCsvButton action={exportItemsCsvAction} />
+              {canManage && <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>}
+            </div>
+          }
         />
         <Card>
           <CardHeader><CardTitle>قائمة الأصناف</CardTitle><CardDescription>ابحث بالاسم أو الكود الداخلي أو أي كود خارجي (SKU/ASIN/باركود). اضغط الصنف لعرض تفاصيله.</CardDescription></CardHeader>

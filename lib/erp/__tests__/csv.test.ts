@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv, detectHeaderRow, parseCsvWithHeader } from "@/lib/erp/csv";
+import { parseCsv, detectHeaderRow, parseCsvWithHeader, toCsv } from "@/lib/erp/csv";
 
 describe("parseCsv", () => {
   it("parses a simple header + rows", () => {
@@ -50,5 +50,26 @@ describe("detectHeaderRow / parseCsvWithHeader (Amazon preamble)", () => {
 
   it("returns row 0 for a normal CSV with no preamble", () => {
     expect(detectHeaderRow(parseCsv("a,b,c\n1,2,3"))).toBe(0);
+  });
+});
+
+describe("toCsv (export)", () => {
+  it("quotes only fields with comma/quote/newline, blanks null/undefined", () => {
+    const csv = toCsv(["code", "name", "note"], [
+      ["A1", "Widget, Large", null],
+      ["A2", 'say "hi"', "line1\nline2"],
+      ["A3", "plain", undefined],
+    ]);
+    expect(csv).toBe(
+      'code,name,note\r\n' +
+      'A1,"Widget, Large",\r\n' +
+      'A2,"say ""hi""","line1\nline2"\r\n' +
+      'A3,plain,',
+    );
+  });
+
+  it("round-trips back through parseCsv", () => {
+    const csv = toCsv(["a", "b"], [["1", "x,y"], ["2", 'q"q']]);
+    expect(parseCsv(csv)).toEqual([["a", "b"], ["1", "x,y"], ["2", 'q"q']]);
   });
 });
