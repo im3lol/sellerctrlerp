@@ -104,6 +104,8 @@ const CONFIG_FIELDS = [
   "receivableAccountId", "payableAccountId", "cashAccountId", "bankAccountId",
   "salesAccountId", "purchaseAccountId", "outputTaxAccountId", "inputTaxAccountId",
   "inventoryAccountId", "cogsAccountId",
+  "grniAccountId", "salesReturnsAccountId", "inventorySurplusAccountId",
+  "inventoryDeficitAccountId", "purchaseReturnVarianceAccountId",
 ] as const;
 
 export async function saveAccountingConfigAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

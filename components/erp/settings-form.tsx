@@ -166,6 +166,11 @@ export function SettingsForm({
                 <AccountSelect name="cogsAccountId" label="حساب تكلفة المبيعات" accounts={accounts} defaultValue={cfg.cogsAccountId} types={["EXPENSE"]} />
                 <AccountSelect name="outputTaxAccountId" label="ضريبة المخرجات (مبيعات)" accounts={accounts} defaultValue={cfg.outputTaxAccountId} types={["LIABILITY"]} />
                 <AccountSelect name="inputTaxAccountId" label="ضريبة المدخلات (مشتريات)" accounts={accounts} defaultValue={cfg.inputTaxAccountId} types={["ASSET"]} />
+                <AccountSelect name="grniAccountId" label="بضاعة مستلمة لم تُفوتر" accounts={accounts} defaultValue={cfg.grniAccountId} types={["LIABILITY"]} />
+                <AccountSelect name="salesReturnsAccountId" label="مردودات المبيعات" accounts={accounts} defaultValue={cfg.salesReturnsAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventorySurplusAccountId" label="فائض المخزون" accounts={accounts} defaultValue={cfg.inventorySurplusAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventoryDeficitAccountId" label="عجز وتالف المخزون" accounts={accounts} defaultValue={cfg.inventoryDeficitAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="purchaseReturnVarianceAccountId" label="فروق أسعار مرتجعات الشراء" accounts={accounts} defaultValue={cfg.purchaseReturnVarianceAccountId} types={["EXPENSE"]} />
               </div>
               {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ الضبط" /></div>}
             </fieldset>

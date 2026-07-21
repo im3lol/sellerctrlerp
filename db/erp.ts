@@ -773,6 +773,12 @@ export const accountingConfigurations = pgTable(
     inputTaxAccountId: text("input_tax_account_id"),
     inventoryAccountId: text("inventory_account_id"),
     cogsAccountId: text("cogs_account_id"),
+    // Additional configurable roles (default codes 2103/4102/4201/5301/5302).
+    grniAccountId: text("grni_account_id"),                               // 2103 بضاعة مستلمة لم تُفوتر
+    salesReturnsAccountId: text("sales_returns_account_id"),              // 4102 مردودات المبيعات
+    inventorySurplusAccountId: text("inventory_surplus_account_id"),      // 4201 فائض المخزون
+    inventoryDeficitAccountId: text("inventory_deficit_account_id"),      // 5301 عجز/تالف المخزون
+    purchaseReturnVarianceAccountId: text("purchase_return_variance_account_id"), // 5302 فروق أسعار مرتجعات الشراء
     salesJournalId: text("sales_journal_id"),
     purchaseJournalId: text("purchase_journal_id"),
     cashJournalId: text("cash_journal_id"),
