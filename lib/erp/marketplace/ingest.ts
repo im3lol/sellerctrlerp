@@ -7,7 +7,7 @@ import { normalizeCode } from "@/lib/erp/amazon-import";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { fulfillOrder, cancelMarketplaceOrder } from "@/lib/erp/fulfillment";
+import { fulfillOrder, cancelMarketplaceOrder, type AutoMode } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview, type ItemResolver } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
@@ -57,7 +57,7 @@ async function categoryIdByName(orgId: string, name: string, cache: Map<string, 
  * DRAFT→fulfil cycle, reconciliation) lives once and the ERP never knows the
  * source. Ported from the former Amazon-specific actions with no behaviour change.
  */
-export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoInvoice?: boolean };
+export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode };
 
 export type IngestResult = {
   created: number;
@@ -65,6 +65,7 @@ export type IngestResult = {
   fulfilled: number;
   cancelled: number;
   stockBlocked: { externalId: string; reason: string }[];
+  stockDrafted: number; // deliveries parked as DRAFT waiting for stock
   skippedDuplicate: number;
   skippedUnmatched: number;
   autoCreated: number; // stub items created for unknown SKUs (order kept DRAFT)
@@ -188,8 +189,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
 
-  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0;
+  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];
+  const autoMode: AutoMode = ctx.autoMode ?? "invoice";
 
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
@@ -227,8 +229,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   };
 
   const runCycle = async (orderId: string, extId: string) => {
-    const f = await fulfillOrder(orgId, orderId, { invoice: ctx.autoInvoice ?? true });
-    if (f.ok) { if (!f.noop) fulfilled++; }
+    if (autoMode === "order") return; // order-only mode: don't deliver/invoice
+    const f = await fulfillOrder(orgId, orderId, { mode: autoMode, draftOnShort: true });
+    if (f.ok) { if (f.drafted) stockDrafted++; else if (!f.noop) fulfilled++; }
     else if (f.blocked) stockBlocked.push({ externalId: extId, reason: f.error });
     else failed++;
   };
@@ -300,7 +303,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   }
 
   return {
-    created, transitioned, fulfilled, cancelled, stockBlocked,
+    created, transitioned, fulfilled, cancelled, stockBlocked, stockDrafted,
     skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, autoCreated, failed,
   };
 }

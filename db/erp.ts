@@ -1621,9 +1621,15 @@ export const salesPlatforms = pgTable(
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
-    // When a marketplace order completes: true = full cycle to a posted invoice;
-    // false = stop at the (posted) delivery note and leave invoicing manual.
+    // Deprecated — superseded by autoMode. Kept so legacy rows stay valid; not read.
     autoInvoice: boolean("auto_invoice").notNull().default(true),
+    // What the automatic order flow creates from a marketplace order:
+    //   "order"   = sales order only (deliver/invoice manually)
+    //   "deliver" = + posted delivery note (stock OUT + COGS)
+    //   "invoice" = + posted invoice (full cycle — revenue + AR)
+    // If stock is short when the delivery would post, the delivery is left DRAFT
+    // and the user is notified — regardless of mode.
+    autoMode: text("auto_mode").notNull().default("invoice"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

@@ -7,6 +7,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
+import type { AutoMode } from "@/lib/erp/fulfillment";
 import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
@@ -20,7 +21,7 @@ export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: C
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
 export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
-export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number; stockDrafted: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
 /**
@@ -46,11 +47,11 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, autoPostSettlements: salesPlatforms.autoPostSettlements, autoInvoice: salesPlatforms.autoInvoice })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoInvoice: p.autoInvoice };
+    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice" };
     const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements };
     return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
@@ -175,7 +176,7 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
   try {
     const orders = await p.connector.fetchOrders(p.cred, range); // slow fetch, unscoped
     const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, p.ctx, orders));
-    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
   }
