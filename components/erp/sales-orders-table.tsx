@@ -113,7 +113,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                     )}
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">

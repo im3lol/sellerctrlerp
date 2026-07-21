@@ -62,7 +62,7 @@ export function VouchersTable({ rows, canManage, type }: { rows: VoucherRow[]; c
                 )}
                 <TableCell className="font-mono">{r.number}</TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
-                <TableCell>{r.party ?? "—"}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={r.party ?? undefined}>{r.party ?? "—"}</TableCell>
                 <TableCell className="font-mono">{r.invoice ? <Link href={`${invoiceBase}/${encodeURIComponent(r.invoice)}`} className="text-primary hover:underline">{r.invoice}</Link> : "تحت الحساب"}</TableCell>
                 <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
                 <TableCell>{fmt(r.amount)}</TableCell>

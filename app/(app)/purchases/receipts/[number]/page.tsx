@@ -115,7 +115,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                     <TableCell>{qtyf(l.qty)}</TableCell>
                     {anyRejected && <TableCell className={Number(l.rejected) > 0 ? "text-destructive" : "text-muted-foreground"}>{qtyf(l.rejected)}</TableCell>}

@@ -108,7 +108,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell><span className="font-mono text-xs text-muted-foreground">{l.itemCode}</span> {l.itemName}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.itemCode}</span> {l.itemName}</div></TableCell>
                     <TableCell>{l.from ?? "—"}</TableCell>
                     <TableCell>{l.to ?? "—"}</TableCell>
                     <TableCell>{q(l.quantity)}</TableCell>

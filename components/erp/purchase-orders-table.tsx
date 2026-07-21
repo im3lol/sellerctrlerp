@@ -89,7 +89,7 @@ export function PurchaseOrdersTable({ rows, canManage }: { rows: Row[]; canManag
                     <Link href={`/purchases/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.supplier ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.supplier ?? undefined}>{r.supplier ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">

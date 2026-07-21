@@ -125,9 +125,11 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
                     return (
                       <TableRow key={r.code ?? i}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell>
-                          <span className="font-mono text-xs text-muted-foreground">{r.code}</span>{" "}
-                          {r.name}
+                        <TableCell className="max-w-[320px] whitespace-normal">
+                          <div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>
+                            <span className="font-mono text-xs text-muted-foreground">{r.code}</span>{" "}
+                            {r.name}
+                          </div>
                         </TableCell>
                         <TableCell className="text-end tabular-nums">{qtyf(r.totalQty)}</TableCell>
                         <TableCell className="text-end tabular-nums">{fmt(r.avgPrice)}</TableCell>

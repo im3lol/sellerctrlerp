@@ -110,7 +110,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                 <TableBody>
                   {pageRows.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
                       <TableCell>{r.warehouse}</TableCell>
                       <TableCell>{r.batchNo ?? "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{dt(r.expiryDate)}</TableCell>

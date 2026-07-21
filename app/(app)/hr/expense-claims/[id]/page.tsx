@@ -38,7 +38,7 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
                 {lines.map((l, i) => (
                   <TableRow key={i}>
                     <TableCell><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.acc}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{l.description ?? "—"}</TableCell>
+                    <TableCell className="max-w-[320px] truncate text-sm text-muted-foreground" title={l.description ?? undefined}>{l.description ?? "—"}</TableCell>
                     <TableCell className="text-end tabular-nums font-medium">{fmt(Number(l.amount))}</TableCell>
                   </TableRow>
                 ))}

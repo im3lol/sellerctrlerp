@@ -288,7 +288,7 @@ export default async function InventoryDashboardPage() {
                   {topDead.map((r) => (
                     <li key={r.id} className="flex items-center justify-between gap-3 text-sm">
                       <div className="min-w-0">
-                        <div dir="ltr" className="truncate text-start" title={r.name}>{r.name}</div>
+                        <div dir="ltr" className="truncate text-start" title={r.name ?? undefined}>{r.name}</div>
                         <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{r.code}</div>
                       </div>
                       <span className="shrink-0 tabular-nums text-muted-foreground">{money(r.val)}</span>

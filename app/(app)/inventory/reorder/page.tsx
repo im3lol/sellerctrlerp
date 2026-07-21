@@ -72,8 +72,8 @@ export default async function ReorderPage() {
                     const suggested = r.max && r.max > r.onHand ? r.max - r.onHand : Math.max(r.min - r.onHand, 0);
                     return (
                       <TableRow key={r.code}>
-                        <TableCell className="font-mono">{r.code}</TableCell>
-                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
+                        <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
                         <TableCell>{q(r.onHand)}</TableCell>
                         <TableCell>{q(r.min)}</TableCell>
                         <TableCell>{r.max ? q(r.max) : "—"}</TableCell>

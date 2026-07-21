@@ -248,7 +248,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                   <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-start">الكمية</TableHead><TableHead className="text-start">المبيعات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {topItems.map((t, i) => (
-                      <TableRow key={i}><TableCell><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
+                      <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={t.name ?? undefined}><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</div></TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
                     ))}
                   </TableBody>
                 </Table>

@@ -113,7 +113,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
-                      <TableCell><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums font-medium">{fmt(r.val)}</TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.sold)}</TableCell>

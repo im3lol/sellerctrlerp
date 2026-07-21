@@ -83,7 +83,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
                     <Link href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.supplier ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.supplier ?? undefined}>{r.supplier ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>

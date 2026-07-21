@@ -91,7 +91,7 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</Link></TableCell>
+                        <TableCell className="max-w-[280px] whitespace-normal"><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</span></Link></TableCell>
                         <TableCell className="text-end tabular-nums font-medium">{fmt(r.revenue)}</TableCell>
                         <TableCell className="text-end tabular-nums">{r.invoices}</TableCell>
                         <TableCell className={`text-end tabular-nums ${r.balance > 0 ? "text-amber-600" : ""}`}>{fmt(r.balance)}</TableCell>

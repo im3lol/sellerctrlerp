@@ -112,7 +112,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                 <TableRow key={s.id} data-state={sel.has(s.id) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
                   <TableCell className="font-mono">{s.code}</TableCell>
-                  <TableCell>{s.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{s.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(s.balance)}</TableCell>
                   <TableCell>{s.paymentTerms} يوم</TableCell>

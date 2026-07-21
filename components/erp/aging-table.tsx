@@ -33,8 +33,8 @@ export function AgingTable({
       <TableBody>
         {rows.map((r) => (
           <TableRow key={r.partyId}>
-            <TableCell>
-              <span className="font-mono text-muted-foreground">{r.partyCode}</span> {r.partyName}
+            <TableCell className="max-w-[260px] whitespace-normal">
+              <div className="line-clamp-2 leading-snug" title={r.partyName}><span className="font-mono text-muted-foreground">{r.partyCode}</span> {r.partyName}</div>
             </TableCell>
             {AGING_BUCKETS.map((b) => (
               <TableCell key={b}>{fmt(r.buckets[b])}</TableCell>

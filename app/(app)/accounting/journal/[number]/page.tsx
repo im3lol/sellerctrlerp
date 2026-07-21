@@ -135,7 +135,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
                     <TableCell>
                       <span className="font-mono">{l.accountCode}</span> — {l.accountName}
                     </TableCell>
-                    <TableCell>{l.description || "—"}</TableCell>
+                    <TableCell className="max-w-[320px] truncate" title={l.description || undefined}>{l.description || "—"}</TableCell>
                     {hasCostCenters && <TableCell>{l.costCenterName || "—"}</TableCell>}
                     <TableCell>{Number(l.debit) ? fmt(l.debit) : "—"}</TableCell>
                     <TableCell>{Number(l.credit) ? fmt(l.credit) : "—"}</TableCell>

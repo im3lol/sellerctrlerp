@@ -86,7 +86,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
                   const delta = Number(l.delta);
                   return (
                     <TableRow key={l.id}>
-                      <TableCell><span className="font-mono text-xs text-muted-foreground">{l.itemCode}</span> {l.itemName}</TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.itemCode}</span> {l.itemName}</div></TableCell>
                       <TableCell>{l.warehouse ?? "—"}</TableCell>
                       <TableCell>{q(l.entered)}</TableCell>
                       <TableCell className={delta < 0 ? "text-destructive" : delta > 0 ? "text-emerald-600" : ""}>{delta > 0 ? "+" : ""}{q(delta)}</TableCell>

@@ -143,7 +143,7 @@ export default async function GeneralLedgerPage({
                         <TableRow key={i}>
                           <TableCell>{dt(r.date)}</TableCell>
                           <TableCell className="font-mono">{r.number}</TableCell>
-                          <TableCell>{r.description ?? r.reference ?? "—"}</TableCell>
+                          <TableCell className="max-w-[320px] truncate" title={r.description ?? r.reference ?? undefined}>{r.description ?? r.reference ?? "—"}</TableCell>
                           <TableCell>{Number(r.debit) ? fmt(Number(r.debit)) : "—"}</TableCell>
                           <TableCell>{Number(r.credit) ? fmt(Number(r.credit)) : "—"}</TableCell>
                           <TableCell>{fmt(running)}</TableCell>

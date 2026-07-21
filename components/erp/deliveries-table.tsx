@@ -86,7 +86,7 @@ export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: b
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>

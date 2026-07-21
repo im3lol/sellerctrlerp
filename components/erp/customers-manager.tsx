@@ -200,7 +200,7 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
                 <TableRow key={c.id} data-state={sel.has(c.id) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></TableCell>}
                   <TableCell className="font-mono">{c.code}</TableCell>
-                  <TableCell>{c.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={c.nameAr}>{c.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{c.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(c.balance)}</TableCell>
                   <TableCell>{fmt(c.creditLimit)}</TableCell>
