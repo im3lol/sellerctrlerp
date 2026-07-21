@@ -7,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { BarChart } from "@/components/charts/bar-chart";
+import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
@@ -27,13 +28,20 @@ const SHORTCUTS = [
 
 type ItemRow = { id: string; code: string; name: string; min_stock: string; category: string };
 type BalRow = { item_id: string; warehouse: string | null; qty: string; val: string };
+type TrendRow = { m: string; type: string; qty: string };
+
+const DEAD_DAYS = 90; // matches the dead-stock report default (no sale in N days)
 
 export default async function InventoryDashboardPage() {
   return loadErpPage("inventory.view", async ({ orgId }) => {
     // Two scans only: (1) light — active items + their category; (2) the one heavy
     // DISTINCT ON over stock_movements for the latest balance per item+warehouse.
     // Every KPI/chart below is aggregated from these in JS — no extra heavy queries.
-    const [itemRows, balRows, nearExpR] = await Promise.all([
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const deadSince = new Date(now.getTime() - DEAD_DAYS * 86_400_000);
+
+    const [itemRows, balRows, nearExpR, trendR, soldR] = await Promise.all([
       db.execute<ItemRow>(sql`
         SELECT i.id, i.code, COALESCE(i.name_ar, i.code) AS name, i.min_stock,
                COALESCE(c.name_ar, 'بدون تصنيف') AS category
@@ -52,6 +60,18 @@ export default async function InventoryDashboardPage() {
         SELECT count(*)::int AS n FROM stock_batches
         WHERE organization_id = ${orgId} AND remaining_quantity > 0
           AND expiry_date IS NOT NULL AND expiry_date <= now() + interval '30 days'`),
+      // Monthly inbound vs outbound units for the last 6 months (ADJ excluded).
+      db.execute<TrendRow>(sql`
+        SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS m, type, SUM(quantity) AS qty
+        FROM stock_movements
+        WHERE organization_id = ${orgId} AND type IN ('IN','OUT') AND date >= ${sixMonthsAgo}
+        GROUP BY 1, 2`),
+      // Items that actually SOLD in the dead-stock window — anything on hand and
+      // NOT here is dead/slow (same signal as /inventory/dead-stock).
+      db.execute<{ item_id: string }>(sql`
+        SELECT DISTINCT item_id FROM stock_movements
+        WHERE organization_id = ${orgId} AND type = 'OUT'
+          AND reference_type IN ('DELIVERY','SALES_INVOICE') AND date >= ${deadSince}`),
     ]);
 
     const items = itemRows.rows as ItemRow[];
@@ -99,6 +119,24 @@ export default async function InventoryDashboardPage() {
     for (const r of rows) if (r.val) catValue.set(r.category, (catValue.get(r.category) ?? 0) + r.val);
     const byCategory = [...catValue.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
     const byWarehouse = [...whValue.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+
+    // Dead/slow stock: on hand but no sale in the last DEAD_DAYS days.
+    const soldSet = new Set((soldR.rows as { item_id: string }[]).map((r) => r.item_id));
+    const dead = rows.filter((r) => r.qty > 0 && !soldSet.has(r.id));
+    const deadValue = dead.reduce((s, r) => s + r.val, 0);
+    const topDead = [...dead].sort((a, b) => b.val - a.val).slice(0, 5);
+
+    // Monthly inbound/outbound units → 6 fixed buckets so empty months still show.
+    const inByM = new Map<string, number>(), outByM = new Map<string, number>();
+    for (const t of trendR.rows as TrendRow[]) {
+      (t.type === "IN" ? inByM : outByM).set(t.m, Number(t.qty) || 0);
+    }
+    const trend = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
+    });
+    const hasMovement = trend.some((t) => t.inQ || t.outQ);
 
     const nearExp = Number((nearExpR.rows as { n: number }[])[0]?.n ?? 0);
     const counts: Record<string, number> = { items: totalItems };
@@ -212,6 +250,51 @@ export default async function InventoryDashboardPage() {
                 <div className="py-8 text-center text-sm text-muted-foreground">لا توجد بيانات.</div>
               ) : (
                 <BarChart data={byWarehouse} valueLabel="القيمة" money height={240} colors={["#6366f1"]} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>حركة المخزون الشهرية</CardTitle>
+              <CardDescription>الكميات الواردة مقابل الصادرة — آخر ٦ أشهر.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hasMovement ? (
+                <GroupedBarChart data={trend} series={[{ key: "inQ", name: "وارد", color: "#10b981" }, { key: "outQ", name: "صادر", color: "#f59e0b" }]} height={240} />
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد حركة مخزون في آخر ٦ أشهر.</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>الأصناف الراكدة</CardTitle>
+              <CardDescription>لها رصيد ولم تُبَع خلال {intf(DEAD_DAYS)} يوماً — رأس مال متجمّد.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border bg-muted/40 p-4">
+                <div>
+                  <div className="text-2xl font-bold tabular-nums text-amber-600">{intf(dead.length)} <span className="text-sm font-normal text-muted-foreground">صنف</span></div>
+                  <div className="text-xs text-muted-foreground">قيمة راكدة: <span className="font-medium tabular-nums">{money(deadValue)}</span></div>
+                </div>
+                <Link href="/inventory/dead-stock" className="text-sm font-medium text-primary hover:underline">عرض الكل ←</Link>
+              </div>
+              {topDead.length > 0 && (
+                <ul className="space-y-2">
+                  {topDead.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <div dir="ltr" className="truncate text-start" title={r.name}>{r.name}</div>
+                        <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{r.code}</div>
+                      </div>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">{money(r.val)}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardContent>
           </Card>
