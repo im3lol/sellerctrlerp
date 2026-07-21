@@ -60,7 +60,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {[
-            { label: "قيمة المخزون", value: fmt(totals.value), tone: "" },
+            { label: "قيمة المخزون", value: intl(Math.round(totals.value)), tone: "" },
             { label: "إجمالي الكمية", value: qty(totals.quantity), tone: "" },
             { label: "عدد الأصناف", value: intl(totals.items), tone: "" },
             { label: "مخزون منخفض", value: intl(totals.low), tone: "text-amber-600" },
@@ -69,7 +69,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
             <Card key={k.label}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">{k.label}</div>
-                <div className={`mt-1 truncate text-xl font-bold tabular-nums ${k.tone}`} title={k.value}>{k.value}</div>
+                <div className={`mt-1 text-lg font-bold tabular-nums ${k.tone}`}>{k.value}</div>
               </CardContent>
             </Card>
           ))}
