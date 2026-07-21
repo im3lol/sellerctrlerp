@@ -2,12 +2,14 @@ import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, accounts } from "@/db/schema";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherForm } from "@/components/erp/voucher-form";
 
 export default async function NewReceiptPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   return loadErpPage("sales.view", async ({ orgId }) => {
     const { invoice: invoiceParam } = await searchParams;
+    const rc = await resolveAccountCodes(orgId, ["1101", "1102"]);
 
     const [parties, invoices, cashAccs] = await Promise.all([
       db.select({ id: customers.id, code: customers.code, name: customers.nameAr })
@@ -22,7 +24,7 @@ export default async function NewReceiptPage({ searchParams }: { searchParams: P
         .orderBy(asc(salesInvoices.date)),
       db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr })
         .from(accounts)
-        .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), inArray(accounts.code, ["1101", "1102"])))
+        .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), inArray(accounts.code, [rc["1101"], rc["1102"]])))
         .orderBy(asc(accounts.code)),
     ]);
 

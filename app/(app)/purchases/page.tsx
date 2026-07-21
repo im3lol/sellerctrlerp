@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { suppliers, purchaseOrders, purchaseInvoices, purchaseReceipts, materialRequests } from "@/db/schema";
 import { purchasesBySupplier } from "@/lib/erp/mobile-reports";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -59,9 +60,10 @@ export default async function ErpPurchasesPage() {
       accountBalances({ orgId }),
     ]);
 
-    // AP from the control account, not Σ suppliers.balance: the GL is the number the
-    // financial statements use, and the two can drift.
-    const ap = balances.filter((b) => b.code === "2101").reduce((s, b) => s + naturalAmount(b), 0);
+    // AP from the control account (2101, or the org's configured payable), not
+    // Σ suppliers.balance: the GL is what the statements use and they can drift.
+    const rc = await resolveAccountCodes(orgId, ["2101"]);
+    const ap = balances.filter((b) => b.code === rc["2101"]).reduce((s, b) => s + naturalAmount(b), 0);
 
     const todos = [
       { label: "طلبات مواد بانتظار الاعتماد", hint: "مسودة", count: cnt(reqDraft), href: "/purchases/requisitions", icon: "ClipboardList" },

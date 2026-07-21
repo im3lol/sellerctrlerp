@@ -2,6 +2,7 @@ import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices, customers, suppliers } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { getExpiryReport } from "@/lib/erp/expiry";
 
 export type ErpOverview = {
@@ -136,6 +137,8 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
   const income = balances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0);
   const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
   const byCode = Object.fromEntries(balances.map((b) => [b.code, b.balance]));
+  // Respect per-org account overrides: read each role's balance from its effective code.
+  const rc = await resolveAccountCodes(orgId, ["1101", "1102", "1103", "2101"]);
 
   const totalValue = invRows.reduce((s, r) => s + Number(r.val), 0);
   const lowStock = invRows.filter((r) => Number(r.min_stock) > 0 && Number(r.qty) <= Number(r.min_stock) && Number(r.qty) > 0).length;
@@ -150,9 +153,9 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     income,
     expense,
     net: income - expense,
-    cash: (byCode["1101"] ?? 0) + (byCode["1102"] ?? 0),
-    ar: byCode["1103"] ?? 0,
-    ap: -(byCode["2101"] ?? 0),
+    cash: (byCode[rc["1101"]] ?? 0) + (byCode[rc["1102"]] ?? 0),
+    ar: byCode[rc["1103"]] ?? 0,
+    ap: -(byCode[rc["2101"]] ?? 0),
     inventoryValue: totalValue,
     totalItems: invRows.length,
     lowStock,

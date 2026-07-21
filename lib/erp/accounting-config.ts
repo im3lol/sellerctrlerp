@@ -94,3 +94,26 @@ export async function resolveAccountIds(
 
   return byCode;
 }
+
+/**
+ * Like resolveAccountIds, but returns the effective *code* per role — the
+ * configured override account's own code when set, else the default code.
+ * Read paths that look up a balance map keyed by code use this so a remapped
+ * account's balance is read from the right code (e.g. AR remapped to "1150" →
+ * resolveAccountCodes(org, ["1103"]) = { "1103": "1150" }). No config = identity.
+ */
+export async function resolveAccountCodes(
+  orgId: string,
+  codes: string[],
+  exec: Pick<typeof db, "select"> = db,
+): Promise<Record<string, string>> {
+  const ids = await resolveAccountIds(orgId, codes, exec);
+  const idList = [...new Set(Object.values(ids))];
+  if (idList.length === 0) return Object.fromEntries(codes.map((c) => [c, c]));
+  const rows = await exec
+    .select({ id: accounts.id, code: accounts.code })
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), inArray(accounts.id, idList)));
+  const codeById = new Map(rows.map((r) => [r.id, r.code]));
+  return Object.fromEntries(codes.map((c) => [c, (ids[c] && codeById.get(ids[c])) || c]));
+}
