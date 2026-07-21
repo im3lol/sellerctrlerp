@@ -25,8 +25,8 @@ const SHORTCUTS = [
 
 export default async function InventoryDashboardPage() {
   return loadErpPage("inventory.view", async ({ orgId }) => {
-    const rows = (await db.execute<{ id: string; name: string; min_stock: string; qty: string; val: string }>(sql`
-      SELECT i.id, COALESCE(i.name_ar, i.code) AS name, i.min_stock,
+    const rows = (await db.execute<{ id: string; code: string; name: string; min_stock: string; qty: string; val: string }>(sql`
+      SELECT i.id, i.code AS code, COALESCE(i.name_ar, i.code) AS name, i.min_stock,
              COALESCE(s.qty, 0) AS qty, COALESCE(s.val, 0) AS val
       FROM items i
       LEFT JOIN (
@@ -37,7 +37,7 @@ export default async function InventoryDashboardPage() {
         ) t GROUP BY item_id
       ) s ON s.item_id = i.id
       WHERE i.organization_id = ${orgId} AND i.is_active = true
-    `)).rows as { id: string; name: string; min_stock: string; qty: string; val: string }[];
+    `)).rows as { id: string; code: string; name: string; min_stock: string; qty: string; val: string }[];
 
     const totalItems = rows.length;
     const totalValue = rows.reduce((s, r) => s + Number(r.val), 0);
@@ -80,12 +80,12 @@ export default async function InventoryDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {kpis.map((k) => (
             <Card key={k.label}>
-              <CardContent className="flex items-center justify-between gap-2 py-5">
-                <div className="min-w-0">
-                  <div className="truncate text-sm text-muted-foreground">{k.label}</div>
-                  <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", k.tone)} title={k.value}>{k.value}</div>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-4" /></div>
                 </div>
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-5" /></div>
+                <div className={cn("mt-2 text-xl font-bold tabular-nums", k.tone)}>{k.value}</div>
               </CardContent>
             </Card>
           ))}
@@ -104,7 +104,13 @@ export default async function InventoryDashboardPage() {
                 <div className="space-y-3">
                   {topItems.map((r) => (
                     <div key={r.id} className="space-y-1">
-                      <div className="flex justify-between gap-2 text-sm"><span className="min-w-0 truncate" title={r.name}>{r.name}</span><span className="shrink-0 font-medium tabular-nums">{money(Number(r.val))}</span></div>
+                      <div className="flex items-start justify-between gap-3 text-sm">
+                        <div className="min-w-0">
+                          <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={r.name}>{r.name}</div>
+                          <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{r.code}</div>
+                        </div>
+                        <span className="shrink-0 font-medium tabular-nums">{money(Number(r.val))}</span>
+                      </div>
                       <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((Number(r.val) / maxVal) * 100, 2)}%` }} /></div>
                     </div>
                   ))}
