@@ -29,3 +29,25 @@ describe("nextDocumentNumber year guard", () => {
     await expect(nextDocumentNumber(explodingExec, "org", "SI", 2024.5)).rejects.toThrow("تاريخ المستند غير صالح");
   });
 });
+
+/**
+ * SaaS invariant: an org with NO prefix override gets numbers byte-identical to
+ * before per-org prefixes existed — the resolved prefix equals the passed key,
+ * and the sequence counter is keyed by that same prefix. A stub exec whose
+ * override lookup returns [] proves the fallback path.
+ */
+describe("nextDocumentNumber prefix override", () => {
+  const stubExec = (override: string | null) => ({
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => (override ? [{ prefix: override }] : []) }) }) }),
+    execute: async () => ({ rows: [{ current_value: 7 }] }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+
+  it("no override → prefix === key (unchanged)", async () => {
+    expect(await nextDocumentNumber(stubExec(null), "org", "SI", 2026)).toBe("SI-2026-0007");
+  });
+
+  it("override → uses the org's custom prefix", async () => {
+    expect(await nextDocumentNumber(stubExec("INV"), "org", "SI", 2026)).toBe("INV-2026-0007");
+  });
+});

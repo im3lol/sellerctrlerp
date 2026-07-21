@@ -706,6 +706,19 @@ export const documentSequences = pgTable(
   (t) => [uniqueIndex("document_sequences_unique").on(t.organizationId, t.key, t.year)],
 );
 
+/** Per-org override of a document-type's printed prefix (empty = registry default). See lib/erp/doc-types.ts. */
+export const documentPrefixes = pgTable(
+  "document_prefixes",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    docKey: text("doc_key").notNull(),
+    prefix: text("prefix").notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("document_prefixes_unique").on(t.organizationId, t.docKey)],
+);
+
 /**
  * Append-only audit trail. Every create/confirm/post/cancel/reverse/delete of an
  * ERP document records who did what to which document (with its readable number),

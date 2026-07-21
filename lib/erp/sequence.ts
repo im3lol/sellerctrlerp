@@ -1,8 +1,22 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { documentPrefixes } from "@/db/erp";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
+
+/**
+ * Resolve the org's printed prefix for a document-type key. No override row
+ * (the common case) returns the key unchanged — so numbers stay byte-identical
+ * to before per-org prefixes existed. One tiny indexed lookup per document.
+ */
+export async function resolveDocPrefix(exec: Exec, orgId: string, key: string): Promise<string> {
+  const [row] = await exec.select({ prefix: documentPrefixes.prefix })
+    .from(documentPrefixes)
+    .where(and(eq(documentPrefixes.organizationId, orgId), eq(documentPrefixes.docKey, key)))
+    .limit(1);
+  return row?.prefix || key;
+}
 
 /**
  * Atomically allocate the next document number `PREFIX-YYYY-NNNN` for
@@ -23,16 +37,20 @@ export async function nextDocumentNumber(exec: Exec, orgId: string, key: string,
   if (!Number.isInteger(year) || year < 1900 || year > 9999) {
     throw new Error("تاريخ المستند غير صالح");
   }
+  // Apply the org's prefix override (if any). The sequence counter is keyed by
+  // the RESOLVED prefix, so the counter follows the printed prefix and matches
+  // what syncDocumentSequences reconstructs from stored numbers.
+  const prefix = await resolveDocPrefix(exec, orgId, key);
   const res = await exec.execute(sql`
     INSERT INTO document_sequences (organization_id, key, year, current_value)
-    VALUES (${orgId}, ${key}, ${year}, 1)
+    VALUES (${orgId}, ${prefix}, ${year}, 1)
     ON CONFLICT (organization_id, key, year)
     DO UPDATE SET current_value = document_sequences.current_value + 1, updated_at = now()
     RETURNING current_value
   `);
   const row = (res.rows as { current_value: number | string }[])[0];
   const value = Number(row.current_value);
-  return `${key}-${year}-${String(value).padStart(4, "0")}`;
+  return `${prefix}-${year}-${String(value).padStart(4, "0")}`;
 }
 
 /** Every document table whose number is `PREFIX-YYYY-NNNN`, scanned by syncDocumentSequences. */
