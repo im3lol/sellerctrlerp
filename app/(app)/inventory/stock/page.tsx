@@ -59,11 +59,20 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
         />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المخزون</div><div className="text-2xl font-bold">{fmt(totals.value)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي الكمية</div><div className="text-2xl font-bold">{qty(totals.quantity)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الأصناف</div><div className="text-2xl font-bold">{intl(totals.items)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون منخفض</div><div className="text-2xl font-bold text-amber-600">{intl(totals.low)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون نافد</div><div className="text-2xl font-bold text-destructive">{intl(totals.out)}</div></CardContent></Card>
+          {[
+            { label: "قيمة المخزون", value: fmt(totals.value), tone: "" },
+            { label: "إجمالي الكمية", value: qty(totals.quantity), tone: "" },
+            { label: "عدد الأصناف", value: intl(totals.items), tone: "" },
+            { label: "مخزون منخفض", value: intl(totals.low), tone: "text-amber-600" },
+            { label: "مخزون نافد", value: intl(totals.out), tone: "text-destructive" },
+          ].map((k) => (
+            <Card key={k.label}>
+              <CardContent className="p-4">
+                <div className="text-sm text-muted-foreground">{k.label}</div>
+                <div className={`mt-1 truncate text-xl font-bold tabular-nums ${k.tone}`} title={k.value}>{k.value}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card>
