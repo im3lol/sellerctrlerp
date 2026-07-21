@@ -1,5 +1,6 @@
 import { and, between, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -23,7 +24,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
 
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to   = one(sp.to)   || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
 

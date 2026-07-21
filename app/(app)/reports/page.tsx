@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const now = new Date();
-    const from = sp.from || `${now.getFullYear()}-01-01`;
+    const from = sp.from || (await orgFiscalYearStartISO(orgId, now));
     const to = sp.to || iso(now);
 
     const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });

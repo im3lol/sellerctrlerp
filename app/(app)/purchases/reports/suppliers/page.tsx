@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -20,7 +21,7 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 export default async function SupplierRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
 

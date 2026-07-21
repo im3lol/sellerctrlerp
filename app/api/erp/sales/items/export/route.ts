@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { requireErpModule } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items } from "@/db/schema";
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
   const { orgId } = await requireErpModule("sales.view");
   const p = new URL(req.url).searchParams;
   const now = new Date();
-  const from = p.get("from") || `${now.getFullYear()}-01-01`;
+  const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));
   const to = p.get("to") || now.toISOString().slice(0, 10);
 
   return withOrgScope(orgId, false, async () => {

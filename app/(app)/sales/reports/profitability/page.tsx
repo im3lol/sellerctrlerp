@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
 import { buildProfitability } from "@/lib/erp/profitability";
@@ -26,7 +27,7 @@ const SALE_REFS = ["DELIVERY", "SALES_INVOICE", "SALES_RETURN"];
 export default async function ProfitabilityReportPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");

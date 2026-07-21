@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts, costCenters } from "@/db/schema";
 import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
@@ -18,7 +19,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 export default async function CostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");

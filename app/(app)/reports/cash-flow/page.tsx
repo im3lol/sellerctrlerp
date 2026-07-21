@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { getCashFlow, type CashLine } from "@/lib/erp/cashflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default async function CashFlowPage({
     const sp = await searchParams;
 
     const now = new Date();
-    const from = sp.from || `${now.getFullYear()}-01-01`;
+    const from = sp.from || (await orgFiscalYearStartISO(orgId, now));
     const to   = sp.to   || iso(now);
 
     const { netIncome, operating, investing, financing, opTotal, invTotal, finTotal, netCashChange, cashBegin, cashEnd } =

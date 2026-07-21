@@ -1,4 +1,5 @@
 import { requireErpModule } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances } from "@/lib/erp/financials";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
   const { orgId } = await requireErpModule("reports.view");
   const p = new URL(req.url).searchParams;
   const now = new Date();
-  const from = p.get("from") || `${now.getFullYear()}-01-01`;
+  const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));
   const to = p.get("to") || now.toISOString().slice(0, 10);
 
   const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });
