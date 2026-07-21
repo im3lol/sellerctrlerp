@@ -1,7 +1,7 @@
 import "server-only";
 import type { SyncJob } from "./queues";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 
 // Job handlers. IMPORT does the complete Reports-API enumeration; DISCOVERY does the
@@ -50,6 +50,30 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
   } catch (e) {
     console.error("[queue] order sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة المبيعات");
+  }
+}
+
+/** Pull scheduled Amazon settlement reports (payments) → upsert rows, and post to
+ *  GL only when the platform's auto-post is on. `since` from the cron watermark. */
+export async function runSettlementsJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "SETTLEMENTS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  if (!prep.flags.settlements) { await finishRun(d.orgId, runId, "OK", {}); return; } // source toggled off
+  // Always advance the watermark — even on failure — so the scheduler backs off to
+  // the 12h cadence instead of re-enqueuing every 60s and hammering the low reports
+  // quota. It's a cadence timer, NOT the data window: the pull always re-scans a
+  // fixed 90-day window (settlement reports are few; dedup drops repeats → gapless).
+  await markSync(d.orgId, d.provider, { settlementsSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const r = await syncSettlementsCore(prep, { from, to: new Date() });
+    if (!r.ok) { await markSync(d.orgId, d.provider, { lastSyncStatus: "error" }); await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
+    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto" });
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted });
+  } catch (e) {
+    console.error("[queue] settlement sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التسويات");
   }
 }
 

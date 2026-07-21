@@ -27,6 +27,8 @@ const schema = z.object({
   syncProducts: z.boolean().optional(),
   syncOrders: z.boolean().optional(),
   syncInventory: z.boolean().optional(),
+  syncSettlements: z.boolean().optional(),
+  autoPostSettlements: z.boolean().optional(),
   autoInvoice: z.boolean().optional(),
 });
 
@@ -151,6 +153,8 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
       ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
       ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
+      ...(parsed.data.syncSettlements !== undefined ? { syncSettlements: parsed.data.syncSettlements } : {}),
+      ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
       ...(parsed.data.autoInvoice !== undefined ? { autoInvoice: parsed.data.autoInvoice } : {}),
       defaultWarehouseId: defaultWarehouseId || null,
       bankAccountId: bankAccountId || null,

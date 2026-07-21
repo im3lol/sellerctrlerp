@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines } from "@/db/schema";
@@ -15,7 +15,9 @@ import { OpeningBalanceEditor } from "@/components/erp/opening-balance-editor";
  */
 export default async function OpeningBalancePage() {
   return loadErpPage("accounting.create", async ({ orgId }) => {
-    const [head, accs, custs, supps, itms, whs] = await Promise.all([
+    // Accounts/customers/suppliers stay client-side (bounded); items are searched
+    // server-side (the catalog can be tens of thousands of rows).
+    const [head, accs, custs, supps, whs] = await Promise.all([
       db.select().from(openingBalances).where(eq(openingBalances.organizationId, orgId)).limit(1),
       db.select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr }).from(accounts)
         .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true))).orderBy(asc(accounts.code)),
@@ -23,8 +25,6 @@ export default async function OpeningBalancePage() {
         .where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ id: suppliers.id, code: suppliers.code, nameAr: suppliers.nameAr }).from(suppliers)
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
-      db.select({ id: items.id, code: items.code, nameAr: items.nameAr }).from(items)
-        .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)).limit(500),
       db.select({ id: warehouses.id, code: warehouses.code, nameAr: warehouses.nameAr }).from(warehouses)
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
     ]);
@@ -34,14 +34,20 @@ export default async function OpeningBalancePage() {
       ? await db.select().from(openingBalanceLines).where(eq(openingBalanceLines.openingBalanceId, existing.id))
       : [];
 
+    // Resolve labels only for the items actually referenced by saved lines.
+    const itemIds = [...new Set(savedLines.map((l) => l.itemId).filter(Boolean) as string[])];
+    const itms = itemIds.length
+      ? await db.select({ id: items.id, code: items.code, nameAr: items.nameAr }).from(items)
+          .where(and(eq(items.organizationId, orgId), inArray(items.id, itemIds)))
+      : [];
+
     const label = (code: string, name: string | null) => `${code} — ${name ?? ""}`.trim();
     const accOpts = accs.map((a) => ({ id: a.id, label: label(a.code, a.nameAr) }));
     const custOpts = custs.map((c) => ({ id: c.id, label: label(c.code, c.nameAr) }));
     const suppOpts = supps.map((s) => ({ id: s.id, label: label(s.code, s.nameAr) }));
-    const itemOpts = itms.map((i) => ({ id: i.id, label: label(i.code, i.nameAr) }));
     const whOpts = whs.map((w) => ({ id: w.id, label: label(w.code, w.nameAr) }));
 
-    const byId = new Map([...accOpts, ...custOpts, ...suppOpts, ...itemOpts].map((o) => [o.id, o.label]));
+    const byId = new Map([...accOpts, ...custOpts, ...suppOpts, ...itms.map((i) => ({ id: i.id, label: label(i.code, i.nameAr) }))].map((o) => [o.id, o.label]));
     const whById = new Map(whOpts.map((o) => [o.id, o.label]));
 
     const initial = savedLines.map((l) => {
@@ -56,18 +62,20 @@ export default async function OpeningBalancePage() {
         credit: Number(l.credit) ? String(Number(l.credit)) : "",
         quantity: l.quantity != null ? String(Number(l.quantity)) : "",
         unitCost: l.unitCost != null ? String(Number(l.unitCost)) : "",
+        reference: l.reference ?? "",
+        dueDate: l.dueDate ? new Date(l.dueDate).toISOString().slice(0, 10) : "",
       };
     });
 
-    // Default to yesterday: balances are stated as at the day before go-live.
-    const y = new Date();
-    y.setDate(y.getDate() - 1);
-    const date = existing ? new Date(existing.date).toISOString().slice(0, 10) : y.toISOString().slice(0, 10);
+    // Default to the first day of the current fiscal year — the professional convention.
+    const now = new Date();
+    const fyStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+    const date = existing ? new Date(existing.date).toISOString().slice(0, 10) : fyStart.toISOString().slice(0, 10);
 
     return (
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader icon="Upload" title="الأرصدة الافتتاحية"
-          subtitle="ما كانت عليه الشركة قبل بدء التشغيل — يُرحَّل مرة واحدة" backHref="/settings" />
+          subtitle="أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية" backHref="/settings" />
 
         {custs.length + supps.length + itms.length === 0 && (
           <Card>
@@ -78,13 +86,13 @@ export default async function OpeningBalancePage() {
         )}
 
         <OpeningBalanceEditor
-          posted={existing?.status === "POSTED"}
+          postedId={existing?.status === "POSTED" ? existing.id : null}
+          reversible={existing?.status === "POSTED"}
           date={date}
           initial={initial}
           accounts={accOpts}
           customers={custOpts}
           suppliers={suppOpts}
-          items={itemOpts}
           warehouses={whOpts}
         />
       </div>

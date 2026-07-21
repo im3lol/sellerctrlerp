@@ -1,4 +1,5 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceSettlement, MarketplaceProduct, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, DateRange } from "./dto";
+import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
 export type Credential = {
@@ -51,5 +52,7 @@ export interface MarketplaceConnector {
   /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
    *  the Inventory Auditor's data source. */
   fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
-  fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;
+  /** Amazon settlement rows (ASIN-bucketed) pulled from the scheduled Settlement
+   *  Report. Amazon-specific for now; feeds the settlement poster directly. */
+  fetchSettlements?(cred: Credential, range: DateRange): Promise<SettlementTxn[]>;
 }

@@ -182,7 +182,7 @@ export function PurchaseInvoiceFromReceiptForm({
                 <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ إذن استلام لعرض البنود.</TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.shippingPerUnit)}</TableCell>

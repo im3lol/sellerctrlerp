@@ -98,3 +98,122 @@ export function parseSettlementWorkbook(buf: ArrayBuffer | Buffer): SettlementTx
 export function settlementDedupKey(t: SettlementTxn): string {
   return [t.settlementId, t.type, t.orderId, t.sku, t.postedAt?.toISOString() ?? "", t.total.toFixed(2)].join("|");
 }
+
+// ── SP-API flat-file V2 settlement report parser ─────────────────────────────
+// GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2 is a TAB-separated LONG file: the
+// first row per settlement is the summary/deposit (transaction-type blank,
+// total-amount = net disbursed), then one row per amount COMPONENT
+// (amount-type/amount-description/amount) of each transaction. We pivot the
+// components back into the same wide SettlementTxn buckets the poster consumes.
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+function emptyTxn(settlementId: string, type: string): SettlementTxn {
+  return {
+    postedAt: null, settlementId, type, orderId: "", sku: "", description: "", quantity: 0,
+    status: "Released", releaseDate: null, productSales: 0, shippingCredits: 0, promotionalRebates: 0,
+    sellingFees: 0, fbaFees: 0, otherTransactionFees: 0, other: 0, total: 0,
+  };
+}
+
+/** flat-file transaction-type → the workbook `type` the poster understands. */
+function mapTxnType(raw: string): string {
+  if (raw === "Order") return "Order";
+  if (raw === "Refund") return "Refund"; // exact only — chargebacks stay fees (no auto-restock)
+  if (raw === "Transfer") return "Transfer";
+  return raw; // Service Fee / Adjustment / FBA Inventory Reimbursement → aggregateGL fee branch
+}
+
+/** ISO-ish flat-file date → Date (falls back to the workbook's UTC format). */
+function parseFlatDate(s: string): Date | null {
+  const v = str(s);
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? parseAmazonDate(v) : d;
+}
+
+// Which SettlementTxn bucket an amount component lands in. Only Order/Refund rows
+// need real bucketing (their receivable vs fee split matters); fee/adjustment txns
+// use `total` alone in aggregateGL, so their components collapse into `other`.
+type Bucket = "productSales" | "shippingCredits" | "promotionalRebates" | "sellingFees" | "fbaFees" | "otherTransactionFees" | "other";
+function bucketOf(amountType: string, desc: string, txnType: string): Bucket {
+  if (txnType !== "Order" && txnType !== "Refund") return "other";
+  const t = amountType.toLowerCase(), d = desc.toLowerCase();
+  if (t === "itemprice" || t === "componentprice") {
+    if (d.includes("principal")) return "productSales";
+    if (d.includes("shipping")) return "shippingCredits";
+    return "other"; // tax / giftwrap / etc — collected on our behalf → receivable
+  }
+  if (t === "promotion") return "promotionalRebates";
+  if (t === "itemfees" || t === "orderfees") {
+    return d.includes("fba") || d.includes("fulfillment") ? "fbaFees" : "sellingFees";
+  }
+  return "other";
+}
+
+/**
+ * Parse a flat-file V2 settlement report (TSV text) into SettlementTxn[]. Groups
+ * component rows per transaction and negates the deposit into a Transfer row so
+ * the whole settlement nets to zero in `total` (matches the workbook convention:
+ * money leaving the Amazon balance to the bank is negative).
+ */
+export function parseSettlementFlatFile(tsv: string): SettlementTxn[] {
+  const lines = tsv.split(/\r?\n/).filter((l) => l.length > 0);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split("\t").map((h) => str(h));
+  const idx = (name: string) => headers.indexOf(name);
+  const c = {
+    settlementId: idx("settlement-id"), depositDate: idx("deposit-date"), totalAmount: idx("total-amount"),
+    txnType: idx("transaction-type"), orderId: idx("order-id"), adjustmentId: idx("adjustment-id"),
+    shipmentId: idx("shipment-id"), amountType: idx("amount-type"), amountDesc: idx("amount-description"),
+    amount: idx("amount"), sku: idx("sku"), qty: idx("quantity-purchased"),
+    posted: idx("posted-date-time") >= 0 ? idx("posted-date-time") : idx("posted-date"),
+  };
+  if (c.txnType < 0 || c.amount < 0 || c.totalAmount < 0) throw new Error("تقرير التسويات غير متوقّع (أعمدة مفقودة)");
+
+  const groups = new Map<string, SettlementTxn>();
+  let transfer: SettlementTxn | null = null;
+  let settlementId = "";
+  for (let i = 1; i < lines.length; i++) {
+    const f = lines[i].split("\t");
+    const sid = str(f[c.settlementId]);
+    if (sid) settlementId = sid;
+    const ttypeRaw = str(f[c.txnType]);
+
+    // Summary/deposit row: transaction-type blank, total-amount = net disbursed.
+    if (!ttypeRaw) {
+      const dep = num(f[c.totalAmount]);
+      if (dep !== 0) {
+        transfer = transfer ?? emptyTxn(settlementId, "Transfer");
+        transfer.total = r2(transfer.total - dep); // negate: money leaves Amazon → bank
+        transfer.postedAt = parseFlatDate(f[c.depositDate]) ?? transfer.postedAt;
+        transfer.releaseDate = transfer.postedAt;
+      }
+      continue;
+    }
+
+    const type = mapTxnType(ttypeRaw);
+    const orderId = str(f[c.orderId]) || (c.adjustmentId >= 0 ? str(f[c.adjustmentId]) : "");
+    const sku = c.sku >= 0 ? str(f[c.sku]) : "";
+    const postedRaw = c.posted >= 0 ? str(f[c.posted]) : "";
+    const key = [type, orderId, sku, c.shipmentId >= 0 ? str(f[c.shipmentId]) : "", postedRaw].join("|");
+    let g = groups.get(key);
+    if (!g) {
+      g = emptyTxn(settlementId, type);
+      g.orderId = orderId;
+      g.sku = sku;
+      g.postedAt = parseFlatDate(postedRaw);
+      g.releaseDate = g.postedAt;
+      g.quantity = c.qty >= 0 ? num(f[c.qty]) : 0;
+      groups.set(key, g);
+    }
+    const amt = num(f[c.amount]);
+    const b = bucketOf(str(f[c.amountType]), str(f[c.amountDesc]), type);
+    g[b] = r2(g[b] + amt);
+    g.total = r2(g.total + amt);
+  }
+
+  const out = [...groups.values()];
+  if (transfer && transfer.total !== 0) out.push(transfer);
+  return out;
+}

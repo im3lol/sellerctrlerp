@@ -14,6 +14,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { marketplaceCodesFor } from "@/lib/erp/marketplace-code";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
@@ -28,7 +29,7 @@ export type Pick = { itemId: string; quantity: number; warehouseId?: string };
 
 export type DeliverableLine = {
   itemId: string; code: string; name: string; ordered: number; delivered: number; remaining: number;
-  warehouseId: string | null; stockByWarehouse: Record<string, number>;
+  warehouseId: string | null; stockByWarehouse: Record<string, number>; marketplaceCode?: string;
 };
 
 /**
@@ -36,7 +37,7 @@ export type DeliverableLine = {
  * delivery form: remaining qty + current on-hand per warehouse per item.
  */
 export async function getDeliverableOrderLinesAction(salesOrderId: string): Promise<
-  ActionState & { lines?: DeliverableLine[]; defaultWarehouseId?: string }
+  ActionState & { lines?: DeliverableLine[]; defaultWarehouseId?: string; channel?: string }
 > {
   const auth = await authorizeErp("sales.view");
   if ("error" in auth) return auth;
@@ -52,7 +53,7 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
       .where(eq(salesOrderLines.salesOrderId, so.id));
 
     const lines = ols
-      .map((l) => {
+      .map((l): DeliverableLine => {
         const ordered = Number(l.quantity), delivered = Number(l.deliveredQty);
         return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, delivered, remaining: round2(ordered - delivered), warehouseId: l.warehouseId, stockByWarehouse: {} as Record<string, number> };
       })
@@ -76,10 +77,15 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
       }
     }
 
+    // Marketplace SKU (ASIN for Amazon / كود نون for Noon) per line, keyed off the
+    // ORDER's channel — so a delivery from an Amazon order shows the ASIN, etc.
+    const mkt = await marketplaceCodesFor(auth.orgId, so.channel, itemIds);
+    for (const l of lines) l.marketplaceCode = mkt.get(l.itemId);
+
     // Default warehouse = first active (delivery issues from one).
     const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
       .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
-    return { ok: true, lines, defaultWarehouseId: wh?.id };
+    return { ok: true, lines, defaultWarehouseId: wh?.id, channel: so.channel };
   });
 }
 
@@ -278,8 +284,8 @@ export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", id
   });
 }
 
-export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number };
-export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number };
+export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number; marketplaceCode?: string };
+export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number; channel?: string };
 
 /** Compute the invoice a delivery would produce (priced from the order). */
 async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Promise<DeliveryInvoicePreview | { error: string }> {
@@ -309,7 +315,10 @@ async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Prom
     lines.push({ itemId: dl.itemId, code: dl.code ?? "", name: dl.name ?? "", quantity: dq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+  // Marketplace SKU per line, keyed off the source order's channel (ASIN / كود نون).
+  const mkt = await marketplaceCodesFor(so.organizationId, so.channel, lines.map((l) => l.itemId));
+  for (const l of lines) l.marketplaceCode = mkt.get(l.itemId);
+  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax), channel: so.channel };
 }
 
 /** Preview the invoice a confirmed delivery would produce (for the create form). */

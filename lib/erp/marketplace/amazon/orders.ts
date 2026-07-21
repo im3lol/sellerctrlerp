@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson, paced } from "./client";
+import { spJson, paced, credKey } from "./client";
 import { round2 } from "@/lib/erp/money";
 import type { Credential } from "../connector";
 import type { MarketplaceOrder, DateRange } from "../dto";
@@ -40,7 +40,7 @@ async function fetchOrderItems(cred: Credential, orderId: string): Promise<ApiOr
   for (let page = 0; page < 20; page++) {
     const qs = new URLSearchParams(next ? { NextToken: next } : {});
     // getOrderItems: 0.5 req/s sustained → pace at 2.1s between calls.
-    const res = await paced("orders:items", 2100, () =>
+    const res = await paced(`orders:items:${credKey(cred)}`, 2100, () =>
       spJson<ItemsResponse>(cred, `/orders/v0/orders/${encodeURIComponent(orderId)}/orderItems${qs.toString() ? `?${qs}` : ""}`));
     items.push(...(res.payload?.OrderItems ?? []));
     next = res.payload?.NextToken;
@@ -68,7 +68,7 @@ export async function fetchOrders(cred: Credential, range: DateRange): Promise<M
       ? new URLSearchParams({ NextToken: next })
       : new URLSearchParams({ MarketplaceIds: cred.marketplaceId, ...dateFilter, MaxResultsPerPage: "100" });
     // getOrders: ~1 req/s sustained (burst 20) → pace at 1.1s between pages.
-    const res = await paced("orders:list", 1100, () => spJson<OrdersResponse>(cred, `/orders/v0/orders?${qs}`));
+    const res = await paced(`orders:list:${credKey(cred)}`, 1100, () => spJson<OrdersResponse>(cred, `/orders/v0/orders?${qs}`));
     orders.push(...(res.payload?.Orders ?? []));
     next = res.payload?.NextToken;
     if (!next) break;

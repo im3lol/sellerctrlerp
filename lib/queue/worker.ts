@@ -2,7 +2,7 @@ import "server-only";
 import { Worker, type Job } from "bullmq";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
-import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runInventoryAuditJob } from "./handlers";
+import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob } from "./handlers";
 
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
@@ -28,6 +28,7 @@ export function startWorkers(): void {
   make(QUEUES.details, runDetailsJob);
   make(QUEUES.images, runImagesJob);
   make(QUEUES.orders, runOrdersJob);
+  make(QUEUES.settlements, runSettlementsJob);
   make(QUEUES.inventory, runInventoryAuditJob);
   // pricing queue: next.
   console.log("[queue] Amazon sync workers started");

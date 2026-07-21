@@ -37,6 +37,8 @@ export function DeliveryForm({
   const [date, setDate] = useState(today);
   const [orderId, setOrderId] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
+  const [channel, setChannel] = useState("");
+  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
 
   const customerOrders = useMemo(() => openOrders.filter((o) => o.customerId === customerId), [openOrders, customerId]);
   const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
@@ -47,12 +49,14 @@ export function DeliveryForm({
   const recall = (id: string) => {
     setOrderId(id);
     setLines([]);
+    setChannel("");
     if (!id) return;
     startLoad(async () => {
       const r = await getDeliverableOrderLinesAction(id);
       if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
       if (r.lines.length === 0) { toast.message("تم تسليم كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
+      setChannel(r.channel ?? "");
       setLines(r.lines.map((l) => ({ ...l, warehouseId: l.warehouseId || def, now: String(l.remaining) })));
     });
   };
@@ -128,7 +132,7 @@ export function DeliveryForm({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">المنتج</TableHead>
+                <TableHead className="w-[22rem] text-start">المنتج</TableHead>
                 <TableHead className="w-44 text-start">مخزن الصرف</TableHead>
                 <TableHead className="w-24 text-start">الكمية</TableHead>
                 <TableHead className="w-28 text-start">المخزون الحالي</TableHead>
@@ -143,7 +147,13 @@ export function DeliveryForm({
                 const short = (Number(l.now) || 0) > stock + 1e-6;
                 return (
                   <TableRow key={l.itemId}>
-                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="w-[22rem] max-w-[22rem] whitespace-normal">
+                      <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
+                        <span>{l.code}</span>
+                        {l.marketplaceCode && <span dir="ltr">{mktLabel}: {l.marketplaceCode}</span>}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
                         {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}

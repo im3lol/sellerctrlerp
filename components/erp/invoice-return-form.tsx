@@ -91,7 +91,7 @@ export function InvoiceReturnForm({
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                   <TableCell>{qtyf(l.invoiced)}</TableCell>
                   <TableCell className="text-muted-foreground">{qtyf(l.returned)}</TableCell>
                   <TableCell className={l.remaining > 0 ? "font-medium" : "text-muted-foreground"}>{qtyf(l.remaining)}</TableCell>

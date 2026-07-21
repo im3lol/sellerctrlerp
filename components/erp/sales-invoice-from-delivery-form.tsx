@@ -187,7 +187,13 @@ export function SalesInvoiceFromDeliveryForm({
                 <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ إذن صرف لعرض البنود.</TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal">
+                    <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
+                      <span>{l.code}</span>
+                      {l.marketplaceCode && <span dir="ltr">{preview.channel === "AMAZON" ? "ASIN" : "كود نون"}: {l.marketplaceCode}</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.discountAmount)}</TableCell>

@@ -17,7 +17,7 @@ import { selectCls } from "@/lib/utils";
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
-  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; autoInvoice: boolean;
+  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean; autoPostSettlements: boolean; autoInvoice: boolean;
   customerName: string | null; customerId: string | null;
   warehouseId: string | null; warehouseName: string | null;
   bankAccountId: string | null; bankName: string | null;
@@ -59,6 +59,8 @@ function PlatformDialog({
   const [syncProducts, setSyncProducts] = useState(platform?.syncProducts ?? true);
   const [syncOrders, setSyncOrders] = useState(platform?.syncOrders ?? true);
   const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
+  const [syncSettlements, setSyncSettlements] = useState(platform?.syncSettlements ?? true);
+  const [autoPostSettlements, setAutoPostSettlements] = useState(platform?.autoPostSettlements ?? false);
   const [autoInvoice, setAutoInvoice] = useState(platform?.autoInvoice ?? true);
   const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
@@ -74,7 +76,7 @@ function PlatformDialog({
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
     if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, autoInvoice, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
+      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, syncSettlements, autoPostSettlements, autoInvoice, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
       const r = isEdit
         ? await updatePlatformAction(platform!.id, payload)
         : await createPlatformAction({ ...payload, code });
@@ -179,7 +181,7 @@ function PlatformDialog({
         <div className="space-y-2 sm:col-span-2">
           <Label>مصادر المزامنة</Label>
           <div className="flex flex-wrap gap-4">
-            {([["المنتجات", syncProducts, setSyncProducts], ["المبيعات", syncOrders, setSyncOrders], ["المخزون", syncInventory, setSyncInventory]] as const).map(([label, val, setter]) => (
+            {([["المنتجات", syncProducts, setSyncProducts], ["المبيعات", syncOrders, setSyncOrders], ["المخزون", syncInventory, setSyncInventory], ["المدفوعات/التسويات", syncSettlements, setSyncSettlements]] as const).map(([label, val, setter]) => (
               <label key={label} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" className="size-4 rounded border-input" checked={val} onChange={(e) => setter(e.target.checked)} />
                 {label}
@@ -194,6 +196,13 @@ function PlatformDialog({
             الفوترة التلقائية عند اكتمال الأمر
           </label>
           <p className="text-xs text-muted-foreground">مفعّل: الأمر المكتمل يمرّ أمر بيع → إذن صرف → فاتورة مُرحّلة تلقائيًا. مُطفأ: يقف عند إذن الصرف وتُصدر الفاتورة يدويًا.</p>
+        </div>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input type="checkbox" className="size-4 rounded border-input" checked={autoPostSettlements} onChange={(e) => setAutoPostSettlements(e.target.checked)} />
+            الترحيل التلقائي للتسويات
+          </label>
+          <p className="text-xs text-muted-foreground">مفعّل: التسويات المسحوبة تُرحّل للقيود المحاسبية تلقائيًا. مُطفأ (الافتراضي): تُسحب وتنتظر مراجعتك ثم تضغط «ترحيل» يدويًا.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">

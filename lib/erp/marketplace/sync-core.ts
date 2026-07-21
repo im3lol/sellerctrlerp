@@ -7,14 +7,15 @@ import { decryptSecret } from "@/lib/crypto";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
+import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
 
-export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean };
-export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags };
+export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags; autoPostSettlements: boolean };
 
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
@@ -45,19 +46,19 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, autoInvoice: salesPlatforms.autoInvoice })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, autoPostSettlements: salesPlatforms.autoPostSettlements, autoInvoice: salesPlatforms.autoInvoice })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
     const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoInvoice: p.autoInvoice };
-    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory };
-    return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags };
+    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements };
+    return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
 }
 
 export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
 
-export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date; ordersSyncedAt: Date }> = {}) {
+export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
     db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
       .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
@@ -177,6 +178,34 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
     return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
+  }
+}
+
+export type SettlementsSync = { ok: true; imported: number; updated: number; posted: number; deferredHeld: number; returnsCreated: number } | { ok: false; error: string };
+
+/**
+ * Settlements: pull the scheduled settlement reports in `range`, upsert the rows,
+ * and (only when the platform's autoPostSettlements is on) post them to GL. When
+ * auto-post is off the rows sit unposted for the operator to review + post. The
+ * fetch runs OUTSIDE the DB scope; the upsert/post run INSIDE short org scopes.
+ * ponytail: in the worker (no session) the refund credit-note sub-step of
+ * postSettlements can't authorize, so refunds are flagged and left for a manual
+ * post — the money aggregate + subledger still post correctly.
+ */
+export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promise<SettlementsSync> {
+  if (!p.connector.fetchSettlements) return { ok: false, error: "المنصة لا تدعم مزامنة التسويات" };
+  try {
+    const txns = await p.connector.fetchSettlements(p.cred, range); // slow fetch, unscoped
+    const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns));
+    let posted = 0, deferredHeld = 0, returnsCreated = 0;
+    if (p.autoPostSettlements) {
+      const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null));
+      if ("error" in res) return { ok: false, error: res.error };
+      posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
+    }
+    return { ok: true, imported: up.imported, updated: up.updated, posted, deferredHeld, returnsCreated };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب التسويات" };
   }
 }
 

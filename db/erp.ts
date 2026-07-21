@@ -1596,6 +1596,10 @@ export const salesPlatforms = pgTable(
     syncProducts: boolean("sync_products").notNull().default(true),
     syncOrders: boolean("sync_orders").notNull().default(true),
     syncInventory: boolean("sync_inventory").notNull().default(true),
+    syncSettlements: boolean("sync_settlements").notNull().default(true),
+    // When settlements are pulled: true = post to GL automatically; false = pull
+    // only and leave posting to a manual click on the settlements screen.
+    autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
     // When a marketplace order completes: true = full cycle to a posted invoice;
     // false = stop at the (posted) delivery note and leave invoicing manual.
     autoInvoice: boolean("auto_invoice").notNull().default(true),
@@ -1625,6 +1629,7 @@ export const platformCredentials = pgTable(
     autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
+    settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls
     openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
     updatedAt: updatedAt(),
   },
@@ -2271,6 +2276,13 @@ export const openingBalanceLines = pgTable(
     credit: money("credit").notNull().default("0"),
     quantity: money("quantity"),
     unitCost: money("unit_cost"),
+    // CUSTOMER/SUPPLIER only — each line is one outstanding opening invoice, so it
+    // carries its own reference number and due date (real aging, ERPNext-style).
+    reference: text("reference"),
+    dueDate: ts("due_date"),
+    // The sales/purchase invoice id this line created on post — lets a reversal find
+    // and cancel exactly the right document (ITEM/stock is found via referenceId).
+    postedRefId: text("posted_ref_id"),
     notes: text("notes"),
   },
   (t) => [index("opening_balance_lines_parent_idx").on(t.openingBalanceId)],

@@ -10,6 +10,7 @@ export const QUEUES = {
   details: "amazon-details",     // per-item catalog details (brand/dims/barcodes/family)
   images: "amazon-images",       // per-item image enrichment
   orders: "amazon-orders",       // near-real-time incremental order polling
+  settlements: "amazon-settlements", // scheduled settlement report pulls (payments)
   pricing: "amazon-pricing",     // Phase 4
   inventory: "amazon-inventory", // read-only Inventory Auditor
 } as const;

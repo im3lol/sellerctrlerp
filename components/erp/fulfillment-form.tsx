@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-export type FulfillLine = { itemId: string; code: string; name: string; ordered: number; fulfilled: number; remaining: number };
+export type FulfillLine = { itemId: string; code: string; name: string; ordered: number; fulfilled: number; remaining: number; marketplaceCode?: string };
 
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
@@ -25,13 +25,16 @@ export function FulfillmentForm({
   orderId,
   lines,
   dest,
+  channel,
 }: {
   type: "delivery" | "receipt";
   orderId: string;
   lines: FulfillLine[];
   dest: string;
+  channel?: string;
 }) {
   const router = useRouter();
+  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
   const [pending, start] = useTransition();
   const [qtys, setQtys] = useState<Record<string, string>>(
     Object.fromEntries(lines.map((l) => [l.itemId, String(l.remaining)])),
@@ -82,7 +85,13 @@ export function FulfillmentForm({
           <TableBody>
             {lines.map((l) => (
               <TableRow key={l.itemId}>
-                <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                <TableCell className="max-w-[22rem] whitespace-normal">
+                  <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
+                    <span>{l.code}</span>
+                    {l.marketplaceCode && <span dir="ltr">{mktLabel}: {l.marketplaceCode}</span>}
+                  </div>
+                </TableCell>
                 <TableCell>{q(l.ordered)}</TableCell>
                 <TableCell>{q(l.fulfilled)}</TableCell>
                 <TableCell className={l.remaining > 0 ? "font-medium" : "text-muted-foreground"}>{q(l.remaining)}</TableCell>

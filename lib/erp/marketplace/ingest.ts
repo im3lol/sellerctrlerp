@@ -146,6 +146,10 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
   const hasReviewItem = (o: PreviewOrder) => o.lines.some((l) => l.itemId && reviewIds.has(l.itemId));
+  // The fulfil cycle (deliver + invoice) runs request-scoped server actions, so it
+  // only works when there's a session (manual sync). In the background worker
+  // (userId=null) we import as DRAFT and let a later authenticated sync fulfil.
+  const canFulfill = userId != null;
 
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
@@ -221,7 +225,8 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of toCreate) {
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
-    const shipped = o.status === "Shipped" && !hasReviewItem(o);
+    // The worker can't fulfil (no request scope) → keep DRAFT for a later sync.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill;
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -234,6 +239,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
     if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
     if (hasReviewItem(o)) continue; // needs item review → stay DRAFT, don't advance
+    if (!canFulfill) continue; // worker: refreshed the draft; a browser sync will fulfil it
     // Only advance once Amazon marks it Shipped; a still-Pending order just got refreshed.
     if (o.status !== "Shipped") continue;
     if (o.existingStatus === "DRAFT") {

@@ -18,7 +18,13 @@ export type OpeningLine = {
   credit?: number;
   quantity?: number | null;
   unitCost?: number | null;
+  // CUSTOMER/SUPPLIER: this line is one opening invoice — its own reference + due date.
+  reference?: string | null;
+  dueDate?: string | null; // ISO date
 };
+
+/** The equity account every opening line balances against (ERPNext "Temporary Opening"). */
+export const OPENING_EQUITY_CODE = "3002";
 
 /** What a line contributes to the ledger, once ITEM lines are valued. */
 export type Weighed = { debit: number; credit: number };

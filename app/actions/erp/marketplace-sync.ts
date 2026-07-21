@@ -9,7 +9,7 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { redisEnabled } from "@/lib/queue/redis";
 import {
-  prepareSync, markSync, syncOrdersCore, syncInventoryCore,
+  prepareSync, markSync, syncOrdersCore, syncInventoryCore, syncSettlementsCore,
   startProductSync, getProductSyncState,
   type OrdersSync, type InventorySync, type ProductSyncStatus,
 } from "@/lib/erp/marketplace/sync-core";
@@ -122,6 +122,41 @@ export async function ordersSyncStatusAction(code: string): Promise<{ phase: "ru
   if (!row) return { phase: "running" }; // enqueued; worker hasn't written its row yet
   const phase = row.status === "OK" ? "done" : row.status === "FAILED" ? "error" : "running";
   return { phase, created: row.newProducts ?? undefined, error: row.error ?? undefined };
+}
+
+/** Pull the scheduled Amazon settlement reports (payments) now. Enqueues a worker
+ *  job (which upserts + optionally auto-posts) or runs inline when Redis is absent.
+ *  Posting to GL still follows the platform's auto-post toggle. */
+export async function syncSettlementsAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {
+  const auth = await authorizeErp("accounting.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.flags.settlements) return { ok: false, error: "مزامنة التسويات موقوفة لهذه المنصّة" };
+  const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // settlement reports carry ~2 weeks; a wide floor + dedup is safe
+  if (await enqueue(QUEUES.settlements, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined, since: from.toISOString() })) {
+    return { ok: true, started: true };
+  }
+  const r = await syncSettlementsCore(p, { from, to: new Date() }); // inline fallback (no Redis)
+  if (!r.ok) return { ok: false, error: r.error };
+  await markSync(p.orgId, p.provider, { lastSyncStatus: "ok", settlementsSyncedAt: new Date() });
+  revalidatePath("/platforms");
+  return { ok: true, started: false };
+}
+
+/** Poll the background settlement pull (latest SETTLEMENTS sync_run). */
+export async function settlementsSyncStatusAction(code: string): Promise<{ phase: "running" | "done" | "error" | "idle"; imported?: number; posted?: number; error?: string }> {
+  const auth = await authorizeErp("accounting.create", "marketplace");
+  if ("error" in auth) return { phase: "idle" };
+  const provider = code.toLowerCase();
+  const [row] = await withOrgScope(auth.orgId, false, () =>
+    db.select().from(syncRuns)
+      .where(and(eq(syncRuns.organizationId, auth.orgId), eq(syncRuns.provider, provider), eq(syncRuns.kind, "SETTLEMENTS")))
+      .orderBy(desc(syncRuns.startedAt)).limit(1));
+  if (!row) return { phase: "running" };
+  const phase = row.status === "OK" ? "done" : row.status === "FAILED" ? "error" : "running";
+  if (phase !== "running") revalidatePath("/platforms");
+  return { phase, imported: row.newProducts ?? undefined, posted: row.updatedProducts ?? undefined, error: row.error ?? undefined };
 }
 
 /** Step 3 — reconcile inventory (read-only preview; confirmed separately). */

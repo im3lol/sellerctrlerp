@@ -30,6 +30,17 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 // worker), which matches SP-API's per-account limits.
 const gateChain = new Map<string, Promise<unknown>>();
 const gateLast = new Map<string, number>();
+
+/**
+ * Per-connection discriminator for pacing keys. SP-API quotas are per selling-
+ * partner ACCOUNT × operation, so in a multi-tenant worker each tenant must pace
+ * on its own gate — a single global gate would needlessly serialize independent
+ * accounts. sellerId identifies the account; fall back to marketplace/token.
+ */
+export function credKey(cred: Credential): string {
+  return cred.sellerId || cred.marketplaceId || cred.refreshToken.slice(0, 16);
+}
+
 export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
     const gap = Date.now() - (gateLast.get(key) ?? 0);
