@@ -17,6 +17,7 @@ const MANAGE_LINKS = [
   { label: "الفترات المالية",      href: "/accounting/periods",     icon: "Lock" },
   { label: "مراكز التكلفة",        href: "/accounting/cost-centers", icon: "Target" },
   { label: "المستودعات والأصناف",  href: "/inventory/items",        icon: "Warehouse" },
+  { label: "ترقيم المستندات",     href: "/settings/numbering",     icon: "Hash" },
   { label: "العملات وأسعار الصرف", href: "/settings/currencies",    icon: "BadgeDollarSign" },
   { label: "صلاحيات المستخدمين",   href: "/settings/permissions",   icon: "ShieldCheck" },
   { label: "الاشتراك والباقة",     href: "/settings/subscription",  icon: "CreditCard" },
