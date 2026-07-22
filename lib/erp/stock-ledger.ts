@@ -41,7 +41,7 @@ export type StockLedgerRow = {
   balanceValue: number;
 };
 
-export type StockLedgerTotals = { inQty: number; outQty: number; net: number };
+export type StockLedgerTotals = { inQty: number; outQty: number; adjNet: number; net: number };
 
 export type StockLedgerFilters = {
   itemId?: string;
@@ -90,18 +90,39 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
   if (toDate) conds.push(lte(stockMovements.date, toDate));
   const where = and(...conds);
 
-  // Totals over the full filtered set.
-  const totalsRows = await db
-    .select({ type: stockMovements.type, q: sql<string>`coalesce(sum(${stockMovements.quantity}),0)` })
-    .from(stockMovements)
-    .where(where)
-    .groupBy(stockMovements.type);
-  const totals: StockLedgerTotals = { inQty: 0, outQty: 0, net: 0 };
-  for (const t of totalsRows) {
-    if (t.type === "OUT") totals.outQty += Number(t.q);
-    else totals.inQty += Number(t.q);
-  }
-  totals.net = totals.inQty - totals.outQty;
+  // Totals over the full filtered set. ADJ rows store |quantity| with no sign —
+  // an adjustment DECREASE would otherwise count as inbound — so their signed
+  // net is recovered from the running-balance delta (lag over the item+warehouse
+  // partition). The partition filters (org/item/warehouse) go INSIDE the window
+  // subquery; date/type filters go OUTSIDE so they can't break lag pairs.
+  const innerConds: SQL[] = [sql`organization_id = ${orgId}`];
+  if (itemId) innerConds.push(sql`item_id = ${itemId}`);
+  if (fWarehouse) innerConds.push(sql`warehouse_id = ${fWarehouse}`);
+  const outerConds: SQL[] = [sql`true`];
+  if (fType) outerConds.push(sql`type = ${fType}`);
+  if (fromDate) outerConds.push(sql`date >= ${fromDate}`);
+  if (toDate) outerConds.push(sql`date <= ${toDate}`);
+  const totalsRes = await db.execute<{ in_qty: string; out_qty: string; adj_net: string }>(sql`
+    SELECT
+      coalesce(sum(quantity) FILTER (WHERE type = 'IN'), 0)  AS in_qty,
+      coalesce(sum(quantity) FILTER (WHERE type = 'OUT'), 0) AS out_qty,
+      coalesce(sum(delta)    FILTER (WHERE type = 'ADJ'), 0) AS adj_net
+    FROM (
+      SELECT type, date, quantity,
+        balance_quantity - lag(balance_quantity, 1, 0::numeric)
+          OVER (PARTITION BY item_id, warehouse_id ORDER BY created_at, split_part(number, '-', 3)::int) AS delta
+      FROM stock_movements
+      WHERE ${sql.join(innerConds, sql` AND `)}
+    ) t
+    WHERE ${sql.join(outerConds, sql` AND `)}`);
+  const tr = totalsRes.rows[0];
+  const totals: StockLedgerTotals = {
+    inQty: Number(tr?.in_qty ?? 0),
+    outQty: Number(tr?.out_qty ?? 0),
+    adjNet: Number(tr?.adj_net ?? 0),
+    net: 0,
+  };
+  totals.net = totals.inQty - totals.outQty + totals.adjNet;
 
   let totalRows = 0;
   if (pageSize) {

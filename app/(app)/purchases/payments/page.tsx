@@ -88,6 +88,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
             <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-32`}>
               <option value="">الكل</option>
               <option value="POSTED">مرحّل</option>
+              <option value="REVERSED">معكوس</option>
               <option value="DRAFT">مسودة</option>
             </select>
           </div>

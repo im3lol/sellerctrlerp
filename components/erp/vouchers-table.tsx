@@ -66,7 +66,7 @@ export function VouchersTable({ rows, canManage, type }: { rows: VoucherRow[]; c
                 <TableCell className="font-mono">{r.invoice ? <Link href={`${invoiceBase}/${encodeURIComponent(r.invoice)}`} className="text-primary hover:underline">{r.invoice}</Link> : "تحت الحساب"}</TableCell>
                 <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
                 <TableCell>{fmt(r.amount)}</TableCell>
-                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "POSTED" ? "default" : r.status === "REVERSED" ? "destructive" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : r.status === "REVERSED" ? "معكوس" : "مسودة"}</Badge></TableCell>
                 <TableCell>
                   <Button size="icon" variant="ghost" asChild>
                     <a href={`${printBase}/${encodeURIComponent(r.number)}/print`} target="_blank" rel="noopener" title="طباعة">

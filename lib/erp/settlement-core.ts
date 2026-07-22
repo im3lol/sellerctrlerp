@@ -5,13 +5,13 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers,
+  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
-import { returnFromSalesInvoiceAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
+import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
@@ -98,6 +98,18 @@ async function linkOrders(orgId: string, txns: SettlementTxn[]): Promise<Map<str
  * Idempotent: a Refund row is skipped once its `salesReturnId` is set.
  */
 async function processSettlementRefunds(orgId: string): Promise<{ created: number; unmatched: string[] }> {
+  // Resume claimed-but-unposted refunds from a crashed run: salesReturnId was
+  // stamped but the credit note is still DRAFT — confirm it now (idempotent).
+  const stuck = await db.select({ retId: salesReturns.id })
+    .from(marketplaceSettlementTxns)
+    .innerJoin(salesReturns, eq(salesReturns.id, marketplaceSettlementTxns.salesReturnId))
+    .where(and(
+      eq(marketplaceSettlementTxns.organizationId, orgId),
+      eq(marketplaceSettlementTxns.type, "Refund"),
+      eq(salesReturns.status, "DRAFT"),
+    ));
+  for (const s of stuck) await confirmSalesReturnAction(s.retId).catch(() => {});
+
   const refunds = await db.select({
     id: marketplaceSettlementTxns.id, orderId: marketplaceSettlementTxns.orderId,
     sku: marketplaceSettlementTxns.sku, quantity: marketplaceSettlementTxns.quantity,
@@ -151,8 +163,15 @@ async function processSettlementRefunds(orgId: string): Promise<{ created: numbe
     const date = (rf.releaseDate ?? rf.postedAt ?? new Date()).toISOString().slice(0, 10);
 
     // 1) Money-side credit note (invoice is delivery-sourced → this is money-only).
-    const moneyRet = await returnFromSalesInvoiceAction(inv.id, [{ itemId, quantity: qty, unitPrice }], date);
+    //    Claim-first: create the DRAFT, stamp salesReturnId, THEN confirm — a crash
+    //    after the old create+confirm but before the stamp re-posted the credit
+    //    note on retry. Now a crash before the stamp leaves at most an orphan
+    //    DRAFT (no GL), and after it the resume pass above confirms the claim.
+    const moneyRet = await createSalesReturnAction({ salesInvoiceId: inv.id, date, lines: [{ itemId, quantity: qty, unitPrice }] });
     if (!moneyRet.ok || !moneyRet.id) { flag(rf.orderId, moneyRet.error || "تعذّر مرتجع الفاتورة"); continue; }
+    await db.update(marketplaceSettlementTxns).set({ salesReturnId: moneyRet.id }).where(eq(marketplaceSettlementTxns.id, rf.id));
+    const confMoney = await confirmSalesReturnAction(moneyRet.id);
+    if (!confMoney.ok) { flag(rf.orderId, confMoney.error || "تعذّر ترحيل مرتجع الفاتورة"); continue; }
 
     // 2) Stock-side return off the delivery, restocked at the delivery's own cost.
     const [outMove] = await db.select({ unitCost: stockMovements.unitCost }).from(stockMovements)
@@ -166,8 +185,7 @@ async function processSettlementRefunds(orgId: string): Promise<{ created: numbe
       flag(rf.orderId, `مرتجع الفاتورة تم، لكن تعذّر إنشاء مرتجع المخزون: ${stockRet.ok ? "" : stockRet.error}`);
     }
 
-    // Mark the refund row processed (keyed to the money credit note).
-    await db.update(marketplaceSettlementTxns).set({ salesReturnId: moneyRet.id }).where(eq(marketplaceSettlementTxns.id, rf.id));
+    // Already stamped (claim-first) before the confirm above.
     created++;
   }
   return { created, unmatched };

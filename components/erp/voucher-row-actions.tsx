@@ -3,8 +3,8 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { confirmReceiptVoucherAction, deleteReceiptVoucherAction } from "@/app/actions/erp/receipts";
-import { confirmPaymentVoucherAction, deletePaymentVoucherAction } from "@/app/actions/erp/payments";
+import { confirmReceiptVoucherAction, deleteReceiptVoucherAction, reverseReceiptVoucherAction } from "@/app/actions/erp/receipts";
+import { confirmPaymentVoucherAction, deletePaymentVoucherAction, reversePaymentVoucherAction } from "@/app/actions/erp/payments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
@@ -21,7 +21,7 @@ export function VoucherRowActions({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (!canManage || status !== "DRAFT") return null;
+  if (!canManage || (status !== "DRAFT" && status !== "POSTED")) return null;
   const isReceipt = type === "receipt";
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) =>
@@ -30,6 +30,19 @@ export function VoucherRowActions({
       if (r.ok) { toast.success(ok); router.refresh(); }
       else toast.error(r.error ?? "تعذّر التنفيذ");
     });
+
+  // POSTED: the undo path — mirror entry + restores the invoice/party balances.
+  if (status === "POSTED") {
+    return (
+      <Button size="sm" variant="outline" disabled={pending}
+        onClick={() => {
+          if (!confirm("عكس السند؟ سيُنشأ قيد عكسي وتُستعاد أرصدة العميل/المورد والفاتورة.")) return;
+          run(() => isReceipt ? reverseReceiptVoucherAction(voucherId) : reversePaymentVoucherAction(voucherId), "تم عكس السند");
+        }}>
+        <Icon name="Undo2" className="size-4" />عكس
+      </Button>
+    );
+  }
 
   return (
     <div className="flex gap-1">

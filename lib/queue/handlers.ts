@@ -91,6 +91,10 @@ export async function runSettlementsJob(d: SyncJob): Promise<void> {
   const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
   if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
   if (!prep.flags.settlements) { await finishRun(d.orgId, runId, "OK", {}); return; } // source toggled off
+  // Ambient identity: the refund cycle inside postSettlements runs cookie-bound
+  // server actions (credit note + delivery return) — same need as runOrdersJob.
+  const ctx = await workerErpContext(d.orgId);
+  if (!ctx) { await finishRun(d.orgId, runId, "FAILED", {}, "لا يوجد عضو نشط في المؤسسة لتشغيل المزامنة"); return; }
   // Always advance the watermark — even on failure — so the scheduler backs off to
   // the 12h cadence instead of re-enqueuing every 60s and hammering the low reports
   // quota. It's a cadence timer, NOT the data window: the pull always re-scans a
@@ -98,7 +102,7 @@ export async function runSettlementsJob(d: SyncJob): Promise<void> {
   await markSync(d.orgId, d.provider, { settlementsSyncedAt: new Date() });
   try {
     const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const r = await syncSettlementsCore(prep, { from, to: new Date() });
+    const r = await runWithErpContext(ctx, () => syncSettlementsCore(prep, { from, to: new Date() }));
     if (!r.ok) { await markSync(d.orgId, d.provider, { lastSyncStatus: "error" }); await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
     await markSync(d.orgId, d.provider, { lastSyncStatus: "auto" });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted });

@@ -167,7 +167,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={5}>الإجمالي (صافي {qfmt(totals.net)})</TableCell>
+                      <TableCell colSpan={5}>الإجمالي (صافي {qfmt(totals.net)}{totals.adjNet !== 0 ? ` — تسويات ${totals.adjNet > 0 ? "+" : ""}${qfmt(totals.adjNet)}` : ""})</TableCell>
                       <TableCell>{qfmt(totals.inQty)}</TableCell>
                       <TableCell>{qfmt(totals.outQty)}</TableCell>
                       <TableCell colSpan={3} />
