@@ -203,6 +203,11 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
         count++;
       } else if (op === "cancel" && so.status !== "INVOICED" && so.status !== "CANCELLED") {
+        // Same guard as cancelSalesOrderAction: a part-delivered/part-invoiced order
+        // carries posted stock/COGS a cancel does not reverse — skip it, don't cancel.
+        const moved = await db.select({ d: salesOrderLines.deliveredQty, inv: salesOrderLines.invoicedQty })
+          .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+        if (moved.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) continue;
         await db.update(salesOrders).set({ status: "CANCELLED" }).where(eq(salesOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
         count++;

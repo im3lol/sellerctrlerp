@@ -140,6 +140,23 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
       try {
         await db.transaction(async (tx) => {
+          // Serialize sibling confirms on the same receipt, then re-check remaining —
+          // the create-time cap only counts POSTED priors, so two DRAFTs for the full
+          // quantity would otherwise both confirm (double stock OUT + double GRNI debit).
+          await tx.execute(sql`select 1 from purchase_receipts where id = ${grn.id} for update`);
+          const recLines = await tx.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
+            .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+          const receivedByItem = new Map<string, number>();
+          for (const l of recLines) receivedByItem.set(l.itemId, (receivedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          const prior = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+            .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+            .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED")));
+          const returnedByItem = new Map<string, number>();
+          for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          for (const l of rLines) {
+            const remaining = (receivedByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+            if (Number(l.quantity) > remaining + 1e-9) throw new Error("الكمية المرتجعة أكبر من المتبقّي للصنف");
+          }
           // FIFO lot costing: stock leaves at batch cost; the price↔cost gap is a variance.
           let cost = 0;
           for (const l of rLines) {
@@ -200,6 +217,24 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
 
     try {
       await db.transaction(async (tx) => {
+        // Serialize sibling confirms on the same invoice, then re-check remaining —
+        // the create-time cap only counts POSTED priors, so two DRAFTs for the full
+        // quantity would otherwise both confirm (double AP debit + double stock OUT).
+        await tx.execute(sql`select 1 from purchase_invoices where id = ${inv.id} for update`);
+        const invLines2 = await tx.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
+          .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
+        const boughtByItem = new Map<string, number>();
+        for (const l of invLines2) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+        const prior = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+          .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+          .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
+        const returnedByItem = new Map<string, number>();
+        for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+        for (const l of lines) {
+          const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+          if (l.quantity > remaining + 1e-9) throw new Error("الكمية المرتجعة أكبر من المتبقّي للصنف");
+        }
+
         // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
         // touch no stock (credit GRNI at net). `cost` = inventory value credited.
         let cost = net;
