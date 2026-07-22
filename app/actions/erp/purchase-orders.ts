@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -46,6 +46,11 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
     const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
       .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
     if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
+    // The warehouse id flows into the GRN and its stock movements — verify it
+    // belongs to the org (same IDOR class as the supplier check above).
+    const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
+    if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
 
     const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount) }));
     const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));

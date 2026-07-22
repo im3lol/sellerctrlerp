@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches,
+  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
@@ -104,6 +104,13 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty })
       .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
+    // Per-line pick warehouses flow into stock movements — verify they belong to the org.
+    const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
+    if (pickWhIds.length) {
+      const okWh = await db.select({ id: warehouses.id }).from(warehouses)
+        .where(and(inArray(warehouses.id, pickWhIds), eq(warehouses.organizationId, auth.orgId)));
+      if (okWh.length !== pickWhIds.length) return { error: "مستودع غير صالح في أحد البنود" };
+    }
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
     const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null }[] = [];
     for (const l of orderLines) {
@@ -179,6 +186,12 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     const receiptDate = new Date(grn.date);
     try {
       await db.transaction(async (tx) => {
+        // Re-check the receipt status UNDER LOCK — the outside check races a
+        // double-click, and a zero-value receipt posts no GL entry, so the
+        // postEntry unique index can't catch the duplicate stock IN.
+        const [lockedGrn] = await tx.select({ status: purchaseReceipts.status }).from(purchaseReceipts)
+          .where(eq(purchaseReceipts.id, grn.id)).for("update").limit(1);
+        if (lockedGrn?.status !== "DRAFT") throw new Error("تم تأكيد إذن الاستلام بالفعل");
         // Lock the PO lines FOR UPDATE and re-validate "≤ remaining" inside the tx so
         // two concurrent partial receipts can't both pass on a stale receivedQty and
         // over-receive the order (doubled inventory + GRNI).

@@ -108,6 +108,13 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
     const orderLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId })
       .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
 
+    // Per-line pick warehouses flow into stock movements — verify they belong to the org.
+    const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
+    if (pickWhIds.length) {
+      const okWh = await db.select({ id: warehouses.id }).from(warehouses)
+        .where(and(inArray(warehouses.id, pickWhIds), eq(warehouses.organizationId, auth.orgId)));
+      if (okWh.length !== pickWhIds.length) return { error: "مستودع غير صالح في أحد البنود" };
+    }
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
     const toDeliver: { itemId: string; qty: number; warehouseId: string | null }[] = [];
     for (const l of orderLines) {

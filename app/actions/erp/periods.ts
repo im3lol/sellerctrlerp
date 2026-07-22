@@ -6,6 +6,7 @@ import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { fiscalPeriods, accounts, journalEntries, journalEntryLines } from "@/db/schema";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { computeYearClosing } from "@/lib/erp/year-closing";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 
@@ -135,19 +136,22 @@ export async function runYearClosingAction(periodId: string): Promise<ActionStat
       return { ok: true };
     }
 
-    // Ensure retained earnings account exists (حساب الأرباح المحتجزة)
+    // Ensure retained earnings account exists (حساب الأرباح المحتجزة). Route the
+    // role code through the org's account-config remap first — a tenant with their
+    // own CoA otherwise got a duplicate auto-created 3001 next to their real account.
+    const retainedCode = (await resolveAccountCodes(auth.orgId, ["3001"]))["3001"];
     const retainedId = await db.transaction(async (tx) => {
       const [existing] = await tx
         .select({ id: accounts.id })
         .from(accounts)
-        .where(and(eq(accounts.organizationId, auth.orgId), eq(accounts.code, "3001")))
+        .where(and(eq(accounts.organizationId, auth.orgId), eq(accounts.code, retainedCode)))
         .limit(1);
       if (existing) return existing.id;
       const [created] = await tx
         .insert(accounts)
         .values({
           organizationId: auth.orgId,
-          code: "3001",
+          code: retainedCode,
           nameAr: "الأرباح المحتجزة",
           type: "EQUITY",
           normalBalance: "CREDIT",

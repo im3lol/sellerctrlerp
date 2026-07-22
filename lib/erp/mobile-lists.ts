@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import {
   salesOrders, purchaseOrders, customers, suppliers, journalEntries, journalEntryLines, employees,
   salesInvoices, purchaseInvoices, deliveryNotes, expenses, investors, salesPlatforms,
@@ -14,6 +15,16 @@ import {
   recurringJournals, recurringJournalLines, fiscalPeriods, accountBudgets,
 } from "@/db/schema";
 
+/**
+ * Every helper here takes orgId first and is exported wrapped in the tenant DB
+ * scope (see the export block at the bottom): the /api/v1 routes call these
+ * directly after authorizeApi with NO surrounding wrapper, so on the bare pool
+ * they would silently return 0 rows once RLS is enforced in production.
+ * withOrgScope reuses an already-open scope, so callers that are scoped pay nothing.
+ */
+const scoped = <A extends unknown[], R>(fn: (orgId: string, ...args: A) => Promise<R>) =>
+  (orgId: string, ...args: A): Promise<R> => withOrgScope(orgId, false, () => fn(orgId, ...args));
+
 /** One neutral shape for every mobile list card. */
 export type DocRow = {
   id: string;
@@ -26,7 +37,7 @@ export type DocRow = {
 
 const LIMIT = 50;
 
-export async function salesOrderList(orgId: string): Promise<DocRow[]> {
+async function _salesOrderList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: salesOrders.id, number: salesOrders.number, status: salesOrders.status,
     amount: salesOrders.totalAmount, date: salesOrders.date, name: customers.nameAr,
@@ -35,7 +46,7 @@ export async function salesOrderList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function purchaseOrderList(orgId: string): Promise<DocRow[]> {
+async function _purchaseOrderList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: purchaseOrders.id, number: purchaseOrders.number, status: purchaseOrders.status,
     amount: purchaseOrders.totalAmount, date: purchaseOrders.date, name: suppliers.nameAr,
@@ -44,25 +55,25 @@ export async function purchaseOrderList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function customerList(orgId: string): Promise<DocRow[]> {
+async function _customerList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: customers.id, code: customers.code, name: customers.nameAr, phone: customers.phone, balance: customers.balance })
     .from(customers).where(eq(customers.organizationId, orgId)).orderBy(customers.nameAr).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name ?? r.code, subtitle: r.phone ?? null, amount: Number(r.balance), status: null }));
 }
 
-export async function supplierList(orgId: string): Promise<DocRow[]> {
+async function _supplierList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: suppliers.id, code: suppliers.code, name: suppliers.nameAr, phone: suppliers.phone, balance: suppliers.balance })
     .from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(suppliers.nameAr).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name ?? r.code, subtitle: r.phone ?? null, amount: Number(r.balance), status: null }));
 }
 
-export async function journalList(orgId: string): Promise<DocRow[]> {
+async function _journalList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: journalEntries.id, number: journalEntries.number, desc: journalEntries.description, status: journalEntries.status, date: journalEntries.date })
     .from(journalEntries).where(eq(journalEntries.organizationId, orgId)).orderBy(desc(journalEntries.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.desc ?? r.number, subtitle: r.number, amount: null, status: r.status }));
 }
 
-export async function salesInvoiceList(orgId: string): Promise<DocRow[]> {
+async function _salesInvoiceList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: salesInvoices.id, number: salesInvoices.number, status: salesInvoices.status,
     amount: salesInvoices.totalAmount, date: salesInvoices.date, name: customers.nameAr,
@@ -71,7 +82,7 @@ export async function salesInvoiceList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function purchaseInvoiceList(orgId: string): Promise<DocRow[]> {
+async function _purchaseInvoiceList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: purchaseInvoices.id, number: purchaseInvoices.number, status: purchaseInvoices.status,
     amount: purchaseInvoices.totalAmount, date: purchaseInvoices.date, name: suppliers.nameAr,
@@ -80,7 +91,7 @@ export async function purchaseInvoiceList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function deliveryList(orgId: string): Promise<DocRow[]> {
+async function _deliveryList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: deliveryNotes.id, number: deliveryNotes.number, status: deliveryNotes.status,
     date: deliveryNotes.date, name: customers.nameAr,
@@ -89,14 +100,14 @@ export async function deliveryList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: null, status: r.status }));
 }
 
-export async function expenseList(orgId: string): Promise<DocRow[]> {
+async function _expenseList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: expenses.id, number: expenses.number, status: expenses.status, amount: expenses.amount, date: expenses.date,
   }).from(expenses).where(eq(expenses.organizationId, orgId)).orderBy(desc(expenses.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: `مصروف ${r.number}`, subtitle: null, amount: Number(r.amount), status: r.status }));
 }
 
-export async function employeeList(orgId: string): Promise<DocRow[]> {
+async function _employeeList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: employees.id, code: employees.employeeCode, name: employees.fullName, position: employees.position, salary: employees.basicSalary })
     .from(employees).where(and(eq(employees.organizationId, orgId), eq(employees.isActive, true))).orderBy(employees.fullName).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "موظف", subtitle: r.position ?? null, amount: Number(r.salary), status: null }));
@@ -105,7 +116,7 @@ export async function employeeList(orgId: string): Promise<DocRow[]> {
 export type OrderLine = { name: string; qty: number; unitPrice: number; total: number };
 export type OrderDetail = { id: string; number: string; party: string; date: string; status: string; total: number; lines: OrderLine[] };
 
-export async function salesOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _salesOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [o] = await db.select({ id: salesOrders.id, number: salesOrders.number, status: salesOrders.status, total: salesOrders.totalAmount, date: salesOrders.date, party: customers.nameAr })
     .from(salesOrders).leftJoin(customers, eq(customers.id, salesOrders.customerId))
     .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, orgId))).limit(1);
@@ -116,7 +127,7 @@ export async function salesOrderDetail(orgId: string, id: string): Promise<Order
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
-export async function purchaseOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _purchaseOrderDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [o] = await db.select({ id: purchaseOrders.id, number: purchaseOrders.number, status: purchaseOrders.status, total: purchaseOrders.totalAmount, date: purchaseOrders.date, party: suppliers.nameAr })
     .from(purchaseOrders).leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
     .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, orgId))).limit(1);
@@ -127,7 +138,7 @@ export async function purchaseOrderDetail(orgId: string, id: string): Promise<Or
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
-export async function salesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _salesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [o] = await db.select({ id: salesInvoices.id, number: salesInvoices.number, status: salesInvoices.status, total: salesInvoices.totalAmount, date: salesInvoices.date, party: customers.nameAr })
     .from(salesInvoices).leftJoin(customers, eq(customers.id, salesInvoices.customerId))
     .where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, orgId))).limit(1);
@@ -138,7 +149,7 @@ export async function salesInvoiceDetail(orgId: string, id: string): Promise<Ord
     lines: lines.map((l) => ({ name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total: Number(l.total) })) };
 }
 
-export async function purchaseInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _purchaseInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [o] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, status: purchaseInvoices.status, total: purchaseInvoices.totalAmount, date: purchaseInvoices.date, party: suppliers.nameAr })
     .from(purchaseInvoices).leftJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
     .where(and(eq(purchaseInvoices.id, id), eq(purchaseInvoices.organizationId, orgId))).limit(1);
@@ -151,7 +162,7 @@ export async function purchaseInvoiceDetail(orgId: string, id: string): Promise<
 
 const LEAVE_TYPE_AR: Record<string, string> = { ANNUAL: "سنوية", SICK: "مرضية", UNPAID: "بدون أجر", OTHER: "أخرى" };
 
-export async function leaveRequestList(orgId: string): Promise<DocRow[]> {
+async function _leaveRequestList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: leaveRequests.id, number: leaveRequests.number, name: leaveRequests.employeeName,
     type: leaveRequests.leaveType, days: leaveRequests.days, status: leaveRequests.status, date: leaveRequests.startDate,
@@ -160,7 +171,7 @@ export async function leaveRequestList(orgId: string): Promise<DocRow[]> {
     subtitle: `${LEAVE_TYPE_AR[r.type] ?? r.type} · ${r.days} يوم`, amount: null, status: r.status }));
 }
 
-export async function expenseClaimList(orgId: string): Promise<DocRow[]> {
+async function _expenseClaimList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: expenseClaims.id, number: expenseClaims.number, name: expenseClaims.employeeName, status: expenseClaims.status, date: expenseClaims.date,
     total: sql<string>`COALESCE(SUM(${expenseClaimLines.amount}), 0)`,
@@ -172,7 +183,7 @@ export async function expenseClaimList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name, subtitle: r.number, amount: Number(r.total), status: r.status }));
 }
 
-export async function investorList(orgId: string): Promise<DocRow[]> {
+async function _investorList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: investors.id, code: investors.code, name: investors.fullName, phone: investors.phone, status: investors.status })
     .from(investors).where(eq(investors.organizationId, orgId)).orderBy(investors.fullName).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code ?? "—", title: r.name ?? "مستثمر", subtitle: r.phone ?? null, amount: null, status: r.status }));
@@ -182,7 +193,7 @@ export type ReqLine = { name: string; qty: number };
 export type ReqDetail = { id: string; number: string; date: string; status: string; notes: string; lines: ReqLine[] };
 
 /** Material-requisition header + item lines (mobile detail). */
-export async function requisitionDetail(orgId: string, id: string): Promise<ReqDetail | null> {
+async function _requisitionDetail(orgId: string, id: string): Promise<ReqDetail | null> {
   const [r] = await db.select({ id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status, notes: materialRequests.notes })
     .from(materialRequests).where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, orgId))).limit(1);
   if (!r) return null;
@@ -196,7 +207,7 @@ export type ReceiptLine = { name: string; qty: number; rejected: number };
 export type ReceiptDetail = { id: string; number: string; date: string; status: string; supplier: string; poNumber: string; invoiced: boolean; notes: string; lines: ReceiptLine[] };
 
 /** Goods-receipt header + received lines (mobile detail). */
-export async function purchaseReceiptDetail(orgId: string, id: string): Promise<ReceiptDetail | null> {
+async function _purchaseReceiptDetail(orgId: string, id: string): Promise<ReceiptDetail | null> {
   const [r] = await db.select({
     id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, status: purchaseReceipts.status,
     notes: purchaseReceipts.notes, invoiceId: purchaseReceipts.purchaseInvoiceId, poNumber: purchaseOrders.number, supplier: suppliers.nameAr,
@@ -213,7 +224,7 @@ export async function purchaseReceiptDetail(orgId: string, id: string): Promise<
 }
 
 /** Confirmed/partial POs available to receive against (for the receipt form's PO picker). */
-export async function receivablePurchaseOrders(orgId: string): Promise<DocRow[]> {
+async function _receivablePurchaseOrders(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: purchaseOrders.id, number: purchaseOrders.number, status: purchaseOrders.status, date: purchaseOrders.date, name: suppliers.nameAr })
     .from(purchaseOrders).leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
     .where(and(eq(purchaseOrders.organizationId, orgId), inArray(purchaseOrders.status, ["CONFIRMED", "PARTIALLY_RECEIVED"])))
@@ -222,7 +233,7 @@ export async function receivablePurchaseOrders(orgId: string): Promise<DocRow[]>
 }
 
 /** Postable leaf accounts for pickers. Pass a type to filter (EXPENSE, ASSET, …). */
-export async function leafAccounts(orgId: string, type?: string): Promise<DocRow[]> {
+async function _leafAccounts(orgId: string, type?: string): Promise<DocRow[]> {
   const conds = [eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true)];
   if (type) conds.push(eq(accounts.type, type));
   const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
@@ -234,7 +245,7 @@ export type JournalLine = { account: string; debit: number; credit: number; desc
 export type JournalDetail = { id: string; number: string; date: string; status: string; description: string; totalDebit: number; totalCredit: number; lines: JournalLine[] };
 
 /** Journal entry header + debit/credit lines (mobile detail). */
-export async function journalEntryDetail(orgId: string, id: string): Promise<JournalDetail | null> {
+async function _journalEntryDetail(orgId: string, id: string): Promise<JournalDetail | null> {
   const [e] = await db.select({ id: journalEntries.id, number: journalEntries.number, date: journalEntries.date, status: journalEntries.status, desc: journalEntries.description })
     .from(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, orgId))).limit(1);
   if (!e) return null;
@@ -250,7 +261,7 @@ const expCat = alias(accounts, "exp_cat");
 const cashCat = alias(accounts, "cash_cat");
 
 /** Expense header + account names (mobile detail). */
-export async function expenseDetail(orgId: string, id: string): Promise<ExpenseDetail | null> {
+async function _expenseDetail(orgId: string, id: string): Promise<ExpenseDetail | null> {
   const [e] = await db.select({
     id: expenses.id, number: expenses.number, date: expenses.date, status: expenses.status, amount: expenses.amount,
     payee: expenses.payee, notes: expenses.notes, cat: expCat.nameAr, cash: cashCat.nameAr,
@@ -266,7 +277,7 @@ export async function expenseDetail(orgId: string, id: string): Promise<ExpenseD
 export type InvoicePayable = { id: string; number: string; supplierId: string; total: number; paid: number; balanceDue: number; status: string };
 
 /** Payment-relevant fields of a purchase invoice (for the mobile سند صرف form). */
-export async function purchaseInvoicePayable(orgId: string, id: string): Promise<InvoicePayable | null> {
+async function _purchaseInvoicePayable(orgId: string, id: string): Promise<InvoicePayable | null> {
   const [i] = await db.select({ id: purchaseInvoices.id, number: purchaseInvoices.number, supplierId: purchaseInvoices.supplierId,
     total: purchaseInvoices.totalAmount, paid: purchaseInvoices.paidAmount, balanceDue: purchaseInvoices.balanceDue, status: purchaseInvoices.status })
     .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, id), eq(purchaseInvoices.organizationId, orgId))).limit(1);
@@ -277,7 +288,7 @@ export async function purchaseInvoicePayable(orgId: string, id: string): Promise
 export type InvoiceReceivable = { id: string; number: string; customerId: string; total: number; paid: number; balanceDue: number; status: string };
 
 /** Collection-relevant fields of a sales invoice (for the mobile سند قبض form). */
-export async function salesInvoiceReceivable(orgId: string, id: string): Promise<InvoiceReceivable | null> {
+async function _salesInvoiceReceivable(orgId: string, id: string): Promise<InvoiceReceivable | null> {
   const [i] = await db.select({ id: salesInvoices.id, number: salesInvoices.number, customerId: salesInvoices.customerId,
     total: salesInvoices.totalAmount, paid: salesInvoices.paidAmount, balanceDue: salesInvoices.balanceDue, status: salesInvoices.status })
     .from(salesInvoices).where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, orgId))).limit(1);
@@ -286,7 +297,7 @@ export async function salesInvoiceReceivable(orgId: string, id: string): Promise
 }
 
 /** Cash/bank leaf accounts (110x) for the payment/voucher account picker. */
-export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
+async function _cashBankAccounts(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr })
     .from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), eq(accounts.type, "ASSET"),
@@ -296,7 +307,7 @@ export async function cashBankAccounts(orgId: string): Promise<DocRow[]> {
 }
 
 /** Sales quotation header + lines (mobile detail; reuses the OrderDetail shape). */
-export async function quotationDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _quotationDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [q] = await db.select({ id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, party: customers.nameAr })
     .from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
     .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
@@ -315,7 +326,7 @@ export type TransferLine = { name: string; qty: number; from: string; to: string
 export type TransferDetail = { id: string; number: string; date: string; status: string; notes: string; lines: TransferLine[] };
 
 /** Stock transfer header + lines (each line = item qty from→to warehouse). */
-export async function stockTransferDetail(orgId: string, id: string): Promise<TransferDetail | null> {
+async function _stockTransferDetail(orgId: string, id: string): Promise<TransferDetail | null> {
   const [t] = await db.select({ id: stockTransfers.id, number: stockTransfers.number, date: stockTransfers.date, status: stockTransfers.status, notes: stockTransfers.notes })
     .from(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
   if (!t) return null;
@@ -334,7 +345,7 @@ export async function stockTransferDetail(orgId: string, id: string): Promise<Tr
 export type EmployeeEdit = { id: string; fullName: string; employeeCode: string; position: string; department: string; payType: string; basicSalary: number; allowances: number; deductions: number; taxRate: number };
 
 /** Editable fields of one employee (mobile edit form). */
-export async function employeeEditDetail(orgId: string, id: string): Promise<EmployeeEdit | null> {
+async function _employeeEditDetail(orgId: string, id: string): Promise<EmployeeEdit | null> {
   const [e] = await db.select({ id: employees.id, fullName: employees.fullName, code: employees.employeeCode, position: employees.position, department: employees.department, payType: employees.payType, basicSalary: employees.basicSalary, allowances: employees.allowances, deductions: employees.deductions, taxRate: employees.taxRate })
     .from(employees).where(and(eq(employees.id, id), eq(employees.organizationId, orgId))).limit(1);
   if (!e) return null;
@@ -344,7 +355,7 @@ export async function employeeEditDetail(orgId: string, id: string): Promise<Emp
 const FREQ_AR: Record<string, string> = { WEEKLY: "أسبوعي", MONTHLY: "شهري", QUARTERLY: "ربع سنوي", YEARLY: "سنوي" };
 
 /** Recurring sales invoice templates (mobile list). */
-export async function recurringSalesInvoiceList(orgId: string): Promise<DocRow[]> {
+async function _recurringSalesInvoiceList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: recurringSalesInvoices.id, freq: recurringSalesInvoices.frequency, next: recurringSalesInvoices.nextRunDate, active: recurringSalesInvoices.isActive, name: customers.nameAr,
     total: sql<string>`COALESCE(SUM(${recurringSalesInvoiceLines.quantity} * ${recurringSalesInvoiceLines.unitPrice}), 0)`,
@@ -359,7 +370,7 @@ export async function recurringSalesInvoiceList(orgId: string): Promise<DocRow[]
 }
 
 /** Recurring sales invoice template detail (header + lines; reuses OrderDetail). */
-export async function recurringSalesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
+async function _recurringSalesInvoiceDetail(orgId: string, id: string): Promise<OrderDetail | null> {
   const [r] = await db.select({ id: recurringSalesInvoices.id, freq: recurringSalesInvoices.frequency, next: recurringSalesInvoices.nextRunDate, active: recurringSalesInvoices.isActive, party: customers.nameAr })
     .from(recurringSalesInvoices).leftJoin(customers, eq(customers.id, recurringSalesInvoices.customerId))
     .where(and(eq(recurringSalesInvoices.id, id), eq(recurringSalesInvoices.organizationId, orgId))).limit(1);
@@ -375,7 +386,7 @@ export type AdjLine = { name: string; mode: string; entered: number; delta: numb
 export type AdjDetail = { id: string; number: string; date: string; status: string; reason: string; lines: AdjLine[] };
 
 /** Stock adjustment header + lines (mobile detail). */
-export async function stockAdjustmentDetail(orgId: string, id: string): Promise<AdjDetail | null> {
+async function _stockAdjustmentDetail(orgId: string, id: string): Promise<AdjDetail | null> {
   const [a] = await db.select({ id: stockAdjustments.id, number: stockAdjustments.number, date: stockAdjustments.date, status: stockAdjustments.status, reason: stockAdjustments.reason })
     .from(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
   if (!a) return null;
@@ -391,7 +402,7 @@ export async function stockAdjustmentDetail(orgId: string, id: string): Promise<
 export type AssetDetail = { id: string; code: string; nameAr: string; category: string; purchaseDate: string; purchaseCost: number; salvageValue: number; usefulLifeYears: number; accumulated: number; netBookValue: number; status: string; notes: string };
 
 /** Fixed asset detail (mobile). */
-export async function fixedAssetDetail(orgId: string, id: string): Promise<AssetDetail | null> {
+async function _fixedAssetDetail(orgId: string, id: string): Promise<AssetDetail | null> {
   const [a] = await db.select({
     id: fixedAssets.id, code: fixedAssets.code, nameAr: fixedAssets.nameAr, category: fixedAssets.category, purchaseDate: fixedAssets.purchaseDate,
     purchaseCost: fixedAssets.purchaseCost, salvageValue: fixedAssets.salvageValue, usefulLifeYears: fixedAssets.usefulLifeYears,
@@ -404,7 +415,7 @@ export async function fixedAssetDetail(orgId: string, id: string): Promise<Asset
 }
 
 /** Budget years with line count + total (mobile list). */
-export async function budgetYearList(orgId: string): Promise<DocRow[]> {
+async function _budgetYearList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ year: accountBudgets.year, n: sql<number>`count(*)::int`, total: sql<string>`coalesce(sum(${accountBudgets.amount}),0)` })
     .from(accountBudgets).where(eq(accountBudgets.organizationId, orgId))
     .groupBy(accountBudgets.year).orderBy(desc(accountBudgets.year));
@@ -414,7 +425,7 @@ export async function budgetYearList(orgId: string): Promise<DocRow[]> {
 export type BudgetLine = { accountId: string; code: string; name: string; type: string; amount: number };
 
 /** Budgetable (leaf REVENUE/EXPENSE) accounts with their amount for a year. */
-export async function budgetForYear(orgId: string, year: number): Promise<BudgetLine[]> {
+async function _budgetForYear(orgId: string, year: number): Promise<BudgetLine[]> {
   const accs = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
     .from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), inArray(accounts.type, ["REVENUE", "EXPENSE"])))
@@ -426,7 +437,7 @@ export async function budgetForYear(orgId: string, year: number): Promise<Budget
 }
 
 /** Recurring journal templates (mobile list). */
-export async function recurringJournalList(orgId: string): Promise<DocRow[]> {
+async function _recurringJournalList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: recurringJournals.id, name: recurringJournals.name, freq: recurringJournals.frequency,
     next: recurringJournals.nextRunDate, active: recurringJournals.isActive,
@@ -443,7 +454,7 @@ export async function recurringJournalList(orgId: string): Promise<DocRow[]> {
 export type RecurJournalDetail = { id: string; name: string; description: string; frequency: string; nextRunDate: string; isActive: boolean; totalDebit: number; totalCredit: number; lines: JournalLine[] };
 
 /** One recurring journal template + its Dr/Cr lines. */
-export async function recurringJournalDetail(orgId: string, id: string): Promise<RecurJournalDetail | null> {
+async function _recurringJournalDetail(orgId: string, id: string): Promise<RecurJournalDetail | null> {
   const [r] = await db.select({ id: recurringJournals.id, name: recurringJournals.name, desc: recurringJournals.description, freq: recurringJournals.frequency, next: recurringJournals.nextRunDate, active: recurringJournals.isActive })
     .from(recurringJournals).where(and(eq(recurringJournals.id, id), eq(recurringJournals.organizationId, orgId))).limit(1);
   if (!r) return null;
@@ -459,7 +470,7 @@ export async function recurringJournalDetail(orgId: string, id: string): Promise
 const PERIOD_STATUS_AR: Record<string, string> = { OPEN: "مفتوحة", SOFT_CLOSED: "مغلقة مؤقتاً", CLOSED: "مقفلة" };
 
 /** Fiscal periods (mobile list). */
-export async function fiscalPeriodList(orgId: string): Promise<DocRow[]> {
+async function _fiscalPeriodList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: fiscalPeriods.id, name: fiscalPeriods.name, from: fiscalPeriods.startDate, to: fiscalPeriods.endDate, status: fiscalPeriods.status })
     .from(fiscalPeriods).where(eq(fiscalPeriods.organizationId, orgId)).orderBy(desc(fiscalPeriods.startDate)).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.name, title: r.name,
@@ -468,7 +479,7 @@ export async function fiscalPeriodList(orgId: string): Promise<DocRow[]> {
 }
 
 /** Payroll runs (mobile list). */
-export async function payrollRunList(orgId: string): Promise<DocRow[]> {
+async function _payrollRunList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: payrollRuns.id, number: payrollRuns.number, status: payrollRuns.status, net: payrollRuns.totalNet, from: payrollRuns.periodStart, to: payrollRuns.periodEnd })
     .from(payrollRuns).where(eq(payrollRuns.organizationId, orgId)).orderBy(desc(payrollRuns.periodStart)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.number,
@@ -480,7 +491,7 @@ export type PayrollLine = { name: string; basic: number; allowances: number; gro
 export type PayrollDetail = { id: string; number: string; from: string; to: string; status: string; totalGross: number; totalNet: number; lines: PayrollLine[] };
 
 /** Payroll run header + per-employee lines. */
-export async function payrollRunDetail(orgId: string, id: string): Promise<PayrollDetail | null> {
+async function _payrollRunDetail(orgId: string, id: string): Promise<PayrollDetail | null> {
   const [r] = await db.select({ id: payrollRuns.id, number: payrollRuns.number, status: payrollRuns.status, from: payrollRuns.periodStart, to: payrollRuns.periodEnd, gross: payrollRuns.totalGross, net: payrollRuns.totalNet })
     .from(payrollRuns).where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, orgId))).limit(1);
   if (!r) return null;
@@ -495,7 +506,7 @@ export async function payrollRunDetail(orgId: string, id: string): Promise<Payro
 const recExpAcc = alias(accounts, "rec_exp_acc");
 
 /** Recurring expense templates (mobile list). */
-export async function recurringExpenseList(orgId: string): Promise<DocRow[]> {
+async function _recurringExpenseList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: recurringExpenses.id, amount: recurringExpenses.amount, freq: recurringExpenses.frequency, next: recurringExpenses.nextRunDate, active: recurringExpenses.isActive, payee: recurringExpenses.payee, acc: recExpAcc.nameAr })
     .from(recurringExpenses).leftJoin(recExpAcc, eq(recExpAcc.id, recurringExpenses.expenseAccountId))
     .where(eq(recurringExpenses.organizationId, orgId)).orderBy(desc(recurringExpenses.nextRunDate)).limit(LIMIT);
@@ -508,7 +519,7 @@ export type RecurringExpenseDetail = { id: string; account: string; cashAccount:
 const recCashAcc = alias(accounts, "rec_cash_acc");
 
 /** One recurring expense template (mobile detail). */
-export async function recurringExpenseDetail(orgId: string, id: string): Promise<RecurringExpenseDetail | null> {
+async function _recurringExpenseDetail(orgId: string, id: string): Promise<RecurringExpenseDetail | null> {
   const [r] = await db.select({ id: recurringExpenses.id, amount: recurringExpenses.amount, freq: recurringExpenses.frequency, next: recurringExpenses.nextRunDate, active: recurringExpenses.isActive, payee: recurringExpenses.payee, notes: recurringExpenses.notes, acc: recExpAcc.nameAr, cash: recCashAcc.nameAr })
     .from(recurringExpenses)
     .leftJoin(recExpAcc, eq(recExpAcc.id, recurringExpenses.expenseAccountId))
@@ -519,14 +530,14 @@ export async function recurringExpenseDetail(orgId: string, id: string): Promise
     nextRunDate: new Date(r.next).toISOString().slice(0, 10), payee: r.payee ?? "", notes: r.notes ?? "", isActive: r.active };
 }
 
-export async function costCenterList(orgId: string): Promise<DocRow[]> {
+async function _costCenterList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: costCenters.id, code: costCenters.code, name: costCenters.nameAr, active: costCenters.isActive })
     .from(costCenters).where(eq(costCenters.organizationId, orgId)).orderBy(costCenters.code).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: r.active ? "نشط" : "متوقف" }));
 }
 
 export type CostCenterEdit = { id: string; code: string; nameAr: string; nameEn: string; isActive: boolean };
-export async function costCenterDetail(orgId: string, id: string): Promise<CostCenterEdit | null> {
+async function _costCenterDetail(orgId: string, id: string): Promise<CostCenterEdit | null> {
   const [c] = await db.select({ id: costCenters.id, code: costCenters.code, nameAr: costCenters.nameAr, nameEn: costCenters.nameEn, active: costCenters.isActive })
     .from(costCenters).where(and(eq(costCenters.id, id), eq(costCenters.organizationId, orgId))).limit(1);
   if (!c) return null;
@@ -537,7 +548,7 @@ export type StatementLine = { id: string; date: string; description: string; ref
 export type BankStatement = { bankAccountId: string; bankName: string; reconciledCount: number; unreconciledCount: number; statementBalance: number; lines: StatementLine[] };
 
 /** Bank statement lines + reconciliation summary for one bank account. */
-export async function bankStatement(orgId: string, bankAccountId: string): Promise<BankStatement | null> {
+async function _bankStatement(orgId: string, bankAccountId: string): Promise<BankStatement | null> {
   const [ba] = await db.select({ id: bankAccounts.id, name: bankAccounts.nameAr })
     .from(bankAccounts).where(and(eq(bankAccounts.id, bankAccountId), eq(bankAccounts.organizationId, orgId))).limit(1);
   if (!ba) return null;
@@ -554,7 +565,7 @@ export async function bankStatement(orgId: string, bankAccountId: string): Promi
 }
 
 /** Kit items that have a bill of materials (bundles list). */
-export async function bundleList(orgId: string): Promise<DocRow[]> {
+async function _bundleList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: items.id, code: items.code, name: items.nameAr, n: sql<number>`count(${itemComponents.id})` })
     .from(itemComponents).innerJoin(items, eq(items.id, itemComponents.parentItemId))
     .where(eq(itemComponents.organizationId, orgId))
@@ -567,7 +578,7 @@ export type BundleComponent = { itemId: string; name: string; code: string; qty:
 export type BundleDetail = { id: string; code: string; name: string; components: BundleComponent[] };
 
 /** A kit item + its components (bundle detail / edit). */
-export async function bundleDetail(orgId: string, parentItemId: string): Promise<BundleDetail | null> {
+async function _bundleDetail(orgId: string, parentItemId: string): Promise<BundleDetail | null> {
   const [p] = await db.select({ id: items.id, code: items.code, name: items.nameAr })
     .from(items).where(and(eq(items.id, parentItemId), eq(items.organizationId, orgId))).limit(1);
   if (!p) return null;
@@ -583,7 +594,7 @@ export type ItemCode = { codeType: string; code: string };
 export type ItemEdit = { id: string; code: string; nameAr: string; sellPrice: number; minStock: number; isPerishable: boolean; codes: ItemCode[] };
 
 /** Editable fields of one item (the mobile item edit form). */
-export async function itemEditDetail(orgId: string, id: string): Promise<ItemEdit | null> {
+async function _itemEditDetail(orgId: string, id: string): Promise<ItemEdit | null> {
   const [it] = await db.select({ id: items.id, code: items.code, nameAr: items.nameAr, sellPrice: items.sellPrice, minStock: items.minStock, isPerishable: items.isPerishable })
     .from(items).where(and(eq(items.id, id), eq(items.organizationId, orgId))).limit(1);
   if (!it) return null;
@@ -594,7 +605,7 @@ export async function itemEditDetail(orgId: string, id: string): Promise<ItemEdi
 export type PartyDetail = { id: string; code: string; nameAr: string; phone: string; email: string; address: string; paymentTerms: number; creditLimit: number; balance: number };
 
 /** Full editable fields for one supplier/customer (the mobile edit form). */
-export async function partyDetail(orgId: string, type: "suppliers" | "customers", id: string): Promise<PartyDetail | null> {
+async function _partyDetail(orgId: string, type: "suppliers" | "customers", id: string): Promise<PartyDetail | null> {
   if (type === "customers") {
     const [c] = await db.select({ id: customers.id, code: customers.code, nameAr: customers.nameAr, phone: customers.phone, email: customers.email, address: customers.address, paymentTerms: customers.paymentTerms, creditLimit: customers.creditLimit, balance: customers.balance })
       .from(customers).where(and(eq(customers.id, id), eq(customers.organizationId, orgId))).limit(1);
@@ -612,7 +623,7 @@ export async function partyDetail(orgId: string, type: "suppliers" | "customers"
 const STOCK_STATUS_AR: Record<string, string> = { OUT: "نافد", LOW: "منخفض", OK: "متاح" };
 
 /** أرصدة المخزون — on-hand qty + value per item/warehouse. */
-export async function stockBalanceList(orgId: string): Promise<DocRow[]> {
+async function _stockBalanceList(orgId: string): Promise<DocRow[]> {
   const { getStockBalances } = await import("@/lib/erp/stock-balances");
   const { lines } = await getStockBalances(orgId, {});
   return lines.slice(0, 200).map((l) => ({
@@ -622,7 +633,7 @@ export async function stockBalanceList(orgId: string): Promise<DocRow[]> {
 }
 
 /** دفتر حركة المخزون — latest stock movements across all items. */
-export async function stockLedgerList(orgId: string): Promise<DocRow[]> {
+async function _stockLedgerList(orgId: string): Promise<DocRow[]> {
   const { getStockLedger } = await import("@/lib/erp/stock-ledger");
   const { rows } = await getStockLedger(orgId, { page: 1, pageSize: 50 });
   return rows.map((r) => ({
@@ -633,7 +644,7 @@ export async function stockLedgerList(orgId: string): Promise<DocRow[]> {
 }
 
 /** تقرير دفتر المبيعات — sales documents (orders/deliveries/invoices/returns). */
-export async function salesLedgerList(orgId: string): Promise<DocRow[]> {
+async function _salesLedgerList(orgId: string): Promise<DocRow[]> {
   const { getSalesLedger } = await import("@/lib/erp/sales-ledger");
   const { rows } = await getSalesLedger(orgId, {});
   return rows.slice(0, 100).map((r) => ({
@@ -644,7 +655,7 @@ export async function salesLedgerList(orgId: string): Promise<DocRow[]> {
 }
 
 /** تقرير دفتر المشتريات — purchase documents (orders/receipts/invoices/returns). */
-export async function purchasesLedgerList(orgId: string): Promise<DocRow[]> {
+async function _purchasesLedgerList(orgId: string): Promise<DocRow[]> {
   const { getPurchasesLedger } = await import("@/lib/erp/purchases-ledger");
   const { rows } = await getPurchasesLedger(orgId, {});
   return rows.slice(0, 100).map((r) => ({
@@ -660,7 +671,7 @@ const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 
 // ---- Coverage batch: read-only document + master-data lists ---------------
 
-export async function quotationList(orgId: string): Promise<DocRow[]> {
+async function _quotationList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, name: customers.nameAr,
     total: sql<string>`COALESCE(SUM(${salesQuotationLines.quantity} * ${salesQuotationLines.unitPrice} - ${salesQuotationLines.discountAmount} + ${salesQuotationLines.taxAmount}), 0)`,
@@ -673,40 +684,40 @@ export async function quotationList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.total), status: r.status }));
 }
 
-export async function receiptVoucherList(orgId: string): Promise<DocRow[]> {
+async function _receiptVoucherList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: receiptVouchers.id, number: receiptVouchers.number, status: receiptVouchers.status, amount: receiptVouchers.amount, date: receiptVouchers.date, name: customers.nameAr })
     .from(receiptVouchers).leftJoin(customers, eq(customers.id, receiptVouchers.customerId))
     .where(eq(receiptVouchers.organizationId, orgId)).orderBy(desc(receiptVouchers.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function paymentVoucherList(orgId: string): Promise<DocRow[]> {
+async function _paymentVoucherList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: paymentVouchers.id, number: paymentVouchers.number, status: paymentVouchers.status, amount: paymentVouchers.amount, date: paymentVouchers.date, name: suppliers.nameAr })
     .from(paymentVouchers).leftJoin(suppliers, eq(suppliers.id, paymentVouchers.supplierId))
     .where(eq(paymentVouchers.organizationId, orgId)).orderBy(desc(paymentVouchers.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "—", subtitle: r.number, amount: Number(r.amount), status: r.status }));
 }
 
-export async function purchaseReceiptList(orgId: string): Promise<DocRow[]> {
+async function _purchaseReceiptList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, status: purchaseReceipts.status, date: purchaseReceipts.date, name: suppliers.nameAr })
     .from(purchaseReceipts).leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
     .where(eq(purchaseReceipts.organizationId, orgId)).orderBy(desc(purchaseReceipts.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.name ?? "استلام", subtitle: r.number, amount: null, status: r.status }));
 }
 
-export async function materialRequestList(orgId: string): Promise<DocRow[]> {
+async function _materialRequestList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: materialRequests.id, number: materialRequests.number, status: materialRequests.status, date: materialRequests.date })
     .from(materialRequests).where(eq(materialRequests.organizationId, orgId)).orderBy(desc(materialRequests.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: `طلب مواد ${r.number}`, subtitle: new Date(r.date).toISOString().slice(0, 10), amount: null, status: r.status }));
 }
 
-export async function stockAdjustmentList(orgId: string): Promise<DocRow[]> {
+async function _stockAdjustmentList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: stockAdjustments.id, number: stockAdjustments.number, status: stockAdjustments.status, date: stockAdjustments.date, reason: stockAdjustments.reason })
     .from(stockAdjustments).where(eq(stockAdjustments.organizationId, orgId)).orderBy(desc(stockAdjustments.date)).limit(LIMIT);
   return rows.map((r) => ({ id: r.id, number: r.number, title: r.reason || `تسوية ${r.number}`, subtitle: r.number, amount: null, status: r.status }));
 }
 
-export async function stockTransferList(orgId: string): Promise<DocRow[]> {
+async function _stockTransferList(orgId: string): Promise<DocRow[]> {
   const fromW = alias(warehouses, "from_w");
   const toW = alias(warehouses, "to_w");
   const rows = await db.select({ id: stockTransfers.id, number: stockTransfers.number, status: stockTransfers.status, date: stockTransfers.date, from: fromW.nameAr, to: toW.nameAr })
@@ -717,33 +728,102 @@ export async function stockTransferList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.number, title: `${r.from ?? "—"} ← ${r.to ?? "—"}`, subtitle: r.number, amount: null, status: r.status }));
 }
 
-export async function bankAccountList(orgId: string): Promise<DocRow[]> {
+async function _bankAccountList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: bankAccounts.id, name: bankAccounts.nameAr, bank: bankAccounts.bankName, acc: bankAccounts.accountNumber, active: bankAccounts.isActive })
     .from(bankAccounts).where(eq(bankAccounts.organizationId, orgId)).orderBy(bankAccounts.nameAr).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.acc ?? "—", title: r.name, subtitle: r.bank ?? r.acc ?? null, amount: null, status: r.active ? "نشط" : "متوقف" }));
 }
 
-export async function fixedAssetList(orgId: string): Promise<DocRow[]> {
+async function _fixedAssetList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: fixedAssets.id, code: fixedAssets.code, name: fixedAssets.nameAr, nbv: fixedAssets.netBookValue, status: fixedAssets.status })
     .from(fixedAssets).where(eq(fixedAssets.organizationId, orgId)).orderBy(fixedAssets.code).limit(200);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: Number(r.nbv), status: r.status }));
 }
 
 const ACCT_TYPE_AR: Record<string, string> = { ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات" };
-export async function chartAccountList(orgId: string): Promise<DocRow[]> {
+async function _chartAccountList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr, type: accounts.type })
     .from(accounts).where(eq(accounts.organizationId, orgId)).orderBy(accounts.code).limit(500);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.code, amount: null, status: ACCT_TYPE_AR[r.type] ?? r.type }));
 }
 
-export async function holidayList(orgId: string): Promise<DocRow[]> {
+async function _holidayList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: holidays.id, name: holidays.nameAr, date: holidays.date })
     .from(holidays).where(eq(holidays.organizationId, orgId)).orderBy(desc(holidays.date)).limit(200);
   return rows.map((r) => ({ id: r.id, number: "", title: r.name, subtitle: new Date(r.date).toISOString().slice(0, 10), amount: null, status: null }));
 }
 
-export async function platformList(orgId: string): Promise<DocRow[]> {
+async function _platformList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code, fulfillment: salesPlatforms.fulfillmentType, active: salesPlatforms.isActive })
     .from(salesPlatforms).where(eq(salesPlatforms.organizationId, orgId)).orderBy(salesPlatforms.name);
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.fulfillment ?? r.code, amount: null, status: r.active ? "نشط" : "متوقف" }));
 }
+
+// ── RLS: every helper above is exported through scoped() so the /api/v1 routes
+// (which call these directly after authorizeApi, outside any wrapper) keep
+// working after the RLS prod cutover — the bare pool would return 0 rows.
+export const salesOrderList = scoped(_salesOrderList);
+export const purchaseOrderList = scoped(_purchaseOrderList);
+export const customerList = scoped(_customerList);
+export const supplierList = scoped(_supplierList);
+export const journalList = scoped(_journalList);
+export const salesInvoiceList = scoped(_salesInvoiceList);
+export const purchaseInvoiceList = scoped(_purchaseInvoiceList);
+export const deliveryList = scoped(_deliveryList);
+export const expenseList = scoped(_expenseList);
+export const employeeList = scoped(_employeeList);
+export const salesOrderDetail = scoped(_salesOrderDetail);
+export const purchaseOrderDetail = scoped(_purchaseOrderDetail);
+export const salesInvoiceDetail = scoped(_salesInvoiceDetail);
+export const purchaseInvoiceDetail = scoped(_purchaseInvoiceDetail);
+export const leaveRequestList = scoped(_leaveRequestList);
+export const expenseClaimList = scoped(_expenseClaimList);
+export const investorList = scoped(_investorList);
+export const requisitionDetail = scoped(_requisitionDetail);
+export const purchaseReceiptDetail = scoped(_purchaseReceiptDetail);
+export const receivablePurchaseOrders = scoped(_receivablePurchaseOrders);
+export const leafAccounts = scoped(_leafAccounts);
+export const journalEntryDetail = scoped(_journalEntryDetail);
+export const expenseDetail = scoped(_expenseDetail);
+export const purchaseInvoicePayable = scoped(_purchaseInvoicePayable);
+export const salesInvoiceReceivable = scoped(_salesInvoiceReceivable);
+export const cashBankAccounts = scoped(_cashBankAccounts);
+export const quotationDetail = scoped(_quotationDetail);
+export const stockTransferDetail = scoped(_stockTransferDetail);
+export const employeeEditDetail = scoped(_employeeEditDetail);
+export const recurringSalesInvoiceList = scoped(_recurringSalesInvoiceList);
+export const recurringSalesInvoiceDetail = scoped(_recurringSalesInvoiceDetail);
+export const stockAdjustmentDetail = scoped(_stockAdjustmentDetail);
+export const fixedAssetDetail = scoped(_fixedAssetDetail);
+export const budgetYearList = scoped(_budgetYearList);
+export const budgetForYear = scoped(_budgetForYear);
+export const recurringJournalList = scoped(_recurringJournalList);
+export const recurringJournalDetail = scoped(_recurringJournalDetail);
+export const fiscalPeriodList = scoped(_fiscalPeriodList);
+export const payrollRunList = scoped(_payrollRunList);
+export const payrollRunDetail = scoped(_payrollRunDetail);
+export const recurringExpenseList = scoped(_recurringExpenseList);
+export const recurringExpenseDetail = scoped(_recurringExpenseDetail);
+export const costCenterList = scoped(_costCenterList);
+export const costCenterDetail = scoped(_costCenterDetail);
+export const bankStatement = scoped(_bankStatement);
+export const bundleList = scoped(_bundleList);
+export const bundleDetail = scoped(_bundleDetail);
+export const itemEditDetail = scoped(_itemEditDetail);
+export const partyDetail = scoped(_partyDetail);
+export const stockBalanceList = scoped(_stockBalanceList);
+export const stockLedgerList = scoped(_stockLedgerList);
+export const salesLedgerList = scoped(_salesLedgerList);
+export const purchasesLedgerList = scoped(_purchasesLedgerList);
+export const quotationList = scoped(_quotationList);
+export const receiptVoucherList = scoped(_receiptVoucherList);
+export const paymentVoucherList = scoped(_paymentVoucherList);
+export const purchaseReceiptList = scoped(_purchaseReceiptList);
+export const materialRequestList = scoped(_materialRequestList);
+export const stockAdjustmentList = scoped(_stockAdjustmentList);
+export const stockTransferList = scoped(_stockTransferList);
+export const bankAccountList = scoped(_bankAccountList);
+export const fixedAssetList = scoped(_fixedAssetList);
+export const chartAccountList = scoped(_chartAccountList);
+export const holidayList = scoped(_holidayList);
+export const platformList = scoped(_platformList);
