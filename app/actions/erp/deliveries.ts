@@ -285,7 +285,7 @@ export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", id
 }
 
 export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number; marketplaceCode?: string };
-export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number; channel?: string };
+export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; shipping: number; total: number; channel?: string };
 
 /** Compute the invoice a delivery would produce (priced from the order). */
 async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Promise<DeliveryInvoicePreview | { error: string }> {
@@ -315,10 +315,15 @@ async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Prom
     lines.push({ itemId: dl.itemId, code: dl.code ?? "", name: dl.name ?? "", quantity: dq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
+  // Order-level shipping, pro-rated by the delivered share of the order value
+  // (full delivery → the whole amount; mirrors the per-line discount/tax pro-rating).
+  // Previously dropped entirely — an order with shipping was invoiced short.
+  const orderSubtotal = soLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0);
+  const shipping = orderSubtotal > 0 ? round2(Number(so.shippingAmount) * (subtotal / orderSubtotal)) : 0;
   // Marketplace SKU per line, keyed off the source order's channel (ASIN / كود نون).
   const mkt = await marketplaceCodesFor(so.organizationId, so.channel, lines.map((l) => l.itemId));
   for (const l of lines) l.marketplaceCode = mkt.get(l.itemId);
-  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax), channel: so.channel };
+  return { lines, subtotal, discount, tax, shipping, total: round2(subtotal - discount + tax + shipping), channel: so.channel };
 }
 
 /** Preview the invoice a confirmed delivery would produce (for the create form). */
@@ -380,7 +385,7 @@ export async function convertDeliveryToInvoiceAction(
       const invoiceId = await db.transaction(async (tx) => {
         const [inv] = await tx.insert(salesInvoices).values({
           organizationId: auth.orgId, number, customerId, deliveryNoteId: dn.id, date: invoiceDate, status: "DRAFT",
-          subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), totalAmount: String(built.total),
+          subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), shippingAmount: String(built.shipping), totalAmount: String(built.total),
           paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة تسليم ${dn.number}`,
           currencyCode: cur.code,
           exchangeRate: String(cur.rate),

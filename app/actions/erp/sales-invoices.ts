@@ -155,6 +155,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
 
     const total = Number(inv.totalAmount);
     const tax = Number(inv.taxAmount);
+    const shipping = Number(inv.shippingAmount ?? 0);
     const net = Number(inv.subtotal) - Number(inv.discountAmount);
     const fromDelivery = Boolean(inv.deliveryNoteId);
 
@@ -162,6 +163,11 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
       { accountId: byCode["1103"], debit: total, credit: 0, description: `فاتورة بيع ${inv.number}` },
       { accountId: byCode["4101"], debit: 0, credit: net, description: `إيراد مبيعات ${inv.number}` },
     ];
+    // Shipping billed to the customer is revenue too — without this line the entry
+    // wouldn't balance now that totalAmount includes the order's shipping.
+    if (shipping > 0) {
+      lines.push({ accountId: byCode["4101"], debit: 0, credit: shipping, description: `إيراد شحن ${inv.number}` });
+    }
     if (tax > 0 && byCode["2102"]) {
       lines.push({ accountId: byCode["2102"], debit: 0, credit: tax, description: `ضريبة مخرجات ${inv.number}` });
     }

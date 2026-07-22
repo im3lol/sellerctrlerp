@@ -1047,6 +1047,9 @@ export const salesInvoices = pgTable(
     discountPercent: money("discount_percent").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
     taxPercent: money("tax_percent").notNull().default("0"),
+    // Order-level shipping billed to the customer (carried from the sales order;
+    // without it an order with shipping was invoiced short forever).
+    shippingAmount: money("shipping_amount").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),

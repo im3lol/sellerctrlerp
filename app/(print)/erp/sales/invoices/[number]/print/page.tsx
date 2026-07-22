@@ -40,7 +40,8 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
     ]);
 
     const tax = Number(inv.taxAmount ?? 0);
-    const subtotal = Number(inv.totalAmount) - tax;
+    const shipping = Number(inv.shippingAmount ?? 0);
+    const subtotal = Number(inv.totalAmount) - tax - shipping;
     const paid = Number(inv.paidAmount ?? 0);
 
     return (
@@ -79,6 +80,7 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
         ])}
         totals={[
           { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
           ...(tax > 0 ? [{ label: `ضريبة القيمة المضافة (${inv.taxPercent}%)`, value: money(tax, currency) }] : []),
           { label: "الإجمالي", value: money(inv.totalAmount, currency), tone: "strong" as const },
           ...(paid > 0 ? [{ label: "المدفوع", value: `− ${money(paid, currency)}`, tone: "success" as const }] : []),

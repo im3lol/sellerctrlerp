@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -173,7 +173,17 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
     if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 
     // Link invoice→order so deleting the draft invoice can reopen the order (Audit#7).
-    if (r.id) await db.update(salesInvoices).set({ salesOrderId: so.id }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
+    // Carry the order's shipping too — createSalesInvoiceAction totals only the
+    // lines, so without this the invoice bills less than the order total forever.
+    const shipping = Number(so.shippingAmount) || 0;
+    if (r.id) await db.update(salesInvoices).set({
+      salesOrderId: so.id,
+      ...(shipping > 0 ? {
+        shippingAmount: String(shipping),
+        totalAmount: sql`${salesInvoices.totalAmount} + ${shipping}`,
+        balanceDue: sql`${salesInvoices.balanceDue} + ${shipping}`,
+      } : {}),
+    }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
     await db.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "SALES_ORDER", entityId: so.id, entityNumber: so.number, summary: `تحويل أمر بيع ${so.number} إلى فاتورة (مسودة)` });
     revalidatePath("/sales/orders");

@@ -215,6 +215,7 @@ export function SalesInvoiceFromDeliveryForm({
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(preview.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
+            {preview.shipping > 0 && <div>الشحن: <span className="font-medium">{fmt(preview.shipping)}</span></div>}
             <div className="text-base font-bold text-primary">
               الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "EGP"}
               {isForeign && foreignTotal !== null && (
