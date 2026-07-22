@@ -1,8 +1,31 @@
 import "server-only";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { SyncJob } from "./queues";
+import { db } from "@/lib/db";
+import { organizationMembers } from "@/db/schema";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
 import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
+import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
+import { allErpPermissions } from "@/lib/erp/permissions";
+
+/**
+ * Ambient ERP identity for queue jobs. The orders flow reuses the cookie-bound
+ * server actions (fulfillOrder → create/confirm delivery → invoice), and in the
+ * worker there is no request scope — `authorizeErp` would crash on `cookies()`.
+ * Same mechanism the Bearer API uses: run the job inside an ErpContext, acting
+ * as the org's admin (falls back to the oldest active member).
+ */
+async function workerErpContext(orgId: string): Promise<ErpContext | null> {
+  const [m] = await db
+    .select({ userId: organizationMembers.userId, role: organizationMembers.role })
+    .from(organizationMembers)
+    .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
+    .orderBy(sql`case when ${organizationMembers.role} = 'admin' then 0 else 1 end`, asc(organizationMembers.joinedAt))
+    .limit(1);
+  if (!m) return null;
+  return { userId: m.userId, orgId, role: "admin", permissions: new Set(allErpPermissions) };
+}
 
 // Job handlers. IMPORT does the complete Reports-API enumeration; DISCOVERY does the
 // fast incremental listings pull. Phase 3 splits enrichment into details/images queues.
@@ -41,11 +64,16 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
   const runId = await startRun(d.orgId, d.provider, "ORDERS", d.marketplaceId);
   const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
   if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  const ctx = await workerErpContext(d.orgId);
+  if (!ctx) { await finishRun(d.orgId, runId, "FAILED", {}, "لا يوجد عضو نشط في المؤسسة لتشغيل المزامنة"); return; }
   try {
     const from = d.since ? new Date(d.since) : new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const r = await syncOrdersCore(prep, null, { from, to: new Date(), mode: d.ordersMode ?? "updated" });
+    // Watermark = the fetch window's END (captured before the pull), not finish time —
+    // a slow paced pull would otherwise blind the next window to mid-run updates.
+    const to = new Date();
+    const r = await runWithErpContext(ctx, () => syncOrdersCore(prep, ctx.userId, { from, to, mode: d.ordersMode ?? "updated" }));
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
-    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", ordersSyncedAt: new Date() });
+    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", ordersSyncedAt: to });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created });
   } catch (e) {
     console.error("[queue] order sync failed:", e);

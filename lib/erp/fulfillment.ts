@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesOrderLines, salesOrders, deliveryNotes, items } from "@/db/schema";
 import { currentStock } from "@/lib/erp/inventory";
@@ -87,6 +87,11 @@ export async function fulfillOrder(orgId: string, orderId: string, opts: { mode?
   if (!c.ok) {
     if (created) await deleteDeliveryAction(deliveryId).catch(() => {});
     return { ok: false, blocked: true, error: c.error ?? "تعذّر تأكيد إذن الصرف" };
+  }
+  // A resumed stock-wait draft just confirmed — drop the stale wait mark.
+  if (existingDraft) {
+    await db.update(deliveryNotes).set({ notes: null })
+      .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, orgId), like(deliveryNotes.notes, `${STOCK_WAIT_MARK}%`)));
   }
   if (mode === "deliver") return { ok: true, deliveryId }; // stop at delivery — invoice manually
   const inv = await convertDeliveryToInvoiceAction(deliveryId);

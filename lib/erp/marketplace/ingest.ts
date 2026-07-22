@@ -1,13 +1,13 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { fulfillOrder, cancelMarketplaceOrder, type AutoMode } from "@/lib/erp/fulfillment";
+import { fulfillOrder, cancelMarketplaceOrder, STOCK_WAIT_MARK, type AutoMode } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview, type ItemResolver } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
@@ -181,9 +181,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
   const hasReviewItem = (o: PreviewOrder) => o.lines.some((l) => l.itemId && reviewIds.has(l.itemId));
-  // The fulfil cycle (deliver + invoice) runs request-scoped server actions, so it
-  // only works when there's a session (manual sync). In the background worker
-  // (userId=null) we import as DRAFT and let a later authenticated sync fulfil.
+  // The fulfil cycle (deliver + invoice) runs cookie-bound server actions, so it
+  // needs an identity: a session (manual sync) or the worker's ambient ErpContext
+  // (runOrdersJob passes the acting user's id). userId=null → import DRAFT only.
   const canFulfill = userId != null;
 
   const existing = await existingOrders(orgId, ctx.channel);
@@ -228,8 +228,10 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     }
   };
 
+  const cycled = new Set<string>(); // order ids runCycle already touched this sync
   const runCycle = async (orderId: string, extId: string) => {
     if (autoMode === "order") return; // order-only mode: don't deliver/invoice
+    cycled.add(orderId);
     const f = await fulfillOrder(orgId, orderId, { mode: autoMode, draftOnShort: true });
     if (f.ok) { if (f.drafted) stockDrafted++; else if (!f.noop) fulfilled++; }
     else if (f.blocked) stockBlocked.push({ externalId: extId, reason: f.error });
@@ -299,6 +301,30 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
         orgId, userId: userId ?? null, action: "CANCEL", entityType: "SALES_ORDER",
         entityId: o.existingId, summary: `إلغاء أمر بيع (${o.externalId}) — ملغى على أمازون`,
       });
+    }
+  }
+
+  // Resume parked stock-wait drafts: the order was CONFIRMED on an earlier sync and
+  // its delivery parked DRAFT for lack of stock, so classifyOrders now sees it as a
+  // duplicate and never re-drives the cycle. Retry them here every sync — once stock
+  // arrives, fulfillOrder confirms the same DRAFT (no duplicate).
+  if (canFulfill && autoMode !== "order") {
+    const parked = await db.selectDistinct({ soId: deliveryNotes.salesOrderId, extId: salesOrders.externalOrderId })
+      .from(deliveryNotes)
+      .innerJoin(salesOrders, eq(salesOrders.id, deliveryNotes.salesOrderId))
+      .where(and(
+        eq(deliveryNotes.organizationId, orgId),
+        eq(deliveryNotes.status, "DRAFT"),
+        like(deliveryNotes.notes, `${STOCK_WAIT_MARK}%`),
+        eq(salesOrders.channel, ctx.channel),
+        eq(salesOrders.status, "CONFIRMED"),
+      ));
+    for (const p of parked) {
+      if (!p.soId || cycled.has(p.soId)) continue;
+      const wasDrafted = stockDrafted;
+      await runCycle(p.soId, p.extId ?? "");
+      // Still short → it was already counted as drafted on the sync that parked it.
+      if (stockDrafted > wasDrafted) stockDrafted = wasDrafted;
     }
   }
 
