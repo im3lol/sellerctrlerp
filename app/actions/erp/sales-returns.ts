@@ -138,10 +138,13 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       // Restock cost is recomputed server-side from the ORIGINAL delivery's stock
       // movements (the WAC the goods left at) — never trusted from the client-supplied
       // unitPrice, so a crafted request can't restock / reverse COGS at an arbitrary amount.
-      const delMoves = await db.select({ itemId: stockMovements.itemId, unitCost: stockMovements.unitCost })
+      const delMoves = await db.select({ itemId: stockMovements.itemId, unitCost: stockMovements.unitCost, warehouseId: stockMovements.warehouseId })
         .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
       const costByItem = new Map(delMoves.map((m) => [m.itemId, Number(m.unitCost)]));
       const costOf = (l: { itemId: string; unitPrice: string | number }) => costByItem.get(l.itemId) ?? Number(l.unitPrice);
+      // Restock the warehouse the item actually shipped from (per-line picks may
+      // differ from the header warehouse) — else per-warehouse balances corrupt.
+      const whByItem = new Map(delMoves.map((m) => [m.itemId, m.warehouseId]));
       const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * costOf(l), 0));
       const A = await resolveAccountIds(auth.orgId, ["1104", "5101"]);
       if (!A["1104"] || !A["5101"]) return { error: "حسابات الترحيل غير مكتملة." };
@@ -171,7 +174,7 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
           }
           for (const l of rLines) {
             const q = Number(l.quantity);
-            await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: dn.warehouseId, type: "IN", quantity: q, unitCost: costOf(l), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
+            await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? dn.warehouseId, type: "IN", quantity: q, unitCost: costOf(l), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
             const sol = soByItem.get(l.itemId);
             if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${q})` }).where(eq(salesOrderLines.id, sol.id));
           }

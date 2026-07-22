@@ -133,6 +133,11 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
       const A = await resolveAccountIds(auth.orgId, ["1104", "2103", "4201", "5301", "5302"]);
       if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
+      // Issue from the warehouse the item actually landed in (per-line picks may
+      // differ from the header warehouse) — else per-warehouse balances corrupt.
+      const grnMoves = await db.select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId })
+        .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
+      const whByItem = new Map(grnMoves.map((m) => [m.itemId, m.warehouseId]));
       const poLines = grn.purchaseOrderId
         ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
         : [];
@@ -161,7 +166,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
           let cost = 0;
           for (const l of rLines) {
             const q = Number(l.quantity);
-            const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
+            const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
             cost = round2(cost + r.totalCost);
             const pol = poByItem.get(l.itemId);
             if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${q})` }).where(eq(purchaseOrderLines.id, pol.id));

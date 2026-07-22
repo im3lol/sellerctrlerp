@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, items, stockMovements, stockMovementBatches, warehouses,
+  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
@@ -419,7 +419,13 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
     // money side is handled separately by the invoice return).
     if (dn.status !== "DELIVERED" && dn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
-    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+    // A posted return already restocked part of this delivery — a full reversal on
+    // top would restock those units a second time. Cancel the returns first.
+    const [priorRet] = await db.select({ id: salesReturns.id }).from(salesReturns)
+      .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.status, "POSTED"))).limit(1);
+    if (priorRet) return { error: "توجد مرتجعات مرحّلة على هذا الإذن — ألغِ المرتجعات أولاً أو استخدم مرتجعًا للكمية المتبقية" };
+
+    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
       .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
     if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
@@ -443,7 +449,9 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
           // whenever the pinned lot re-averaged between the original move and now
           // (shows as "غير مطابَق" in valuation). Mirrors the forward path.
           const r = await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: m.itemId, warehouseId: dn.warehouseId, type: "IN",
+            // Restock the warehouse the OUT actually issued from (per-line picks may
+            // differ from the header warehouse) — else ledger and batches diverge.
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "IN",
             quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
           });
           cogs += r.totalCost;

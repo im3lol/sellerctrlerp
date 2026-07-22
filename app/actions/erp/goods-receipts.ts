@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, items, stockMovements, stockMovementBatches,
+  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
@@ -166,6 +166,10 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     // and recomputePurchaseOrderStatus below would then flip it back to RECEIVED.
     if (po.status === "CANCELLED") return { error: "أمر الشراء ملغي — لا يمكن تأكيد الاستلام" };
     if (po.status === "DRAFT") return { error: "أمر الشراء لم يُؤكَّد بعد" };
+    // The order was converted straight to an invoice (standalone branch posts the
+    // stock itself) — confirming a stale GRN draft on top would receive the goods a
+    // second time (doubled inventory + a GRNI credit nothing will ever clear).
+    if (po.status === "INVOICED") return { error: "أمر الشراء مفوتر مباشرة — المخزون مستلم عبر الفاتورة، احذف مسودة الاستلام" };
 
     const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
       .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
@@ -406,11 +410,17 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
     const [grn] = await db.select().from(purchaseReceipts)
       .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
     if (!grn) return { error: "الإذن غير موجود" };
-    // Stock-side return: available whether or not the receipt was invoiced (the
-    // money side is handled separately by the invoice return).
-    if (grn.status !== "RECEIVED" && grn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
+    // An INVOICED receipt already cleared GRNI (2103) into AP — reversing here would
+    // debit 2103 a second time and leave the posted invoice fully payable for goods
+    // that "never arrived". Use the return flow (مرتجع الإذن + مرتجع الفاتورة) instead.
+    if (grn.status !== "RECEIVED") return { error: grn.status === "INVOICED" ? "الإذن مفوتر — استخدم مرتجع الإذن ومرتجع الفاتورة بدل العكس" : "لا يمكن عكس هذا الإذن" };
+    // A posted return already took part of this stock back out — a full reversal on
+    // top would issue those units a second time. Cancel the returns first.
+    const [priorRet] = await db.select({ id: purchaseReturns.id }).from(purchaseReturns)
+      .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED"))).limit(1);
+    if (priorRet) return { error: "توجد مرتجعات مرحّلة على هذا الإذن — ألغِ المرتجعات أولاً" };
 
-    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
       .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
     if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
@@ -432,7 +442,9 @@ export async function reverseReceiptAction(receiptId: string): Promise<ActionSta
           // GL from the ledger's actual re-posted value, not the stored original
           // cost (else GL drifts from the ledger when the pinned lot re-averaged).
           const r = await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: m.itemId, warehouseId: grn.warehouseId, type: "OUT",
+            // Issue from the warehouse the IN actually landed in (per-line picks may
+            // differ from the header warehouse) — else ledger and batches diverge.
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "OUT",
             quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
           });
           value += r.totalCost;
