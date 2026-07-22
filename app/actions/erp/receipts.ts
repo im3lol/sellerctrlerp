@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";

@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { marketplaceSettlementTxns } from "@/db/schema";

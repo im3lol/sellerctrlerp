@@ -3,7 +3,7 @@
 import { capPayrollDeductions, inclusiveOverlapDays, unpaidLeaveDeduction } from "@/lib/erp/payroll-calc";
 import { round2 } from "@/lib/erp/money";
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {

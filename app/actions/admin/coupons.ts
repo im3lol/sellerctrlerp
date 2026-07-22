@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { discountCoupons } from "@/db/schema";

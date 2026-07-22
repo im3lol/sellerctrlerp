@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { and, eq, inArray, lte } from "drizzle-orm";
 import { round2 } from "@/lib/erp/money";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
 import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";

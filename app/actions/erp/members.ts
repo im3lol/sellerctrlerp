@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";

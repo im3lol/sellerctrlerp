@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { parseAmazonWorkbook, groupAmazonOrders } from "@/lib/erp/amazon-import";
