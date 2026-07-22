@@ -1,5 +1,9 @@
 import "server-only";
 import { Worker, type Job } from "bullmq";
+import { inArray, eq, and } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { syncRuns } from "@/db/schema";
+import { withPlatformScope } from "@/lib/db-scope";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
 import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob } from "./handlers";
@@ -16,6 +20,15 @@ export function startWorkers(): void {
   if (started) return;
   started = true;
   const connection = redisConnection();
+
+  // This container is the only job processor, so any RUNNING run predating this
+  // boot died with the previous process (deploy/crash killed it before finishRun).
+  // Close them now — otherwise the scheduler's is-running dedup blocks new syncs
+  // for the whole stale window (60 min) after every restart.
+  void withPlatformScope(() =>
+    db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف بإعادة تشغيل الخادم" })
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS"]), eq(syncRuns.status, "RUNNING"))),
+  ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
     const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data), { connection, concurrency: CONCURRENCY, limiter: LIMITER });
