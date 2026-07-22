@@ -53,10 +53,14 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     // remaining = bought − already returned (posted), per item. Without subtracting
     // prior returns each credit note is capped only against the invoice, so the same
     // invoice could be returned in full repeatedly — see createSalesReturnAction.
-    const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
+    const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice })
       .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
     const boughtByItem = new Map<string, number>();
-    for (const l of invLines) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    const priceByItem = new Map<string, number>();
+    for (const l of invLines) {
+      boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+      priceByItem.set(l.itemId, Math.max(priceByItem.get(l.itemId) ?? 0, Number(l.unitPrice)));
+    }
     const priorRet = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
       .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
       .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
@@ -65,6 +69,9 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     for (const l of lines) {
       const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
       if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+      // Debit at most what was billed — a higher client-supplied price would
+      // over-shrink AP against the supplier.
+      if (l.unitPrice > (priceByItem.get(l.itemId) ?? 0) + 1e-9) return { error: "سعر المرتجع أعلى من سعر الفاتورة للصنف" };
     }
 
     const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));

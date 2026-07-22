@@ -55,10 +55,14 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
     // the total: a 10-unit invoice could be returned 10 units any number of times,
     // reversing revenue once per credit note and restocking phantom units each time
     // (every return is its own sourceId, so the GL idempotency index never fires).
-    const invLines = await db.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
+    const invLines = await db.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity, unitPrice: salesInvoiceLines.unitPrice })
       .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
     const soldByItem = new Map<string, number>();
-    for (const l of invLines) soldByItem.set(l.itemId, (soldByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    const priceByItem = new Map<string, number>();
+    for (const l of invLines) {
+      soldByItem.set(l.itemId, (soldByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+      priceByItem.set(l.itemId, Math.max(priceByItem.get(l.itemId) ?? 0, Number(l.unitPrice)));
+    }
     const priorRet = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity })
       .from(salesReturnLines).innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
       .where(and(eq(salesReturns.salesInvoiceId, inv.id), eq(salesReturns.status, "POSTED")));
@@ -67,6 +71,9 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
     for (const l of lines) {
       const remaining = (soldByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
       if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+      // Credit at most what was billed — a higher client-supplied price would
+      // over-reverse revenue and over-credit the customer's balance.
+      if (l.unitPrice > (priceByItem.get(l.itemId) ?? 0) + 1e-9) return { error: "سعر المرتجع أعلى من سعر الفاتورة للصنف" };
     }
 
     const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -141,7 +148,16 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       const delMoves = await db.select({ itemId: stockMovements.itemId, unitCost: stockMovements.unitCost, warehouseId: stockMovements.warehouseId })
         .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
       const costByItem = new Map(delMoves.map((m) => [m.itemId, Number(m.unitCost)]));
-      const costOf = (l: { itemId: string; unitPrice: string | number }) => costByItem.get(l.itemId) ?? Number(l.unitPrice);
+      // Fallback for items with no movement under the delivery: the item's current
+      // average cost — never the client-supplied sale price (which would restock /
+      // reverse COGS at an arbitrary amount, contradicting the comment above).
+      for (const l of rLines) {
+        if (!costByItem.has(l.itemId)) {
+          const { avgCost } = await currentStock(auth.orgId, l.itemId, dn.warehouseId);
+          costByItem.set(l.itemId, avgCost);
+        }
+      }
+      const costOf = (l: { itemId: string; unitPrice: string | number }) => costByItem.get(l.itemId) ?? 0;
       // Restock the warehouse the item actually shipped from (per-line picks may
       // differ from the header warehouse) — else per-warehouse balances corrupt.
       const whByItem = new Map(delMoves.map((m) => [m.itemId, m.warehouseId]));

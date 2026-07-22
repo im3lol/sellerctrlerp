@@ -197,11 +197,19 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
         const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
           .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id)).for("update");
         const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
-        for (const dl of dnLines) {
-          const sol = soByItem.get(dl.itemId);
-          if (!sol) throw new Error("أحد الأصناف غير موجود في أمر البيع");
-          const remaining = round2(Number(sol.quantity) - Number(sol.deliveredQty));
-          if (Number(dl.quantity) > remaining + EPS) throw new Error("الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
+        // Validate AGGREGATED per item — duplicate lines for the same item (on
+        // either document) would each pass an individual ≤-remaining check while
+        // their sum over-delivers the order.
+        const orderedByItem = new Map<string, number>(), deliveredByItem = new Map<string, number>(), wantByItem = new Map<string, number>();
+        for (const l of soLines) {
+          orderedByItem.set(l.itemId, (orderedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          deliveredByItem.set(l.itemId, (deliveredByItem.get(l.itemId) ?? 0) + Number(l.deliveredQty));
+        }
+        for (const dl of dnLines) wantByItem.set(dl.itemId, (wantByItem.get(dl.itemId) ?? 0) + Number(dl.quantity));
+        for (const [itemId, want] of wantByItem) {
+          if (!soByItem.has(itemId)) throw new Error("أحد الأصناف غير موجود في أمر البيع");
+          const remaining = round2((orderedByItem.get(itemId) ?? 0) - (deliveredByItem.get(itemId) ?? 0));
+          if (want > remaining + EPS) throw new Error("الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
         }
         let cogs = 0;
         for (const dl of dnLines) {

@@ -73,7 +73,10 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
     const to = new Date();
     const r = await runWithErpContext(ctx, () => syncOrdersCore(prep, ctx.userId, { from, to, mode: d.ordersMode ?? "updated" }));
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
-    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", ordersSyncedAt: to });
+    // Only advance the watermark when every order landed — a transient insert
+    // failure on an already-Shipped order (no future update event) would otherwise
+    // be silently lost; re-scanning the same window is safe (dedup skips repeats).
+    await markSync(d.orgId, d.provider, r.failed > 0 ? { lastSyncStatus: "auto" } : { lastSyncStatus: "auto", ordersSyncedAt: to });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created });
   } catch (e) {
     console.error("[queue] order sync failed:", e);

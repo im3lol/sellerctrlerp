@@ -185,11 +185,19 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
         const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, discountAmount: purchaseOrderLines.discountAmount, shippingPerUnit: purchaseOrderLines.shippingPerUnit })
           .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id)).for("update");
         const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-        for (const gl of grnLines) {
-          const pol = poByItem.get(gl.itemId);
-          if (!pol) throw new Error("أحد الأصناف غير موجود في أمر الشراء");
-          const remaining = round2(Number(pol.quantity) - Number(pol.receivedQty));
-          if (Number(gl.quantity) > remaining + EPS) throw new Error("الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
+        // Validate AGGREGATED per item — duplicate lines for the same item (on
+        // either document) would each pass an individual ≤-remaining check while
+        // their sum over-receives the order (doubled inventory + GRNI).
+        const orderedByItem = new Map<string, number>(), receivedByItem = new Map<string, number>(), wantByItem = new Map<string, number>();
+        for (const l of poLines) {
+          orderedByItem.set(l.itemId, (orderedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          receivedByItem.set(l.itemId, (receivedByItem.get(l.itemId) ?? 0) + Number(l.receivedQty));
+        }
+        for (const gl of grnLines) wantByItem.set(gl.itemId, (wantByItem.get(gl.itemId) ?? 0) + Number(gl.quantity));
+        for (const [itemId, want] of wantByItem) {
+          if (!poByItem.has(itemId)) throw new Error("أحد الأصناف غير موجود في أمر الشراء");
+          const remaining = round2((orderedByItem.get(itemId) ?? 0) - (receivedByItem.get(itemId) ?? 0));
+          if (want > remaining + EPS) throw new Error("الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
         }
         let received = 0;
         for (const gl of grnLines) {
