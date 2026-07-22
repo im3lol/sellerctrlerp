@@ -7,7 +7,11 @@ import { enqueue, QUEUES } from "./queues";
 import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const STALE_MIN = 15; // a RUNNING order/settlement sync older than this is treated as dead
+// A RUNNING order/settlement sync older than this is treated as dead. Generous on
+// purpose: the SP-API item pull is paced ~2s/order, so a few hundred orders is a
+// legitimately >15-min run — reaping it early let the scheduler stack a SECOND
+// concurrent sync for the same org (quota burn + duplicate work).
+const STALE_MIN = 60;
 const SETTLE_MS = 12 * 60 * 60 * 1000; // settlements settle ~biweekly → a slow (12h) check is plenty
 
 /**

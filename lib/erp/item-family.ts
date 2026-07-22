@@ -41,7 +41,7 @@ export async function getItemFamily(
     SELECT item_id, COALESCE(SUM(bal), 0) AS qty FROM (
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bal
       FROM stock_movements WHERE organization_id = ${orgId} AND item_id IN (${idList})
-      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
     ) t GROUP BY item_id`)).rows as { item_id: string; qty: string }[];
   const stockBy = new Map(stockRows.map((r) => [r.item_id, Number(r.qty)]));
 

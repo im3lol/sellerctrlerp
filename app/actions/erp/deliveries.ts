@@ -65,7 +65,7 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
         .select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
         .from(stockMovements)
         .where(and(eq(stockMovements.organizationId, auth.orgId), inArray(stockMovements.itemId, itemIds)))
-        .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id));
+        .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`));
       const seen = new Set<string>();
       const byItem = new Map(lines.map((l) => [l.itemId, l]));
       for (const m of sm) {

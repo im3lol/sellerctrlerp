@@ -193,8 +193,21 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[])
   const beforeCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
     .where(eq(marketplaceSettlementTxns.organizationId, orgId)))[0]?.n ?? 0;
 
-  for (let i = 0; i < values.length; i += 500) {
-    await db.insert(marketplaceSettlementTxns).values(values.slice(i, i + 500)).onConflictDoUpdate({
+  // Two flat-file groups can share a dedupKey (it omits shipmentId): merge them
+  // before insert, else ON CONFLICT hits Postgres' "cannot affect row a second
+  // time" and the whole sync fails on every re-pull. Summing keeps totals intact.
+  const byKey = new Map<string, (typeof values)[number]>();
+  for (const v of values) {
+    const prev = byKey.get(v.dedupKey);
+    if (!prev) { byKey.set(v.dedupKey, v); continue; }
+    for (const k of ["quantity", "productSales", "shippingCredits", "promotionalRebates", "sellingFees", "fbaFees", "otherTransactionFees", "other", "total"] as const) {
+      prev[k] = String(r2(Number(prev[k]) + Number(v[k])));
+    }
+  }
+  const merged = [...byKey.values()];
+
+  for (let i = 0; i < merged.length; i += 500) {
+    await db.insert(marketplaceSettlementTxns).values(merged.slice(i, i + 500)).onConflictDoUpdate({
       target: [marketplaceSettlementTxns.organizationId, marketplaceSettlementTxns.dedupKey],
       set: {
         status: sql`excluded.status`,
@@ -310,6 +323,15 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
 
   try {
     await db.transaction(async (tx) => {
+      // Re-verify under lock that every row is STILL unposted — a concurrent
+      // auto-post (worker) + manual post read different snapshots with different
+      // sourceKey hashes, so the unique index alone would not stop a double post.
+      const idList = sql.join(toPost.map((r) => sql`${r.id}`), sql`, `);
+      const locked = await tx.execute<{ id: string }>(sql`
+        SELECT id FROM marketplace_settlement_txns
+        WHERE organization_id = ${orgId} AND id IN (${idList}) AND journal_entry_id IS NULL
+        FOR UPDATE`);
+      if (locked.rows.length !== toPost.length) throw new Error("تغيّرت التسويات أثناء الترحيل (ترحيل متزامن) — أعد المحاولة");
       // Stable natural key from the exact set of posted rows — NOT date+count.
       const sourceKey = createHash("sha256").update([...toPost.map((r) => r.id)].sort().join(",")).digest("hex").slice(0, 40);
       const jid = await postEntry(tx, {

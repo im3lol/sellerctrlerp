@@ -117,7 +117,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
             FROM stock_movements
             WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
-            ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
           ) t`),
         db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
           .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, since)))

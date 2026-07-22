@@ -57,7 +57,9 @@ async function nextNumber(tx: Tx, orgId: string, year: number): Promise<string> 
 async function priorBalance(tx: Tx, orgId: string, itemId: string, warehouseId: string) {
   // Tie-break on the sequential `number` (SM-YYYY-NNNN): within one transaction
   // every row shares the same now()/createdAt and `id` is a random uuid, so the
-  // monotonic document number is the only reliable "latest" ordering.
+  // monotonic document number is the only reliable "latest" ordering. Compare the
+  // NNNN part numerically — as text, "SM-2026-9999" sorts AFTER "SM-2026-10001",
+  // which would chain the running balance from a stale row past 9999 moves/year.
   const [last] = await tx
     .select({ q: stockMovements.balanceQuantity, v: stockMovements.balanceValue })
     .from(stockMovements)
@@ -68,7 +70,7 @@ async function priorBalance(tx: Tx, orgId: string, itemId: string, warehouseId: 
         eq(stockMovements.warehouseId, warehouseId),
       ),
     )
-    .orderBy(desc(stockMovements.createdAt), desc(stockMovements.number))
+    .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`))
     .limit(1);
   return { qty: Number(last?.q ?? 0), value: Number(last?.v ?? 0) };
 }

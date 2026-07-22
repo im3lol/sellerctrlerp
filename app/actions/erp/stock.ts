@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { warehouses, stockMovements } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
@@ -20,7 +20,7 @@ export async function getItemWarehouseStockAction(itemId: string): Promise<Actio
     const sm = await db.select({ warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
       .from(stockMovements)
       .where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.itemId, itemId)))
-      .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id));
+      .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`));
     const seen = new Set<string>();
     const byWh = new Map<string, number>();
     for (const m of sm) {

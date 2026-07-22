@@ -58,7 +58,7 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bal
       FROM stock_movements
       WHERE organization_id = ${orgId} AND item_id IN (${idList})
-      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
     ) t GROUP BY item_id`);
   const stockBy = new Map((stockRows.rows as { item_id: string; qty: string }[]).map((r) => [r.item_id, Number(r.qty)]));
 

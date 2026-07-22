@@ -1,6 +1,6 @@
 import { and, eq, like } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesOrderLines, salesOrders, deliveryNotes, items } from "@/db/schema";
+import { salesOrderLines, salesOrders, deliveryNotes, salesInvoices, items } from "@/db/schema";
 import { currentStock } from "@/lib/erp/inventory";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { createDeliveryFromOrderAction, confirmDeliveryAction, convertDeliveryToInvoiceAction, deleteDeliveryAction } from "@/app/actions/erp/deliveries";
@@ -40,7 +40,36 @@ export async function fulfillOrder(orgId: string, orderId: string, opts: { mode?
     .from(salesOrderLines).leftJoin(items, eq(items.id, salesOrderLines.itemId))
     .where(eq(salesOrderLines.salesOrderId, orderId));
   const pending = lines.map((l) => ({ ...l, remaining: Number(l.qty) - Number(l.delivered) })).filter((l) => l.remaining > 1e-9);
-  if (pending.length === 0) return { ok: true, noop: true };
+  if (pending.length === 0) {
+    // Everything delivered. If the invoice step failed on a previous run (delivery
+    // confirmed, invoice not), resume it — otherwise a delivered order would noop
+    // forever and its revenue never post.
+    if (mode === "invoice") {
+      const [delivered] = await db.select({ id: deliveryNotes.id })
+        .from(deliveryNotes)
+        .where(and(eq(deliveryNotes.salesOrderId, orderId), eq(deliveryNotes.organizationId, orgId), eq(deliveryNotes.status, "DELIVERED")))
+        .limit(1);
+      if (delivered) {
+        // The crashed run may have left a DRAFT invoice — post it rather than
+        // converting again (convert refuses when an invoice already exists).
+        const [existingInv] = await db.select({ id: salesInvoices.id, status: salesInvoices.status })
+          .from(salesInvoices)
+          .where(and(eq(salesInvoices.deliveryNoteId, delivered.id), eq(salesInvoices.organizationId, orgId)))
+          .limit(1);
+        if (existingInv && existingInv.status !== "DRAFT") return { ok: true, noop: true }; // already invoiced
+        let invoiceId = existingInv?.id;
+        if (!invoiceId) {
+          const inv = await convertDeliveryToInvoiceAction(delivered.id);
+          if (!inv.ok || !inv.invoiceId) return { ok: false, error: inv.error ?? "تعذّر إنشاء الفاتورة" };
+          invoiceId = inv.invoiceId;
+        }
+        const p = await postSalesInvoiceAction(invoiceId);
+        if (!p.ok) return { ok: false, error: p.error ?? "تعذّر ترحيل الفاتورة" };
+        return { ok: true, deliveryId: delivered.id, invoiceId };
+      }
+    }
+    return { ok: true, noop: true };
+  }
 
   // Reuse an existing DRAFT delivery for this order (idempotency: a prior short-stock
   // sync already parked one — don't create a second).
