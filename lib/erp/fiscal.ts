@@ -16,11 +16,14 @@ export function fiscalYearStartISO(fyStart: string | null | undefined, ref: Date
   const month = Number(parts[1]) || 1; // 1–12
   const day = Number(parts[2]) || 1;
   const pad = (n: number) => String(n).padStart(2, "0");
+  // Clamp to a real date for the target year — a Feb-29 start in a non-leap year
+  // would otherwise emit "YYYY-02-29" → Invalid Date → reports silently unfiltered.
+  const mk = (yy: number) => `${yy}-${pad(month)}-${pad(Math.min(day, new Date(yy, month, 0).getDate()))}`;
   const y = ref.getFullYear();
-  const anchor = `${y}-${pad(month)}-${pad(day)}`;
+  const anchor = mk(y);
   const today = `${y}-${pad(ref.getMonth() + 1)}-${pad(ref.getDate())}`;
   // Before this year's fiscal start → the current fiscal year began last year.
-  return today >= anchor ? anchor : `${y - 1}-${pad(month)}-${pad(day)}`;
+  return today >= anchor ? anchor : mk(y - 1);
 }
 
 /** Async wrapper: reads the org's configured fiscalYearStart, then computes the current FY start. */

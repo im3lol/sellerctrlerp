@@ -1,16 +1,18 @@
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { accounts, bankAccounts } from "@/db/schema";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 
 export type CashLine = { code: string; nameAr: string; amount: number; sign: 1 | -1 };
 
 /**
- * Cash-flow category based on account type + code prefix.
- * Typical Arabic CoA: 110x = cash/bank, 11-14xx = current assets,
- * 15-19xx = fixed/non-current, 21-24xx = current liabilities,
- * 25-29xx = LT liabilities, 3xxx = equity.
+ * Non-cash cash-flow category based on account type + code prefix.
+ * Typical Arabic CoA: 11-14xx = current assets, 15-19xx = fixed/non-current,
+ * 21-24xx = current liabilities, 25-29xx = LT liabilities, 3xxx = equity.
  */
-function category(code: string, type: string): "cash" | "operating" | "investing" | "financing" {
+function category(code: string, type: string): "operating" | "investing" | "financing" {
   if (type === "ASSET") {
-    if (code.startsWith("110")) return "cash";
     if (code < "15") return "operating";
     return "investing";
   }
@@ -20,6 +22,22 @@ function category(code: string, type: string): "cash" | "operating" | "investing
   }
   if (type === "EQUITY") return "financing";
   return "operating";
+}
+
+/**
+ * Which accounts count as CASH: the org's cash-box (1101) and bank (1102) subtrees
+ * per the account-role config, plus any GL account linked to a bank account. The old
+ * "starts with 110" rule also swallowed AR (1103), Inventory (1104) and input VAT
+ * (1107), turning every figure into "change in current assets" instead of cash.
+ */
+async function cashPredicate(orgId: string): Promise<(code: string, type: string) => boolean> {
+  const rc = await resolveAccountCodes(orgId, ["1101", "1102"]);
+  const bankRows = await db.select({ code: accounts.code })
+    .from(bankAccounts).innerJoin(accounts, eq(accounts.id, bankAccounts.glAccountId))
+    .where(eq(bankAccounts.organizationId, orgId));
+  const bankCodes = new Set(bankRows.map((r) => r.code));
+  return (code, type) => type === "ASSET" &&
+    (code.startsWith(rc["1101"]) || code.startsWith(rc["1102"]) || bankCodes.has(code));
 }
 
 export type CashFlow = {
@@ -52,13 +70,14 @@ export async function getCashFlow(orgId: string, startDate: Date, endDate: Date)
     periodBalances.filter((b) => b.type === "REVENUE").reduce((s, b) => s + naturalAmount(b), 0) -
     periodBalances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
 
+  const isCash = await cashPredicate(orgId);
   const bsAccounts = periodBalances.filter((b) => b.type === "ASSET" || b.type === "LIABILITY" || b.type === "EQUITY");
   const operating: CashLine[] = [];
   const investing: CashLine[] = [];
   const financing: CashLine[] = [];
   for (const b of bsAccounts) {
+    if (isCash(b.code, b.type)) continue;
     const cat = category(b.code, b.type);
-    if (cat === "cash") continue;
     const cashImpact = -b.balance; // asset↑ uses cash; liability/equity↑ provides cash
     if (cashImpact === 0) continue;
     const line: CashLine = { code: b.code, nameAr: b.nameAr, amount: Math.abs(cashImpact), sign: cashImpact > 0 ? 1 : -1 };
@@ -75,7 +94,7 @@ export async function getCashFlow(orgId: string, startDate: Date, endDate: Date)
   const finTotal = sumLines(financing);
   const netCashChange = opTotal + invTotal + finTotal;
   const cashBegin = beginBalances
-    .filter((b) => b.type === "ASSET" && b.code.startsWith("110"))
+    .filter((b) => isCash(b.code, b.type))
     .reduce((s, b) => s + naturalAmount(b), 0);
   const cashEnd = cashBegin + netCashChange;
 

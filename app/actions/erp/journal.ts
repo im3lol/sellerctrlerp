@@ -161,11 +161,24 @@ export async function postDraftEntryAction(id: string): Promise<ActionState> {
   });
 }
 
+// GL-only sources a journal-side reversal may touch. Document-generated entries
+// (invoices, vouchers, deliveries…) also moved subledgers — customer/supplier
+// balances, invoice balanceDue, stock — that a mirror entry does NOT move back;
+// reversing them here desyncs GL from the subledgers. Those must go through the
+// document's own cancel/return flow.
+const REVERSIBLE_SOURCES = new Set(["MANUAL", "RECURRING"]);
+
 /** Reverse a POSTED entry (creates a mirror entry; never deletes). */
 export async function reverseEntryAction(id: string, reason?: string): Promise<ActionState & { reversalId?: string }> {
   const auth = await authorizeErp("accounting.reverse");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    const [entry] = await db.select({ sourceType: journalEntries.sourceType }).from(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
+    if (!entry) return { error: "القيد غير موجود" };
+    if (!REVERSIBLE_SOURCES.has(entry.sourceType ?? "MANUAL")) {
+      return { error: "هذا القيد ناتج عن مستند — استخدم إلغاء/مرتجع المستند نفسه حتى لا تختل أرصدة العملاء/الموردين والمخزون" };
+    }
     try {
       const reversalId = await db.transaction((tx) =>
         reverseEntry(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId, reason: reason || null }),
