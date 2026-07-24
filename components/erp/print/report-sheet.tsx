@@ -90,7 +90,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
               // eslint-disable-next-line @next/next/no-img-element
               <img src={org.logo} alt="" width={50} height={50}
                 style={{ borderRadius: 10, objectFit: "contain", border: "1px solid #eef1f7" }} />
-            ) : (
+            ) : org?.noLogo ? null : (
               <div style={{
                 width: 50, height: 50, borderRadius: 10, background: T.primary, color: "#fff",
                 display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18,

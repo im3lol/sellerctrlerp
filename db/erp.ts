@@ -72,6 +72,8 @@ export const organizations = pgTable(
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
     // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
     setupSkipped: jsonb("setup_skipped").$type<string[]>(),
+    // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
+    printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
