@@ -57,6 +57,7 @@ export default async function PrintQuotationPage({ params }: Params) {
         org={org}
         title="عرض سعر"
         number={q.number}
+        watermark={q.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/sales/quotations/${q.id}`}
         meta={[
           { label: "التاريخ", value: dt(q.date) },

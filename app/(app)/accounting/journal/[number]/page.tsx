@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { JournalEntryActions } from "@/components/erp/journal-entry-actions";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -85,14 +86,17 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
           subtitle={SOURCE[entry.sourceType ?? ""] ?? "قيد محاسبي"}
           backHref="/accounting/journal"
           action={
-            <JournalEntryActions
-              entryId={entry.id}
-              status={entry.status}
-              isReversal={isReversal}
-              canPost={can("accounting.post")}
-              canReverse={can("accounting.reverse")}
-              canDelete={can("accounting.create")}
-            />
+            <div className="flex gap-2">
+              <PrintDocLink href={`/erp/accounting/journal/${encodeURIComponent(entry.number)}/print`} />
+              <JournalEntryActions
+                entryId={entry.id}
+                status={entry.status}
+                isReversal={isReversal}
+                canPost={can("accounting.post")}
+                canReverse={can("accounting.reverse")}
+                canDelete={can("accounting.create")}
+              />
+            </div>
           }
         />
 

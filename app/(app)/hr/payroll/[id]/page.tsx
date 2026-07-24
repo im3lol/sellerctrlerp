@@ -4,6 +4,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { PayrollRunDetail } from "@/components/erp/payroll-run-detail";
 
 export default async function PayrollRunPage({ params }: { params: Promise<{ id: string }> }) {
@@ -47,6 +48,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           title={`مسير الرواتب — ${run.number}`}
           subtitle={`الفترة: ${new Date(run.periodStart).toLocaleDateString("ar-EG")} — ${new Date(run.periodEnd).toLocaleDateString("ar-EG")}`}
           backHref="/hr/payroll"
+          action={<PrintDocLink href={`/erp/hr/payroll/${run.id}/print`} />}
         />
         <PayrollRunDetail run={run} lines={lines} />
       </div>

@@ -61,6 +61,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
         org={org}
         title="إذن استلام"
         number={grn.number}
+        watermark={grn.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/purchases/receipts/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(grn.date) },

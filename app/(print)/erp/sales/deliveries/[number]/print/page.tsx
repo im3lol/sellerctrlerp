@@ -56,6 +56,7 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
         org={org}
         title="إذن صرف"
         number={dn.number}
+        watermark={dn.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/sales/deliveries/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(dn.date) },

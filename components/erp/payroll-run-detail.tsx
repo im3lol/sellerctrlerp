@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, RotateCcw, ExternalLink } from "lucide-react";
+import { CheckCircle, RotateCcw, ExternalLink, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -28,6 +28,7 @@ type Run = {
 
 type Line = {
   id: string;
+  employeeId: string;
   userName: string | null;
   position: string | null;
   department: string | null;
@@ -172,6 +173,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
               <th>الضريبة</th>
               <th>الصافي</th>
               {lines.some((l) => l.hoursWorked) && <th>ساعات العمل</th>}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -196,6 +198,17 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
                     {l.hoursWorked ? Number(l.hoursWorked).toFixed(1) + " س" : "—"}
                   </td>
                 )}
+                <td>
+                  <a
+                    href={`/erp/hr/payroll/${run.id}/payslip/${l.employeeId}/print`}
+                    target="_blank"
+                    rel="noopener"
+                    title="طباعة قسيمة الراتب"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Printer className="h-4 w-4" />
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>

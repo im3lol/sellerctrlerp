@@ -53,6 +53,7 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         org={org}
         title="أمر بيع"
         number={so.number}
+        watermark={so.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/sales/orders/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(so.date) },

@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { Button } from "@/components/ui/button";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 import { waNumber } from "@/lib/phone";
@@ -35,13 +36,7 @@ export function SalesInvoiceDetailActions({
     })();
   };
 
-  const printBtn = (
-    <Button size="sm" variant="outline" asChild>
-      <Link href={`/sales/invoices/${encodeURIComponent(number)}/print`} target="_blank">
-        <Icon name="Printer" className="size-4" />طباعة
-      </Link>
-    </Button>
-  );
+  const printBtn = <PrintDocLink href={`/sales/invoices/${encodeURIComponent(number)}/print`} />;
 
   const fmt = (v: string | null | undefined) =>
     Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

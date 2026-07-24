@@ -10,6 +10,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
 import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustment-lines-editor";
 import { DocAuditCard } from "@/components/erp/document-detail";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -99,7 +100,12 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           title={`تسوية مخزون ${adj.number}`}
           subtitle={adj.reason}
           backHref="/inventory/adjustments"
-          action={canManage && isDraft ? <StockRowActions docId={adj.id} type="adjustment" status={adj.status} canManage={canManage} dest="/inventory/adjustments" /> : undefined}
+          action={
+            <div className="flex gap-2">
+              <PrintDocLink href={`/erp/inventory/adjustments/${adj.id}/print`} />
+              {canManage && isDraft && <StockRowActions docId={adj.id} type="adjustment" status={adj.status} canManage={canManage} dest="/inventory/adjustments" />}
+            </div>
+          }
         />
 
         <Card>

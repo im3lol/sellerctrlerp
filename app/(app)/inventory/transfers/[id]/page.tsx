@@ -11,6 +11,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
 import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 import { DocAuditCard } from "@/components/erp/document-detail";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -74,6 +75,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
           backHref="/inventory/transfers"
           action={
             <div className="flex gap-2">
+              <PrintDocLink href={`/erp/inventory/transfers/${tr.id}/print`} />
               <BarcodePrintButton items={transferBarcodeItems} printPageHref={`/barcodes/transfer/${tr.id}`} />
               {canManage && isDraft && <StockRowActions docId={tr.id} type="transfer" status={tr.status} canManage={canManage} dest="/inventory/transfers" />}
             </div>

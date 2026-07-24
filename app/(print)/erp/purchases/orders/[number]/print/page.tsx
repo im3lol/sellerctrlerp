@@ -57,6 +57,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         org={org}
         title="أمر شراء"
         number={po.number}
+        watermark={po.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/purchases/orders/${encodeURIComponent(raw)}`}
         // No delivery-date column on purchase orders — only `date`.
         meta={[

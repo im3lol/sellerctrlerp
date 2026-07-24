@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ExpenseClaimRowActions } from "@/components/erp/expense-claim-row-actions";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -28,7 +29,12 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ReceiptText" title={`مطالبة ${claim.number}`} subtitle={`${claim.employee} · ${dt(claim.date)} · التعويض من ${claim.cashName ?? "—"}`} backHref="/hr/expense-claims"
-          action={<ExpenseClaimRowActions id={claim.id} status={claim.status} canManage={can("accounting.post")} />} />
+          action={
+            <div className="flex gap-2">
+              <PrintDocLink href={`/erp/hr/expense-claims/${claim.id}/print`} />
+              <ExpenseClaimRowActions id={claim.id} status={claim.status} canManage={can("accounting.post")} />
+            </div>
+          } />
         <Card>
           <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود المصروف</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></CardHeader>
           <CardContent>

@@ -76,6 +76,8 @@ export type DocumentSheetProps = {
   balance?: { label: string; value: string };
   note?: string | null;
   signatures?: string[];
+  /** Diagonal faded stamp across the sheet — pass "مسودة" for unposted documents. */
+  watermark?: string;
   /** Where the «رجوع» button goes. */
   backHref: string;
 };
@@ -85,7 +87,7 @@ const initials = (name: string | null | undefined) =>
 
 export function DocumentSheet({
   org, title, number, meta = [], parties = [], columns = [], rows = [],
-  totals = [], balance, note, signatures = [], backHref,
+  totals = [], balance, note, signatures = [], watermark, backHref,
 }: DocumentSheetProps) {
   return (
     <>
@@ -128,7 +130,18 @@ export function DocumentSheet({
         </a>
       </div>
 
-      <div className="doc">
+      <div className="doc" style={{ position: "relative" }}>
+        {watermark && (
+          <div aria-hidden style={{
+            position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none", zIndex: 0,
+          }}>
+            <span style={{
+              transform: "rotate(-30deg)", fontSize: 110, fontWeight: 800,
+              color: T.muted, opacity: 0.12, letterSpacing: "8px", whiteSpace: "nowrap",
+            }}>{watermark}</span>
+          </div>
+        )}
         {/* ── header: who we are (right) · what this is (left) ── */}
         <div className="mb-7 flex items-start justify-between gap-6">
           <div className="flex items-start gap-3.5">

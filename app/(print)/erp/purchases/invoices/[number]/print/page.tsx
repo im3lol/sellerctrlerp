@@ -49,6 +49,7 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
         org={org}
         title="فاتورة شراء"
         number={inv.number}
+        watermark={inv.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/purchases/invoices/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(inv.date) },
