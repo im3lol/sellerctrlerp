@@ -19,6 +19,7 @@ const MANAGE_LINKS = [
   { label: "مراكز التكلفة",        href: "/accounting/cost-centers", icon: "Target" },
   { label: "المستودعات والأصناف",  href: "/inventory/items",        icon: "Warehouse" },
   { label: "ترقيم المستندات",     href: "/settings/numbering",     icon: "Hash" },
+  { label: "إعدادات الطباعة",      href: "/settings/printing",      icon: "Printer" },
   { label: "العملات وأسعار الصرف", href: "/settings/currencies",    icon: "BadgeDollarSign" },
   { label: "صلاحيات المستخدمين",   href: "/settings/permissions",   icon: "ShieldCheck" },
   { label: "الاشتراك والباقة",     href: "/settings/subscription",  icon: "CreditCard" },

@@ -31,7 +31,7 @@ export default async function PrintJournalEntryPage({ params }: Params) {
       .limit(1);
     if (!entry) notFound();
 
-    const [{ org, currency }, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -52,6 +52,8 @@ export default async function PrintJournalEntryPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("journal")}
+        footerText={footerText}
         title="قيد يومية"
         number={entry.number}
         backHref={`/accounting/journal/${encodeURIComponent(raw)}`}

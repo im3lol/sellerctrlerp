@@ -19,7 +19,7 @@ export default async function PrintStockTransferPage({ params }: Params) {
 
     const fromWh = alias(warehouses, "from_wh");
     const toWh = alias(warehouses, "to_wh");
-    const [{ org }, lines] = await Promise.all([
+    const [{ org, hiddenFor, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -46,6 +46,8 @@ export default async function PrintStockTransferPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("inventory-transfer")}
+        footerText={footerText}
         title="تحويل مخزني"
         number={tr.number}
         backHref={`/inventory/transfers/${id}`}

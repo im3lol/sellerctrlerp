@@ -19,7 +19,7 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
       .limit(1);
     if (!inv) notFound();
 
-    const [{ org, currency }, cust, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, cust, lines] = await Promise.all([
       loadPrintHeader(orgId),
       inv.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address })
@@ -47,6 +47,8 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-invoice")}
+        footerText={footerText}
         title="فاتورة بيع"
         number={inv.number}
         watermark={inv.status === "DRAFT" ? "مسودة" : undefined}

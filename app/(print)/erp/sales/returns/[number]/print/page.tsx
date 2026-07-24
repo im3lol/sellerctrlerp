@@ -21,7 +21,7 @@ export default async function PrintSalesReturnPage({ params }: Params) {
       .limit(1);
     if (!ret) notFound();
 
-    const [{ org, currency }, cust, lines, [si], [dn]] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, cust, lines, [si], [dn]] = await Promise.all([
       loadPrintHeader(orgId),
       ret.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address })
@@ -49,6 +49,8 @@ export default async function PrintSalesReturnPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-return")}
+        footerText={footerText}
         title="مرتجع بيع"
         number={ret.number}
         backHref={`/sales/returns/${encodeURIComponent(raw)}`}

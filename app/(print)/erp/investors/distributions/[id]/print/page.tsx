@@ -19,7 +19,7 @@ export default async function PrintDistributionPage({ params }: Params) {
       .limit(1);
     if (!dist) notFound();
 
-    const [{ org, currency }, shares] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, shares] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -39,6 +39,8 @@ export default async function PrintDistributionPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("distribution")}
+        footerText={footerText}
         title="توزيع أرباح"
         number={dist.periodName}
         backHref={`/investors/distributions/${id}`}

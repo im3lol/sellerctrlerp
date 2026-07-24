@@ -21,7 +21,7 @@ export default async function PrintPayslipPage({ params }: Params) {
       .limit(1);
     if (!run) notFound();
 
-    const [{ org, currency }, [line]] = await Promise.all([
+    const [{ org, currency, footerText }, [line]] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -51,6 +51,7 @@ export default async function PrintPayslipPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        footerText={footerText}
         title="قسيمة راتب"
         number={run.number}
         backHref={`/hr/payroll/${id}`}

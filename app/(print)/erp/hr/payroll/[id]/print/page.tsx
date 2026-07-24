@@ -21,7 +21,7 @@ export default async function PrintPayrollRunPage({ params }: Params) {
       .limit(1);
     if (!run) notFound();
 
-    const [{ org, currency }, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -45,6 +45,8 @@ export default async function PrintPayrollRunPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("payroll")}
+        footerText={footerText}
         title="مسير رواتب"
         number={run.number}
         backHref={`/hr/payroll/${id}`}

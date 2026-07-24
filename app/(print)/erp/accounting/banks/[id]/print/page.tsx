@@ -26,7 +26,7 @@ export default async function PrintBankAccountPage({ params }: Params) {
       .where(and(eq(bankAccounts.id, id), eq(bankAccounts.organizationId, orgId)));
     if (!ba) notFound();
 
-    const [{ org, currency }, lines] = await Promise.all([
+    const [{ org, currency, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -59,6 +59,7 @@ export default async function PrintBankAccountPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        footerText={footerText}
         title="بيان حساب بنكي"
         number={ba.accountNumber || ba.iban || ba.nameAr}
         backHref={`/accounting/banks/${id}`}

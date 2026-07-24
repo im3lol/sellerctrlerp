@@ -100,6 +100,41 @@ export async function uploadOrgLogoAction(
   return { ok: true, url: publicUrl(key) };
 }
 
+/**
+ * Saves print preferences (letterhead + per-document hidden columns) and, when the
+ * form uploaded a new logo, the logo itself. The payload is the whole PrintSettings
+ * object as JSON — sanitized through resolvePrintSettings so locked columns and
+ * junk shapes never reach the row.
+ */
+export async function savePrintSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const auth = await authorizeErp("settings.edit");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(formData.get("payload") ?? "{}"));
+    } catch {
+      return { error: "بيانات غير صالحة" };
+    }
+    const { resolvePrintSettings } = await import("@/lib/erp/print-settings");
+    const clean = resolvePrintSettings(raw);
+    const logo = formData.get("logo");
+
+    try {
+      await db.update(organizations).set({
+        printSettings: clean,
+        ...(typeof logo === "string" ? { logo: logo || null } : {}),
+        updatedAt: new Date(),
+      }).where(eq(organizations.id, auth.orgId));
+    } catch {
+      return { error: "تعذّر حفظ إعدادات الطباعة" };
+    }
+    revalidatePath("/settings/printing");
+    return { ok: true };
+  });
+}
+
 const CONFIG_FIELDS = [
   "receivableAccountId", "payableAccountId", "cashAccountId", "bankAccountId",
   "salesAccountId", "purchaseAccountId", "outputTaxAccountId", "inputTaxAccountId",

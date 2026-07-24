@@ -16,7 +16,7 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
       .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();
 
-    const [{ org, currency }, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({
@@ -38,6 +38,8 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("inventory-adjustment")}
+        footerText={footerText}
         title="تسوية مخزون"
         number={adj.number}
         backHref={`/inventory/adjustments/${id}`}

@@ -24,7 +24,7 @@ export default async function PrintSalesOrderPage({ params }: Params) {
       .limit(1);
     if (!so) notFound();
 
-    const [{ org, currency }, cust, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, cust, lines] = await Promise.all([
       loadPrintHeader(orgId),
       so.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address, email: customers.email })
@@ -51,6 +51,8 @@ export default async function PrintSalesOrderPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-order")}
+        footerText={footerText}
         title="أمر بيع"
         number={so.number}
         watermark={so.status === "DRAFT" ? "مسودة" : undefined}

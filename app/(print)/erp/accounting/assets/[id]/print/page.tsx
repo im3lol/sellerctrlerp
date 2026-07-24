@@ -27,7 +27,7 @@ export default async function PrintFixedAssetPage({ params }: Params) {
       .limit(1);
     if (!a) notFound();
 
-    const [{ org, currency }, deprecLines] = await Promise.all([
+    const [{ org, currency, footerText }, deprecLines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select()
@@ -53,6 +53,7 @@ export default async function PrintFixedAssetPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        footerText={footerText}
         title="بطاقة أصل ثابت"
         number={a.code}
         backHref={`/accounting/assets/${id}`}

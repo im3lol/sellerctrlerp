@@ -30,7 +30,7 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
       .limit(1);
     if (!dn) notFound();
 
-    const [{ org }, cust, wh, lines] = await Promise.all([
+    const [{ org, hiddenFor, footerText }, cust, wh, lines] = await Promise.all([
       loadPrintHeader(orgId),
       dn.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address })
@@ -54,6 +54,8 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-delivery")}
+        footerText={footerText}
         title="إذن صرف"
         number={dn.number}
         watermark={dn.status === "DRAFT" ? "مسودة" : undefined}

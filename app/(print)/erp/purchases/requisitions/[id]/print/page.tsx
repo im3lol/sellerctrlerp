@@ -22,11 +22,13 @@ export default async function RequisitionPrintPage({ params }: { params: Promise
       .from(materialRequestLines).innerJoin(items, eq(items.id, materialRequestLines.itemId))
       .where(eq(materialRequestLines.materialRequestId, id)).orderBy(asc(items.code));
 
-    const { org } = await loadPrintHeader(orgId);
+    const { org, hiddenFor, footerText } = await loadPrintHeader(orgId);
 
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("purchase-requisition")}
+        footerText={footerText}
         title="طلب شراء"
         number={mr.number}
         meta={[

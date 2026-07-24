@@ -27,7 +27,7 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
       .limit(1);
     if (!claim) notFound();
 
-    const [{ org, currency }, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db
         .select({ acc: accounts.nameAr, code: accounts.code, amount: expenseClaimLines.amount, description: expenseClaimLines.description })
@@ -40,6 +40,8 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("expense-claim")}
+        footerText={footerText}
         title="مطالبة مصروفات"
         number={claim.number}
         backHref={`/hr/expense-claims/${id}`}

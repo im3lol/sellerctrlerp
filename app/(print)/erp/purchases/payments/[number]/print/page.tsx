@@ -23,7 +23,7 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
       .limit(1);
     if (!pv) notFound();
 
-    const [{ org, currency }, supp, cashAcc, lines] = await Promise.all([
+    const [{ org, currency, footerText }, supp, cashAcc, lines] = await Promise.all([
       loadPrintHeader(orgId),
       pv.supplierId
         ? db.select({ nameAr: suppliers.nameAr, phone: suppliers.phone, address: suppliers.address })
@@ -48,6 +48,7 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        footerText={footerText}
         title="سند صرف"
         number={pv.number}
         backHref={`/purchases/payments/${encodeURIComponent(raw)}`}
