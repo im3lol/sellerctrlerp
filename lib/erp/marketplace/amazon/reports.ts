@@ -77,9 +77,10 @@ export async function requestAndDownloadReport(
     await sleep(pollMs);
     const st = await gp<StatusResp>(`/reports/2021-06-30/reports/${created.reportId}`);
     if (st.processingStatus === "DONE") { docId = st.reportDocumentId; break; }
-    if (st.processingStatus === "FATAL" || st.processingStatus === "CANCELLED") {
-      throw new Error(`فشل تقرير أمازون (${st.processingStatus})`);
-    }
+    // CANCELLED = Amazon had no data for the window (e.g. no returns) — an empty
+    // report, not a failure. Only FATAL is a real error.
+    if (st.processingStatus === "CANCELLED") return "";
+    if (st.processingStatus === "FATAL") throw new Error(`فشل تقرير أمازون (${st.processingStatus})`);
   }
   if (!docId) throw new Error("انتهت مهلة انتظار تقرير أمازون");
 
