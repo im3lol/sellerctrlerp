@@ -69,4 +69,7 @@ export function startWorkers(): void {
   // Near-real-time: self-trigger the due-syncs enqueue every minute — no external
   // cron needed. Dynamic import keeps this off the web container's boot path.
   void import("./scheduler").then(({ startScheduler }) => startScheduler(60_000));
+
+  // Real-time ORDER_CHANGE via SQS (no-op unless AWS env is configured).
+  void import("./sqs-listener").then((m) => m.startSqsListener()).catch((e) => console.error("[sqs] boot failed:", e));
 }

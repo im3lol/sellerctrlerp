@@ -141,6 +141,39 @@ export async function spFetch(cred: Credential, path: string, init: RequestInit 
   return res;
 }
 
+/**
+ * Grantless SP-API call (client_credentials token — no seller refresh token).
+ * Needed by Notifications createDestination/getDestinations. Thin parallel of
+ * spFetch: same host table + timeout; errors surface as typed SpApiError.
+ */
+export async function spJsonGrantless<T = unknown>(region: string, path: string, init: RequestInit = {}): Promise<T> {
+  const cacheKey = "grantless:notifications";
+  const hit = cache.get(cacheKey);
+  let token: string;
+  if (hit && hit.expiresAt > Date.now()) token = hit.token;
+  else {
+    const { grantlessToken } = await import("./lwa");
+    const r = await grantlessToken();
+    if ("error" in r) throw new SpApiError(r.error, 400, r.code);
+    cache.set(cacheKey, { token: r.access_token, expiresAt: Date.now() + (r.expires_in - 60) * 1000 });
+    token = r.access_token;
+  }
+  const base = SPAPI_ENDPOINT[region as Region] ?? SPAPI_ENDPOINT.eu;
+  const res = await fetch(`${base}${path}`, {
+    ...init,
+    headers: { "x-amz-access-token": token, "content-type": "application/json", ...(init.headers ?? {}) },
+    cache: "no-store",
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
+  countRequest();
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = (json as { errors?: { message?: string; code?: string }[] })?.errors?.[0];
+    throw new SpApiError(err?.message || `SP-API ${res.status}`, res.status, err?.code, res.status === 429 || res.status >= 500);
+  }
+  return json as T;
+}
+
 /** spFetch + JSON parse, throwing a typed SpApiError on non-2xx. */
 export async function spJson<T = unknown>(cred: Credential, path: string, init?: RequestInit): Promise<T> {
   const res = await spFetch(cred, path, init);

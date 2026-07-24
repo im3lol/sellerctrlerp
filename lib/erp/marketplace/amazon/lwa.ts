@@ -40,3 +40,8 @@ export function exchangeCode(code: string, redirectUri: string) {
 export function refreshAccessToken(refreshToken: string) {
   return lwaToken({ grant_type: "refresh_token", refresh_token: refreshToken });
 }
+
+/** Grantless token (client_credentials) — required by Notifications createDestination. */
+export function grantlessToken(scope = "sellingpartnerapi::notifications") {
+  return lwaToken({ grant_type: "client_credentials", scope });
+}

@@ -65,7 +65,7 @@ export function MarketplaceConnect({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">مربوط</Badge></CardTitle>
+              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">مربوط</Badge>{conn.realtime && <Badge variant="secondary" title="طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية">التحديث الفوري مفعّل ⚡</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
                 {justConnected && <span className="text-emerald-600">تم الربط بنجاح. </span>}
                 السوق: {market?.name ?? conn.marketplaceId ?? "—"} · معرّف البائع: <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> · آخر مزامنة: {dt(conn.lastSyncAt)}
