@@ -58,18 +58,18 @@ export async function fetchFeesEstimates(cred: Credential, skus: { sku: string; 
   const currency = marketplaceById(cred.marketplaceId)?.currency ?? "USD";
   const out: FeeEstimate[] = [];
   for (const batch of chunk(skus.filter((s) => s.sku && s.price > 0), 20)) {
-    const body = {
-      FeesEstimateByIdRequestList: batch.map((s) => ({
-        IdType: "SellerSKU",
-        IdValue: s.sku,
-        FeesEstimateRequest: {
-          MarketplaceId: cred.marketplaceId,
-          IsAmazonFulfilled: true,
-          Identifier: s.sku,
-          PriceToEstimateFees: { ListingPrice: { CurrencyCode: currency, Amount: s.price } },
-        },
-      })),
-    };
+    // getMyFeesEstimates takes a TOP-LEVEL array (probed live 2026-07-24) — a
+    // {FeesEstimateByIdRequestList} wrapper gets "Missing objects [PriceToEstimateFees]".
+    const body = batch.map((s) => ({
+      IdType: "SellerSKU",
+      IdValue: s.sku,
+      FeesEstimateRequest: {
+        MarketplaceId: cred.marketplaceId,
+        IsAmazonFulfilled: true,
+        Identifier: s.sku,
+        PriceToEstimateFees: { ListingPrice: { CurrencyCode: currency, Amount: s.price } },
+      },
+    }));
     try {
       const resp = await paced(`amazon-fees:${credKey(cred)}`, 2100, () =>
         spJson<BatchResp>(cred, `/products/fees/v0/feesEstimate`, { method: "POST", body: JSON.stringify(body) }));
