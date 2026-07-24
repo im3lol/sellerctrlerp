@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { inventoryAudits, inventoryAuditLines, fbaReimbursements } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,16 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
     }
     const pages = Math.max(1, Math.ceil(total / PER_PAGE));
 
+    // SKUs Amazon already reimbursed (any reason) — badges the lost/damaged rows.
+    let reimbursedSkus = new Set<string>();
+    if (audit) {
+      try {
+        const rs = await db.selectDistinct({ sku: fbaReimbursements.sku }).from(fbaReimbursements)
+          .where(eq(fbaReimbursements.organizationId, orgId));
+        reimbursedSkus = new Set(rs.map((r) => r.sku).filter((s): s is string => !!s));
+      } catch { /* feed not pulled yet — badges just stay off */ }
+    }
+
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardCheck" title="تدقيق مخزون FBA" subtitle="مطابقة كميات أمازون مع النظام — قراءة فقط، لا يغيّر المخزون" backHref="/inventory/stock"
@@ -89,7 +99,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
               </CardContent>
             </Card>
 
-            <div className="max-h-[70vh] overflow-auto rounded-xl border"><AuditLinesTable rows={lines} /></div>
+            <div className="max-h-[70vh] overflow-auto rounded-xl border"><AuditLinesTable rows={lines} reimbursedSkus={reimbursedSkus} /></div>
             <Pagination page={page} pages={pages} total={total} unit="صنف" basePath="/inventory/reconciliation" params={{ status: fStatus, q: fQ }} />
           </>
         )}

@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines, platformItemFees } from "@/db/schema";
 import { buildProfitability } from "@/lib/erp/profitability";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +32,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
-    const [revRows, cogsRows, returnRows] = await Promise.all([
+    const [revRows, cogsRows, returnRows, feeRows] = await Promise.all([
       db.select({
         itemId: salesInvoiceLines.itemId, code: items.code, name: items.nameAr,
         qty: sql<string>`sum(${salesInvoiceLines.quantity})`,
@@ -61,13 +61,17 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
         .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
         .groupBy(salesReturnLines.itemId),
+      // Estimated per-unit marketplace fees (referral + FBA) — optional overlay.
+      db.select({ itemId: platformItemFees.itemId, totalFees: platformItemFees.totalFees })
+        .from(platformItemFees).where(eq(platformItemFees.organizationId, orgId)),
     ]);
 
     const cogsByItem = new Map(cogsRows.map((r) => [r.itemId, Number(r.cogs ?? 0)]));
     const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
+    const feesByItem = new Map(feeRows.map((r) => [r.itemId, Number(r.totalFees ?? 0)]));
     let list = buildProfitability(
       revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
-      returnsByItem, cogsByItem,
+      returnsByItem, cogsByItem, feesByItem,
     );
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name?.toLowerCase().includes(search));
     list.sort((a, b) => b.profit - a.profit);
@@ -76,17 +80,22 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const tCogs = list.reduce((s, r) => s + r.cogs, 0);
     const tProfit = tRevenue - tCogs;
     const tMargin = tRevenue > 0 ? (tProfit / tRevenue) * 100 : 0;
+    const tFees = list.reduce((s, r) => s + r.fees, 0);
+    const tNet = tProfit - tFees;
+    const hasFees = tFees > 0;
 
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className={`grid gap-4 ${hasFees ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-4"}`}>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الإيراد (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tRevenue)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">تكلفة البضاعة المباعة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tCogs)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الربح الإجمالي</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tProfit)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">هامش الربح</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{pct(tMargin)}</p></CardContent></Card>
+          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رسوم أمازون المقدرة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tFees)}</p></CardContent></Card>}
+          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح بعد الرسوم</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>}
         </div>
 
         {list.length > 0 && (
@@ -120,6 +129,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                     <TableHead className="text-end">التكلفة</TableHead>
                     <TableHead className="text-end">الربح</TableHead>
                     <TableHead className="text-end">الهامش</TableHead>
+                    {hasFees && <TableHead className="text-end">رسوم أمازون</TableHead>}
+                    {hasFees && <TableHead className="text-end">الصافي بعد الرسوم</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -132,6 +143,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                       <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.cogs)}</TableCell>
                       <TableCell className={`text-end tabular-nums font-medium ${r.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.profit)}</TableCell>
                       <TableCell className="text-end tabular-nums">{pct(r.margin)}</TableCell>
+                      {hasFees && <TableCell className="text-end tabular-nums text-muted-foreground">{r.fees > 0 ? fmt(r.fees) : "—"}</TableCell>}
+                      {hasFees && <TableCell className={`text-end tabular-nums font-medium ${r.netProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{r.fees > 0 ? fmt(r.netProfit) : "—"}</TableCell>}
                     </TableRow>
                   ))}
                 </TableBody>

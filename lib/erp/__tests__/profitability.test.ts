@@ -22,6 +22,22 @@ describe("buildProfitability", () => {
     expect(r.profit).toBe(200);
   });
 
+  it("per-unit marketplace fees produce netProfit = profit − qty×fee", () => {
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 10, revenue: 1000 }];
+    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 600]]), new Map([["i1", 15]]));
+    expect(r.profit).toBe(400);
+    expect(r.fees).toBe(150); // 10 × 15
+    expect(r.netProfit).toBe(250);
+    expect(r.netMargin).toBeCloseTo(25, 5);
+  });
+
+  it("no fees map → fees 0 and netProfit === profit", () => {
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 5, revenue: 500 }];
+    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 300]]));
+    expect(r.fees).toBe(0);
+    expect(r.netProfit).toBe(r.profit);
+  });
+
   it("returns exceeding sales in-period yield zero/negative net revenue, margin guarded", () => {
     const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 0, revenue: 0 }];
     const [r] = buildProfitability(rows, new Map([["i1", 100]]), new Map([["i1", -60]]));

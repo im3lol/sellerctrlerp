@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RefreshCw, ClipboardCheck, Loader2, Settings } from "lucide-react";
+import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
+import { refreshAmazonFeesAction } from "@/app/actions/erp/marketplace-sync";
 import { SyncProgress } from "@/components/erp/sync-progress";
 import { AuditProgress } from "@/components/erp/audit-progress";
 import { PlatformActions } from "@/components/erp/platform-actions";
@@ -24,11 +25,18 @@ export function PlatformHeaderActions({
   const [syncOpen, setSyncOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditPending, startAudit] = useTransition();
+  const [feesPending, startFees] = useTransition();
 
   const runAudit = () => startAudit(async () => {
     const r = await startInventoryAuditAction(code);
     if (!r.ok) { toast.error(r.error); return; }
     setAuditOpen(true); // background job → progress popup
+  });
+
+  const refreshFees = () => startFees(async () => {
+    const r = await refreshAmazonFeesAction(code);
+    if (r.ok) toast.success("بدأ تحديث رسوم أمازون — النتائج تظهر في تقرير الربحية خلال دقائق");
+    else toast.error(r.error ?? "تعذّر بدء التحديث");
   });
 
   return (
@@ -41,6 +49,16 @@ export function PlatformHeaderActions({
       {connected && isAmazon && (
         <Button variant="outline" onClick={runAudit} disabled={auditPending} title="مطابقة كميات مخزون FBA مع النظام (قراءة فقط)">
           {auditPending ? <Loader2 className="size-4 animate-spin" /> : <ClipboardCheck className="size-4" />}تدقيق المخزون
+        </Button>
+      )}
+      {connected && isAmazon && (
+        <Button variant="outline" onClick={refreshFees} disabled={feesPending} title="تقدير رسوم أمازون (إحالة + FBA) لكل صنف مرتبط — يغذي تقرير الربحية">
+          {feesPending ? <Loader2 className="size-4 animate-spin" /> : <Percent className="size-4" />}تحديث الرسوم
+        </Button>
+      )}
+      {isAmazon && (
+        <Button asChild variant="outline">
+          <Link href={`/platforms/${code}/reimbursements`}><HandCoins className="size-4" />التعويضات</Link>
         </Button>
       )}
       <PlatformActions code={code} isAmazon={isAmazon} />

@@ -170,3 +170,20 @@ export async function syncInventoryAction(code: string): Promise<InventorySync> 
   revalidatePath(`/platforms/${p.provider}`);
   return r;
 }
+
+/** Enqueue an on-demand refresh of estimated Amazon fees for all linked items. */
+export async function refreshAmazonFeesAction(code: string): Promise<{ ok: boolean; error?: string }> {
+  const auth = await authorizeErp("sales.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (await enqueue(QUEUES.pricing, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined })) {
+    return { ok: true };
+  }
+  // Inline fallback (no Redis) — slow but functional on minimal deploys.
+  const { syncFeesCore } = await import("@/lib/erp/marketplace/sync-core");
+  const r = await syncFeesCore(p);
+  if (!r.ok) return { ok: false, error: r.error };
+  await markSync(p.orgId, p.provider, { feesSyncedAt: new Date() });
+  return { ok: true };
+}

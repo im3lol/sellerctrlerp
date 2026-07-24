@@ -47,8 +47,10 @@ export function AuditStats({ audit }: { audit: AuditHeader }) {
   );
 }
 
-/** The audit lines table (rows are pre-sorted by the caller: problems first). */
-export function AuditLinesTable({ rows }: { rows: AuditLine[] }) {
+/** The audit lines table (rows are pre-sorted by the caller: problems first).
+ *  `reimbursedSkus`: SKUs Amazon already reimbursed — lost/damaged rows get a
+ *  "تم التعويض" badge instead of leaving the operator to chase them manually. */
+export function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; reimbursedSkus?: Set<string> }) {
   return (
     <Table>
       <TableHeader className="sticky top-0 bg-background">
@@ -82,7 +84,14 @@ export function AuditLinesTable({ rows }: { rows: AuditLine[] }) {
               <TableCell className="tabular-nums">{int(l.inbound)}</TableCell>
               <TableCell className={`tabular-nums ${l.damaged > 0 ? "text-destructive" : ""}`}>{int(l.damaged)}</TableCell>
               <TableCell className={`tabular-nums font-medium ${diff !== 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{qty(diff)}</TableCell>
-              <TableCell><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span></TableCell>
+              <TableCell>
+                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>
+                {(l.status === "LOST" || l.status === "DAMAGED") && reimbursedSkus && (
+                  reimbursedSkus.has(l.code)
+                    ? <span className="ms-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">تم التعويض</span>
+                    : <span className="ms-1 inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">بانتظار التعويض</span>
+                )}
+              </TableCell>
             </TableRow>
           );
         })}
