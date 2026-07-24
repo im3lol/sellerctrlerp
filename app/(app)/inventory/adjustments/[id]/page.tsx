@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { stockAdjustments, stockAdjustmentLines, items, warehouses } from "@/db/schema";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
+import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustment-lines-editor";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -28,6 +29,9 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
     const lines = await db
       .select({
         id: stockAdjustmentLines.id,
+        itemId: stockAdjustmentLines.itemId,
+        warehouseId: stockAdjustmentLines.warehouseId,
+        mode: stockAdjustmentLines.mode,
         itemCode: items.code,
         itemName: items.nameAr,
         warehouse: warehouses.nameAr,
@@ -43,6 +47,28 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
       .orderBy(asc(items.code));
 
     const isDraft = adj.status === "DRAFT";
+
+    // Live on-hand + WAC per line pair — feeds the جرد editor for drafts.
+    let editorLines: EditorLine[] = [];
+    if (isDraft && canManage && lines.length > 0) {
+      const itemIds = [...new Set(lines.map((l) => l.itemId))];
+      const bal = await db.execute<{ item_id: string; warehouse_id: string; qty: string; value: string }>(sql`
+        SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity AS qty, balance_value AS value
+        FROM stock_movements
+        WHERE organization_id = ${orgId} AND item_id IN (${sql.join(itemIds.map((i) => sql`${i}`), sql`, `)})
+        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+      `);
+      const balBy = new Map(bal.rows.map((b) => [`${b.item_id}|${b.warehouse_id}`, { qty: Number(b.qty), value: Number(b.value) }]));
+      editorLines = lines.map((l) => {
+        const b = balBy.get(`${l.itemId}|${l.warehouseId}`) ?? { qty: 0, value: 0 };
+        const onHand = b.qty;
+        const avgCost = b.qty > 1e-9 ? Math.round((b.value / b.qty) * 100) / 100 : 0;
+        // Default counted qty = the stored target: set-mode keeps its entered value;
+        // delta-mode targets current + delta.
+        const actual = l.mode === "set" ? Number(l.entered) : Math.max(0, onHand + Number(l.entered));
+        return { lineId: l.id, itemCode: l.itemCode, itemName: l.itemName, warehouse: l.warehouse, onHand, avgCost, actual, unitCost: l.unitCost != null ? Number(l.unitCost) : null };
+      });
+    }
 
     return (
       <div className="space-y-6">
@@ -67,9 +93,12 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
         <Card>
           <CardHeader>
             <CardTitle>الأصناف</CardTitle>
-            <CardDescription>{isDraft ? "الفرق والقيمة تقديرية حتى التأكيد." : "القيم النهائية بعد الترحيل."}</CardDescription>
+            <CardDescription>{isDraft ? "عدّل «الكمية الفعلية» بعد الجرد — الفرق والقيمة تقديريان حتى التأكيد." : "القيم النهائية بعد الترحيل."}</CardDescription>
           </CardHeader>
           <CardContent>
+            {isDraft && canManage ? (
+              <AdjustmentLinesEditor adjId={adj.id} lines={editorLines} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -103,6 +132,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
                 </TableRow>
               </TableFooter>
             </Table>
+            )}
           </CardContent>
         </Card>
 

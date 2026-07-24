@@ -83,6 +83,65 @@ export async function createAdjustment(orgId: string, userId: string, input: unk
   }
 }
 
+const updateLineSchema = z.object({
+  lineId: z.string().min(1),
+  actual: z.coerce.number().min(0, "الكمية الفعلية لا يمكن أن تكون سالبة"),
+  unitCost: z.coerce.number().min(0).optional(),
+});
+const updateSchema = z.object({ lines: z.array(updateLineSchema).min(1, "لا توجد بنود") });
+
+/**
+ * Edit a DRAFT adjustment's lines (the جرد flow: the operator counts, enters the
+ * ACTUAL quantity per line, optionally overrides the intake cost). Every edited
+ * line becomes mode="set" with the counted value; delta/value re-estimate against
+ * the CURRENT balance. Nothing posts until confirmAdjustment.
+ */
+export async function updateAdjustmentLines(orgId: string, userId: string, id: string, input: unknown): Promise<CoreResult> {
+  const parsed = updateSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const [adj] = await db.select().from(stockAdjustments)
+    .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
+  if (!adj) return { error: "التسوية غير موجودة" };
+  if (adj.status !== "DRAFT") return { error: "لا يمكن تعديل تسوية مُرحّلة" };
+
+  const existing = await db.select().from(stockAdjustmentLines).where(eq(stockAdjustmentLines.stockAdjustmentId, id));
+  const byId = new Map(existing.map((l) => [l.id, l]));
+
+  const updates: { id: string; entered: number; unitCost?: number; delta: number; estValue: number }[] = [];
+  for (const l of parsed.data.lines) {
+    const ex = byId.get(l.lineId);
+    if (!ex) return { error: "بند غير موجود في هذه التسوية" };
+    const cur = await currentStock(orgId, ex.itemId, ex.warehouseId);
+    const delta = l.actual - cur.quantity; // set-mode: actual ≥ 0 ⇒ never below zero stock
+    const estCost = delta > 0 ? (l.unitCost && l.unitCost > 0 ? l.unitCost : cur.avgCost) : cur.avgCost;
+    updates.push({ id: ex.id, entered: l.actual, unitCost: l.unitCost, delta, estValue: round2(Math.abs(delta) * estCost) });
+  }
+
+  const updatedIds = new Set(updates.map((u) => u.id));
+  const total = round2(
+    updates.reduce((s, u) => s + u.estValue, 0) +
+    existing.filter((l) => !updatedIds.has(l.id)).reduce((s, l) => s + Number(l.totalValue ?? 0), 0),
+  );
+
+  try {
+    await db.transaction(async (tx) => {
+      for (const u of updates) {
+        await tx.update(stockAdjustmentLines).set({
+          mode: "set", enteredValue: String(u.entered),
+          unitCost: u.unitCost != null && u.unitCost > 0 ? String(u.unitCost) : null,
+          deltaQuantity: String(u.delta), totalValue: String(u.estValue),
+        }).where(eq(stockAdjustmentLines.id, u.id));
+      }
+      await tx.update(stockAdjustments).set({ totalValue: String(total) }).where(eq(stockAdjustments.id, id));
+    });
+    await tryRecordAudit({ orgId, userId, action: "UPDATE", entityType: "STOCK_ADJUSTMENT", entityId: id, entityNumber: adj.number, summary: `تعديل بنود تسوية مخزون ${adj.number} (${updates.length} بند)` });
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديلات" };
+  }
+}
+
 /** Delete a DRAFT adjustment (used to roll back a one-shot mobile count that failed to post). */
 export async function deleteAdjustmentDraft(orgId: string, id: string): Promise<void> {
   await db.delete(stockAdjustments)

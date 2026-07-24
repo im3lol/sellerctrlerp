@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { stockAdjustments } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
-import { createAdjustment, confirmAdjustment } from "@/lib/erp/inventory-writes";
+import { createAdjustment, confirmAdjustment, updateAdjustmentLines } from "@/lib/erp/inventory-writes";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveAdjustmentState = ActionState & { id?: string };
@@ -82,4 +82,17 @@ export async function bulkStockAdjustmentsAction(op: "confirm" | "delete", ids: 
     ids = await matchingAdjustmentIds(auth.orgId, all);
   }
   return bulkOp(ids, op === "confirm" ? confirmStockAdjustmentAction : deleteStockAdjustmentAction);
+}
+
+/** Save the operator's counted quantities/costs on a DRAFT adjustment (جرد edit). */
+export async function updateStockAdjustmentAction(id: string, input: unknown): Promise<ActionState> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const r = await updateAdjustmentLines(auth.orgId, auth.userId, id, input);
+    if ("error" in r) return { error: r.error };
+    revalidatePath("/inventory/adjustments");
+    revalidatePath(`/inventory/adjustments/${id}`);
+    return { ok: true };
+  });
 }
