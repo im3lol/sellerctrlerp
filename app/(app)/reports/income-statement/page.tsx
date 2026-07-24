@@ -77,7 +77,10 @@ export default async function IncomeStatementPage({
           title="قائمة الدخل"
           subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`}
+              printHref={`/reports/income-statement/print?${new URLSearchParams({ from, to }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports/income-statement" />

@@ -169,7 +169,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
           title="كشف حساب العميل"
           subtitle="عرض كل المعاملات (فواتير · مقبوضات · مرتجعات) لعميل محدد خلال فترة"
           backHref="/accounting"
-          action={selectedId ? <ReportToolbar /> : undefined}
+          action={selectedId ? <ReportToolbar printHref={`/erp/accounting/customer-statement/print?${new URLSearchParams({ customerId: selectedId, from: fromISO, to: toISO }).toString()}`} /> : undefined}
         />
 
         {/* Filters */}

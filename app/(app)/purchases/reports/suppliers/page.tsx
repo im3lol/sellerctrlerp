@@ -43,9 +43,12 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
     const tSpend = list.reduce((s, r) => s + r.spend, 0);
     const tAp = list.reduce((s, r) => s + r.balance, 0);
 
+    const qsStr = new URLSearchParams({ from, to, ...(search ? { q: search } : {}) }).toString();
+
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب الموردين" subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Users" title="ترتيب الموردين" subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل"
+          action={<ReportToolbar excel={list.length > 0 ? `/api/erp/purchases/suppliers/export?${qsStr}` : undefined} printHref={`/erp/purchases/reports/suppliers/print?${qsStr}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">

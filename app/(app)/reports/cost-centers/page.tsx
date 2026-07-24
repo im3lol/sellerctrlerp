@@ -49,13 +49,15 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name.toLowerCase().includes(search));
     list.sort((a, b) => b.net - a.net);
 
+    const qs = new URLSearchParams({ from, to, ...(search ? { q: one(sp.q).trim() } : {}) }).toString();
+
     const tRev = list.reduce((s, r) => s + r.revenue, 0);
     const tExp = list.reduce((s, r) => s + r.expense, 0);
     const tNet = tRev - tExp;
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Target" title="الأرباح والخسائر حسب مركز التكلفة" subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Target" title="الأرباح والخسائر حسب مركز التكلفة" subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة" action={<ReportToolbar excel={`/api/erp/reports/cost-centers/export?${qs}`} printHref={`/erp/reports/cost-centers/print?${qs}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">

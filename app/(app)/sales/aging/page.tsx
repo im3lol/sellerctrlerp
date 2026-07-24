@@ -45,7 +45,7 @@ export default async function ArAgingPage({ searchParams }: { searchParams: Prom
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="Users" title="أعمار ذمم العملاء" subtitle="أرصدة مستحقة من فواتير البيع المُرحّلة" backHref="/sales"
-          action={<ReportToolbar excel={grand > 0 ? `/api/erp/sales/aging/export?asOf=${asOf}` : undefined} />}
+          action={<ReportToolbar excel={grand > 0 ? `/api/erp/sales/aging/export?asOf=${asOf}` : undefined} printHref={`/erp/sales/aging/print?asOf=${asOf}`} />}
         />
 
         <Card>

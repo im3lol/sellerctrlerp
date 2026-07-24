@@ -63,7 +63,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
           title="دفتر حركة المخزون"
           subtitle={itemLabel || "أحدث حركات المخزون"}
           backHref="/inventory"
-          action={<ReportToolbar excel={rows.length > 0 ? exportHref : undefined} />}
+          action={<ReportToolbar excel={rows.length > 0 ? exportHref : undefined} printHref={`/erp/inventory/ledger/print?${filterQs().toString()}`} />}
         />
 
         <Card>

@@ -54,7 +54,7 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
       <div className="space-y-6">
         <ErpPageHeader icon="CalendarDays" title="تقرير أرصدة الإجازات" subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`} backHref="/hr/leaves"
           action={
-            <ReportToolbar excel={`/api/erp/hr/leaves/report/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar excel={`/api/erp/hr/leaves/report/export?${new URLSearchParams({ from, to }).toString()}`} printHref={`/erp/hr/leaves/report/print?${new URLSearchParams({ from, to }).toString()}`} />
           } />
 
         <Card>

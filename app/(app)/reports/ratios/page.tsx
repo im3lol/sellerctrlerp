@@ -53,7 +53,7 @@ export default async function RatiosReportPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar excel="/api/erp/reports/ratios/export" printHref="/erp/reports/ratios/print" />} />
 
         <div>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">السيولة</h2>

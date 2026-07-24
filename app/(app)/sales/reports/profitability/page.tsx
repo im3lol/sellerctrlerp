@@ -84,9 +84,12 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const tNet = tProfit - tFees;
     const hasFees = tFees > 0;
 
+    const qs = new URLSearchParams({ from, to });
+    if (search) qs.set("q", search);
+
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar />} />
+        <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/profitability/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/profitability/print?${qs.toString()}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className={`grid gap-4 ${hasFees ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-4"}`}>

@@ -55,7 +55,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
           title="أرصدة المخزون"
           subtitle={`قيمة المخزون ${fmt(totals.value)} — من دفتر المخزون`}
           backHref="/inventory"
-          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} />}
+          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} printHref={`/erp/inventory/stock/print?${filterQs().toString()}`} />}
         />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">

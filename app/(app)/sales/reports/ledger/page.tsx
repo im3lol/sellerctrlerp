@@ -66,7 +66,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
           icon="BookOpen"
           title="تقرير دفتر المبيعات"
           subtitle={`${totalRows} حركة`}
-          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} />}
+          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} printHref={`/erp/sales/reports/ledger/print?${filterQs().toString()}`} />}
         />
         <Card>
           <CardHeader>

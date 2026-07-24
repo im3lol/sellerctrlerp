@@ -66,9 +66,13 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
     const slowVal = list.filter((r) => r.status === "بطيء").reduce((s, r) => s + r.val, 0);
     const deadCount = list.filter((r) => r.status === "راكد").length;
 
+    const filterQs = new URLSearchParams();
+    filterQs.set("days", String(days));
+    if (q) filterQs.set("q", q);
+
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="PackageX" title="المخزون الراكد وبطيء الحركة" subtitle="رأس المال المحبوس في بضاعة لا تتحرك" action={<ReportToolbar />} />
+        <ErpPageHeader icon="PackageX" title="المخزون الراكد وبطيء الحركة" subtitle="رأس المال المحبوس في بضاعة لا تتحرك" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/inventory/dead-stock/export?${filterQs.toString()}` : undefined} printHref={`/erp/inventory/dead-stock/print?${filterQs.toString()}`} />} />
 
         <FilterBar active={!!q || days !== 90} clearHref="/inventory/dead-stock">
           <div className="space-y-2">

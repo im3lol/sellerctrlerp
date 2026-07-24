@@ -37,7 +37,10 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
           title="التقارير المالية — ميزان المراجعة"
           subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`}
+              printHref={`/reports/trial-balance/print?${new URLSearchParams({ from, to }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports" />

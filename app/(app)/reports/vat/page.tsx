@@ -183,7 +183,10 @@ export default async function VatReportPage({ searchParams }: Params) {
           title="تقرير ضريبة القيمة المضافة"
           subtitle="ملخّص الضريبة المحصّلة على المبيعات والضريبة المدفوعة على المشتريات"
           action={
-            <ReportToolbar excel={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}
+              printHref={`/reports/vat/print?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports/vat" />

@@ -43,9 +43,12 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
     const tRevenue = list.reduce((s, r) => s + r.revenue, 0);
     const tAr = list.reduce((s, r) => s + r.balance, 0);
 
+    const qs = new URLSearchParams({ from, to });
+    if (search) qs.set("q", search);
+
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب العملاء" subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Users" title="ترتيب العملاء" subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/customers/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/customers/print?${qs.toString()}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">

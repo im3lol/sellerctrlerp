@@ -34,7 +34,10 @@ export default async function CashFlowPage({
       <div className="space-y-6">
         <ErpPageHeader icon="ArrowLeftRight" title="التدفق النقدي" subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/cash-flow/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/cash-flow/export?${new URLSearchParams({ from, to }).toString()}`}
+              printHref={`/reports/cash-flow/print?${new URLSearchParams({ from, to }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports/cash-flow" />

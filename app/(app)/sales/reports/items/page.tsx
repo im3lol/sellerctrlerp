@@ -59,13 +59,16 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
     const totalRevenue = filtered.reduce((s, r) => s + Number(r.totalRevenue ?? 0), 0);
     const totalQty     = filtered.reduce((s, r) => s + Number(r.totalQty ?? 0), 0);
 
+    const qs = new URLSearchParams({ from, to });
+    if (search) qs.set("q", search);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
           icon="BarChart3"
           title="تقرير مبيعات الأصناف"
           subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
-          action={<ReportToolbar />}
+          action={<ReportToolbar excel={filtered.length > 0 ? `/api/erp/sales/items/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/items/print?${qs.toString()}`} />}
         />
 
         <ItemSalesFilters from={from} to={to} q={search} />
