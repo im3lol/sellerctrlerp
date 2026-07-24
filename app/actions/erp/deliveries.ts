@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
@@ -280,16 +280,32 @@ export async function deleteDeliveryAction(deliveryId: string): Promise<ActionSt
 }
 
 /** Bulk confirm / bill / delete deliveries. Skips rows ineligible for the op. */
-export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+/** Mirrors the deliveries list page's filters — the "select all pages" path
+ *  re-derives the ids from these SERVER-SIDE. */
+export type DeliveriesFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+async function matchingDeliveryIds(orgId: string, f: DeliveriesFilter): Promise<string[]> {
+  const conds = [eq(deliveryNotes.organizationId, orgId)];
+  if (f.q) conds.push(ilike(deliveryNotes.number, `%${f.q}%`));
+  if (f.status) conds.push(eq(deliveryNotes.status, f.status));
+  if (f.customer) conds.push(eq(deliveryNotes.customerId, f.customer));
+  if (f.from) conds.push(gte(deliveryNotes.date, new Date(f.from)));
+  if (f.to) conds.push(lte(deliveryNotes.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: deliveryNotes.id }).from(deliveryNotes).where(and(...conds))).map((r) => r.id);
+}
+
+export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete" | "reverse", ids: string[], all?: DeliveriesFilter): Promise<ActionState & { count?: number }> {
   const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = await matchingDeliveryIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تُحدّد أي إذون" };
     let count = 0;
     let lastError: string | undefined;
     for (const id of ids) {
       const r = op === "confirm" ? await confirmDeliveryAction(id)
         : op === "bill" ? await convertDeliveryToInvoiceAction(id)
+        : op === "reverse" ? await reverseDeliveryAction(id)
         : await deleteDeliveryAction(id);
       if (r.ok) count++;
       else lastError = r.error;

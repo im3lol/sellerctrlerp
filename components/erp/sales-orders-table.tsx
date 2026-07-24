@@ -56,8 +56,8 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
   const count = allPages ? total : sel.size;
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
-  const bulk = (op: "confirm" | "cancel" | "delete") => {
-    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
+  const bulk = (op: "confirm" | "cancel" | "delete" | "deliver") => {
+    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : op === "deliver" ? "تحويل لإذن صرف" : "حذف";
     void (async () => {
       if (!(await confirm({ title: `${verb} ${int(count)} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
@@ -79,6 +79,7 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
             <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title="ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية"><Icon name="Truck" className="size-4" />تحويل لإذن صرف</Button>
             <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>
             <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
           </div>

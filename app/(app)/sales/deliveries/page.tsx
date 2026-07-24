@@ -157,7 +157,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد."}</div>
             ) : (
               <>
-                <DeliveriesTable rows={rows} canManage={canManage} />
+                <DeliveriesTable rows={rows} canManage={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

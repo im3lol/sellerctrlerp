@@ -10,6 +10,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
+import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
@@ -211,8 +212,8 @@ async function matchingSalesOrderIds(orgId: string, f: SalesOrdersFilter): Promi
   return (await db.select({ id: salesOrders.id }).from(salesOrders).where(and(...conds))).map((r) => r.id);
 }
 
-export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[], all?: SalesOrdersFilter): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
+export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete" | "deliver", ids: string[], all?: SalesOrdersFilter): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" || op === "deliver" ? "sales.create" : "sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     if (all) ids = await matchingSalesOrderIds(auth.orgId, all);
@@ -220,6 +221,18 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
 
     // "All pages" can be thousands of rows — run set-based (same guards as the
     // per-row branch below) with ONE summary audit instead of looping.
+    // deliver creates a DRAFT إذن صرف per order, so it must loop the guarded
+    // action (which skips anything not CONFIRMED/PARTIALLY_DELIVERED).
+    if (all && op === "deliver") {
+      let count = 0;
+      for (const id of ids) {
+        const r = await createDeliveryFromOrderAction(id);
+        if (r.ok) count++;
+      }
+      revalidatePath("/sales/orders");
+      revalidatePath("/sales/deliveries");
+      return { ok: true, count };
+    }
     if (all) {
       let count = 0;
       if (op === "confirm") {
@@ -270,9 +283,14 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
         await db.delete(salesOrders).where(eq(salesOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف مسودة أمر بيع ${so.number}` });
         count++;
+      } else if (op === "deliver" && (so.status === "CONFIRMED" || so.status === "PARTIALLY_DELIVERED")) {
+        // One DRAFT إذن صرف per order for the full remaining qty (no posting).
+        const r = await createDeliveryFromOrderAction(id);
+        if (r.ok) count++;
       }
     }
     revalidatePath("/sales/orders");
+    revalidatePath("/sales/deliveries");
     return { ok: true, count };
   });
 }

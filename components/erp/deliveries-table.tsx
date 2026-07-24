@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { bulkDeliveriesAction } from "@/app/actions/erp/deliveries";
+import { bulkDeliveriesAction, type DeliveriesFilter } from "@/app/actions/erp/deliveries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,26 +26,31 @@ const DONE = new Set(["INVOICED", "REVERSED"]);
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function DeliveriesTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: DeliveriesFilter }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [allPages, setAllPages] = useState(false);
+  const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
   const eligible = rows.filter((r) => !DONE.has(r.status)).map((r) => r.id);
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
+  const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
+  const allSelected = allPages || (eligible.length > 0 && eligible.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(eligible)); };
+  const count = allPages ? total : sel.size;
 
   const selRows = rows.filter((r) => sel.has(r.id));
-  const hasDraft = selRows.some((r) => r.status === "DRAFT");
-  const hasDelivered = selRows.some((r) => r.status === "DELIVERED");
+  // In all-pages mode every op is offered — the server-side per-row guards skip
+  // ineligible rows and report the real count.
+  const hasDraft = allPages || selRows.some((r) => r.status === "DRAFT");
+  const hasDelivered = allPages || selRows.some((r) => r.status === "DELIVERED");
 
-  const run = (op: "confirm" | "bill" | "delete", verb: string) => {
+  const run = (op: "confirm" | "bill" | "delete" | "reverse", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} إذن`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: `${verb} ${int(count)} إذن`, danger: op === "delete" || op === "reverse" }))) return;
       start(async () => {
-        const r = await bulkDeliveriesAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} إذن`); setSel(new Set()); router.refresh(); }
+        const r = await bulkDeliveriesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
+        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} إذن`); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? "تعذّر التنفيذ");
       });
     })();
@@ -53,12 +58,17 @@ export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: b
 
   return (
     <div className="space-y-3">
-      {canManage && sel.size > 0 && (
+      {canManage && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          {!allPages && allSelected && total > rows.length && (
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+          )}
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
             {hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+            {hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+            {hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
             {hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
@@ -80,8 +90,8 @@ export function DeliveriesTable({ rows, canManage }: { rows: Row[]; canManage: b
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell>{DONE.has(r.status) ? null : <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
+                <TableRow data-state={(allPages && !DONE.has(r.status)) || sel.has(r.id) ? "selected" : undefined}>
+                  {canManage && <TableCell>{DONE.has(r.status) ? null : <Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
                   <TableCell>
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
