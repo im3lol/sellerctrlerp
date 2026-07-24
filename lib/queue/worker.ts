@@ -11,7 +11,21 @@ import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJo
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
 // under SP-API rate limits and don't get blocked. `startWorkers` is idempotent.
-const CONCURRENCY = 5;
+// Orders must stay near-real-time; report-driven queues (import/settlements) run
+// for minutes and share the low per-account reports quota, so they get 1 slot each
+// and can't starve order pickup for every tenant.
+// ponytail: in-process paced() gates assume ONE worker replica; add a Redis-based
+// pacer before raising these or scaling worker containers horizontally.
+const CONC: Record<QueueName, number> = {
+  "amazon-import": 1,
+  "amazon-discovery": 2,
+  "amazon-details": 2,
+  "amazon-images": 2,
+  "amazon-orders": 5,
+  "amazon-settlements": 1,
+  "amazon-pricing": 2,
+  "amazon-inventory": 2,
+};
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
 
 let started = false;
@@ -31,7 +45,7 @@ export function startWorkers(): void {
   ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
-    const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data), { connection, concurrency: CONCURRENCY, limiter: LIMITER });
+    const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data), { connection, concurrency: CONC[name] ?? 2, limiter: LIMITER });
     w.on("failed", (job, err) => console.error(`[queue] ${name} job ${job?.id} failed:`, err?.message));
     return w;
   };

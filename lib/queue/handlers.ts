@@ -7,6 +7,7 @@ import { startRun, finishRun } from "@/lib/erp/sync-runs";
 import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
+import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
 import { allErpPermissions } from "@/lib/erp/permissions";
 
 /**
@@ -34,10 +35,10 @@ async function runProducts(d: SyncJob, kind: "IMPORT" | "DISCOVERY", run: (p: Sy
   const runId = await startRun(d.orgId, d.provider, kind, d.marketplaceId);
   const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
   if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
-  const r = await run(prep);
-  if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
+  const [r, apiRequests] = await withRequestCount(() => run(prep));
+  if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
   await markSync(d.orgId, d.provider, { lastSyncStatus: kind === "IMPORT" ? "ok" : "auto", needsReauth: false, productsSyncedAt: new Date() });
-  await finishRun(d.orgId, runId, "OK", { productsProcessed: r.total, newProducts: r.created, updatedProducts: r.linked });
+  await finishRun(d.orgId, runId, "OK", { productsProcessed: r.total, newProducts: r.created, updatedProducts: r.linked, apiRequests });
 }
 
 /** One-time full catalog import via the Reports API (complete, no 1000 cap). */
@@ -71,13 +72,13 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
     // Watermark = the fetch window's END (captured before the pull), not finish time —
     // a slow paced pull would otherwise blind the next window to mid-run updates.
     const to = new Date();
-    const r = await runWithErpContext(ctx, () => syncOrdersCore(prep, ctx.userId, { from, to, mode: d.ordersMode ?? "updated" }));
-    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
+    const [r, apiRequests] = await withRequestCount(() => runWithErpContext(ctx, () => syncOrdersCore(prep, ctx.userId, { from, to, mode: d.ordersMode ?? "updated" })));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     // Only advance the watermark when every order landed — a transient insert
     // failure on an already-Shipped order (no future update event) would otherwise
     // be silently lost; re-scanning the same window is safe (dedup skips repeats).
     await markSync(d.orgId, d.provider, r.failed > 0 ? { lastSyncStatus: "auto", needsReauth: false } : { lastSyncStatus: "auto", needsReauth: false, ordersSyncedAt: to });
-    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created });
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created, failedProducts: r.failed, apiRequests });
   } catch (e) {
     console.error("[queue] order sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة المبيعات");
@@ -102,10 +103,10 @@ export async function runSettlementsJob(d: SyncJob): Promise<void> {
   await markSync(d.orgId, d.provider, { settlementsSyncedAt: new Date() });
   try {
     const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const r = await runWithErpContext(ctx, () => syncSettlementsCore(prep, { from, to: new Date() }));
-    if (!r.ok) { await markSync(d.orgId, d.provider, { lastSyncStatus: "error" }); await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
+    const [r, apiRequests] = await withRequestCount(() => runWithErpContext(ctx, () => syncSettlementsCore(prep, { from, to: new Date() })));
+    if (!r.ok) { await markSync(d.orgId, d.provider, { lastSyncStatus: "error" }); await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", needsReauth: false });
-    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted });
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted, apiRequests });
   } catch (e) {
     console.error("[queue] settlement sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التسويات");
@@ -118,8 +119,8 @@ export async function runInventoryAuditJob(d: SyncJob): Promise<void> {
   const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
   if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
   try {
-    const r = await runInventoryAudit(prep);
-    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.totalSkus, newProducts: r.withDiff });
+    const [r, apiRequests] = await withRequestCount(() => runInventoryAudit(prep));
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.totalSkus, newProducts: r.withDiff, apiRequests });
   } catch (e) {
     console.error("[queue] inventory audit failed:", e);
     // Keep the stored message short — never dump a raw SQL error to the UI.

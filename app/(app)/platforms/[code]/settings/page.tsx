@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses, bankAccounts } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts, syncRuns } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformSettingsForm } from "@/components/erp/platform-settings-form";
+import { SyncRunsTable } from "@/components/erp/sync-runs-table";
 
 /** إعدادات المنصة — الصفحة المخصصة بدل الـ dialog المزدحم القديم. */
 export default async function PlatformSettingsPage({ params }: { params: Promise<{ code: string }> }) {
@@ -31,6 +32,15 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
     ]);
     if (!platform) notFound();
 
+    const runs = await db.select({
+      id: syncRuns.id, kind: syncRuns.kind, status: syncRuns.status,
+      productsProcessed: syncRuns.productsProcessed, newProducts: syncRuns.newProducts,
+      updatedProducts: syncRuns.updatedProducts, apiRequests: syncRuns.apiRequests,
+      error: syncRuns.error, startedAt: syncRuns.startedAt, finishedAt: syncRuns.finishedAt,
+    }).from(syncRuns)
+      .where(and(eq(syncRuns.organizationId, orgId), eq(syncRuns.provider, platform.code.toLowerCase())))
+      .orderBy(desc(syncRuns.startedAt)).limit(20);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
@@ -40,6 +50,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
         <PlatformSettingsForm platform={platform} warehouses={whRows} bankAccounts={bankRows} />
+        <SyncRunsTable rows={runs} />
       </div>
     );
   }, "marketplace");
