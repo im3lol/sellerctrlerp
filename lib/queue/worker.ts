@@ -6,7 +6,7 @@ import { syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
-import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob } from "./handlers";
+import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runReimbursementsJob, runLedgerJob, runPricingJob } from "./handlers";
 
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
@@ -25,6 +25,9 @@ const CONC: Record<QueueName, number> = {
   "amazon-settlements": 1,
   "amazon-pricing": 2,
   "amazon-inventory": 2,
+  "amazon-returns": 1,
+  "amazon-reimbursements": 1,
+  "amazon-ledger": 1,
 };
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
 
@@ -41,7 +44,7 @@ export function startWorkers(): void {
   // for the whole stale window (60 min) after every restart.
   void withPlatformScope(() =>
     db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف بإعادة تشغيل الخادم" })
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS"]), eq(syncRuns.status, "RUNNING"))),
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"))),
   ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
@@ -57,7 +60,10 @@ export function startWorkers(): void {
   make(QUEUES.orders, runOrdersJob);
   make(QUEUES.settlements, runSettlementsJob);
   make(QUEUES.inventory, runInventoryAuditJob);
-  // pricing queue: next.
+  make(QUEUES.pricing, runPricingJob);
+  make(QUEUES.returns, runReturnsJob);
+  make(QUEUES.reimbursements, runReimbursementsJob);
+  make(QUEUES.ledger, runLedgerJob);
   console.log("[queue] Amazon sync workers started");
 
   // Near-real-time: self-trigger the due-syncs enqueue every minute — no external

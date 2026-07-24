@@ -9,6 +9,9 @@ import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { AutoMode } from "@/lib/erp/fulfillment";
 import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
+import { upsertPlatformReturns, processPlatformReturns } from "@/lib/erp/returns-core";
+import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
+import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
@@ -16,7 +19,7 @@ import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
 
-export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean; returns: boolean };
 export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags; autoPostSettlements: boolean };
 
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
@@ -48,19 +51,19 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
     const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice" };
-    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements };
+    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements, returns: p.syncReturns };
     return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
 }
 
 export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
 
-export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date }> = {}) {
+export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date; returnsSyncedAt: Date; reimbursementsSyncedAt: Date; ledgerSyncedAt: Date; feesSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
     db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
       .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
@@ -235,5 +238,97 @@ export async function syncInventoryCore(p: SyncPrep): Promise<InventorySync> {
     return { ok: true, matched: rec.result.matched, withDiff: rec.result.withDiff, unmatched: rec.result.unmatched };
   } catch (e) {
     return coreFail(p, e, "فشل سحب المخزون");
+  }
+}
+
+export type ReturnsSync = { ok: true; imported: number; created: number; linkedToSettlement: number; unmatched: number } | { ok: false; error: string };
+
+/** FBA returns: pull the window's returns report, upsert rows, then create/link
+ *  DRAFT مرتجعات. Document creation needs an ErpContext (worker identity). */
+export async function syncReturnsCore(p: SyncPrep, range: DateRange): Promise<ReturnsSync> {
+  if (!p.connector.fetchReturns) return { ok: false, error: "المنصة لا تدعم مزامنة المرتجعات" };
+  try {
+    const rows = await p.connector.fetchReturns(p.cred, range); // slow fetch, unscoped
+    const up = await withOrgScope(p.orgId, false, () => upsertPlatformReturns(p.orgId, rows));
+    const pr = await withOrgScope(p.orgId, false, () => processPlatformReturns(p.orgId));
+    return { ok: true, imported: up.imported, ...pr };
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب المرتجعات");
+  }
+}
+
+export type FeedSync = { ok: true; imported: number; skipped: number } | { ok: false; error: string };
+
+/** FBA reimbursements: read-only upsert of the window's report. */
+export async function syncReimbursementsCore(p: SyncPrep, range: DateRange): Promise<FeedSync> {
+  if (!p.connector.fetchReimbursements) return { ok: false, error: "المنصة لا تدعم التعويضات" };
+  try {
+    const rows = await p.connector.fetchReimbursements(p.cred, range);
+    const up = await withOrgScope(p.orgId, false, () => upsertReimbursements(p.orgId, rows));
+    return { ok: true, ...up };
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب التعويضات");
+  }
+}
+
+/** FBA ledger detail: read-only upsert of the window's inventory events. */
+export async function syncLedgerCore(p: SyncPrep, range: DateRange): Promise<FeedSync> {
+  if (!p.connector.fetchLedgerEvents) return { ok: false, error: "المنصة لا تدعم دفتر FBA" };
+  try {
+    const rows = await p.connector.fetchLedgerEvents(p.cred, range);
+    const up = await withOrgScope(p.orgId, false, () => upsertLedgerEvents(p.orgId, rows));
+    return { ok: true, ...up };
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب دفتر FBA");
+  }
+}
+
+export type FeesSync = { ok: true; estimated: number; itemsConsidered: number } | { ok: false; error: string };
+
+/** Fee estimates: for every Amazon-linked item with a sell price, refresh the
+ *  estimated referral/FBA fees (upsert — estimates change with price). */
+export async function syncFeesCore(p: SyncPrep): Promise<FeesSync> {
+  const fetchFees = p.connector.fetchFees;
+  if (!fetchFees) return { ok: false, error: "المنصة لا تدعم تقدير الرسوم" };
+  try {
+    // Amazon-linked items = those with a SKU code on this channel. sku → itemId.
+    const linked = await withOrgScope(p.orgId, false, () =>
+      db.select({ itemId: itemCodes.itemId, code: itemCodes.code, sellPrice: items.sellPrice })
+        .from(itemCodes)
+        .innerJoin(items, eq(items.id, itemCodes.itemId))
+        .where(and(eq(itemCodes.organizationId, p.orgId), eq(itemCodes.codeType, "SKU"))));
+    const bySku = new Map<string, { itemId: string; price: number }>();
+    for (const l of linked) {
+      const price = Number(l.sellPrice) || 0;
+      if (price > 0) bySku.set(l.code, { itemId: l.itemId, price });
+    }
+    if (bySku.size === 0) return { ok: true, estimated: 0, itemsConsidered: 0 };
+
+    const estimates = await fetchFees(p.cred, [...bySku.entries()].map(([sku, v]) => ({ sku, price: v.price })));
+
+    let estimated = 0;
+    await withOrgScope(p.orgId, false, async () => {
+      for (const fe of estimates) {
+        const link = bySku.get(fe.sku);
+        if (!link) continue;
+        await db.insert(platformItemFees).values({
+          organizationId: p.orgId, channel: p.connector.code, itemId: link.itemId,
+          marketplaceId: p.cred.marketplaceId, currency: fe.currency ?? null,
+          referralFee: String(fe.referralFee), fbaFee: String(fe.fbaFee), totalFees: String(fe.totalFees),
+          priceUsed: String(link.price), fees: fe.raw, estimatedAt: new Date(),
+        }).onConflictDoUpdate({
+          target: [platformItemFees.organizationId, platformItemFees.itemId, platformItemFees.channel],
+          set: {
+            marketplaceId: p.cred.marketplaceId, currency: fe.currency ?? null,
+            referralFee: String(fe.referralFee), fbaFee: String(fe.fbaFee), totalFees: String(fe.totalFees),
+            priceUsed: String(link.price), fees: fe.raw, estimatedAt: new Date(),
+          },
+        });
+        estimated++;
+      }
+    });
+    return { ok: true, estimated, itemsConsidered: bySku.size };
+  } catch (e) {
+    return coreFail(p, e, "فشل تقدير الرسوم");
   }
 }

@@ -1623,6 +1623,7 @@ export const salesPlatforms = pgTable(
     syncOrders: boolean("sync_orders").notNull().default(true),
     syncInventory: boolean("sync_inventory").notNull().default(true),
     syncSettlements: boolean("sync_settlements").notNull().default(true),
+    syncReturns: boolean("sync_returns").notNull().default(true),
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
@@ -1664,6 +1665,13 @@ export const platformCredentials = pgTable(
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
     settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls
+    returnsSyncedAt: ts("returns_synced_at"),               // cadence timer for FBA returns pulls
+    reimbursementsSyncedAt: ts("reimbursements_synced_at"), // cadence timer for reimbursement pulls
+    ledgerSyncedAt: ts("ledger_synced_at"),                 // cadence timer for FBA ledger pulls
+    feesSyncedAt: ts("fees_synced_at"),                     // cadence timer for fee-estimate refreshes
+    // SP-API Notifications (ORDER_CHANGE via shared SQS) — ids make setup idempotent.
+    notifDestinationId: text("notif_destination_id"),
+    notifSubscriptionId: text("notif_subscription_id"),
     openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
     updatedAt: updatedAt(),
   },
@@ -1709,6 +1717,112 @@ export const marketplaceSettlementTxns = pgTable(
     index("mkt_settle_order_idx").on(t.organizationId, t.orderId),
     index("mkt_settle_status_idx").on(t.organizationId, t.channel, t.status),
   ],
+);
+
+// FBA customer-returns feed (returns report). sales_return_id links the DRAFT
+// مرتجع created from (or matched to) this event; dedup_key makes re-pulls idempotent.
+export const platformReturns = pgTable(
+  "platform_returns",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    orderId: text("order_id").notNull(),
+    sku: text("sku").notNull(),
+    asin: text("asin"),
+    returnDate: ts("return_date"),
+    quantity: money("quantity").notNull().default("1"),
+    disposition: text("disposition"), // SELLABLE | CUSTOMER_DAMAGED | DEFECTIVE | ...
+    reason: text("reason"),
+    status: text("status"),
+    fulfillmentCenter: text("fulfillment_center"),
+    licensePlateNumber: text("license_plate_number"),
+    dedupKey: text("dedup_key").notNull(),
+    salesReturnId: text("sales_return_id").references(() => salesReturns.id, { onDelete: "set null" }),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("platform_returns_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("platform_returns_order_idx").on(t.organizationId, t.orderId),
+  ],
+);
+
+// Amazon paying us back for lost/damaged FBA stock (reimbursements report). Read-only.
+export const fbaReimbursements = pgTable(
+  "fba_reimbursements",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    reimbursementId: text("reimbursement_id").notNull(),
+    approvalDate: ts("approval_date"),
+    caseId: text("case_id"),
+    orderId: text("order_id"),
+    sku: text("sku"),
+    fnsku: text("fnsku"),
+    asin: text("asin"),
+    reason: text("reason"), // Lost_warehouse | Damaged_warehouse | CustomerReturn | ...
+    currency: text("currency"),
+    amountPerUnit: money("amount_per_unit").notNull().default("0"),
+    amountTotal: money("amount_total").notNull().default("0"),
+    quantityReimbursedCash: money("quantity_reimbursed_cash").notNull().default("0"),
+    quantityReimbursedInventory: money("quantity_reimbursed_inventory").notNull().default("0"),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fba_reimbursements_dedup_idx").on(t.organizationId, t.reimbursementId, t.sku),
+    index("fba_reimbursements_sku_idx").on(t.organizationId, t.sku),
+  ],
+);
+
+// Every FBA inventory event (ledger detail report) — the audit's drill-down. Read-only.
+export const fbaLedgerEvents = pgTable(
+  "fba_ledger_events",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    eventDate: ts("event_date"),
+    sku: text("sku"),
+    fnsku: text("fnsku"),
+    asin: text("asin"),
+    eventType: text("event_type").notNull(), // Receipts | Shipments | CustomerReturns | Adjustments | ...
+    referenceId: text("reference_id"),
+    quantity: money("quantity").notNull().default("0"),
+    fulfillmentCenter: text("fulfillment_center"),
+    disposition: text("disposition"),
+    reason: text("reason"),
+    country: text("country"),
+    dedupKey: text("dedup_key").notNull(),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fba_ledger_events_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("fba_ledger_events_sku_idx").on(t.organizationId, t.sku, t.eventDate),
+  ],
+);
+
+// Estimated marketplace fees per item (Product Fees API) at the item's sell price.
+export const platformItemFees = pgTable(
+  "platform_item_fees",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    marketplaceId: text("marketplace_id"),
+    currency: text("currency"),
+    referralFee: money("referral_fee").notNull().default("0"),
+    fbaFee: money("fba_fee").notNull().default("0"),
+    totalFees: money("total_fees").notNull().default("0"),
+    priceUsed: money("price_used").notNull().default("0"),
+    fees: jsonb("fees"),
+    estimatedAt: timestamp("estimated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("platform_item_fees_item_idx").on(t.organizationId, t.itemId, t.channel)],
 );
 
 /* ════════════════════════ INVESTORS ═══════════════════════ */

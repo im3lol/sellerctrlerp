@@ -11,8 +11,11 @@ export const QUEUES = {
   images: "amazon-images",       // per-item image enrichment
   orders: "amazon-orders",       // near-real-time incremental order polling
   settlements: "amazon-settlements", // scheduled settlement report pulls (payments)
-  pricing: "amazon-pricing",     // Phase 4
+  pricing: "amazon-pricing",     // fee estimates (Product Fees API)
   inventory: "amazon-inventory", // read-only Inventory Auditor
+  returns: "amazon-returns",     // FBA customer returns -> DRAFT مرتجعات
+  reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
+  ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

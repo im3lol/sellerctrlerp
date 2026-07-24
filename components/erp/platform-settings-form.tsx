@@ -15,7 +15,7 @@ import { selectCls } from "@/lib/utils";
 
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string;
-  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean;
+  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean; syncReturns: boolean;
   autoPostSettlements: boolean; autoMode: string;
   warehouseId: string | null; bankAccountId: string | null; customerName: string | null;
 };
@@ -34,6 +34,7 @@ const SOURCES = [
   { key: "orders", label: "المبيعات", desc: "الطلبات الجديدة أولًا بأول — وتدخل الدورة حسب «المعالجة التلقائية»." },
   { key: "inventory", label: "المخزون", desc: "قراءة كميات FBA للمقارنة في تدقيق المخزون (لا يغيّر أرصدتك)." },
   { key: "settlements", label: "المدفوعات والتسويات", desc: "تقارير التسويات (المبالغ والرسوم والتحويلات البنكية)." },
+  { key: "returns", label: "المرتجعات", desc: "مرتجعات FBA تُسحب تلقائيًا وتُنشأ كمرتجع فاتورة مسودة للمراجعة." },
 ] as const;
 
 export function PlatformSettingsForm({
@@ -49,6 +50,7 @@ export function PlatformSettingsForm({
   const [sources, setSources] = useState({
     products: platform.syncProducts, orders: platform.syncOrders,
     inventory: platform.syncInventory, settlements: platform.syncSettlements,
+    returns: platform.syncReturns,
   });
   const [autoMode, setAutoMode] = useState(platform.autoMode || "invoice");
   const [autoPostSettlements, setAutoPostSettlements] = useState(platform.autoPostSettlements);
@@ -65,6 +67,7 @@ export function PlatformSettingsForm({
         name, integrationType, productSyncMode,
         syncProducts: sources.products, syncOrders: sources.orders,
         syncInventory: sources.inventory, syncSettlements: sources.settlements,
+        syncReturns: sources.returns,
         autoPostSettlements, autoMode,
         defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
       });

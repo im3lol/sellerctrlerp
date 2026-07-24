@@ -4,7 +4,7 @@ import type { SyncJob } from "./queues";
 import { db } from "@/lib/db";
 import { organizationMembers } from "@/db/schema";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
 import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
@@ -126,5 +126,78 @@ export async function runInventoryAuditJob(d: SyncJob): Promise<void> {
     // Keep the stored message short — never dump a raw SQL error to the UI.
     const msg = (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تدقيق المخزون";
     await finishRun(d.orgId, runId, "FAILED", {}, msg);
+  }
+}
+
+/** Pull FBA customer returns → upsert + create/link DRAFT مرتجعات. Needs the
+ *  worker's ambient ERP identity (createSalesReturnAction authorizes). Watermark
+ *  advances up-front like settlements — a 12h cadence timer, not a data window
+ *  (the pull re-scans a fixed 60-day window; dedup drops repeats). */
+export async function runReturnsJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "RETURNS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  if (!prep.flags.returns) { await finishRun(d.orgId, runId, "OK", {}); return; } // source toggled off
+  const ctx = await workerErpContext(d.orgId);
+  if (!ctx) { await finishRun(d.orgId, runId, "FAILED", {}, "لا يوجد عضو نشط في المؤسسة لتشغيل المزامنة"); return; }
+  await markSync(d.orgId, d.provider, { returnsSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const [r, apiRequests] = await withRequestCount(() => runWithErpContext(ctx, () => syncReturnsCore(prep, { from, to: new Date() })));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported, newProducts: r.created, updatedProducts: r.linkedToSettlement, failedProducts: r.unmatched, apiRequests });
+  } catch (e) {
+    console.error("[queue] returns sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة المرتجعات");
+  }
+}
+
+/** Read-only FBA reimbursements feed (no documents → no ErpContext). */
+export async function runReimbursementsJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "REIMBURSEMENTS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  await markSync(d.orgId, d.provider, { reimbursementsSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [r, apiRequests] = await withRequestCount(() => syncReimbursementsCore(prep, { from, to: new Date() }));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.skipped, newProducts: r.imported, apiRequests });
+  } catch (e) {
+    console.error("[queue] reimbursements sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التعويضات");
+  }
+}
+
+/** Read-only FBA ledger detail feed. */
+export async function runLedgerJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "LEDGER", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  await markSync(d.orgId, d.provider, { ledgerSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [r, apiRequests] = await withRequestCount(() => syncLedgerCore(prep, { from, to: new Date() }));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.skipped, newProducts: r.imported, apiRequests });
+  } catch (e) {
+    console.error("[queue] ledger sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة دفتر FBA");
+  }
+}
+
+/** Refresh estimated Amazon fees for every linked item (weekly / on demand). */
+export async function runPricingJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "PRICING", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  await markSync(d.orgId, d.provider, { feesSyncedAt: new Date() });
+  try {
+    const [r, apiRequests] = await withRequestCount(() => syncFeesCore(prep));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.itemsConsidered, updatedProducts: r.estimated, apiRequests });
+  } catch (e) {
+    console.error("[queue] fees sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تقدير الرسوم");
   }
 }

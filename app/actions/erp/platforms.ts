@@ -28,6 +28,7 @@ const schema = z.object({
   syncOrders: z.boolean().optional(),
   syncInventory: z.boolean().optional(),
   syncSettlements: z.boolean().optional(),
+  syncReturns: z.boolean().optional(),
   autoPostSettlements: z.boolean().optional(),
   autoMode: z.enum(["draft", "order", "deliver", "invoice"]).optional(),
 });
@@ -154,6 +155,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
       ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
       ...(parsed.data.syncSettlements !== undefined ? { syncSettlements: parsed.data.syncSettlements } : {}),
+      ...(parsed.data.syncReturns !== undefined ? { syncReturns: parsed.data.syncReturns } : {}),
       ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
       ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
       defaultWarehouseId: defaultWarehouseId || null,
