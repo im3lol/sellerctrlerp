@@ -22,7 +22,9 @@ type BatchItem = {
   FeesEstimateIdentifier?: { IdValue?: string };
   FeesEstimate?: { TotalFeesEstimate?: { CurrencyCode?: string; Amount?: number }; FeeDetailList?: FeeDetail[] };
 };
-type BatchResp = { payload?: BatchItem[] };
+// getMyFeesEstimates (batch) returns a TOP-LEVEL array; some SP-API stacks wrap
+// in { payload } — accept both.
+type BatchResp = BatchItem[] | { payload?: BatchItem[] };
 
 /** Pure: one batch-response item → FeeEstimate (null when Amazon returned no estimate). */
 export function parseFeeItem(item: BatchItem): FeeEstimate | null {
@@ -71,7 +73,8 @@ export async function fetchFeesEstimates(cred: Credential, skus: { sku: string; 
     try {
       const resp = await paced(`amazon-fees:${credKey(cred)}`, 2100, () =>
         spJson<BatchResp>(cred, `/products/fees/v0/feesEstimate`, { method: "POST", body: JSON.stringify(body) }));
-      for (const item of resp.payload ?? []) {
+      const list = Array.isArray(resp) ? resp : resp.payload ?? [];
+      for (const item of list) {
         const fe = parseFeeItem(item);
         if (fe) out.push(fe);
       }
