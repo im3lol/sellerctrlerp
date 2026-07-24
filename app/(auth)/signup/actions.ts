@@ -113,7 +113,7 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
   try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); } catch { /* non-fatal */ }
 
   try {
-    await signIn("credentials", { email: d.email, password: d.password, redirectTo: "/dashboard" });
+    await signIn("credentials", { email: d.email, password: d.password, redirectTo: "/setup" });
   } catch (error) {
     if (error instanceof AuthError) return { error: "تم إنشاء الحساب، لكن تعذّر تسجيل الدخول — جرّب من صفحة الدخول" };
     throw error; // NEXT_REDIRECT on success

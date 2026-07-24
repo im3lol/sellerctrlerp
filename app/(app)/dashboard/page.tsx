@@ -6,6 +6,8 @@ import { getSubscriptionState } from "@/lib/erp/subscription";
 import { getErpOverview, getPendingWork, getSalesTrend } from "@/lib/erp/overview";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { NeedsAttention } from "@/components/erp/needs-attention";
+import { SetupProgressCard } from "@/components/erp/setup-progress-card";
+import { getSetupStatus } from "@/lib/erp/setup-status";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { Icon } from "@/components/icon";
 
@@ -48,6 +50,12 @@ export default async function DashboardPage() {
   // 30-day sales trend (fail-safe — degrades to no chart).
   let salesTrend: { label: string; value: number }[] = [];
   try { salesTrend = org ? await getSalesTrend(org.id, 30) : []; } catch { salesTrend = []; }
+
+  // Setup nudge while essential onboarding is incomplete (fail-safe, admins only).
+  let setup: Awaited<ReturnType<typeof getSetupStatus>> | null = null;
+  if (org && user.role !== "system_admin") {
+    try { setup = await getSetupStatus(org.id); } catch { setup = null; }
+  }
   const pendingTiles = pending
     ? [
         { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/accounting/journal", icon: "BookText" },
@@ -81,6 +89,12 @@ export default async function DashboardPage() {
           <span className="text-sm font-medium">{subBanner.text}</span>
           <span className="text-sm underline">إدارة الاشتراك ←</span>
         </Link>
+      )}
+
+      {setup && setup.essentialDone < setup.essentialTotal && (
+        <div data-tour="setup-card">
+          <SetupProgressCard done={setup.essentialDone} total={setup.essentialTotal} />
+        </div>
       )}
 
       {ov && (
@@ -124,7 +138,7 @@ export default async function DashboardPage() {
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">الوحدات</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-tour="dashboard-tiles">
           {tiles.map((t) => (
             <Link key={t.href} href={t.href}>
               <Card className="h-full transition-colors hover:border-primary/50 hover:bg-accent/40">

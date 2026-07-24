@@ -114,7 +114,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           action={
             <div className="flex items-center gap-2">
               <ExportCsvButton action={exportItemsCsvAction} />
-              {canManage && <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>}
+              {canManage && <Button asChild data-tour="new-item"><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>}
             </div>
           }
         />
@@ -157,7 +157,18 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
             </form>
 
             {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أصناف بعد."}</div>
+              hasFilters ? (
+                <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div>
+              ) : (
+                <div className="space-y-4 rounded-xl border border-dashed py-12 text-center">
+                  <div className="text-muted-foreground">لا توجد أصناف بعد — ابدأ بإضافة منتجاتك بإحدى الطرق:</div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>
+                    <Button asChild variant="outline"><Link href="/imports"><Icon name="Upload" className="size-4" />استيراد ملف</Link></Button>
+                    <Button asChild variant="outline"><Link href="/platforms"><Icon name="Store" className="size-4" />مزامنة من أمازون</Link></Button>
+                  </div>
+                </div>
+              )
             ) : (
               <>
                 <ItemsTable

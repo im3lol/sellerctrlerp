@@ -215,7 +215,7 @@ export function PlatformsManager({
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">كل منصة لها عميلها ومخزنها وحسابها البنكي، وتُستورد أوامرها إلى المبيعات.</p>
         {canManage && (
-          <Button size="sm" onClick={() => setOpen(true)}><Plus className="size-4" />منصة جديدة</Button>
+          <Button size="sm" data-tour="new-platform" onClick={() => setOpen(true)}><Plus className="size-4" />منصة جديدة</Button>
         )}
       </div>
 

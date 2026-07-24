@@ -13,6 +13,7 @@ const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.
 const bdt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" });
 
 const MANAGE_LINKS = [
+  { label: "إعداد الحساب",         href: "/setup",                  icon: "Rocket" },
   { label: "دليل الحسابات",       href: "/accounting/chart",       icon: "Calculator" },
   { label: "الفترات المالية",      href: "/accounting/periods",     icon: "Lock" },
   { label: "مراكز التكلفة",        href: "/accounting/cost-centers", icon: "Target" },
