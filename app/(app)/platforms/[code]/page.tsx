@@ -9,7 +9,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlatformActions } from "@/components/erp/platform-actions";
+import { PlatformHeaderActions } from "@/components/erp/platform-header-actions";
 import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
@@ -48,7 +48,7 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
   const { code: codeParam } = await params;
   const { connected, err } = await searchParams;
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [platform] = await db
       .select({
         id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
@@ -170,7 +170,15 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           title={platform.name}
           subtitle={`منصة ${isAmazon ? "أمازون" : "عامة"} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
           backHref="/platforms"
-          action={<PlatformActions code={platform.code.toLowerCase()} isAmazon={isAmazon} />}
+          action={
+            <PlatformHeaderActions
+              code={platform.code.toLowerCase()}
+              isAmazon={isAmazon}
+              connected={!!conn?.connected}
+              syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
+              canManage={can("sales.create")}
+            />
+          }
         />
 
         {connectable && conn && (
@@ -179,7 +187,6 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             label={connector!.label}
             marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
-            syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
           />

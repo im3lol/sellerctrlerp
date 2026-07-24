@@ -1,7 +1,7 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses, bankAccounts } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts, platformCredentials } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformsManager } from "@/components/erp/platforms-manager";
 import { connectableConnectors } from "@/lib/erp/marketplace/registry";
@@ -14,25 +14,22 @@ export default async function PlatformsPage() {
         name: salesPlatforms.name,
         code: salesPlatforms.code,
         integrationType: salesPlatforms.integrationType,
-        productSyncMode: salesPlatforms.productSyncMode,
-        syncProducts: salesPlatforms.syncProducts,
-        syncOrders: salesPlatforms.syncOrders,
-        syncInventory: salesPlatforms.syncInventory,
-        syncSettlements: salesPlatforms.syncSettlements,
-        autoPostSettlements: salesPlatforms.autoPostSettlements,
-        autoMode: salesPlatforms.autoMode,
         isActive: salesPlatforms.isActive,
         customerName: customers.nameAr,
-        customerId: salesPlatforms.customerId,
-        warehouseId: salesPlatforms.defaultWarehouseId,
         warehouseName: warehouses.nameAr,
-        bankAccountId: salesPlatforms.bankAccountId,
         bankName: bankAccounts.nameAr,
+        credentialAt: platformCredentials.connectedAt,
+        lastSync: platformCredentials.lastSyncAt,
       })
         .from(salesPlatforms)
         .leftJoin(customers, eq(customers.id, salesPlatforms.customerId))
         .leftJoin(warehouses, eq(warehouses.id, salesPlatforms.defaultWarehouseId))
         .leftJoin(bankAccounts, eq(bankAccounts.id, salesPlatforms.bankAccountId))
+        // Connection status: a credential row for this org whose provider = the platform code.
+        .leftJoin(platformCredentials, and(
+          eq(platformCredentials.organizationId, salesPlatforms.organizationId),
+          sql`${platformCredentials.provider} = lower(${salesPlatforms.code})`,
+        ))
         .where(eq(salesPlatforms.organizationId, orgId))
         .orderBy(asc(salesPlatforms.name)),
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr }).from(warehouses)
@@ -49,7 +46,12 @@ export default async function PlatformsPage() {
           subtitle="أمازون، نون، وغيرها — تربط المبيعات والمخزون والحسابات، وتُدار كلها من هنا"
         />
         <PlatformsManager
-          platforms={rows}
+          platforms={rows.map((r) => ({
+            id: r.id, name: r.name, code: r.code, integrationType: r.integrationType, isActive: r.isActive,
+            customerName: r.customerName, warehouseName: r.warehouseName, bankName: r.bankName,
+            connected: !!r.credentialAt,
+            lastSyncAt: r.lastSync ? new Date(r.lastSync).toISOString() : null,
+          }))}
           warehouses={whRows}
           bankAccounts={bankRows}
           canManage={can("sales.create")}
