@@ -52,6 +52,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       set: {
         refreshToken: encryptSecret(ex.refreshToken), sellerId: sellerId || null,
         marketplaceId: mp.marketplaceId, region: mp.region, platformId, updatedAt: new Date(),
+        // Fresh token — clear any revoked-token flag so the scheduler resumes.
+        needsReauth: false, lastSyncStatus: null,
       },
     });
   });

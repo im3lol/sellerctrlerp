@@ -59,8 +59,9 @@ export function MarketplaceConnect({
 
   if (conn.connected) {
     const market = marketplaces.find((m) => m.marketplaceId === conn.marketplaceId);
+    const reconnectMp = market?.code ?? marketplaces[0]?.code ?? "";
     return (
-      <Card className="border-emerald-300/60 dark:border-emerald-500/30">
+      <Card className={conn.needsReauth ? "border-destructive/60" : "border-emerald-300/60 dark:border-emerald-500/30"}>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -76,6 +77,16 @@ export function MarketplaceConnect({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {conn.needsReauth && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+              <div className="text-sm font-medium text-destructive">
+                انتهت صلاحية ربط {label} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب.
+              </div>
+              <Button asChild size="sm" variant="destructive">
+                <a href={`/api/erp/marketplace/${provider}/connect?marketplace=${reconnectMp}`}><Plug className="size-4" />إعادة ربط الحساب</a>
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
             <div>
               <div className="text-sm font-medium">المزامنة التلقائية</div>

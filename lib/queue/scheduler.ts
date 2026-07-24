@@ -36,7 +36,10 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       ordersSyncedAt: platformCredentials.ordersSyncedAt,
       settlementsSyncedAt: platformCredentials.settlementsSyncedAt,
       connectedAt: platformCredentials.connectedAt,
-    }).from(platformCredentials).where(eq(platformCredentials.autoSync, true));
+    }).from(platformCredentials)
+      // needsReauth: the token is revoked — scheduling more jobs just burns LWA
+      // calls and fills sync_runs with the same failure until the org reconnects.
+      .where(and(eq(platformCredentials.autoSync, true), eq(platformCredentials.needsReauth, false)));
 
     // Is a RUNNING sync of `kind` already in flight for this org (within the stale window)?
     const isRunning = async (orgId: string, kind: string) => {

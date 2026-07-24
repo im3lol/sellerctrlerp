@@ -10,6 +10,7 @@ import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVari
 import type { AutoMode } from "@/lib/erp/fulfillment";
 import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
+import { isAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
@@ -59,10 +60,23 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
 
 export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
 
-export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date }> = {}) {
+export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
     db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
       .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
+}
+
+/**
+ * Shared failure path for the sync*Core catches: a revoked token (LWA
+ * invalid_grant) flags the credential so the scheduler stops hammering LWA
+ * until the org reconnects; anything else is a normal transient failure.
+ */
+async function coreFail(p: SyncPrep, e: unknown, fallback: string): Promise<{ ok: false; error: string }> {
+  if (isAuthError(e)) {
+    await markSync(p.orgId, p.provider, { needsReauth: true, lastSyncStatus: "reauth" }).catch(() => {});
+    return { ok: false, error: "انتهت صلاحية ربط أمازون — أعد ربط الحساب" };
+  }
+  return { ok: false, error: e instanceof Error ? e.message : fallback };
 }
 
 /**
@@ -109,7 +123,7 @@ export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<Produ
     const products = await p.connector.fetchProducts(p.cred, since);
     return await ingestAndEnrich(p, products);
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المنتجات" };
+    return coreFail(p, e, "فشل سحب المنتجات");
   }
 }
 
@@ -135,7 +149,7 @@ export async function importProductsCore(p: SyncPrep): Promise<ProductsSync> {
     }
     return await ingestAndEnrich(p, products);
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "فشل الاستيراد" };
+    return coreFail(p, e, "فشل الاستيراد");
   }
 }
 
@@ -178,7 +192,7 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
     const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, p.ctx, orders));
     return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب الأوامر" };
+    return coreFail(p, e, "فشل سحب الأوامر");
   }
 }
 
@@ -206,7 +220,7 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
     }
     return { ok: true, imported: up.imported, updated: up.updated, posted, deferredHeld, returnsCreated };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب التسويات" };
+    return coreFail(p, e, "فشل سحب التسويات");
   }
 }
 
@@ -220,6 +234,6 @@ export async function syncInventoryCore(p: SyncPrep): Promise<InventorySync> {
     if (!rec.ok) return { ok: false, error: rec.error };
     return { ok: true, matched: rec.result.matched, withDiff: rec.result.withDiff, unmatched: rec.result.unmatched };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "فشل سحب المخزون" };
+    return coreFail(p, e, "فشل سحب المخزون");
   }
 }

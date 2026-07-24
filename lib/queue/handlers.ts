@@ -36,7 +36,7 @@ async function runProducts(d: SyncJob, kind: "IMPORT" | "DISCOVERY", run: (p: Sy
   if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
   const r = await run(prep);
   if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
-  await markSync(d.orgId, d.provider, { lastSyncStatus: kind === "IMPORT" ? "ok" : "auto", productsSyncedAt: new Date() });
+  await markSync(d.orgId, d.provider, { lastSyncStatus: kind === "IMPORT" ? "ok" : "auto", needsReauth: false, productsSyncedAt: new Date() });
   await finishRun(d.orgId, runId, "OK", { productsProcessed: r.total, newProducts: r.created, updatedProducts: r.linked });
 }
 
@@ -76,7 +76,7 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
     // Only advance the watermark when every order landed — a transient insert
     // failure on an already-Shipped order (no future update event) would otherwise
     // be silently lost; re-scanning the same window is safe (dedup skips repeats).
-    await markSync(d.orgId, d.provider, r.failed > 0 ? { lastSyncStatus: "auto" } : { lastSyncStatus: "auto", ordersSyncedAt: to });
+    await markSync(d.orgId, d.provider, r.failed > 0 ? { lastSyncStatus: "auto", needsReauth: false } : { lastSyncStatus: "auto", needsReauth: false, ordersSyncedAt: to });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created });
   } catch (e) {
     console.error("[queue] order sync failed:", e);
@@ -104,7 +104,7 @@ export async function runSettlementsJob(d: SyncJob): Promise<void> {
     const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     const r = await runWithErpContext(ctx, () => syncSettlementsCore(prep, { from, to: new Date() }));
     if (!r.ok) { await markSync(d.orgId, d.provider, { lastSyncStatus: "error" }); await finishRun(d.orgId, runId, "FAILED", {}, r.error); return; }
-    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto" });
+    await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", needsReauth: false });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted });
   } catch (e) {
     console.error("[queue] settlement sync failed:", e);

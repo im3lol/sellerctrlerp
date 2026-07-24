@@ -1659,6 +1659,8 @@ export const platformCredentials = pgTable(
     lastSyncAt: ts("last_sync_at"),
     lastSyncStatus: text("last_sync_status"),
     autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
+    // Token revoked (LWA invalid_grant) — scheduler skips until the org reconnects.
+    needsReauth: boolean("needs_reauth").notNull().default(false),
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
     settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls

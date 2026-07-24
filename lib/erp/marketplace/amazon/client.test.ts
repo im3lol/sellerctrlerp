@@ -45,7 +45,7 @@ describe("spJson error typing", () => {
   it("throws SpApiError with status/code on non-2xx and does not retry 400", async () => {
     const fetchMock = vi.fn(async () => jsonRes(400, { errors: [{ message: "bad input", code: "InvalidInput" }] }));
     vi.stubGlobal("fetch", fetchMock);
-    const err = await spJson(cred("t400"), "/x").catch((e) => e);
+    const err = (await spJson(cred("t400"), "/x").catch((e) => e)) as SpApiError;
     expect(err).toBeInstanceOf(SpApiError);
     expect(err.status).toBe(400);
     expect(err.code).toBe("InvalidInput");
@@ -55,7 +55,7 @@ describe("spJson error typing", () => {
 
   it("classifies LWA invalid_grant as an auth error", async () => {
     vi.stubGlobal("fetch", vi.fn());
-    const err = await spFetch(cred("bad-token"), "/x").catch((e) => e);
+    const err = (await spFetch(cred("bad-token"), "/x").catch((e) => e)) as SpApiError;
     expect(isAuthError(err)).toBe(true);
     expect(err.code).toBe("invalid_grant");
   });
