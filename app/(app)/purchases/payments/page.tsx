@@ -124,6 +124,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 <VouchersTable
                   type="payment"
                   canManage={canManage}
+                  total={total}
+                  filter={{ q, status, method, from, to }}
                   rows={rows.map((r) => ({ id: r.id, number: r.number, date: r.date, party: r.supplier, invoice: r.invoice, method: r.method, amount: r.amount, status: r.status }))}
                 />
                 <Pagination page={page} pages={pages} total={total} unit="سند" basePath="/purchases/payments" params={{ q, status, method, from, to }} />

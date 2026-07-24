@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { bulkSalesOrdersAction } from "@/app/actions/erp/sales-orders";
+import { bulkSalesOrdersAction, type SalesOrdersFilter } from "@/app/actions/erp/sales-orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,23 +43,26 @@ const CHANNEL_STATUS: Record<string, { label: string; variant: "default" | "seco
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
-export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: SalesOrdersFilter }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [allPages, setAllPages] = useState(false);
 
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const ids = rows.map((r) => r.id);
-  const allSelected = ids.length > 0 && ids.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(ids));
+  const allSelected = allPages || (ids.length > 0 && ids.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(ids)); };
+  const count = allPages ? total : sel.size;
+  const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
   const bulk = (op: "confirm" | "cancel" | "delete") => {
     const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} أمر`, danger: op !== "confirm" }))) return;
+      if (!(await confirm({ title: `${verb} ${int(count)} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
-        const r = await bulkSalesOrdersAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} أمر`); setSel(new Set()); router.refresh(); }
+        const r = await bulkSalesOrdersAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
+        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} أمر`); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? "تعذّر التنفيذ");
       });
     })();
@@ -67,9 +70,13 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
 
   return (
     <div className="space-y-3">
-      {canManage && sel.size > 0 && (
+      {canManage && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          {!allPages && allSelected && total > ids.length && (
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+          )}
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
             <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>
             <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>
@@ -96,8 +103,8 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
             const full = pct >= 100;
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (

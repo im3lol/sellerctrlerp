@@ -2,7 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -161,7 +161,28 @@ export async function deleteStockTransferAction(id: string): Promise<ActionState
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT stock transfers; ineligible rows skipped. */
-export async function bulkStockTransfersAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the list page's filters — the "select all pages" path re-derives the
+ *  ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type TransfersFilter = { q?: string; status?: string; from?: string; to?: string };
+
+async function matchingTransferIds(orgId: string, f: TransfersFilter): Promise<string[]> {
+  const conds = [eq(stockTransfers.organizationId, orgId)];
+  if (f.q) conds.push(ilike(stockTransfers.number, `%${f.q}%`));
+  if (f.status) conds.push(eq(stockTransfers.status, f.status));
+  if (f.from) conds.push(gte(stockTransfers.date, new Date(f.from)));
+  if (f.to) conds.push(lte(stockTransfers.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: stockTransfers.id }).from(stockTransfers).where(and(...conds))).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT stock transfers; ineligible rows skipped.
+ *  When `all` is passed, ids are re-derived server-side from the filter. */
+export async function bulkStockTransfersAction(op: "confirm" | "delete", ids: string[], all?: TransfersFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp(op === "confirm" ? "inventory.confirm" : "inventory.create");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await withOrgScope(auth.orgId, false, () => matchingTransferIds(auth.orgId, all));
+  }
+  // ponytail: per-row loop even for "all pages" — transfer confirm posts stock
+  // movements per line, so a set-based fast path can't apply; switch if volume hurts.
   return bulkOp(ids, op === "confirm" ? confirmStockTransferAction : deleteStockTransferAction);
 }

@@ -2,7 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { stockAdjustments } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
@@ -59,7 +59,27 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT stock adjustments; ineligible rows skipped. */
-export async function bulkStockAdjustmentsAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the list page's filters — the "select all pages" path re-derives the
+ *  ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type AdjustmentsFilter = { q?: string; status?: string; from?: string; to?: string };
+
+async function matchingAdjustmentIds(orgId: string, f: AdjustmentsFilter): Promise<string[]> {
+  const conds = [eq(stockAdjustments.organizationId, orgId)];
+  if (f.q) conds.push(ilike(stockAdjustments.number, `%${f.q}%`));
+  if (f.status) conds.push(eq(stockAdjustments.status, f.status));
+  if (f.from) conds.push(gte(stockAdjustments.date, new Date(f.from)));
+  if (f.to) conds.push(lte(stockAdjustments.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: stockAdjustments.id }).from(stockAdjustments).where(and(...conds))).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT stock adjustments; ineligible rows skipped.
+ *  When `all` is set the ids are re-derived server-side from the filter, then
+ *  the same per-row guarded loop runs (confirm posts real stock+journal work). */
+export async function bulkStockAdjustmentsAction(op: "confirm" | "delete", ids: string[], all?: AdjustmentsFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp(op === "confirm" ? "inventory.confirm" : "inventory.create");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await matchingAdjustmentIds(auth.orgId, all);
+  }
   return bulkOp(ids, op === "confirm" ? confirmStockAdjustmentAction : deleteStockAdjustmentAction);
 }

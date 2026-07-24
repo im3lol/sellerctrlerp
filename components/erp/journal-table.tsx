@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkJournalAction } from "@/app/actions/erp/journal";
+import { bulkJournalAction, type JournalFilter } from "@/app/actions/erp/journal";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
@@ -31,14 +31,23 @@ const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
-export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: boolean }) {
-  const sel = useSelection();
+export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; canDelete: boolean; total: number; filter: JournalFilter }) {
+  const sel = useSelection(total);
   const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
   const showSelect = canDelete && draftIds.length > 0;
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "post", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkJournalAction} onDone={sel.clear} entity="قيد" />}
+      {showSelect && (
+        <BulkBar
+          ids={sel.ids}
+          ops={[{ op: "post", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
+          onDone={sel.clear}
+          entity="قيد"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
+        />
+      )}
       <Table>
         <TableHeader>
           <TableRow>

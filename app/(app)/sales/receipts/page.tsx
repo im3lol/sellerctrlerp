@@ -124,6 +124,8 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
                 <VouchersTable
                   type="receipt"
                   canManage={canManage}
+                  total={total}
+                  filter={{ q, status, method, from, to }}
                   rows={rows.map((r) => ({ id: r.id, number: r.number, date: r.date, party: r.customer, invoice: r.invoice, method: r.method, amount: r.amount, status: r.status }))}
                 />
                 <Pagination page={page} pages={pages} total={total} unit="سند" basePath="/sales/receipts" params={{ q, status, method, from, to }} />

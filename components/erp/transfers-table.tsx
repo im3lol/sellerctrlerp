@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkStockTransfersAction } from "@/app/actions/erp/stock-transfers";
+import { bulkStockTransfersAction, type TransfersFilter } from "@/app/actions/erp/stock-transfers";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
@@ -19,8 +19,8 @@ type Row = {
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function TransfersTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
-  const sel = useSelection();
+export function TransfersTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: TransfersFilter }) {
+  const sel = useSelection(total);
   const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
   const showSelect = canManage && draftIds.length > 0;
 
@@ -30,9 +30,10 @@ export function TransfersTable({ rows, canManage }: { rows: Row[]; canManage: bo
         <BulkBar
           ids={sel.ids}
           ops={[{ op: "confirm", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
-          action={bulkStockTransfersAction}
+          action={(op, ids, allPages) => bulkStockTransfersAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="تحويل"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
       <Table>

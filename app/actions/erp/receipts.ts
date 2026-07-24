@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -205,7 +205,31 @@ export async function deleteReceiptVoucherAction(id: string): Promise<ActionStat
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT receipt vouchers; ineligible rows skipped. */
-export async function bulkReceiptVouchersAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the /sales/receipts list filters — the "select all pages" path re-derives
+ *  the ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type ReceiptVouchersFilter = { q?: string; status?: string; method?: string; from?: string; to?: string };
+
+async function matchingReceiptVoucherIds(orgId: string, f: ReceiptVouchersFilter): Promise<string[]> {
+  const conds = [eq(receiptVouchers.organizationId, orgId)];
+  if (f.status) conds.push(eq(receiptVouchers.status, f.status));
+  if (f.method) conds.push(eq(receiptVouchers.paymentMethod, f.method));
+  if (f.from) conds.push(gte(receiptVouchers.date, new Date(f.from)));
+  if (f.to) conds.push(lte(receiptVouchers.date, new Date(f.to + "T23:59:59")));
+  if (f.q) conds.push(or(ilike(receiptVouchers.number, `%${f.q}%`), ilike(customers.nameAr, `%${f.q}%`))!);
+  return (
+    await db.select({ id: receiptVouchers.id }).from(receiptVouchers)
+      .leftJoin(customers, eq(customers.id, receiptVouchers.customerId))
+      .where(and(...conds))
+  ).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT receipt vouchers; ineligible rows skipped.
+ *  `all` = re-derive ids from the current filters (select all across pages). */
+export async function bulkReceiptVouchersAction(op: "confirm" | "delete", ids: string[], all?: ReceiptVouchersFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp("sales.collect");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await withOrgScope(auth.orgId, false, () => matchingReceiptVoucherIds(auth.orgId, all));
+  }
   return bulkOp(ids, op === "confirm" ? confirmReceiptVoucherAction : deleteReceiptVoucherAction);
 }

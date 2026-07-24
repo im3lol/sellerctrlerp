@@ -187,7 +187,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               </div>
             ) : (
               <>
-                <JournalTable rows={rows} canDelete={can("accounting.create")} />
+                <JournalTable rows={rows} canDelete={can("accounting.create")} total={total} filter={{ q, status, source, from, to }} />
 
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {num(page)} من {num(pages)} · {num(total)} قيد</span>

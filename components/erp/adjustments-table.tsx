@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkStockAdjustmentsAction } from "@/app/actions/erp/stock-adjustments";
+import { bulkStockAdjustmentsAction, type AdjustmentsFilter } from "@/app/actions/erp/stock-adjustments";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
@@ -22,8 +22,8 @@ const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function AdjustmentsTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
-  const sel = useSelection();
+export function AdjustmentsTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: AdjustmentsFilter }) {
+  const sel = useSelection(total);
   const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
   const showSelect = canManage && draftIds.length > 0;
 
@@ -33,9 +33,10 @@ export function AdjustmentsTable({ rows, canManage }: { rows: Row[]; canManage: 
         <BulkBar
           ids={sel.ids}
           ops={[{ op: "confirm", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
-          action={bulkStockAdjustmentsAction}
+          action={(op, ids, allPages) => bulkStockAdjustmentsAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="تسوية"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
       <Table>

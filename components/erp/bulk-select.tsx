@@ -14,36 +14,59 @@ import {
 
 const int = (n: number) => Number(n).toLocaleString("ar-EG-u-nu-latn");
 
-/** Row-selection state for a table (works for a single client-rendered set or a page). */
-export function useSelection() {
+/**
+ * Row-selection state for a table (works for a single client-rendered set or a page).
+ * Pass `total` (the filtered count across ALL pages) to enable "select all pages":
+ * `selectAllPages()` marks the WHOLE filtered set; any manual toggle exits that mode.
+ * The server re-derives the ids from the filter, so the client never ships them.
+ */
+export function useSelection(total?: number) {
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [allPages, setAllPages] = useState(false);
   const ids = useMemo(() => [...sel], [sel]);
   return {
     ids,
     size: sel.size,
-    has: (id: string) => sel.has(id),
-    toggle: (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }),
+    /** True selection size: the filtered total when "all pages" is active. */
+    count: allPages ? (total ?? sel.size) : sel.size,
+    allPages,
+    selectAllPages: () => setAllPages(true),
+    has: (id: string) => allPages || sel.has(id),
+    toggle: (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); },
     /** Toggle a set of ids (e.g. the whole page) on/off. */
-    togglePage: (pageIds: string[]) => setSel((s) => (pageIds.length > 0 && pageIds.every((id) => s.has(id)) ? new Set() : new Set(pageIds))),
-    allOf: (pageIds: string[]) => pageIds.length > 0 && pageIds.every((id) => sel.has(id)),
-    someOf: (pageIds: string[]) => pageIds.some((id) => sel.has(id)),
-    clear: () => setSel(new Set()),
+    togglePage: (pageIds: string[]) => { setAllPages(false); setSel((s) => (pageIds.length > 0 && pageIds.every((id) => s.has(id)) ? new Set() : new Set(pageIds))); },
+    allOf: (pageIds: string[]) => allPages || (pageIds.length > 0 && pageIds.every((id) => sel.has(id))),
+    someOf: (pageIds: string[]) => allPages || pageIds.some((id) => sel.has(id)),
+    clear: () => { setSel(new Set()); setAllPages(false); },
   };
 }
 
-/** Toolbar shown when rows are selected: confirms + runs a bulk-delete action. */
-export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر" }: {
+/** "Select all N across pages" affordance config for the bulk bars. */
+export type AllPagesState = {
+  total: number;      // filtered count across all pages
+  active: boolean;    // allPages mode on
+  canOffer: boolean;  // whole visible page selected AND more pages exist
+  onSelectAll: () => void;
+};
+
+/** Toolbar shown when rows are selected: confirms + runs a bulk-delete action.
+ *  `all` (optional) enables the "select all N across pages" link; when active the
+ *  action receives allPages=true and must re-derive ids from the filter server-side. */
+export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر", all }: {
   ids: string[];
-  action: (ids: string[]) => Promise<BulkResult>;
+  action: (ids: string[], allPages?: boolean) => Promise<BulkResult>;
   onDone: () => void;
   entity?: string;
+  all?: AllPagesState;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (ids.length === 0) return null;
+  const active = !!all?.active;
+  const count = active ? all!.total : ids.length;
+  if (count === 0) return null;
 
   const run = () => start(async () => {
-    const r = await action(ids);
+    const r = await action(ids, active);
     if (!r.ok) { toast.error(r.error); return; }
     toast.success(`تم حذف ${int(r.deleted)} ${entity}${r.blocked ? ` · ${int(r.blocked)} لم يُحذف (مرتبط/مُرحّل)` : ""}`);
     onDone();
@@ -52,18 +75,21 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر" }: {
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-      <span className="font-medium">{int(ids.length)} محدّد</span>
+      <span className="font-medium">{active ? `كل الـ${int(count)} محدّد` : `${int(count)} محدّد`}</span>
+      {all && !active && all.canOffer && (
+        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
+      )}
       <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>إلغاء التحديد</button>
       <div className="ms-auto">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف ({int(ids.length)})
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف ({int(count)})
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>حذف {int(ids.length)} {entity}؟</AlertDialogTitle>
+              <AlertDialogTitle>حذف {int(count)} {entity}؟</AlertDialogTitle>
               <AlertDialogDescription>لا يمكن التراجع. أي عنصر مرتبط بحركات أو مُرحّل لن يُحذف وسيتم تجاهله.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -87,21 +113,24 @@ export type BulkOp<T extends string = string> = { op: T; label: string; icon?: s
  * Generic over the op union so a narrowly-typed `action` (e.g. "confirm"|"delete")
  * stays assignable.
  */
-export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "عنصر" }: {
+export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "عنصر", all }: {
   ids: string[];
   ops: BulkOp<T>[];
-  action: (op: T, ids: string[]) => Promise<{ ok?: boolean; count?: number; error?: string }>;
+  action: (op: T, ids: string[], allPages?: boolean) => Promise<{ ok?: boolean; count?: number; error?: string }>;
   onDone: () => void;
   entity?: string;
+  all?: AllPagesState;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [ask, setAsk] = useState<BulkOp<T> | null>(null);
-  if (ids.length === 0) return null;
+  const active = !!all?.active;
+  const count = active ? all!.total : ids.length;
+  if (count === 0) return null;
 
   const run = (o: BulkOp<T>) => start(async () => {
     setAsk(null);
-    const r = await action(o.op, ids);
+    const r = await action(o.op, ids, active);
     if (!r.ok) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
     toast.success(`تم ${o.label}: ${int(r.count ?? 0)} ${entity}`);
     onDone();
@@ -110,7 +139,10 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-      <span className="font-medium">{int(ids.length)} محدّد</span>
+      <span className="font-medium">{active ? `كل الـ${int(count)} محدّد` : `${int(count)} محدّد`}</span>
+      {all && !active && all.canOffer && (
+        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
+      )}
       <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>إلغاء التحديد</button>
       <div className="ms-auto flex flex-wrap gap-2">
         {ops.map((o) => (
@@ -122,7 +154,7 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
       <AlertDialog open={!!ask} onOpenChange={(o) => !o && setAsk(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{ask?.label} {int(ids.length)} {entity}؟</AlertDialogTitle>
+            <AlertDialogTitle>{ask?.label} {int(count)} {entity}؟</AlertDialogTitle>
             <AlertDialogDescription>الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

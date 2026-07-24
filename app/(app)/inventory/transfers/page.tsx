@@ -127,6 +127,8 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
                 <TransfersTable
                   canManage={can("inventory.confirm") || can("inventory.create")}
                   rows={heads.map((r) => ({ ...r, count: Number(aggMap.get(r.id)?.c ?? 0) }))}
+                  total={Number(total)}
+                  filter={{ q, status: fStatus, from, to }}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>

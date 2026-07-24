@@ -138,6 +138,8 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
               <>
                 <AdjustmentsTable
                   canManage={can("inventory.confirm") || can("inventory.create")}
+                  total={Number(total)}
+                  filter={{ q, status: fStatus, from, to }}
                   rows={heads.map((r) => {
                     const a = aggMap.get(r.id);
                     return { ...r, count: Number(a?.c ?? 0), delta: Number(a?.delta ?? 0) };

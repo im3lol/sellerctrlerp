@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkReceiptVouchersAction } from "@/app/actions/erp/receipts";
+import { bulkReceiptVouchersAction, type ReceiptVouchersFilter } from "@/app/actions/erp/receipts";
 import { bulkPaymentVouchersAction } from "@/app/actions/erp/payments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,16 @@ import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
 import { VoucherRowActions } from "@/components/erp/voucher-row-actions";
 
 export type VoucherRow = { id: string; number: string; date: Date; party: string | null; invoice: string | null; method: string; amount: string; status: string };
+/** Both voucher list pages filter with the same shape (q/status/method/from/to). */
+export type VouchersFilter = ReceiptVouchersFilter;
 
 const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل بنكي", CARD: "بطاقة", CHEQUE: "شيك" };
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 // Only DRAFT vouchers are selectable — the bulk actions reuse the guarded single-item actions.
-export function VouchersTable({ rows, canManage, type }: { rows: VoucherRow[]; canManage: boolean; type: "receipt" | "payment" }) {
-  const sel = useSelection();
+export function VouchersTable({ rows, canManage, type, total, filter }: { rows: VoucherRow[]; canManage: boolean; type: "receipt" | "payment"; total: number; filter: VouchersFilter }) {
+  const sel = useSelection(total);
   const isReceipt = type === "receipt";
   const partyLabel = isReceipt ? "العميل" : "المورد";
   const invoiceBase = isReceipt ? "/sales/invoices" : "/purchases/invoices";
@@ -30,7 +32,16 @@ export function VouchersTable({ rows, canManage, type }: { rows: VoucherRow[]; c
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkAction} onDone={sel.clear} entity="سند" />}
+      {showSelect && (
+        <BulkBar
+          ids={sel.ids}
+          ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          action={(op, ids, allPages) => bulkAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
+          onDone={sel.clear}
+          entity="سند"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
+        />
+      )}
       <Table>
         <TableHeader>
           <TableRow>

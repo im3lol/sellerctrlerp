@@ -171,7 +171,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر بيع بعد."}</div>
             ) : (
               <>
-                <SalesOrdersTable rows={tableRows} canManage={canManage} />
+                <SalesOrdersTable rows={tableRows} canManage={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

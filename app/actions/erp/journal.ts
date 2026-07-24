@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, accounts } from "@/db/schema";
@@ -217,7 +217,28 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
   });
 }
 
-/** Bulk post/delete DRAFT entries; each id runs the guarded single-item action. */
-export async function bulkJournalAction(op: "post" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the journal list page's filters — the "select all pages" path re-derives
+ *  the ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type JournalFilter = { q?: string; status?: string; source?: string; from?: string; to?: string };
+
+async function matchingJournalIds(orgId: string, f: JournalFilter): Promise<string[]> {
+  const conds = [eq(journalEntries.organizationId, orgId)];
+  if (f.status) conds.push(eq(journalEntries.status, f.status));
+  if (f.source) conds.push(eq(journalEntries.sourceType, f.source));
+  if (f.from) conds.push(gte(journalEntries.date, new Date(f.from)));
+  if (f.to) conds.push(lte(journalEntries.date, new Date(`${f.to}T23:59:59`)));
+  if (f.q) conds.push(or(ilike(journalEntries.number, `%${f.q}%`), ilike(journalEntries.description, `%${f.q}%`))!);
+  return (await db.select({ id: journalEntries.id }).from(journalEntries).where(and(...conds))).map((r) => r.id);
+}
+
+/** Bulk post/delete DRAFT entries; each id runs the guarded single-item action.
+ *  When `all` is set, ids are re-derived server-side from the filter (non-DRAFT
+ *  rows are skipped by the per-item guards). */
+export async function bulkJournalAction(op: "post" | "delete", ids: string[], all?: JournalFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp(op === "post" ? "accounting.post" : "accounting.create");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await matchingJournalIds(auth.orgId, all);
+  }
   return bulkOp(ids, op === "post" ? postDraftEntryAction : deleteDraftEntryAction);
 }

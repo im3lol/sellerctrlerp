@@ -4,20 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExpenseRowActions } from "@/components/erp/expense-row-actions";
 import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
-import { bulkExpensesAction } from "@/app/actions/erp/expenses";
+import { bulkExpensesAction, type ExpensesFilter } from "@/app/actions/erp/expenses";
 
 type Row = { id: string; number: string; date: Date; amount: string | null; status: string; payee: string | null; category: string | null; paidFrom: string | null };
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function ExpensesTable({ rows, canDelete }: { rows: Row[]; canDelete: boolean }) {
-  const sel = useSelection();
+export function ExpensesTable({ rows, canDelete, total, filter }: { rows: Row[]; canDelete: boolean; total: number; filter: ExpensesFilter }) {
+  const sel = useSelection(total);
   const ids = rows.map((r) => r.id);
 
   return (
     <>
-      {canDelete && <BulkBar ids={sel.ids} ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkExpensesAction} onDone={sel.clear} entity="مصروف" />}
+      {canDelete && (
+        <BulkBar
+          ids={sel.ids}
+          ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          action={(op, opIds, allPages) => bulkExpensesAction(op, allPages ? [] : opIds, allPages ? filter : undefined)}
+          onDone={sel.clear}
+          entity="مصروف"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(ids) && total > ids.length, onSelectAll: sel.selectAllPages }}
+        />
+      )}
       <Table>
         <TableHeader>
           <TableRow>

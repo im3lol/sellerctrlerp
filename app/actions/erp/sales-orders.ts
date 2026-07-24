@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -197,11 +197,56 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
  * against the op's precondition (confirm/delete need DRAFT; cancel needs a
  * non-invoiced, non-cancelled order) and skipped otherwise.
  */
-export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+/** Mirrors the list page's filters — the "select all pages" path re-derives the
+ *  ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type SalesOrdersFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+async function matchingSalesOrderIds(orgId: string, f: SalesOrdersFilter): Promise<string[]> {
+  const conds = [eq(salesOrders.organizationId, orgId)];
+  if (f.q) conds.push(or(ilike(salesOrders.number, `%${f.q}%`), ilike(salesOrders.externalOrderId, `%${f.q}%`))!);
+  if (f.status) conds.push(eq(salesOrders.status, f.status));
+  if (f.customer) conds.push(eq(salesOrders.customerId, f.customer));
+  if (f.from) conds.push(gte(salesOrders.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesOrders.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesOrders.id }).from(salesOrders).where(and(...conds))).map((r) => r.id);
+}
+
+export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[], all?: SalesOrdersFilter): Promise<ActionState & { count?: number }> {
   const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = await matchingSalesOrderIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تحدّد أي أمر" };
+
+    // "All pages" can be thousands of rows — run set-based (same guards as the
+    // per-row branch below) with ONE summary audit instead of looping.
+    if (all) {
+      let count = 0;
+      if (op === "confirm") {
+        const r = await db.update(salesOrders).set({ status: "CONFIRMED" })
+          .where(and(eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids), eq(salesOrders.status, "DRAFT")))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      } else if (op === "delete") {
+        const r = await db.delete(salesOrders)
+          .where(and(eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids), eq(salesOrders.status, "DRAFT")))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      } else {
+        // cancel: skip anything already delivered/invoiced (posted stock/COGS).
+        const r = await db.update(salesOrders).set({ status: "CANCELLED" })
+          .where(and(
+            eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids),
+            sql`${salesOrders.status} not in ('INVOICED', 'CANCELLED')`,
+            sql`not exists (select 1 from sales_order_lines l where l.sales_order_id = ${salesOrders.id} and (l.delivered_qty > 0 or l.invoiced_qty > 0))`,
+          ))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      }
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: op === "confirm" ? "CONFIRM" : op === "cancel" ? "CANCEL" : "DELETE", entityType: "SALES_ORDER", entityId: "bulk", summary: `عملية جماعية (${op}) على ${count} أمر بيع عبر كل الصفحات` });
+      revalidatePath("/sales/orders");
+      return { ok: true, count };
+    }
 
     let count = 0;
     for (const id of ids) {
