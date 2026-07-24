@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson } from "./client";
+import { spJson, paced, credKey } from "./client";
 import { round2 } from "@/lib/erp/money";
 import type { Credential } from "../connector";
 import type { MarketplaceProduct } from "../dto";
@@ -69,7 +69,9 @@ export async function fetchListings(cred: Credential, lastUpdatedAfter?: Date): 
     if (pageToken) qs.set("pageToken", pageToken);
     let res: ListingsResponse;
     try {
-      res = await spJson<ListingsResponse>(cred, `/listings/2021-08-01/items/${encodeURIComponent(cred.sellerId)}?${qs}`);
+      // searchListingsItems is 5/s — pace pages proactively instead of eating 429s.
+      res = await paced(`amazon-listings:${credKey(cred)}`, 250, () =>
+        spJson<ListingsResponse>(cred, `/listings/2021-08-01/items/${encodeURIComponent(cred.sellerId!)}?${qs}`));
     } catch {
       if (out.length) break; // keep pages already pulled instead of losing the whole run
       throw new Error("تعذّر سحب قائمة المنتجات من أمازون");

@@ -53,7 +53,7 @@ export async function fetchSettlements(cred: Credential, range: DateRange): Prom
     if (r.processingStatus !== "DONE" || !r.reportDocumentId) continue;
     const doc = await gp<DocResp>(cred, `/reports/2021-06-30/documents/${r.reportDocumentId}`);
     if (!doc.url) continue;
-    const res = await fetch(doc.url, { cache: "no-store" });
+    const res = await fetch(doc.url, { cache: "no-store", signal: AbortSignal.timeout(120_000) });
     const buf = Buffer.from(await res.arrayBuffer());
     const text = doc.compressionAlgorithm === "GZIP" ? gunzipSync(buf).toString("utf8") : buf.toString("utf8");
     out.push(...parseSettlementFlatFile(text));

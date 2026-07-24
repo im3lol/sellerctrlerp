@@ -12,7 +12,7 @@ function lwaCreds(): { id: string; secret: string } | null {
 
 type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number };
 
-async function lwaToken(params: Record<string, string>): Promise<TokenResponse | { error: string }> {
+async function lwaToken(params: Record<string, string>): Promise<TokenResponse | { error: string; code?: string }> {
   const creds = lwaCreds();
   if (!creds) return { error: "لم تُضبط بيانات تطبيق أمازون (SPAPI_LWA_CLIENT_ID/SECRET)" };
   const res = await fetch(LWA_TOKEN_URL, {
@@ -20,9 +20,14 @@ async function lwaToken(params: Record<string, string>): Promise<TokenResponse |
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ ...params, client_id: creds.id, client_secret: creds.secret }),
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) return { error: json?.error_description || json?.error || `فشل تبادل التوكن (${res.status})` };
+  if (!res.ok) {
+    // `code` = the raw LWA error (invalid_grant, invalid_client, ...) so the
+    // client can classify revoked tokens.
+    return { error: json?.error_description || json?.error || `فشل تبادل التوكن (${res.status})`, code: json?.error };
+  }
   return json as TokenResponse;
 }
 

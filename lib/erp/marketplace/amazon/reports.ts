@@ -73,7 +73,7 @@ export async function fetchFullListings(cred: Credential, pollMs = 5000, maxPoll
   // 3) Resolve the document URL (S3 — fetched directly, NOT via the SP-API host/token).
   const doc = await spJson<DocResp>(cred, `/reports/2021-06-30/documents/${docId}`);
   if (!doc.url) throw new Error("تعذّر تنزيل مستند التقرير");
-  const res = await fetch(doc.url, { cache: "no-store" });
+  const res = await fetch(doc.url, { cache: "no-store", signal: AbortSignal.timeout(120_000) });
   const buf = Buffer.from(await res.arrayBuffer());
   // ponytail: assume UTF-8. Some legacy flat files are cp1252 — if Arabic item names
   // come garbled, decode via TextDecoder('windows-1252') here.

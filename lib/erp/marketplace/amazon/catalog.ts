@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson } from "./client";
+import { spJson, paced, credKey } from "./client";
 import type { Credential, CatalogRecord, CatalogIdentifier } from "../connector";
 
 // Catalog Items API (2022-04-01): enrich synced products by ASIN with image URL,
@@ -72,7 +72,9 @@ export async function fetchCatalog(cred: Credential, asins: string[]): Promise<C
   for (const batch of chunk(unique, 20)) {
     const qs = new URLSearchParams({ identifiers: batch.join(","), identifiersType: "ASIN", marketplaceIds: cred.marketplaceId, includedData: INCLUDED });
     try {
-      out.push(...parseCatalog(await spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`)));
+      // searchCatalogItems is 2/s — pace batches proactively.
+      out.push(...parseCatalog(await paced(`amazon-catalog:${credKey(cred)}`, 550, () =>
+        spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`))));
     } catch {
       // A failed batch shouldn't abort the whole enrichment; skip it.
     }

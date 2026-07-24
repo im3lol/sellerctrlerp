@@ -39,7 +39,15 @@ function StepCard({ step, done, isNext }: { step: Step; done: boolean; isNext: b
       <CardContent className="flex items-start gap-4 pt-6">
         {done
           ? <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600" />
-          : <Circle className={`mt-0.5 size-6 shrink-0 ${isNext ? "text-primary" : "text-muted-foreground/40"}`} />}
+          : (
+            <form action={markSetupStepDoneAction} className="shrink-0">
+              <input type="hidden" name="key" value={step.key} />
+              <button type="submit" title="اضغط لتمييز الخطوة كمكتملة" className="group mt-0.5 grid place-items-center rounded-full">
+                <Circle className={`size-6 group-hover:hidden ${isNext ? "text-primary" : "text-muted-foreground/40"}`} />
+                <CheckCircle2 className="hidden size-6 text-emerald-600 group-hover:block" />
+              </button>
+            </form>
+          )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Icon name={step.icon} className="size-4 text-muted-foreground" />
@@ -54,15 +62,6 @@ function StepCard({ step, done, isNext }: { step: Step; done: boolean; isNext: b
                 <Link href={c.href}>{c.label}</Link>
               </Button>
             ))}
-            {!done && (
-              <form action={markSetupStepDoneAction}>
-                <input type="hidden" name="key" value={step.key} />
-                <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground">
-                  <CheckCircle2 className="size-4" />
-                  تمييز كمكتملة
-                </Button>
-              </form>
-            )}
           </div>
         </div>
       </CardContent>
