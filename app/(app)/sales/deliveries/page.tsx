@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DeliveriesTable } from "@/components/erp/deliveries-table";
+import { ShortageAdjustmentButton } from "@/components/erp/shortage-adjustment-button";
+import { computeDeliveryShortages } from "@/lib/erp/delivery-shortages";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
@@ -45,6 +47,11 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
     // amber = delivered but not yet invoiced → still owed a bill.
     const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DELIVERED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
+
+    // Stock coverage of the DRAFT deliveries (fail-safe — degrades to no card).
+    let shortages: Awaited<ReturnType<typeof computeDeliveryShortages>> = { shortages: [], shortDeliveryIds: [] };
+    try { shortages = await computeDeliveryShortages(orgId); } catch { /* keep empty */ }
+    const canAdjust = can("inventory.create");
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -108,14 +115,26 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
           title="إذون الصرف"
           subtitle={`${total} إذن`}
           action={canManage ? (
-            <Button asChild><Link href="/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن صرف</Link></Button>
+            <div className="flex flex-wrap gap-2">
+              {canAdjust && shortages.shortages.length > 0 && <ShortageAdjustmentButton items={shortages.shortages.length} />}
+              <Button asChild><Link href="/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن صرف</Link></Button>
+            </div>
           ) : undefined}
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className={`grid gap-4 ${shortages.shortDeliveryIds.length > 0 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
           {statCards.map((s) => (
             <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
           ))}
+          {shortages.shortDeliveryIds.length > 0 && (
+            <Card className="border-destructive/40">
+              <CardContent className="pt-6">
+                <div className="text-sm text-muted-foreground">ناقصة مخزون</div>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{shortages.shortDeliveryIds.length.toLocaleString("ar-EG-u-nu-latn")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">إذن مسودة كمياته غير مغطاة ({shortages.shortages.length.toLocaleString("ar-EG-u-nu-latn")} صنف ناقص)</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <Card>
@@ -157,7 +176,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد."}</div>
             ) : (
               <>
-                <DeliveriesTable rows={rows} canManage={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
+                <DeliveriesTable rows={rows} canManage={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} shortIds={shortages.shortDeliveryIds} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

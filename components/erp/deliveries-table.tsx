@@ -26,13 +26,14 @@ const DONE = new Set(["INVOICED", "REVERSED"]);
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function DeliveriesTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: DeliveriesFilter }) {
+export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] }: { rows: Row[]; canManage: boolean; total: number; filter: DeliveriesFilter; shortIds?: string[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [allPages, setAllPages] = useState(false);
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
+  const short = new Set(shortIds);
   const eligible = rows.filter((r) => !DONE.has(r.status)).map((r) => r.id);
   const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const allSelected = allPages || (eligible.length > 0 && eligible.every((id) => sel.has(id)));
@@ -99,7 +100,7 @@ export function DeliveriesTable({ rows, canManage, total, filter }: { rows: Row[
                   <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title="المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)">نقص مخزون</Badge>}{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">

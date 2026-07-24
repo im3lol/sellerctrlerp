@@ -518,3 +518,30 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
     }
   });
 }
+
+/**
+ * One click: the aggregated stock shortages of all DRAFT إذون الصرف → ONE DRAFT
+ * stock adjustment (delta = the missing qty per item/warehouse) the user reviews
+ * against a physical count (جرد) then posts. Nothing moves until it's confirmed.
+ */
+export async function createDeliveryShortageAdjustmentAction(): Promise<ActionState & { id?: string; count?: number }> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const { computeDeliveryShortages } = await import("@/lib/erp/delivery-shortages");
+    const { shortages } = await computeDeliveryShortages(auth.orgId);
+    if (shortages.length === 0) return { error: "لا توجد نواقص — المخزون يغطي كل إذون الصرف المسودة" };
+    const lines = shortages.slice(0, 500).map((s) => ({
+      itemId: s.itemId, warehouseId: s.warehouseId, mode: "delta" as const, value: s.missing,
+    }));
+    const { createStockAdjustmentAction } = await import("@/app/actions/erp/stock-adjustments");
+    const r = await createStockAdjustmentAction({
+      date: new Date().toISOString().slice(0, 10),
+      reason: "تسوية نواقص إذون الصرف (جرد)",
+      lines,
+    });
+    if (!r.ok || !r.id) return { error: r.error ?? "تعذّر إنشاء التسوية" };
+    revalidatePath("/sales/deliveries");
+    return { ok: true, id: r.id, count: lines.length };
+  });
+}
