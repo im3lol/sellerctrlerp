@@ -12,7 +12,7 @@ export default async function SecurityPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <ErpPageHeader icon="ShieldCheck" title="الأمان وكلمة المرور" subtitle="غيّر كلمة مرورك وفعّل المصادقة الثنائية" backHref="/dashboard" />
+      <ErpPageHeader icon="ShieldCheck" title="الأمان وكلمة المرور" subtitle="غيّر كلمة مرورك وفعّل المصادقة الثنائية" backHref="/settings" />
       <AccountSecurity mfaEnabled={!!u?.mfaEnabled} passwordChangedAt={u?.passwordChangedAt ? new Date(u.passwordChangedAt).toISOString() : null} />
     </div>
   );

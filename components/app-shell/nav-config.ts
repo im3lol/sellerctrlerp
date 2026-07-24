@@ -226,7 +226,7 @@ export const NAV: NavSection[] = [
       { label: "الأرصدة الافتتاحية", href: "/settings/opening-balance", icon: "Upload", capability: "erp.accounting.create" },
       { label: "صلاحيات المستخدمين", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
-      { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.edit" },
+      { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.view" },
     ],
   },
 ];

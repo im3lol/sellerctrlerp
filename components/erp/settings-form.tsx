@@ -100,8 +100,8 @@ function AccountSelect({
 }
 
 export function SettingsForm({
-  profile, config, accounts, canEdit,
-}: { profile: OrgProfile; config: AccountingConfig; accounts: AccountOption[]; canEdit: boolean }) {
+  profile, config, accounts, canEdit, section,
+}: { profile: OrgProfile; config: AccountingConfig; accounts: AccountOption[]; canEdit: boolean; section?: "profile" | "accounting" }) {
   const [profileState, profileAction] = useActionState<ActionState, FormData>(saveOrgProfileAction, {});
   const [configState, configAction] = useActionState<ActionState, FormData>(saveAccountingConfigAction, {});
 
@@ -119,7 +119,7 @@ export function SettingsForm({
   return (
     <div className="space-y-6">
       {/* Organization profile */}
-      <Card>
+      {section !== "accounting" && <Card>
         <CardHeader>
           <CardTitle>بيانات المنشأة</CardTitle>
           <CardDescription>تظهر هذه البيانات في الفواتير والتقارير، وتُستخدم نسبة الضريبة كقيمة افتراضية.</CardDescription>
@@ -144,10 +144,10 @@ export function SettingsForm({
             </fieldset>
           </form>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Default GL accounts */}
-      <Card>
+      {section !== "profile" && <Card>
         <CardHeader>
           <CardTitle>الضبط المحاسبي الافتراضي</CardTitle>
           <CardDescription>الحسابات التي تُرحَّل إليها المستندات تلقائياً (مدينون، دائنون، مبيعات، مخزون، تكلفة المبيعات، الضرائب).</CardDescription>
@@ -181,7 +181,7 @@ export function SettingsForm({
             </fieldset>
           </form>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }
