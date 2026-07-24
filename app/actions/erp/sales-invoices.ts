@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -281,11 +281,31 @@ export async function deleteSalesInvoiceAction(id: string): Promise<ActionState>
   });
 }
 
-/** Bulk post / delete sales invoices (drafts only). Skips ineligible rows. */
-export async function bulkSalesInvoicesAction(op: "post" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+export type SalesInvoicesFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+/** DRAFT invoice ids matching the page filter — bulk ops apply to drafts only, so
+ *  "select all across pages" re-derives exactly those on the server. */
+async function matchingDraftInvoiceIds(orgId: string, f: SalesInvoicesFilter): Promise<string[]> {
+  const conds = [eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "DRAFT")];
+  if (f.q) conds.push(ilike(salesInvoices.number, `%${f.q}%`));
+  if (f.customer) conds.push(eq(salesInvoices.customerId, f.customer));
+  if (f.from) conds.push(gte(salesInvoices.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesInvoices.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesInvoices.id }).from(salesInvoices).where(and(...conds))).map((r) => r.id);
+}
+
+/**
+ * Bulk post / delete sales invoices (drafts only). Skips ineligible rows.
+ * `all` re-derives the ids server-side from the current filter so the client never
+ * ships thousands of ids. ponytail: loops the guarded per-row action — posting has
+ * per-invoice side effects (GL entry, stock, COGS) so it can't be set-based;
+ * bounded by the draft count, upgrade to batched posting only if that grows huge.
+ */
+export async function bulkSalesInvoicesAction(op: "post" | "delete", ids: string[], all?: SalesInvoicesFilter): Promise<ActionState & { count?: number }> {
   const auth = await authorizeErp(op === "delete" ? "sales.create" : "accounting.post");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = await matchingDraftInvoiceIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تُحدّد أي فواتير" };
     let count = 0;
     let lastError: string | undefined;

@@ -41,9 +41,11 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
     if (to) conds.push(lte(salesInvoices.date, new Date(to + "T23:59:59")));
     const where = and(...conds);
 
-    const [custList, [{ total }], [sum]] = await Promise.all([
+    const [custList, [{ total }], [{ drafts }], [sum]] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ total: count() }).from(salesInvoices).where(where),
+      // DRAFT-only count for the "select all across pages" bulk bar (ops are drafts-only).
+      db.select({ drafts: count() }).from(salesInvoices).where(and(where, eq(salesInvoices.status, "DRAFT"))),
       // Filter-aware money totals (whole result set, not just the page).
       db.select({
         value: sql<string>`coalesce(sum(${salesInvoices.totalAmount}), 0)`,
@@ -156,7 +158,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
             ) : (
               <>
-                <SalesInvoicesTable rows={rows} canManage={canManage} canPost={canPost} />
+                <SalesInvoicesTable rows={rows} canManage={canManage} canPost={canPost} total={Number(drafts)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">
