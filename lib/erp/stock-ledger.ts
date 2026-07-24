@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, warehouses, stockMovements } from "@/db/schema";
+import { items, warehouses, stockMovements, deliveryNotes, purchaseReceipts, purchaseInvoices, salesInvoices, purchaseReturns, salesReturns, stockAdjustments, stockTransfers } from "@/db/schema";
 
 export const MOVE_TYPE: Record<string, { label: string; tone: "in" | "out" | "adj" }> = {
   IN: { label: "وارد", tone: "in" },
@@ -11,6 +11,9 @@ export const MOVE_TYPE: Record<string, { label: string; tone: "in" | "out" | "ad
 
 export const MOVE_REF: Record<string, string> = {
   OPENING_STOCK: "رصيد افتتاحي",
+  OPENING_BALANCE: "رصيد افتتاحي",
+  ASSEMBLY: "تجميع حزمة",
+  DISASSEMBLY: "فك حزمة",
   GOODS_RECEIPT: "إذن استلام",
   GOODS_RECEIPT_REVERSE: "عكس إذن استلام",
   DELIVERY: "إذن صرف",
@@ -30,6 +33,8 @@ export type StockLedgerRow = {
   number: string;
   type: string;
   refType: string | null;
+  refNumber: string | null; // the source document's own number (e.g. GR-2026-0001)
+  refHref: string | null;   // clickable path to that document's detail page
   reason: string | null;
   itemId: string | null;
   itemCode: string | null;
@@ -136,6 +141,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
       number: stockMovements.number,
       type: stockMovements.type,
       refType: stockMovements.referenceType,
+      refId: stockMovements.referenceId,
       reason: stockMovements.reason,
       itemId: stockMovements.itemId,
       itemCode: items.code,
@@ -156,13 +162,41 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
     : base.orderBy(desc(stockMovements.date), desc(stockMovements.createdAt));
   const raw = pageSize ? await ordered.limit(pageSize).offset((page - 1) * pageSize) : await ordered;
 
-  const rows: StockLedgerRow[] = raw.map((r) => ({
-    ...r,
-    quantity: Number(r.quantity),
-    unitCost: Number(r.unitCost),
-    balanceQuantity: Number(r.balanceQuantity),
-    balanceValue: Number(r.balanceValue),
+  // Resolve each movement's source DOCUMENT (number + link) for the page's rows.
+  // refType family → (table, detail route). Adjustments/transfers route by id;
+  // the rest route by the document number.
+  const DOC_SOURCES = [
+    { types: ["DELIVERY", "DELIVERY_REVERSE"], table: deliveryNotes, href: (r: { id: string; number: string }) => `/sales/deliveries/${encodeURIComponent(r.number)}` },
+    { types: ["GOODS_RECEIPT", "GOODS_RECEIPT_REVERSE"], table: purchaseReceipts, href: (r: { id: string; number: string }) => `/purchases/receipts/${encodeURIComponent(r.number)}` },
+    { types: ["PURCHASE_INVOICE"], table: purchaseInvoices, href: (r: { id: string; number: string }) => `/purchases/invoices/${encodeURIComponent(r.number)}` },
+    { types: ["SALES_INVOICE"], table: salesInvoices, href: (r: { id: string; number: string }) => `/sales/invoices/${encodeURIComponent(r.number)}` },
+    { types: ["PURCHASE_RETURN", "PURCHASE_RETURN_CANCEL"], table: purchaseReturns, href: (r: { id: string; number: string }) => `/purchases/returns/${encodeURIComponent(r.number)}` },
+    { types: ["SALES_RETURN", "SALES_RETURN_CANCEL"], table: salesReturns, href: (r: { id: string; number: string }) => `/sales/returns/${encodeURIComponent(r.number)}` },
+    { types: ["ADJUSTMENT"], table: stockAdjustments, href: (r: { id: string; number: string }) => `/inventory/adjustments/${r.id}` },
+    { types: ["TRANSFER"], table: stockTransfers, href: (r: { id: string; number: string }) => `/inventory/transfers/${r.id}` },
+  ] as const;
+  const docBy = new Map<string, { number: string; href: string }>();
+  await Promise.all(DOC_SOURCES.map(async (src) => {
+    const ids = [...new Set(raw.filter((r) => r.refId && (src.types as readonly string[]).includes(r.refType ?? "")).map((r) => r.refId as string))];
+    if (!ids.length) return;
+    const t = src.table;
+    const docs = await db.select({ id: t.id, number: t.number }).from(t)
+      .where(and(eq(t.organizationId, orgId), sql`${t.id} in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`));
+    for (const d of docs) docBy.set(d.id, { number: d.number, href: src.href(d) });
   }));
+
+  const rows: StockLedgerRow[] = raw.map((r) => {
+    const doc = r.refId ? docBy.get(r.refId) : undefined;
+    return {
+      ...r,
+      refNumber: doc?.number ?? null,
+      refHref: doc?.href ?? null,
+      quantity: Number(r.quantity),
+      unitCost: Number(r.unitCost),
+      balanceQuantity: Number(r.balanceQuantity),
+      balanceValue: Number(r.balanceValue),
+    };
+  });
 
   return { rows, totals, totalRows, itemLabel, items: itemList, warehouses: whList };
 }

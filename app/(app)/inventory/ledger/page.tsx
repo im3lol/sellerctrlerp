@@ -154,7 +154,12 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                             )}
                           </TableCell>
                           <TableCell><Badge variant={variant}>{t.label}</Badge></TableCell>
-                          <TableCell>{MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}</TableCell>
+                          <TableCell>
+                            <div>{MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}</div>
+                            {r.refNumber && (r.refHref
+                              ? <Link href={r.refHref} className="font-mono text-xs text-primary hover:underline" dir="ltr">{r.refNumber}</Link>
+                              : <span className="font-mono text-xs text-muted-foreground" dir="ltr">{r.refNumber}</span>)}
+                          </TableCell>
                           <TableCell>{r.warehouse ?? "—"}</TableCell>
                           <TableCell>{!isOut ? qfmt(r.quantity) : "—"}</TableCell>
                           <TableCell>{isOut ? qfmt(r.quantity) : "—"}</TableCell>
