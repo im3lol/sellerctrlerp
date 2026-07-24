@@ -139,3 +139,22 @@ export async function saveAccountingConfigAction(_prev: ActionState, formData: F
     return { ok: true };
   });
 }
+
+const SETUP_KEYS = new Set(["company", "chart", "units", "warehouses", "items", "customers", "suppliers", "opening", "numbering", "platform"]);
+
+/** Mark a setup-checklist step as done manually (form action from /setup). */
+export async function markSetupStepDoneAction(formData: FormData): Promise<void> {
+  const auth = await authorizeErp("settings.edit");
+  if ("error" in auth) return;
+  const key = String(formData.get("key") ?? "");
+  if (!SETUP_KEYS.has(key)) return;
+  await withOrgScope(auth.orgId, false, async () => {
+    const [org] = await db.select({ skipped: organizations.setupSkipped })
+      .from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+    await db.update(organizations)
+      .set({ setupSkipped: [...new Set([...(org?.skipped ?? []), key])], updatedAt: new Date() })
+      .where(eq(organizations.id, auth.orgId));
+  });
+  revalidatePath("/setup");
+  revalidatePath("/dashboard");
+}

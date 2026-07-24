@@ -28,7 +28,7 @@ export type SetupStatus = {
 export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
   const cnt = (p: Promise<{ n: number }[]>) => p.then((r) => Number(r[0]?.n ?? 0));
   const [org, nAccounts, nUnits, nWarehouses, nItems, nCustomers, nSuppliers, nOpeningStock, nOpeningJournal, nPrefixes, nPlatforms] = await Promise.all([
-    db.select({ taxNumber: organizations.taxNumber, logo: organizations.logo, fiscalYearStart: organizations.fiscalYearStart })
+    db.select({ taxNumber: organizations.taxNumber, logo: organizations.logo, fiscalYearStart: organizations.fiscalYearStart, setupSkipped: organizations.setupSkipped })
       .from(organizations).where(eq(organizations.id, orgId)).limit(1).then((r) => r[0]),
     cnt(db.select({ n: sql<number>`count(*)` }).from(accounts).where(eq(accounts.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(unitsOfMeasure).where(eq(unitsOfMeasure.organizationId, orgId))),
@@ -58,6 +58,10 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     essentialDone: 0,
     essentialTotal: 7,
   };
+  // Steps the admin marked done manually override the derived state.
+  for (const k of org?.setupSkipped ?? []) {
+    if (k in s && typeof s[k as keyof SetupStatus] === "boolean") (s as Record<string, unknown>)[k] = true;
+  }
   s.essentialDone = [s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers].filter(Boolean).length;
   return s;
 }

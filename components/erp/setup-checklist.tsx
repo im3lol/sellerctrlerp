@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import type { SetupStatus } from "@/lib/erp/setup-status";
+import { markSetupStepDoneAction } from "@/app/actions/erp/settings";
 
 type Step = {
   key: keyof SetupStatus;
@@ -47,15 +48,22 @@ function StepCard({ step, done, isNext }: { step: Step; done: boolean; isNext: b
             {isNext && <Badge>الخطوة التالية</Badge>}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{step.desc}</p>
-          {!done && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {step.ctas.map((c, i) => (
-                <Button key={c.href} asChild size="sm" variant={isNext && i === 0 ? "default" : "outline"}>
-                  <Link href={c.href}>{c.label}</Link>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {step.ctas.map((c, i) => (
+              <Button key={c.href} asChild size="sm" variant={!done && isNext && i === 0 ? "default" : "outline"}>
+                <Link href={c.href}>{c.label}</Link>
+              </Button>
+            ))}
+            {!done && (
+              <form action={markSetupStepDoneAction}>
+                <input type="hidden" name="key" value={step.key} />
+                <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground">
+                  <CheckCircle2 className="size-4" />
+                  تمييز كمكتملة
                 </Button>
-              ))}
-            </div>
-          )}
+              </form>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

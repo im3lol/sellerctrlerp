@@ -70,6 +70,8 @@ export const organizations = pgTable(
     vatRate: money("vat_rate").notNull().default("14"),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
+    // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
+    setupSkipped: jsonb("setup_skipped").$type<string[]>(),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
