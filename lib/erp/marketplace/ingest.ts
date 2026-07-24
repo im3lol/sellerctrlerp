@@ -230,7 +230,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   const cycled = new Set<string>(); // order ids runCycle already touched this sync
   const runCycle = async (orderId: string, extId: string) => {
-    if (autoMode === "order") return; // order-only mode: don't deliver/invoice
+    if (autoMode === "draft" || autoMode === "order") return; // no auto delivery/invoice in these modes
     cycled.add(orderId);
     const f = await fulfillOrder(orgId, orderId, { mode: autoMode, draftOnShort: true });
     if (f.ok) { if (f.drafted) stockDrafted++; else if (!f.noop) fulfilled++; }
@@ -264,8 +264,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of toCreate) {
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
-    // The worker can't fulfil (no request scope) → keep DRAFT for a later sync.
-    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill;
+    // No identity (userId null) → keep DRAFT for a later authenticated sync.
+    // autoMode "draft" = the user chose import-as-draft-only: never auto-confirm.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft";
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -277,6 +278,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     if (!o.lines.every((l) => l.itemId)) continue; // a line without an item → leave as-is
     // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
     if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
+    if (autoMode === "draft") continue; // draft-only mode: refresh the data, never advance
     if (hasReviewItem(o)) continue; // needs item review → stay DRAFT, don't advance
     if (!canFulfill) continue; // worker: refreshed the draft; a browser sync will fulfil it
     // Only advance once Amazon marks it Shipped; a still-Pending order just got refreshed.
@@ -308,7 +310,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // its delivery parked DRAFT for lack of stock, so classifyOrders now sees it as a
   // duplicate and never re-drives the cycle. Retry them here every sync — once stock
   // arrives, fulfillOrder confirms the same DRAFT (no duplicate).
-  if (canFulfill && autoMode !== "order") {
+  if (canFulfill && (autoMode === "deliver" || autoMode === "invoice")) {
     const parked = await db.selectDistinct({ soId: deliveryNotes.salesOrderId, extId: salesOrders.externalOrderId })
       .from(deliveryNotes)
       .innerJoin(salesOrders, eq(salesOrders.id, deliveryNotes.salesOrderId))

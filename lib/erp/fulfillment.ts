@@ -7,8 +7,10 @@ import { createDeliveryFromOrderAction, confirmDeliveryAction, convertDeliveryTo
 import { postSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { cancelSalesOrderAction } from "@/app/actions/erp/sales-orders";
 
-/** How far the automatic order flow takes a marketplace order. See sales_platforms.auto_mode. */
-export type AutoMode = "order" | "deliver" | "invoice";
+/** How far the automatic order flow takes a marketplace order. See sales_platforms.auto_mode.
+ *  "draft" = import as DRAFT only (no auto-confirm); "order" = confirm the SO;
+ *  "deliver" = + delivery note; "invoice" = + posted invoice (default). */
+export type AutoMode = "draft" | "order" | "deliver" | "invoice";
 
 /** Notes prefix that marks a delivery parked as DRAFT because stock was short —
  *  what the "بانتظار المخزون" notification counts. Cleared implicitly once confirmed. */
@@ -33,7 +35,7 @@ export type FulfillResult =
  */
 export async function fulfillOrder(orgId: string, orderId: string, opts: { mode?: AutoMode; draftOnShort?: boolean } = {}): Promise<FulfillResult> {
   const mode = opts.mode ?? "invoice";
-  if (mode === "order") return { ok: true, noop: true }; // order-only: leave delivery/invoice to the user
+  if (mode === "draft" || mode === "order") return { ok: true, noop: true }; // no auto delivery/invoice — left to the user
 
   const lines = await db
     .select({ itemId: salesOrderLines.itemId, qty: salesOrderLines.quantity, delivered: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId, name: items.nameAr, code: items.code })

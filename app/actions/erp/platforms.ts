@@ -29,7 +29,7 @@ const schema = z.object({
   syncInventory: z.boolean().optional(),
   syncSettlements: z.boolean().optional(),
   autoPostSettlements: z.boolean().optional(),
-  autoMode: z.enum(["order", "deliver", "invoice"]).optional(),
+  autoMode: z.enum(["draft", "order", "deliver", "invoice"]).optional(),
 });
 
 /** Validate that an optional FK id belongs to the active org (or is empty). */

@@ -195,7 +195,8 @@ function PlatformDialog({
           <select className={selectCls} value={autoMode} onChange={(e) => setAutoMode(e.target.value)}>
             <option value="invoice">أمر بيع + إذن صرف + فاتورة (الدورة كاملة)</option>
             <option value="deliver">أمر بيع + إذن صرف</option>
-            <option value="order">أمر بيع فقط</option>
+            <option value="order">أمر بيع مؤكّد فقط</option>
+            <option value="draft">إضافة الطلب كمسودة فقط (بدون تأكيد)</option>
           </select>
           <p className="text-xs text-muted-foreground">تحدّد لأي مرحلة يمرّ الأوردر تلقائيًا. لو المخزون غير متوفر وقت الصرف، يُحفظ إذن الصرف كمسودة ويصلك إشعار «بانتظار توفّر المخزون» — بدون أي حركة سالبة.</p>
         </div>

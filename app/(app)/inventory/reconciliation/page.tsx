@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/erp/pagination";
 import { AuditStats, AuditLinesTable } from "@/components/erp/audit-summary";
+import { AuditAdjustmentButton } from "@/components/erp/audit-adjustment-button";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 100;
@@ -30,9 +31,12 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
   const fQ = one(sp.q).trim();
   const page = Math.max(1, Number(one(sp.page)) || 1);
 
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const [audit] = await db.select().from(inventoryAudits)
       .where(eq(inventoryAudits.organizationId, orgId)).orderBy(desc(inventoryAudits.createdAt)).limit(1);
+    // Show the fix-it bridge only when the audit found real qty diffs and the user may adjust.
+    const hasQtyDiff = !!audit && (Number(audit.lost) > 0 || Number(audit.withDiff) > 0);
+    const canAdjust = can("inventory.create");
 
     let lines: (typeof inventoryAuditLines.$inferSelect)[] = [];
     let total = 0;
@@ -54,7 +58,8 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardCheck" title="تدقيق مخزون FBA" subtitle="مطابقة كميات أمازون مع النظام — قراءة فقط، لا يغيّر المخزون" backHref="/inventory/stock" />
+        <ErpPageHeader icon="ClipboardCheck" title="تدقيق مخزون FBA" subtitle="مطابقة كميات أمازون مع النظام — قراءة فقط، لا يغيّر المخزون" backHref="/inventory/stock"
+          action={hasQtyDiff && canAdjust ? <AuditAdjustmentButton /> : undefined} />
 
         {!audit ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
