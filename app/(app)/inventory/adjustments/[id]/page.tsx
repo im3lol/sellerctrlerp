@@ -59,14 +59,36 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
         ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
       `);
       const balBy = new Map(bal.rows.map((b) => [`${b.item_id}|${b.warehouse_id}`, { qty: Number(b.qty), value: Number(b.value) }]));
+      // Org-wide WAC per item (sum of every warehouse's latest balance) — the
+      // fallback when the line's warehouse holds nothing.
+      const orgTotals = new Map<string, { qty: number; value: number }>();
+      for (const b of bal.rows) {
+        const t = orgTotals.get(b.item_id) ?? { qty: 0, value: 0 };
+        t.qty += Number(b.qty); t.value += Number(b.value);
+        orgTotals.set(b.item_id, t);
+      }
+      // Last purchase/intake cost per item — the final fallback (zero-stock items).
+      const lastIn = await db.execute<{ item_id: string; cost: string }>(sql`
+        SELECT DISTINCT ON (item_id) item_id, unit_cost AS cost
+        FROM stock_movements
+        WHERE organization_id = ${orgId} AND item_id IN (${sql.join(itemIds.map((i) => sql`${i}`), sql`, `)})
+          AND type = 'IN' AND unit_cost > 0
+        ORDER BY item_id, created_at DESC, split_part(number, '-', 3)::int DESC
+      `);
+      const lastInBy = new Map(lastIn.rows.map((r) => [r.item_id, Number(r.cost)]));
+      const r2 = (n: number) => Math.round(n * 100) / 100;
       editorLines = lines.map((l) => {
         const b = balBy.get(`${l.itemId}|${l.warehouseId}`) ?? { qty: 0, value: 0 };
         const onHand = b.qty;
-        const avgCost = b.qty > 1e-9 ? Math.round((b.value / b.qty) * 100) / 100 : 0;
+        const avgCost = b.qty > 1e-9 ? r2(b.value / b.qty) : 0;
+        const org = orgTotals.get(l.itemId);
+        const orgWac = org && org.qty > 1e-9 ? r2(org.value / org.qty) : 0;
+        // Cost ladder: this warehouse's WAC → org-wide WAC → last intake cost.
+        const defaultCost = avgCost > 0 ? avgCost : orgWac > 0 ? orgWac : lastInBy.get(l.itemId) ?? 0;
         // Default counted qty = the stored target: set-mode keeps its entered value;
         // delta-mode targets current + delta.
         const actual = l.mode === "set" ? Number(l.entered) : Math.max(0, onHand + Number(l.entered));
-        return { lineId: l.id, itemCode: l.itemCode, itemName: l.itemName, warehouse: l.warehouse, onHand, avgCost, actual, unitCost: l.unitCost != null ? Number(l.unitCost) : null };
+        return { lineId: l.id, itemCode: l.itemCode, itemName: l.itemName, warehouse: l.warehouse, onHand, avgCost, defaultCost, actual, unitCost: l.unitCost != null ? Number(l.unitCost) : null };
       });
     }
 

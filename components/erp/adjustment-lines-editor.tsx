@@ -18,8 +18,9 @@ export type EditorLine = {
   itemCode: string | null;
   itemName: string | null;
   warehouse: string | null;
-  onHand: number;   // live system balance in the line's warehouse
-  avgCost: number;  // current WAC (fallback cost estimate)
+  onHand: number;      // live system balance in the line's warehouse
+  avgCost: number;     // current WAC in this warehouse
+  defaultCost: number; // smart prefill: warehouse WAC → org WAC → last intake cost
   actual: number;   // counted qty (defaults to the stored target)
   unitCost: number | null;
 };
@@ -31,7 +32,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
   const router = useRouter();
   const [pending, start] = useTransition();
   const [edits, setEdits] = useState<Record<string, { actual: string; unitCost: string }>>(
-    () => Object.fromEntries(lines.map((l) => [l.lineId, { actual: String(l.actual), unitCost: l.unitCost != null ? String(l.unitCost) : "" }])),
+    () => Object.fromEntries(lines.map((l) => [l.lineId, { actual: String(l.actual), unitCost: l.unitCost != null ? String(l.unitCost) : l.defaultCost > 0 ? String(l.defaultCost) : "" }])),
   );
 
   const rows = useMemo(() => lines.map((l) => {
@@ -39,7 +40,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
     const actual = Number(e?.actual);
     const valid = Number.isFinite(actual) && actual >= 0;
     const delta = valid ? actual - l.onHand : 0;
-    const cost = Number(e?.unitCost) > 0 ? Number(e!.unitCost) : l.avgCost;
+    const cost = Number(e?.unitCost) > 0 ? Number(e!.unitCost) : l.defaultCost;
     const value = valid ? Math.abs(delta) * cost : 0;
     return { ...l, actual, valid, delta, value };
   }), [lines, edits]);
@@ -67,7 +68,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
             <TableHead className="text-start" title="الرصيد الحالي بالنظام في هذا المخزن">الكمية بالنظام</TableHead>
             <TableHead className="text-start" title="الكمية المعدودة فعليًا — عدّلها بعد الجرد">الكمية الفعلية</TableHead>
             <TableHead className="text-start">الفرق</TableHead>
-            <TableHead className="text-start" title="تكلفة إدخال الزيادة — فارغ = متوسط التكلفة الحالي">التكلفة</TableHead>
+            <TableHead className="text-start" title="تُملأ تلقائيًا: متوسط تكلفة المخزن، وإن كان صفرًا فمتوسط كل المخازن، ثم آخر تكلفة شراء">التكلفة</TableHead>
             <TableHead className="text-start">القيمة التقديرية</TableHead>
           </TableRow>
         </TableHeader>
@@ -92,7 +93,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
                 <input
                   type="number" min="0" step="any" dir="ltr"
                   className={inputCls}
-                  placeholder={fmt(r.avgCost)}
+                  placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : "أدخل التكلفة"}
                   value={edits[r.lineId]?.unitCost ?? ""}
                   onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], unitCost: e.target.value } }))}
                 />
