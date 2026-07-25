@@ -11,6 +11,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Field } from "@/components/erp/document-detail";
 import { getAvailability } from "@/lib/erp/availability";
 import { getItemFamily } from "@/lib/erp/item-family";
+import { getItemPnl, getItemLinkedDocs } from "@/lib/erp/item-pnl";
+import Link from "next/link";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
 import { ItemFamilyManager } from "@/components/erp/item-family-manager";
 
@@ -42,6 +44,11 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
     const totalVal = stockRows.reduce((s, r) => s + Number(r.v), 0);
     const av = (await getAvailability(orgId, [item.id])).get(item.id);
     const family = await getItemFamily(orgId, item);
+    const canSeePnl = can("reports.view");
+    const [pnl, linkedDocs] = canSeePnl
+      ? await Promise.all([getItemPnl(orgId, item.id, item.code), getItemLinkedDocs(orgId, item.id)])
+      : [null, []];
+    const ldt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
     return (
       <div className="space-y-6">
@@ -142,6 +149,60 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             )}
           </CardContent>
         </Card>
+
+        {pnl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>الربحية (P&L)</CardTitle>
+              <CardDescription>
+                إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.
+                {!pnl.hasSettlement && " (لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <Field label="الكمية المباعة">{qf(pnl.units)}</Field>
+                <Field label="المبيعات">{money(pnl.revenue)}</Field>
+                <Field label="عمولة أمازون">{money(pnl.referralFee)}</Field>
+                <Field label="رسوم FBA">{money(pnl.fbaFee)}</Field>
+                <Field label="تكلفة البضاعة">{money(pnl.cogs)}</Field>
+                <Field label="صافي الربح">
+                  <span className={pnl.net < 0 ? "font-bold text-destructive" : "font-bold text-emerald-600"}>{money(pnl.net)}</span>
+                  <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
+                </Field>
+              </div>
+              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">رسوم أمازون أخرى: {money(pnl.otherFee)} · إجمالي رسوم أمازون: {money(pnl.amazonFees)}</p>}
+            </CardContent>
+          </Card>
+        )}
+
+        {pnl && linkedDocs.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>المستندات المرتبطة</CardTitle><CardDescription>كل مستند لمس هذا الصنف — بيع وشراء ومرتجعات.</CardDescription></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-start">النوع</TableHead>
+                    <TableHead className="text-start">الرقم</TableHead>
+                    <TableHead className="text-start">التاريخ</TableHead>
+                    <TableHead className="text-start">الكمية</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linkedDocs.map((d, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Badge variant="secondary">{d.kind}</Badge></TableCell>
+                      <TableCell className="font-mono"><Link href={d.href} className="text-primary hover:underline">{d.number}</Link></TableCell>
+                      <TableCell>{ldt(d.date)}</TableCell>
+                      <TableCell className="tabular-nums">{qf(d.qty)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   });
