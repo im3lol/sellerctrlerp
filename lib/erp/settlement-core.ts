@@ -5,11 +5,11 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries,
+  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -414,13 +414,20 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
 }
 
 /**
- * Un-post every posted Amazon settlement entry: reverse each GL entry (mirror),
+ * Un-post every posted Amazon settlement entry: DELETE each GL entry (+ lines),
  * restore the customer subledger it moved (invoice balanceDue/paidAmount/status +
  * customers.balance), and null the txns' journal_entry_id so they become re-postable.
- * The supported correction path — reverse, then Post again to rebuild with current
+ * The supported correction path — un-post, then Post again to rebuild with current
  * (per-order) logic. Idempotent (only touches still-POSTED settlement entries).
+ *
+ * Deletes rather than mirror-reverses on purpose: the balance queries
+ * (lib/erp/financials.ts) aggregate status='POSTED' ONLY, so a mirror-reversal
+ * (original→REVERSED + a POSTED mirror) would double-apply. A settlement entry is a
+ * system-generated aggregate, not a hand-entered document, so removing it is the
+ * clean un-post. `userId` kept for signature parity / future audit.
  */
 export async function reverseSettlementPosting(orgId: string, userId?: string | null): Promise<{ reversed: number } | { error: string }> {
+  void userId;
   const posted = await db.select({ jid: journalEntries.id })
     .from(journalEntries)
     .where(and(
@@ -460,7 +467,11 @@ export async function reverseSettlementPosting(orgId: string, userId?: string | 
       const invByOrder = new Map(invoiceRows.filter((r) => r.orderId).map((r) => [r.orderId!, r]));
 
       await db.transaction(async (tx) => {
-        await reverseEntry(tx, { orgId, entryId: jid, userId, reason: "عكس ترحيل تسوية أمازون" });
+        // Detach the txns first (FK), then delete the entry's lines + the entry.
+        await tx.update(marketplaceSettlementTxns).set({ journalEntryId: null })
+          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.journalEntryId, jid)));
+        await tx.delete(journalEntryLines).where(eq(journalEntryLines.journalEntryId, jid));
+        await tx.delete(journalEntries).where(and(eq(journalEntries.id, jid), eq(journalEntries.organizationId, orgId)));
         for (const [oid, amount] of arByOrder) {
           const inv = invByOrder.get(oid);
           if (!inv) continue;
@@ -474,8 +485,6 @@ export async function reverseSettlementPosting(orgId: string, userId?: string | 
           await tx.update(customers).set({ balance: sql`${customers.balance} + ${amt}` })
             .where(eq(customers.id, inv.customerId));
         }
-        await tx.update(marketplaceSettlementTxns).set({ journalEntryId: null })
-          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.journalEntryId, jid)));
       });
       reversed++;
     }
