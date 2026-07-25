@@ -19,16 +19,17 @@ export type Marketplace = {
   marketplaceId: string;
   region: Region;
   sellerCentral: string; // OAuth consent domain for this marketplace
+  currency: string;      // the marketplace's listing currency (fees estimates need it)
 };
 
 // MENA-first (most likely here), then common NA/EU.
 export const MARKETPLACES: Marketplace[] = [
-  { code: "EG", name: "مصر", marketplaceId: "ARBP9OOSHTCHU", region: "eu", sellerCentral: "https://sellercentral.amazon.eg" },
-  { code: "AE", name: "الإمارات", marketplaceId: "A2VIGQ35RCS4UG", region: "eu", sellerCentral: "https://sellercentral.amazon.ae" },
-  { code: "SA", name: "السعودية", marketplaceId: "A17E79C6D8DWNP", region: "eu", sellerCentral: "https://sellercentral.amazon.sa" },
-  { code: "US", name: "الولايات المتحدة", marketplaceId: "ATVPDKIKX0DER", region: "na", sellerCentral: "https://sellercentral.amazon.com" },
-  { code: "UK", name: "بريطانيا", marketplaceId: "A1F83G8C2ARO7P", region: "eu", sellerCentral: "https://sellercentral.amazon.co.uk" },
-  { code: "DE", name: "ألمانيا", marketplaceId: "A1PA6795UKMFR9", region: "eu", sellerCentral: "https://sellercentral-europe.amazon.com" },
+  { code: "EG", name: "مصر", marketplaceId: "ARBP9OOSHTCHU", region: "eu", sellerCentral: "https://sellercentral.amazon.eg", currency: "EGP" },
+  { code: "AE", name: "الإمارات", marketplaceId: "A2VIGQ35RCS4UG", region: "eu", sellerCentral: "https://sellercentral.amazon.ae", currency: "AED" },
+  { code: "SA", name: "السعودية", marketplaceId: "A17E79C6D8DWNP", region: "eu", sellerCentral: "https://sellercentral.amazon.sa", currency: "SAR" },
+  { code: "US", name: "الولايات المتحدة", marketplaceId: "ATVPDKIKX0DER", region: "na", sellerCentral: "https://sellercentral.amazon.com", currency: "USD" },
+  { code: "UK", name: "بريطانيا", marketplaceId: "A1F83G8C2ARO7P", region: "eu", sellerCentral: "https://sellercentral.amazon.co.uk", currency: "GBP" },
+  { code: "DE", name: "ألمانيا", marketplaceId: "A1PA6795UKMFR9", region: "eu", sellerCentral: "https://sellercentral-europe.amazon.com", currency: "EUR" },
 ];
 
 export function marketplaceByCode(code: string): Marketplace | undefined {

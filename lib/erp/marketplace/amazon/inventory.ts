@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson } from "./client";
+import { spJson, paced, credKey } from "./client";
 import type { Credential } from "../connector";
 import type { MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct } from "../dto";
 
@@ -69,7 +69,9 @@ async function eachSummary<T>(cred: Credential, map: (s: Summary) => T | null): 
     if (next) qs.set("nextToken", next);
     let res: InvResponse;
     try {
-      res = await spJson<InvResponse>(cred, `/fba/inventory/v1/summaries?${qs}`);
+      // getInventorySummaries is 2/s — pace pages proactively.
+      res = await paced(`amazon-inventory:${credKey(cred)}`, 550, () =>
+        spJson<InvResponse>(cred, `/fba/inventory/v1/summaries?${qs}`));
     } catch {
       if (out.length) break; // keep pages already pulled instead of losing the run
       throw new Error("تعذّر سحب مخزون FBA من أمازون");

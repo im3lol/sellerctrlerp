@@ -96,7 +96,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.discount)}</TableCell>
@@ -111,6 +111,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
               <div>الإجمالي الفرعي: <span className="font-medium">{fmt(inv.subtotal)}</span></div>
               <div>الخصم: <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
               <div>الضريبة: <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
+              {Number(inv.shippingAmount) > 0 && <div>الشحن: <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>}
               <div className="text-base font-bold text-primary">الإجمالي للكل: {fmt(inv.totalAmount)}</div>
             </div>
             {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}

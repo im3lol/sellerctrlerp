@@ -1,6 +1,7 @@
 import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 
 export const runtime = "nodejs";
@@ -22,14 +23,15 @@ export async function GET() {
   const opex = expenseTotal - cogs;
   const grossProfit = revenue - cogs;
   const netProfit = revenue - expenseTotal;
-  const cash = (byCode["1101"] ?? 0) + (byCode["1102"] ?? 0);
-  const ar = byCode["1103"] ?? 0;
-  const inventory = byCode["1104"] ?? 0;
+  const rc = await resolveAccountCodes(orgId, ["1101", "1102", "1103", "1104", "2101"]);
+  const cash = (byCode[rc["1101"]] ?? 0) + (byCode[rc["1102"]] ?? 0);
+  const ar = byCode[rc["1103"]] ?? 0;
+  const inventory = byCode[rc["1104"]] ?? 0;
   const currentAssets = sumWhere((b) => b.type === "ASSET" && (b.code ?? "").startsWith("11"));
   const currentLiabilities = sumWhere((b) => b.type === "LIABILITY" && (b.code ?? "").startsWith("21"));
   const totalLiabilities = sumWhere((b) => b.type === "LIABILITY");
   const equity = sumWhere((b) => b.type === "EQUITY") + netProfit;
-  const ap = byCode["2101"] ? -byCode["2101"] : 0;
+  const ap = byCode[rc["2101"]] ? -byCode[rc["2101"]] : 0;
 
   const rows: (string | number)[][] = [
     ["السيولة", "النسبة الجارية", r2(currentAssets / currentLiabilities)],

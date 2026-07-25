@@ -1,6 +1,6 @@
 import "server-only";
 import { gunzipSync } from "node:zlib";
-import { spJson } from "./client";
+import { spJson, paced, credKey } from "./client";
 import { round2 } from "@/lib/erp/money";
 import type { Credential } from "../connector";
 import type { MarketplaceProduct } from "../dto";
@@ -44,17 +44,30 @@ export function parseListingsReport(tsv: string): MarketplaceProduct[] {
 }
 
 /**
- * Request → poll → download → parse the full merchant-listings report. Runs for
- * minutes (report generation is async) — call it from a background worker, never a
- * request. `pollMs`/`maxPolls` bound the wait (default ~15 min).
+ * Request → poll → download any on-demand report, returning the decoded text.
+ * Runs for minutes (report generation is async) — background workers only.
+ * Report-creation/poll calls are paced on the per-account reports gate (the
+ * Reports API quota is tiny and shared across every report type).
  */
-export async function fetchFullListings(cred: Credential, pollMs = 5000, maxPolls = 180): Promise<MarketplaceProduct[]> {
-  if (!cred.marketplaceId) return [];
+export async function requestAndDownloadReport(
+  cred: Credential,
+  reportType: string,
+  opts: { dataStartTime?: Date; dataEndTime?: Date; pollMs?: number; maxPolls?: number } = {},
+): Promise<string> {
+  if (!cred.marketplaceId) return "";
+  const { pollMs = 5000, maxPolls = 180 } = opts;
+  const gate = `amazon-reports:${credKey(cred)}`;
+  const gp = <T>(path: string, init?: RequestInit) => paced(gate, 3000, () => spJson<T>(cred, path, init));
 
   // 1) Request the report.
-  const created = await spJson<CreateResp>(cred, `/reports/2021-06-30/reports`, {
+  const created = await gp<CreateResp>(`/reports/2021-06-30/reports`, {
     method: "POST",
-    body: JSON.stringify({ reportType: REPORT_TYPE, marketplaceIds: [cred.marketplaceId] }),
+    body: JSON.stringify({
+      reportType,
+      marketplaceIds: [cred.marketplaceId],
+      ...(opts.dataStartTime ? { dataStartTime: opts.dataStartTime.toISOString() } : {}),
+      ...(opts.dataEndTime ? { dataEndTime: opts.dataEndTime.toISOString() } : {}),
+    }),
   });
   if (!created.reportId) throw new Error("تعذّر إنشاء تقرير أمازون");
 
@@ -62,21 +75,30 @@ export async function fetchFullListings(cred: Credential, pollMs = 5000, maxPoll
   let docId: string | undefined;
   for (let i = 0; i < maxPolls; i++) {
     await sleep(pollMs);
-    const st = await spJson<StatusResp>(cred, `/reports/2021-06-30/reports/${created.reportId}`);
+    const st = await gp<StatusResp>(`/reports/2021-06-30/reports/${created.reportId}`);
     if (st.processingStatus === "DONE") { docId = st.reportDocumentId; break; }
-    if (st.processingStatus === "FATAL" || st.processingStatus === "CANCELLED") {
-      throw new Error(`فشل تقرير أمازون (${st.processingStatus})`);
-    }
+    // CANCELLED = Amazon had no data for the window (e.g. no returns) — an empty
+    // report, not a failure. Only FATAL is a real error.
+    if (st.processingStatus === "CANCELLED") return "";
+    if (st.processingStatus === "FATAL") throw new Error(`فشل تقرير أمازون (${st.processingStatus})`);
   }
   if (!docId) throw new Error("انتهت مهلة انتظار تقرير أمازون");
 
   // 3) Resolve the document URL (S3 — fetched directly, NOT via the SP-API host/token).
-  const doc = await spJson<DocResp>(cred, `/reports/2021-06-30/documents/${docId}`);
+  const doc = await gp<DocResp>(`/reports/2021-06-30/documents/${docId}`);
   if (!doc.url) throw new Error("تعذّر تنزيل مستند التقرير");
-  const res = await fetch(doc.url, { cache: "no-store" });
+  const res = await fetch(doc.url, { cache: "no-store", signal: AbortSignal.timeout(120_000) });
   const buf = Buffer.from(await res.arrayBuffer());
   // ponytail: assume UTF-8. Some legacy flat files are cp1252 — if Arabic item names
   // come garbled, decode via TextDecoder('windows-1252') here.
-  const text = doc.compressionAlgorithm === "GZIP" ? gunzipSync(buf).toString("utf8") : buf.toString("utf8");
-  return parseListingsReport(text);
+  return doc.compressionAlgorithm === "GZIP" ? gunzipSync(buf).toString("utf8") : buf.toString("utf8");
+}
+
+/**
+ * Request → poll → download → parse the full merchant-listings report. Runs for
+ * minutes — call it from a background worker, never a request.
+ */
+export async function fetchFullListings(cred: Credential, pollMs = 5000, maxPolls = 180): Promise<MarketplaceProduct[]> {
+  if (!cred.marketplaceId) return [];
+  return parseListingsReport(await requestAndDownloadReport(cred, REPORT_TYPE, { pollMs, maxPolls }));
 }

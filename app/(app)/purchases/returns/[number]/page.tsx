@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReturnDetailActions } from "@/components/erp/return-detail-actions";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -64,7 +65,12 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
           title={`مرتجع مشتريات ${ret.number}`}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "مرتجع مشتريات"}
           backHref={backHref}
-          action={<ReturnDetailActions id={ret.id} type="purchase" status={ret.status} canManage={canManage} dest={backHref} />}
+          action={
+            <div className="flex gap-2">
+              <PrintDocLink href={`/purchases/returns/${encodeURIComponent(ret.number)}/print`} />
+              <ReturnDetailActions id={ret.id} type="purchase" status={ret.status} canManage={canManage} dest={backHref} />
+            </div>
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,7 +94,7 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>

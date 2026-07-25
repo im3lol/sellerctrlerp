@@ -4,30 +4,29 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Loader2, Upload, Pencil, PlugZap } from "lucide-react";
-import { createPlatformAction, updatePlatformAction, togglePlatformActiveAction, provisionMarketplaceAction } from "@/app/actions/erp/platforms";
+import { Plus, Loader2, Pencil, PlugZap, Settings, ExternalLink } from "lucide-react";
+import { createPlatformAction, togglePlatformActiveAction, provisionMarketplaceAction } from "@/app/actions/erp/platforms";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { selectCls } from "@/lib/utils";
 
 type Platform = {
-  id: string; name: string; code: string; integrationType: string; productSyncMode: string; isActive: boolean;
-  syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; autoInvoice: boolean;
-  customerName: string | null; customerId: string | null;
-  warehouseId: string | null; warehouseName: string | null;
-  bankAccountId: string | null; bankName: string | null;
+  id: string; name: string; code: string; integrationType: string; isActive: boolean;
+  customerName: string | null;
+  warehouseName: string | null;
+  bankName: string | null;
+  connected: boolean; lastSyncAt: string | null;
 };
 type Option = { id: string; nameAr: string };
 type ConnectorInfo = { code: string; label: string };
 
 const TYPE_LABEL: Record<string, string> = { amazon: "أمازون (محلّل مخصص)", generic: "عام (CSV بربط أعمدة)" };
 
-// Brand tiles for the automatic picker. Monochrome logos in /public/logos —
+// Brand tiles + card logos. Monochrome logos in /public/brand/logos —
 // swap those files to change the artwork; the box size normalizes any aspect ratio.
 const BRANDS: { code: string; label: string; logo: string }[] = [
   { code: "AMAZON", label: "أمازون", logo: "/brand/logos/amazon.svg" },
@@ -41,27 +40,32 @@ const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean
 ];
 const tileCls = "flex items-center gap-3 rounded-xl border p-3 text-start transition-colors";
 
-function PlatformDialog({
-  platform, warehouses, bankAccounts, connectors, onClose,
+/** "منذ ٥ دقائق" style relative time (Arabic, coarse buckets). */
+function ago(iso: string | null): string | null {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "منذ لحظات";
+  if (s < 3600) return `منذ ${Math.round(s / 60)} دقيقة`;
+  if (s < 86400) return `منذ ${Math.round(s / 3600)} ساعة`;
+  return `منذ ${Math.round(s / 86400)} يوم`;
+}
+
+/** CREATE-only dialog (choose → ربط آلي / يدوي). Editing lives in /platforms/[code]/settings. */
+function CreatePlatformDialog({
+  warehouses, bankAccounts, connectors, onClose,
 }: {
-  platform: Platform | null; warehouses: Option[]; bankAccounts: Option[]; connectors: ConnectorInfo[]; onClose: () => void;
+  warehouses: Option[]; bankAccounts: Option[]; connectors: ConnectorInfo[]; onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const isEdit = !!platform;
-  const [mode, setMode] = useState<"choose" | "manual" | "auto">(isEdit ? "manual" : "choose");
+  const [mode, setMode] = useState<"choose" | "manual" | "auto">("choose");
   const [autoConnector, setAutoConnector] = useState<string | null>(null);
-  const activeCodes = new Set(connectors.map((c) => c.code)); // connectors with an official integration
-  const [name, setName] = useState(platform?.name ?? "");
-  const [code, setCode] = useState(platform?.code ?? "");
-  const [integrationType, setIntegrationType] = useState(platform?.integrationType ?? "generic");
-  const [productSyncMode, setProductSyncMode] = useState(platform?.productSyncMode ?? "create");
-  const [syncProducts, setSyncProducts] = useState(platform?.syncProducts ?? true);
-  const [syncOrders, setSyncOrders] = useState(platform?.syncOrders ?? true);
-  const [syncInventory, setSyncInventory] = useState(platform?.syncInventory ?? true);
-  const [autoInvoice, setAutoInvoice] = useState(platform?.autoInvoice ?? true);
-  const [warehouseId, setWarehouseId] = useState(platform?.warehouseId ?? "");
-  const [bankAccountId, setBankAccountId] = useState(platform?.bankAccountId ?? "");
+  const activeCodes = new Set(connectors.map((c) => c.code));
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [integrationType, setIntegrationType] = useState("generic");
+  const [warehouseId, setWarehouseId] = useState("");
+  const [bankAccountId, setBankAccountId] = useState("");
 
   // Automatic setup: provision everything (platform + customer + FBA warehouse + Amazon Wallet bank).
   const provision = (fulfillment: string) => start(async () => {
@@ -72,35 +76,33 @@ function PlatformDialog({
 
   const save = () => {
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
-    if (!isEdit && !code.trim()) return toast.error("أدخل كود المنصة");
+    if (!code.trim()) return toast.error("أدخل كود المنصة");
     start(async () => {
-      const payload = { name, integrationType, productSyncMode, syncProducts, syncOrders, syncInventory, autoInvoice, defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null };
-      const r = isEdit
-        ? await updatePlatformAction(platform!.id, payload)
-        : await createPlatformAction({ ...payload, code });
-      if (r.ok) {
-        toast.success(isEdit ? "تم تحديث المنصة" : "تم إنشاء المنصة وعميلها");
-        onClose();
-        router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      // بقية الإعدادات (مصادر المزامنة / المعالجة التلقائية…) قيمها الافتراضية سليمة —
+      // تُضبط بعد الإنشاء من صفحة إعدادات المنصة.
+      const r = await createPlatformAction({
+        name, code, integrationType, productSyncMode: "create",
+        syncProducts: true, syncOrders: true, syncInventory: true, syncSettlements: true,
+        autoPostSettlements: false, autoMode: "invoice",
+        defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
+      });
+      if (r.ok) { toast.success("تم إنشاء المنصة وعميلها"); onClose(); router.refresh(); }
+      else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
-
-  const showForm = isEdit || mode === "manual";
 
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
-        <DialogTitle>{isEdit ? `تعديل ${platform!.name}` : mode === "auto" ? "ربط آلي" : mode === "manual" ? "منصة يدوية" : "منصة بيع جديدة"}</DialogTitle>
+        <DialogTitle>{mode === "auto" ? "ربط آلي" : mode === "manual" ? "منصة يدوية" : "منصة بيع جديدة"}</DialogTitle>
         <DialogDescription>
-          {isEdit ? "الكود غير قابل للتعديل بعد الإنشاء."
-            : mode === "choose" ? "اختر طريقة الإضافة."
+          {mode === "choose" ? "اختر طريقة الإضافة."
             : mode === "auto" ? "اختر المنصة ونوع التنفيذ — يتم التجهيز تلقائيًا."
-            : "سيُنشأ عميل تلقائيًا بنفس اسم المنصة وتُسجَّل مبيعاتها باسمه."}
+            : "سيُنشأ عميل تلقائيًا بنفس اسم المنصة، وتُضبط بقية الإعدادات لاحقًا من صفحة الإعدادات."}
         </DialogDescription>
       </DialogHeader>
 
-      {!isEdit && mode === "choose" && (
+      {mode === "choose" && (
         <div className="grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setMode("auto")} className={`${tileCls} flex-col items-start gap-1.5 p-4 hover:border-primary`}>
             <PlugZap className="size-6 text-primary" />
@@ -152,71 +154,43 @@ function PlatformDialog({
         </div>
       )}
 
-      {showForm && (<>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2"><Label>اسم المنصة</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أمازون" /></div>
-          <div className="space-y-2">
-            <Label>الكود</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="AMAZON" disabled={isEdit} className="font-mono" />
+      {mode === "manual" && (<>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2"><Label>اسم المنصة</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أمازون" /></div>
+            <div className="space-y-2">
+              <Label>الكود</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="AMAZON" className="font-mono" />
+            </div>
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label>نوع التكامل (شكل ملف الاستيراد)</Label>
-          <select className={selectCls} value={integrationType} onChange={(e) => setIntegrationType(e.target.value)}>
-            <option value="generic">{TYPE_LABEL.generic}</option>
-            <option value="amazon">{TYPE_LABEL.amazon}</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label>مزامنة المنتجات (للمنصات المربوطة)</Label>
-          <select className={selectCls} value={productSyncMode} onChange={(e) => setProductSyncMode(e.target.value)}>
-            <option value="create">ربط بالـASIN + إنشاء الجديد (كامل)</option>
-            <option value="link">ربط بالـASIN فقط (إثراء البيانات)</option>
-          </select>
-          <p className="text-xs text-muted-foreground">الربط يتم فقط لو الـASIN مضاف في أكواد الصنف عندك. «ربط فقط»: يكمّل بيانات المطابق ويتجاهل غير المطابق (يظهر «محتاج ASIN»). «ربط + إنشاء»: ينشئ صنفًا كاملًا لغير المطابق.</p>
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label>مصادر المزامنة</Label>
-          <div className="flex flex-wrap gap-4">
-            {([["المنتجات", syncProducts, setSyncProducts], ["المبيعات", syncOrders, setSyncOrders], ["المخزون", syncInventory, setSyncInventory]] as const).map(([label, val, setter]) => (
-              <label key={label} className="flex cursor-pointer items-center gap-2 text-sm">
-                <input type="checkbox" className="size-4 rounded border-input" checked={val} onChange={(e) => setter(e.target.checked)} />
-                {label}
-              </label>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">اختر ما يسحبه زر «مزامنة الآن» لهذه المنصّة.</p>
-        </div>
-        <div className="space-y-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-            <input type="checkbox" className="size-4 rounded border-input" checked={autoInvoice} onChange={(e) => setAutoInvoice(e.target.checked)} />
-            الفوترة التلقائية عند اكتمال الأمر
-          </label>
-          <p className="text-xs text-muted-foreground">مفعّل: الأمر المكتمل يمرّ أمر بيع → إذن صرف → فاتورة مُرحّلة تلقائيًا. مُطفأ: يقف عند إذن الصرف وتُصدر الفاتورة يدويًا.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>المخزن الافتراضي</Label>
-            <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              <option value="">— بدون —</option>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+            <Label>نوع التكامل (شكل ملف الاستيراد)</Label>
+            <select className={selectCls} value={integrationType} onChange={(e) => setIntegrationType(e.target.value)}>
+              <option value="generic">{TYPE_LABEL.generic}</option>
+              <option value="amazon">{TYPE_LABEL.amazon}</option>
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>الحساب البنكي للتسويات</Label>
-            <select className={selectCls} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
-              <option value="">— بدون —</option>
-              {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>المخزن الافتراضي</Label>
+              <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+                <option value="">— بدون —</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>الحساب البنكي للتسويات</Label>
+              <select className={selectCls} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
+                <option value="">— بدون —</option>
+                {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+              </select>
+            </div>
           </div>
         </div>
-      </div>
-
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
-      </DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}إنشاء</Button>
+        </DialogFooter>
       </>)}
     </DialogContent>
   );
@@ -229,7 +203,7 @@ export function PlatformsManager({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [dialog, setDialog] = useState<{ open: boolean; platform: Platform | null }>({ open: false, platform: null });
+  const [open, setOpen] = useState(false);
 
   const toggle = (id: string) => start(async () => {
     const r = await togglePlatformActiveAction(id);
@@ -237,69 +211,78 @@ export function PlatformsManager({
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>المنصات</CardTitle>
-            <CardDescription>كل منصة لها عميلها ومخزنها وحسابها البنكي، وتُستورد أوامرها إلى المبيعات.</CardDescription>
-          </div>
-          {canManage && (
-            <Button size="sm" onClick={() => setDialog({ open: true, platform: null })}><Plus className="size-4" />منصة جديدة</Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {platforms.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-            لا توجد منصات — أضف منصتك الأولى (مثلًا أمازون).
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-start">المنصة</TableHead>
-                <TableHead className="text-start">العميل</TableHead>
-                <TableHead className="text-start">المخزن</TableHead>
-                <TableHead className="text-start">البنك</TableHead>
-                <TableHead className="text-start">الحالة</TableHead>
-                <TableHead className="text-start">إجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {platforms.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Link href={`/platforms/${p.code.toLowerCase()}`} className="font-medium text-primary hover:underline">{p.name}</Link>
-                    <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
-                  </TableCell>
-                  <TableCell>{p.customerName ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell>{p.warehouseName ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell>{p.bankName ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell><Badge variant={p.isActive ? "default" : "secondary"}>{p.isActive ? "مفعّلة" : "موقوفة"}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/platforms/${p.code.toLowerCase()}/import`}><Upload className="size-4" />استيراد</Link>
-                      </Button>
-                      {canManage && (
-                        <>
-                          <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, platform: p })} aria-label="تعديل"><Pencil className="size-4" /></Button>
-                          <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(p.id)}>{p.isActive ? "إيقاف" : "تفعيل"}</Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">كل منصة لها عميلها ومخزنها وحسابها البنكي، وتُستورد أوامرها إلى المبيعات.</p>
+        {canManage && (
+          <Button size="sm" data-tour="new-platform" onClick={() => setOpen(true)}><Plus className="size-4" />منصة جديدة</Button>
         )}
-      </CardContent>
+      </div>
 
-      <Dialog open={dialog.open} onOpenChange={(o) => !o && setDialog({ open: false, platform: null })}>
-        {dialog.open && <PlatformDialog platform={dialog.platform} warehouses={warehouses} bankAccounts={bankAccounts} connectors={connectors} onClose={() => setDialog({ open: false, platform: null })} />}
+      {platforms.length === 0 ? (
+        <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
+          لا توجد منصات — أضف منصتك الأولى (مثلًا أمازون).
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {platforms.map((p) => {
+            const brand = BRANDS.find((b) => b.code === p.code.toUpperCase());
+            const last = ago(p.lastSyncAt);
+            const detail = `/platforms/${p.code.toLowerCase()}`;
+            return (
+              <Card key={p.id} className={p.isActive ? "" : "opacity-70"}>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border bg-muted/30">
+                        {brand ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={brand.logo} alt={p.name} className="h-6 w-10 object-contain dark:invert" />
+                        ) : (
+                          <span className="text-lg font-bold text-muted-foreground">{p.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div>
+                        <Link href={detail} className="font-semibold hover:text-primary">{p.name}</Link>
+                        <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
+                      </div>
+                    </div>
+                    {!p.isActive ? <Badge variant="secondary">موقوفة</Badge>
+                      : p.connected ? <Badge className="bg-emerald-600">مربوط ✓</Badge>
+                      : <Badge variant="outline">غير مربوط</Badge>}
+                  </div>
+
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <div>المخزن: <span className="text-foreground">{p.warehouseName ?? "—"}</span></div>
+                    <div>العميل: <span className="text-foreground">{p.customerName ?? "—"}</span></div>
+                    <div>آخر مزامنة: <span className="text-foreground">{last ?? "لم تتم بعد"}</span></div>
+                  </div>
+
+                  <div className="flex gap-2 border-t pt-3">
+                    <Button asChild size="sm" className="flex-1">
+                      <Link href={detail}><ExternalLink className="size-4" />فتح</Link>
+                    </Button>
+                    {canManage && (
+                      <>
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`${detail}/settings`}><Settings className="size-4" />إعدادات</Link>
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(p.id)}>
+                          {p.isActive ? "إيقاف" : "تفعيل"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={(o) => !o && setOpen(false)}>
+        {open && <CreatePlatformDialog warehouses={warehouses} bankAccounts={bankAccounts} connectors={connectors} onClose={() => setOpen(false)} />}
       </Dialog>
-    </Card>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const now = new Date();
-    const from = sp.from || `${now.getFullYear()}-01-01`;
+    const from = sp.from || (await orgFiscalYearStartISO(orgId, now));
     const to = sp.to || iso(now);
 
     const balances = await accountBalances({ orgId, from: new Date(from), to: new Date(`${to}T23:59:59`) });
@@ -36,7 +37,10 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
           title="التقارير المالية — ميزان المراجعة"
           subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`}
+              printHref={`/reports/trial-balance/print?${new URLSearchParams({ from, to }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports" />

@@ -25,7 +25,7 @@ export default async function PrintQuotationPage({ params }: Params) {
       .limit(1);
     if (!q) notFound();
 
-    const [{ org, currency }, cust, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, cust, lines] = await Promise.all([
       loadPrintHeader(orgId),
       db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address })
         .from(customers).where(eq(customers.id, q.customerId)).limit(1).then((r) => r[0]),
@@ -55,8 +55,11 @@ export default async function PrintQuotationPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-quotation")}
+        footerText={footerText}
         title="عرض سعر"
         number={q.number}
+        watermark={q.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/sales/quotations/${q.id}`}
         meta={[
           { label: "التاريخ", value: dt(q.date) },

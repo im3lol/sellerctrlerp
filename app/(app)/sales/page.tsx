@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { customers, salesOrders, salesInvoices, salesQuotations, deliveryNotes } from "@/db/schema";
 import { salesByCustomer } from "@/lib/erp/mobile-reports";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -55,9 +56,10 @@ export default async function ErpSalesPage() {
       accountBalances({ orgId }),
     ]);
 
-    // AR from the control account (1103), not Σ customers.balance — the GL is what
-    // the statements report and the two can drift apart.
-    const ar = balances.filter((b) => b.code === "1103").reduce((s, b) => s + naturalAmount(b), 0);
+    // AR from the control account (1103, or the org's configured receivable), not
+    // Σ customers.balance — the GL is what the statements report and they can drift.
+    const rc = await resolveAccountCodes(orgId, ["1103"]);
+    const ar = balances.filter((b) => b.code === rc["1103"]).reduce((s, b) => s + naturalAmount(b), 0);
 
     const todos = [
       { label: "عروض أسعار بانتظار الرد", hint: "أُرسلت للعميل", count: cnt(quotSent), href: "/sales/quotations", icon: "FileText" },

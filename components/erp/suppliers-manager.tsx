@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveSupplierAction, deleteSupplierAction, bulkDeleteSuppliersAction } from "@/app/actions/erp/suppliers";
+import { exportSuppliersCsvAction } from "@/app/actions/erp/exports";
+import { ExportCsvButton } from "@/components/erp/export-csv-button";
 import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
@@ -71,7 +73,12 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
     if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
   });
 
-  const addBtn = canManage ? <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مورد جديد</Button> : undefined;
+  const addBtn = (
+    <div className="flex items-center gap-2">
+      <ExportCsvButton action={exportSuppliersCsvAction} />
+      {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مورد جديد</Button>}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -105,7 +112,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                 <TableRow key={s.id} data-state={sel.has(s.id) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
                   <TableCell className="font-mono">{s.code}</TableCell>
-                  <TableCell>{s.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{s.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(s.balance)}</TableCell>
                   <TableCell>{s.paymentTerms} يوم</TableCell>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { RequisitionRowActions } from "@/components/erp/requisition-row-actions";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -29,7 +30,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title={`طلب مواد ${mr.number}`} subtitle={`${mr.requester ?? "—"} · ${dt(mr.date)}`} backHref="/purchases/requisitions"
-          action={<RequisitionRowActions id={mr.id} status={mr.status} canManage={can("purchases.create")} />} />
+          action={<div className="flex gap-2"><PrintDocLink href={`/purchases/requisitions/${mr.id}/print`} /><RequisitionRowActions id={mr.id} status={mr.status} canManage={can("purchases.create")} /></div>} />
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>البنود المطلوبة</CardTitle>
@@ -40,7 +41,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
               <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-end">الكمية</TableHead></TableRow></TableHeader>
               <TableBody>
                 {lines.map((l, i) => (
-                  <TableRow key={i}><TableCell><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>
+                  <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>

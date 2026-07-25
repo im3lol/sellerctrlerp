@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -82,11 +83,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           action={
             <div className="flex gap-2">
               <OrderRowActions orderId={po.id} type="purchase" status={po.status} canManage={canManage} poNeedsApproval={poNeedsApproval} poApproved={!!po.approvedAt} />
-              <Button size="sm" variant="outline" asChild>
-                <a href={`/purchases/orders/${encodeURIComponent(po.number)}/print`} target="_blank" rel="noopener">
-                  <Icon name="Printer" className="size-4" />طباعة
-                </a>
-              </Button>
+              <PrintDocLink href={`/purchases/orders/${encodeURIComponent(po.number)}/print`} />
             </div>
           }
         />
@@ -117,7 +114,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.discount)}</TableCell>

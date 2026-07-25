@@ -13,24 +13,28 @@ const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { y
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Only DRAFT claims are selectable — bulkExpenseClaimsAction skips ineligible rows.
-export function ExpenseClaimsTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function ExpenseClaimsTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
   const sel = useSelection();
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canManage && draftIds.length > 0;
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canApprove || canCreate;
+  const ops = [
+    ...(canApprove ? [{ op: "approve", label: "اعتماد", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "approve", label: "اعتماد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkExpenseClaimsAction} onDone={sel.clear} entity="مطالبة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkExpenseClaimsAction} onDone={sel.clear} entity="مطالبة" />}
       <Table>
         <TableHeader><TableRow>
-          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" /></TableHead>}
+          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" /></TableHead>}
           <TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">التاريخ</TableHead>
           <TableHead className="text-start">الموظف</TableHead><TableHead className="text-end">الإجمالي</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>{canManage && <TableHead className="text-start">إجراءات</TableHead>}
+          <TableHead className="text-start">الحالة</TableHead>{showSelect && <TableHead className="text-start">إجراءات</TableHead>}
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}</TableCell>}
@@ -39,7 +43,7 @@ export function ExpenseClaimsTable({ rows, canManage }: { rows: Row[]; canManage
                 <TableCell>{r.employee}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
                 <TableCell><Badge variant={r.status === "APPROVED" ? "default" : "secondary"}>{r.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></TableCell>
-                {canManage && <TableCell><ExpenseClaimRowActions id={r.id} status={r.status} canManage={canManage} /></TableCell>}
+                {showSelect && <TableCell><ExpenseClaimRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );
           })}

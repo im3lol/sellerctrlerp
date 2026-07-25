@@ -19,7 +19,7 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
       .limit(1);
     if (!inv) notFound();
 
-    const [{ org, currency }, cust, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, cust, lines] = await Promise.all([
       loadPrintHeader(orgId),
       inv.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone, address: customers.address })
@@ -40,14 +40,18 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
     ]);
 
     const tax = Number(inv.taxAmount ?? 0);
-    const subtotal = Number(inv.totalAmount) - tax;
+    const shipping = Number(inv.shippingAmount ?? 0);
+    const subtotal = Number(inv.totalAmount) - tax - shipping;
     const paid = Number(inv.paidAmount ?? 0);
 
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("sales-invoice")}
+        footerText={footerText}
         title="فاتورة بيع"
         number={inv.number}
+        watermark={inv.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/sales/invoices/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(inv.date) },
@@ -79,6 +83,7 @@ export default async function PrintSalesInvoicePage({ params }: Params) {
         ])}
         totals={[
           { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
           ...(tax > 0 ? [{ label: `ضريبة القيمة المضافة (${inv.taxPercent}%)`, value: money(tax, currency) }] : []),
           { label: "الإجمالي", value: money(inv.totalAmount, currency), tone: "strong" as const },
           ...(paid > 0 ? [{ label: "المدفوع", value: `− ${money(paid, currency)}`, tone: "success" as const }] : []),

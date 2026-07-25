@@ -187,7 +187,13 @@ export function SalesInvoiceFromDeliveryForm({
                 <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ إذن صرف لعرض البنود.</TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal">
+                    <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
+                      <span>{l.code}</span>
+                      {l.marketplaceCode && <span dir="ltr">{preview.channel === "AMAZON" ? "ASIN" : "كود نون"}: {l.marketplaceCode}</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.discountAmount)}</TableCell>
@@ -209,6 +215,7 @@ export function SalesInvoiceFromDeliveryForm({
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(preview.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
+            {preview.shipping > 0 && <div>الشحن: <span className="font-medium">{fmt(preview.shipping)}</span></div>}
             <div className="text-base font-bold text-primary">
               الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "EGP"}
               {isForeign && foreignTotal !== null && (

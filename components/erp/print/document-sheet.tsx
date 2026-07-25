@@ -39,6 +39,8 @@ export type PrintOrg = {
   phone?: string | null;
   taxNumber?: string | null;
   logo?: string | null;
+  /** Print settings turned the logo off — render nothing, not the initials tile. */
+  noLogo?: boolean;
 };
 
 export type PrintColumn = {
@@ -76,6 +78,12 @@ export type DocumentSheetProps = {
   balance?: { label: string; value: string };
   note?: string | null;
   signatures?: string[];
+  /** Diagonal faded stamp across the sheet — pass "مسودة" for unposted documents. */
+  watermark?: string;
+  /** Column labels to drop (org print settings) — filters columns AND row cells by index. */
+  hiddenColumns?: string[];
+  /** Org print settings: extra line above the footer (thanks / terms). */
+  footerText?: string;
   /** Where the «رجوع» button goes. */
   backHref: string;
 };
@@ -84,9 +92,12 @@ const initials = (name: string | null | undefined) =>
   (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
 export function DocumentSheet({
-  org, title, number, meta = [], parties = [], columns = [], rows = [],
-  totals = [], balance, note, signatures = [], backHref,
+  org, title, number, meta = [], parties = [], columns: allColumns = [], rows: allRows = [],
+  totals = [], balance, note, signatures = [], watermark, hiddenColumns = [], footerText, backHref,
 }: DocumentSheetProps) {
+  const visible = allColumns.map((c, i) => (hiddenColumns.includes(c.label) ? -1 : i)).filter((i) => i >= 0);
+  const columns = visible.map((i) => allColumns[i]);
+  const rows = visible.length === allColumns.length ? allRows : allRows.map((r) => visible.map((i) => r[i]));
   return (
     <>
       <style>{`
@@ -128,7 +139,18 @@ export function DocumentSheet({
         </a>
       </div>
 
-      <div className="doc">
+      <div className="doc" style={{ position: "relative" }}>
+        {watermark && (
+          <div aria-hidden style={{
+            position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none", zIndex: 0,
+          }}>
+            <span style={{
+              transform: "rotate(-30deg)", fontSize: 110, fontWeight: 800,
+              color: T.muted, opacity: 0.12, letterSpacing: "8px", whiteSpace: "nowrap",
+            }}>{watermark}</span>
+          </div>
+        )}
         {/* ── header: who we are (right) · what this is (left) ── */}
         <div className="mb-7 flex items-start justify-between gap-6">
           <div className="flex items-start gap-3.5">
@@ -136,7 +158,7 @@ export function DocumentSheet({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={org.logo} alt="" width={50} height={50}
                 style={{ borderRadius: 10, objectFit: "contain", border: "1px solid #eef1f7" }} />
-            ) : (
+            ) : org?.noLogo ? null : (
               // No logo uploaded — an initials tile keeps the header from looking broken.
               <div style={{
                 width: 50, height: 50, borderRadius: 10, background: T.primary, color: "#fff",
@@ -249,7 +271,10 @@ export function DocumentSheet({
           </div>
         )}
 
-        <div style={{ marginTop: 32, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
+        {footerText && (
+          <div style={{ marginTop: 28, textAlign: "center", fontSize: 11, color: T.body, lineHeight: 1.7 }}>{footerText}</div>
+        )}
+        <div style={{ marginTop: footerText ? 12 : 32, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
           {[org?.nameAr, org?.phone, org?.taxNumber && `الرقم الضريبي: ${org.taxNumber}`].filter(Boolean).join(" · ")}
         </div>
       </div>

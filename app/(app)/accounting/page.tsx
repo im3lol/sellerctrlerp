@@ -4,6 +4,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, journalEntries, salesInvoices, purchaseInvoices } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AcademyLink } from "@/components/erp/academy-link";
@@ -57,9 +58,10 @@ export default async function AccountingDashboardPage() {
     const expense = balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
     const net = income - expense;
     const byCode = Object.fromEntries(balances.map((b) => [b.code, b.balance]));
-    const ar = byCode["1103"] ?? 0;
-    const ap = -(byCode["2101"] ?? 0);
-    const cash = (byCode["1101"] ?? 0) + (byCode["1102"] ?? 0);
+    const rc = await resolveAccountCodes(orgId, ["1101", "1102", "1103", "2101"]);
+    const ar = byCode[rc["1103"]] ?? 0;
+    const ap = -(byCode[rc["2101"]] ?? 0);
+    const cash = (byCode[rc["1101"]] ?? 0) + (byCode[rc["1102"]] ?? 0);
     const assets = balances.filter((b) => b.type === "ASSET").reduce((s, b) => s + naturalAmount(b), 0);
 
     const counts: Record<string, number> = { accounts: Number(acc.n), journal: Number(je.n), sales: Number(si.n), purchases: Number(pi.n) };

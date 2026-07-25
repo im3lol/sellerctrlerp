@@ -88,6 +88,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
             <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-32`}>
               <option value="">الكل</option>
               <option value="POSTED">مرحّل</option>
+              <option value="REVERSED">معكوس</option>
               <option value="DRAFT">مسودة</option>
             </select>
           </div>
@@ -123,6 +124,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 <VouchersTable
                   type="payment"
                   canManage={canManage}
+                  total={total}
+                  filter={{ q, status, method, from, to }}
                   rows={rows.map((r) => ({ id: r.id, number: r.number, date: r.date, party: r.supplier, invoice: r.invoice, method: r.method, amount: r.amount, status: r.status }))}
                 />
                 <Pagination page={page} pages={pages} total={total} unit="سند" basePath="/purchases/payments" params={{ q, status, method, from, to }} />

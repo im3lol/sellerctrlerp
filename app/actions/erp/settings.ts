@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -65,6 +65,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       return { error: "تعذّر حفظ بيانات المنشأة" };
     }
     revalidatePath("/settings");
+    revalidatePath("/settings/organization");
     return { ok: true };
   });
 }
@@ -100,10 +101,49 @@ export async function uploadOrgLogoAction(
   return { ok: true, url: publicUrl(key) };
 }
 
+/**
+ * Saves print preferences (letterhead + per-document hidden columns) and, when the
+ * form uploaded a new logo, the logo itself. The payload is the whole PrintSettings
+ * object as JSON — sanitized through resolvePrintSettings so locked columns and
+ * junk shapes never reach the row.
+ */
+export async function savePrintSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const auth = await authorizeErp("settings.edit");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(formData.get("payload") ?? "{}"));
+    } catch {
+      return { error: "بيانات غير صالحة" };
+    }
+    const { resolvePrintSettings } = await import("@/lib/erp/print-settings");
+    const clean = resolvePrintSettings(raw);
+    const logo = formData.get("logo");
+
+    try {
+      await db.update(organizations).set({
+        printSettings: clean,
+        ...(typeof logo === "string" ? { logo: logo || null } : {}),
+        updatedAt: new Date(),
+      }).where(eq(organizations.id, auth.orgId));
+    } catch {
+      return { error: "تعذّر حفظ إعدادات الطباعة" };
+    }
+    revalidatePath("/settings/printing");
+    return { ok: true };
+  });
+}
+
 const CONFIG_FIELDS = [
   "receivableAccountId", "payableAccountId", "cashAccountId", "bankAccountId",
   "salesAccountId", "purchaseAccountId", "outputTaxAccountId", "inputTaxAccountId",
   "inventoryAccountId", "cogsAccountId",
+  "grniAccountId", "salesReturnsAccountId", "inventorySurplusAccountId",
+  "inventoryDeficitAccountId", "purchaseReturnVarianceAccountId",
+  "openingEquityAccountId", "amazonClearingAccountId", "amazonFeesAccountId",
+  "assetDisposalGainAccountId", "assetDisposalLossAccountId",
 ] as const;
 
 export async function saveAccountingConfigAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -132,6 +172,26 @@ export async function saveAccountingConfigAction(_prev: ActionState, formData: F
       return { error: "تعذّر حفظ الضبط المحاسبي" };
     }
     revalidatePath("/settings");
+    revalidatePath("/settings/accounting");
     return { ok: true };
   });
+}
+
+const SETUP_KEYS = new Set(["company", "chart", "units", "warehouses", "items", "customers", "suppliers", "opening", "numbering", "platform"]);
+
+/** Mark a setup-checklist step as done manually (form action from /setup). */
+export async function markSetupStepDoneAction(formData: FormData): Promise<void> {
+  const auth = await authorizeErp("settings.edit");
+  if ("error" in auth) return;
+  const key = String(formData.get("key") ?? "");
+  if (!SETUP_KEYS.has(key)) return;
+  await withOrgScope(auth.orgId, false, async () => {
+    const [org] = await db.select({ skipped: organizations.setupSkipped })
+      .from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+    await db.update(organizations)
+      .set({ setupSkipped: [...new Set([...(org?.skipped ?? []), key])], updatedAt: new Date() })
+      .where(eq(organizations.id, auth.orgId));
+  });
+  revalidatePath("/setup");
+  revalidatePath("/dashboard");
 }

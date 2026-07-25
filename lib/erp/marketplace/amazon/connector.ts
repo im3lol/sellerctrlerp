@@ -7,6 +7,10 @@ import { fetchListings, mergeProducts } from "./listings";
 import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
 import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
+import { fetchSettlements } from "./settlement-report";
+import { fetchFbaReturns } from "./returns-report";
+import { fetchReimbursements, fetchLedgerEvents } from "./finance-reports";
+import { fetchFeesEstimates } from "./fees";
 import type { MarketplaceProduct } from "../dto";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
@@ -66,5 +70,20 @@ export const amazonConnector: MarketplaceConnector = {
   },
   fetchInventoryDetail(cred) {
     return fetchInventoryDetail(cred);
+  },
+  fetchSettlements(cred, range) {
+    return fetchSettlements(cred, range);
+  },
+  fetchReturns(cred, range) {
+    return fetchFbaReturns(cred, range);
+  },
+  fetchReimbursements(cred, range) {
+    return fetchReimbursements(cred, range);
+  },
+  fetchLedgerEvents(cred, range) {
+    return fetchLedgerEvents(cred, range);
+  },
+  fetchFees(cred, skus) {
+    return fetchFeesEstimates(cred, skus);
   },
 };

@@ -37,6 +37,11 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
     });
 
     const hasFilters = Boolean(fProduct || fWarehouse || fStatus || one(sp.within));
+    const filterQs = new URLSearchParams();
+    if (fProduct) filterQs.set("product", fProduct);
+    if (fWarehouse) filterQs.set("warehouse", fWarehouse);
+    if (fStatus) filterQs.set("status", fStatus);
+    if (one(sp.within)) filterQs.set("within", one(sp.within));
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
     const PAGE_SIZE = 50;
     const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -44,7 +49,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarClock" title="تنبيهات انتهاء الصلاحية" subtitle={`${rows.length} دفعة`} backHref="/inventory" action={<ReportToolbar />} />
+        <ErpPageHeader icon="CalendarClock" title="تنبيهات انتهاء الصلاحية" subtitle={`${rows.length} دفعة`} backHref="/inventory" action={<ReportToolbar excel={rows.length > 0 ? `/api/erp/inventory/expiry/export?${filterQs.toString()}` : undefined} printHref={`/erp/inventory/expiry/print?${filterQs.toString()}`} />} />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">منتهية</div><div className="text-2xl font-bold text-destructive">{intl(totals.expiredCount)}</div></CardContent></Card>
@@ -110,7 +115,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                 <TableBody>
                   {pageRows.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
                       <TableCell>{r.warehouse}</TableCell>
                       <TableCell>{r.batchNo ?? "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{dt(r.expiryDate)}</TableCell>

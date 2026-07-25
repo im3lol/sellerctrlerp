@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { Button } from "@/components/ui/button";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
@@ -26,13 +27,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     })();
   };
 
-  const printBtn = (
-    <Button size="sm" variant="outline" asChild>
-      <a href={`/purchases/invoices/${encodeURIComponent(number)}/print`} target="_blank" rel="noopener">
-        <Icon name="Printer" className="size-4" />طباعة
-      </a>
-    </Button>
-  );
+  const printBtn = <PrintDocLink href={`/purchases/invoices/${encodeURIComponent(number)}/print`} />;
 
   if (status === "DRAFT") {
     return (

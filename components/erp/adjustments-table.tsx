@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkStockAdjustmentsAction } from "@/app/actions/erp/stock-adjustments";
+import { bulkStockAdjustmentsAction, type AdjustmentsFilter } from "@/app/actions/erp/stock-adjustments";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
@@ -22,20 +22,25 @@ const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function AdjustmentsTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
-  const sel = useSelection();
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canManage && draftIds.length > 0;
+export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: AdjustmentsFilter }) {
+  const sel = useSelection(total);
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canConfirm || canCreate;
+  const ops = [
+    ...(canConfirm ? [{ op: "confirm", label: "ترحيل", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
       {showSelect && (
         <BulkBar
           ids={sel.ids}
-          ops={[{ op: "confirm", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
-          action={bulkStockAdjustmentsAction}
+          ops={ops}
+          action={(op, ids, allPages) => bulkStockAdjustmentsAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="تسوية"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
       <Table>
@@ -43,7 +48,7 @@ export function AdjustmentsTable({ rows, canManage }: { rows: Row[]; canManage: 
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
               </TableHead>
             )}
             <TableHead className="text-start">الرقم</TableHead>
@@ -58,7 +63,7 @@ export function AdjustmentsTable({ rows, canManage }: { rows: Row[]; canManage: 
         </TableHeader>
         <TableBody>
           {rows.map((r) => {
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && (

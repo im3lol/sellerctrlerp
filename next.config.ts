@@ -20,8 +20,21 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/erp", destination: "/dashboard", permanent: true },
-      { source: "/erp/:path*", destination: "/:path*", permanent: true },
+      // Print/barcode/export views really do live under /erp (app/(print)/erp/**),
+      // and redirects run before the filesystem — exclude them or they 308 into a 404.
+      { source: "/erp/:path((?!barcodes/|exports/|.*/print$).*)", destination: "/:path", permanent: true },
     ];
+  },
+  // Half the app links print views without the /erp prefix (/sales/invoices/N/print).
+  // Fallback = only when nothing else matched, so the real /erp/** routes are untouched.
+  async rewrites() {
+    return {
+      fallback: [
+        { source: "/:path*/print", destination: "/erp/:path*/print" },
+        { source: "/barcodes/:path*", destination: "/erp/barcodes/:path*" },
+        { source: "/exports/:path*", destination: "/erp/exports/:path*" },
+      ],
+    };
   },
 };
 

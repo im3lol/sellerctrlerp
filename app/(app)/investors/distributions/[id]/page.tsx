@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DistributionActions } from "@/components/erp/distribution-form";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (n: number) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 })}%`;
@@ -40,7 +41,12 @@ export default async function DistributionDetailPage({ params }: { params: Promi
         <ErpPageHeader icon="PieChart" title={dist.periodName}
           subtitle={`${dt(dist.periodStart)} → ${dt(dist.periodEnd)} · تاريخ التوزيع ${dt(dist.distributionDate)}`}
           backHref="/investors/distributions"
-          action={can("accounting.post") ? <DistributionActions id={dist.id} status={dist.status} /> : undefined}
+          action={
+            <div className="flex gap-2">
+              <PrintDocLink href={`/erp/investors/distributions/${dist.id}/print`} />
+              {can("accounting.post") && <DistributionActions id={dist.id} status={dist.status} />}
+            </div>
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-3">

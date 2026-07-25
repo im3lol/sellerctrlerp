@@ -53,7 +53,10 @@ export default async function BalanceSheetPage({
       <div className="space-y-6">
         <ErpPageHeader icon="Scale" title="الميزانية العمومية" subtitle={`كما في ${to} — من القيود المُرحّلة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/balance-sheet/export?to=${to}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/balance-sheet/export?to=${to}`}
+              printHref={`/reports/balance-sheet/print?to=${to}`}
+            />
           }
         />
         <ReportTabs active="/reports/balance-sheet" />

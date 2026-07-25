@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines } from "@/db/schema";
 
@@ -31,25 +31,29 @@ export async function getAvailability(orgId: string, itemIds: string[]): Promise
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bal
       FROM stock_movements
       WHERE organization_id = ${orgId} AND item_id IN (${idList})
-      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
     ) t GROUP BY item_id`);
   const onHand = new Map((onHandRows.rows as { item_id: string; qty: string }[]).map((r) => [r.item_id, Number(r.qty)]));
 
-  // Reserved = undelivered qty per open sales order line.
+  // Reserved = unfulfilled qty per open sales order line.
   // ponytail: DRAFT orders reserve too (only CANCELLED is excluded) — deliberate.
   // Reserving early is the no-oversell side; excluding DRAFT would free that stock
   // for another sale and risk overselling once the draft is confirmed. Flip to also
   // exclude DRAFT only if the business wants drafts to be non-committal quotes.
+  // INVOICED excluded: a direct order→invoice posts stock via the invoice without
+  // ever advancing deliveredQty — left in, that order "reserves" its full qty
+  // forever (double-counted: on-hand already dropped AND still reserved).
+  // GREATEST(delivered, invoiced) covers mixed partial states the same way.
   const resRows = await db
     .select({
       itemId: salesOrderLines.itemId,
       orderId: salesOrders.id,
       number: salesOrders.number,
-      qty: sql<string>`sum(${salesOrderLines.quantity} - ${salesOrderLines.deliveredQty})`,
+      qty: sql<string>`sum(${salesOrderLines.quantity} - GREATEST(${salesOrderLines.deliveredQty}, ${salesOrderLines.invoicedQty}))`,
     })
     .from(salesOrderLines)
     .innerJoin(salesOrders, eq(salesOrders.id, salesOrderLines.salesOrderId))
-    .where(and(eq(salesOrders.organizationId, orgId), ne(salesOrders.status, "CANCELLED"), inArray(salesOrderLines.itemId, ids)))
+    .where(and(eq(salesOrders.organizationId, orgId), notInArray(salesOrders.status, ["CANCELLED", "INVOICED"]), inArray(salesOrderLines.itemId, ids)))
     .groupBy(salesOrderLines.itemId, salesOrders.id, salesOrders.number);
 
   const reservedBy = new Map<string, { orderId: string; number: string; qty: number }[]>();

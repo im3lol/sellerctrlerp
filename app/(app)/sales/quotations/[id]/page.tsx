@@ -59,7 +59,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
               <TableBody>
                 {lines.map((l, i) => (
                   <TableRow key={i}>
-                    <TableCell><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(Number(l.unitPrice))}</TableCell>
                     <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(Number(l.discountAmount))}</TableCell>

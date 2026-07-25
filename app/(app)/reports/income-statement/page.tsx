@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,7 @@ export default async function IncomeStatementPage({
     const sp = await searchParams;
 
     const now = new Date();
-    const from = sp.from || `${now.getFullYear()}-01-01`;
+    const from = sp.from || (await orgFiscalYearStartISO(orgId, now));
     const to = sp.to || iso(now);
 
     const balances = await accountBalances({
@@ -76,7 +77,10 @@ export default async function IncomeStatementPage({
           title="قائمة الدخل"
           subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
           action={
-            <ReportToolbar excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`} />
+            <ReportToolbar
+              excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`}
+              printHref={`/reports/income-statement/print?${new URLSearchParams({ from, to }).toString()}`}
+            />
           }
         />
         <ReportTabs active="/reports/income-statement" />

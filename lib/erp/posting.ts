@@ -44,7 +44,11 @@ const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
  * Race-safe: the (org, start, end) unique index + onConflictDoNothing means two
  * concurrent first-posts of the same new year converge on one period.
  */
-async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> {
+async function ensurePeriod(tx: Tx, orgId: string, date: Date, allowSoftClosed = false): Promise<string> {
+  // allowSoftClosed: the YEAR_CLOSING entry itself may post into a frozen
+  // (SOFT_CLOSED) year — freeze-then-close is the natural workflow; without this
+  // it dead-ended ("الفترة مجمّدة") and the year could never be closed.
+  const blocked = (s: string) => s === "CLOSED" || (s === "SOFT_CLOSED" && !allowSoftClosed);
   const covering = () =>
     tx.select({ id: fiscalPeriods.id, status: fiscalPeriods.status })
       .from(fiscalPeriods)
@@ -57,7 +61,7 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> 
 
   const [existing] = await covering();
   if (existing) {
-    if (existing.status === "CLOSED" || existing.status === "SOFT_CLOSED") throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
+    if (blocked(existing.status)) throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
     return existing.id;
   }
 
@@ -71,7 +75,7 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date): Promise<string> 
   // Lost the create race — the winner's row is now visible.
   const [now] = await covering();
   if (!now) throw new Error("تعذّر تحديد الفترة المالية");
-  if (now.status === "CLOSED" || now.status === "SOFT_CLOSED") throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
+  if (blocked(now.status)) throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن الترحيل فيها");
   return now.id;
 }
 
@@ -95,8 +99,9 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
   }
 
   // Assign to the open fiscal period covering the date (auto-creates the year if
-  // none exists; throws on a CLOSED period).
-  const periodId = await ensurePeriod(tx, input.orgId, input.date);
+  // none exists; throws on a CLOSED period). The closing entry itself may post
+  // into a SOFT_CLOSED (frozen) year.
+  const periodId = await ensurePeriod(tx, input.orgId, input.date, input.sourceType === "YEAR_CLOSING");
 
   // Prefer the requested journal type, else any active journal.
   let journalId: string | null = null;

@@ -1,8 +1,8 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "@/lib/safe-revalidate";
+import { aliasedTable, and, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -111,7 +111,29 @@ export async function deleteExpenseAction(id: string): Promise<ActionState> {
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT expenses; non-DRAFT rows are skipped. */
-export async function bulkExpensesAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the list page's filters — the "select all pages" path re-derives the
+ *  ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type ExpensesFilter = { q?: string; status?: string; from?: string; to?: string };
+
+async function matchingExpenseIds(orgId: string, f: ExpensesFilter): Promise<string[]> {
+  const cat = aliasedTable(accounts, "cat");
+  const conds = [eq(expenses.organizationId, orgId)];
+  if (f.status) conds.push(eq(expenses.status, f.status));
+  if (f.from) conds.push(gte(expenses.date, new Date(f.from)));
+  if (f.to) conds.push(lte(expenses.date, new Date(`${f.to}T23:59:59`)));
+  if (f.q) conds.push(or(ilike(expenses.number, `%${f.q}%`), ilike(expenses.payee, `%${f.q}%`), ilike(cat.nameAr, `%${f.q}%`))!);
+  return (await db.select({ id: expenses.id }).from(expenses)
+    .leftJoin(cat, eq(cat.id, expenses.expenseAccountId))
+    .where(and(...conds))).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT expenses; non-DRAFT rows are skipped.
+ *  With `all`, ids are re-derived server-side from the filter (select all pages). */
+export async function bulkExpensesAction(op: "confirm" | "delete", ids: string[], all?: ExpensesFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp(op === "confirm" ? "accounting.post" : "accounting.create");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await withOrgScope(auth.orgId, false, () => matchingExpenseIds(auth.orgId, all));
+  }
   return bulkOp(ids, op === "confirm" ? confirmExpenseAction : deleteExpenseAction);
 }

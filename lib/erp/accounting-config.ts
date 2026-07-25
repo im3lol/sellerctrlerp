@@ -24,6 +24,16 @@ const FIELD_FOR_CODE: Record<string, keyof Override> = {
   "5101": "cogsAccountId",
   "2102": "outputTaxAccountId",
   "1107": "inputTaxAccountId",
+  "2103": "grniAccountId",
+  "4102": "salesReturnsAccountId",
+  "4201": "inventorySurplusAccountId",
+  "5301": "inventoryDeficitAccountId",
+  "5302": "purchaseReturnVarianceAccountId",
+  "3002": "openingEquityAccountId",
+  "1108": "amazonClearingAccountId",
+  "5203": "amazonFeesAccountId",
+  "4202": "assetDisposalGainAccountId",
+  "5303": "assetDisposalLossAccountId",
 };
 
 type Override = {
@@ -36,6 +46,16 @@ type Override = {
   cogsAccountId: string | null;
   outputTaxAccountId: string | null;
   inputTaxAccountId: string | null;
+  grniAccountId: string | null;
+  salesReturnsAccountId: string | null;
+  inventorySurplusAccountId: string | null;
+  inventoryDeficitAccountId: string | null;
+  purchaseReturnVarianceAccountId: string | null;
+  openingEquityAccountId: string | null;
+  amazonClearingAccountId: string | null;
+  amazonFeesAccountId: string | null;
+  assetDisposalGainAccountId: string | null;
+  assetDisposalLossAccountId: string | null;
 };
 
 /**
@@ -73,4 +93,27 @@ export async function resolveAccountIds(
   }
 
   return byCode;
+}
+
+/**
+ * Like resolveAccountIds, but returns the effective *code* per role — the
+ * configured override account's own code when set, else the default code.
+ * Read paths that look up a balance map keyed by code use this so a remapped
+ * account's balance is read from the right code (e.g. AR remapped to "1150" →
+ * resolveAccountCodes(org, ["1103"]) = { "1103": "1150" }). No config = identity.
+ */
+export async function resolveAccountCodes(
+  orgId: string,
+  codes: string[],
+  exec: Pick<typeof db, "select"> = db,
+): Promise<Record<string, string>> {
+  const ids = await resolveAccountIds(orgId, codes, exec);
+  const idList = [...new Set(Object.values(ids))];
+  if (idList.length === 0) return Object.fromEntries(codes.map((c) => [c, c]));
+  const rows = await exec
+    .select({ id: accounts.id, code: accounts.code })
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), inArray(accounts.id, idList)));
+  const codeById = new Map(rows.map((r) => [r.id, r.code]));
+  return Object.fromEntries(codes.map((c) => [c, (ids[c] && codeById.get(ids[c])) || c]));
 }

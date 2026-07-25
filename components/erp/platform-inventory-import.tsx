@@ -84,7 +84,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
                   <TableBody>
                     {result.rows.map((r) => (
                       <TableRow key={r.itemId}>
-                        <TableCell><span className="font-mono text-muted-foreground">{r.code}</span> {r.itemName}</TableCell>
+                        <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={r.itemName}>{r.itemName}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{r.code}</div></TableCell>
                         <TableCell className="tabular-nums">{int(r.marketplaceQty)}</TableCell>
                         <TableCell className="tabular-nums">{int(r.erpQty)}</TableCell>
                         <TableCell className={`tabular-nums font-medium ${r.diff !== 0 ? "text-destructive" : "text-muted-foreground"}`}>{r.diff > 0 ? "+" : ""}{int(r.diff)}</TableCell>

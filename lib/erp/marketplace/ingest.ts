@@ -1,13 +1,13 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, salesOrders, salesOrderLines, warehouses } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { confirmSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { fulfillOrder, cancelMarketplaceOrder } from "@/lib/erp/fulfillment";
+import { fulfillOrder, cancelMarketplaceOrder, STOCK_WAIT_MARK, type AutoMode } from "@/lib/erp/fulfillment";
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview, type ItemResolver } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
@@ -18,13 +18,46 @@ export { classifyOrders };
 export type { OrdersPreview };
 export type { MatchedLine } from "./classify";
 
+// Get-or-create the org's default "قطعة" unit so synced items aren't unit-less
+// (a fresh tenant has no units at all). Keyed by the stable code "PCS".
+async function pieceUomId(orgId: string): Promise<string> {
+  const find = async () => (await db.select({ id: unitsOfMeasure.id }).from(unitsOfMeasure)
+    .where(and(eq(unitsOfMeasure.organizationId, orgId), eq(unitsOfMeasure.code, "PCS"))).limit(1))[0]?.id;
+  const existing = await find();
+  if (existing) return existing;
+  await db.insert(unitsOfMeasure).values({ organizationId: orgId, code: "PCS", nameAr: "قطعة", nameEn: "Piece" })
+    .onConflictDoNothing({ target: [unitsOfMeasure.organizationId, unitsOfMeasure.code] });
+  return (await find())!;
+}
+
+// Get-or-create an item category by its Arabic name (from the marketplace catalog).
+// A tiny per-call cache avoids re-querying for repeated category names.
+async function categoryIdByName(orgId: string, name: string, cache: Map<string, string>): Promise<string | null> {
+  const key = name.trim();
+  if (!key) return null;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const find = async () => (await db.select({ id: itemCategories.id }).from(itemCategories)
+    .where(and(eq(itemCategories.organizationId, orgId), eq(itemCategories.nameAr, key))).limit(1))[0]?.id;
+  let id = await find();
+  if (!id) {
+    // Category code must be unique per org — derive a stable-ish slug from the name.
+    const code = ("AMZ-" + key.replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40)).toUpperCase();
+    await db.insert(itemCategories).values({ organizationId: orgId, code, nameAr: key })
+      .onConflictDoNothing({ target: [itemCategories.organizationId, itemCategories.code] });
+    id = await find();
+  }
+  if (id) cache.set(key, id);
+  return id ?? null;
+}
+
 /**
  * Vendor-neutral write layer. Connectors and the manual-import actions both hand
  * their parsed data here as DTOs, so all order/inventory logic (matching, the
  * DRAFT→fulfil cycle, reconciliation) lives once and the ERP never knows the
  * source. Ported from the former Amazon-specific actions with no behaviour change.
  */
-export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoInvoice?: boolean };
+export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode };
 
 export type IngestResult = {
   created: number;
@@ -32,6 +65,7 @@ export type IngestResult = {
   fulfilled: number;
   cancelled: number;
   stockBlocked: { externalId: string; reason: string }[];
+  stockDrafted: number; // deliveries parked as DRAFT waiting for stock
   skippedDuplicate: number;
   skippedUnmatched: number;
   autoCreated: number; // stub items created for unknown SKUs (order kept DRAFT)
@@ -103,6 +137,7 @@ async function ensureItemsForOrders(orgId: string, orders: MarketplaceOrder[], r
 
   const list = [...missing.values()];
   const codes = await nextItemCodes(orgId, list.length);
+  const uomId = await pieceUomId(orgId);
   const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
   const pushCode = (itemId: string, codeType: string, code: string) => {
     const c = (code || "").trim(); const norm = normalizeCode(c);
@@ -111,7 +146,7 @@ async function ensureItemsForOrders(orgId: string, orders: MarketplaceOrder[], r
   await db.transaction(async (tx) => {
     for (const slice of chunk(list.map((p, i) => ({ p, code: codes[i] })), 500)) {
       const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
-        organizationId: orgId, code, nameAr: (p.name || p.code).trim(),
+        organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId,
         sellPrice: String(round2(p.price || 0)), needsReview: true,
       }))).returning({ id: items.id });
       inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
@@ -146,12 +181,17 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
   const hasReviewItem = (o: PreviewOrder) => o.lines.some((l) => l.itemId && reviewIds.has(l.itemId));
+  // The fulfil cycle (deliver + invoice) runs cookie-bound server actions, so it
+  // needs an identity: a session (manual sync) or the worker's ambient ErpContext
+  // (runOrdersJob passes the acting user's id). userId=null → import DRAFT only.
+  const canFulfill = userId != null;
 
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
 
-  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0;
+  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];
+  const autoMode: AutoMode = ctx.autoMode ?? "invoice";
 
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
@@ -188,9 +228,12 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     }
   };
 
+  const cycled = new Set<string>(); // order ids runCycle already touched this sync
   const runCycle = async (orderId: string, extId: string) => {
-    const f = await fulfillOrder(orgId, orderId, { invoice: ctx.autoInvoice ?? true });
-    if (f.ok) { if (!f.noop) fulfilled++; }
+    if (autoMode === "draft" || autoMode === "order") return; // no auto delivery/invoice in these modes
+    cycled.add(orderId);
+    const f = await fulfillOrder(orgId, orderId, { mode: autoMode, draftOnShort: true });
+    if (f.ok) { if (f.drafted) stockDrafted++; else if (!f.noop) fulfilled++; }
     else if (f.blocked) stockBlocked.push({ externalId: extId, reason: f.error });
     else failed++;
   };
@@ -221,7 +264,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of toCreate) {
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
-    const shipped = o.status === "Shipped" && !hasReviewItem(o);
+    // No identity (userId null) → keep DRAFT for a later authenticated sync.
+    // autoMode "draft" = the user chose import-as-draft-only: never auto-confirm.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft";
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -233,7 +278,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     if (!o.lines.every((l) => l.itemId)) continue; // a line without an item → leave as-is
     // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
     if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
+    if (autoMode === "draft") continue; // draft-only mode: refresh the data, never advance
     if (hasReviewItem(o)) continue; // needs item review → stay DRAFT, don't advance
+    if (!canFulfill) continue; // worker: refreshed the draft; a browser sync will fulfil it
     // Only advance once Amazon marks it Shipped; a still-Pending order just got refreshed.
     if (o.status !== "Shipped") continue;
     if (o.existingStatus === "DRAFT") {
@@ -259,8 +306,32 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     }
   }
 
+  // Resume parked stock-wait drafts: the order was CONFIRMED on an earlier sync and
+  // its delivery parked DRAFT for lack of stock, so classifyOrders now sees it as a
+  // duplicate and never re-drives the cycle. Retry them here every sync — once stock
+  // arrives, fulfillOrder confirms the same DRAFT (no duplicate).
+  if (canFulfill && (autoMode === "deliver" || autoMode === "invoice")) {
+    const parked = await db.selectDistinct({ soId: deliveryNotes.salesOrderId, extId: salesOrders.externalOrderId })
+      .from(deliveryNotes)
+      .innerJoin(salesOrders, eq(salesOrders.id, deliveryNotes.salesOrderId))
+      .where(and(
+        eq(deliveryNotes.organizationId, orgId),
+        eq(deliveryNotes.status, "DRAFT"),
+        like(deliveryNotes.notes, `${STOCK_WAIT_MARK}%`),
+        eq(salesOrders.channel, ctx.channel),
+        eq(salesOrders.status, "CONFIRMED"),
+      ));
+    for (const p of parked) {
+      if (!p.soId || cycled.has(p.soId)) continue;
+      const wasDrafted = stockDrafted;
+      await runCycle(p.soId, p.extId ?? "");
+      // Still short → it was already counted as drafted on the sync that parked it.
+      if (stockDrafted > wasDrafted) stockDrafted = wasDrafted;
+    }
+  }
+
   return {
-    created, transitioned, fulfilled, cancelled, stockBlocked,
+    created, transitioned, fulfilled, cancelled, stockBlocked, stockDrafted,
     skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, autoCreated, failed,
   };
 }
@@ -385,6 +456,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   result.skippedUnmatched = plan.skippedUnmatched;
   const toCreate = plan.toCreate;
 
+  const uomId = toCreate.length ? await pieceUomId(orgId) : null;
   await db.transaction(async (tx) => {
     if (toCreate.length) {
       const codes = await nextItemCodes(orgId, toCreate.length);
@@ -394,7 +466,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
       let created = 0;
       for (const slice of chunk(rows, 500)) {
         const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
-          organizationId: orgId, code, nameAr: (p.name || p.code).trim(), sellPrice: String(round2(p.sellPrice || 0)),
+          organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId, sellPrice: String(round2(p.sellPrice || 0)),
         }))).returning({ id: items.id });
         inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
         created += inserted.length;
@@ -437,9 +509,22 @@ export async function enrichItems(orgId: string, records: CatalogRecord[]): Prom
 
   const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
   const seen = new Set<string>();
+  const catCache = new Map<string, string>();
   for (const r of records) {
     const itemId = byAsin.get(normalizeCode(r.asin));
     if (!itemId) continue;
+
+    // Category from Amazon's browse classification — set only when the item has
+    // none (never overwrite a manually-chosen category). Get-or-creates the category.
+    if (r.category) {
+      const catId = await categoryIdByName(orgId, r.category, catCache);
+      if (catId) {
+        const res = await db.update(items).set({ categoryId: catId, updatedAt: new Date() })
+          .where(and(eq(items.id, itemId), eq(items.organizationId, orgId), isNull(items.categoryId)))
+          .returning({ id: items.id });
+        if (res.length) result.fields++;
+      }
+    }
 
     // Fill empty fields only.
     const set: Record<string, string> = {};

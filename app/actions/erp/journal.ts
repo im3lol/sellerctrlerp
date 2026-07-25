@@ -2,8 +2,8 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "@/lib/safe-revalidate";
+import { and, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines, accounts } from "@/db/schema";
@@ -161,11 +161,24 @@ export async function postDraftEntryAction(id: string): Promise<ActionState> {
   });
 }
 
+// GL-only sources a journal-side reversal may touch. Document-generated entries
+// (invoices, vouchers, deliveries…) also moved subledgers — customer/supplier
+// balances, invoice balanceDue, stock — that a mirror entry does NOT move back;
+// reversing them here desyncs GL from the subledgers. Those must go through the
+// document's own cancel/return flow.
+const REVERSIBLE_SOURCES = new Set(["MANUAL", "RECURRING"]);
+
 /** Reverse a POSTED entry (creates a mirror entry; never deletes). */
 export async function reverseEntryAction(id: string, reason?: string): Promise<ActionState & { reversalId?: string }> {
   const auth = await authorizeErp("accounting.reverse");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    const [entry] = await db.select({ sourceType: journalEntries.sourceType }).from(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
+    if (!entry) return { error: "القيد غير موجود" };
+    if (!REVERSIBLE_SOURCES.has(entry.sourceType ?? "MANUAL")) {
+      return { error: "هذا القيد ناتج عن مستند — استخدم إلغاء/مرتجع المستند نفسه حتى لا تختل أرصدة العملاء/الموردين والمخزون" };
+    }
     try {
       const reversalId = await db.transaction((tx) =>
         reverseEntry(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId, reason: reason || null }),
@@ -204,7 +217,28 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
   });
 }
 
-/** Bulk post/delete DRAFT entries; each id runs the guarded single-item action. */
-export async function bulkJournalAction(op: "post" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the journal list page's filters — the "select all pages" path re-derives
+ *  the ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type JournalFilter = { q?: string; status?: string; source?: string; from?: string; to?: string };
+
+async function matchingJournalIds(orgId: string, f: JournalFilter): Promise<string[]> {
+  const conds = [eq(journalEntries.organizationId, orgId)];
+  if (f.status) conds.push(eq(journalEntries.status, f.status));
+  if (f.source) conds.push(eq(journalEntries.sourceType, f.source));
+  if (f.from) conds.push(gte(journalEntries.date, new Date(f.from)));
+  if (f.to) conds.push(lte(journalEntries.date, new Date(`${f.to}T23:59:59`)));
+  if (f.q) conds.push(or(ilike(journalEntries.number, `%${f.q}%`), ilike(journalEntries.description, `%${f.q}%`))!);
+  return (await db.select({ id: journalEntries.id }).from(journalEntries).where(and(...conds))).map((r) => r.id);
+}
+
+/** Bulk post/delete DRAFT entries; each id runs the guarded single-item action.
+ *  When `all` is set, ids are re-derived server-side from the filter (non-DRAFT
+ *  rows are skipped by the per-item guards). */
+export async function bulkJournalAction(op: "post" | "delete", ids: string[], all?: JournalFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp(op === "post" ? "accounting.post" : "accounting.create");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await matchingJournalIds(auth.orgId, all);
+  }
   return bulkOp(ids, op === "post" ? postDraftEntryAction : deleteDraftEntryAction);
 }

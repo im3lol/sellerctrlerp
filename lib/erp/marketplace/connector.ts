@@ -1,4 +1,9 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceSettlement, MarketplaceProduct, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, DateRange } from "./dto";
+import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
+import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
+import type { FbaReimbursementRow } from "@/lib/erp/amazon-reimbursements";
+import type { FbaLedgerRow } from "@/lib/erp/amazon-ledger";
+import type { FeeEstimate } from "@/lib/erp/marketplace/amazon/fees";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
 export type Credential = {
@@ -23,6 +28,7 @@ export type CatalogRecord = {
   identifiers: CatalogIdentifier[];
   parentAsin?: string;   // set on a variation child
   variationValue?: string; // e.g. "Red / L"
+  category?: string;     // browse-node leaf display name → item category
 };
 
 export type OAuthExchange = { refreshToken: string } | { error: string };
@@ -51,5 +57,15 @@ export interface MarketplaceConnector {
   /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
    *  the Inventory Auditor's data source. */
   fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
-  fetchSettlements?(cred: Credential, range: DateRange): Promise<MarketplaceSettlement[]>;
+  /** Amazon settlement rows (ASIN-bucketed) pulled from the scheduled Settlement
+   *  Report. Amazon-specific for now; feeds the settlement poster directly. */
+  fetchSettlements?(cred: Credential, range: DateRange): Promise<SettlementTxn[]>;
+  /** FBA customer returns in the window (returns report) — feeds the DRAFT-return sync. */
+  fetchReturns?(cred: Credential, range: DateRange): Promise<FbaReturnRow[]>;
+  /** FBA reimbursements in the window (read-only feed). */
+  fetchReimbursements?(cred: Credential, range: DateRange): Promise<FbaReimbursementRow[]>;
+  /** FBA ledger detail events in the window (read-only feed). */
+  fetchLedgerEvents?(cred: Credential, range: DateRange): Promise<FbaLedgerRow[]>;
+  /** Estimated marketplace fees for SKUs at given prices (Product Fees API). */
+  fetchFees?(cred: Credential, skus: { sku: string; price: number }[]): Promise<FeeEstimate[]>;
 }

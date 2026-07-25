@@ -1,13 +1,14 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations } from "@/db/schema";
+import { createReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
@@ -136,18 +137,6 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
     if (!inv) return { error: "الفاتورة غير موجودة" };
     if (inv.status !== "DRAFT") return { error: "الفاتورة مُرحّلة بالفعل" };
 
-    // Credit-limit guard: posting adds `totalAmount` to the customer's receivable
-    // balance — block it if that would exceed a set limit (0 = no limit).
-    const [cust] = await db
-      .select({ balance: customers.balance, creditLimit: customers.creditLimit, name: customers.nameAr })
-      .from(customers)
-      .where(and(eq(customers.id, inv.customerId), eq(customers.organizationId, auth.orgId)))
-      .limit(1);
-    const creditLimit = Number(cust?.creditLimit ?? 0);
-    if (creditLimit > 0 && Number(cust?.balance ?? 0) + Number(inv.totalAmount) > creditLimit + 1e-6) {
-      return { error: `يتجاوز هذا الترحيل حد ائتمان العميل «${cust?.name ?? ""}» (${creditLimit.toLocaleString("ar-EG-u-nu-latn")}).` };
-    }
-
     const byCode = await resolveAccountIds(auth.orgId, ["1103", "4101", "2102", "5101", "1104"]);
     if (!byCode["1103"] || !byCode["4101"]) {
       return { error: "حسابات الترحيل غير مكتملة (العملاء/المبيعات). أضِفها في دليل الحسابات." };
@@ -155,6 +144,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
 
     const total = Number(inv.totalAmount);
     const tax = Number(inv.taxAmount);
+    const shipping = Number(inv.shippingAmount ?? 0);
     const net = Number(inv.subtotal) - Number(inv.discountAmount);
     const fromDelivery = Boolean(inv.deliveryNoteId);
 
@@ -162,12 +152,30 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
       { accountId: byCode["1103"], debit: total, credit: 0, description: `فاتورة بيع ${inv.number}` },
       { accountId: byCode["4101"], debit: 0, credit: net, description: `إيراد مبيعات ${inv.number}` },
     ];
+    // Shipping billed to the customer is revenue too — without this line the entry
+    // wouldn't balance now that totalAmount includes the order's shipping.
+    if (shipping > 0) {
+      lines.push({ accountId: byCode["4101"], debit: 0, credit: shipping, description: `إيراد شحن ${inv.number}` });
+    }
     if (tax > 0 && byCode["2102"]) {
       lines.push({ accountId: byCode["2102"], debit: 0, credit: tax, description: `ضريبة مخرجات ${inv.number}` });
     }
 
     try {
       const entryId = await db.transaction(async (tx) => {
+        // Credit-limit guard UNDER LOCK: posting adds `totalAmount` to the customer's
+        // receivable balance — checked outside the tx, two concurrent posts could
+        // both pass on the same stale balance and blow past the limit together.
+        const [cust] = await tx
+          .select({ balance: customers.balance, creditLimit: customers.creditLimit, name: customers.nameAr })
+          .from(customers)
+          .where(and(eq(customers.id, inv.customerId), eq(customers.organizationId, auth.orgId)))
+          .for("update")
+          .limit(1);
+        const creditLimit = Number(cust?.creditLimit ?? 0);
+        if (creditLimit > 0 && Number(cust?.balance ?? 0) + total > creditLimit + 1e-6) {
+          throw new Error(`يتجاوز هذا الترحيل حد ائتمان العميل «${cust?.name ?? ""}» (${creditLimit.toLocaleString("ar-EG-u-nu-latn")}).`);
+        }
         const eid = await postEntry(tx, {
           orgId: auth.orgId, date: new Date(inv.date), sourceType: "SALES_INVOICE", sourceId: inv.id,
           description: `فاتورة بيع ${inv.number}`, journalType: "SALES", userId: auth.userId, lines,
@@ -274,12 +282,72 @@ export async function deleteSalesInvoiceAction(id: string): Promise<ActionState>
   });
 }
 
-/** Bulk post / delete sales invoices (drafts only). Skips ineligible rows. */
-export async function bulkSalesInvoicesAction(op: "post" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp(op === "delete" ? "sales.create" : "accounting.post");
+export type SalesInvoicesFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+/** DRAFT invoice ids matching the page filter — bulk ops apply to drafts only, so
+ *  "select all across pages" re-derives exactly those on the server. */
+async function matchingDraftInvoiceIds(orgId: string, f: SalesInvoicesFilter): Promise<string[]> {
+  const conds = [eq(salesInvoices.organizationId, orgId), eq(salesInvoices.status, "DRAFT")];
+  if (f.q) conds.push(ilike(salesInvoices.number, `%${f.q}%`));
+  if (f.customer) conds.push(eq(salesInvoices.customerId, f.customer));
+  if (f.from) conds.push(gte(salesInvoices.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesInvoices.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesInvoices.id }).from(salesInvoices).where(and(...conds))).map((r) => r.id);
+}
+
+/** Posted invoices with an outstanding balance — the "collect" op re-derives these
+ *  server-side for the select-all-across-pages path. */
+async function matchingCollectibleInvoiceIds(orgId: string, f: SalesInvoicesFilter): Promise<string[]> {
+  const conds = [
+    eq(salesInvoices.organizationId, orgId),
+    inArray(salesInvoices.status, ["POSTED", "PARTIAL_PAID"]),
+    sql`${salesInvoices.balanceDue} > 0`,
+  ];
+  if (f.q) conds.push(ilike(salesInvoices.number, `%${f.q}%`));
+  if (f.customer) conds.push(eq(salesInvoices.customerId, f.customer));
+  if (f.from) conds.push(gte(salesInvoices.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesInvoices.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesInvoices.id }).from(salesInvoices).where(and(...conds))).map((r) => r.id);
+}
+
+/**
+ * Bulk post / delete sales invoices (drafts only). Skips ineligible rows.
+ * `all` re-derives the ids server-side from the current filter so the client never
+ * ships thousands of ids. ponytail: loops the guarded per-row action — posting has
+ * per-invoice side effects (GL entry, stock, COGS) so it can't be set-based;
+ * bounded by the draft count, upgrade to batched posting only if that grows huge.
+ */
+export async function bulkSalesInvoicesAction(op: "post" | "delete" | "collect", ids: string[], all?: SalesInvoicesFilter): Promise<ActionState & { count?: number }> {
+  const perm = op === "delete" ? "sales.create" : op === "collect" ? "sales.collect" : "accounting.post";
+  const auth = await authorizeErp(perm);
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = op === "collect" ? await matchingCollectibleInvoiceIds(auth.orgId, all) : await matchingDraftInvoiceIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تُحدّد أي فواتير" };
+
+    if (op === "collect") {
+      // Bulk collect: a DRAFT receipt voucher for each posted invoice's outstanding
+      // balance, on the org's default cash account. Reviewed & confirmed later.
+      const [cfg] = await db.select({ cashAccountId: accountingConfigurations.cashAccountId })
+        .from(accountingConfigurations).where(eq(accountingConfigurations.organizationId, auth.orgId)).limit(1);
+      if (!cfg?.cashAccountId) return { error: "لم يُحدّد حساب النقدية الافتراضي في الضبط المحاسبي" };
+      const today = new Date().toISOString().slice(0, 10);
+      let count = 0;
+      let lastError: string | undefined;
+      for (const id of ids) {
+        const [inv] = await db.select({ customerId: salesInvoices.customerId, balanceDue: salesInvoices.balanceDue, status: salesInvoices.status })
+          .from(salesInvoices).where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+        if (!inv || (inv.status !== "POSTED" && inv.status !== "PARTIAL_PAID") || Number(inv.balanceDue) <= 0) continue;
+        const r = await createReceiptVoucherAction({ customerId: inv.customerId, salesInvoiceId: id, cashAccountId: cfg.cashAccountId, amount: Number(inv.balanceDue), date: today });
+        if (r.ok) count++;
+        else lastError = r.error;
+      }
+      if (count === 0) return { error: lastError ?? "لا توجد فواتير قابلة للتحصيل ضمن المحدّد" };
+      revalidatePath("/sales/receipts");
+      revalidatePath("/sales/invoices");
+      return { ok: true, count };
+    }
+
     let count = 0;
     let lastError: string | undefined;
     for (const id of ids) {

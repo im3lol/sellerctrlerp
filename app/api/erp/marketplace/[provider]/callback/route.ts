@@ -52,8 +52,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       set: {
         refreshToken: encryptSecret(ex.refreshToken), sellerId: sellerId || null,
         marketplaceId: mp.marketplaceId, region: mp.region, platformId, updatedAt: new Date(),
+        // Fresh token — clear any revoked-token flag so the scheduler resumes.
+        needsReauth: false, lastSyncStatus: null,
       },
     });
   });
+
+  // Best-effort: subscribe this seller to real-time ORDER_CHANGE notifications
+  // (no-op unless the shared SQS queue env is configured; never blocks connect).
+  try {
+    const { sqsConfigured, ensureOrderNotifications } = await import("@/lib/erp/marketplace/amazon/notifications");
+    if (connector.code === "AMAZON" && sqsConfigured()) {
+      const r = await ensureOrderNotifications({ refreshToken: ex.refreshToken, sellerId: sellerId || null, marketplaceId: mp.marketplaceId, region: mp.region });
+      if (!("error" in r)) {
+        await withOrgScope(state.orgId, false, () =>
+          db.update(platformCredentials)
+            .set({ notifDestinationId: r.destinationId, notifSubscriptionId: r.subscriptionId, updatedAt: new Date() })
+            .where(and(eq(platformCredentials.organizationId, state.orgId), eq(platformCredentials.provider, connector.code.toLowerCase()))));
+      }
+    }
+  } catch { /* notifications are optional */ }
   return back(true);
 }

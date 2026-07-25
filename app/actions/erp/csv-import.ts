@@ -170,7 +170,6 @@ export async function importItemsCSV(csvText: string): Promise<ImportResult | { 
       if (!code) { result.errors.push({ row: rowNum, message: "الكود مطلوب" }); continue; }
       if (!nameAr) { result.errors.push({ row: rowNum, message: "الاسم مطلوب" }); continue; }
 
-      const nameEn   = col(row, ["nameen", "name_en", "اسم_انجليزي"]).trim() || null;
       const sellPrice = parseFloat(col(row, ["sellprice", "sell_price", "سعرالبيع"])) || 0;
       const minStock  = parseFloat(col(row, ["minstock", "min_stock", "حدأدنى"])) || 0;
       const desc      = col(row, ["description", "وصف", "الوصف"]).trim() || null;
@@ -182,11 +181,11 @@ export async function importItemsCSV(csvText: string): Promise<ImportResult | { 
           .where(and(eq(items.organizationId, orgId), eq(items.code, code))).limit(1);
 
         if (existing.length > 0) {
-          await db.update(items).set({ nameAr, nameEn, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive, updatedAt: new Date() })
+          await db.update(items).set({ nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive, updatedAt: new Date() })
             .where(and(eq(items.organizationId, orgId), eq(items.code, code)));
           result.updated++;
         } else {
-          await db.insert(items).values({ organizationId: orgId, code, nameAr, nameEn, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive });
+          await db.insert(items).values({ organizationId: orgId, code, nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive });
           result.inserted++;
         }
       } catch (e: unknown) {

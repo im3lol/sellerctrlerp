@@ -1,5 +1,5 @@
 import "server-only";
-import { spJson } from "./client";
+import { spJson, paced, credKey } from "./client";
 import type { Credential, CatalogRecord, CatalogIdentifier } from "../connector";
 
 // Catalog Items API (2022-04-01): enrich synced products by ASIN with image URL,
@@ -15,10 +15,12 @@ type CatalogItem = {
   images?: { images?: Img[] }[];
   dimensions?: { item?: { length?: Dim; width?: Dim; height?: Dim; weight?: Dim } }[];
   relationships?: { relationships?: { parentAsins?: string[] }[] }[];
+  // Browse-node classification per marketplace → we take the leaf display name as category.
+  classifications?: { classifications?: { displayName?: string }[] }[];
 };
 type CatalogResponse = { items?: CatalogItem[] };
 
-const INCLUDED = "summaries,identifiers,images,dimensions,relationships";
+const INCLUDED = "summaries,identifiers,images,dimensions,relationships,classifications";
 // Amazon identifier types we store as barcodes (mapped to our item_codes types).
 const BARCODE_TYPES: Record<string, string> = { UPC: "UPC", EAN: "EAN", GTIN: "BARCODE", ISBN: "BARCODE" };
 
@@ -49,8 +51,9 @@ export function parseCatalog(res: CatalogResponse): CatalogRecord[] {
 
     const variationValue = [sum?.color, sum?.size].filter(Boolean).join(" / ") || undefined;
     const parentAsin = it.relationships?.[0]?.relationships?.find((r) => r.parentAsins?.length)?.parentAsins?.[0];
+    const category = it.classifications?.[0]?.classifications?.find((c) => c.displayName)?.displayName || undefined;
 
-    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, weight, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue });
+    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, weight, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue, category });
   }
   return out;
 }
@@ -69,7 +72,9 @@ export async function fetchCatalog(cred: Credential, asins: string[]): Promise<C
   for (const batch of chunk(unique, 20)) {
     const qs = new URLSearchParams({ identifiers: batch.join(","), identifiersType: "ASIN", marketplaceIds: cred.marketplaceId, includedData: INCLUDED });
     try {
-      out.push(...parseCatalog(await spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`)));
+      // searchCatalogItems is 2/s — pace batches proactively.
+      out.push(...parseCatalog(await paced(`amazon-catalog:${credKey(cred)}`, 550, () =>
+        spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`))));
     } catch {
       // A failed batch shouldn't abort the whole enrichment; skip it.
     }

@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -53,10 +53,14 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     // remaining = bought − already returned (posted), per item. Without subtracting
     // prior returns each credit note is capped only against the invoice, so the same
     // invoice could be returned in full repeatedly — see createSalesReturnAction.
-    const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
+    const invLines = await db.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice })
       .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
     const boughtByItem = new Map<string, number>();
-    for (const l of invLines) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+    const priceByItem = new Map<string, number>();
+    for (const l of invLines) {
+      boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+      priceByItem.set(l.itemId, Math.max(priceByItem.get(l.itemId) ?? 0, Number(l.unitPrice)));
+    }
     const priorRet = await db.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
       .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
       .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
@@ -65,6 +69,9 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
     for (const l of lines) {
       const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
       if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+      // Debit at most what was billed — a higher client-supplied price would
+      // over-shrink AP against the supplier.
+      if (l.unitPrice > (priceByItem.get(l.itemId) ?? 0) + 1e-9) return { error: "سعر المرتجع أعلى من سعر الفاتورة للصنف" };
     }
 
     const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -133,6 +140,11 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0));
       const A = await resolveAccountIds(auth.orgId, ["1104", "2103", "4201", "5301", "5302"]);
       if (!A["1104"] || !A["2103"]) return { error: "حسابات الترحيل غير مكتملة." };
+      // Issue from the warehouse the item actually landed in (per-line picks may
+      // differ from the header warehouse) — else per-warehouse balances corrupt.
+      const grnMoves = await db.select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId })
+        .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
+      const whByItem = new Map(grnMoves.map((m) => [m.itemId, m.warehouseId]));
       const poLines = grn.purchaseOrderId
         ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
         : [];
@@ -140,11 +152,28 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
       const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
       try {
         await db.transaction(async (tx) => {
+          // Serialize sibling confirms on the same receipt, then re-check remaining —
+          // the create-time cap only counts POSTED priors, so two DRAFTs for the full
+          // quantity would otherwise both confirm (double stock OUT + double GRNI debit).
+          await tx.execute(sql`select 1 from purchase_receipts where id = ${grn.id} for update`);
+          const recLines = await tx.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
+            .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+          const receivedByItem = new Map<string, number>();
+          for (const l of recLines) receivedByItem.set(l.itemId, (receivedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          const prior = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+            .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+            .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED")));
+          const returnedByItem = new Map<string, number>();
+          for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          for (const l of rLines) {
+            const remaining = (receivedByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+            if (Number(l.quantity) > remaining + 1e-9) throw new Error("الكمية المرتجعة أكبر من المتبقّي للصنف");
+          }
           // FIFO lot costing: stock leaves at batch cost; the price↔cost gap is a variance.
           let cost = 0;
           for (const l of rLines) {
             const q = Number(l.quantity);
-            const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
+            const r = await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? grn.warehouseId, type: "OUT", quantity: q, date: d, referenceType: "PURCHASE_RETURN", referenceId: ret.id, reason: `مرتجع إذن استلام ${grn.number}` });
             cost = round2(cost + r.totalCost);
             const pol = poByItem.get(l.itemId);
             if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${q})` }).where(eq(purchaseOrderLines.id, pol.id));
@@ -200,6 +229,24 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
 
     try {
       await db.transaction(async (tx) => {
+        // Serialize sibling confirms on the same invoice, then re-check remaining —
+        // the create-time cap only counts POSTED priors, so two DRAFTs for the full
+        // quantity would otherwise both confirm (double AP debit + double stock OUT).
+        await tx.execute(sql`select 1 from purchase_invoices where id = ${inv.id} for update`);
+        const invLines2 = await tx.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
+          .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
+        const boughtByItem = new Map<string, number>();
+        for (const l of invLines2) boughtByItem.set(l.itemId, (boughtByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+        const prior = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+          .from(purchaseReturnLines).innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnLines.purchaseReturnId))
+          .where(and(eq(purchaseReturns.purchaseInvoiceId, inv.id), eq(purchaseReturns.status, "POSTED")));
+        const returnedByItem = new Map<string, number>();
+        for (const l of prior) returnedByItem.set(l.itemId, (returnedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+        for (const l of lines) {
+          const remaining = (boughtByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
+          if (l.quantity > remaining + 1e-9) throw new Error("الكمية المرتجعة أكبر من المتبقّي للصنف");
+        }
+
         // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
         // touch no stock (credit GRNI at net). `cost` = inventory value credited.
         let cost = net;

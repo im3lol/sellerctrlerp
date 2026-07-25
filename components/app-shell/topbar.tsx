@@ -46,7 +46,7 @@ export function Topbar({
       </Sheet>
 
       {/* Search (start / right in RTL) */}
-      <div className="relative hidden w-full max-w-xs md:block">
+      <div className="relative hidden w-full max-w-xs md:block" data-tour="topbar-search">
         <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input placeholder="بحث…" className="bg-muted/50 pr-9" />
       </div>
@@ -54,8 +54,8 @@ export function Topbar({
       {/* Actions (pushed to the end / left in RTL) */}
       <div className="ms-auto flex items-center gap-2">
         <ThemeToggle />
-        <NotificationBell />
-        <OrgSwitcher orgs={orgs} activeId={activeOrgId} />
+        <div data-tour="notification-bell"><NotificationBell /></div>
+        <div data-tour="org-switcher"><OrgSwitcher orgs={orgs} activeId={activeOrgId} /></div>
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
         <UserMenu
           name={user.name}

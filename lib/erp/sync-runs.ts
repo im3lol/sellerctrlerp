@@ -6,7 +6,7 @@ import { syncRuns } from "@/db/schema";
 
 // Durable log for the background sync workers (counts + timing + error). Job state
 // itself lives in Redis; this survives restarts and drives the UI progress view.
-export type SyncKind = "IMPORT" | "DISCOVERY" | "DETAILS" | "IMAGES" | "PRICING" | "INVENTORY" | "ORDERS";
+export type SyncKind = "IMPORT" | "DISCOVERY" | "DETAILS" | "IMAGES" | "PRICING" | "INVENTORY" | "ORDERS" | "SETTLEMENTS" | "RETURNS" | "REIMBURSEMENTS" | "LEDGER";
 export type SyncCounts = Partial<{
   productsProcessed: number; newProducts: number; updatedProducts: number; failedProducts: number; apiRequests: number;
 }>;

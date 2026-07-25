@@ -1,19 +1,20 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, items, stockMovements, stockMovementBatches, warehouses,
+  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { marketplaceCodesFor } from "@/lib/erp/marketplace-code";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
@@ -28,7 +29,7 @@ export type Pick = { itemId: string; quantity: number; warehouseId?: string };
 
 export type DeliverableLine = {
   itemId: string; code: string; name: string; ordered: number; delivered: number; remaining: number;
-  warehouseId: string | null; stockByWarehouse: Record<string, number>;
+  warehouseId: string | null; stockByWarehouse: Record<string, number>; marketplaceCode?: string;
 };
 
 /**
@@ -36,7 +37,7 @@ export type DeliverableLine = {
  * delivery form: remaining qty + current on-hand per warehouse per item.
  */
 export async function getDeliverableOrderLinesAction(salesOrderId: string): Promise<
-  ActionState & { lines?: DeliverableLine[]; defaultWarehouseId?: string }
+  ActionState & { lines?: DeliverableLine[]; defaultWarehouseId?: string; channel?: string }
 > {
   const auth = await authorizeErp("sales.view");
   if ("error" in auth) return auth;
@@ -52,7 +53,7 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
       .where(eq(salesOrderLines.salesOrderId, so.id));
 
     const lines = ols
-      .map((l) => {
+      .map((l): DeliverableLine => {
         const ordered = Number(l.quantity), delivered = Number(l.deliveredQty);
         return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, delivered, remaining: round2(ordered - delivered), warehouseId: l.warehouseId, stockByWarehouse: {} as Record<string, number> };
       })
@@ -64,7 +65,7 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
         .select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
         .from(stockMovements)
         .where(and(eq(stockMovements.organizationId, auth.orgId), inArray(stockMovements.itemId, itemIds)))
-        .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id));
+        .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`));
       const seen = new Set<string>();
       const byItem = new Map(lines.map((l) => [l.itemId, l]));
       for (const m of sm) {
@@ -76,10 +77,15 @@ export async function getDeliverableOrderLinesAction(salesOrderId: string): Prom
       }
     }
 
+    // Marketplace SKU (ASIN for Amazon / كود نون for Noon) per line, keyed off the
+    // ORDER's channel — so a delivery from an Amazon order shows the ASIN, etc.
+    const mkt = await marketplaceCodesFor(auth.orgId, so.channel, itemIds);
+    for (const l of lines) l.marketplaceCode = mkt.get(l.itemId);
+
     // Default warehouse = first active (delivery issues from one).
     const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
       .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)).limit(1);
-    return { ok: true, lines, defaultWarehouseId: wh?.id };
+    return { ok: true, lines, defaultWarehouseId: wh?.id, channel: so.channel };
   });
 }
 
@@ -102,6 +108,13 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
     const orderLines = await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty, warehouseId: salesOrderLines.warehouseId })
       .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
 
+    // Per-line pick warehouses flow into stock movements — verify they belong to the org.
+    const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
+    if (pickWhIds.length) {
+      const okWh = await db.select({ id: warehouses.id }).from(warehouses)
+        .where(and(inArray(warehouses.id, pickWhIds), eq(warehouses.organizationId, auth.orgId)));
+      if (okWh.length !== pickWhIds.length) return { error: "مستودع غير صالح في أحد البنود" };
+    }
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
     const toDeliver: { itemId: string; qty: number; warehouseId: string | null }[] = [];
     for (const l of orderLines) {
@@ -191,11 +204,19 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
         const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId, quantity: salesOrderLines.quantity, deliveredQty: salesOrderLines.deliveredQty })
           .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id)).for("update");
         const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
-        for (const dl of dnLines) {
-          const sol = soByItem.get(dl.itemId);
-          if (!sol) throw new Error("أحد الأصناف غير موجود في أمر البيع");
-          const remaining = round2(Number(sol.quantity) - Number(sol.deliveredQty));
-          if (Number(dl.quantity) > remaining + EPS) throw new Error("الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
+        // Validate AGGREGATED per item — duplicate lines for the same item (on
+        // either document) would each pass an individual ≤-remaining check while
+        // their sum over-delivers the order.
+        const orderedByItem = new Map<string, number>(), deliveredByItem = new Map<string, number>(), wantByItem = new Map<string, number>();
+        for (const l of soLines) {
+          orderedByItem.set(l.itemId, (orderedByItem.get(l.itemId) ?? 0) + Number(l.quantity));
+          deliveredByItem.set(l.itemId, (deliveredByItem.get(l.itemId) ?? 0) + Number(l.deliveredQty));
+        }
+        for (const dl of dnLines) wantByItem.set(dl.itemId, (wantByItem.get(dl.itemId) ?? 0) + Number(dl.quantity));
+        for (const [itemId, want] of wantByItem) {
+          if (!soByItem.has(itemId)) throw new Error("أحد الأصناف غير موجود في أمر البيع");
+          const remaining = round2((orderedByItem.get(itemId) ?? 0) - (deliveredByItem.get(itemId) ?? 0));
+          if (want > remaining + EPS) throw new Error("الكمية المسلّمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
         }
         let cogs = 0;
         for (const dl of dnLines) {
@@ -259,16 +280,32 @@ export async function deleteDeliveryAction(deliveryId: string): Promise<ActionSt
 }
 
 /** Bulk confirm / bill / delete deliveries. Skips rows ineligible for the op. */
-export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+/** Mirrors the deliveries list page's filters — the "select all pages" path
+ *  re-derives the ids from these SERVER-SIDE. */
+export type DeliveriesFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+async function matchingDeliveryIds(orgId: string, f: DeliveriesFilter): Promise<string[]> {
+  const conds = [eq(deliveryNotes.organizationId, orgId)];
+  if (f.q) conds.push(ilike(deliveryNotes.number, `%${f.q}%`));
+  if (f.status) conds.push(eq(deliveryNotes.status, f.status));
+  if (f.customer) conds.push(eq(deliveryNotes.customerId, f.customer));
+  if (f.from) conds.push(gte(deliveryNotes.date, new Date(f.from)));
+  if (f.to) conds.push(lte(deliveryNotes.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: deliveryNotes.id }).from(deliveryNotes).where(and(...conds))).map((r) => r.id);
+}
+
+export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete" | "reverse", ids: string[], all?: DeliveriesFilter): Promise<ActionState & { count?: number }> {
   const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = await matchingDeliveryIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تُحدّد أي إذون" };
     let count = 0;
     let lastError: string | undefined;
     for (const id of ids) {
       const r = op === "confirm" ? await confirmDeliveryAction(id)
         : op === "bill" ? await convertDeliveryToInvoiceAction(id)
+        : op === "reverse" ? await reverseDeliveryAction(id)
         : await deleteDeliveryAction(id);
       if (r.ok) count++;
       else lastError = r.error;
@@ -278,8 +315,8 @@ export async function bulkDeliveriesAction(op: "confirm" | "bill" | "delete", id
   });
 }
 
-export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number };
-export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; total: number };
+export type DeliveryInvoiceLine = { itemId: string; code: string; name: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; totalAmount: number; marketplaceCode?: string };
+export type DeliveryInvoicePreview = { lines: DeliveryInvoiceLine[]; subtotal: number; discount: number; tax: number; shipping: number; total: number; channel?: string };
 
 /** Compute the invoice a delivery would produce (priced from the order). */
 async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Promise<DeliveryInvoicePreview | { error: string }> {
@@ -309,7 +346,15 @@ async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Prom
     lines.push({ itemId: dl.itemId, code: dl.code ?? "", name: dl.name ?? "", quantity: dq, unitPrice: price, discountAmount: lineDisc, taxAmount: lineTax, totalAmount: lineTotal });
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  return { lines, subtotal, discount, tax, total: round2(subtotal - discount + tax) };
+  // Order-level shipping, pro-rated by the delivered share of the order value
+  // (full delivery → the whole amount; mirrors the per-line discount/tax pro-rating).
+  // Previously dropped entirely — an order with shipping was invoiced short.
+  const orderSubtotal = soLines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0);
+  const shipping = orderSubtotal > 0 ? round2(Number(so.shippingAmount) * (subtotal / orderSubtotal)) : 0;
+  // Marketplace SKU per line, keyed off the source order's channel (ASIN / كود نون).
+  const mkt = await marketplaceCodesFor(so.organizationId, so.channel, lines.map((l) => l.itemId));
+  for (const l of lines) l.marketplaceCode = mkt.get(l.itemId);
+  return { lines, subtotal, discount, tax, shipping, total: round2(subtotal - discount + tax + shipping), channel: so.channel };
 }
 
 /** Preview the invoice a confirmed delivery would produce (for the create form). */
@@ -371,7 +416,7 @@ export async function convertDeliveryToInvoiceAction(
       const invoiceId = await db.transaction(async (tx) => {
         const [inv] = await tx.insert(salesInvoices).values({
           organizationId: auth.orgId, number, customerId, deliveryNoteId: dn.id, date: invoiceDate, status: "DRAFT",
-          subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), totalAmount: String(built.total),
+          subtotal: String(built.subtotal), discountAmount: String(built.discount), taxAmount: String(built.tax), shippingAmount: String(built.shipping), totalAmount: String(built.total),
           paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة تسليم ${dn.number}`,
           currencyCode: cur.code,
           exchangeRate: String(cur.rate),
@@ -410,7 +455,13 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
     // money side is handled separately by the invoice return).
     if (dn.status !== "DELIVERED" && dn.status !== "INVOICED") return { error: "لا يمكن عكس هذا الإذن" };
 
-    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
+    // A posted return already restocked part of this delivery — a full reversal on
+    // top would restock those units a second time. Cancel the returns first.
+    const [priorRet] = await db.select({ id: salesReturns.id }).from(salesReturns)
+      .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.status, "POSTED"))).limit(1);
+    if (priorRet) return { error: "توجد مرتجعات مرحّلة على هذا الإذن — ألغِ المرتجعات أولاً أو استخدم مرتجعًا للكمية المتبقية" };
+
+    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
       .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
     if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
 
@@ -434,7 +485,9 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
           // whenever the pinned lot re-averaged between the original move and now
           // (shows as "غير مطابَق" in valuation). Mirrors the forward path.
           const r = await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: m.itemId, warehouseId: dn.warehouseId, type: "IN",
+            // Restock the warehouse the OUT actually issued from (per-line picks may
+            // differ from the header warehouse) — else ledger and batches diverge.
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "IN",
             quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `عكس صرف ${dn.number}`,
           });
           cogs += r.totalCost;
@@ -463,5 +516,32 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر عكس الصرف" };
     }
+  });
+}
+
+/**
+ * One click: the aggregated stock shortages of all DRAFT إذون الصرف → ONE DRAFT
+ * stock adjustment (delta = the missing qty per item/warehouse) the user reviews
+ * against a physical count (جرد) then posts. Nothing moves until it's confirmed.
+ */
+export async function createDeliveryShortageAdjustmentAction(): Promise<ActionState & { id?: string; count?: number }> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const { computeDeliveryShortages } = await import("@/lib/erp/delivery-shortages");
+    const { shortages } = await computeDeliveryShortages(auth.orgId);
+    if (shortages.length === 0) return { error: "لا توجد نواقص — المخزون يغطي كل إذون الصرف المسودة" };
+    const lines = shortages.slice(0, 500).map((s) => ({
+      itemId: s.itemId, warehouseId: s.warehouseId, mode: "delta" as const, value: s.missing,
+    }));
+    const { createStockAdjustmentAction } = await import("@/app/actions/erp/stock-adjustments");
+    const r = await createStockAdjustmentAction({
+      date: new Date().toISOString().slice(0, 10),
+      reason: "تسوية نواقص إذون الصرف (جرد)",
+      lines,
+    });
+    if (!r.ok || !r.id) return { error: r.error ?? "تعذّر إنشاء التسوية" };
+    revalidatePath("/sales/deliveries");
+    return { ok: true, id: r.id, count: lines.length };
   });
 }

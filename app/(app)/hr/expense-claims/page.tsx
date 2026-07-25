@@ -11,8 +11,6 @@ import { ExpenseClaimsTable } from "@/components/erp/expense-claims-table";
 
 export default async function ExpenseClaimsPage() {
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
-    const canManage = can("accounting.post") || can("accounting.create");
-
     const rows = await db.select({
       id: expenseClaims.id, number: expenseClaims.number, date: expenseClaims.date, employee: expenseClaims.employeeName, status: expenseClaims.status,
       total: sql<string>`(select coalesce(sum(amount),0) from ${expenseClaimLines} where ${expenseClaimLines.claimId} = ${expenseClaims.id})`,
@@ -27,7 +25,7 @@ export default async function ExpenseClaimsPage() {
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مطالبات بعد.</div>
             ) : (
-              <ExpenseClaimsTable rows={rows} canManage={canManage} />
+              <ExpenseClaimsTable rows={rows} canApprove={can("accounting.post")} canCreate={can("accounting.create")} />
             )}
           </CardContent>
         </Card>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { bulkSalesOrdersAction } from "@/app/actions/erp/sales-orders";
+import { bulkSalesOrdersAction, type SalesOrdersFilter } from "@/app/actions/erp/sales-orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,23 +43,27 @@ const CHANNEL_STATUS: Record<string, { label: string; variant: "default" | "seco
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
-export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: SalesOrdersFilter }) {
+  const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [allPages, setAllPages] = useState(false);
 
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const ids = rows.map((r) => r.id);
-  const allSelected = ids.length > 0 && ids.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(ids));
+  const allSelected = allPages || (ids.length > 0 && ids.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(ids)); };
+  const count = allPages ? total : sel.size;
+  const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
-  const bulk = (op: "confirm" | "cancel" | "delete") => {
-    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
+  const bulk = (op: "confirm" | "cancel" | "delete" | "deliver") => {
+    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : op === "deliver" ? "تحويل لإذن صرف" : "حذف";
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} أمر`, danger: op !== "confirm" }))) return;
+      if (!(await confirm({ title: `${verb} ${int(count)} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
-        const r = await bulkSalesOrdersAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} أمر`); setSel(new Set()); router.refresh(); }
+        const r = await bulkSalesOrdersAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
+        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} أمر`); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? "تعذّر التنفيذ");
       });
     })();
@@ -67,20 +71,25 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
 
   return (
     <div className="space-y-3">
-      {canManage && sel.size > 0 && (
+      {canAct && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          {!allPages && allSelected && total > ids.length && (
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+          )}
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
-            <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canCreate && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title="ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية"><Icon name="Truck" className="size-4" />تحويل لإذن صرف</Button>}
+            {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canManage && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">العميل</TableHead>
@@ -96,8 +105,8 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
             const full = pct >= 100;
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
@@ -113,7 +122,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                     )}
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -131,7 +140,7 @@ export function SalesOrdersTable({ rows, canManage }: { rows: Row[]; canManage: 
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
-                    {canManage && <TableCell />}
+                    {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>

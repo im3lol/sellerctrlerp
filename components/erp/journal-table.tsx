@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { bulkJournalAction } from "@/app/actions/erp/journal";
+import { bulkJournalAction, type JournalFilter } from "@/app/actions/erp/journal";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
@@ -31,20 +31,33 @@ const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
-export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: boolean }) {
-  const sel = useSelection();
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canDelete && draftIds.length > 0;
+export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: JournalFilter }) {
+  const sel = useSelection(total);
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canPost || canCreate;
+  const ops = [
+    ...(canPost ? [{ op: "post", label: "ترحيل", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "post", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkJournalAction} onDone={sel.clear} entity="قيد" />}
+      {showSelect && (
+        <BulkBar
+          ids={sel.ids}
+          ops={ops}
+          action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
+          onDone={sel.clear}
+          entity="قيد"
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
+        />
+      )}
       <Table>
         <TableHeader>
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
               </TableHead>
             )}
             <TableHead className="text-start">الرقم</TableHead>
@@ -58,7 +71,7 @@ export function JournalTable({ rows, canDelete }: { rows: Row[]; canDelete: bool
         <TableBody>
           {rows.map((r) => {
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined} className="hover:bg-muted/50">
                 {showSelect && (

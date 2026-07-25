@@ -3,7 +3,7 @@
 import { capPayrollDeductions, inclusiveOverlapDays, unpaidLeaveDeduction } from "@/lib/erp/payroll-calc";
 import { round2 } from "@/lib/erp/money";
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -258,7 +258,9 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     const totalNet        = lines.reduce((s, l) => s + n(l.netPay), 0);
 
     const runId = await db.transaction(async (tx) => {
-      const number = await nextDocumentNumber(tx, auth.orgId, "PR", periodStart.getFullYear());
+      // "PY" not "PR" — "PR" is مرتجع شراء; sharing the counter interleaved the
+      // two series and could reset payroll numbers below existing ones. See lib/erp/doc-types.ts.
+      const number = await nextDocumentNumber(tx, auth.orgId, "PY", periodStart.getFullYear());
       const [run] = await tx
         .insert(payrollRuns)
         .values({

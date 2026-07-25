@@ -21,7 +21,7 @@ export default async function ReorderPage() {
         FROM stock_movements WHERE organization_id = ${orgId}
         ORDER BY item_id, warehouse_id, created_at DESC, number DESC
       )
-      SELECT i.code, coalesce(i.name_ar, i.name_en, i.code) AS name,
+      SELECT i.code, coalesce(i.name_ar, i.code) AS name,
              coalesce(i.min_stock, 0) AS min_stock, i.max_stock,
              coalesce(sum(l.balance_quantity), 0) AS on_hand
       FROM items i
@@ -72,8 +72,8 @@ export default async function ReorderPage() {
                     const suggested = r.max && r.max > r.onHand ? r.max - r.onHand : Math.max(r.min - r.onHand, 0);
                     return (
                       <TableRow key={r.code}>
-                        <TableCell className="font-mono">{r.code}</TableCell>
-                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
+                        <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
                         <TableCell>{q(r.onHand)}</TableCell>
                         <TableCell>{q(r.min)}</TableCell>
                         <TableCell>{r.max ? q(r.max) : "—"}</TableCell>

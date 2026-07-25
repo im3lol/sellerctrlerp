@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -27,7 +27,11 @@ const schema = z.object({
   syncProducts: z.boolean().optional(),
   syncOrders: z.boolean().optional(),
   syncInventory: z.boolean().optional(),
-  autoInvoice: z.boolean().optional(),
+  syncSettlements: z.boolean().optional(),
+  syncReturns: z.boolean().optional(),
+  autoPostSettlements: z.boolean().optional(),
+  autoMode: z.enum(["draft", "order", "deliver", "invoice"]).optional(),
+  accountingStartDate: z.string().optional().nullable(),
 });
 
 /** Validate that an optional FK id belongs to the active org (or is empty). */
@@ -87,7 +91,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
           ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
           ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
           ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
-          ...(parsed.data.autoInvoice !== undefined ? { autoInvoice: parsed.data.autoInvoice } : {}),
+          ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
         }).returning({ id: salesPlatforms.id });
 
         // Adopt any existing sales for this channel (e.g. Amazon orders already
@@ -151,7 +155,11 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
       ...(parsed.data.syncOrders !== undefined ? { syncOrders: parsed.data.syncOrders } : {}),
       ...(parsed.data.syncInventory !== undefined ? { syncInventory: parsed.data.syncInventory } : {}),
-      ...(parsed.data.autoInvoice !== undefined ? { autoInvoice: parsed.data.autoInvoice } : {}),
+      ...(parsed.data.syncSettlements !== undefined ? { syncSettlements: parsed.data.syncSettlements } : {}),
+      ...(parsed.data.syncReturns !== undefined ? { syncReturns: parsed.data.syncReturns } : {}),
+      ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
+      ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
+      ...(parsed.data.accountingStartDate !== undefined ? { accountingStartDate: parsed.data.accountingStartDate || null } : {}),
       defaultWarehouseId: defaultWarehouseId || null,
       bankAccountId: bankAccountId || null,
       updatedAt: new Date(),

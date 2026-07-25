@@ -1,15 +1,16 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
+import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
@@ -173,7 +174,17 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
     if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 
     // Link invoice→order so deleting the draft invoice can reopen the order (Audit#7).
-    if (r.id) await db.update(salesInvoices).set({ salesOrderId: so.id }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
+    // Carry the order's shipping too — createSalesInvoiceAction totals only the
+    // lines, so without this the invoice bills less than the order total forever.
+    const shipping = Number(so.shippingAmount) || 0;
+    if (r.id) await db.update(salesInvoices).set({
+      salesOrderId: so.id,
+      ...(shipping > 0 ? {
+        shippingAmount: String(shipping),
+        totalAmount: sql`${salesInvoices.totalAmount} + ${shipping}`,
+        balanceDue: sql`${salesInvoices.balanceDue} + ${shipping}`,
+      } : {}),
+    }).where(and(eq(salesInvoices.id, r.id), eq(salesInvoices.organizationId, auth.orgId)));
     await db.update(salesOrders).set({ status: "INVOICED" }).where(eq(salesOrders.id, so.id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "SALES_ORDER", entityId: so.id, entityNumber: so.number, summary: `تحويل أمر بيع ${so.number} إلى فاتورة (مسودة)` });
     revalidatePath("/sales/orders");
@@ -187,11 +198,68 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
  * against the op's precondition (confirm/delete need DRAFT; cancel needs a
  * non-invoiced, non-cancelled order) and skipped otherwise.
  */
-export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp(op === "delete" ? "sales.create" : "sales.confirm");
+/** Mirrors the list page's filters — the "select all pages" path re-derives the
+ *  ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type SalesOrdersFilter = { q?: string; status?: string; customer?: string; from?: string; to?: string };
+
+async function matchingSalesOrderIds(orgId: string, f: SalesOrdersFilter): Promise<string[]> {
+  const conds = [eq(salesOrders.organizationId, orgId)];
+  if (f.q) conds.push(or(ilike(salesOrders.number, `%${f.q}%`), ilike(salesOrders.externalOrderId, `%${f.q}%`))!);
+  if (f.status) conds.push(eq(salesOrders.status, f.status));
+  if (f.customer) conds.push(eq(salesOrders.customerId, f.customer));
+  if (f.from) conds.push(gte(salesOrders.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesOrders.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesOrders.id }).from(salesOrders).where(and(...conds))).map((r) => r.id);
+}
+
+export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete" | "deliver", ids: string[], all?: SalesOrdersFilter): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "delete" || op === "deliver" ? "sales.create" : "sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (all) ids = await matchingSalesOrderIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تحدّد أي أمر" };
+
+    // "All pages" can be thousands of rows — run set-based (same guards as the
+    // per-row branch below) with ONE summary audit instead of looping.
+    // deliver creates a DRAFT إذن صرف per order, so it must loop the guarded
+    // action (which skips anything not CONFIRMED/PARTIALLY_DELIVERED).
+    if (all && op === "deliver") {
+      let count = 0;
+      for (const id of ids) {
+        const r = await createDeliveryFromOrderAction(id);
+        if (r.ok) count++;
+      }
+      revalidatePath("/sales/orders");
+      revalidatePath("/sales/deliveries");
+      return { ok: true, count };
+    }
+    if (all) {
+      let count = 0;
+      if (op === "confirm") {
+        const r = await db.update(salesOrders).set({ status: "CONFIRMED" })
+          .where(and(eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids), eq(salesOrders.status, "DRAFT")))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      } else if (op === "delete") {
+        const r = await db.delete(salesOrders)
+          .where(and(eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids), eq(salesOrders.status, "DRAFT")))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      } else {
+        // cancel: skip anything already delivered/invoiced (posted stock/COGS).
+        const r = await db.update(salesOrders).set({ status: "CANCELLED" })
+          .where(and(
+            eq(salesOrders.organizationId, auth.orgId), inArray(salesOrders.id, ids),
+            sql`${salesOrders.status} not in ('INVOICED', 'CANCELLED')`,
+            sql`not exists (select 1 from sales_order_lines l where l.sales_order_id = ${salesOrders.id} and (l.delivered_qty > 0 or l.invoiced_qty > 0))`,
+          ))
+          .returning({ id: salesOrders.id });
+        count = r.length;
+      }
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: op === "confirm" ? "CONFIRM" : op === "cancel" ? "CANCEL" : "DELETE", entityType: "SALES_ORDER", entityId: "bulk", summary: `عملية جماعية (${op}) على ${count} أمر بيع عبر كل الصفحات` });
+      revalidatePath("/sales/orders");
+      return { ok: true, count };
+    }
 
     let count = 0;
     for (const id of ids) {
@@ -203,6 +271,11 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
         count++;
       } else if (op === "cancel" && so.status !== "INVOICED" && so.status !== "CANCELLED") {
+        // Same guard as cancelSalesOrderAction: a part-delivered/part-invoiced order
+        // carries posted stock/COGS a cancel does not reverse — skip it, don't cancel.
+        const moved = await db.select({ d: salesOrderLines.deliveredQty, inv: salesOrderLines.invoicedQty })
+          .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+        if (moved.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) continue;
         await db.update(salesOrders).set({ status: "CANCELLED" }).where(eq(salesOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
         count++;
@@ -210,9 +283,14 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete",
         await db.delete(salesOrders).where(eq(salesOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف مسودة أمر بيع ${so.number}` });
         count++;
+      } else if (op === "deliver" && (so.status === "CONFIRMED" || so.status === "PARTIALLY_DELIVERED")) {
+        // One DRAFT إذن صرف per order for the full remaining qty (no posting).
+        const r = await createDeliveryFromOrderAction(id);
+        if (r.ok) count++;
       }
     }
     revalidatePath("/sales/orders");
+    revalidatePath("/sales/deliveries");
     return { ok: true, count };
   });
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, or, ilike, inArray, isNull, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -20,7 +20,6 @@ const schema = z.object({
   id: z.string().optional(),
   code: z.string().min(1, "الكود الداخلي مطلوب"),
   nameAr: z.string().min(2, "الاسم قصير جداً"),
-  nameEn: z.string().optional(),
   description: z.string().optional(),
   sellPrice: z.coerce.number().min(0).default(0),
   minStock: z.coerce.number().min(0).default(0),
@@ -74,7 +73,6 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
     const data = {
       code: d.code.trim(),
       nameAr: d.nameAr.trim(),
-      nameEn: d.nameEn?.trim() || null,
       description: d.description?.trim() || null,
       sellPrice: String(d.sellPrice),
       minStock: String(d.minStock),
@@ -179,7 +177,7 @@ async function matchingItemIds(orgId: string, f: ItemsFilter): Promise<string[]>
       ? (await db.select({ id: itemCodes.itemId }).from(itemCodes)
           .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`)))).map((r) => r.id)
       : [];
-    const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`), ilike(items.nameEn, `%${q}%`)];
+    const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`)];
     if (codeItemIds.length) search.push(inArray(items.id, [...new Set(codeItemIds)]));
     conds.push(or(...search)!);
   }

@@ -11,8 +11,6 @@ import { LeavesTable } from "@/components/erp/leaves-table";
 
 export default async function LeaveRequestsPage() {
   return loadErpPage("hr.view", async ({ orgId, can }) => {
-    const canManage = can("hr.post") || can("hr.create");
-
     const rows = await db.select({
       id: leaveRequests.id, number: leaveRequests.number, employee: leaveRequests.employeeName,
       type: leaveRequests.leaveType, start: leaveRequests.startDate, end: leaveRequests.endDate,
@@ -33,7 +31,7 @@ export default async function LeaveRequestsPage() {
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد طلبات إجازة بعد.</div>
             ) : (
-              <LeavesTable rows={rows} canManage={canManage} />
+              <LeavesTable rows={rows} canApprove={can("hr.post")} canCreate={can("hr.create")} />
             )}
           </CardContent>
         </Card>

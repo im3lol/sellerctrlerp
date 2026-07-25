@@ -1,13 +1,13 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseInvoices, purchaseInvoiceLines, suppliers, purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines } from "@/db/schema";
+import { purchaseInvoices, purchaseInvoiceLines, suppliers, purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
@@ -48,6 +48,11 @@ export async function createPurchaseInvoiceAction(input: unknown): Promise<SaveI
     const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
       .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
     if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
+    // The warehouse id flows into stock movements at posting — verify it belongs
+    // to the org (same IDOR class as the supplier check above).
+    const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
+    if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
 
     const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
     const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));

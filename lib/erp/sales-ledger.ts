@@ -80,7 +80,6 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         or(
           ilike(items.code, `%${fProduct}%`),
           ilike(items.nameAr, `%${fProduct}%`),
-          ilike(items.nameEn, `%${fProduct}%`),
         ),
       ));
     matchedItemIds = its.map((i) => i.id);
@@ -94,7 +93,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
   };
 
   const custList = await db
-    .select({ id: customers.id, code: customers.code, nameAr: customers.nameAr, nameEn: customers.nameEn })
+    .select({ id: customers.id, code: customers.code, nameAr: customers.nameAr })
     .from(customers)
     .where(eq(customers.organizationId, orgId))
     .orderBy(asc(customers.code));
@@ -115,8 +114,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     matchedCustomerIds = custList
       .filter((c) =>
         (c.code ?? "").toLowerCase().includes(q) ||
-        (c.nameAr ?? "").toLowerCase().includes(q) ||
-        (c.nameEn ?? "").toLowerCase().includes(q),
+        (c.nameAr ?? "").toLowerCase().includes(q),
       )
       .map((c) => c.id);
   }

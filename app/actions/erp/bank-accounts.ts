@@ -2,7 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { and, eq, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
 import { requireErpModule } from "@/lib/erp/org";
 import { bankAccounts, bankStatementLines, salesPlatforms } from "@/db/schema";

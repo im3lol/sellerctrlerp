@@ -41,3 +41,19 @@ export function parseCsvWithHeader(text: string): string[][] {
   const rows = parseCsv(text);
   return rows.slice(detectHeaderRow(rows));
 }
+
+// ── Writer (for exporting master data) ──────────────────────────────────────
+export type CsvCell = string | number | boolean | null | undefined;
+
+/** Quote a field per RFC-4180: wrap in quotes + double internal quotes only when
+ *  it contains a comma, quote, or newline. null/undefined → "". */
+export function csvField(v: CsvCell): string {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Build a CSV body (header + rows), CRLF-joined so Excel opens it cleanly. Add a
+ *  "﻿" BOM at download time so Excel reads Arabic as UTF-8. */
+export function toCsv(headers: string[], rows: CsvCell[][]): string {
+  return [headers, ...rows].map((r) => r.map(csvField).join(",")).join("\r\n");
+}

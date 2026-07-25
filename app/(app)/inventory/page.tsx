@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { items } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
+import { BarChart } from "@/components/charts/bar-chart";
+import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
+import { StatusDonut } from "@/components/charts/status-donut";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+const pct = (n: number) => `${(n * 100).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 })}%`;
 
 const SHORTCUTS = [
   { label: "الأصناف", href: "/inventory/items", icon: "Package", key: "items" },
@@ -23,51 +26,145 @@ const SHORTCUTS = [
   { label: "تنبيهات إعادة الطلب", href: "/inventory/reorder", icon: "TriangleAlert" },
 ] as const;
 
+type ItemRow = { id: string; code: string; name: string; min_stock: string; category: string };
+type BalRow = { item_id: string; warehouse: string | null; qty: string; val: string };
+type TrendRow = { m: string; type: string; qty: string };
+
+const DEAD_DAYS = 90; // matches the dead-stock report default (no sale in N days)
+
 export default async function InventoryDashboardPage() {
   return loadErpPage("inventory.view", async ({ orgId }) => {
-    const rows = (await db.execute<{ id: string; name: string; min_stock: string; qty: string; val: string }>(sql`
-      SELECT i.id, COALESCE(i.name_ar, i.code) AS name, i.min_stock,
-             COALESCE(s.qty, 0) AS qty, COALESCE(s.val, 0) AS val
-      FROM items i
-      LEFT JOIN (
-        SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
-          SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
+    // Two scans only: (1) light — active items + their category; (2) the one heavy
+    // DISTINCT ON over stock_movements for the latest balance per item+warehouse.
+    // Every KPI/chart below is aggregated from these in JS — no extra heavy queries.
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const deadSince = new Date(now.getTime() - DEAD_DAYS * 86_400_000);
+
+    const [itemRows, balRows, nearExpR, trendR, soldR] = await Promise.all([
+      db.execute<ItemRow>(sql`
+        SELECT i.id, i.code, COALESCE(i.name_ar, i.code) AS name, i.min_stock,
+               COALESCE(c.name_ar, 'بدون تصنيف') AS category
+        FROM items i
+        LEFT JOIN item_categories c ON c.id = i.category_id
+        WHERE i.organization_id = ${orgId} AND i.is_active = true`),
+      db.execute<BalRow>(sql`
+        SELECT b.item_id, w.name_ar AS warehouse, b.bq AS qty, b.bv AS val
+        FROM (
+          SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity bq, balance_value bv
           FROM stock_movements WHERE organization_id = ${orgId}
           ORDER BY item_id, warehouse_id, created_at DESC, number DESC
-        ) t GROUP BY item_id
-      ) s ON s.item_id = i.id
-      WHERE i.organization_id = ${orgId} AND i.is_active = true
-    `)).rows as { id: string; name: string; min_stock: string; qty: string; val: string }[];
+        ) b
+        LEFT JOIN warehouses w ON w.id = b.warehouse_id`),
+      db.execute<{ n: number }>(sql`
+        SELECT count(*)::int AS n FROM stock_batches
+        WHERE organization_id = ${orgId} AND remaining_quantity > 0
+          AND expiry_date IS NOT NULL AND expiry_date <= now() + interval '30 days'`),
+      // Monthly inbound vs outbound units for the last 6 months (ADJ excluded).
+      db.execute<TrendRow>(sql`
+        SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS m, type, SUM(quantity) AS qty
+        FROM stock_movements
+        WHERE organization_id = ${orgId} AND type IN ('IN','OUT') AND date >= ${sixMonthsAgo}
+        GROUP BY 1, 2`),
+      // Items that actually SOLD in the dead-stock window — anything on hand and
+      // NOT here is dead/slow (same signal as /inventory/dead-stock).
+      db.execute<{ item_id: string }>(sql`
+        SELECT DISTINCT item_id FROM stock_movements
+        WHERE organization_id = ${orgId} AND type = 'OUT'
+          AND reference_type IN ('DELIVERY','SALES_INVOICE') AND date >= ${deadSince}`),
+    ]);
+
+    const items = itemRows.rows as ItemRow[];
+    const bals = balRows.rows as BalRow[];
+
+    // Roll the per-warehouse balance rows up to per-item, and (separately) per-warehouse value.
+    const byItem = new Map<string, { qty: number; val: number }>();
+    const whValue = new Map<string, number>();
+    for (const b of bals) {
+      const q = Number(b.qty) || 0, v = Number(b.val) || 0;
+      const cur = byItem.get(b.item_id) ?? { qty: 0, val: 0 };
+      cur.qty += q; cur.val += v;
+      byItem.set(b.item_id, cur);
+      if (v) whValue.set(b.warehouse || "غير محدد", (whValue.get(b.warehouse || "غير محدد") ?? 0) + v);
+    }
+
+    const rows = items.map((i) => {
+      const b = byItem.get(i.id) ?? { qty: 0, val: 0 };
+      return { ...i, min: Number(i.min_stock) || 0, qty: b.qty, val: b.val };
+    });
 
     const totalItems = rows.length;
-    const totalValue = rows.reduce((s, r) => s + Number(r.val), 0);
-    const totalQty = rows.reduce((s, r) => s + Number(r.qty), 0);
-    const lowStock = rows.filter((r) => Number(r.min_stock) > 0 && Number(r.qty) <= Number(r.min_stock)).length;
-    const outOfStock = rows.filter((r) => Number(r.qty) <= 0).length;
-    const counts: Record<string, number> = { items: totalItems };
+    const totalValue = rows.reduce((s, r) => s + r.val, 0);
+    const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+    const outOfStock = rows.filter((r) => r.qty <= 0).length;
+    const lowStock = rows.filter((r) => r.min > 0 && r.qty > 0 && r.qty <= r.min).length;
+    const healthy = totalItems - outOfStock - lowStock;
+    const inStockItems = totalItems - outOfStock;
+    const avgValue = inStockItems > 0 ? totalValue / inStockItems : 0;
 
-    // Batches expiring within 30 days (still on hand) → expiry alert tile.
-    const [nearExp] = (await db.execute<{ n: number }>(sql`
-      SELECT count(*)::int AS n FROM stock_batches
-      WHERE organization_id = ${orgId} AND remaining_quantity > 0
-        AND expiry_date IS NOT NULL AND expiry_date <= now() + interval '30 days'
-    `)).rows as { n: number }[];
+    // ABC: rank items by inventory value; A = the items making up the first 80% of
+    // total value, B = next 15%, C = last 5%. This is the useful form of "top items".
+    const valued = rows.filter((r) => r.val > 0).sort((a, b) => b.val - a.val);
+    const abc = { A: { n: 0, val: 0 }, B: { n: 0, val: 0 }, C: { n: 0, val: 0 } };
+    let cum = 0;
+    for (const r of valued) {
+      cum += r.val;
+      const share = totalValue > 0 ? cum / totalValue : 1;
+      const cls = share <= 0.8 ? "A" : share <= 0.95 ? "B" : "C";
+      abc[cls].n++; abc[cls].val += r.val;
+    }
+
+    // Value by category (top 8) and by warehouse (top 8).
+    const catValue = new Map<string, number>();
+    for (const r of rows) if (r.val) catValue.set(r.category, (catValue.get(r.category) ?? 0) + r.val);
+    const byCategory = [...catValue.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+    const byWarehouse = [...whValue.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+
+    // Dead/slow stock: on hand but no sale in the last DEAD_DAYS days.
+    const soldSet = new Set((soldR.rows as { item_id: string }[]).map((r) => r.item_id));
+    const dead = rows.filter((r) => r.qty > 0 && !soldSet.has(r.id));
+    const deadValue = dead.reduce((s, r) => s + r.val, 0);
+    const topDead = [...dead].sort((a, b) => b.val - a.val).slice(0, 5);
+
+    // Monthly inbound/outbound units → 6 fixed buckets so empty months still show.
+    const inByM = new Map<string, number>(), outByM = new Map<string, number>();
+    for (const t of trendR.rows as TrendRow[]) {
+      (t.type === "IN" ? inByM : outByM).set(t.m, Number(t.qty) || 0);
+    }
+    const trend = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
+    });
+    const hasMovement = trend.some((t) => t.inQ || t.outQ);
+
+    const nearExp = Number((nearExpR.rows as { n: number }[])[0]?.n ?? 0);
+    const counts: Record<string, number> = { items: totalItems };
 
     const todos = [
       { label: "أصناف تحت حد الطلب", hint: "تحتاج إعادة طلب", count: lowStock, href: "/inventory/reorder", icon: "TriangleAlert" },
       { label: "أصناف نافدة", hint: "رصيد صفر", count: outOfStock, href: "/inventory/stock?status=OUT", icon: "PackageX" },
-      { label: "قرب انتهاء الصلاحية", hint: "خلال 30 يوماً", count: Number(nearExp?.n ?? 0), href: "/inventory/expiry", icon: "CalendarClock" },
+      { label: "قرب انتهاء الصلاحية", hint: "خلال 30 يوماً", count: nearExp, href: "/inventory/expiry", icon: "CalendarClock" },
     ];
-
-    const topItems = [...rows].sort((a, b) => Number(b.val) - Number(a.val)).slice(0, 6);
-    const maxVal = Math.max(...topItems.map((r) => Number(r.val)), 1);
 
     const kpis = [
       { label: "عدد الأصناف", value: intf(totalItems), icon: "Package", tone: "text-foreground" },
       { label: "قيمة المخزون", value: money(totalValue), icon: "Wallet", tone: "text-emerald-600" },
       { label: "إجمالي الكمية", value: intf(totalQty), icon: "Boxes", tone: "text-foreground" },
-      { label: "تحت حد الطلب", value: intf(lowStock), icon: "TriangleAlert", tone: lowStock ? "text-amber-600" : "text-foreground" },
-      { label: "أصناف منتهية", value: intf(outOfStock), icon: "PackageX", tone: outOfStock ? "text-destructive" : "text-foreground" },
+      { label: "متوسط قيمة الصنف", value: money(avgValue), icon: "Scale", tone: "text-foreground" },
+      { label: "تحت الحد / نافد", value: `${intf(lowStock)} / ${intf(outOfStock)}`, icon: "TriangleAlert", tone: lowStock || outOfStock ? "text-amber-600" : "text-foreground" },
+    ];
+
+    const health = [
+      { name: "سليم", value: healthy, color: "#10b981" },
+      { name: "تحت الحد", value: lowStock, color: "#f59e0b" },
+      { name: "نافد", value: outOfStock, color: "#ef4444" },
+    ];
+
+    const abcRows = [
+      { cls: "A", label: "أصناف عالية القيمة (٨٠٪ من القيمة)", color: "bg-emerald-500", ...abc.A },
+      { cls: "B", label: "أصناف متوسطة (١٥٪ التالية)", color: "bg-amber-500", ...abc.B },
+      { cls: "C", label: "أصناف منخفضة (٥٪ الأخيرة)", color: "bg-slate-400", ...abc.C },
     ];
 
     return (
@@ -80,12 +177,12 @@ export default async function InventoryDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {kpis.map((k) => (
             <Card key={k.label}>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
                   <div className="text-sm text-muted-foreground">{k.label}</div>
-                  <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>{k.value}</div>
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-4" /></div>
                 </div>
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-5" /></div>
+                <div className={cn("mt-2 text-xl font-bold tabular-nums", k.tone)}>{k.value}</div>
               </CardContent>
             </Card>
           ))}
@@ -94,40 +191,129 @@ export default async function InventoryDashboardPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>أعلى الأصناف قيمةً</CardTitle>
-              <CardDescription>أكبر 6 أصناف من حيث قيمة المخزون.</CardDescription>
+              <CardTitle>حالة المخزون</CardTitle>
+              <CardDescription>توزيع الأصناف حسب توفّر الرصيد.</CardDescription>
             </CardHeader>
             <CardContent>
-              {topItems.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد أرصدة بعد.</div>
+              <StatusDonut data={health} unit="صنف" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>تحليل ABC</CardTitle>
+              <CardDescription>تركّز قيمة المخزون — أين تُحتجز أموالك.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-2">
+              {totalValue === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد قيمة مخزون بعد.</div>
               ) : (
-                <div className="space-y-3">
-                  {topItems.map((r) => (
-                    <div key={r.id} className="space-y-1">
-                      <div className="flex justify-between text-sm"><span className="truncate">{r.name}</span><span className="font-medium tabular-nums">{money(Number(r.val))}</span></div>
-                      <div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((Number(r.val) / maxVal) * 100, 2)}%` }} /></div>
+                abcRows.map((a) => (
+                  <div key={a.cls} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className={cn("flex size-6 items-center justify-center rounded-md text-xs font-bold text-white", a.color)}>{a.cls}</span>
+                        <span className="text-muted-foreground">{a.label}</span>
+                      </span>
+                      <span className="shrink-0 tabular-nums"><span className="font-semibold">{money(a.val)}</span> · {intf(a.n)} صنف</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="h-2 rounded-full bg-muted"><div className={cn("h-2 rounded-full", a.color)} style={{ width: `${Math.max((a.val / totalValue) * 100, 1)}%` }} /></div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>قيمة المخزون حسب التصنيف</CardTitle>
+              <CardDescription>أعلى ٨ تصنيفات من حيث قيمة المخزون.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {byCategory.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد بيانات.</div>
+              ) : (
+                <BarChart data={byCategory} valueLabel="القيمة" money height={240} />
               )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>اختصارات</CardTitle><CardDescription>الوصول السريع لشاشات المخزون.</CardDescription></CardHeader>
+            <CardHeader>
+              <CardTitle>قيمة المخزون حسب المخزن</CardTitle>
+              <CardDescription>توزيع القيمة على المخازن.</CardDescription>
+            </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                {SHORTCUTS.map((s) => (
-                  <Link key={s.href} href={s.href} className="group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Icon name={s.icon} className="size-4" /></div>
-                    <span className="flex-1 text-sm font-medium">{s.label}</span>
-                    {"key" in s && s.key && counts[s.key] != null && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{intf(counts[s.key])}</span>}
-                  </Link>
-                ))}
-              </div>
+              {byWarehouse.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد بيانات.</div>
+              ) : (
+                <BarChart data={byWarehouse} valueLabel="القيمة" money height={240} colors={["#6366f1"]} />
+              )}
             </CardContent>
           </Card>
         </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>حركة المخزون الشهرية</CardTitle>
+              <CardDescription>الكميات الواردة مقابل الصادرة — آخر ٦ أشهر.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hasMovement ? (
+                <GroupedBarChart data={trend} series={[{ key: "inQ", name: "وارد", color: "#10b981" }, { key: "outQ", name: "صادر", color: "#f59e0b" }]} height={240} />
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">لا توجد حركة مخزون في آخر ٦ أشهر.</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>الأصناف الراكدة</CardTitle>
+              <CardDescription>لها رصيد ولم تُبَع خلال {intf(DEAD_DAYS)} يوماً — رأس مال متجمّد.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border bg-muted/40 p-4">
+                <div>
+                  <div className="text-2xl font-bold tabular-nums text-amber-600">{intf(dead.length)} <span className="text-sm font-normal text-muted-foreground">صنف</span></div>
+                  <div className="text-xs text-muted-foreground">قيمة راكدة: <span className="font-medium tabular-nums">{money(deadValue)}</span></div>
+                </div>
+                <Link href="/inventory/dead-stock" className="text-sm font-medium text-primary hover:underline">عرض الكل ←</Link>
+              </div>
+              {topDead.length > 0 && (
+                <ul className="space-y-2">
+                  {topDead.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <div dir="ltr" className="truncate text-start" title={r.name ?? undefined}>{r.name}</div>
+                        <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{r.code}</div>
+                      </div>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">{money(r.val)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle>اختصارات</CardTitle><CardDescription>الوصول السريع لشاشات المخزون.</CardDescription></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {SHORTCUTS.map((s) => (
+                <Link key={s.href} href={s.href} className="group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Icon name={s.icon} className="size-4" /></div>
+                  <span className="flex-1 text-sm font-medium">{s.label}</span>
+                  {"key" in s && s.key && counts[s.key] != null && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{intf(counts[s.key])}</span>}
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   });

@@ -158,7 +158,7 @@ export function BundlesManager({ bundles, items, warehouses, assemblies, canMana
               ) : bundles.map((b) => (
                 <TableRow key={b.parentItemId} data-state={sel.has(b.parentItemId) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(b.parentItemId)} onChange={() => sel.toggle(b.parentItemId)} /></TableCell>}
-                  <TableCell className="font-medium"><span className="font-mono text-xs text-muted-foreground">{b.code}</span> {b.name}</TableCell>
+                  <TableCell className="max-w-[320px] whitespace-normal font-medium"><div className="line-clamp-2 leading-snug" title={b.name}><span className="font-mono text-xs text-muted-foreground">{b.code}</span> {b.name}</div></TableCell>
                   <TableCell><div className="flex flex-wrap gap-1">{b.components.map((c) => <Badge key={c.id} variant="secondary" className="font-normal">{c.name} ×{c.quantity}</Badge>)}</div></TableCell>
                   {canManage && (
                     <TableCell>

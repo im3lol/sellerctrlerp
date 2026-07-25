@@ -16,7 +16,7 @@ const CODE_TYPES = ["BARCODE", "SKU", "ASIN", "UPC", "EAN", "FNSKU", "AMAZON", "
 
 type CodeRow = { codeType: string; code: string };
 export type ItemFormInitial = {
-  id?: string; code?: string; nameAr?: string; nameEn?: string; description?: string;
+  id?: string; code?: string; nameAr?: string; description?: string;
   sellPrice?: string | number; minStock?: string | number; image?: string; codes?: CodeRow[];
   brand?: string | null; weight?: string | null; dimensions?: string | null;
   isPerishable?: boolean; shelfLifeDays?: string | number | null;

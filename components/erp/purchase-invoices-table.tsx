@@ -26,17 +26,18 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
 type Row = { id: string; number: string; date: Date; supplier: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; canManage: boolean; canPost: boolean }) {
+export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[]; canCreate: boolean; canPost: boolean }) {
+  const canAct = canPost || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
 
-  // Only DRAFT invoices are bulk-actionable (post / delete).
-  const eligible = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
+  // Every invoice is selectable — post/delete skip ineligible rows server-side.
+  const pageIds = rows.map((r) => r.id);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
-  const actionable = canManage && eligible.length > 0;
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+  const toggleAll = () => setSel(allSelected ? new Set() : new Set(pageIds));
+  const actionable = canAct;
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
@@ -56,7 +57,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
@@ -78,12 +79,12 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
+                  {actionable && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.supplier ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.supplier ?? undefined}>{r.supplier ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>

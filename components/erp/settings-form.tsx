@@ -100,8 +100,8 @@ function AccountSelect({
 }
 
 export function SettingsForm({
-  profile, config, accounts, canEdit,
-}: { profile: OrgProfile; config: AccountingConfig; accounts: AccountOption[]; canEdit: boolean }) {
+  profile, config, accounts, canEdit, section,
+}: { profile: OrgProfile; config: AccountingConfig; accounts: AccountOption[]; canEdit: boolean; section?: "profile" | "accounting" }) {
   const [profileState, profileAction] = useActionState<ActionState, FormData>(saveOrgProfileAction, {});
   const [configState, configAction] = useActionState<ActionState, FormData>(saveAccountingConfigAction, {});
 
@@ -119,7 +119,7 @@ export function SettingsForm({
   return (
     <div className="space-y-6">
       {/* Organization profile */}
-      <Card>
+      {section !== "accounting" && <Card>
         <CardHeader>
           <CardTitle>بيانات المنشأة</CardTitle>
           <CardDescription>تظهر هذه البيانات في الفواتير والتقارير، وتُستخدم نسبة الضريبة كقيمة افتراضية.</CardDescription>
@@ -134,7 +134,7 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="taxNumber">الرقم الضريبي</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="vatRate">نسبة ضريبة القيمة المضافة (%)</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="poApprovalThreshold">حد اعتماد أوامر الشراء</Label><Input id="poApprovalThreshold" name="poApprovalThreshold" type="number" step="0.01" min="0" defaultValue={profile.poApprovalThreshold} dir="ltr" placeholder="0 = بدون اعتماد" /></div>
-                <div className="space-y-2"><Label htmlFor="fiscalYearStart">بداية السنة المالية</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /></div>
+                <div className="space-y-2"><Label htmlFor="fiscalYearStart">بداية السنة المالية</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /><p className="text-xs text-muted-foreground">يُستخدم اليوم والشهر فقط (يتكرر كل سنة). فارغ = يناير. يحدّد الفترة الافتراضية للتقارير المالية.</p></div>
                 <div className="space-y-2"><Label htmlFor="phone">الهاتف</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="email">البريد الإلكتروني</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>
                 <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">العنوان</Label><Input id="address" name="address" defaultValue={profile.address ?? ""} /></div>
@@ -144,10 +144,10 @@ export function SettingsForm({
             </fieldset>
           </form>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Default GL accounts */}
-      <Card>
+      {section !== "profile" && <Card>
         <CardHeader>
           <CardTitle>الضبط المحاسبي الافتراضي</CardTitle>
           <CardDescription>الحسابات التي تُرحَّل إليها المستندات تلقائياً (مدينون، دائنون، مبيعات، مخزون، تكلفة المبيعات، الضرائب).</CardDescription>
@@ -166,12 +166,22 @@ export function SettingsForm({
                 <AccountSelect name="cogsAccountId" label="حساب تكلفة المبيعات" accounts={accounts} defaultValue={cfg.cogsAccountId} types={["EXPENSE"]} />
                 <AccountSelect name="outputTaxAccountId" label="ضريبة المخرجات (مبيعات)" accounts={accounts} defaultValue={cfg.outputTaxAccountId} types={["LIABILITY"]} />
                 <AccountSelect name="inputTaxAccountId" label="ضريبة المدخلات (مشتريات)" accounts={accounts} defaultValue={cfg.inputTaxAccountId} types={["ASSET"]} />
+                <AccountSelect name="grniAccountId" label="بضاعة مستلمة لم تُفوتر" accounts={accounts} defaultValue={cfg.grniAccountId} types={["LIABILITY"]} />
+                <AccountSelect name="salesReturnsAccountId" label="مردودات المبيعات" accounts={accounts} defaultValue={cfg.salesReturnsAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventorySurplusAccountId" label="فائض المخزون" accounts={accounts} defaultValue={cfg.inventorySurplusAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventoryDeficitAccountId" label="عجز وتالف المخزون" accounts={accounts} defaultValue={cfg.inventoryDeficitAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="purchaseReturnVarianceAccountId" label="فروق أسعار مرتجعات الشراء" accounts={accounts} defaultValue={cfg.purchaseReturnVarianceAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="openingEquityAccountId" label="حساب الأرصدة الافتتاحية" accounts={accounts} defaultValue={cfg.openingEquityAccountId} types={["EQUITY"]} />
+                <AccountSelect name="amazonClearingAccountId" label="رصيد أمازون الوسيط" accounts={accounts} defaultValue={cfg.amazonClearingAccountId} types={["ASSET"]} />
+                <AccountSelect name="amazonFeesAccountId" label="رسوم أمازون" accounts={accounts} defaultValue={cfg.amazonFeesAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="assetDisposalGainAccountId" label="أرباح بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalGainAccountId} types={["REVENUE"]} />
+                <AccountSelect name="assetDisposalLossAccountId" label="خسائر بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalLossAccountId} types={["EXPENSE"]} />
               </div>
               {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ الضبط" /></div>}
             </fieldset>
           </form>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }

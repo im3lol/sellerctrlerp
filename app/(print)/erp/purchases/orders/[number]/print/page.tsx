@@ -24,7 +24,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
       .limit(1);
     if (!po) notFound();
 
-    const [{ org, currency }, supp, wh, lines] = await Promise.all([
+    const [{ org, currency, hiddenFor, footerText }, supp, wh, lines] = await Promise.all([
       loadPrintHeader(orgId),
       po.supplierId
         ? db.select({ nameAr: suppliers.nameAr, phone: suppliers.phone, address: suppliers.address })
@@ -55,8 +55,11 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("purchase-order")}
+        footerText={footerText}
         title="أمر شراء"
         number={po.number}
+        watermark={po.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/purchases/orders/${encodeURIComponent(raw)}`}
         // No delivery-date column on purchase orders — only `date`.
         meta={[

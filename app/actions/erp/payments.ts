@@ -1,17 +1,17 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { paymentVouchers, suppliers, purchaseInvoices, accounts } from "@/db/schema";
+import { paymentVouchers, suppliers, purchaseInvoices, accounts, journalEntries } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveVoucherState = ActionState & { id?: string };
@@ -132,6 +132,62 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
   });
 }
 
+/**
+ * Reverse a POSTED payment voucher ("عكس السند"): mirror GL entry (Dr cash / Cr AP),
+ * restore the supplier balance and the invoice's paidAmount/balanceDue/status,
+ * mark the voucher REVERSED. Idempotent via the REVERSAL unique index.
+ */
+export async function reversePaymentVoucherAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.pay");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select().from(paymentVouchers)
+      .where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "POSTED") return { error: "يمكن عكس سند مُرحّل فقط" };
+
+    const amount = Number(v.amount);
+    try {
+      await db.transaction(async (tx) => {
+        // Serialize + re-check under lock (a double-click would restore twice).
+        const [locked] = await tx.select({ status: paymentVouchers.status }).from(paymentVouchers)
+          .where(eq(paymentVouchers.id, v.id)).for("update").limit(1);
+        if (locked?.status !== "POSTED") throw new Error("السند معكوس بالفعل");
+
+        const [entry] = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "PAYMENT_VOUCHER"), eq(journalEntries.sourceId, v.id))).limit(1);
+        if (!entry) throw new Error("قيد السند غير موجود");
+        await reverseEntry(tx, { orgId: auth.orgId, entryId: entry.id, userId: auth.userId, reason: `عكس سند صرف ${v.number}` });
+
+        await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${amount}` }).where(eq(suppliers.id, v.supplierId));
+        if (v.purchaseInvoiceId) {
+          const [inv] = await tx.select({ id: purchaseInvoices.id, balanceDue: purchaseInvoices.balanceDue, paidAmount: purchaseInvoices.paidAmount })
+            .from(purchaseInvoices).where(and(eq(purchaseInvoices.id, v.purchaseInvoiceId), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1).for("update");
+          if (inv) {
+            const newPaid = round2(Number(inv.paidAmount) - amount);
+            const newBal = round2(Number(inv.balanceDue) + amount);
+            await tx.update(purchaseInvoices).set({
+              paidAmount: String(Math.max(0, newPaid)),
+              balanceDue: String(newBal),
+              status: newBal <= 0.01 ? "PAID" : newPaid > 0.01 ? "PARTIAL_PAID" : "POSTED",
+            }).where(eq(purchaseInvoices.id, inv.id));
+          }
+        }
+        await tx.update(paymentVouchers).set({ status: "REVERSED" }).where(eq(paymentVouchers.id, v.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `عكس سند صرف ${v.number}`, metadata: { amount } });
+      });
+      revalidatePath("/purchases/payments");
+      revalidatePath("/purchases/invoices");
+      revalidatePath("/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر عكس السند";
+      return { error: msg.includes("unique") || msg.includes("23505") ? "السند معكوس بالفعل" : msg };
+    }
+  });
+}
+
 /** Delete a DRAFT payment voucher. */
 export async function deletePaymentVoucherAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.pay");
@@ -147,7 +203,31 @@ export async function deletePaymentVoucherAction(id: string): Promise<ActionStat
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT payment vouchers; ineligible rows skipped. */
-export async function bulkPaymentVouchersAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the /purchases/payments list filters — the "select all pages" path
+ *  re-derives the ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type PaymentVouchersFilter = { q?: string; status?: string; method?: string; from?: string; to?: string };
+
+async function matchingPaymentVoucherIds(orgId: string, f: PaymentVouchersFilter): Promise<string[]> {
+  const conds = [eq(paymentVouchers.organizationId, orgId)];
+  if (f.status) conds.push(eq(paymentVouchers.status, f.status));
+  if (f.method) conds.push(eq(paymentVouchers.paymentMethod, f.method));
+  if (f.from) conds.push(gte(paymentVouchers.date, new Date(f.from)));
+  if (f.to) conds.push(lte(paymentVouchers.date, new Date(f.to + "T23:59:59")));
+  if (f.q) conds.push(or(ilike(paymentVouchers.number, `%${f.q}%`), ilike(suppliers.nameAr, `%${f.q}%`))!);
+  return (
+    await db.select({ id: paymentVouchers.id }).from(paymentVouchers)
+      .leftJoin(suppliers, eq(suppliers.id, paymentVouchers.supplierId))
+      .where(and(...conds))
+  ).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT payment vouchers; ineligible rows skipped.
+ *  `all` = re-derive ids from the current filters (select all across pages). */
+export async function bulkPaymentVouchersAction(op: "confirm" | "delete", ids: string[], all?: PaymentVouchersFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp("purchases.pay");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await withOrgScope(auth.orgId, false, () => matchingPaymentVoucherIds(auth.orgId, all));
+  }
   return bulkOp(ids, op === "confirm" ? confirmPaymentVoucherAction : deletePaymentVoucherAction);
 }

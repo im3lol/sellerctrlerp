@@ -107,6 +107,7 @@ export const NAV: NavSection[] = [
     icon: "Warehouse",
     items: [
       { label: "الأصناف", href: "/inventory/items", icon: "Package", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "المخازن", href: "/inventory/warehouses", icon: "Warehouse", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "أرصدة المخزون", href: "/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "دفتر حركة المخزون", href: "/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "مطابقة قيمة المخزون", href: "/inventory/valuation", icon: "Scale", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
@@ -225,7 +226,7 @@ export const NAV: NavSection[] = [
       { label: "الأرصدة الافتتاحية", href: "/settings/opening-balance", icon: "Upload", capability: "erp.accounting.create" },
       { label: "صلاحيات المستخدمين", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
-      { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.edit" },
+      { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.view" },
     ],
   },
 ];

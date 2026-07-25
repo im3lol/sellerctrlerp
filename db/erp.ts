@@ -70,6 +70,10 @@ export const organizations = pgTable(
     vatRate: money("vat_rate").notNull().default("14"),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
+    // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
+    setupSkipped: jsonb("setup_skipped").$type<string[]>(),
+    // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
+    printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -197,7 +201,6 @@ export const items = pgTable(
     organizationId: orgId(),
     code: text("code").notNull(),
     nameAr: text("name_ar"),
-    nameEn: text("name_en"),
     categoryId: text("category_id").references(() => itemCategories.id),
     uomId: text("uom_id").references(() => unitsOfMeasure.id),
     costMethod: text("cost_method").notNull().default("FIFO"),
@@ -707,6 +710,19 @@ export const documentSequences = pgTable(
   (t) => [uniqueIndex("document_sequences_unique").on(t.organizationId, t.key, t.year)],
 );
 
+/** Per-org override of a document-type's printed prefix (empty = registry default). See lib/erp/doc-types.ts. */
+export const documentPrefixes = pgTable(
+  "document_prefixes",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    docKey: text("doc_key").notNull(),
+    prefix: text("prefix").notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("document_prefixes_unique").on(t.organizationId, t.docKey)],
+);
+
 /**
  * Append-only audit trail. Every create/confirm/post/cancel/reverse/delete of an
  * ERP document records who did what to which document (with its readable number),
@@ -774,6 +790,17 @@ export const accountingConfigurations = pgTable(
     inputTaxAccountId: text("input_tax_account_id"),
     inventoryAccountId: text("inventory_account_id"),
     cogsAccountId: text("cogs_account_id"),
+    // Additional configurable roles (default codes 2103/4102/4201/5301/5302).
+    grniAccountId: text("grni_account_id"),                               // 2103 بضاعة مستلمة لم تُفوتر
+    salesReturnsAccountId: text("sales_returns_account_id"),              // 4102 مردودات المبيعات
+    inventorySurplusAccountId: text("inventory_surplus_account_id"),      // 4201 فائض المخزون
+    inventoryDeficitAccountId: text("inventory_deficit_account_id"),      // 5301 عجز/تالف المخزون
+    purchaseReturnVarianceAccountId: text("purchase_return_variance_account_id"), // 5302 فروق أسعار مرتجعات الشراء
+    openingEquityAccountId: text("opening_equity_account_id"),            // 3002 حساب الأرصدة الافتتاحية
+    amazonClearingAccountId: text("amazon_clearing_account_id"),          // 1108 رصيد أمازون الوسيط
+    amazonFeesAccountId: text("amazon_fees_account_id"),                  // 5203 رسوم أمازون
+    assetDisposalGainAccountId: text("asset_disposal_gain_account_id"),   // 4202 أرباح بيع أصول
+    assetDisposalLossAccountId: text("asset_disposal_loss_account_id"),   // 5303 خسائر بيع أصول
     salesJournalId: text("sales_journal_id"),
     purchaseJournalId: text("purchase_journal_id"),
     cashJournalId: text("cash_journal_id"),
@@ -986,7 +1013,6 @@ export const customers = pgTable(
     organizationId: orgId(),
     code: text("code").notNull(),
     nameAr: text("name_ar").notNull(),
-    nameEn: text("name_en"),
     phone: text("phone"),
     email: text("email"),
     address: text("address"),
@@ -1025,6 +1051,9 @@ export const salesInvoices = pgTable(
     discountPercent: money("discount_percent").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
     taxPercent: money("tax_percent").notNull().default("0"),
+    // Order-level shipping billed to the customer (carried from the sales order;
+    // without it an order with shipping was invoiced short forever).
+    shippingAmount: money("shipping_amount").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
@@ -1121,7 +1150,6 @@ export const suppliers = pgTable(
     organizationId: orgId(),
     code: text("code").notNull(),
     nameAr: text("name_ar").notNull(),
-    nameEn: text("name_en"),
     phone: text("phone"),
     email: text("email"),
     address: text("address"),
@@ -1596,9 +1624,24 @@ export const salesPlatforms = pgTable(
     syncProducts: boolean("sync_products").notNull().default(true),
     syncOrders: boolean("sync_orders").notNull().default(true),
     syncInventory: boolean("sync_inventory").notNull().default(true),
-    // When a marketplace order completes: true = full cycle to a posted invoice;
-    // false = stop at the (posted) delivery note and leave invoicing manual.
+    syncSettlements: boolean("sync_settlements").notNull().default(true),
+    syncReturns: boolean("sync_returns").notNull().default(true),
+    // When settlements are pulled: true = post to GL automatically; false = pull
+    // only and leave posting to a manual click on the settlements screen.
+    autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
+    // Deprecated — superseded by autoMode. Kept so legacy rows stay valid; not read.
     autoInvoice: boolean("auto_invoice").notNull().default(true),
+    // What the automatic order flow creates from a marketplace order:
+    //   "order"   = sales order only (deliver/invoice manually)
+    //   "deliver" = + posted delivery note (stock OUT + COGS)
+    //   "invoice" = + posted invoice (full cycle — revenue + AR)
+    // If stock is short when the delivery would post, the delivery is left DRAFT
+    // and the user is notified — regardless of mode.
+    autoMode: text("auto_mode").notNull().default("invoice"),
+    // Go-Live: marketplace accounting starts here. Settlement txns dated before it
+    // are historical (not posted — the wallet opening balance covers them); the order
+    // sync won't pull older. Null = no go-live cutoff (pull/post everything).
+    accountingStartDate: date("accounting_start_date"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1623,8 +1666,18 @@ export const platformCredentials = pgTable(
     lastSyncAt: ts("last_sync_at"),
     lastSyncStatus: text("last_sync_status"),
     autoSync: boolean("auto_sync").notNull().default(true), // scheduled near-real-time sync
+    // Token revoked (LWA invalid_grant) — scheduler skips until the org reconnects.
+    needsReauth: boolean("needs_reauth").notNull().default(false),
     productsSyncedAt: ts("products_synced_at"),             // throttles product sync to a daily cadence
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
+    settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls
+    returnsSyncedAt: ts("returns_synced_at"),               // cadence timer for FBA returns pulls
+    reimbursementsSyncedAt: ts("reimbursements_synced_at"), // cadence timer for reimbursement pulls
+    ledgerSyncedAt: ts("ledger_synced_at"),                 // cadence timer for FBA ledger pulls
+    feesSyncedAt: ts("fees_synced_at"),                     // cadence timer for fee-estimate refreshes
+    // SP-API Notifications (ORDER_CHANGE via shared SQS) — ids make setup idempotent.
+    notifDestinationId: text("notif_destination_id"),
+    notifSubscriptionId: text("notif_subscription_id"),
     openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
     updatedAt: updatedAt(),
   },
@@ -1670,6 +1723,112 @@ export const marketplaceSettlementTxns = pgTable(
     index("mkt_settle_order_idx").on(t.organizationId, t.orderId),
     index("mkt_settle_status_idx").on(t.organizationId, t.channel, t.status),
   ],
+);
+
+// FBA customer-returns feed (returns report). sales_return_id links the DRAFT
+// مرتجع created from (or matched to) this event; dedup_key makes re-pulls idempotent.
+export const platformReturns = pgTable(
+  "platform_returns",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    orderId: text("order_id").notNull(),
+    sku: text("sku").notNull(),
+    asin: text("asin"),
+    returnDate: ts("return_date"),
+    quantity: money("quantity").notNull().default("1"),
+    disposition: text("disposition"), // SELLABLE | CUSTOMER_DAMAGED | DEFECTIVE | ...
+    reason: text("reason"),
+    status: text("status"),
+    fulfillmentCenter: text("fulfillment_center"),
+    licensePlateNumber: text("license_plate_number"),
+    dedupKey: text("dedup_key").notNull(),
+    salesReturnId: text("sales_return_id").references(() => salesReturns.id, { onDelete: "set null" }),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("platform_returns_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("platform_returns_order_idx").on(t.organizationId, t.orderId),
+  ],
+);
+
+// Amazon paying us back for lost/damaged FBA stock (reimbursements report). Read-only.
+export const fbaReimbursements = pgTable(
+  "fba_reimbursements",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    reimbursementId: text("reimbursement_id").notNull(),
+    approvalDate: ts("approval_date"),
+    caseId: text("case_id"),
+    orderId: text("order_id"),
+    sku: text("sku"),
+    fnsku: text("fnsku"),
+    asin: text("asin"),
+    reason: text("reason"), // Lost_warehouse | Damaged_warehouse | CustomerReturn | ...
+    currency: text("currency"),
+    amountPerUnit: money("amount_per_unit").notNull().default("0"),
+    amountTotal: money("amount_total").notNull().default("0"),
+    quantityReimbursedCash: money("quantity_reimbursed_cash").notNull().default("0"),
+    quantityReimbursedInventory: money("quantity_reimbursed_inventory").notNull().default("0"),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fba_reimbursements_dedup_idx").on(t.organizationId, t.reimbursementId, t.sku),
+    index("fba_reimbursements_sku_idx").on(t.organizationId, t.sku),
+  ],
+);
+
+// Every FBA inventory event (ledger detail report) — the audit's drill-down. Read-only.
+export const fbaLedgerEvents = pgTable(
+  "fba_ledger_events",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    eventDate: ts("event_date"),
+    sku: text("sku"),
+    fnsku: text("fnsku"),
+    asin: text("asin"),
+    eventType: text("event_type").notNull(), // Receipts | Shipments | CustomerReturns | Adjustments | ...
+    referenceId: text("reference_id"),
+    quantity: money("quantity").notNull().default("0"),
+    fulfillmentCenter: text("fulfillment_center"),
+    disposition: text("disposition"),
+    reason: text("reason"),
+    country: text("country"),
+    dedupKey: text("dedup_key").notNull(),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fba_ledger_events_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("fba_ledger_events_sku_idx").on(t.organizationId, t.sku, t.eventDate),
+  ],
+);
+
+// Estimated marketplace fees per item (Product Fees API) at the item's sell price.
+export const platformItemFees = pgTable(
+  "platform_item_fees",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    marketplaceId: text("marketplace_id"),
+    currency: text("currency"),
+    referralFee: money("referral_fee").notNull().default("0"),
+    fbaFee: money("fba_fee").notNull().default("0"),
+    totalFees: money("total_fees").notNull().default("0"),
+    priceUsed: money("price_used").notNull().default("0"),
+    fees: jsonb("fees"),
+    estimatedAt: timestamp("estimated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("platform_item_fees_item_idx").on(t.organizationId, t.itemId, t.channel)],
 );
 
 /* ════════════════════════ INVESTORS ═══════════════════════ */
@@ -2271,6 +2430,13 @@ export const openingBalanceLines = pgTable(
     credit: money("credit").notNull().default("0"),
     quantity: money("quantity"),
     unitCost: money("unit_cost"),
+    // CUSTOMER/SUPPLIER only — each line is one outstanding opening invoice, so it
+    // carries its own reference number and due date (real aging, ERPNext-style).
+    reference: text("reference"),
+    dueDate: ts("due_date"),
+    // The sales/purchase invoice id this line created on post — lets a reversal find
+    // and cancel exactly the right document (ITEM/stock is found via referenceId).
+    postedRefId: text("posted_ref_id"),
     notes: text("notes"),
   },
   (t) => [index("opening_balance_lines_parent_idx").on(t.openingBalanceId)],

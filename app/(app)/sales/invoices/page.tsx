@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesInvoices, customers, salesReturns } from "@/db/schema";
+import { salesInvoices, customers, salesReturns, salesOrders, deliveryNotes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
   return loadErpPage("sales.view", async ({ orgId, role, can }) => {
     const canManage = can("sales.create");
     const canPost = can("accounting.post");
+    const canCollect = can("sales.collect");
     const sp = await searchParams;
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
@@ -59,9 +60,13 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
       .select({
         id: salesInvoices.id, number: salesInvoices.number, date: salesInvoices.date, status: salesInvoices.status,
         total: salesInvoices.totalAmount, balanceDue: salesInvoices.balanceDue, customer: customers.nameAr,
+        // Linked sales order — direct (order→invoice) or via the delivery it was billed from.
+        order: salesOrders.number,
       })
       .from(salesInvoices)
       .leftJoin(customers, eq(salesInvoices.customerId, customers.id))
+      .leftJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+      .leftJoin(salesOrders, sql`${salesOrders.id} = coalesce(${salesInvoices.salesOrderId}, ${deliveryNotes.salesOrderId})`)
       .where(where)
       .orderBy(desc(salesInvoices.date), desc(salesInvoices.number))
       .limit(PER_PAGE)
@@ -156,7 +161,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
             ) : (
               <>
-                <SalesInvoicesTable rows={rows} canManage={canManage} canPost={canPost} />
+                <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} canCollect={canCollect} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

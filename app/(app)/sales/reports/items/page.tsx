@@ -1,5 +1,6 @@
 import { and, between, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, items } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -23,7 +24,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
 
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to   = one(sp.to)   || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
 
@@ -58,13 +59,16 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
     const totalRevenue = filtered.reduce((s, r) => s + Number(r.totalRevenue ?? 0), 0);
     const totalQty     = filtered.reduce((s, r) => s + Number(r.totalQty ?? 0), 0);
 
+    const qs = new URLSearchParams({ from, to });
+    if (search) qs.set("q", search);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
           icon="BarChart3"
           title="تقرير مبيعات الأصناف"
           subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
-          action={<ReportToolbar />}
+          action={<ReportToolbar excel={filtered.length > 0 ? `/api/erp/sales/items/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/items/print?${qs.toString()}`} />}
         />
 
         <ItemSalesFilters from={from} to={to} q={search} />
@@ -124,9 +128,11 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
                     return (
                       <TableRow key={r.code ?? i}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell>
-                          <span className="font-mono text-xs text-muted-foreground">{r.code}</span>{" "}
-                          {r.name}
+                        <TableCell className="max-w-[320px] whitespace-normal">
+                          <div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>
+                            <span className="font-mono text-xs text-muted-foreground">{r.code}</span>{" "}
+                            {r.name}
+                          </div>
                         </TableCell>
                         <TableCell className="text-end tabular-nums">{qtyf(r.totalQty)}</TableCell>
                         <TableCell className="text-end tabular-nums">{fmt(r.avgPrice)}</TableCell>

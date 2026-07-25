@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { AssetDisposeForm } from "@/components/erp/asset-dispose-form";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const fmt = (n: number | string) =>
   Number(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -74,6 +75,7 @@ export default async function AssetDetailPage({ params }: Params) {
           title={a.nameAr}
           subtitle={`${a.code} · ${CATEGORIES[a.category] ?? a.category}`}
           backHref="/accounting/assets"
+          action={<PrintDocLink href={`/erp/accounting/assets/${id}/print`} />}
         />
 
         {/* Summary tiles */}

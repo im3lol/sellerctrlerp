@@ -39,12 +39,11 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
   const conds = [
     ilike(items.code, `%${q}%`),
     ilike(items.nameAr, `%${q}%`),
-    ilike(items.nameEn, `%${q}%`),
   ];
   if (codeItemIds.length) conds.push(inArray(items.id, codeItemIds));
 
   const rows = await db
-    .select({ id: items.id, code: items.code, nameAr: items.nameAr, nameEn: items.nameEn, sellPrice: items.sellPrice, image: items.image })
+    .select({ id: items.id, code: items.code, nameAr: items.nameAr, sellPrice: items.sellPrice, image: items.image })
     .from(items)
     .where(and(eq(items.organizationId, orgId), eq(items.isActive, true), or(...conds)))
     .limit(15);
@@ -59,7 +58,7 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bal
       FROM stock_movements
       WHERE organization_id = ${orgId} AND item_id IN (${idList})
-      ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
     ) t GROUP BY item_id`);
   const stockBy = new Map((stockRows.rows as { item_id: string; qty: string }[]).map((r) => [r.item_id, Number(r.qty)]));
 
@@ -75,7 +74,7 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
   return rows.map((r) => ({
     id: r.id,
     code: r.code,
-    name: r.nameAr || r.nameEn || r.code,
+    name: r.nameAr || r.code,
     sellPrice: Number(r.sellPrice),
     image: r.image,
     stock: stockBy.get(r.id) ?? 0,

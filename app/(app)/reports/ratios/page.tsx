@@ -1,5 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
+import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportToolbar } from "@/components/erp/report-toolbar";
@@ -22,14 +23,15 @@ export default async function RatiosReportPage() {
     const grossProfit = revenue - cogs;
     const netProfit = revenue - expenseTotal;
 
-    const cash = (byCode["1101"] ?? 0) + (byCode["1102"] ?? 0);
-    const ar = byCode["1103"] ?? 0;
-    const inventory = byCode["1104"] ?? 0;
+    const rc = await resolveAccountCodes(orgId, ["1101", "1102", "1103", "1104", "2101"]);
+    const cash = (byCode[rc["1101"]] ?? 0) + (byCode[rc["1102"]] ?? 0);
+    const ar = byCode[rc["1103"]] ?? 0;
+    const inventory = byCode[rc["1104"]] ?? 0;
     const currentAssets = sumWhere((b) => b.type === "ASSET" && (b.code ?? "").startsWith("11"));
     const currentLiabilities = sumWhere((b) => b.type === "LIABILITY" && (b.code ?? "").startsWith("21"));
     const totalLiabilities = sumWhere((b) => b.type === "LIABILITY");
     const equity = sumWhere((b) => b.type === "EQUITY") + netProfit; // retained + current period
-    const ap = byCode["2101"] ? -(byCode["2101"]) : 0;
+    const ap = byCode[rc["2101"]] ? -(byCode[rc["2101"]]) : 0;
 
     const currentRatio = currentAssets / currentLiabilities;
     const quickRatio = (currentAssets - inventory) / currentLiabilities;
@@ -51,7 +53,7 @@ export default async function RatiosReportPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar excel="/api/erp/reports/ratios/export" printHref="/erp/reports/ratios/print" />} />
 
         <div>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">السيولة</h2>

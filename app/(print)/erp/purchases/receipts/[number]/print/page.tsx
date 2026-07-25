@@ -29,7 +29,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
       .limit(1);
     if (!grn) notFound();
 
-    const [{ org }, supp, wh, lines] = await Promise.all([
+    const [{ org, hiddenFor, footerText }, supp, wh, lines] = await Promise.all([
       loadPrintHeader(orgId),
       grn.supplierId
         ? db.select({ nameAr: suppliers.nameAr, phone: suppliers.phone, address: suppliers.address })
@@ -59,8 +59,11 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        hiddenColumns={hiddenFor("purchase-receipt")}
+        footerText={footerText}
         title="إذن استلام"
         number={grn.number}
+        watermark={grn.status === "DRAFT" ? "مسودة" : undefined}
         backHref={`/purchases/receipts/${encodeURIComponent(raw)}`}
         meta={[
           { label: "التاريخ", value: dt(grn.date) },

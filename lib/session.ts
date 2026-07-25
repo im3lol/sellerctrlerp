@@ -22,7 +22,10 @@ export type SessionUser = {
  * page + actions) share a single auth() + DB lookup instead of re-querying.
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const session = await auth();
+  // `auth()` reads request headers/cookies; in a background worker (BullMQ job) there
+  // is no request scope, so it throws. `.catch → null` treats that as "no session"
+  // instead of crashing the job — actions then fail closed rather than blowing up sync.
+  const session = await auth().catch(() => null);
   if (!session?.user?.id) return null;
   const [u] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
   if (!u || !u.isActive) return null;

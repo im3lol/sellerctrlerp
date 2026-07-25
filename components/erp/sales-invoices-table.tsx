@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { bulkSalesInvoicesAction } from "@/app/actions/erp/sales-invoices";
+import { bulkSalesInvoicesAction, type SalesInvoicesFilter } from "@/app/actions/erp/sales-invoices";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,25 +24,30 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
-type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
+type Row = { id: string; number: string; date: Date; customer: string | null; order?: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; canManage: boolean; canPost: boolean }) {
+export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; canCollect: boolean; total: number; filter: SalesInvoicesFilter }) {
+  const canAct = canPost || canCreate || canCollect;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [allPages, setAllPages] = useState(false);
+  const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
-  const eligible = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
-  const actionable = canManage && eligible.length > 0;
+  // Every invoice is selectable — post/delete skip ineligible rows server-side.
+  const pageIds = rows.map((r) => r.id);
+  const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
+  const allSelected = allPages || (pageIds.length > 0 && pageIds.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(pageIds)); };
+  const count = allPages ? total : sel.size;
+  const actionable = canAct;
 
-  const run = (op: "post" | "delete", verb: string) => {
+  const run = (op: "post" | "delete" | "collect", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} فاتورة`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: `${verb} ${int(count)} فاتورة`, danger: op === "delete" }))) return;
       start(async () => {
-        const r = await bulkSalesInvoicesAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} فاتورة`); setSel(new Set()); router.refresh(); }
+        const r = await bulkSalesInvoicesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
+        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} فاتورة`); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? "تعذّر التنفيذ");
       });
     })();
@@ -50,12 +55,17 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
 
   return (
     <div className="space-y-3">
-      {actionable && sel.size > 0 && (
+      {actionable && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          {!allPages && allSelected && total > pageIds.length && (
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+          )}
+          {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
           <div className="ms-auto flex gap-2">
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title="ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد"><Icon name="HandCoins" className="size-4" />تحصيل</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
@@ -66,6 +76,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">العميل</TableHead>
+            <TableHead className="text-start">أمر البيع</TableHead>
             <TableHead className="text-start">الإجمالي</TableHead>
             <TableHead className="text-start">المتبقّي</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
@@ -76,13 +87,14 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
+                <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
+                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
+                  <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
@@ -95,6 +107,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; 
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>

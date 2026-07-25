@@ -165,7 +165,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
           title="كشف حساب المورّد"
           subtitle="عرض كل المعاملات (فواتير · مدفوعات · مرتجعات) لمورّد محدد خلال فترة"
           backHref="/accounting"
-          action={selectedId ? <ReportToolbar /> : undefined}
+          action={selectedId ? <ReportToolbar printHref={`/erp/accounting/supplier-statement/print?${new URLSearchParams({ supplierId: selectedId, from: fromISO, to: toISO }).toString()}`} /> : undefined}
         />
 
         <form method="GET" className="flex flex-wrap items-end gap-3">

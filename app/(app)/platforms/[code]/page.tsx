@@ -5,11 +5,13 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, inventoryAudits, inventoryAuditLines } from "@/db/schema";
 import { AuditStats } from "@/components/erp/audit-summary";
+import { getPlatformPnl } from "@/lib/erp/platform-pnl";
+import { Field } from "@/components/erp/document-detail";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlatformActions } from "@/components/erp/platform-actions";
+import { PlatformHeaderActions } from "@/components/erp/platform-header-actions";
 import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
@@ -48,7 +50,7 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
   const { code: codeParam } = await params;
   const { connected, err } = await searchParams;
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [platform] = await db
       .select({
         id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
@@ -70,6 +72,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     const match = or(eq(salesOrders.platformId, platform.id), eq(salesOrders.channel, platform.code));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const custId = platform.customerId;
+    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, custId) : null;
 
     // Analytics are best-effort: a slow/failed query (e.g. DB connection pressure on
     // serverless) degrades this section instead of crashing the whole page. Split
@@ -117,7 +120,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
             FROM stock_movements
             WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
-            ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
           ) t`),
         db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
           .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, since)))
@@ -170,7 +173,15 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           title={platform.name}
           subtitle={`منصة ${isAmazon ? "أمازون" : "عامة"} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
           backHref="/platforms"
-          action={<PlatformActions code={platform.code.toLowerCase()} isAmazon={isAmazon} />}
+          action={
+            <PlatformHeaderActions
+              code={platform.code.toLowerCase()}
+              isAmazon={isAmazon}
+              connected={!!conn?.connected}
+              syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
+              canManage={can("sales.create")}
+            />
+          }
         />
 
         {connectable && conn && (
@@ -179,7 +190,6 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             label={connector!.label}
             marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
-            syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
           />
@@ -228,6 +238,29 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
         </div>
 
+        {/* Platform P&L */}
+        {pnl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>ربحية المنصة (P&L)</CardTitle>
+              <CardDescription>إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم أمازون الفعلية من التسويات.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <Field label="المبيعات">{fmt(pnl.revenue)}</Field>
+                <Field label="عمولة أمازون">{fmt(pnl.referralFee)}</Field>
+                <Field label="رسوم FBA">{fmt(pnl.fbaFee)}</Field>
+                <Field label="رسوم أخرى">{fmt(pnl.otherFee)}</Field>
+                <Field label="تكلفة البضاعة">{fmt(pnl.cogs)}</Field>
+                <Field label="صافي الربح">
+                  <span className={pnl.net < 0 ? "font-bold text-destructive" : "font-bold text-emerald-600"}>{fmt(pnl.net)}</span>
+                  <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
+                </Field>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Sales trend — last 30 days */}
         <Card>
           <CardHeader><CardTitle>اتجاه المبيعات</CardTitle><CardDescription>إجمالي المبيعات اليومية على المنصة — آخر ٣٠ يومًا.</CardDescription></CardHeader>
@@ -248,7 +281,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                   <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-start">الكمية</TableHead><TableHead className="text-start">المبيعات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {topItems.map((t, i) => (
-                      <TableRow key={i}><TableCell><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
+                      <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={t.name ?? undefined}><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</div></TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
                     ))}
                   </TableBody>
                 </Table>

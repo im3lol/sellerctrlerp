@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { salesInvoices, customers } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -20,7 +21,7 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 export default async function CustomerRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
 
@@ -42,9 +43,12 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
     const tRevenue = list.reduce((s, r) => s + r.revenue, 0);
     const tAr = list.reduce((s, r) => s + r.balance, 0);
 
+    const qs = new URLSearchParams({ from, to });
+    if (search) qs.set("q", search);
+
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب العملاء" subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Users" title="ترتيب العملاء" subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/customers/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/customers/print?${qs.toString()}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -90,7 +94,7 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</Link></TableCell>
+                        <TableCell className="max-w-[280px] whitespace-normal"><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</span></Link></TableCell>
                         <TableCell className="text-end tabular-nums font-medium">{fmt(r.revenue)}</TableCell>
                         <TableCell className="text-end tabular-nums">{r.invoices}</TableCell>
                         <TableCell className={`text-end tabular-nums ${r.balance > 0 ? "text-amber-600" : ""}`}>{fmt(r.balance)}</TableCell>

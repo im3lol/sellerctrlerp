@@ -1,13 +1,13 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { tryRecordAudit } from "@/lib/erp/audit";
@@ -46,6 +46,11 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
     const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
       .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
     if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
+    // The warehouse id flows into the GRN and its stock movements — verify it
+    // belongs to the org (same IDOR class as the supplier check above).
+    const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
+    if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
 
     const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount) }));
     const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -222,6 +227,11 @@ export async function bulkPurchaseOrdersAction(op: "confirm" | "cancel" | "delet
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
         count++;
       } else if (op === "cancel" && po.status !== "INVOICED" && po.status !== "CANCELLED") {
+        // Same guard as cancelPurchaseOrderAction: a part-received/part-invoiced order
+        // carries posted stock/GRNI a cancel does not reverse — skip it, don't cancel.
+        const moved = await db.select({ r: purchaseOrderLines.receivedQty, inv: purchaseOrderLines.invoicedQty })
+          .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
+        if (moved.some((l) => Number(l.r) > 0 || Number(l.inv) > 0)) continue;
         await db.update(purchaseOrders).set({ status: "CANCELLED" }).where(eq(purchaseOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إلغاء أمر شراء ${po.number}` });
         count++;

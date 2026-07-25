@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Icon } from "@/components/icon";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -114,11 +115,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
           backHref="/sales/orders"
           action={
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" asChild>
-                <Link href={`/sales/orders/${encodeURIComponent(so.number)}/print`} target="_blank">
-                  <Icon name="Printer" className="size-4" />طباعة
-                </Link>
-              </Button>
+              <PrintDocLink href={`/sales/orders/${encodeURIComponent(so.number)}/print`} />
               <OrderRowActions orderId={so.id} type="sales" status={so.status} canManage={canManage} />
             </div>
           }

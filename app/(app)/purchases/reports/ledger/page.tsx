@@ -66,7 +66,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
           icon="BookOpen"
           title="تقرير دفتر المشتريات"
           subtitle={`${totalRows} حركة`}
-          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} />}
+          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} printHref={`/erp/purchases/reports/ledger/print?${filterQs().toString()}`} />}
         />
         <Card>
           <CardHeader>

@@ -23,7 +23,7 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
       .limit(1);
     if (!rv) notFound();
 
-    const [{ org, currency }, cust, lines] = await Promise.all([
+    const [{ org, currency, footerText }, cust, lines] = await Promise.all([
       loadPrintHeader(orgId),
       rv.customerId
         ? db.select({ nameAr: customers.nameAr, phone: customers.phone })
@@ -39,6 +39,7 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
     return (
       <DocumentSheet
         org={org}
+        footerText={footerText}
         title="سند قبض"
         number={rv.number}
         backHref={`/sales/receipts/${encodeURIComponent(raw)}`}

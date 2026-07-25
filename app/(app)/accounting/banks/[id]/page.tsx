@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { bankAccounts, bankStatementLines, accounts, journalEntryLines, journalEntries } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { BankStatementClient } from "@/components/erp/bank-statement-client";
+import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -87,6 +88,7 @@ export default async function BankAccountDetailPage({ params }: Params) {
           title={ba.nameAr}
           subtitle={[ba.bankName, ba.iban].filter(Boolean).join(" · ") || "كشف الحساب البنكي"}
           backHref="/accounting/banks"
+          action={<PrintDocLink href={`/erp/accounting/banks/${id}/print`} />}
         />
 
         {/* Summary tiles */}

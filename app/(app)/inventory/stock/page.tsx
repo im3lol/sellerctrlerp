@@ -55,15 +55,24 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
           title="أرصدة المخزون"
           subtitle={`قيمة المخزون ${fmt(totals.value)} — من دفتر المخزون`}
           backHref="/inventory"
-          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} />}
+          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} printHref={`/erp/inventory/stock/print?${filterQs().toString()}`} />}
         />
 
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المخزون</div><div className="text-2xl font-bold">{fmt(totals.value)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي الكمية</div><div className="text-2xl font-bold">{qty(totals.quantity)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الأصناف</div><div className="text-2xl font-bold">{intl(totals.items)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون منخفض</div><div className="text-2xl font-bold text-amber-600">{intl(totals.low)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مخزون نافد</div><div className="text-2xl font-bold text-destructive">{intl(totals.out)}</div></CardContent></Card>
+          {[
+            { label: "قيمة المخزون", value: intl(Math.round(totals.value)), tone: "" },
+            { label: "إجمالي الكمية", value: qty(totals.quantity), tone: "" },
+            { label: "عدد الأصناف", value: intl(totals.items), tone: "" },
+            { label: "مخزون منخفض", value: intl(totals.low), tone: "text-amber-600" },
+            { label: "مخزون نافد", value: intl(totals.out), tone: "text-destructive" },
+          ].map((k) => (
+            <Card key={k.label}>
+              <CardContent className="p-4">
+                <div className="text-sm text-muted-foreground">{k.label}</div>
+                <div className={`mt-1 text-lg font-bold tabular-nums ${k.tone}`}>{k.value}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card>
@@ -122,9 +131,9 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                 <TableBody>
                   {lines.map((l, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-mono"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
-                      <TableCell>{l.name}</TableCell>
-                      <TableCell>{l.warehouse}</TableCell>
+                      <TableCell className="font-mono whitespace-nowrap"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{l.name}</div></TableCell>
+                      <TableCell className="whitespace-nowrap">{l.warehouse}</TableCell>
                       <TableCell>{qty(l.quantity)}</TableCell>
                       <TableCell>{fmt(l.avgCost)}</TableCell>
                       <TableCell>{fmt(l.value)}</TableCell>

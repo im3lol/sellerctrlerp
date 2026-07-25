@@ -1,17 +1,17 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { receiptVouchers, customers, salesInvoices, accounts } from "@/db/schema";
+import { receiptVouchers, customers, salesInvoices, accounts, journalEntries } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveVoucherState = ActionState & { id?: string };
@@ -133,6 +133,63 @@ export async function confirmReceiptVoucherAction(id: string): Promise<ActionSta
   });
 }
 
+/**
+ * Reverse a POSTED receipt voucher ("عكس السند"): mirror GL entry (Dr AR / Cr cash),
+ * restore the customer balance and the invoice's paidAmount/balanceDue/status,
+ * mark the voucher REVERSED. Idempotent via the REVERSAL unique index — a wrongly
+ * recorded collection previously had NO undo path (a manual JV desynced subledgers).
+ */
+export async function reverseReceiptVoucherAction(id: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.collect");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [v] = await db.select().from(receiptVouchers)
+      .where(and(eq(receiptVouchers.id, id), eq(receiptVouchers.organizationId, auth.orgId))).limit(1);
+    if (!v) return { error: "السند غير موجود" };
+    if (v.status !== "POSTED") return { error: "يمكن عكس سند مُرحّل فقط" };
+
+    const amount = Number(v.amount);
+    try {
+      await db.transaction(async (tx) => {
+        // Serialize + re-check under lock (a double-click would restore twice).
+        const [locked] = await tx.select({ status: receiptVouchers.status }).from(receiptVouchers)
+          .where(eq(receiptVouchers.id, v.id)).for("update").limit(1);
+        if (locked?.status !== "POSTED") throw new Error("السند معكوس بالفعل");
+
+        const [entry] = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "RECEIPT_VOUCHER"), eq(journalEntries.sourceId, v.id))).limit(1);
+        if (!entry) throw new Error("قيد السند غير موجود");
+        await reverseEntry(tx, { orgId: auth.orgId, entryId: entry.id, userId: auth.userId, reason: `عكس سند قبض ${v.number}` });
+
+        await tx.update(customers).set({ balance: sql`${customers.balance} + ${amount}` }).where(eq(customers.id, v.customerId));
+        if (v.salesInvoiceId) {
+          const [inv] = await tx.select({ id: salesInvoices.id, balanceDue: salesInvoices.balanceDue, paidAmount: salesInvoices.paidAmount, totalAmount: salesInvoices.totalAmount })
+            .from(salesInvoices).where(and(eq(salesInvoices.id, v.salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1).for("update");
+          if (inv) {
+            const newPaid = round2(Number(inv.paidAmount) - amount);
+            const newBal = round2(Number(inv.balanceDue) + amount);
+            await tx.update(salesInvoices).set({
+              paidAmount: String(Math.max(0, newPaid)),
+              balanceDue: String(newBal),
+              status: newBal <= 0.01 ? "PAID" : newPaid > 0.01 ? "PARTIAL_PAID" : "POSTED",
+            }).where(eq(salesInvoices.id, inv.id));
+          }
+        }
+        await tx.update(receiptVouchers).set({ status: "REVERSED" }).where(eq(receiptVouchers.id, v.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: v.number, summary: `عكس سند قبض ${v.number}`, metadata: { amount } });
+      });
+      revalidatePath("/sales/receipts");
+      revalidatePath("/sales/invoices");
+      revalidatePath("/accounting/journal");
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر عكس السند";
+      return { error: msg.includes("unique") || msg.includes("23505") ? "السند معكوس بالفعل" : msg };
+    }
+  });
+}
+
 /** Delete a DRAFT receipt voucher. */
 export async function deleteReceiptVoucherAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.collect");
@@ -148,7 +205,31 @@ export async function deleteReceiptVoucherAction(id: string): Promise<ActionStat
   });
 }
 
-/** Bulk confirm(post)/delete DRAFT receipt vouchers; ineligible rows skipped. */
-export async function bulkReceiptVouchersAction(op: "confirm" | "delete", ids: string[]): Promise<BulkOpResult> {
+/** Mirrors the /sales/receipts list filters — the "select all pages" path re-derives
+ *  the ids from these SERVER-SIDE so the client never ships thousands of ids. */
+export type ReceiptVouchersFilter = { q?: string; status?: string; method?: string; from?: string; to?: string };
+
+async function matchingReceiptVoucherIds(orgId: string, f: ReceiptVouchersFilter): Promise<string[]> {
+  const conds = [eq(receiptVouchers.organizationId, orgId)];
+  if (f.status) conds.push(eq(receiptVouchers.status, f.status));
+  if (f.method) conds.push(eq(receiptVouchers.paymentMethod, f.method));
+  if (f.from) conds.push(gte(receiptVouchers.date, new Date(f.from)));
+  if (f.to) conds.push(lte(receiptVouchers.date, new Date(f.to + "T23:59:59")));
+  if (f.q) conds.push(or(ilike(receiptVouchers.number, `%${f.q}%`), ilike(customers.nameAr, `%${f.q}%`))!);
+  return (
+    await db.select({ id: receiptVouchers.id }).from(receiptVouchers)
+      .leftJoin(customers, eq(customers.id, receiptVouchers.customerId))
+      .where(and(...conds))
+  ).map((r) => r.id);
+}
+
+/** Bulk confirm(post)/delete DRAFT receipt vouchers; ineligible rows skipped.
+ *  `all` = re-derive ids from the current filters (select all across pages). */
+export async function bulkReceiptVouchersAction(op: "confirm" | "delete", ids: string[], all?: ReceiptVouchersFilter): Promise<BulkOpResult> {
+  if (all) {
+    const auth = await authorizeErp("sales.collect");
+    if ("error" in auth) return { ok: false, error: auth.error };
+    ids = await withOrgScope(auth.orgId, false, () => matchingReceiptVoucherIds(auth.orgId, all));
+  }
   return bulkOp(ids, op === "confirm" ? confirmReceiptVoucherAction : deleteReceiptVoucherAction);
 }

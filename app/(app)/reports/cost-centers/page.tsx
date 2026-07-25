@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
+import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts, costCenters } from "@/db/schema";
 import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
@@ -18,7 +19,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 export default async function CostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
-    const from = one(sp.from) || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
@@ -48,13 +49,15 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name.toLowerCase().includes(search));
     list.sort((a, b) => b.net - a.net);
 
+    const qs = new URLSearchParams({ from, to, ...(search ? { q: one(sp.q).trim() } : {}) }).toString();
+
     const tRev = list.reduce((s, r) => s + r.revenue, 0);
     const tExp = list.reduce((s, r) => s + r.expense, 0);
     const tNet = tRev - tExp;
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Target" title="الأرباح والخسائر حسب مركز التكلفة" subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة" action={<ReportToolbar />} />
+        <ErpPageHeader icon="Target" title="الأرباح والخسائر حسب مركز التكلفة" subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة" action={<ReportToolbar excel={`/api/erp/reports/cost-centers/export?${qs}`} printHref={`/erp/reports/cost-centers/print?${qs}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-3">

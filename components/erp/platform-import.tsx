@@ -33,9 +33,7 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
 
   const onFile = (file: File) => {
     setResult(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const parsed = parseCsvWithHeader(String(reader.result ?? ""));
+    const finish = (parsed: string[][]) => {
       if (parsed.length < 2) { toast.error("الملف فارغ أو بلا بيانات"); return; }
       setRows(parsed);
       setFileName(file.name);
@@ -48,6 +46,23 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
         date: guess(h, ["date", "التاريخ", "تاريخ"]),
       });
     };
+    if (/\.xlsx?$/i.test(file.name)) {
+      // Excel: lazy-load the parser (already a dependency via the settlements flow)
+      // so CSV-only users never pay for the bundle. First sheet, same rows shape.
+      file.arrayBuffer()
+        .then(async (buf) => {
+          const XLSX = await import("xlsx");
+          const ws = XLSX.read(buf, { type: "array" }).Sheets;
+          const first = ws[Object.keys(ws)[0]];
+          const parsed = (XLSX.utils.sheet_to_json(first, { header: 1, raw: false, defval: "" }) as unknown[][])
+            .map((r) => r.map((c) => String(c ?? "")));
+          finish(parsed);
+        })
+        .catch(() => toast.error("تعذّرت قراءة ملف Excel"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => finish(parseCsvWithHeader(String(reader.result ?? "")));
     reader.readAsText(file, "utf-8");
   };
 
@@ -97,13 +112,13 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
     <Card>
       <CardHeader>
         <CardTitle>استيراد أوامر — {platformName}</CardTitle>
-        <CardDescription>ارفع ملف CSV من المنصة، اربط الأعمدة، ثم استورد. كل رقم طلب يصبح أمر بيع باسم عميل المنصة. المكرر يُتخطّى تلقائيًا.</CardDescription>
+        <CardDescription>ارفع ملف CSV أو Excel من المنصة، اربط الأعمدة، ثم استورد. كل رقم طلب يصبح أمر بيع باسم عميل المنصة. المكرر يُتخطّى تلقائيًا.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
-          <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+          <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
-            <Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV"}
+            <Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV / Excel"}
           </Button>
           {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
         </div>

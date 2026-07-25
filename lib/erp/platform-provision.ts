@@ -1,22 +1,47 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, accounts } from "@/db/schema";
+import { resolveAccountIds } from "@/lib/erp/accounting-config";
 
 export type AmazonPlatform = { platformId: string; customerId: string; warehouseId: string; bankAccountId: string | null };
 
 /**
- * Get-or-create the "Amazon Wallet" settlement bank. Linked to the org's bank GL
- * account (1102, a leaf) as a sub-ledger when present; unlinked otherwise (the
- * user can attach a GL account later from the bank screen).
+ * Get-or-create a dedicated wallet GL for a marketplace (e.g. 1109 «محفظة أمازون»,
+ * ASSET). It's the settlement INTERMEDIATE: per-order collections Dr it, the bank
+ * transfer Cr's it — so its balance = funds the marketplace holds but hasn't
+ * remitted yet (≈ the platform's "available balance"). Per-platform: distinct code.
+ */
+export async function ensurePlatformWalletGl(orgId: string, code = "1109", name = "محفظة أمازون"): Promise<string> {
+  const ov = await resolveAccountIds(orgId, [code]);
+  if (ov[code]) return ov[code];
+  const [parent] = await db.select({ id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "11"))).limit(1);
+  const [r] = await db.insert(accounts).values({
+    organizationId: orgId, code, nameAr: name, type: "ASSET", normalBalance: "DEBIT",
+    parentId: parent?.id ?? null, isLeaf: true,
+  }).returning({ id: accounts.id });
+  return r.id;
+}
+
+/**
+ * Get-or-create the "Amazon Wallet" settlement bank, linked to its OWN dedicated
+ * wallet GL (1109) — distinct from the general bank (1102) so its balance tracks
+ * Amazon's unremitted funds. Repoints a legacy wallet still on 1102.
  */
 async function ensureAmazonBank(orgId: string): Promise<string> {
-  const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
+  const walletGl = await ensurePlatformWalletGl(orgId);
+  const bankGl = (await resolveAccountIds(orgId, ["1102"]))["1102"] ?? null;
+  const [existing] = await db.select({ id: bankAccounts.id, gl: bankAccounts.glAccountId }).from(bankAccounts)
     .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "محفظة أمازون"))).limit(1);
-  if (existing) return existing.id;
-  const [gl] = await db.select({ id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.organizationId, orgId), eq(accounts.code, "1102"), eq(accounts.isLeaf, true))).limit(1);
+  if (existing) {
+    // Legacy wallet linked to the general bank GL → repoint to its own wallet GL.
+    if (!existing.gl || existing.gl === bankGl) {
+      await db.update(bankAccounts).set({ glAccountId: walletGl }).where(eq(bankAccounts.id, existing.id));
+    }
+    return existing.id;
+  }
   const [row] = await db.insert(bankAccounts)
-    .values({ organizationId: orgId, nameAr: "محفظة أمازون", bankName: "أمازون", glAccountId: gl?.id ?? null })
+    .values({ organizationId: orgId, nameAr: "محفظة أمازون", bankName: "أمازون", glAccountId: walletGl })
     .returning({ id: bankAccounts.id });
   return row.id;
 }
@@ -37,7 +62,7 @@ export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatfor
     let [cust] = await db.select({ id: customers.id }).from(customers)
       .where(and(eq(customers.organizationId, orgId), eq(customers.code, "AMZN"))).limit(1);
     if (!cust) [cust] = await db.insert(customers)
-      .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون", nameEn: "Amazon" }).returning({ id: customers.id });
+      .values({ organizationId: orgId, code: "AMZN", nameAr: "أمازون" }).returning({ id: customers.id });
     customerId = cust.id;
   }
 

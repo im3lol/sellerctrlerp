@@ -87,7 +87,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
                     <TableCell><input type="checkbox" className="size-4" checked={!!checks[l.id]} onChange={(e) => setChecks((c) => ({ ...c, [l.id]: e.target.checked }))} /></TableCell>
                     <TableCell className="text-sm">{l.date}</TableCell>
                     <TableCell className="font-mono text-xs">{l.number}</TableCell>
-                    <TableCell className="text-sm">{l.description || "—"}</TableCell>
+                    <TableCell className="max-w-[280px] truncate text-sm" title={l.description || undefined}>{l.description || "—"}</TableCell>
                     <TableCell className="text-end tabular-nums">{l.debit ? fmt(l.debit) : "—"}</TableCell>
                     <TableCell className="text-end tabular-nums">{l.credit ? fmt(l.credit) : "—"}</TableCell>
                   </TableRow>
