@@ -15,6 +15,7 @@ import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
+import { orderCreateFloor } from "./sync-range";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
@@ -25,7 +26,7 @@ export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: C
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
 export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
-export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 
 /**
@@ -51,17 +52,17 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice" };
+    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice", accountingStartDate: p.accountingStartDate ? new Date(p.accountingStartDate) : null };
     const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements, returns: p.syncReturns };
     return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
 }
 
-export { incrementalFrom, SYNC_OVERLAP_MS } from "./sync-range";
+export { incrementalFrom, SYNC_OVERLAP_MS, orderCreateFloor } from "./sync-range";
 
 export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date; returnsSyncedAt: Date; reimbursementsSyncedAt: Date; ledgerSyncedAt: Date; feesSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
@@ -192,8 +193,14 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
   if (!p.connector.fetchOrders) return { ok: false, error: "المنصة لا تدعم مزامنة الأوامر" };
   try {
     const orders = await p.connector.fetchOrders(p.cred, range); // slow fetch, unscoped
-    const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, p.ctx, orders));
-    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed };
+    // Create-floor = only import orders PLACED on/after this. Incremental/realtime
+    // ("updated" = LastUpdatedAfter) can surface OLD orders Amazon just touched — floor
+    // them at the go-live start date (else start of today: new orders only). An explicit
+    // "created" backfill trusts its picked window (already floored at the start date).
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const createFloor = orderCreateFloor(range.mode, p.ctx.accountingStartDate ?? null, range.from, startOfToday);
+    const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, { ...p.ctx, createFloor }, orders));
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, skippedPreGoLive: r.skippedPreGoLive, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed };
   } catch (e) {
     return coreFail(p, e, "فشل سحب الأوامر");
   }
