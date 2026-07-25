@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, FileText, CheckCircle2, Truck, ReceiptText } from "lucide-react";
 import { updatePlatformAction } from "@/app/actions/erp/platforms";
+import { setAutoSyncAction } from "@/app/actions/erp/marketplace-connect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,12 +39,26 @@ const SOURCES = [
 ] as const;
 
 export function PlatformSettingsForm({
-  platform, warehouses, bankAccounts,
+  platform, warehouses, bankAccounts, autoSync: initialAutoSync, connected,
 }: {
   platform: Platform; warehouses: Option[]; bankAccounts: Option[];
+  autoSync: boolean; connected: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [autoSync, setAutoSync] = useState(initialAutoSync);
+  const [autoSyncPending, startAutoSync] = useTransition();
+
+  // Auto-sync is a credentials-level toggle (near-real-time scheduler), saved on
+  // flip — independent of the «حفظ الإعدادات» button below.
+  const toggleAutoSync = (next: boolean) => {
+    setAutoSync(next);
+    startAutoSync(async () => {
+      const r = await setAutoSyncAction(platform.code.toLowerCase(), next);
+      if (r.ok) toast.success(next ? "تم تفعيل المزامنة التلقائية" : "تم إيقاف المزامنة التلقائية");
+      else { setAutoSync(!next); toast.error(r.error); }
+    });
+  };
   const [name, setName] = useState(platform.name);
   const [integrationType, setIntegrationType] = useState(platform.integrationType);
   const [productSyncMode, setProductSyncMode] = useState(platform.productSyncMode);
@@ -78,6 +93,22 @@ export function PlatformSettingsForm({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {/* المزامنة التلقائية — connected platforms only */}
+      {connected && (
+        <Card>
+          <CardHeader>
+            <CardTitle>المزامنة التلقائية</CardTitle>
+            <CardDescription>الطلبات الجديدة تدخل النظام تلقائيًا خلال دقائق (وإشعار في الجرس)، والمنتجات الجديدة تُكتشف يوميًا.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
+              <div className="text-sm font-medium">تفعيل المزامنة التلقائية المجدولة</div>
+              <Switch checked={autoSync} onCheckedChange={toggleAutoSync} disabled={autoSyncPending} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ١ — الهوية */}
       <Card>
         <CardHeader>

@@ -75,7 +75,9 @@ export async function productsSyncStatusAction(code: string): Promise<ProductSyn
       if (phase !== "running") revalidatePath("/inventory/items");
       return { phase, total: row.productsProcessed, created: row.newProducts, linked: row.updatedProducts, error: row.error ?? undefined };
     }
-    return { phase: "running" }; // enqueued, worker hasn't written the row yet
+    // No IMPORT row ever = nothing enqueued → idle, so the caller starts a fresh
+    // import instead of polling a job that doesn't exist (30-min phantom spinner).
+    return { phase: "idle" };
   }
 
   const st = getProductSyncState(auth.orgId, provider);

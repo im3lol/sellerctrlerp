@@ -57,7 +57,17 @@ async function categoryIdByName(orgId: string, name: string, cache: Map<string, 
  * DRAFT→fulfil cycle, reconciliation) lives once and the ERP never knows the
  * source. Ported from the former Amazon-specific actions with no behaviour change.
  */
-export type PlatformCtx = { platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode };
+export type PlatformCtx = {
+  platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode;
+  /** The platform's go-live accounting start date, if set. syncOrdersCore derives
+   *  `createFloor` from it per sync mode. */
+  accountingStartDate?: Date | null;
+  /** Don't CREATE an order whose purchase date is before this (go-live floor). Old
+   *  orders Amazon merely updated (via LastUpdatedAfter syncs) are skipped, not
+   *  imported — their money closes through settlements. Null = no floor (manual file
+   *  import). Updates/cancels to already-imported orders are unaffected. */
+  createFloor?: Date | null;
+};
 
 export type IngestResult = {
   created: number;
@@ -68,6 +78,7 @@ export type IngestResult = {
   stockDrafted: number; // deliveries parked as DRAFT waiting for stock
   skippedDuplicate: number;
   skippedUnmatched: number;
+  skippedPreGoLive: number; // new orders skipped: purchase date before the go-live floor
   autoCreated: number; // stub items created for unknown SKUs (order kept DRAFT)
   failed: number;
 };
@@ -189,9 +200,10 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
 
-  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0;
+  let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0, skippedPreGoLive = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];
   const autoMode: AutoMode = ctx.autoMode ?? "invoice";
+  const createFloor = ctx.createFloor ?? null;
 
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
@@ -263,6 +275,10 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   };
 
   for (const o of toCreate) {
+    // Go-live floor: only import orders PLACED on/after the start date. An old order
+    // Amazon merely updated (pulled by a LastUpdatedAfter sync) is skipped — its money
+    // closes through settlements, not a back-dated sales order.
+    if (createFloor && new Date(o.date || Date.now()) < createFloor) { skippedPreGoLive++; continue; }
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
     // No identity (userId null) → keep DRAFT for a later authenticated sync.
     // autoMode "draft" = the user chose import-as-draft-only: never auto-confirm.
@@ -332,7 +348,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   return {
     created, transitioned, fulfilled, cancelled, stockBlocked, stockDrafted,
-    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, autoCreated, failed,
+    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, skippedPreGoLive, autoCreated, failed,
   };
 }
 

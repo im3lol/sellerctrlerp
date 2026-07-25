@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Upload, Download, ShoppingCart, Banknote, Boxes, ArrowRightLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Upload, Download, ShoppingCart, Banknote, Boxes } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type Choice = "choose" | "import" | "export";
@@ -23,20 +22,18 @@ function OptionCard({ href, download, onClick, icon, title, subtitle, disabled }
   return <button type="button" onClick={onClick} className={cls}>{body}</button>;
 }
 
-export function PlatformActions({ code, isAmazon }: { code: string; isAmazon: boolean }) {
-  const [open, setOpen] = useState(false);
+/** Import/export dialog for a platform. Controlled by the parent (opened from the
+ *  platform tools dropdown) — it renders no trigger of its own. */
+export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
+  code: string; isAmazon: boolean; open: boolean; onOpenChange: (o: boolean) => void;
+}) {
   const [mode, setMode] = useState<Choice>("choose");
   const base = `/platforms/${code}`;
   const paymentsTab = isAmazon ? "settlement" : "payments";
-  const close = () => { setOpen(false); setMode("choose"); };
+  const close = () => { onOpenChange(false); setMode("choose"); };
 
   return (
-    <>
-      <Button onClick={() => { setMode("choose"); setOpen(true); }}>
-        <ArrowRightLeft className="size-4" />استيراد / تصدير
-      </Button>
-
-      <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>
@@ -74,6 +71,5 @@ export function PlatformActions({ code, isAmazon }: { code: string; isAmazon: bo
           )}
         </DialogContent>
       </Dialog>
-    </>
   );
 }
