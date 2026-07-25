@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { previewAmazonSettlementAction, runAmazonSettlementAction, postAmazonSettlementsAction, type SettlementPreview } from "@/app/actions/erp/amazon-settlement";
+import { previewAmazonSettlementAction, runAmazonSettlementAction, postAmazonSettlementsAction, reverseAmazonSettlementAction, type SettlementPreview } from "@/app/actions/erp/amazon-settlement";
 import { syncSettlementsAction, settlementsSyncStatusAction } from "@/app/actions/erp/marketplace-sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,17 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
   const [previewing, startPreview] = useTransition();
   const [importing, startImport] = useTransition();
   const [posting, startPost] = useTransition();
+  const [reversing, startReverse] = useTransition();
+
+  const reversePosting = () => {
+    if (!confirm("عكس ترحيل كل قيود تسوية أمازون المرحّلة؟ سيُعاد بناؤها على مستوى كل طلب عند الترحيل التالي، وتُستعاد أرصدة العملاء والفواتير.")) return;
+    startReverse(async () => {
+      const r = await reverseAmazonSettlementAction();
+      if (!r.ok) { toast.error(r.error); return; }
+      toast.success(r.reversed ? `تم عكس ${r.reversed} قيد تسوية — أعد الترحيل الآن` : "لا توجد قيود تسوية مرحّلة لعكسها");
+      router.refresh();
+    });
+  };
 
   // ── SP-API pull ──
   const [pulling, setPulling] = useState(false);
@@ -59,9 +70,9 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
     startPost(async () => {
       const r = await postAmazonSettlementsAction();
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم ترحيل ${r.posted} معاملة${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}${r.deferredHeld ? `، ${r.deferredHeld} مؤجّلة محفوظة` : ""}`);
+      toast.success(`تم ترحيل ${r.posted} معاملة${r.perOrderEntries ? ` (${r.perOrderEntries} قيد لكل طلب)` : ""}${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}${r.deferredHeld ? `، ${r.deferredHeld} مؤجّلة محفوظة` : ""}`);
       if (r.returnsUnmatched.length) toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length})`, { duration: 10000 });
-      if (r.unlinkedReceivable) toast.warning(`ذمم بلا فاتورة مطابقة: ${fmt(r.unlinkedReceivable)}`, { duration: 10000 });
+      if (r.heldForImport) toast.warning(`${r.heldForImport} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)`, { duration: 10000 });
       router.refresh();
     });
   };
@@ -82,10 +93,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
       const fd = new FormData(); fd.append("file", file);
       const r = await runAmazonSettlementAction(fd);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم: ${r.posted} معاملة مُرحّلة، ${r.imported} جديدة، ${r.deferredHeld} مؤجّلة محفوظة${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}`);
+      toast.success(`تم: ${r.posted} معاملة مُرحّلة${r.perOrderEntries ? ` (${r.perOrderEntries} قيد لكل طلب)` : ""}، ${r.imported} جديدة، ${r.deferredHeld} مؤجّلة محفوظة${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}`);
       if (r.returnsUnmatched.length) {
         toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length}): ${r.returnsUnmatched.slice(0, 5).join("؛ ")}${r.returnsUnmatched.length > 5 ? " …" : ""}`, { duration: 12000 });
       }
+      if (r.heldForImport) toast.warning(`${r.heldForImport} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)`, { duration: 10000 });
       router.refresh();
       setPreview(null); setFile(null); if (inputRef.current) inputRef.current.value = "";
     });
@@ -116,6 +128,10 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
                 ترحيل المعاملات المسحوبة ({unpostedReleased})
               </Button>
             )}
+            <Button onClick={reversePosting} disabled={reversing} variant="outline" title="يعكس قيود التسوية المرحّلة ويعيد الأرصدة، ثم أعد الترحيل ليُبنى على مستوى كل طلب">
+              {reversing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Undo2" className="size-4" />}
+              عكس ترحيل التسوية
+            </Button>
           </div>
 
           {rows.length > 0 && (

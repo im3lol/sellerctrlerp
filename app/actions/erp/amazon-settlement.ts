@@ -24,13 +24,14 @@ export type SettlementResult =
   | {
       ok: true; imported: number; updated: number; posted: number; deferredHeld: number;
       returnsCreated: number; returnsUnmatched: string[]; journalNumber?: string;
+      /** Number of per-order collection entries created (one per matched order). */
+      perOrderEntries?: number;
       /**
-       * AR credited in the GL that found no invoice to apply it against (the
-       * settlement row was never matched to a sales order). This is the remaining
-       * way GL 1103 and the customer subledger can drift, so it is reported
-       * instead of being silently absorbed.
+       * Order rows NOT posted because their sales order was never imported (or has
+       * no live invoice). These never touch AR — they wait until the order exists.
+       * Reported so the user knows how many orders still need importing.
        */
-      unlinkedReceivable?: number;
+      heldForImport?: number;
     }
   | { ok: false; error: string };
 
@@ -100,7 +101,7 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
     return {
       ok: true, imported, updated, posted: posted.posted, deferredHeld: posted.deferredHeld,
       returnsCreated: posted.returnsCreated, returnsUnmatched: posted.returnsUnmatched,
-      unlinkedReceivable: posted.unlinkedReceivable,
+      perOrderEntries: posted.perOrderEntries, heldForImport: posted.heldForImport,
     };
   });
 }
@@ -119,7 +120,25 @@ export async function postAmazonSettlementsAction(): Promise<SettlementResult> {
     return {
       ok: true, imported: 0, updated: 0, posted: posted.posted, deferredHeld: posted.deferredHeld,
       returnsCreated: posted.returnsCreated, returnsUnmatched: posted.returnsUnmatched,
-      unlinkedReceivable: posted.unlinkedReceivable,
+      perOrderEntries: posted.perOrderEntries, heldForImport: posted.heldForImport,
     };
+  });
+}
+
+/**
+ * Un-post every posted Amazon settlement entry: reverse each GL entry (mirror),
+ * restore the customer subledger it moved, and null the txns' journal_entry_id so
+ * a re-post rebuilds them with the current (per-order) logic. This is the supported
+ * way to correct a bad settlement — reverse, then Post again.
+ */
+export async function reverseAmazonSettlementAction(): Promise<{ ok: true; reversed: number } | { ok: false; error: string }> {
+  const auth = await authorizeErp("accounting.reverse", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  return withOrgScope(auth.orgId, false, async () => {
+    const { reverseSettlementPosting } = await import("@/lib/erp/settlement-core");
+    const r = await reverseSettlementPosting(auth.orgId, auth.userId);
+    if ("error" in r) return { ok: false, error: r.error };
+    revalidateSettlement();
+    return { ok: true, reversed: r.reversed };
   });
 }

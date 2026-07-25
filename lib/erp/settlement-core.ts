@@ -5,16 +5,17 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns,
+  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
+import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, type SettleAmounts } from "@/lib/erp/settlement-gl";
 
 // Session-less settlement engine shared by the file-upload action, the SP-API sync
 // job, and the manual "post" button. All functions assume the caller already
@@ -241,15 +242,30 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[])
 }
 
 export type PostSettlementsResult = {
-  posted: number; deferredHeld: number; returnsCreated: number; returnsUnmatched: string[];
-  unlinkedReceivable?: number;
+  posted: number;           // settlement rows GL-posted
+  perOrderEntries: number;  // number of per-order journal entries created
+  heldForImport: number;    // Order rows NOT posted — no imported order or no live invoice
+  deferredHeld: number; returnsCreated: number; returnsUnmatched: string[];
 };
 
+const numAmounts = (r: { type: string; productSales: string; shippingCredits: string; promotionalRebates: string; sellingFees: string; fbaFees: string; otherTransactionFees: string; other: string; total: string }): SettleAmounts => ({
+  type: r.type,
+  productSales: Number(r.productSales), shippingCredits: Number(r.shippingCredits), promotionalRebates: Number(r.promotionalRebates),
+  sellingFees: Number(r.sellingFees), fbaFees: Number(r.fbaFees), otherTransactionFees: Number(r.otherTransactionFees),
+  other: Number(r.other), total: Number(r.total),
+});
+const rowKey = (ids: string[]) => createHash("sha256").update([...ids].sort().join(",")).digest("hex").slice(0, 40);
+const maxDate = (rows: { releaseDate: Date | null }[]): Date =>
+  rows.reduce<Date | null>((mx, r) => { const d = r.releaseDate ? new Date(r.releaseDate) : null; return d && (!mx || d > mx) ? d : mx; }, null) ?? new Date();
+
 /**
- * Post every released, not-yet-posted settlement row as ONE aggregated journal
- * entry (1108/5203/bank/1103), move the customer subledger in the same tx, then
- * run the refund cycle. Idempotent — reads unposted rows from the DB, so calling
- * it twice posts nothing the second time.
+ * Post released, not-yet-posted settlement rows: ONE journal entry PER matched order
+ * (collecting that order's Amazon receivable against its live invoice — traceable so
+ * a later refund stays attributable), plus ONE aggregated entry for non-order rows
+ * (ads / service fees / FBA-inventory / SAFE-T / bank transfers). Order rows whose
+ * sales order was never imported (or has no live invoice) are HELD — never touching
+ * AR — until the order exists. Then runs the refund cycle. Idempotent (posted rows
+ * carry journal_entry_id, so a re-run skips them).
  */
 export async function postSettlements(orgId: string, userId?: string | null): Promise<PostSettlementsResult | { error: string }> {
   const accs = await ensureAmazonAccounts(orgId);
@@ -283,48 +299,15 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
       sql`${marketplaceSettlementTxns.status} <> 'Released'`,
     )))[0]?.n ?? 0);
 
-  if (toPost.length === 0) {
-    const ret0 = await processSettlementRefunds(orgId);
-    return { posted: 0, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
-  }
+  const { orderGroups, heldOrderRows, nonOrderRows } = splitSettlementRows(toPost);
 
-  const rows = toPost.map((r) => ({
-    type: r.type,
-    productSales: Number(r.productSales), shippingCredits: Number(r.shippingCredits), promotionalRebates: Number(r.promotionalRebates),
-    sellingFees: Number(r.sellingFees), fbaFees: Number(r.fbaFees), otherTransactionFees: Number(r.otherTransactionFees),
-    other: Number(r.other), total: Number(r.total),
-  }));
-  const gl = aggregateGL(rows);
-  const line = (accountId: string, amount: number, description: string) =>
-    ({ accountId, debit: amount >= 0 ? amount : 0, credit: amount < 0 ? -amount : 0, description });
-  const lines = [
-    line(accs.clearing, gl.clearing, "صافي رصيد أمازون"),
-    line(accs.fees, gl.fees, "رسوم أمازون (عمولة + FBA + أخرى)"),
-    line(accs.bank, gl.bank, "تحويلات أمازون إلى البنك"),
-    line(accs.receivable, -gl.receivable, "تحصيل ذمم أمازون (مقابل فواتير البيع)"),
-  ].filter((l) => l.debit !== 0 || l.credit !== 0);
-
-  const entryDate = toPost.reduce<Date | null>((mx, r) => {
-    const d = r.releaseDate ? new Date(r.releaseDate) : null;
-    return d && (!mx || d > mx) ? d : mx;
-  }, null) ?? new Date();
-
-  // Customer subledger: the entry credits AR (1103); move customers.balance +
-  // invoice balanceDue by the same per-order figure so GL 1103 and the subledger
-  // stay in lockstep. AR credited with no invoice is surfaced, not swallowed.
-  const arByOrder = new Map<string, number>();
-  for (const r of toPost) {
-    if (!r.salesOrderId) continue;
-    if (r.type !== "Order" && r.type !== "Refund") continue;
-    const amt = Number(r.productSales) + Number(r.shippingCredits) + Number(r.promotionalRebates) + Number(r.other);
-    arByOrder.set(r.salesOrderId, (arByOrder.get(r.salesOrderId) ?? 0) + amt);
-  }
-  const orderIds = [...arByOrder.keys()];
+  // Which order groups have a LIVE invoice (via delivery → invoice)? Only those get
+  // a per-order collection; the rest are held (their AR was never booked).
+  const orderIds = [...orderGroups.keys()];
   const invoiceRows = orderIds.length
     ? await db.select({
-        invoiceId: salesInvoices.id,
-        customerId: salesInvoices.customerId,
-        orderId: deliveryNotes.salesOrderId,
+        invoiceId: salesInvoices.id, invoiceNumber: salesInvoices.number,
+        customerId: salesInvoices.customerId, orderId: deliveryNotes.salesOrderId,
       })
       .from(salesInvoices)
       .innerJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
@@ -335,52 +318,169 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
       ))
     : [];
   const invByOrder = new Map(invoiceRows.filter((r) => r.orderId).map((r) => [r.orderId!, r]));
-  const unlinkedAr = r2([...arByOrder.entries()]
-    .filter(([oid]) => !invByOrder.has(oid))
-    .reduce((s, [, amt]) => s + amt, 0));
+  const postableOrderIds = orderIds.filter((oid) => invByOrder.has(oid));
+  const heldForImport = heldOrderRows.length +
+    orderIds.filter((oid) => !invByOrder.has(oid)).reduce((s, oid) => s + orderGroups.get(oid)!.length, 0);
+
+  const line = (accountId: string, amount: number, description: string) =>
+    ({ accountId, debit: amount >= 0 ? amount : 0, credit: amount < 0 ? -amount : 0, description });
+
+  const nonOrderPostable = nonOrderRows.length > 0 && (() => {
+    const gl = nonOrderGL(nonOrderRows.map(numAmounts));
+    return gl.fees !== 0 || gl.bank !== 0 || gl.clearing !== 0;
+  })();
+
+  let perOrderEntries = 0;
+  if (postableOrderIds.length === 0 && !nonOrderPostable) {
+    const ret0 = await processSettlementRefunds(orgId);
+    return { posted: 0, perOrderEntries: 0, heldForImport, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
+  }
+
+  // Rows that will actually be GL-posted this run (per-order groups + non-order).
+  const postableRowIds = [
+    ...postableOrderIds.flatMap((oid) => orderGroups.get(oid)!.map((r) => r.id)),
+    ...(nonOrderPostable ? nonOrderRows.map((r) => r.id) : []),
+  ];
 
   try {
     await db.transaction(async (tx) => {
-      // Re-verify under lock that every row is STILL unposted — a concurrent
-      // auto-post (worker) + manual post read different snapshots with different
-      // sourceKey hashes, so the unique index alone would not stop a double post.
-      const idList = sql.join(toPost.map((r) => sql`${r.id}`), sql`, `);
+      // Re-verify under lock that every postable row is STILL unposted (concurrent
+      // auto-post + manual post race — the unique index alone wouldn't catch it).
+      const idList = sql.join(postableRowIds.map((id) => sql`${id}`), sql`, `);
       const locked = await tx.execute<{ id: string }>(sql`
         SELECT id FROM marketplace_settlement_txns
         WHERE organization_id = ${orgId} AND id IN (${idList}) AND journal_entry_id IS NULL
         FOR UPDATE`);
-      if (locked.rows.length !== toPost.length) throw new Error("تغيّرت التسويات أثناء الترحيل (ترحيل متزامن) — أعد المحاولة");
-      // Stable natural key from the exact set of posted rows — NOT date+count.
-      const sourceKey = createHash("sha256").update([...toPost.map((r) => r.id)].sort().join(",")).digest("hex").slice(0, 40);
-      const jid = await postEntry(tx, {
-        orgId, date: entryDate, sourceType: "AMAZON_SETTLEMENT",
-        sourceId: `AMZ-${sourceKey}`,
-        description: `تسوية أمازون — ${toPost.length} معاملة (مُفرج عنها)`,
-        userId, lines,
-      });
-      for (const [orderId, amount] of arByOrder) {
-        const inv = invByOrder.get(orderId);
-        if (!inv) continue;
-        const amt = r2(amount);
-        if (amt === 0) continue;
-        await tx.update(salesInvoices)
-          .set({
+      if (locked.rows.length !== postableRowIds.length) throw new Error("تغيّرت التسويات أثناء الترحيل (ترحيل متزامن) — أعد المحاولة");
+
+      // ── one entry per matched order (collects its receivable against its invoice) ──
+      for (const oid of postableOrderIds) {
+        const grp = orderGroups.get(oid)!;
+        const gl = perOrderGL(grp.map(numAmounts));
+        const inv = invByOrder.get(oid)!;
+        const lines = [
+          line(accs.clearing, gl.clearing, `رصيد أمازون — فاتورة ${inv.invoiceNumber}`),
+          line(accs.fees, gl.fees, `رسوم أمازون — فاتورة ${inv.invoiceNumber}`),
+          line(accs.receivable, -gl.receivable, `تحصيل ذمم — فاتورة ${inv.invoiceNumber}`),
+        ].filter((l) => l.debit !== 0 || l.credit !== 0);
+        if (lines.length === 0) continue;
+        const jid = await postEntry(tx, {
+          orgId, date: maxDate(grp), sourceType: "AMAZON_SETTLEMENT",
+          sourceId: `AMZ-O-${rowKey(grp.map((r) => r.id))}`,
+          description: `تسوية أمازون — تحصيل فاتورة ${inv.invoiceNumber}`,
+          userId, lines,
+        });
+        perOrderEntries++;
+        const amt = r2(gl.receivable);
+        if (amt !== 0) {
+          await tx.update(salesInvoices).set({
             balanceDue: sql`${salesInvoices.balanceDue} - ${amt}`,
             paidAmount: sql`${salesInvoices.paidAmount} + ${amt}`,
             status: sql`CASE WHEN ${salesInvoices.balanceDue} - ${amt} <= 0.01 THEN 'PAID' ELSE 'PARTIAL_PAID' END`,
-          })
-          .where(eq(salesInvoices.id, inv.invoiceId));
-        await tx.update(customers)
-          .set({ balance: sql`${customers.balance} - ${amt}` })
-          .where(eq(customers.id, inv.customerId));
+          }).where(eq(salesInvoices.id, inv.invoiceId));
+          await tx.update(customers).set({ balance: sql`${customers.balance} - ${amt}` })
+            .where(eq(customers.id, inv.customerId));
+        }
+        await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
+          .where(inArray(marketplaceSettlementTxns.id, grp.map((r) => r.id)));
       }
-      await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
-        .where(inArray(marketplaceSettlementTxns.id, toPost.map((r) => r.id)));
+
+      // ── one aggregated entry for non-order rows (ads / fees / transfers) ──
+      if (nonOrderPostable) {
+        const gl = nonOrderGL(nonOrderRows.map(numAmounts));
+        const lines = [
+          line(accs.clearing, gl.clearing, "صافي رصيد أمازون (بنود غير مرتبطة بطلب)"),
+          line(accs.fees, gl.fees, "رسوم ومصاريف أمازون (إعلانات + رسوم خدمة + FBA)"),
+          line(accs.bank, gl.bank, "تحويلات أمازون إلى البنك"),
+        ].filter((l) => l.debit !== 0 || l.credit !== 0);
+        if (lines.length > 0) {
+          const jid = await postEntry(tx, {
+            orgId, date: maxDate(nonOrderRows), sourceType: "AMAZON_SETTLEMENT",
+            sourceId: `AMZ-AGG-${rowKey(nonOrderRows.map((r) => r.id))}`,
+            description: `تسوية أمازون — رسوم ومصاريف مجمّعة (${nonOrderRows.length} بند)`,
+            userId, lines,
+          });
+          await tx.update(marketplaceSettlementTxns).set({ journalEntryId: jid })
+            .where(inArray(marketplaceSettlementTxns.id, nonOrderRows.map((r) => r.id)));
+        }
+      }
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر ترحيل قيد التسوية" };
   }
 
   const ret = await processSettlementRefunds(orgId);
-  return { posted: toPost.length, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched, unlinkedReceivable: unlinkedAr || undefined };
+  return { posted: postableRowIds.length, perOrderEntries, heldForImport, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
+}
+
+/**
+ * Un-post every posted Amazon settlement entry: reverse each GL entry (mirror),
+ * restore the customer subledger it moved (invoice balanceDue/paidAmount/status +
+ * customers.balance), and null the txns' journal_entry_id so they become re-postable.
+ * The supported correction path — reverse, then Post again to rebuild with current
+ * (per-order) logic. Idempotent (only touches still-POSTED settlement entries).
+ */
+export async function reverseSettlementPosting(orgId: string, userId?: string | null): Promise<{ reversed: number } | { error: string }> {
+  const posted = await db.select({ jid: journalEntries.id })
+    .from(journalEntries)
+    .where(and(
+      eq(journalEntries.organizationId, orgId),
+      eq(journalEntries.sourceType, "AMAZON_SETTLEMENT"),
+      eq(journalEntries.status, "POSTED"),
+    ));
+  if (posted.length === 0) return { reversed: 0 };
+
+  let reversed = 0;
+  try {
+    for (const { jid } of posted) {
+      const txns = await db.select({
+        id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type, salesOrderId: marketplaceSettlementTxns.salesOrderId,
+        productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
+        promotionalRebates: marketplaceSettlementTxns.promotionalRebates, other: marketplaceSettlementTxns.other,
+      }).from(marketplaceSettlementTxns).where(and(
+        eq(marketplaceSettlementTxns.organizationId, orgId),
+        eq(marketplaceSettlementTxns.journalEntryId, jid),
+      ));
+
+      // Which per-order receivable did this entry apply to the subledger? (Order/Refund
+      // with a live invoice — mirrors what post moved, so reversal restores exactly.)
+      const arByOrder = new Map<string, number>();
+      for (const t of txns) {
+        if ((t.type !== "Order" && t.type !== "Refund") || !t.salesOrderId) continue;
+        const amt = Number(t.productSales) + Number(t.shippingCredits) + Number(t.promotionalRebates) + Number(t.other);
+        arByOrder.set(t.salesOrderId, (arByOrder.get(t.salesOrderId) ?? 0) + amt);
+      }
+      const orderIds = [...arByOrder.keys()];
+      const invoiceRows = orderIds.length
+        ? await db.select({ invoiceId: salesInvoices.id, customerId: salesInvoices.customerId, orderId: deliveryNotes.salesOrderId })
+            .from(salesInvoices)
+            .innerJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+            .where(and(eq(salesInvoices.organizationId, orgId), inArray(deliveryNotes.salesOrderId, orderIds)))
+        : [];
+      const invByOrder = new Map(invoiceRows.filter((r) => r.orderId).map((r) => [r.orderId!, r]));
+
+      await db.transaction(async (tx) => {
+        await reverseEntry(tx, { orgId, entryId: jid, userId, reason: "عكس ترحيل تسوية أمازون" });
+        for (const [oid, amount] of arByOrder) {
+          const inv = invByOrder.get(oid);
+          if (!inv) continue;
+          const amt = r2(amount);
+          if (amt === 0) continue;
+          await tx.update(salesInvoices).set({
+            balanceDue: sql`${salesInvoices.balanceDue} + ${amt}`,
+            paidAmount: sql`${salesInvoices.paidAmount} - ${amt}`,
+            status: sql`CASE WHEN ${salesInvoices.paidAmount} - ${amt} <= 0.01 THEN 'POSTED' WHEN ${salesInvoices.balanceDue} + ${amt} <= 0.01 THEN 'PAID' ELSE 'PARTIAL_PAID' END`,
+          }).where(eq(salesInvoices.id, inv.invoiceId));
+          await tx.update(customers).set({ balance: sql`${customers.balance} + ${amt}` })
+            .where(eq(customers.id, inv.customerId));
+        }
+        await tx.update(marketplaceSettlementTxns).set({ journalEntryId: null })
+          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.journalEntryId, jid)));
+      });
+      reversed++;
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر عكس ترحيل التسوية" };
+  }
+  return { reversed };
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { normalizeCode } from "../amazon-import";
 import { parseAmazonDate, parseSettlementFlatFile, settlementDedupKey, type SettlementTxn } from "../amazon-settlement";
+import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, orderFees, type SettleAmounts } from "../settlement-gl";
 
 describe("normalizeCode", () => {
   it("uppercases and strips non-alphanumerics", () => {
@@ -78,5 +79,54 @@ describe("parseSettlementFlatFile", () => {
   it("returns empty for a header-only / blank file", () => {
     expect(parseSettlementFlatFile("")).toEqual([]);
     expect(parseSettlementFlatFile(HEAD.join("\t"))).toEqual([]);
+  });
+});
+
+describe("settlement per-order split + GL", () => {
+  const amt = (o: Partial<SettleAmounts>): SettleAmounts => ({
+    type: "Order", productSales: 0, shippingCredits: 0, promotionalRebates: 0,
+    sellingFees: 0, fbaFees: 0, otherTransactionFees: 0, other: 0, total: 0, ...o,
+  });
+  // An order: sold 100, commission -15, FBA -5 → net 80.
+  const soldOrder = (salesOrderId: string | null) => ({
+    ...amt({ productSales: 100, sellingFees: -15, fbaFees: -5, total: 80 }), salesOrderId,
+  });
+
+  it("groups matched orders, holds unimported ones, buckets non-order rows", () => {
+    const rows = [
+      soldOrder("SO-1"), soldOrder("SO-1"),   // same order, two lines
+      soldOrder("SO-2"),
+      soldOrder(null),                         // unimported → held, never touches AR
+      { ...amt({ type: "Transfer", total: -160 }), salesOrderId: null },
+      { ...amt({ type: "ServiceFee", total: -30 }), salesOrderId: null },
+      { ...amt({ type: "Refund", productSales: -100, total: -80 }), salesOrderId: "SO-1" },
+    ];
+    const { orderGroups, heldOrderRows, nonOrderRows, refundRows } = splitSettlementRows(rows);
+    expect(orderGroups.get("SO-1")).toHaveLength(2);
+    expect(orderGroups.get("SO-2")).toHaveLength(1);
+    expect(heldOrderRows).toHaveLength(1);   // the null-order sale
+    expect(nonOrderRows).toHaveLength(2);    // transfer + service fee
+    expect(refundRows).toHaveLength(1);      // owned by the return cycle
+  });
+
+  it("per-order entry balances: Cr receivable = Dr clearing + Dr fees", () => {
+    const gl = perOrderGL([soldOrder("SO-1"), soldOrder("SO-1")]);
+    expect(orderReceivable(soldOrder("SO-1"))).toBe(100);
+    expect(orderFees(soldOrder("SO-1"))).toBe(20); // 15 + 5
+    expect(gl.receivable).toBe(200);
+    expect(gl.fees).toBe(40);
+    expect(gl.clearing).toBe(160);
+    expect(gl.receivable).toBeCloseTo(gl.clearing + gl.fees, 5); // Cr = Dr + Dr
+  });
+
+  it("non-order aggregate splits transfers (bank) from fees", () => {
+    const gl = nonOrderGL([
+      amt({ type: "Transfer", total: -160 }),
+      amt({ type: "ServiceFee", total: -30 }),
+      amt({ type: "SAFE-T Reimbursement", total: 12 }),
+    ]);
+    expect(gl.bank).toBe(160);        // money leaving Amazon → our bank (Dr)
+    expect(gl.fees).toBe(30 - 12);    // service fee expense minus SAFE-T offset
+    expect(gl.clearing).toBe(-178);   // net drain from the clearing account
   });
 });
