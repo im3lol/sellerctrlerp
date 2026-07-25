@@ -6,6 +6,7 @@ import { salesPlatforms, customers, warehouses, bankAccounts, syncRuns } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformSettingsForm } from "@/components/erp/platform-settings-form";
 import { SyncRunsTable } from "@/components/erp/sync-runs-table";
+import { getConnection } from "@/lib/erp/marketplace/connection";
 
 /** إعدادات المنصة — الصفحة المخصصة بدل الـ dialog المزدحم القديم. */
 export default async function PlatformSettingsPage({ params }: { params: Promise<{ code: string }> }) {
@@ -33,6 +34,8 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
     ]);
     if (!platform) notFound();
 
+    const conn = await getConnection(orgId, platform.code.toLowerCase()).catch(() => null);
+
     const runs = await db.select({
       id: syncRuns.id, kind: syncRuns.kind, status: syncRuns.status,
       productsProcessed: syncRuns.productsProcessed, newProducts: syncRuns.newProducts,
@@ -50,7 +53,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
           subtitle="الهوية · المزامنة · المعالجة التلقائية · الربط المحاسبي"
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
-        <PlatformSettingsForm platform={platform} warehouses={whRows} bankAccounts={bankRows} />
+        <PlatformSettingsForm platform={platform} warehouses={whRows} bankAccounts={bankRows} autoSync={!!conn?.autoSync} connected={!!conn?.connected} />
         <SyncRunsTable rows={runs} />
       </div>
     );

@@ -2,14 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plug, PlugZap, Loader2, ShoppingCart } from "lucide-react";
+import { Plug, PlugZap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { disconnectMarketplaceAction, setAutoSyncAction } from "@/app/actions/erp/marketplace-connect";
-import { startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
-import { OrdersProgress } from "@/components/erp/orders-progress";
+import { disconnectMarketplaceAction } from "@/app/actions/erp/marketplace-connect";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
@@ -19,9 +16,9 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleString("ar-EG-u-nu-lat
 export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean };
 
 /**
- * Connection STATUS card only — the sync/audit buttons live in the page header
- * (PlatformHeaderActions). Here: connected badge + market/seller/last-sync,
- * auto-sync switch, backfill-orders-from-date, and disconnect.
+ * Connection STATUS card only — connected badge + market/seller/last-sync +
+ * disconnect (+ re-auth banner). Sync/audit/import and «سحب المبيعات» live in the
+ * page-header «أدوات» dropdown; the auto-sync toggle lives in الإعدادات.
  */
 export function MarketplaceConnect({
   provider, label, marketplaces, conn, justConnected, error,
@@ -31,31 +28,12 @@ export function MarketplaceConnect({
 }) {
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [pending, start] = useTransition();
-  const [autoSync, setAutoSync] = useState(conn.autoSync);
-  const [ordersSince, setOrdersSince] = useState("");
-  const [ordersOpen, setOrdersOpen] = useState(false);
-  const [ordersPending, startOrders] = useTransition();
-
-  const syncOrdersFrom = () => startOrders(async () => {
-    const r = await startOrdersSyncAction(provider, ordersSince || undefined);
-    if (!r.ok) { toast.error(r.error); return; }
-    setOrdersOpen(true); // background job → progress popup
-  });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
     if (r.ok) toast.success(`تم فصل حساب ${label}`);
     else toast.error(r.error);
   });
-
-  const toggleAuto = (next: boolean) => {
-    setAutoSync(next);
-    start(async () => {
-      const r = await setAutoSyncAction(provider, next);
-      if (r.ok) toast.success(next ? "تم تفعيل المزامنة التلقائية" : "تم إيقاف المزامنة التلقائية");
-      else { setAutoSync(!next); toast.error(r.error); }
-    });
-  };
 
   if (conn.connected) {
     const market = marketplaces.find((m) => m.marketplaceId === conn.marketplaceId);
@@ -87,26 +65,6 @@ export function MarketplaceConnect({
               </Button>
             </div>
           )}
-          <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
-            <div>
-              <div className="text-sm font-medium">المزامنة التلقائية</div>
-              <div className="text-xs text-muted-foreground">الطلبات الجديدة تدخل النظام تلقائيًا خلال دقائق (وإشعار في الجرس)، والمنتجات الجديدة تُكتشف يوميًا.</div>
-            </div>
-            <Switch checked={autoSync} onCheckedChange={toggleAuto} disabled={pending} />
-          </div>
-
-          {/* Backfill: pull sales from a chosen start date (one-off). */}
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1.5">
-              <label htmlFor="ordersSince" className="text-sm font-medium">سحب المبيعات من تاريخ</label>
-              <input id="ordersSince" type="date" value={ordersSince} onChange={(e) => setOrdersSince(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
-            </div>
-            <Button variant="outline" onClick={syncOrdersFrom} disabled={ordersPending}>
-              {ordersPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}سحب المبيعات
-            </Button>
-            <span className="text-xs text-muted-foreground">اتركه فارغًا = اليوم فقط (الطلبات الجديدة) — أو ابدأ من تاريخ بدء الربط المحاسبي.</span>
-          </div>
-          <OrdersProgress code={provider} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
         </CardContent>
       </Card>
     );
