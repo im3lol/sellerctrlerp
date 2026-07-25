@@ -104,7 +104,7 @@ export function MarketplaceConnect({
             <Button variant="outline" onClick={syncOrdersFrom} disabled={ordersPending}>
               {ordersPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}سحب المبيعات
             </Button>
-            <span className="text-xs text-muted-foreground">اتركه فارغًا = آخر ٣٠ يومًا.</span>
+            <span className="text-xs text-muted-foreground">اتركه فارغًا = اليوم فقط (الطلبات الجديدة) — أو ابدأ من تاريخ بدء الربط المحاسبي.</span>
           </div>
           <OrdersProgress code={provider} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
         </CardContent>
