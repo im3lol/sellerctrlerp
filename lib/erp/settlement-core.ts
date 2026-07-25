@@ -271,12 +271,17 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
   const accs = await ensureAmazonAccounts(orgId);
   if ("error" in accs) return { error: accs.error };
 
-  // Route transfers to the AMAZON platform's own bank GL when configured (else 1102).
+  // The platform's wallet GL is the settlement INTERMEDIATE: per-order collections
+  // Dr it, the bank transfer Cr's it, so its balance = funds Amazon holds unremitted
+  // (≈ Amazon "available balance"). `accs.bank` stays the real bank (1102) — the
+  // transfer's destination. Falls back to the shared 1108 clearing if no wallet.
   const plat = await ensureAmazonPlatform(orgId);
   if (plat.bankAccountId) {
     const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
       .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, orgId))).limit(1);
-    if (ba?.gl) accs.bank = ba.gl;
+    // A wallet distinct from the real bank GL → it's the intermediate; if the wallet
+    // still points at the bank GL (legacy), keep clearing separate to avoid netting.
+    if (ba?.gl && ba.gl !== accs.bank) accs.clearing = ba.gl;
   }
 
   const toPost = await db.select({
