@@ -26,8 +26,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function SalesInvoicesTable({ rows, canCreate, canPost, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; total: number; filter: SalesInvoicesFilter }) {
-  const canAct = canPost || canCreate;
+export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; canCollect: boolean; total: number; filter: SalesInvoicesFilter }) {
+  const canAct = canPost || canCreate || canCollect;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -42,7 +42,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, total, filter }: 
   const count = allPages ? total : sel.size;
   const actionable = canAct;
 
-  const run = (op: "post" | "delete", verb: string) => {
+  const run = (op: "post" | "delete" | "collect", verb: string) => {
     void (async () => {
       if (!(await confirm({ title: `${verb} ${int(count)} فاتورة`, danger: op === "delete" }))) return;
       start(async () => {
@@ -64,6 +64,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, total, filter }: 
           {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
           <div className="ms-auto flex gap-2">
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title="ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد"><Icon name="HandCoins" className="size-4" />تحصيل</Button>}
             {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>

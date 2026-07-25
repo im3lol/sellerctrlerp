@@ -25,6 +25,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
   return loadErpPage("sales.view", async ({ orgId, role, can }) => {
     const canManage = can("sales.create");
     const canPost = can("accounting.post");
+    const canCollect = can("sales.collect");
     const sp = await searchParams;
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
@@ -156,7 +157,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
             ) : (
               <>
-                <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
+                <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} canCollect={canCollect} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

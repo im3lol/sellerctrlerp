@@ -3,11 +3,12 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations } from "@/db/schema";
+import { createReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
@@ -294,6 +295,21 @@ async function matchingDraftInvoiceIds(orgId: string, f: SalesInvoicesFilter): P
   return (await db.select({ id: salesInvoices.id }).from(salesInvoices).where(and(...conds))).map((r) => r.id);
 }
 
+/** Posted invoices with an outstanding balance — the "collect" op re-derives these
+ *  server-side for the select-all-across-pages path. */
+async function matchingCollectibleInvoiceIds(orgId: string, f: SalesInvoicesFilter): Promise<string[]> {
+  const conds = [
+    eq(salesInvoices.organizationId, orgId),
+    inArray(salesInvoices.status, ["POSTED", "PARTIAL_PAID"]),
+    sql`${salesInvoices.balanceDue} > 0`,
+  ];
+  if (f.q) conds.push(ilike(salesInvoices.number, `%${f.q}%`));
+  if (f.customer) conds.push(eq(salesInvoices.customerId, f.customer));
+  if (f.from) conds.push(gte(salesInvoices.date, new Date(f.from)));
+  if (f.to) conds.push(lte(salesInvoices.date, new Date(f.to + "T23:59:59")));
+  return (await db.select({ id: salesInvoices.id }).from(salesInvoices).where(and(...conds))).map((r) => r.id);
+}
+
 /**
  * Bulk post / delete sales invoices (drafts only). Skips ineligible rows.
  * `all` re-derives the ids server-side from the current filter so the client never
@@ -301,12 +317,37 @@ async function matchingDraftInvoiceIds(orgId: string, f: SalesInvoicesFilter): P
  * per-invoice side effects (GL entry, stock, COGS) so it can't be set-based;
  * bounded by the draft count, upgrade to batched posting only if that grows huge.
  */
-export async function bulkSalesInvoicesAction(op: "post" | "delete", ids: string[], all?: SalesInvoicesFilter): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp(op === "delete" ? "sales.create" : "accounting.post");
+export async function bulkSalesInvoicesAction(op: "post" | "delete" | "collect", ids: string[], all?: SalesInvoicesFilter): Promise<ActionState & { count?: number }> {
+  const perm = op === "delete" ? "sales.create" : op === "collect" ? "sales.collect" : "accounting.post";
+  const auth = await authorizeErp(perm);
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    if (all) ids = await matchingDraftInvoiceIds(auth.orgId, all);
+    if (all) ids = op === "collect" ? await matchingCollectibleInvoiceIds(auth.orgId, all) : await matchingDraftInvoiceIds(auth.orgId, all);
     if (!ids.length) return { error: "لم تُحدّد أي فواتير" };
+
+    if (op === "collect") {
+      // Bulk collect: a DRAFT receipt voucher for each posted invoice's outstanding
+      // balance, on the org's default cash account. Reviewed & confirmed later.
+      const [cfg] = await db.select({ cashAccountId: accountingConfigurations.cashAccountId })
+        .from(accountingConfigurations).where(eq(accountingConfigurations.organizationId, auth.orgId)).limit(1);
+      if (!cfg?.cashAccountId) return { error: "لم يُحدّد حساب النقدية الافتراضي في الضبط المحاسبي" };
+      const today = new Date().toISOString().slice(0, 10);
+      let count = 0;
+      let lastError: string | undefined;
+      for (const id of ids) {
+        const [inv] = await db.select({ customerId: salesInvoices.customerId, balanceDue: salesInvoices.balanceDue, status: salesInvoices.status })
+          .from(salesInvoices).where(and(eq(salesInvoices.id, id), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+        if (!inv || (inv.status !== "POSTED" && inv.status !== "PARTIAL_PAID") || Number(inv.balanceDue) <= 0) continue;
+        const r = await createReceiptVoucherAction({ customerId: inv.customerId, salesInvoiceId: id, cashAccountId: cfg.cashAccountId, amount: Number(inv.balanceDue), date: today });
+        if (r.ok) count++;
+        else lastError = r.error;
+      }
+      if (count === 0) return { error: lastError ?? "لا توجد فواتير قابلة للتحصيل ضمن المحدّد" };
+      revalidatePath("/sales/receipts");
+      revalidatePath("/sales/invoices");
+      return { ok: true, count };
+    }
+
     let count = 0;
     let lastError: string | undefined;
     for (const id of ids) {
