@@ -21,7 +21,6 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   INVOICED: { label: "مفوتر", variant: "default" },
   REVERSED: { label: "مرتجع", variant: "destructive" },
 };
-const DONE = new Set(["INVOICED", "REVERSED"]);
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; supplier: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
@@ -31,11 +30,11 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
 
-  // DRAFT → confirm/delete; RECEIVED → bill. INVOICED → nothing to do.
-  const eligible = rows.filter((r) => !DONE.has(r.status)).map((r) => r.id);
+  // Every receipt is selectable — confirm/bill/delete skip ineligible rows server-side.
+  const pageIds = rows.map((r) => r.id);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+  const toggleAll = () => setSel(allSelected ? new Set() : new Set(pageIds));
 
   const selRows = rows.filter((r) => sel.has(r.id));
   const hasDraft = selRows.some((r) => r.status === "DRAFT");
@@ -82,7 +81,7 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell>{DONE.has(r.status) ? null : <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
+                  {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/receipts/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>

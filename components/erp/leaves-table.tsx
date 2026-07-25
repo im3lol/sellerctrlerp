@@ -15,15 +15,15 @@ const statusVariant = (s: string) => (s === "APPROVED" ? "default" : s === "REJE
 // Only DRAFT requests are selectable — bulkLeaveRequestsAction skips ineligible rows.
 export function LeavesTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
   const sel = useSelection();
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canManage && draftIds.length > 0;
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canManage;
 
   return (
     <>
       {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "approve", label: "اعتماد", icon: "Check" }, { op: "reject", label: "رفض", icon: "X" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkLeaveRequestsAction} onDone={sel.clear} entity="طلب إجازة" />}
       <Table>
         <TableHeader><TableRow>
-          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" /></TableHead>}
+          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" /></TableHead>}
           <TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">الموظف</TableHead>
           <TableHead className="text-start">النوع</TableHead><TableHead className="text-start">من</TableHead>
           <TableHead className="text-start">إلى</TableHead><TableHead className="text-end">أيام</TableHead>
@@ -31,7 +31,7 @@ export function LeavesTable({ rows, canManage }: { rows: Row[]; canManage: boole
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}</TableCell>}

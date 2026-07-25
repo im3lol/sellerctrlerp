@@ -31,12 +31,12 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
 
-  // Only DRAFT invoices are bulk-actionable (post / delete).
-  const eligible = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
+  // Every invoice is selectable — post/delete skip ineligible rows server-side.
+  const pageIds = rows.map((r) => r.id);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = eligible.length > 0 && eligible.every((id) => sel.has(id));
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(eligible));
-  const actionable = canManage && eligible.length > 0;
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+  const toggleAll = () => setSel(allSelected ? new Set() : new Set(pageIds));
+  const actionable = canManage;
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
@@ -78,7 +78,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
+                  {actionable && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>

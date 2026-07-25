@@ -21,8 +21,8 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year
 
 export function TransfersTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: TransfersFilter }) {
   const sel = useSelection(total);
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canManage && draftIds.length > 0;
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canManage;
 
   return (
     <>
@@ -33,7 +33,7 @@ export function TransfersTable({ rows, canManage, total, filter }: { rows: Row[]
           action={(op, ids, allPages) => bulkStockTransfersAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="تحويل"
-          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
       <Table>
@@ -41,7 +41,7 @@ export function TransfersTable({ rows, canManage, total, filter }: { rows: Row[]
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
               </TableHead>
             )}
             <TableHead className="text-start">الرقم</TableHead>
@@ -54,7 +54,7 @@ export function TransfersTable({ rows, canManage, total, filter }: { rows: Row[]
         </TableHeader>
         <TableBody>
           {rows.map((r) => {
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && (

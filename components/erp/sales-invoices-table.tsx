@@ -33,13 +33,13 @@ export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: 
   const [allPages, setAllPages] = useState(false);
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
-  // Only DRAFT invoices are selectable (post/delete apply to drafts only).
-  const eligible = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
+  // Every invoice is selectable — post/delete skip ineligible rows server-side.
+  const pageIds = rows.map((r) => r.id);
   const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
-  const allSelected = allPages || (eligible.length > 0 && eligible.every((id) => sel.has(id)));
-  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(eligible)); };
+  const allSelected = allPages || (pageIds.length > 0 && pageIds.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(pageIds)); };
   const count = allPages ? total : sel.size;
-  const actionable = canManage && total > 0;
+  const actionable = canManage;
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
@@ -56,9 +56,9 @@ export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: 
     <div className="space-y-3">
       {actionable && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} مسودة محدّدة` : `${int(sel.size)} محدّد`}</span>
-          {!allPages && allSelected && total > eligible.length && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد كل المسودات ({int(total)}) في كل الصفحات</button>
+          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          {!allPages && allSelected && total > pageIds.length && (
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
           )}
           {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
           <div className="ms-auto flex gap-2">
@@ -84,8 +84,8 @@ export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: 
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={(allPages || sel.has(r.id)) && r.status === "DRAFT" ? "selected" : undefined}>
-                  {actionable && <TableCell>{r.status === "DRAFT" ? <Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /> : null}</TableCell>}
+                <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
+                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>

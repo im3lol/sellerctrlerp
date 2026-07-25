@@ -33,8 +33,8 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
 export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; canDelete: boolean; total: number; filter: JournalFilter }) {
   const sel = useSelection(total);
-  const draftIds = rows.filter((r) => r.status === "DRAFT").map((r) => r.id);
-  const showSelect = canDelete && draftIds.length > 0;
+  const pageIds = rows.map((r) => r.id);
+  const showSelect = canDelete;
 
   return (
     <>
@@ -45,7 +45,7 @@ export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; 
           action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="قيد"
-          all={{ total, active: sel.allPages, canOffer: sel.allOf(draftIds) && total > draftIds.length, onSelectAll: sel.selectAllPages }}
+          all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
       <Table>
@@ -53,7 +53,7 @@ export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; 
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(draftIds)} indeterminate={sel.someOf(draftIds)} onChange={() => sel.togglePage(draftIds)} label="تحديد كل المسودات" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
               </TableHead>
             )}
             <TableHead className="text-start">الرقم</TableHead>
@@ -67,7 +67,7 @@ export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; 
         <TableBody>
           {rows.map((r) => {
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
-            const selectable = showSelect && r.status === "DRAFT";
+            const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined} className="hover:bg-muted/50">
                 {showSelect && (

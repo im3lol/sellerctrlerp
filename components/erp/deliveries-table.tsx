@@ -21,7 +21,6 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   INVOICED: { label: "مفوتر", variant: "default" },
   REVERSED: { label: "مرتجع", variant: "destructive" },
 };
-const DONE = new Set(["INVOICED", "REVERSED"]);
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
@@ -34,10 +33,10 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
   const short = new Set(shortIds);
-  const eligible = rows.filter((r) => !DONE.has(r.status)).map((r) => r.id);
+  const pageIds = rows.map((r) => r.id);
   const toggle = (id: string) => { setAllPages(false); setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
-  const allSelected = allPages || (eligible.length > 0 && eligible.every((id) => sel.has(id)));
-  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(eligible)); };
+  const allSelected = allPages || (pageIds.length > 0 && pageIds.every((id) => sel.has(id)));
+  const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(pageIds)); };
   const count = allPages ? total : sel.size;
 
   const selRows = rows.filter((r) => sel.has(r.id));
@@ -91,8 +90,8 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
             const st = STATUS[r.status] ?? { label: r.status, variant: "secondary" as const };
             return (
               <Fragment key={r.id}>
-                <TableRow data-state={(allPages && !DONE.has(r.status)) || sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell>{DONE.has(r.status) ? null : <Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" />}</TableCell>}
+                <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
+                  {canManage && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
