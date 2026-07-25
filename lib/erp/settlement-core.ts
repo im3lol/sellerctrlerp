@@ -13,7 +13,7 @@ import { postEntry } from "@/lib/erp/posting";
 import { currentStock } from "@/lib/erp/inventory";
 import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
-import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
+import { ensureAmazonPlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, type SettleAmounts } from "@/lib/erp/settlement-gl";
 
@@ -276,12 +276,14 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
   // (≈ Amazon "available balance"). `accs.bank` stays the real bank (1102) — the
   // transfer's destination. Falls back to the shared 1108 clearing if no wallet.
   const plat = await ensureAmazonPlatform(orgId);
+  // The intermediate is the platform's DEDICATED wallet GL (محفظة أمازون, 1109) — not
+  // the shared 1108. Ensure it and repoint the wallet bank to it (a legacy wallet
+  // shared the general bank GL 1102; only repoint when it still points there, never
+  // overriding a GL the user deliberately set).
+  accs.clearing = await ensurePlatformWalletGl(orgId);
   if (plat.bankAccountId) {
-    const [ba] = await db.select({ gl: bankAccounts.glAccountId }).from(bankAccounts)
-      .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, orgId))).limit(1);
-    // A wallet distinct from the real bank GL → it's the intermediate; if the wallet
-    // still points at the bank GL (legacy), keep clearing separate to avoid netting.
-    if (ba?.gl && ba.gl !== accs.bank) accs.clearing = ba.gl;
+    await db.update(bankAccounts).set({ glAccountId: accs.clearing })
+      .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, orgId), eq(bankAccounts.glAccountId, accs.bank)));
   }
 
   const toPost = await db.select({
