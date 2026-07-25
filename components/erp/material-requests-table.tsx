@@ -14,19 +14,24 @@ const ST: Record<string, { label: string; variant: "default" | "secondary" | "ou
   DRAFT: { label: "مسودة", variant: "secondary" }, APPROVED: { label: "معتمد", variant: "default" },
 };
 
-export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDelete: boolean }) {
+export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
   const sel = useSelection();
   const ids = rows.map((r) => r.id);
+  const showSelect = canApprove || canCreate;
+  const ops = [
+    ...(canApprove ? [{ op: "approve", label: "اعتماد", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <div>
-      {canDelete && (
-        <BulkBar ids={sel.ids} ops={[{ op: "approve", label: "اعتماد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkMaterialRequestsAction} onDone={sel.clear} entity="طلب" />
+      {showSelect && (
+        <BulkBar ids={sel.ids} ops={ops} action={bulkMaterialRequestsAction} onDone={sel.clear} entity="طلب" />
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canDelete && (
+            {showSelect && (
               <TableHead className="w-10">
                 <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد الكل" />
               </TableHead>
@@ -36,7 +41,7 @@ export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDel
             <TableHead className="text-start">مقدّم الطلب</TableHead>
             <TableHead className="text-start">البنود</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
-            {canDelete && <TableHead className="text-start">إجراءات</TableHead>}
+            {showSelect && <TableHead className="text-start">إجراءات</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -45,7 +50,7 @@ export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDel
             const checked = sel.has(r.id);
             return (
               <TableRow key={r.id} data-state={checked ? "selected" : undefined}>
-                {canDelete && (
+                {showSelect && (
                   <TableCell>
                     <SelectBox checked={checked} onChange={() => sel.toggle(r.id)} label="تحديد" />
                   </TableCell>
@@ -55,7 +60,7 @@ export function MaterialRequestsTable({ rows, canDelete }: { rows: Row[]; canDel
                 <TableCell>{r.requester ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">{Number(r.lineCount)}</TableCell>
                 <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                {canDelete && <TableCell><RequisitionRowActions id={r.id} status={r.status} canManage={canDelete} /></TableCell>}
+                {showSelect && <TableCell><RequisitionRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );
           })}

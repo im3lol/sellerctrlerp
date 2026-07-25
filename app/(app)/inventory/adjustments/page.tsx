@@ -137,7 +137,8 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
             ) : (
               <>
                 <AdjustmentsTable
-                  canManage={can("inventory.confirm") || can("inventory.create")}
+                  canConfirm={can("inventory.confirm")}
+                  canCreate={can("inventory.create")}
                   total={Number(total)}
                   filter={{ q, status: fStatus, from, to }}
                   rows={heads.map((r) => {

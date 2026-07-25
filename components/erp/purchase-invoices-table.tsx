@@ -26,7 +26,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
 type Row = { id: string; number: string; date: Date; supplier: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[]; canManage: boolean; canPost: boolean }) {
+export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[]; canCreate: boolean; canPost: boolean }) {
+  const canAct = canPost || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -36,7 +37,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allSelected = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(pageIds));
-  const actionable = canManage;
+  const actionable = canAct;
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
@@ -56,7 +57,7 @@ export function PurchaseInvoicesTable({ rows, canManage, canPost }: { rows: Row[
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}

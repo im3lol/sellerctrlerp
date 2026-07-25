@@ -11,16 +11,21 @@ type Row = { id: string; number: string; date: Date; amount: string | null; stat
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function ExpensesTable({ rows, canDelete, total, filter }: { rows: Row[]; canDelete: boolean; total: number; filter: ExpensesFilter }) {
+export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: ExpensesFilter }) {
   const sel = useSelection(total);
   const ids = rows.map((r) => r.id);
+  const showSelect = canPost || canCreate;
+  const ops = [
+    ...(canPost ? [{ op: "confirm", label: "تأكيد", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
-      {canDelete && (
+      {showSelect && (
         <BulkBar
           ids={sel.ids}
-          ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          ops={ops}
           action={(op, opIds, allPages) => bulkExpensesAction(op, allPages ? [] : opIds, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="مصروف"
@@ -30,7 +35,7 @@ export function ExpensesTable({ rows, canDelete, total, filter }: { rows: Row[];
       <Table>
         <TableHeader>
           <TableRow>
-            {canDelete && (
+            {showSelect && (
               <TableHead className="w-10">
                 <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد كل الصفحة" />
               </TableHead>
@@ -42,13 +47,13 @@ export function ExpensesTable({ rows, canDelete, total, filter }: { rows: Row[];
             <TableHead className="text-start">الدفع من</TableHead>
             <TableHead className="text-start">المبلغ</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
-            {canDelete && <TableHead className="text-start">إجراءات</TableHead>}
+            {showSelect && <TableHead className="text-start">إجراءات</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-              {canDelete && (
+              {showSelect && (
                 <TableCell>
                   <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />
                 </TableCell>
@@ -60,7 +65,7 @@ export function ExpensesTable({ rows, canDelete, total, filter }: { rows: Row[];
               <TableCell>{r.paidFrom ?? "—"}</TableCell>
               <TableCell>{fmt(r.amount)}</TableCell>
               <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
-              {canDelete && <TableCell><ExpenseRowActions id={r.id} status={r.status} canManage /></TableCell>}
+              {showSelect && <TableCell><ExpenseRowActions id={r.id} status={r.status} canManage /></TableCell>}
             </TableRow>
           ))}
         </TableBody>

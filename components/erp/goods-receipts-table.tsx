@@ -25,7 +25,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; supplier: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[]; canConfirm: boolean; canCreate: boolean }) {
+  const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -53,20 +54,20 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
 
   return (
     <div className="space-y-3">
-      {canManage && sel.size > 0 && (
+      {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
-            {hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {hasReceived && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-            {hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canConfirm && canCreate && hasReceived && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canManage && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">المورد</TableHead>
@@ -81,7 +82,7 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/receipts/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -93,7 +94,7 @@ export function GoodsReceiptsTable({ rows, canManage }: { rows: Row[]; canManage
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
-                    {canManage && <TableCell />}
+                    {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>

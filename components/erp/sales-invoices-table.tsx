@@ -26,7 +26,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: { rows: Row[]; canManage: boolean; canPost: boolean; total: number; filter: SalesInvoicesFilter }) {
+export function SalesInvoicesTable({ rows, canCreate, canPost, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; total: number; filter: SalesInvoicesFilter }) {
+  const canAct = canPost || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -39,7 +40,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: 
   const allSelected = allPages || (pageIds.length > 0 && pageIds.every((id) => sel.has(id)));
   const toggleAll = () => { setAllPages(false); setSel(allSelected ? new Set() : new Set(pageIds)); };
   const count = allPages ? total : sel.size;
-  const actionable = canManage;
+  const actionable = canAct;
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
@@ -63,7 +64,7 @@ export function SalesInvoicesTable({ rows, canManage, canPost, total, filter }: 
           {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
           <div className="ms-auto flex gap-2">
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}

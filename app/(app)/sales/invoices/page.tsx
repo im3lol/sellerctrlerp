@@ -156,7 +156,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
             ) : (
               <>
-                <SalesInvoicesTable rows={rows} canManage={canManage} canPost={canPost} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
+                <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

@@ -31,17 +31,21 @@ const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
-export function JournalTable({ rows, canDelete, total, filter }: { rows: Row[]; canDelete: boolean; total: number; filter: JournalFilter }) {
+export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: JournalFilter }) {
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
-  const showSelect = canDelete;
+  const showSelect = canPost || canCreate;
+  const ops = [
+    ...(canPost ? [{ op: "post", label: "ترحيل", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
       {showSelect && (
         <BulkBar
           ids={sel.ids}
-          ops={[{ op: "post", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          ops={ops}
           action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="قيد"

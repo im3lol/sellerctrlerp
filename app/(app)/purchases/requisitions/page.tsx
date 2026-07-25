@@ -47,7 +47,7 @@ export default async function RequisitionsPage() {
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد طلبات مواد بعد.</div>
             ) : (
-              <MaterialRequestsTable rows={rows} canDelete={canManage} />
+              <MaterialRequestsTable rows={rows} canApprove={can("purchases.confirm")} canCreate={can("purchases.create")} />
             )}
           </CardContent>
         </Card>

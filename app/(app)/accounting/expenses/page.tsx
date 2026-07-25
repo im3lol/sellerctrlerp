@@ -116,7 +116,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               </div>
             ) : (
               <>
-                <ExpensesTable rows={rows} canDelete={canManage} total={total} filter={{ q, status, from, to }} />
+                <ExpensesTable rows={rows} canPost={can("accounting.post")} canCreate={can("accounting.create")} total={total} filter={{ q, status, from, to }} />
                 <Pagination page={page} pages={pages} total={total} unit="مصروف" basePath="/accounting/expenses" params={{ q, status, from, to }} />
               </>
             )}

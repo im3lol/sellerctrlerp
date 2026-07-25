@@ -25,6 +25,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 export default async function PurchaseOrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     const canManage = can("purchases.create");
+    const canConfirm = can("purchases.confirm");
     const sp = await searchParams;
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
@@ -173,7 +174,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر شراء بعد."}</div>
             ) : (
               <>
-                <PurchaseOrdersTable rows={tableRows} canManage={canManage} />
+                <PurchaseOrdersTable rows={tableRows} canConfirm={canConfirm} canCreate={canManage} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">

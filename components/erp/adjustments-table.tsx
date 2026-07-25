@@ -22,17 +22,21 @@ const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export function AdjustmentsTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: AdjustmentsFilter }) {
+export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: AdjustmentsFilter }) {
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
-  const showSelect = canManage;
+  const showSelect = canConfirm || canCreate;
+  const ops = [
+    ...(canConfirm ? [{ op: "confirm", label: "ترحيل", icon: "Check" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
       {showSelect && (
         <BulkBar
           ids={sel.ids}
-          ops={[{ op: "confirm", label: "ترحيل", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
+          ops={ops}
           action={(op, ids, allPages) => bulkStockAdjustmentsAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
           entity="تسوية"

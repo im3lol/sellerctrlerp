@@ -43,7 +43,8 @@ const CHANNEL_STATUS: Record<string, { label: string; variant: "default" | "seco
 
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
-export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row[]; canManage: boolean; total: number; filter: SalesOrdersFilter }) {
+export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: SalesOrdersFilter }) {
+  const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -70,7 +71,7 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
 
   return (
     <div className="space-y-3">
-      {canManage && count > 0 && (
+      {canAct && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
           {!allPages && allSelected && total > ids.length && (
@@ -78,17 +79,17 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
           )}
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
-            <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title="ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية"><Icon name="Truck" className="size-4" />تحويل لإذن صرف</Button>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+            {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canCreate && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title="ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية"><Icon name="Truck" className="size-4" />تحويل لإذن صرف</Button>}
+            {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canManage && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">العميل</TableHead>
@@ -105,7 +106,7 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
@@ -139,7 +140,7 @@ export function SalesOrdersTable({ rows, canManage, total, filter }: { rows: Row
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
-                    {canManage && <TableCell />}
+                    {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>

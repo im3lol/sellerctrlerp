@@ -25,7 +25,8 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
-export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] }: { rows: Row[]; canManage: boolean; total: number; filter: DeliveriesFilter; shortIds?: string[] }) {
+export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, shortIds = [] }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: DeliveriesFilter; shortIds?: string[] }) {
+  const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -58,7 +59,7 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
 
   return (
     <div className="space-y-3">
-      {canManage && count > 0 && (
+      {canAct && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
           {!allPages && allSelected && total > rows.length && (
@@ -66,17 +67,17 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
           )}
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
-            {hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-            {hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
-            {hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
+            {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
+            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canManage && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">العميل</TableHead>
@@ -91,7 +92,7 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -103,7 +104,7 @@ export function DeliveriesTable({ rows, canManage, total, filter, shortIds = [] 
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
-                    {canManage && <TableCell />}
+                    {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                       <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>

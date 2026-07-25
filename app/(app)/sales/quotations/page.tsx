@@ -47,7 +47,7 @@ export default async function QuotationsPage() {
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد عروض أسعار بعد.</div>
             ) : (
-              <div className="p-4"><QuotationsTable rows={rows} canDelete={canManage} /></div>
+              <div className="p-4"><QuotationsTable rows={rows} canConfirm={can("sales.confirm")} canCreate={can("sales.create")} /></div>
             )}
           </CardContent>
         </Card>

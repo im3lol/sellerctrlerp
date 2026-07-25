@@ -13,21 +13,25 @@ const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { y
 const statusVariant = (s: string) => (s === "APPROVED" ? "default" : s === "REJECTED" ? "destructive" : "secondary");
 
 // Only DRAFT requests are selectable — bulkLeaveRequestsAction skips ineligible rows.
-export function LeavesTable({ rows, canManage }: { rows: Row[]; canManage: boolean }) {
+export function LeavesTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
   const sel = useSelection();
   const pageIds = rows.map((r) => r.id);
-  const showSelect = canManage;
+  const showSelect = canApprove || canCreate;
+  const ops = [
+    ...(canApprove ? [{ op: "approve", label: "اعتماد", icon: "Check" } as const, { op: "reject", label: "رفض", icon: "X" } as const] : []),
+    ...(canCreate ? [{ op: "delete", label: "حذف", icon: "Trash2", danger: true } as const] : []),
+  ];
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={[{ op: "approve", label: "اعتماد", icon: "Check" }, { op: "reject", label: "رفض", icon: "X" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]} action={bulkLeaveRequestsAction} onDone={sel.clear} entity="طلب إجازة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkLeaveRequestsAction} onDone={sel.clear} entity="طلب إجازة" />}
       <Table>
         <TableHeader><TableRow>
           {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" /></TableHead>}
           <TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">الموظف</TableHead>
           <TableHead className="text-start">النوع</TableHead><TableHead className="text-start">من</TableHead>
           <TableHead className="text-start">إلى</TableHead><TableHead className="text-end">أيام</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>{canManage && <TableHead className="text-start">إجراءات</TableHead>}
+          <TableHead className="text-start">الحالة</TableHead>{showSelect && <TableHead className="text-start">إجراءات</TableHead>}
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
@@ -42,7 +46,7 @@ export function LeavesTable({ rows, canManage }: { rows: Row[]; canManage: boole
                 <TableCell>{dt(r.end)}</TableCell>
                 <TableCell className="text-end tabular-nums">{r.days as number}</TableCell>
                 <TableCell><Badge variant={statusVariant(r.status)}>{LEAVE_STATUS_LABEL[r.status] ?? r.status}</Badge></TableCell>
-                {canManage && <TableCell><LeaveRequestRowActions id={r.id} status={r.status} canManage={canManage} /></TableCell>}
+                {showSelect && <TableCell><LeaveRequestRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );
           })}

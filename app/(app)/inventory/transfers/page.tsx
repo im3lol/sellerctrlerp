@@ -125,7 +125,8 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
             ) : (
               <>
                 <TransfersTable
-                  canManage={can("inventory.confirm") || can("inventory.create")}
+                  canConfirm={can("inventory.confirm")}
+                  canCreate={can("inventory.create")}
                   rows={heads.map((r) => ({ ...r, count: Number(aggMap.get(r.id)?.c ?? 0) }))}
                   total={Number(total)}
                   filter={{ q, status: fStatus, from, to }}
