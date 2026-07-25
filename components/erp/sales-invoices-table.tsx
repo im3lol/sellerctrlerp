@@ -24,7 +24,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; total: string | null; status: string };
-type Row = { id: string; number: string; date: Date; customer: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
+type Row = { id: string; number: string; date: Date; customer: string | null; order?: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; canCollect: boolean; total: number; filter: SalesInvoicesFilter }) {
   const canAct = canPost || canCreate || canCollect;
@@ -76,6 +76,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
             <TableHead className="text-start">الرقم</TableHead>
             <TableHead className="text-start">التاريخ</TableHead>
             <TableHead className="text-start">العميل</TableHead>
+            <TableHead className="text-start">أمر البيع</TableHead>
             <TableHead className="text-start">الإجمالي</TableHead>
             <TableHead className="text-start">المتبقّي</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
@@ -93,6 +94,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
                   <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
+                  <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
@@ -105,6 +107,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesInvoices, customers, salesReturns } from "@/db/schema";
+import { salesInvoices, customers, salesReturns, salesOrders, deliveryNotes } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,9 +60,13 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
       .select({
         id: salesInvoices.id, number: salesInvoices.number, date: salesInvoices.date, status: salesInvoices.status,
         total: salesInvoices.totalAmount, balanceDue: salesInvoices.balanceDue, customer: customers.nameAr,
+        // Linked sales order — direct (order→invoice) or via the delivery it was billed from.
+        order: salesOrders.number,
       })
       .from(salesInvoices)
       .leftJoin(customers, eq(salesInvoices.customerId, customers.id))
+      .leftJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+      .leftJoin(salesOrders, sql`${salesOrders.id} = coalesce(${salesInvoices.salesOrderId}, ${deliveryNotes.salesOrderId})`)
       .where(where)
       .orderBy(desc(salesInvoices.date), desc(salesInvoices.number))
       .limit(PER_PAGE)
