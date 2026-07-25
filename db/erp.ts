@@ -1638,6 +1638,10 @@ export const salesPlatforms = pgTable(
     // If stock is short when the delivery would post, the delivery is left DRAFT
     // and the user is notified — regardless of mode.
     autoMode: text("auto_mode").notNull().default("invoice"),
+    // Go-Live: marketplace accounting starts here. Settlement txns dated before it
+    // are historical (not posted — the wallet opening balance covers them); the order
+    // sync won't pull older. Null = no go-live cutoff (pull/post everything).
+    accountingStartDate: date("accounting_start_date"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

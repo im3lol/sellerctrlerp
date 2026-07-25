@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { previewAmazonSettlementAction, runAmazonSettlementAction, postAmazonSettlementsAction, reverseAmazonSettlementAction, type SettlementPreview } from "@/app/actions/erp/amazon-settlement";
+import { previewAmazonSettlementAction, runAmazonSettlementAction, postAmazonSettlementsAction, reverseAmazonSettlementAction, setAmazonGoLiveAction, type SettlementPreview } from "@/app/actions/erp/amazon-settlement";
 import { syncSettlementsAction, settlementsSyncStatusAction } from "@/app/actions/erp/marketplace-sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 
@@ -103,9 +105,51 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
     });
   };
 
+  // ── Go-Live: start date + Amazon wallet opening balance ──
+  const [goLiveDate, setGoLiveDate] = useState<string>("");
+  const [walletBalance, setWalletBalance] = useState<string>("");
+  const [savingGoLive, startGoLive] = useTransition();
+  const saveGoLive = () => {
+    if (!goLiveDate) { toast.error("اختر تاريخ بدء الربط"); return; }
+    startGoLive(async () => {
+      const r = await setAmazonGoLiveAction(goLiveDate, Number(walletBalance) || 0);
+      if (!r.ok) { toast.error(r.error); return; }
+      toast.success("تم تفعيل بدء الربط — التسويات الأقدم من التاريخ لن تُرحّل، وسُجّل الرصيد الافتتاحي للمحفظة");
+      router.refresh();
+    });
+  };
+
   const gl = preview?.gl;
   return (
     <div className="space-y-6">
+      {/* Go-Live: accounting start date + wallet opening balance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>بدء الربط المحاسبي (Go-Live)</CardTitle>
+          <CardDescription>
+            حدّد تاريخ بدء المحاسبة على أمازون + رصيد أمازون المتاح وقت التشغيل. المعاملات الأقدم من التاريخ
+            تُعتبر تاريخية (لا تُرحّل — يغطّيها الرصيد الافتتاحي)، فلا تظهر محفظة أمازون سالبة بسبب تحويلات
+            تخصّ طلبات قبل التشغيل. اضبطها مرة واحدة عند أول تفعيل.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="goLiveDate">تاريخ بدء الربط</Label>
+              <Input id="goLiveDate" type="date" value={goLiveDate} onChange={(e) => setGoLiveDate(e.target.value)} className="w-44" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="walletBalance">رصيد أمازون المتاح وقت التشغيل</Label>
+              <Input id="walletBalance" type="number" step="0.01" min="0" value={walletBalance} onChange={(e) => setWalletBalance(e.target.value)} placeholder="0.00" dir="ltr" className="w-44" />
+            </div>
+            <Button onClick={saveGoLive} disabled={savingGoLive} variant="outline">
+              {savingGoLive ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Flag" className="size-4" />}
+              تفعيل بدء الربط
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* SP-API automatic pull */}
       <Card>
         <CardHeader>

@@ -4,7 +4,7 @@ import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { marketplaceSettlementTxns } from "@/db/schema";
+import { marketplaceSettlementTxns, salesPlatforms } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { parseSettlementWorkbook, settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 import { aggregateGL, upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
@@ -140,5 +140,57 @@ export async function reverseAmazonSettlementAction(): Promise<{ ok: true; rever
     if ("error" in r) return { ok: false, error: r.error };
     revalidateSettlement();
     return { ok: true, reversed: r.reversed };
+  });
+}
+
+/**
+ * Go-Live: set the platform's accounting start date AND record the Amazon-wallet
+ * opening balance (Dr wallet 1109 / Cr opening-equity 3002) once — the funds Amazon
+ * held before the system started, so the first post-go-live transfer nets against it
+ * instead of driving the wallet negative. Idempotent on the wallet opening entry.
+ */
+export async function setAmazonGoLiveAction(startDate: string, walletBalance: number): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await authorizeErp("accounting.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  return withOrgScope(auth.orgId, false, async () => {
+    const d = new Date(startDate);
+    if (isNaN(d.getTime())) return { ok: false, error: "تاريخ غير صالح" };
+    const { ensureAmazonPlatform, ensurePlatformWalletGl } = await import("@/lib/erp/platform-provision");
+    const { resolveAccountIds } = await import("@/lib/erp/accounting-config");
+    const { postEntry } = await import("@/lib/erp/posting");
+    const { round2 } = await import("@/lib/erp/money");
+    const plat = await ensureAmazonPlatform(auth.orgId);
+
+    // 1) accounting start date on the platform.
+    await db.update(salesPlatforms).set({ accountingStartDate: startDate, updatedAt: new Date() })
+      .where(and(eq(salesPlatforms.id, plat.platformId), eq(salesPlatforms.organizationId, auth.orgId)));
+
+    // 2) wallet opening balance (skip a zero balance; idempotent via unique sourceId).
+    const amt = round2(walletBalance);
+    if (amt > 0) {
+      const walletGl = await ensurePlatformWalletGl(auth.orgId);
+      const equity = (await resolveAccountIds(auth.orgId, ["3002"]))["3002"];
+      if (!equity) return { ok: false, error: "حساب الأرصدة الافتتاحية (3002) غير موجود — أنشئ دليل الحسابات القياسي" };
+      try {
+        await db.transaction(async (tx) => {
+          await postEntry(tx, {
+            orgId: auth.orgId, userId: auth.userId, date: d,
+            sourceType: "OPENING_BALANCE", sourceId: `WALLET-OPEN-${plat.platformId}`,
+            description: "رصيد افتتاحي — محفظة أمازون", journalType: "GENERAL",
+            lines: [
+              { accountId: walletGl, debit: amt, credit: 0, description: "رصيد أمازون المتاح وقت بدء الربط" },
+              { accountId: equity, debit: 0, credit: amt, description: "رصيد افتتاحي" },
+            ],
+          });
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (!(msg.includes("unique") || msg.includes("23505"))) return { ok: false, error: "تعذّر تسجيل الرصيد الافتتاحي للمحفظة" };
+        // already recorded — start-date update above still applied; treat as success.
+      }
+    }
+    revalidateSettlement();
+    revalidatePath("/platforms");
+    return { ok: true };
   });
 }

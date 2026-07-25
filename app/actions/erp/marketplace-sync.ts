@@ -4,7 +4,7 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
-import { syncRuns } from "@/db/schema";
+import { syncRuns, salesPlatforms } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { redisEnabled } from "@/lib/queue/redis";
@@ -15,7 +15,21 @@ import {
 } from "@/lib/erp/marketplace/sync-core";
 
 
-const LOOKBACK_DAYS = 30;
+/**
+ * The default "from" for an order pull when the user picks no date: the platform's
+ * go-live accounting start date if set, else the START OF TODAY (new orders only —
+ * NOT a 30-day lookback, which would drag in pre-go-live orders). An explicit date
+ * is honored but never allowed to go earlier than the accounting start date.
+ */
+async function resolveOrdersFrom(orgId: string, code: string, since?: string): Promise<Date> {
+  const [plat] = await db.select({ start: salesPlatforms.accountingStartDate }).from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase()))).limit(1);
+  const startDate = plat?.start ? new Date(plat.start) : null;
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const parsed = since ? new Date(since) : null;
+  const picked = parsed && !isNaN(parsed.getTime()) ? parsed : (startDate ?? startOfToday);
+  return startDate && picked < startDate ? startDate : picked;
+}
 
 // No outer withOrgScope here: a sync interleaves multi-second SP-API fetches with
 // DB writes, so wrapping the whole action would pin one DB connection for the
@@ -80,8 +94,7 @@ export async function syncOrdersAction(code: string, since?: string): Promise<Or
   if ("error" in p) return { ok: false, error: p.error };
   if (!p.flags.orders) return { ok: false, error: "مزامنة المبيعات موقوفة لهذه المنصّة" };
   const to = new Date();
-  const parsed = since ? new Date(since) : null;
-  const from = parsed && !isNaN(parsed.getTime()) ? parsed : new Date(to.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const from = await resolveOrdersFrom(auth.orgId, code, since);
   const r = await syncOrdersCore(p, auth.userId, { from, to });
   if (r.ok) await markSync(p.orgId, p.provider, { lastSyncStatus: "ok", ordersSyncedAt: to });
   revalidatePath("/sales/orders");
@@ -97,8 +110,7 @@ export async function startOrdersSyncAction(code: string, since?: string): Promi
   const p = await prepareSync(auth.orgId, code);
   if ("error" in p) return { ok: false, error: p.error };
   if (!p.flags.orders) return { ok: false, error: "مزامنة المبيعات موقوفة لهذه المنصّة" };
-  const parsed = since ? new Date(since) : null;
-  const from = parsed && !isNaN(parsed.getTime()) ? parsed : new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const from = await resolveOrdersFrom(auth.orgId, code, since);
   // Manual backfill from a chosen date → CreatedAfter (all orders placed since then).
   if (await enqueue(QUEUES.orders, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined, since: from.toISOString(), ordersMode: "created" })) {
     return { ok: true, started: true };

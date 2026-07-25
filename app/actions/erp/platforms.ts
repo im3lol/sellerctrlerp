@@ -31,6 +31,7 @@ const schema = z.object({
   syncReturns: z.boolean().optional(),
   autoPostSettlements: z.boolean().optional(),
   autoMode: z.enum(["draft", "order", "deliver", "invoice"]).optional(),
+  accountingStartDate: z.string().optional().nullable(),
 });
 
 /** Validate that an optional FK id belongs to the active org (or is empty). */
@@ -158,6 +159,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.syncReturns !== undefined ? { syncReturns: parsed.data.syncReturns } : {}),
       ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
       ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
+      ...(parsed.data.accountingStartDate !== undefined ? { accountingStartDate: parsed.data.accountingStartDate || null } : {}),
       defaultWarehouseId: defaultWarehouseId || null,
       bankAccountId: bankAccountId || null,
       updatedAt: new Date(),

@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines,
+  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines, salesPlatforms,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
@@ -245,6 +245,7 @@ export type PostSettlementsResult = {
   posted: number;           // settlement rows GL-posted
   perOrderEntries: number;  // number of per-order journal entries created
   heldForImport: number;    // Order rows NOT posted — no imported order or no live invoice
+  historicalSkipped?: number; // rows dated before the go-live accounting start date (never posted)
   deferredHeld: number; returnsCreated: number; returnsUnmatched: string[];
 };
 
@@ -286,6 +287,21 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
       .where(and(eq(bankAccounts.id, plat.bankAccountId), eq(bankAccounts.organizationId, orgId), eq(bankAccounts.glAccountId, accs.bank)));
   }
 
+  // Go-Live cutoff: settlement txns dated BEFORE the platform's accounting start
+  // date are historical (their money is covered by the wallet's opening balance),
+  // so they're imported but never posted — otherwise a first post-go-live transfer
+  // paying pre-go-live orders would drain the wallet with nothing collected.
+  const [platRow] = await db.select({ startDate: salesPlatforms.accountingStartDate }).from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, CHANNEL))).limit(1);
+  const startDate = platRow?.startDate ?? null;
+
+  const toPostConds = [
+    eq(marketplaceSettlementTxns.organizationId, orgId),
+    eq(marketplaceSettlementTxns.status, "Released"),
+    isNull(marketplaceSettlementTxns.journalEntryId),
+  ];
+  if (startDate) toPostConds.push(sql`${marketplaceSettlementTxns.releaseDate} >= ${startDate}`);
+
   const toPost = await db.select({
     id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type,
     productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
@@ -293,11 +309,16 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
     fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
     other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate,
     salesOrderId: marketplaceSettlementTxns.salesOrderId,
-  }).from(marketplaceSettlementTxns).where(and(
-    eq(marketplaceSettlementTxns.organizationId, orgId),
-    eq(marketplaceSettlementTxns.status, "Released"),
-    isNull(marketplaceSettlementTxns.journalEntryId),
-  ));
+  }).from(marketplaceSettlementTxns).where(and(...toPostConds));
+
+  const historicalSkipped = startDate
+    ? Number((await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns).where(and(
+        eq(marketplaceSettlementTxns.organizationId, orgId),
+        eq(marketplaceSettlementTxns.status, "Released"),
+        isNull(marketplaceSettlementTxns.journalEntryId),
+        sql`${marketplaceSettlementTxns.releaseDate} < ${startDate}`,
+      )))[0]?.n ?? 0)
+    : 0;
 
   const deferredHeld = Number((await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
     .where(and(
@@ -340,7 +361,7 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
   let perOrderEntries = 0;
   if (postableOrderIds.length === 0 && !nonOrderPostable) {
     const ret0 = await processSettlementRefunds(orgId);
-    return { posted: 0, perOrderEntries: 0, heldForImport, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
+    return { posted: 0, perOrderEntries: 0, heldForImport, historicalSkipped, deferredHeld, returnsCreated: ret0.created, returnsUnmatched: ret0.unmatched };
   }
 
   // Rows that will actually be GL-posted this run (per-order groups + non-order).
@@ -417,7 +438,7 @@ export async function postSettlements(orgId: string, userId?: string | null): Pr
   }
 
   const ret = await processSettlementRefunds(orgId);
-  return { posted: postableRowIds.length, perOrderEntries, heldForImport, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
+  return { posted: postableRowIds.length, perOrderEntries, heldForImport, historicalSkipped, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
 }
 
 /**
