@@ -5,6 +5,8 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, inventoryAudits, inventoryAuditLines } from "@/db/schema";
 import { AuditStats } from "@/components/erp/audit-summary";
+import { getPlatformPnl } from "@/lib/erp/platform-pnl";
+import { Field } from "@/components/erp/document-detail";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +72,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     const match = or(eq(salesOrders.platformId, platform.id), eq(salesOrders.channel, platform.code));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const custId = platform.customerId;
+    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, custId) : null;
 
     // Analytics are best-effort: a slow/failed query (e.g. DB connection pressure on
     // serverless) degrades this section instead of crashing the whole page. Split
@@ -234,6 +237,29 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(collTotal)} tone="ok" />
           <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
         </div>
+
+        {/* Platform P&L */}
+        {pnl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>ربحية المنصة (P&L)</CardTitle>
+              <CardDescription>إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم أمازون الفعلية من التسويات.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <Field label="المبيعات">{fmt(pnl.revenue)}</Field>
+                <Field label="عمولة أمازون">{fmt(pnl.referralFee)}</Field>
+                <Field label="رسوم FBA">{fmt(pnl.fbaFee)}</Field>
+                <Field label="رسوم أخرى">{fmt(pnl.otherFee)}</Field>
+                <Field label="تكلفة البضاعة">{fmt(pnl.cogs)}</Field>
+                <Field label="صافي الربح">
+                  <span className={pnl.net < 0 ? "font-bold text-destructive" : "font-bold text-emerald-600"}>{fmt(pnl.net)}</span>
+                  <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
+                </Field>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales trend — last 30 days */}
         <Card>
