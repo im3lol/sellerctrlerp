@@ -52,7 +52,7 @@ export type CheckoutSession = { id: string; url: string; clientSecret: string; s
  * placeholder — xpay substitutes the real id on return.
  */
 export async function createCheckoutSession(input: {
-  amount: number; currency?: string; name: string; redirectUrl: string; metadata?: Record<string, string>; uiMode?: "embedded";
+  amount: number; currency?: string; name: string; redirectUrl: string; metadata?: Record<string, string>; uiMode?: "embedded" | "custom";
 }): Promise<CheckoutSession> {
   const cfg = await requireCfg();
   const currency = input.currency ?? "EGP";
