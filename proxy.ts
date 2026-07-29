@@ -18,6 +18,8 @@ export default auth((req) => {
     path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/signup") ||
+    path.startsWith("/privacy") || // public legal page
+
     path.startsWith("/api/auth") ||
     path.startsWith("/api/v1") || // public REST API — authed per-request by API key, not session
     path.startsWith("/api/cron") || // Vercel Cron — authed by CRON_SECRET in the route, not session
