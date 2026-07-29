@@ -2004,6 +2004,17 @@ export const plans = pgTable("plans", {
   updatedAt: updatedAt(),
 });
 
+// Platform-global integration settings — a SINGLETON row (id = "singleton"). Lets the
+// owner configure the payment gateway from /admin instead of env vars. NOT RLS-policied
+// (platform-wide, like plans/coupons); the api key is stored as encryptSecret() ciphertext.
+export const platformSettings = pgTable("platform_settings", {
+  id: text("id").primaryKey().default("singleton"),
+  xpaySecretKey: text("xpay_secret_key"),           // sk_… — encryptSecret() ciphertext
+  xpayWebhookSecret: text("xpay_webhook_secret"),   // whsec_… — encryptSecret() ciphertext
+  xpayBaseUrl: text("xpay_base_url"),               // null = https://api.xpay.app
+  updatedAt: updatedAt(),
+});
+
 // One subscription/entitlement record per customer organization. `enabledModules`
 // is the source of truth for which ERP modules the tenant may access; the page
 // guards + nav read it. maxUsers/storageGb are the enforced caps (snapshot from

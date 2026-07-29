@@ -1,84 +1,98 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { db } from "@/lib/db";
+import { platformSettings } from "@/db/schema";
+import { decryptSecret } from "@/lib/crypto";
 
 /**
  * xpay (xpay.app) — platform-level payment gateway for SaaS subscription checkout.
- * ONE owner account for the whole platform (not per-tenant): creds come from env, no
- * hard-coding. Flow: prepareAmount (fees) → createPayment (returns an iframe URL the
- * tenant pays in) → getTransaction (server-side verify before we activate anything).
- * We never trust the async callback body — always re-read the transaction here.
+ * ONE owner account for the whole platform. It's a Stripe-style API: Bearer secret
+ * key, a hosted Checkout Session (POST /checkout/sessions → a URL the tenant pays on),
+ * and a signed webhook (checkout.session.completed) that is the ONLY thing we trust to
+ * activate a subscription — never the redirect.
  *
- * Dashboard setup (manual, once): create an "API Payment" → get variable_amount_id,
- * set its Redirect URL = <APP_URL>/api/subscription/xpay/return and Callback URL =
- * <APP_URL>/api/subscription/xpay/callback. Put community_id / api_key / variable_amount_id
- * in env.
+ * Config is read from the DB (set by the owner in /admin/integrations), with env vars
+ * as a fallback. Nothing is hard-coded and there are no per-tenant keys.
  */
 
-const BASE = process.env.XPAY_BASE_URL || "https://staging.xpay.app/api/v1"; // staging by default; prod = https://community.xpay.app/api/v1
-const API_KEY = process.env.XPAY_API_KEY || "";
-const COMMUNITY_ID = process.env.XPAY_COMMUNITY_ID || "";
-const VARIABLE_AMOUNT_ID = process.env.XPAY_VARIABLE_AMOUNT_ID || "";
+export type XpayConfig = { secretKey: string; webhookSecret: string; baseUrl: string };
 
-export function xpayConfigured(): boolean {
-  return !!(API_KEY && COMMUNITY_ID && VARIABLE_AMOUNT_ID);
+/** Resolve gateway config: DB singleton first (secrets decrypted), else env. null = not configured. */
+export async function getXpayConfig(): Promise<XpayConfig | null> {
+  let row: typeof platformSettings.$inferSelect | undefined;
+  try { [row] = await db.select().from(platformSettings).limit(1); } catch { row = undefined; } // table may predate migration
+  const secretKey = (row?.xpaySecretKey ? decryptSecret(row.xpaySecretKey) : "") || process.env.XPAY_SECRET_KEY || "";
+  const webhookSecret = (row?.xpayWebhookSecret ? decryptSecret(row.xpayWebhookSecret) : "") || process.env.XPAY_WEBHOOK_SECRET || "";
+  const baseUrl = (row?.xpayBaseUrl || process.env.XPAY_BASE_URL || "https://api.xpay.app").replace(/\/$/, "");
+  if (!secretKey) return null; // the secret key alone is enough to create a checkout; webhook secret needed to verify
+  return { secretKey, webhookSecret, baseUrl };
 }
 
-/** xpay wraps every response as { status:{code,message,errors}, data:{...} }. Return
- *  data on a 2xx code, else throw a readable Arabic error built from status.errors. */
-export function unwrapXpay<T>(json: unknown): T {
-  const j = json as { status?: { code?: number; message?: string; errors?: unknown[] }; data?: T };
-  const code = j?.status?.code ?? 0;
-  if (code >= 200 && code < 300) return (j.data ?? {}) as T;
-  const errs = Array.isArray(j?.status?.errors) ? JSON.stringify(j!.status!.errors) : "";
-  throw new Error(`xpay ${code}: ${j?.status?.message || errs || "طلب فشل"}`);
+export async function xpayConfigured(): Promise<boolean> {
+  return !!(await getXpayConfig());
 }
 
-// ponytail: exact success string is confirmed against staging on first live run — keep
-// this set as the calibration knob rather than hard-coding one value.
-const PAID = new Set(["SUCCESSFUL", "SUCCESS", "PAID", "COMPLETED"]);
-export const isPaidStatus = (s: string | null | undefined): boolean => PAID.has(String(s || "").toUpperCase());
+async function requireCfg(): Promise<XpayConfig> {
+  const cfg = await getXpayConfig();
+  if (!cfg) throw new Error("بوابة xpay غير مُعدّة");
+  return cfg;
+}
 
-async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+/** EGP → minor units (piasters). xpay amounts are integers in the currency's smallest unit. */
+export const toMinorUnits = (amount: number) => Math.round(amount * 100);
+export const fromMinorUnits = (minor: number) => Math.round(minor) / 100;
+
+export type CheckoutSession = { id: string; url: string; status: string; amountTotal: number; currency: string };
+
+/**
+ * Create a hosted checkout session. `redirectUrl` may contain the literal
+ * {CHECKOUT_SESSION_ID} placeholder — xpay substitutes the real id on return.
+ */
+export async function createCheckoutSession(input: {
+  amount: number; currency?: string; name: string; redirectUrl: string; metadata?: Record<string, string>;
+}): Promise<CheckoutSession> {
+  const cfg = await requireCfg();
+  const currency = input.currency ?? "EGP";
+  const res = await fetch(`${cfg.baseUrl}/checkout/sessions`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": API_KEY },
-    body: JSON.stringify({ community_id: COMMUNITY_ID, ...body }),
+    headers: { authorization: `Bearer ${cfg.secretKey}`, "content-type": "application/json" },
     cache: "no-store",
+    body: JSON.stringify({
+      afterCompletion: { type: "redirect", redirect: { url: input.redirectUrl } },
+      currency,
+      lineItems: [{ quantity: 1, priceData: { currency, unitAmount: toMinorUnits(input.amount), productData: { name: input.name } } }],
+      ...(input.metadata ? { metadata: input.metadata } : {}),
+    }),
   });
-  return unwrapXpay<T>(await res.json());
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json?.url) throw new Error(`xpay ${res.status}: ${json?.error?.message || json?.message || "تعذّر إنشاء جلسة الدفع"}`);
+  return { id: json.id, url: json.url, status: json.status, amountTotal: json.amountTotal, currency: json.currency };
 }
 
-export type XpayBilling = { name: string; email: string; phone: string };
-
-/** Fees calculation: returns the total the tenant will actually be charged. */
-export async function prepareAmount(amount: number, currency = "EGP", payUsing = "card"): Promise<number> {
-  const data = await post<{ total_amount: number }>("/payments/prepare-amount/", {
-    amount, currency, selected_payment_method: payUsing,
+/** Retrieve a checkout session to confirm its status server-side (used on the return redirect). */
+export async function getCheckoutSession(id: string): Promise<CheckoutSession | null> {
+  const cfg = await requireCfg();
+  const res = await fetch(`${cfg.baseUrl}/checkout/sessions/${encodeURIComponent(id)}`, {
+    headers: { authorization: `Bearer ${cfg.secretKey}` }, cache: "no-store",
   });
-  return Number(data.total_amount ?? amount);
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => null);
+  return json ? { id: json.id, url: json.url, status: json.status, amountTotal: json.amountTotal, currency: json.currency } : null;
 }
 
-/** Create a payment → the iframe the tenant completes + the transaction uuid we verify later. */
-export async function createPayment(input: {
-  amount: number; originalAmount: number; currency?: string; payUsing?: string; billing: XpayBilling; customFields?: { field_label: string; field_value: string }[];
-}): Promise<{ iframeUrl: string; transactionUuid: string }> {
-  const data = await post<{ iframe_url: string; transaction_uuid: string }>("/payments/pay/variable-amount", {
-    variable_amount_id: Number(VARIABLE_AMOUNT_ID),
-    amount: input.amount,
-    original_amount: input.originalAmount,
-    currency: input.currency ?? "EGP",
-    pay_using: input.payUsing ?? "card",
-    billing_data: { name: input.billing.name, email: input.billing.email, phone_number: input.billing.phone },
-    ...(input.customFields ? { custom_fields: input.customFields } : {}),
-  });
-  return { iframeUrl: data.iframe_url, transactionUuid: data.transaction_uuid };
-}
+export const isCompleteStatus = (s: string | null | undefined) => String(s || "").toLowerCase() === "complete";
 
-/** Authoritative status read — the only thing we trust before activating a subscription. */
-export async function getTransaction(uuid: string): Promise<{ status: string; amount: number; currency: string }> {
-  const res = await fetch(`${BASE}/communities/${encodeURIComponent(COMMUNITY_ID)}/transactions/${encodeURIComponent(uuid)}/`, {
-    headers: { "x-api-key": API_KEY },
-    cache: "no-store",
-  });
-  const data = unwrapXpay<{ status: string; total_amount: number; total_amount_currency: string }>(await res.json());
-  return { status: data.status, amount: Number(data.total_amount ?? 0), currency: data.total_amount_currency || "EGP" };
+/**
+ * Verify an `XPay-Signature: t=<ts>,v1=<hmac>` header against the raw request body.
+ * Pure: HMAC-SHA256 over `${t}.${rawBody}` with the whsec, timing-safe compare, plus a
+ * replay window. `nowSec`/`toleranceSec` are injectable so it's unit-testable.
+ */
+export function verifyWebhookSignature(rawBody: string, header: string | null, secret: string, nowSec: number, toleranceSec = 300): boolean {
+  if (!header || !secret) return false;
+  const parts = Object.fromEntries(header.split(",").map((kv) => kv.split("=").map((s) => s.trim())) as [string, string][]);
+  const t = Number(parts.t), v1 = parts.v1;
+  if (!t || !v1 || Math.abs(nowSec - t) > toleranceSec) return false;
+  const expected = createHmac("sha256", secret).update(`${t}.${rawBody}`).digest("hex");
+  const a = Buffer.from(v1), b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }

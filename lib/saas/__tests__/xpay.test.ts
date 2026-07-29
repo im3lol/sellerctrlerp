@@ -1,27 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { unwrapXpay, isPaidStatus } from "../xpay";
+import { createHmac } from "node:crypto";
+import { verifyWebhookSignature, toMinorUnits, fromMinorUnits, isCompleteStatus } from "../xpay";
 
-describe("unwrapXpay", () => {
-  it("returns data on a 2xx status code", () => {
-    const data = unwrapXpay<{ total_amount: number }>({ status: { code: 200, message: "success", errors: [] }, data: { total_amount: 53.36 } });
-    expect(data.total_amount).toBe(53.36);
+const SECRET = "whsec_test_123";
+const sign = (body: string, t: number, secret = SECRET) =>
+  `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${body}`).digest("hex")}`;
+
+describe("verifyWebhookSignature", () => {
+  const body = JSON.stringify({ type: "checkout.session.completed", data: { object: { id: "cs_1", status: "complete" } } });
+  const now = 1_730_000_000;
+
+  it("accepts a correctly signed, in-window request", () => {
+    expect(verifyWebhookSignature(body, sign(body, now), SECRET, now)).toBe(true);
   });
-
-  it("throws with the message/errors on a non-2xx code", () => {
-    expect(() => unwrapXpay({ status: { code: 400, message: "", errors: [{ billing_data: { name: ["bad"] } }] }, data: {} }))
-      .toThrow(/xpay 400/);
+  it("rejects a tampered body", () => {
+    expect(verifyWebhookSignature(body + "x", sign(body, now), SECRET, now)).toBe(false);
   });
-
-  it("throws when the envelope has no valid status code", () => {
-    expect(() => unwrapXpay({})).toThrow(/xpay 0/);
+  it("rejects a wrong secret", () => {
+    expect(verifyWebhookSignature(body, sign(body, now, "whsec_other"), SECRET, now)).toBe(false);
+  });
+  it("rejects a stale timestamp (replay outside tolerance)", () => {
+    expect(verifyWebhookSignature(body, sign(body, now), SECRET, now + 400)).toBe(false);
+  });
+  it("rejects a missing/garbage header", () => {
+    expect(verifyWebhookSignature(body, null, SECRET, now)).toBe(false);
+    expect(verifyWebhookSignature(body, "nonsense", SECRET, now)).toBe(false);
   });
 });
 
-describe("isPaidStatus", () => {
-  it("accepts successful states case-insensitively", () => {
-    for (const s of ["SUCCESSFUL", "success", "Paid", "COMPLETED"]) expect(isPaidStatus(s)).toBe(true);
+describe("minor units", () => {
+  it("EGP → piasters and back", () => {
+    expect(toMinorUnits(1499)).toBe(149900);
+    expect(fromMinorUnits(149900)).toBe(1499);
+    expect(toMinorUnits(50.5)).toBe(5050);
   });
-  it("rejects pending/failed/empty", () => {
-    for (const s of ["PENDING", "FAILED", "", null, undefined]) expect(isPaidStatus(s)).toBe(false);
+});
+
+describe("isCompleteStatus", () => {
+  it("only 'complete' (case-insensitive) counts", () => {
+    expect(isCompleteStatus("complete")).toBe(true);
+    expect(isCompleteStatus("Complete")).toBe(true);
+    for (const s of ["open", "expired", "", null, undefined]) expect(isCompleteStatus(s)).toBe(false);
   });
 });

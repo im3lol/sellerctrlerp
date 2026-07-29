@@ -8,7 +8,7 @@ import { plans, subscriptionRequests } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { PAYMENT_METHODS } from "@/lib/erp/payment-info";
-import { xpayConfigured, prepareAmount, createPayment } from "@/lib/saas/xpay";
+import { xpayConfigured, createCheckoutSession } from "@/lib/saas/xpay";
 
 type Res = { ok: true } | { error: string };
 
@@ -61,28 +61,26 @@ export async function requestSubscriptionAction(input: SubRequestInput): Promise
   });
 }
 
-export type XpayStartInput = { planId: string; interval: string; payUsing?: string; billing: { name: string; email: string; phone: string } };
+export type XpayStartInput = { planId: string; interval: string };
 
 /**
- * Start an xpay online payment for a plan: create a PENDING request, then call xpay
- * (prepare fees → create payment) and stash the returned transaction uuid on the
- * request so the callback can find and activate it. Returns the iframe URL the tenant
- * pays in. Rolls the request back if xpay rejects the request (so it doesn't block the
- * one-open-request rule).
+ * Start an xpay hosted checkout for a plan: create a PENDING request, open a checkout
+ * session, stash the session id on the request (so the webhook/return can match it),
+ * and return the URL the tenant pays on. xpay's hosted page collects the customer's
+ * card/wallet/details, so we need none here. Rolls the request back if xpay rejects the
+ * request (so it doesn't block the one-open-request rule).
  */
-export async function startXpaySubscriptionAction(input: XpayStartInput): Promise<{ ok: true; iframeUrl: string } | { error: string }> {
+export async function startXpaySubscriptionAction(input: XpayStartInput): Promise<{ ok: true; url: string } | { error: string }> {
   const { user, org } = await getActiveOrg();
   if (!user || !org) return { error: "غير مصرح" };
   const access = await getMemberAccess(org.id, user);
   if (access.role !== "admin" && access.role !== "super_admin" && user.role !== "system_admin") {
     return { error: "صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك" };
   }
-  if (!xpayConfigured()) return { error: "الدفع الإلكتروني غير مُفعّل حاليًا — استخدم إنستا باي أو فودافون كاش" };
+  if (!(await xpayConfigured())) return { error: "الدفع الإلكتروني غير مُفعّل حاليًا — استخدم إنستا باي أو فودافون كاش" };
   if (input.interval !== "MONTHLY" && input.interval !== "ANNUAL") return { error: "دورة غير صحيحة" };
-  const name = input.billing.name?.trim() || "";
-  if (!name || !input.billing.email?.includes("@") || !input.billing.phone?.trim()) return { error: "أدخل الاسم والبريد ورقم الهاتف لإتمام الدفع" };
-  // xpay requires a first+last name (must contain a space); shim a placeholder if single-word.
-  const billingName = name.includes(" ") ? name : `${name} .`;
+  const base = process.env.APP_URL;
+  if (!base) return { error: "تعذّر تحديد رابط النظام (APP_URL) — تواصل مع الدعم" };
 
   return withOrgScope(org.id, false, async () => {
     const [plan] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.isActive, true))).limit(1);
@@ -98,15 +96,14 @@ export async function startXpaySubscriptionAction(input: XpayStartInput): Promis
     }).returning({ id: subscriptionRequests.id });
 
     try {
-      const total = await prepareAmount(price, "EGP", input.payUsing);
-      const pay = await createPayment({
-        amount: total, originalAmount: price, currency: "EGP", payUsing: input.payUsing,
-        billing: { name: billingName, email: input.billing.email.trim(), phone: input.billing.phone.trim() },
-        customFields: [{ field_label: "subscription_request_id", field_value: reqRow.id }],
+      const session = await createCheckoutSession({
+        amount: price, currency: "EGP", name: `اشتراك ${plan.name} (${input.interval === "ANNUAL" ? "سنوي" : "شهري"})`,
+        redirectUrl: `${base.replace(/\/$/, "")}/api/subscription/xpay/return?session_id={CHECKOUT_SESSION_ID}`,
+        metadata: { subscription_request_id: reqRow.id, organization_id: org.id },
       });
-      // Stash the uuid so the callback can match this payment to the request.
-      await db.update(subscriptionRequests).set({ paymentReference: pay.transactionUuid }).where(eq(subscriptionRequests.id, reqRow.id));
-      return { ok: true, iframeUrl: pay.iframeUrl };
+      // Stash the session id so the webhook/return can match this payment to the request.
+      await db.update(subscriptionRequests).set({ paymentReference: session.id }).where(eq(subscriptionRequests.id, reqRow.id));
+      return { ok: true, url: session.url };
     } catch (e) {
       await db.delete(subscriptionRequests).where(eq(subscriptionRequests.id, reqRow.id)); // don't leave a blocking PENDING
       return { error: e instanceof Error ? e.message : "تعذّر بدء الدفع الإلكتروني" };

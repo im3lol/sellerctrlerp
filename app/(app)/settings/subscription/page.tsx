@@ -85,7 +85,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
         <div>
           <h2 className="mb-3 text-lg font-semibold">الباقات المتاحة</h2>
-          <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} xpayEnabled={xpayConfigured()} xpayResult={xpay} />
+          <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} xpayEnabled={await xpayConfigured()} xpayResult={xpay} />
         </div>
       </div>
     );

@@ -16,14 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { selectCls } from "@/lib/utils";
 
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
-export type Account = { orgName: string; userName: string; email: string; phone?: string };
-
-// xpay online payment sub-methods → the API's `pay_using` values.
-const XPAY_METHODS = [
-  { value: "card", label: "بطاقة بنكية" },
-  { value: "mobile wallets", label: "محفظة إلكترونية (فودافون كاش/…)" },
-  { value: "fawry", label: "فوري" },
-] as const;
+export type Account = { orgName: string; userName: string; email: string };
 
 const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
 const cap = (n: number | null, unit: string) => (n == null ? "بلا حد" : `${n.toLocaleString("ar-EG")} ${unit}`);
@@ -37,8 +30,6 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   const methods = PAYMENT_METHODS.filter((m) => m.enabled && (m.key !== "XPAY" || xpayEnabled));
   const [method, setMethod] = useState<string>(methods[0]!.key);
   const [reference, setReference] = useState("");
-  const [phone, setPhone] = useState(account.phone ?? "");
-  const [xpayUsing, setXpayUsing] = useState<string>(XPAY_METHODS[0].value);
   const annual = interval === "ANNUAL";
   const price = annual ? plan.priceAnnual : plan.priceMonthly;
   const chosen = methods.find((m) => m.key === method)!;
@@ -62,9 +53,8 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
 
   const submit = () => start(async () => {
     if (isXpay) {
-      if (!phone.trim()) { toast.error("أدخل رقم الهاتف لإتمام الدفع"); return; }
-      const r = await startXpaySubscriptionAction({ planId: plan.id, interval, payUsing: xpayUsing, billing: { name: account.userName, email: account.email, phone } });
-      if ("ok" in r) window.location.href = r.iframeUrl; // hand off to xpay's hosted payment page
+      const r = await startXpaySubscriptionAction({ planId: plan.id, interval });
+      if ("ok" in r) window.location.href = r.url; // hand off to xpay's hosted checkout page
       else toast.error(r.error);
       return;
     }
@@ -102,18 +92,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
         </div>
 
         {isXpay ? (
-          <>
-            <div className="space-y-1.5">
-              <Label>وسيلة الدفع الإلكتروني</Label>
-              <select className={selectCls} value={xpayUsing} onChange={(e) => setXpayUsing(e.target.value)}>
-                {XPAY_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>رقم الهاتف <span className="text-muted-foreground">(للدفع الإلكتروني)</span></Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+201xxxxxxxxx" dir="ltr" />
-            </div>
-          </>
+          <p className="text-xs text-muted-foreground">سنحوّلك إلى صفحة دفع xpay الآمنة لإكمال الدفع بالبطاقة أو المحفظة أو فوري — ويُفعَّل اشتراكك تلقائيًا بعد الدفع.</p>
         ) : (
           <div className="space-y-1.5">
             <Label>رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>

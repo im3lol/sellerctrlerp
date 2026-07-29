@@ -1,16 +1,24 @@
 import { redirect } from "next/navigation";
-import { settleXpaySubscription } from "@/lib/saas/xpay-settle";
+import { getCheckoutSession } from "@/lib/saas/xpay";
+import { settleXpaySession } from "@/lib/saas/xpay-settle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Where xpay redirects the tenant after paying. Belt-and-suspenders: try to settle
- * here too (in case the server-to-server callback was delayed/dropped), then send them
- * back to the subscription page with a status flag. Activation is idempotent.
+ * Where xpay redirects the tenant after checkout. The redirect alone isn't trusted —
+ * we RETRIEVE the session server-side and settle if it's complete (belt-and-suspenders
+ * alongside the signed webhook, which is the primary path). Activation is idempotent.
  */
 export async function GET(req: Request) {
-  const uuid = new URL(req.url).searchParams.get("transaction_uuid") || "";
-  const r = uuid ? await settleXpaySubscription(uuid).catch(() => ({ ok: false })) : { ok: false };
-  redirect(`/settings/subscription?xpay=${r.ok ? "paid" : "pending"}`);
+  const id = new URL(req.url).searchParams.get("session_id") || "";
+  let paid = false;
+  if (id) {
+    const session = await getCheckoutSession(id).catch(() => null);
+    if (session) {
+      const r = await settleXpaySession({ sessionId: session.id, status: session.status, amountMinor: session.amountTotal }).catch(() => ({ ok: false }));
+      paid = r.ok;
+    }
+  }
+  redirect(`/settings/subscription?xpay=${paid ? "paid" : "pending"}`);
 }
