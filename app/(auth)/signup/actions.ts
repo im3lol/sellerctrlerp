@@ -27,6 +27,7 @@ export type SignupInput = {
   // When the user picks a plan on the last step, a PENDING subscription request
   // is filed alongside the trial (owner activates it after confirming payment).
   subscribe?: { planId: string; interval: string; paymentMethod: string; paymentReference?: string } | null;
+  source?: string; // acquisition attribution (utm/referrer), captured client-side
 };
 
 const schema = z.object({
@@ -38,6 +39,7 @@ const schema = z.object({
   taxNumber: z.string().trim().optional(),
   password: z.string().superRefine((p, ctx) => { const e = validatePassword(p); if (e) ctx.addIssue({ code: z.ZodIssueCode.custom, message: e }); }),
   modules: z.array(z.string()),
+  source: z.string().trim().max(80).optional(),
   subscribe: z.object({
     planId: z.string(),
     interval: z.enum(["MONTHLY", "ANNUAL"]),
@@ -70,6 +72,7 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
     const [org] = await db.insert(organizations).values({
       nameAr: d.companyName, nameEn: d.companyName,
       email: d.email, phone: d.phone || null, address: d.address || null, taxNumber: d.taxNumber || null,
+      signupSource: d.source || null,
     }).returning({ id: organizations.id });
     const orgId = org.id;
 

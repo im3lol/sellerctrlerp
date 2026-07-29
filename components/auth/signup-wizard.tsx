@@ -18,6 +18,18 @@ export type PlanCard = { id: string; name: string; priceMonthly: number; priceAn
 const egp = (n: number) => n.toLocaleString("ar-EG");
 const STEPS = ["بيانات الشركة", "الوحدات", "الباقة والتجربة"];
 
+/** Acquisition source: this URL's utm/ref param first, else the first-touch `sc_src`
+ *  cookie set on the landing (SourceTracker), else "direct". */
+function detectSource(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const p = new URLSearchParams(window.location.search);
+  const utm = p.get("utm_source") || p.get("ref") || p.get("source");
+  if (utm) return utm.slice(0, 80);
+  const c = document.cookie.split("; ").find((x) => x.startsWith("sc_src="));
+  if (c) return decodeURIComponent(c.slice("sc_src=".length)).slice(0, 80);
+  return "direct";
+}
+
 export function SignupWizard({ plans }: { plans: PlanCard[] }) {
   const [step, setStep] = useState(0);
   const [pending, start] = useTransition();
@@ -60,7 +72,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
     const subscribe = withSubscription && selectedPlan
       ? { planId: selectedPlan.id, interval, paymentMethod: payMethod, paymentReference: payReference }
       : null;
-    const r = await signupAction({ companyName, personName, email, phone, address, taxNumber, password, modules, subscribe });
+    const r = await signupAction({ companyName, personName, email, phone, address, taxNumber, password, modules, subscribe, source: detectSource() });
     // Success redirects; only errors return here.
     if (r?.error) toast.error(r.error);
   });

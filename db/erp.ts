@@ -74,6 +74,8 @@ export const organizations = pgTable(
     setupSkipped: jsonb("setup_skipped").$type<string[]>(),
     // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
     printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
+    // Where this tenant came from at signup (utm_source or the referring host) — acquisition attribution.
+    signupSource: text("signup_source"),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

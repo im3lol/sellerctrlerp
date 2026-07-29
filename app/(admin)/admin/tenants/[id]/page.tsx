@@ -36,7 +36,7 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader title={t.org.name} description={`عميل منذ ${dt(t.org.createdAt)}${t.org.email ? ` · ${t.org.email}` : ""}`} />
+        <PageHeader title={t.org.name} description={`عميل منذ ${dt(t.org.createdAt)}${t.org.email ? ` · ${t.org.email}` : ""}${t.org.signupSource ? ` · المصدر: ${t.org.signupSource}` : ""}`} />
         <Link href="/admin/licensing" className="text-sm text-muted-foreground hover:text-foreground">← كل المؤسسات</Link>
       </div>
 

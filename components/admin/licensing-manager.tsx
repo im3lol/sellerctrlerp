@@ -23,6 +23,7 @@ export type PlanOpt = { id: string; name: string; priceMonthly: number; priceAnn
 const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} م.ب` : `${(b / 1024 ** 3).toFixed(2)} ج.ب`);
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ACTIVE: { label: "مفعّل", variant: "default" }, TRIAL: { label: "تجريبي", variant: "secondary" },
+  SUSPENDED: { label: "موقوف", variant: "outline" },
   EXPIRED: { label: "منتهٍ", variant: "destructive" }, CANCELLED: { label: "ملغى", variant: "destructive" },
   NONE: { label: "بلا اشتراك", variant: "outline" },
 };
@@ -120,7 +121,7 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
 const DAY = 86_400_000;
 const mrrOf = (o: OrgSub) => (o.status === "ACTIVE" && (!o.expiresAt || new Date(o.expiresAt).getTime() > Date.now()) ? (o.interval === "ANNUAL" ? o.price / 12 : o.price) : 0);
 const daysLeftOf = (o: OrgSub) => (o.expiresAt ? Math.ceil((new Date(o.expiresAt).getTime() - Date.now()) / DAY) : null);
-const isAtRisk = (o: OrgSub) => { const d = daysLeftOf(o); return o.status === "EXPIRED" || o.status === "CANCELLED" || (o.status === "ACTIVE" && d != null && d <= 7); };
+const isAtRisk = (o: OrgSub) => { const d = daysLeftOf(o); return o.status === "EXPIRED" || o.status === "CANCELLED" || o.status === "SUSPENDED" || (o.status === "ACTIVE" && d != null && d <= 7); };
 
 export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
   const [editing, setEditing] = useState<OrgSub | null>(null);
