@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogIn, SlidersHorizontal, Wallet, Loader2, Download } from "lucide-react";
+import { LogIn, SlidersHorizontal, Wallet, Loader2, Download, Trash2, TriangleAlert } from "lucide-react";
 import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { recordCollectionAction } from "@/app/actions/admin/collections";
+import { deleteTenantAction } from "@/app/actions/admin/tenants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,12 +19,21 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /** Quick actions on the tenant profile: enter-for-support, edit licensing, and record
  *  a payment inline (pre-filled for this org) so the owner never loses context. */
-export function TenantActions({ orgId }: { orgId: string }) {
+export function TenantActions({ orgId, orgName }: { orgId: string; orgName: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ amount: "", method: "INSTAPAY", reference: "", paidAt: today(), note: "" });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Danger zone: permanently delete the tenant + all its data (typed-name confirmation).
+  const [delOpen, setDelOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const remove = () => start(async () => {
+    const r = await deleteTenantAction({ orgId, confirmName });
+    if ("ok" in r && r.ok) { toast.success(`تم حذف مؤسسة «${orgName}» وكل بياناتها نهائيًا`); router.push("/admin/licensing"); router.refresh(); }
+    else toast.error(("error" in r && r.error) || "تعذّر الحذف");
+  });
 
   const support = () => start(async () => {
     const r = await impersonateTenantAction(orgId); // redirects on success
@@ -41,6 +51,7 @@ export function TenantActions({ orgId }: { orgId: string }) {
       <Button size="sm" variant="outline" asChild><Link href="/admin/licensing"><SlidersHorizontal className="size-4" />تعديل الاشتراك</Link></Button>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Wallet className="size-4" />تسجيل تحصيل</Button>
       <Button size="sm" variant="outline" asChild><a href={`/admin/tenants/${orgId}/backup`} download><Download className="size-4" />نسخة احتياطية</a></Button>
+      <Button size="sm" variant="outline" onClick={() => { setConfirmName(""); setDelOpen(true); }} className="border-destructive/40 text-destructive hover:bg-destructive/10"><Trash2 className="size-4" />حذف المؤسسة</Button>
 
       <Dialog open={open} onOpenChange={(o) => !o && setOpen(false)}>
         <DialogContent dir="rtl">
@@ -66,6 +77,29 @@ export function TenantActions({ orgId }: { orgId: string }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
             <Button onClick={record} disabled={pending || !form.amount}>{pending && <Loader2 className="size-4 animate-spin" />}تسجيل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Danger zone — permanent delete with typed-name confirmation */}
+      <Dialog open={delOpen} onOpenChange={(o) => !o && setDelOpen(false)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive"><TriangleAlert className="size-5" />حذف المؤسسة نهائيًا</DialogTitle>
+            <DialogDescription>
+              سيُحذف كل شيء يخص «{orgName}» بشكل لا يمكن التراجع عنه: المستخدمون، الفواتير، القيود، المخزون،
+              الاشتراك، والربط بالمنصات. للتأكيد، اكتب اسم المؤسسة بالضبط:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label>اسم المؤسسة</Label>
+            <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={orgName} autoComplete="off" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDelOpen(false)}>إلغاء</Button>
+            <Button variant="destructive" onClick={remove} disabled={pending || confirmName.trim() !== orgName.trim()}>
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف نهائي
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

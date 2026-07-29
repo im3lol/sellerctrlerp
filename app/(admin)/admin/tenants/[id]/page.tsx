@@ -61,7 +61,7 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
         </CardContent></Card>
       </div>
 
-      <TenantActions orgId={t.org.id} />
+      <TenantActions orgId={t.org.id} orgName={t.org.name} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Usage */}
