@@ -8,7 +8,7 @@ import { plans, subscriptionRequests } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { PAYMENT_METHODS } from "@/lib/erp/payment-info";
-import { xpayConfigured, createCheckoutSession } from "@/lib/saas/xpay";
+import { getXpayConfig, createCheckoutSession } from "@/lib/saas/xpay";
 
 type Res = { ok: true } | { error: string };
 
@@ -62,25 +62,31 @@ export async function requestSubscriptionAction(input: SubRequestInput): Promise
 }
 
 export type XpayStartInput = { planId: string; interval: string };
+export type XpayStartResult =
+  | { ok: true; mode: "dropin"; clientSecret: string; publishableKey: string; baseUrl: string }
+  | { ok: true; mode: "redirect"; url: string }
+  | { error: string };
 
 /**
- * Start an xpay hosted checkout for a plan: create a PENDING request, open a checkout
- * session, stash the session id on the request (so the webhook/return can match it),
- * and return the URL the tenant pays on. xpay's hosted page collects the customer's
- * card/wallet/details, so we need none here. Rolls the request back if xpay rejects the
- * request (so it doesn't block the one-open-request rule).
+ * Start an xpay checkout for a plan: create a PENDING request, open a checkout session,
+ * stash the session id on the request (so the webhook/return matches it). When a
+ * publishable key is configured we return a `clientSecret` for the DROP-IN modal (paid
+ * on our own domain); otherwise a hosted `url` to redirect to. Rolls the request back if
+ * xpay rejects it (so it doesn't block the one-open-request rule).
  */
-export async function startXpaySubscriptionAction(input: XpayStartInput): Promise<{ ok: true; url: string } | { error: string }> {
+export async function startXpaySubscriptionAction(input: XpayStartInput): Promise<XpayStartResult> {
   const { user, org } = await getActiveOrg();
   if (!user || !org) return { error: "غير مصرح" };
   const access = await getMemberAccess(org.id, user);
   if (access.role !== "admin" && access.role !== "super_admin" && user.role !== "system_admin") {
     return { error: "صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك" };
   }
-  if (!(await xpayConfigured())) return { error: "الدفع الإلكتروني غير مُفعّل حاليًا — استخدم إنستا باي أو فودافون كاش" };
+  const cfg = await getXpayConfig();
+  if (!cfg) return { error: "الدفع الإلكتروني غير مُفعّل حاليًا — استخدم إنستا باي أو فودافون كاش" };
   if (input.interval !== "MONTHLY" && input.interval !== "ANNUAL") return { error: "دورة غير صحيحة" };
   const base = process.env.APP_URL;
   if (!base) return { error: "تعذّر تحديد رابط النظام (APP_URL) — تواصل مع الدعم" };
+  const dropIn = !!cfg.publishableKey; // drop-in when a publishable key is set, else hosted redirect
 
   return withOrgScope(org.id, false, async () => {
     const [plan] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.isActive, true))).limit(1);
@@ -100,10 +106,12 @@ export async function startXpaySubscriptionAction(input: XpayStartInput): Promis
         amount: price, currency: "EGP", name: `اشتراك ${plan.name} (${input.interval === "ANNUAL" ? "سنوي" : "شهري"})`,
         redirectUrl: `${base.replace(/\/$/, "")}/api/subscription/xpay/return?session_id={CHECKOUT_SESSION_ID}`,
         metadata: { subscription_request_id: reqRow.id, organization_id: org.id },
+        ...(dropIn ? { uiMode: "embedded" as const } : {}),
       });
       // Stash the session id so the webhook/return can match this payment to the request.
       await db.update(subscriptionRequests).set({ paymentReference: session.id }).where(eq(subscriptionRequests.id, reqRow.id));
-      return { ok: true, url: session.url };
+      if (dropIn && session.clientSecret) return { ok: true, mode: "dropin", clientSecret: session.clientSecret, publishableKey: cfg.publishableKey, baseUrl: cfg.baseUrl };
+      return { ok: true, mode: "redirect", url: session.url };
     } catch (e) {
       await db.delete(subscriptionRequests).where(eq(subscriptionRequests.id, reqRow.id)); // don't leave a blocking PENDING
       return { error: e instanceof Error ? e.message : "تعذّر بدء الدفع الإلكتروني" };

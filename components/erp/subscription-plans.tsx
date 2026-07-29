@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, Copy, MessageCircle, CreditCard } from "lucide-react";
 import { requestSubscriptionAction, startXpaySubscriptionAction } from "@/app/actions/erp/subscription";
+import { openXpayDropIn } from "@/lib/saas/xpay-dropin";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { PAYMENT_METHODS, WALLET_NUMBER, SUPPORT_WHATSAPP } from "@/lib/erp/payment-info";
 import { Button } from "@/components/ui/button";
@@ -54,8 +55,16 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   const submit = () => start(async () => {
     if (isXpay) {
       const r = await startXpaySubscriptionAction({ planId: plan.id, interval });
-      if ("ok" in r) window.location.href = r.url; // hand off to xpay's hosted checkout page
-      else toast.error(r.error);
+      if (!("ok" in r)) { toast.error(r.error); return; }
+      if (r.mode === "redirect") { window.location.href = r.url; return; } // hosted fallback
+      // Drop-in: pay inside a modal on our own domain; the webhook activates the sub.
+      try {
+        await openXpayDropIn({
+          publishableKey: r.publishableKey,
+          clientSecret: r.clientSecret,
+          onComplete: () => { toast.success("تم الدفع بنجاح — يتم تفعيل اشتراكك خلال لحظات ✅"); onClose(); router.refresh(); },
+        });
+      } catch (e) { toast.error(e instanceof Error ? e.message : "تعذّر فتح نافذة الدفع"); }
       return;
     }
     const r = await requestSubscriptionAction({ planId: plan.id, interval, paymentMethod: method, paymentReference: reference });

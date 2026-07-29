@@ -2010,6 +2010,7 @@ export const plans = pgTable("plans", {
 export const platformSettings = pgTable("platform_settings", {
   id: text("id").primaryKey().default("singleton"),
   xpaySecretKey: text("xpay_secret_key"),           // sk_… — encryptSecret() ciphertext
+  xpayPublishableKey: text("xpay_publishable_key"), // pk_… — public, for the drop-in SDK (plaintext)
   xpayWebhookSecret: text("xpay_webhook_secret"),   // whsec_… — encryptSecret() ciphertext
   xpayBaseUrl: text("xpay_base_url"),               // null = https://api.xpay.app
   updatedAt: updatedAt(),

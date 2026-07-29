@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type Initial = { baseUrl: string; hasSecretKey: boolean; hasWebhookSecret: boolean };
+type Initial = { baseUrl: string; publishableKey: string; hasSecretKey: boolean; hasWebhookSecret: boolean };
 
 function CopyRow({ label, value }: { label: string; value: string }) {
   return (
@@ -28,12 +28,13 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secretKey, setSecretKey] = useState("");
+  const [publishableKey, setPublishableKey] = useState(initial.publishableKey);
   const [webhookSecret, setWebhookSecret] = useState("");
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
 
   const save = () => start(async () => {
     try {
-      const r = await saveXpaySettingsAction({ secretKey, webhookSecret, baseUrl });
+      const r = await saveXpaySettingsAction({ secretKey, publishableKey, webhookSecret, baseUrl });
       if ("ok" in r) { toast.success("تم حفظ إعدادات xpay"); setSecretKey(""); setWebhookSecret(""); router.refresh(); }
       else toast.error(r.error);
     } catch (e) {
@@ -56,6 +57,11 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
         <div className="space-y-2">
           <Label htmlFor="sk">المفتاح السري (Secret key)</Label>
           <Input id="sk" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={initial.hasSecretKey ? "••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)" : "sk_test_…  أو  sk_live_…"} dir="ltr" autoComplete="off" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pk">المفتاح العام (Publishable key) <span className="text-muted-foreground">(للدفع داخل الموقع)</span></Label>
+          <Input id="pk" value={publishableKey} onChange={(e) => setPublishableKey(e.target.value)} placeholder="pk_test_…  أو  pk_live_…" dir="ltr" autoComplete="off" />
+          <p className="text-xs text-muted-foreground">لو مضبوط، الدفع يتم في نافذة داخل موقعك (Drop-in) بدل التحويل لصفحة xpay.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="wh">سر الويبهوك (Webhook secret)</Label>

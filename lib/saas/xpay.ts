@@ -15,17 +15,18 @@ import { decryptSecret } from "@/lib/crypto";
  * as a fallback. Nothing is hard-coded and there are no per-tenant keys.
  */
 
-export type XpayConfig = { secretKey: string; webhookSecret: string; baseUrl: string };
+export type XpayConfig = { secretKey: string; publishableKey: string; webhookSecret: string; baseUrl: string };
 
 /** Resolve gateway config: DB singleton first (secrets decrypted), else env. null = not configured. */
 export async function getXpayConfig(): Promise<XpayConfig | null> {
   let row: typeof platformSettings.$inferSelect | undefined;
   try { [row] = await db.select().from(platformSettings).limit(1); } catch { row = undefined; } // table may predate migration
   const secretKey = (row?.xpaySecretKey ? decryptSecret(row.xpaySecretKey) : "") || process.env.XPAY_SECRET_KEY || "";
+  const publishableKey = row?.xpayPublishableKey || process.env.XPAY_PUBLISHABLE_KEY || "";
   const webhookSecret = (row?.xpayWebhookSecret ? decryptSecret(row.xpayWebhookSecret) : "") || process.env.XPAY_WEBHOOK_SECRET || "";
   const baseUrl = (row?.xpayBaseUrl || process.env.XPAY_BASE_URL || "https://api.xpay.app").replace(/\/$/, "");
   if (!secretKey) return null; // the secret key alone is enough to create a checkout; webhook secret needed to verify
-  return { secretKey, webhookSecret, baseUrl };
+  return { secretKey, publishableKey, webhookSecret, baseUrl };
 }
 
 export async function xpayConfigured(): Promise<boolean> {
@@ -42,14 +43,16 @@ async function requireCfg(): Promise<XpayConfig> {
 export const toMinorUnits = (amount: number) => Math.round(amount * 100);
 export const fromMinorUnits = (minor: number) => Math.round(minor) / 100;
 
-export type CheckoutSession = { id: string; url: string; status: string; amountTotal: number; currency: string };
+export type CheckoutSession = { id: string; url: string; clientSecret: string; status: string; amountTotal: number; currency: string };
 
 /**
- * Create a hosted checkout session. `redirectUrl` may contain the literal
- * {CHECKOUT_SESSION_ID} placeholder — xpay substitutes the real id on return.
+ * Create a checkout session. Hosted (default) returns a `url` to redirect to;
+ * `uiMode:"embedded"` (drop-in) returns a `clientSecret` the client SDK opens in a
+ * modal on our own domain. `redirectUrl` may contain the literal {CHECKOUT_SESSION_ID}
+ * placeholder — xpay substitutes the real id on return.
  */
 export async function createCheckoutSession(input: {
-  amount: number; currency?: string; name: string; redirectUrl: string; metadata?: Record<string, string>;
+  amount: number; currency?: string; name: string; redirectUrl: string; metadata?: Record<string, string>; uiMode?: "embedded";
 }): Promise<CheckoutSession> {
   const cfg = await requireCfg();
   const currency = input.currency ?? "EGP";
@@ -58,6 +61,7 @@ export async function createCheckoutSession(input: {
     headers: { authorization: `Bearer ${cfg.secretKey}`, "content-type": "application/json" },
     cache: "no-store",
     body: JSON.stringify({
+      ...(input.uiMode ? { uiMode: input.uiMode } : {}),
       afterCompletion: { type: "redirect", redirect: { url: input.redirectUrl } },
       currency,
       lineItems: [{ quantity: 1, priceData: { currency, unitAmount: toMinorUnits(input.amount), productData: { name: input.name } } }],
@@ -65,8 +69,9 @@ export async function createCheckoutSession(input: {
     }),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json?.url) throw new Error(`xpay ${res.status}: ${json?.error?.message || json?.message || "تعذّر إنشاء جلسة الدفع"}`);
-  return { id: json.id, url: json.url, status: json.status, amountTotal: json.amountTotal, currency: json.currency };
+  const ok = res.ok && (json?.url || json?.clientSecret);
+  if (!ok) throw new Error(`xpay ${res.status}: ${json?.error?.message || json?.message || "تعذّر إنشاء جلسة الدفع"}`);
+  return { id: json.id, url: json.url ?? "", clientSecret: json.clientSecret ?? "", status: json.status, amountTotal: json.amountTotal, currency: json.currency };
 }
 
 /** Retrieve a checkout session to confirm its status server-side (used on the return redirect). */
@@ -77,7 +82,7 @@ export async function getCheckoutSession(id: string): Promise<CheckoutSession | 
   });
   if (!res.ok) return null;
   const json = await res.json().catch(() => null);
-  return json ? { id: json.id, url: json.url, status: json.status, amountTotal: json.amountTotal, currency: json.currency } : null;
+  return json ? { id: json.id, url: json.url ?? "", clientSecret: json.clientSecret ?? "", status: json.status, amountTotal: json.amountTotal, currency: json.currency } : null;
 }
 
 export const isCompleteStatus = (s: string | null | undefined) => String(s || "").toLowerCase() === "complete";
