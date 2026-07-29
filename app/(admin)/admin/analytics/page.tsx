@@ -1,3 +1,6 @@
+import { desc, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { organizations } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { getOwnerAnalytics } from "@/lib/erp/platform-metrics";
 import { PageHeader } from "@/components/page-header";
@@ -11,6 +14,13 @@ const pct = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maxi
 export default async function AnalyticsPage() {
   return withPlatformScope(async () => {
     const a = await getOwnerAnalytics();
+
+    // Acquisition attribution: where tenants came from at signup.
+    const sources = await db.select({
+      source: sql<string>`coalesce(nullif(${organizations.signupSource}, ''), 'غير معروف')`,
+      n: sql<number>`count(*)::int`,
+    }).from(organizations).groupBy(organizations.signupSource).orderBy(desc(sql`count(*)`)).limit(10);
+    const srcTotal = Math.max(1, sources.reduce((s, r) => s + Number(r.n), 0));
 
     const kpis = [
       { label: "الإيراد الشهري (MRR)", value: egp(a.mrr), icon: "TrendingUp", accent: true },
@@ -72,6 +82,27 @@ export default async function AnalyticsPage() {
             )}
           </CardContent></Card>
         </div>
+
+        {/* Acquisition sources */}
+        <Card><CardContent className="pt-6">
+          <h3 className="mb-1 flex items-center gap-2 font-semibold"><Icon name="Compass" className="size-4" />مصادر التسجيل</h3>
+          <p className="mb-4 text-xs text-muted-foreground">من أين جاء العملاء عند التسجيل (utm_source أو الموقع المُحيل).</p>
+          {sources.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">لا بيانات مصادر بعد.</p>
+          ) : (
+            <ul className="space-y-3">
+              {sources.map((s) => (
+                <li key={s.source}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="truncate" dir="ltr">{s.source}</span>
+                    <span className="tabular-nums font-semibold">{int(Number(s.n))} <span className="text-xs font-normal text-muted-foreground">({pct((Number(s.n) / srcTotal) * 100)})</span></span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((Number(s.n) / srcTotal) * 100)}%` }} /></div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent></Card>
       </div>
     );
   });

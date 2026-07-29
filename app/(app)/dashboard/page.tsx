@@ -35,6 +35,8 @@ export default async function DashboardPage() {
   const sub = org && user.role !== "system_admin" ? await getSubscriptionState(org.id) : null;
   const subBanner = sub && sub.isTrial
     ? { cls: "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400", text: `الفترة التجريبية — متبقٍ ${sub.daysLeft} يوم. اشترك الآن للاستمرار.` }
+    : sub && sub.status === "SUSPENDED"
+    ? { cls: "border-destructive/40 bg-destructive/5 text-destructive", text: "تم إيقاف اشتراكك مؤقتًا — تواصل مع الدعم لإعادة التفعيل." }
     : sub && !sub.live
     ? { cls: "border-destructive/40 bg-destructive/5 text-destructive", text: "انتهت فترة وصولك — اختر باقة لتفعيل النظام." }
     : null;
@@ -77,6 +79,11 @@ export default async function DashboardPage() {
       ]
     : [];
 
+  // Brand-new org with no transactional data yet → show a getting-started hero
+  // instead of a wall of zeros. (system_admin dashboards are never "empty".)
+  const isEmpty = !!org && user.role !== "system_admin" &&
+    (!ov || (ov.net === 0 && ov.cash === 0 && ov.ar === 0 && ov.ap === 0 && ov.inventoryValue === 0 && ov.salesMonth === 0));
+
   return (
     <div className="space-y-6">
       <div>
@@ -95,6 +102,28 @@ export default async function DashboardPage() {
         <div data-tour="setup-card">
           <SetupProgressCard done={setup.essentialDone} total={setup.essentialTotal} />
         </div>
+      )}
+
+      {isEmpty && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-bold">ابدأ باستخدام النظام 🚀</h2>
+            <p className="mt-1 text-sm text-muted-foreground">حسابك جاهز — خطوات سريعة تبدأ بيها إدارة تجارتك:</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                { t: "اربط حساب أمازون", d: "استورد طلباتك وتسوياتك تلقائيًا", href: "/platforms" },
+                { t: "أضف أصنافك", d: "ابنِ كتالوج منتجاتك", href: "/inventory/items" },
+                { t: "أنشئ أول فاتورة بيع", d: "وابدأ دورة البيع والتحصيل", href: "/sales/invoices" },
+              ].map((s) => (
+                <Link key={s.href} href={s.href} className="rounded-xl border bg-card p-4 transition-colors hover:border-primary">
+                  <div className="font-semibold">{s.t}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{s.d}</div>
+                </Link>
+              ))}
+            </div>
+            <Link href="/setup" className="mt-4 inline-block text-sm text-primary hover:underline">أو اتبع دليل الإعداد الكامل ←</Link>
+          </CardContent>
+        </Card>
       )}
 
       {ov && (

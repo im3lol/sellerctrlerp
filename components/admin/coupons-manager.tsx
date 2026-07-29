@@ -77,7 +77,7 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{coupons.length} كوبون</span>
+          <span className="text-sm text-muted-foreground">{coupons.length} كوبون · إجمالي الاستخدامات: <span className="font-semibold text-foreground tabular-nums">{coupons.reduce((s, c) => s + (c.redemptions || 0), 0)}</span></span>
           <Button size="sm" onClick={() => setDialog({ open: true, coupon: null })}><Plus className="size-4" />كوبون جديد</Button>
         </div>
         <Table>

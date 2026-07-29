@@ -10,7 +10,7 @@ import { ALL_MODULES } from "@/lib/erp/module-list";
 import { findRedeemableCoupon, applyDiscount, incrementRedemption } from "@/lib/erp/coupons";
 import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
-const STATUSES = ["NONE", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"];
+const STATUSES = ["NONE", "TRIAL", "ACTIVE", "SUSPENDED", "EXPIRED", "CANCELLED"];
 
 export type SubInput = {
   organizationId: string;

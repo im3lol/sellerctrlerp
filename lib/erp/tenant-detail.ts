@@ -19,7 +19,7 @@ export type TenantDetail = Awaited<ReturnType<typeof getTenantDetail>>;
 export async function getTenantDetail(orgId: string, now = new Date()) {
   return withPlatformScope(async () => {
     const [org] = await db
-      .select({ id: organizations.id, name: organizations.nameAr, email: organizations.email, phone: organizations.phone, createdAt: organizations.createdAt, status: organizations.status })
+      .select({ id: organizations.id, name: organizations.nameAr, email: organizations.email, phone: organizations.phone, createdAt: organizations.createdAt, status: organizations.status, signupSource: organizations.signupSource })
       .from(organizations).where(eq(organizations.id, orgId)).limit(1);
     if (!org) return null;
 
