@@ -5,6 +5,7 @@ import { plans } from "@/db/schema";
 import { getSubscriptionState } from "@/lib/erp/subscription";
 import { orgActiveMemberCount, orgStorageBytes } from "@/lib/erp/plans";
 import { getMyLatestRequest } from "@/app/actions/erp/subscription";
+import { xpayConfigured } from "@/lib/saas/xpay";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +19,9 @@ const fmtBytes = (b: number) => {
   return `${(b / 1024 ** 3).toFixed(2)} ج.ب`;
 };
 
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ locked?: string }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ locked?: string; xpay?: string }> }) {
   return loadErpPage("settings.view", async ({ orgId, role }) => {
-    const { locked } = await searchParams;
+    const { locked, xpay } = await searchParams;
     const { user, org } = await getActiveOrg();
     const account = { orgName: org?.nameAr ?? "", userName: user?.name ?? "", email: user?.email ?? "" };
 
@@ -84,7 +85,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
         <div>
           <h2 className="mb-3 text-lg font-semibold">الباقات المتاحة</h2>
-          <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} />
+          <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} xpayEnabled={xpayConfigured()} xpayResult={xpay} />
         </div>
       </div>
     );
