@@ -2016,6 +2016,12 @@ export const platformSettings = pgTable("platform_settings", {
   shopifyClientId: text("shopify_client_id"),         // Shopify Partner app client id (public)
   shopifyClientSecret: text("shopify_client_secret"), // Shopify app secret — encryptSecret() ciphertext
   shopifyApiVersion: text("shopify_api_version"),     // null = SHOPIFY_API_VERSION default
+  smtpHost: text("smtp_host"),                        // transactional email (SMTP) — welcome / receipt / dunning
+  smtpPort: integer("smtp_port"),                     // 587 (STARTTLS) or 465 (SSL)
+  smtpUser: text("smtp_user"),
+  smtpPass: text("smtp_pass"),                        // encryptSecret() ciphertext
+  smtpFrom: text("smtp_from"),                        // From address, e.g. info@sellerctrl.com
+  smtpFromName: text("smtp_from_name"),               // display name, e.g. SellerCtrl
   updatedAt: updatedAt(),
 });
 

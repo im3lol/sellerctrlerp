@@ -4,7 +4,9 @@ import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { plans, orgSubscriptions, subscriptionRequests, subscriptionPayments } from "@/db/schema";
+import { plans, orgSubscriptions, subscriptionRequests, subscriptionPayments, organizations } from "@/db/schema";
+import { sendEmail } from "@/lib/erp/email";
+import { receiptEmail } from "@/lib/saas/email-templates";
 import { requireCapability } from "@/lib/session";
 import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
@@ -69,6 +71,20 @@ export async function activateFromRequest(reqId: string, actorId: string | null,
     periodEnd: values.expiresAt.toISOString().slice(0, 10), subscriptionRequestId: req.id,
     note: actorId ? "تفعيل من طلب اشتراك" : "دفع إلكتروني (xpay)", recordedBy: actorId,
   });
+
+  // Best-effort payment receipt to the org's email (never blocks activation; no-ops
+  // if SMTP isn't configured or the org has no email on file).
+  try {
+    const [org] = await db.select({ name: organizations.nameAr, email: organizations.email })
+      .from(organizations).where(eq(organizations.id, req.organizationId)).limit(1);
+    if (org?.email) {
+      const mail = receiptEmail({
+        orgName: org.name, planName: req.planName, interval: req.interval,
+        amount: Number(req.price), expiresAt: values.expiresAt, appUrl: process.env.APP_URL || "",
+      });
+      await sendEmail({ to: org.email, subject: mail.subject, html: mail.html, text: mail.text });
+    }
+  } catch (e) { console.error("[receipt-email]", e); }
 
   revalidatePath("/admin/licensing");
   revalidatePath("/admin/collections");

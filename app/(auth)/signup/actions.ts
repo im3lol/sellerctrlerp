@@ -112,6 +112,14 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
   // the tenant can re-run it from settings if it fails.
   try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); } catch { /* non-fatal */ }
 
+  // Best-effort welcome email (no-op if email isn't configured; never blocks signup).
+  try {
+    const { sendEmail } = await import("@/lib/erp/email");
+    const { welcomeEmail } = await import("@/lib/saas/email-templates");
+    const mail = welcomeEmail({ name: d.personName, orgName: d.companyName, appUrl: process.env.APP_URL || "" });
+    await sendEmail({ to: d.email, subject: mail.subject, html: mail.html, text: mail.text });
+  } catch { /* non-fatal */ }
+
   try {
     await signIn("credentials", { email: d.email, password: d.password, redirectTo: "/setup" });
   } catch (error) {
