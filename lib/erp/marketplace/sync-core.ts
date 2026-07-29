@@ -222,10 +222,10 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
   if (!p.connector.fetchSettlements) return { ok: false, error: "المنصة لا تدعم مزامنة التسويات" };
   try {
     const txns = await p.connector.fetchSettlements(p.cred, range); // slow fetch, unscoped
-    const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns));
+    const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns, p.connector.code));
     let posted = 0, deferredHeld = 0, returnsCreated = 0;
     if (p.autoPostSettlements) {
-      const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null));
+      const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null, p.connector.code));
       if ("error" in res) return { ok: false, error: res.error };
       posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
     }

@@ -110,11 +110,11 @@ export async function runAmazonSettlementAction(formData: FormData): Promise<Set
  * Post the already-pulled, released, not-yet-posted settlement rows to GL — the
  * manual-review path (the sync pulled rows without posting when auto-post is off).
  */
-export async function postAmazonSettlementsAction(): Promise<SettlementResult> {
+export async function postAmazonSettlementsAction(channel = "AMAZON"): Promise<SettlementResult> {
   const auth = await authorizeErp("accounting.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
-    const posted = await postSettlements(auth.orgId, auth.userId);
+    const posted = await postSettlements(auth.orgId, auth.userId, channel);
     if ("error" in posted) return { ok: false, error: posted.error };
     revalidateSettlement();
     return {
@@ -131,12 +131,12 @@ export async function postAmazonSettlementsAction(): Promise<SettlementResult> {
  * a re-post rebuilds them with the current (per-order) logic. This is the supported
  * way to correct a bad settlement — reverse, then Post again.
  */
-export async function reverseAmazonSettlementAction(): Promise<{ ok: true; reversed: number } | { ok: false; error: string }> {
+export async function reverseAmazonSettlementAction(channel = "AMAZON"): Promise<{ ok: true; reversed: number } | { ok: false; error: string }> {
   const auth = await authorizeErp("accounting.reverse", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
     const { reverseSettlementPosting } = await import("@/lib/erp/settlement-core");
-    const r = await reverseSettlementPosting(auth.orgId, auth.userId);
+    const r = await reverseSettlementPosting(auth.orgId, auth.userId, channel);
     if ("error" in r) return { ok: false, error: r.error };
     revalidateSettlement();
     return { ok: true, reversed: r.reversed };

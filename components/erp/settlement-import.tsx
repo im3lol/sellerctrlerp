@@ -21,8 +21,11 @@ const TYPE_AR: Record<string, string> = {
 
 export type SettlementRow = { id: string; type: string; orderId: string | null; sku: string | null; total: number; status: string; posted: boolean };
 
-export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { code?: string; rows?: SettlementRow[]; unpostedReleased?: number }) {
+// isAmazon=false (e.g. Shopify) hides the Amazon-only cards (Go-Live wallet + XLSX
+// upload) and routes post/reverse to this channel. label names the marketplace in copy.
+export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmazon = true, label = "أمازون" }: { code?: string; rows?: SettlementRow[]; unpostedReleased?: number; isAmazon?: boolean; label?: string }) {
   const router = useRouter();
+  const channel = (code ?? "AMAZON").toUpperCase();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Extract<SettlementPreview, { ok: true }> | null>(null);
@@ -32,9 +35,9 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
   const [reversing, startReverse] = useTransition();
 
   const reversePosting = () => {
-    if (!confirm("عكس ترحيل كل قيود تسوية أمازون المرحّلة؟ سيُعاد بناؤها على مستوى كل طلب عند الترحيل التالي، وتُستعاد أرصدة العملاء والفواتير.")) return;
+    if (!confirm(`عكس ترحيل كل قيود تسوية ${label} المرحّلة؟ سيُعاد بناؤها على مستوى كل طلب عند الترحيل التالي، وتُستعاد أرصدة العملاء والفواتير.`)) return;
     startReverse(async () => {
-      const r = await reverseAmazonSettlementAction();
+      const r = await reverseAmazonSettlementAction(channel);
       if (!r.ok) { toast.error(r.error); return; }
       toast.success(r.reversed ? `تم عكس ${r.reversed} قيد تسوية — أعد الترحيل الآن` : "لا توجد قيود تسوية مرحّلة لعكسها");
       router.refresh();
@@ -70,7 +73,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
 
   const postPulled = () => {
     startPost(async () => {
-      const r = await postAmazonSettlementsAction();
+      const r = await postAmazonSettlementsAction(channel);
       if (!r.ok) { toast.error(r.error); return; }
       toast.success(`تم ترحيل ${r.posted} معاملة${r.perOrderEntries ? ` (${r.perOrderEntries} قيد لكل طلب)` : ""}${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}${r.deferredHeld ? `، ${r.deferredHeld} مؤجّلة محفوظة` : ""}`);
       if (r.returnsUnmatched.length) toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length})`, { duration: 10000 });
@@ -122,7 +125,8 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
   const gl = preview?.gl;
   return (
     <div className="space-y-6">
-      {/* Go-Live: accounting start date + wallet opening balance */}
+      {/* Go-Live: accounting start date + wallet opening balance (Amazon-only for now) */}
+      {isAmazon && (
       <Card>
         <CardHeader>
           <CardTitle>بدء الربط المحاسبي (Go-Live)</CardTitle>
@@ -149,15 +153,16 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* SP-API automatic pull */}
+      {/* API automatic pull */}
       <Card>
         <CardHeader>
-          <CardTitle>سحب المدفوعات من أمازون</CardTitle>
+          <CardTitle>سحب المدفوعات من {label}</CardTitle>
           <CardDescription>
-            يسحب تقارير التسويات مباشرة من أمازون (SP-API) — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات.
-            التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة
-            (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد).
+            {isAmazon
+              ? "يسحب تقارير التسويات مباشرة من أمازون (SP-API) — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات. التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد)."
+              : `يسحب مدفوعات ${label} (Payments) مباشرة عبر الـ API — تحصيل الطلبات + التحويلات البنكية + العمولات. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -213,7 +218,8 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
         </CardContent>
       </Card>
 
-      {/* Manual XLSX upload (fallback / historical) */}
+      {/* Manual XLSX upload (Amazon Transaction-view report format only) */}
+      {isAmazon && (
       <Card>
         <CardHeader>
           <CardTitle>استيراد يدوي من ملف (اختياري)</CardTitle>
@@ -259,6 +265,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0 }: { co
           )}
         </CardContent>
       </Card>
+      )}
 
       {gl && (
         <Card>
