@@ -7,9 +7,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Start a connector's OAuth consent flow for the current tenant. The seller picks
- * a marketplace (?marketplace=EG); we sign a state carrying orgId + provider +
- * marketplace and bounce to the connector's authorize URL.
+ * Start a connector's OAuth consent flow for the current tenant. The `target` is
+ * either a fixed marketplace code (Amazon: ?marketplace=EG) or a merchant-supplied
+ * shop domain (Shopify: ?shop=store.myshopify.com) — connectors with needsTarget
+ * require the ?shop= form. We sign a state carrying orgId + provider + target and
+ * bounce to the connector's authorize URL.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
@@ -18,9 +20,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const connector = getConnector(provider);
   if (!connector?.oauth) return new Response("موصّل غير مدعوم", { status: 404 });
 
-  const marketplace = new URL(req.url).searchParams.get("marketplace") || connector.oauth.marketplaces[0]?.code || "";
-  const state = signState({ orgId, provider: connector.code, marketplace, ts: Date.now() });
-  const url = connector.oauth.authorizeUrl(state, marketplace);
-  if (!url) return new Response("تعذّر بناء رابط التفويض — تحقق من إعداد التطبيق", { status: 500 });
-  redirect(url);
+  const url = new URL(req.url);
+  const target = url.searchParams.get("shop") || url.searchParams.get("marketplace") || connector.oauth.marketplaces[0]?.code || "";
+  if (!target) return new Response("حدّد المتجر أو السوق أولًا", { status: 400 });
+  const state = signState({ orgId, provider: connector.code, marketplace: target, ts: Date.now() });
+  const authUrl = await connector.oauth.authorizeUrl(state, target);
+  if (!authUrl) return new Response("تعذّر بناء رابط التفويض — تحقق من إعداد التطبيق", { status: 500 });
+  redirect(authUrl);
 }

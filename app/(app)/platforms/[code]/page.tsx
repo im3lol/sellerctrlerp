@@ -192,6 +192,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             conn={conn}
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
+            needsShop={connectable.needsTarget}
           />
         )}
 

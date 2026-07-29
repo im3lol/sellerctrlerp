@@ -47,3 +47,37 @@ export async function saveXpaySettingsAction(input: { secretKey?: string; publis
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }
+
+/** Owner reads the Shopify app config — the secret is never returned, only whether it's set. */
+export async function getShopifySettingsAdmin() {
+  await requireCapability("employee.manage");
+  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  return {
+    clientId: row?.shopifyClientId ?? "", // public — safe to prefill
+    apiVersion: row?.shopifyApiVersion ?? "",
+    hasClientSecret: !!row?.shopifyClientSecret,
+  };
+}
+
+/**
+ * Save the Shopify Partner app config. The client secret is encrypted; a BLANK secret
+ * keeps the stored value. Client id + api version are public so they're always set.
+ */
+export async function saveShopifySettingsAction(input: { clientId?: string; clientSecret?: string; apiVersion?: string }): Promise<Res> {
+  await requireCapability("employee.manage");
+  try {
+    const set: Record<string, unknown> = {
+      id: SINGLETON,
+      shopifyClientId: input.clientId?.trim() || null,
+      shopifyApiVersion: input.apiVersion?.trim() || null,
+      updatedAt: new Date(),
+    };
+    if (input.clientSecret?.trim()) set.shopifyClientSecret = encryptSecret(input.clientSecret.trim());
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[shopify-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}

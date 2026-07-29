@@ -7,7 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
-import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
+import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { round2 } from "@/lib/erp/money";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -112,18 +112,18 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
 /**
  * One-click automatic setup for a connector-backed platform: provisions the
  * platform + its customer + fulfillment warehouse + settlement bank (all
- * overridable later). Amazon/FBA is the only live path today.
+ * overridable later). Dispatches per connector via ensurePlatform.
  */
-export async function provisionMarketplaceAction(input: { connector: string; fulfillment: string }): Promise<ActionState & { code?: string }> {
+export async function provisionMarketplaceAction(input: { connector: string; fulfillment?: string }): Promise<ActionState & { code?: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    if (input.connector !== "AMAZON") return { error: "الربط الآلي متاح لأمازون فقط حاليًا" };
-    if (input.fulfillment !== "FBA") return { error: "نوع التنفيذ المتاح حاليًا هو FBA فقط" };
+    if (input.connector === "AMAZON" && input.fulfillment && input.fulfillment !== "FBA") return { error: "نوع التنفيذ المتاح حاليًا هو FBA فقط" };
     try {
-      await ensureAmazonPlatform(auth.orgId); // creates platform + customer + FBA warehouse + Amazon Wallet bank
+      const p = await ensurePlatform(auth.orgId, input.connector); // platform + customer + warehouse + settlement bank
+      if (!p) return { error: "الربط الآلي غير متاح لهذه المنصة" };
       revalidatePath("/platforms");
-      return { ok: true, code: "amazon" };
+      return { ok: true, code: input.connector.toLowerCase() };
     } catch {
       return { error: "تعذّر التجهيز التلقائي" };
     }

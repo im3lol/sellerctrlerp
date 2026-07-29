@@ -4,6 +4,7 @@ import { salesPlatforms, customers, warehouses, bankAccounts, accounts } from "@
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 
 export type AmazonPlatform = { platformId: string; customerId: string; warehouseId: string; bankAccountId: string | null };
+export type PlatformProvision = AmazonPlatform;
 
 /**
  * Get-or-create a dedicated wallet GL for a marketplace (e.g. 1109 «محفظة أمازون»,
@@ -101,4 +102,76 @@ export async function ensureAmazonPlatform(orgId: string): Promise<AmazonPlatfor
     }).where(eq(salesPlatforms.id, existing.id));
   }
   return { platformId: existing.id, customerId, warehouseId, bankAccountId };
+}
+
+/**
+ * Get-or-create the "Shopify Wallet" payout bank on its OWN wallet GL (1110) —
+ * distinct from Amazon's 1109. Shopify Payments holds sales until it pays out;
+ * this wallet's balance tracks the unremitted amount. No legacy repoint (unlike
+ * Amazon, whose wallet migrated off 1102).
+ */
+async function ensureShopifyBank(orgId: string): Promise<string> {
+  const walletGl = await ensurePlatformWalletGl(orgId, "1110", "محفظة شوبيفاي");
+  const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
+    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "محفظة شوبيفاي"))).limit(1);
+  if (existing) return existing.id;
+  const [row] = await db.insert(bankAccounts)
+    .values({ organizationId: orgId, nameAr: "محفظة شوبيفاي", bankName: "شوبيفاي", glAccountId: walletGl })
+    .returning({ id: bankAccounts.id });
+  return row.id;
+}
+
+/**
+ * Resolve (get-or-create) the SHOPIFY sales platform + its customer, warehouse and
+ * payout bank. Near-copy of ensureAmazonPlatform: Shopify has no FBA/FBM split
+ * (fulfillmentType stays null) and its own wallet GL (1110).
+ */
+export async function ensureShopifyPlatform(orgId: string): Promise<PlatformProvision> {
+  const [existing] = await db.select().from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, "SHOPIFY"))).limit(1);
+
+  let customerId = existing?.customerId ?? null;
+  if (!customerId) {
+    let [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.organizationId, orgId), eq(customers.code, "SHOP"))).limit(1);
+    if (!cust) [cust] = await db.insert(customers)
+      .values({ organizationId: orgId, code: "SHOP", nameAr: "شوبيفاي" }).returning({ id: customers.id });
+    customerId = cust.id;
+  }
+
+  let warehouseId = existing?.defaultWarehouseId ?? null;
+  if (!warehouseId) {
+    let [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.code, "SHOP-WH"))).limit(1);
+    if (!wh) [wh] = await db.insert(warehouses)
+      .values({ organizationId: orgId, code: "SHOP-WH", nameAr: "مخزن شوبيفاي", nameEn: "Shopify" }).returning({ id: warehouses.id });
+    warehouseId = wh.id;
+  }
+
+  const bankAccountId = existing?.bankAccountId ?? await ensureShopifyBank(orgId);
+
+  if (!existing) {
+    const [created] = await db.insert(salesPlatforms).values({
+      organizationId: orgId, name: "شوبيفاي", code: "SHOPIFY", integrationType: "shopify",
+      customerId, defaultWarehouseId: warehouseId, bankAccountId,
+    }).onConflictDoUpdate({
+      target: [salesPlatforms.organizationId, salesPlatforms.code],
+      set: { customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() },
+    }).returning({ id: salesPlatforms.id });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId };
+  }
+
+  if (!existing.customerId || !existing.defaultWarehouseId || !existing.bankAccountId) {
+    await db.update(salesPlatforms).set({ customerId, defaultWarehouseId: warehouseId, bankAccountId, updatedAt: new Date() })
+      .where(eq(salesPlatforms.id, existing.id));
+  }
+  return { platformId: existing.id, customerId, warehouseId, bankAccountId };
+}
+
+/** Dispatch to the connector's platform provisioner. Unknown/manual codes no-op
+ *  (null) — the platform already exists or is manual-import only. */
+export async function ensurePlatform(orgId: string, code: string): Promise<PlatformProvision | null> {
+  if (code === "AMAZON") return ensureAmazonPlatform(orgId);
+  if (code === "SHOPIFY") return ensureShopifyPlatform(orgId);
+  return null;
 }

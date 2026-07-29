@@ -1,4 +1,5 @@
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, DateRange } from "./dto";
+import type { OAuthState } from "./oauth-state";
 import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
 import type { FbaReimbursementRow } from "@/lib/erp/amazon-reimbursements";
@@ -42,10 +43,27 @@ export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
   capabilities: { products: boolean; catalog: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+  /** True → this provider's own token-invalid/auth error. Omitted → the sync core
+   *  falls back to the Amazon isAuthError. Lets coreFail flag needsReauth per provider. */
+  isAuthError?(e: unknown): boolean;
   oauth?: {
     marketplaces: ConnectorMarketplace[];
-    authorizeUrl(state: string, marketplaceCode: string): string | null;
-    exchangeCode(code: string, redirectUri: string): Promise<OAuthExchange>;
+    /** Provider needs a merchant-supplied target (a Shopify shop domain) chosen at
+     *  connect time instead of a fixed marketplace code — the connect route reads ?shop=. */
+    needsTarget?: boolean;
+    /** `target` = the chosen marketplace code (Amazon) OR the shop domain (Shopify).
+     *  May be async (Shopify reads the app config to build the consent URL). */
+    authorizeUrl(state: string, target: string): string | null | Promise<string | null>;
+    /** `target` = shop domain for Shopify (its token endpoint is per-shop); Amazon ignores it. */
+    exchangeCode(code: string, redirectUri: string, target?: string): Promise<OAuthExchange>;
+    /** Verify + extract the auth code and seller identity from the callback query.
+     *  Omitted → the route uses the built-in Amazon extraction (spapi_oauth_code +
+     *  selling_partner_id). Shopify: HMAC-verify the query, confirm shop === state target.
+     *  Async because HMAC needs the app secret (a DB config read). */
+    verifyCallback?(params: URLSearchParams, state: OAuthState): Promise<
+      | { code: string; sellerId: string | null; marketplaceId: string | null; region: string }
+      | { error: string }
+    >;
   };
   fetchProducts?(cred: Credential, since?: Date): Promise<MarketplaceProduct[]>;
   /** Complete catalog enumeration for the initial import (e.g. Amazon Reports API) —

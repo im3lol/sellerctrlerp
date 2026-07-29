@@ -1,5 +1,6 @@
 import type { MarketplaceConnector } from "./connector";
 import { amazonConnector } from "./amazon/connector";
+import { shopifyConnector } from "./shopify/connector";
 
 // Every integration provider, keyed by uppercase code (= sales_platforms.code +
 // platform_credentials.provider). A platform whose code is here gets official
@@ -7,6 +8,7 @@ import { amazonConnector } from "./amazon/connector";
 // dropping its connector here — no ERP change needed.
 export const CONNECTORS: Record<string, MarketplaceConnector> = {
   AMAZON: amazonConnector,
+  SHOPIFY: shopifyConnector,
 };
 
 export function getConnector(code: string): MarketplaceConnector | undefined {

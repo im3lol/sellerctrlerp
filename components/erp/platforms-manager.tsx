@@ -67,10 +67,10 @@ function CreatePlatformDialog({
   const [warehouseId, setWarehouseId] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
 
-  // Automatic setup: provision everything (platform + customer + FBA warehouse + Amazon Wallet bank).
-  const provision = (fulfillment: string) => start(async () => {
+  // Automatic setup: provision everything (platform + customer + warehouse + settlement bank).
+  const provision = (fulfillment?: string) => start(async () => {
     const r = await provisionMarketplaceAction({ connector: autoConnector!, fulfillment });
-    if (r.ok) { toast.success("تم تجهيز أمازون: عميل + مخزن FBA + محفظة Amazon Wallet"); onClose(); router.push(`/platforms/${r.code ?? "amazon"}`); }
+    if (r.ok) { toast.success("تم التجهيز: عميل + مخزن + بنك التسويات — اربط الحساب من صفحة المنصة"); onClose(); router.push(`/platforms/${r.code ?? autoConnector!.toLowerCase()}`); }
     else toast.error(r.error ?? "تعذّر التجهيز");
   });
 
@@ -136,7 +136,7 @@ function CreatePlatformDialog({
         </div>
       )}
 
-      {mode === "auto" && autoConnector && (
+      {mode === "auto" && autoConnector === "AMAZON" && (
         <div className="space-y-3">
           <div className="text-sm text-muted-foreground">نوع التنفيذ لأمازون:</div>
           <div className="grid gap-2">
@@ -150,6 +150,16 @@ function CreatePlatformDialog({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">سيُنشأ: منصة أمازون + عميل + مخزن «أمازون FBA» + بنك «Amazon Wallet» — كلها قابلة للتعديل لاحقًا.</p>
+          <Button variant="ghost" size="sm" onClick={() => setAutoConnector(null)}>رجوع</Button>
+        </div>
+      )}
+
+      {mode === "auto" && autoConnector && autoConnector !== "AMAZON" && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">سيُنشأ: المنصة + عميل + مخزن + بنك التسويات — كلها قابلة للتعديل لاحقًا. بعد التجهيز، اربط الحساب من صفحة المنصة.</p>
+          <Button onClick={() => provision()} disabled={pending} className="w-full">
+            {pending && <Loader2 className="size-4 animate-spin" />}تجهيز {BRANDS.find((b) => b.code === autoConnector)?.label ?? autoConnector}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setAutoConnector(null)}>رجوع</Button>
         </div>
       )}
