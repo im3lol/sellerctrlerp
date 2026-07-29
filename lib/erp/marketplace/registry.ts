@@ -1,5 +1,9 @@
 import type { MarketplaceConnector } from "./connector";
 import { amazonConnector } from "./amazon/connector";
+// Shopify is fully built (connector + settlement engine + tests) but kept "قريبًا"
+// until it's productionized. Re-enable by restoring this import + the CONNECTORS
+// entry below — nothing else needs to change; all shopify/* code stays in place.
+// import { shopifyConnector } from "./shopify/connector";
 
 // Every integration provider, keyed by uppercase code (= sales_platforms.code +
 // platform_credentials.provider). A platform whose code is here gets official
@@ -7,6 +11,7 @@ import { amazonConnector } from "./amazon/connector";
 // dropping its connector here — no ERP change needed.
 export const CONNECTORS: Record<string, MarketplaceConnector> = {
   AMAZON: amazonConnector,
+  // SHOPIFY: shopifyConnector, // ← «قريبًا» — re-enable with the import above when ready
 };
 
 export function getConnector(code: string): MarketplaceConnector | undefined {

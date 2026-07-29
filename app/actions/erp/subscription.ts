@@ -63,7 +63,7 @@ export async function requestSubscriptionAction(input: SubRequestInput): Promise
 
 export type XpayStartInput = { planId: string; interval: string };
 export type XpayStartResult =
-  | { ok: true; mode: "dropin"; clientSecret: string; publishableKey: string; baseUrl: string }
+  | { ok: true; mode: "elements"; clientSecret: string; publishableKey: string; planName: string; amount: number; interval: string }
   | { ok: true; mode: "redirect"; url: string }
   | { error: string };
 
@@ -86,7 +86,7 @@ export async function startXpaySubscriptionAction(input: XpayStartInput): Promis
   if (input.interval !== "MONTHLY" && input.interval !== "ANNUAL") return { error: "دورة غير صحيحة" };
   const base = process.env.APP_URL;
   if (!base) return { error: "تعذّر تحديد رابط النظام (APP_URL) — تواصل مع الدعم" };
-  const dropIn = !!cfg.publishableKey; // drop-in when a publishable key is set, else hosted redirect
+  const elements = !!cfg.publishableKey; // branded Elements page when a publishable key is set, else hosted redirect
 
   return withOrgScope(org.id, false, async () => {
     const [plan] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.isActive, true))).limit(1);
@@ -106,11 +106,11 @@ export async function startXpaySubscriptionAction(input: XpayStartInput): Promis
         amount: price, currency: "EGP", name: `اشتراك ${plan.name} (${input.interval === "ANNUAL" ? "سنوي" : "شهري"})`,
         redirectUrl: `${base.replace(/\/$/, "")}/api/subscription/xpay/return?session_id={CHECKOUT_SESSION_ID}`,
         metadata: { subscription_request_id: reqRow.id, organization_id: org.id },
-        ...(dropIn ? { uiMode: "embedded" as const } : {}),
+        ...(elements ? { uiMode: "custom" as const } : {}),
       });
       // Stash the session id so the webhook/return can match this payment to the request.
       await db.update(subscriptionRequests).set({ paymentReference: session.id }).where(eq(subscriptionRequests.id, reqRow.id));
-      if (dropIn && session.clientSecret) return { ok: true, mode: "dropin", clientSecret: session.clientSecret, publishableKey: cfg.publishableKey, baseUrl: cfg.baseUrl };
+      if (elements && session.clientSecret) return { ok: true, mode: "elements", clientSecret: session.clientSecret, publishableKey: cfg.publishableKey, planName: plan.name, amount: price, interval: input.interval };
       return { ok: true, mode: "redirect", url: session.url };
     } catch (e) {
       await db.delete(subscriptionRequests).where(eq(subscriptionRequests.id, reqRow.id)); // don't leave a blocking PENDING

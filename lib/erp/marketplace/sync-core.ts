@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, platformCredentials } from "@/db/schema";
 import { decryptSecret } from "@/lib/crypto";
-import { ensureAmazonPlatform } from "@/lib/erp/platform-provision";
+import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { AutoMode } from "@/lib/erp/fulfillment";
@@ -13,7 +13,7 @@ import { upsertPlatformReturns, processPlatformReturns } from "@/lib/erp/returns
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
-import { isAuthError } from "@/lib/erp/marketplace/amazon/client";
+import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 import { orderCreateFloor } from "./sync-range";
 
@@ -51,7 +51,7 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     if (!refreshToken) return { error: "تعذّر فك تشفير التوكن — أعد ربط الحساب" };
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
-    if (connector.code === "AMAZON") await ensureAmazonPlatform(orgId);
+    await ensurePlatform(orgId, connector.code);
     const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
@@ -76,9 +76,10 @@ export async function markSync(orgId: string, provider: string, patch: Partial<{
  * until the org reconnects; anything else is a normal transient failure.
  */
 async function coreFail(p: SyncPrep, e: unknown, fallback: string): Promise<{ ok: false; error: string }> {
-  if (isAuthError(e)) {
+  const authErr = p.connector.isAuthError?.(e) ?? isAmazonAuthError(e);
+  if (authErr) {
     await markSync(p.orgId, p.provider, { needsReauth: true, lastSyncStatus: "reauth" }).catch(() => {});
-    return { ok: false, error: "انتهت صلاحية ربط أمازون — أعد ربط الحساب" };
+    return { ok: false, error: `انتهت صلاحية ربط ${p.connector.label} — أعد ربط الحساب` };
   }
   return { ok: false, error: e instanceof Error ? e.message : fallback };
 }
@@ -92,7 +93,7 @@ async function coreFail(p: SyncPrep, e: unknown, fallback: string): Promise<{ ok
  *  the incremental sync (syncProductsCore) and the full import (importProductsCore). */
 async function ingestAndEnrich(p: SyncPrep, products: MarketplaceProduct[]): Promise<ProductsSync> {
   const org = p.orgId;
-  const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode));
+  const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode, p.connector.code));
 
   let images = 0, barcodes = 0, fields = 0, families = 0;
   const fetchCatalog = p.connector.fetchCatalog;
@@ -221,10 +222,10 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
   if (!p.connector.fetchSettlements) return { ok: false, error: "المنصة لا تدعم مزامنة التسويات" };
   try {
     const txns = await p.connector.fetchSettlements(p.cred, range); // slow fetch, unscoped
-    const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns));
+    const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns, p.connector.code));
     let posted = 0, deferredHeld = 0, returnsCreated = 0;
     if (p.autoPostSettlements) {
-      const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null));
+      const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null, p.connector.code));
       if ("error" in res) return { ok: false, error: res.error };
       posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
     }

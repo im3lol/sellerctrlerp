@@ -11,6 +11,7 @@ import { fulfillOrder, cancelMarketplaceOrder, STOCK_WAIT_MARK, type AutoMode } 
 import { currentStock } from "@/lib/erp/inventory";
 import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview, type ItemResolver } from "./classify";
 import { validateParentLink } from "@/lib/erp/item-family-core";
+import { CHANNEL_CODE_TYPE } from "@/lib/erp/marketplace-code";
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
 import type { CatalogRecord } from "./connector";
 
@@ -439,15 +440,17 @@ async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
  *                P-xxxxx + name + price + SKU/ASIN codes), enriched right after.
  * Idempotent: a matched item already carrying the SKU code counts as alreadyLinked.
  */
-export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode): Promise<ProductsResult> {
+export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode, channel = "AMAZON"): Promise<ProductsResult> {
   const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0 };
   if (products.length === 0) return result;
 
-  // Linking is keyed on ASIN item_codes ONLY (codeType-filtered). `known` = every
-  // existing normalized code (any type), used to detect an already-attached SKU.
+  // Linking is keyed on the channel's own code (ASIN for Amazon, variant GID for
+  // Shopify) — codeType-filtered. `known` = every existing normalized code (any
+  // type), used to detect an already-attached SKU.
+  const linkType = CHANNEL_CODE_TYPE[channel] ?? "ASIN";
   const [asinRows, allCodeRows] = await Promise.all([
     db.select({ itemId: itemCodes.itemId, norm: itemCodes.normalizedCode }).from(itemCodes)
-      .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, "ASIN"))),
+      .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, linkType))),
     db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
   ]);
   const itemByAsin = new Map<string, string>();
@@ -484,7 +487,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
         const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
           organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId, sellPrice: String(round2(p.sellPrice || 0)),
         }))).returning({ id: items.id });
-        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
+        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); });
         created += inserted.length;
       }
       result.created = created;

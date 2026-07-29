@@ -13,6 +13,7 @@ import { PlatformInventoryImport } from "@/components/erp/platform-inventory-imp
 import { PlatformRemovalsImport } from "@/components/erp/platform-removals-import";
 import { AmazonImport } from "@/components/erp/amazon-import";
 import { SettlementImport } from "@/components/erp/settlement-import";
+import { getConnector } from "@/lib/erp/marketplace/registry";
 
 export default async function PlatformImportPage({
   params, searchParams,
@@ -25,25 +26,32 @@ export default async function PlatformImportPage({
     if (!platform) notFound();
 
     const isAmazon = platform.integrationType === "amazon";
-    const allowed = isAmazon ? ["orders", "settlement", "inventory", "removals"] : ["orders", "payments", "returns", "inventory", "removals"];
+    // A connector with a settlements capability (Amazon SP-API, Shopify Payments) gets
+    // the API pull + post/reverse UI, scoped to its own channel.
+    const connector = getConnector(platform.code);
+    const settlementCapable = !!connector?.capabilities.settlements;
+    const showPayouts = settlementCapable && !isAmazon; // Shopify etc. (Amazon uses its own tab)
+    const allowed = isAmazon
+      ? ["orders", "settlement", "inventory", "removals"]
+      : [...(showPayouts ? ["payouts"] : []), "orders", "payments", "returns", "inventory", "removals"];
     const defaultTab = tab && allowed.includes(tab) ? tab : "orders";
 
     // Recent pulled settlement rows + how many are released-but-unposted (for the
-    // manual "post" button). Only for Amazon (the only settlement source today).
-    const settlementRows: SettlementRow[] = isAmazon
+    // manual "post" button) — scoped to THIS platform's channel.
+    const settlementRows: SettlementRow[] = settlementCapable
       ? (await db.select({
           id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type,
           orderId: marketplaceSettlementTxns.orderId, sku: marketplaceSettlementTxns.sku,
           total: marketplaceSettlementTxns.total, status: marketplaceSettlementTxns.status,
           journalEntryId: marketplaceSettlementTxns.journalEntryId,
         }).from(marketplaceSettlementTxns)
-          .where(eq(marketplaceSettlementTxns.organizationId, orgId))
+          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.channel, platform.code)))
           .orderBy(desc(marketplaceSettlementTxns.createdAt)).limit(50))
           .map((r) => ({ id: r.id, type: r.type, orderId: r.orderId, sku: r.sku, total: Number(r.total), status: r.status, posted: !!r.journalEntryId }))
       : [];
-    const unpostedReleased = isAmazon
+    const unpostedReleased = settlementCapable
       ? Number((await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
-          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.status, "Released"), isNull(marketplaceSettlementTxns.journalEntryId))))[0]?.n ?? 0)
+          .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.channel, platform.code), eq(marketplaceSettlementTxns.status, "Released"), isNull(marketplaceSettlementTxns.journalEntryId))))[0]?.n ?? 0)
       : 0;
 
     return (
@@ -71,12 +79,18 @@ export default async function PlatformImportPage({
         ) : (
           <Tabs defaultValue={defaultTab}>
             <TabsList>
+              {showPayouts && <TabsTrigger value="payouts">التسويات (مدفوعات + عمولات)</TabsTrigger>}
               <TabsTrigger value="orders">مبيعات</TabsTrigger>
               <TabsTrigger value="payments">مدفوعات</TabsTrigger>
               <TabsTrigger value="returns">مرتجعات</TabsTrigger>
               <TabsTrigger value="inventory">مخزون</TabsTrigger>
               <TabsTrigger value="removals">إزالات</TabsTrigger>
             </TabsList>
+            {showPayouts && (
+              <TabsContent value="payouts">
+                <SettlementImport code={platform.code} rows={settlementRows} unpostedReleased={unpostedReleased} isAmazon={false} label={connector?.label ?? platform.name} />
+              </TabsContent>
+            )}
             <TabsContent value="orders"><PlatformImport platformId={platform.id} platformName={platform.name} /></TabsContent>
             <TabsContent value="payments"><PlatformPaymentsImport platformId={platform.id} platformName={platform.name} hasBank={!!platform.bankAccountId} /></TabsContent>
             <TabsContent value="returns"><PlatformReturnsImport platformId={platform.id} platformName={platform.name} /></TabsContent>
