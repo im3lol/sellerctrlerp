@@ -171,7 +171,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         <ErpPageHeader
           icon="Store"
           title={platform.name}
-          subtitle={`منصة ${isAmazon ? "أمازون" : "عامة"} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
+          subtitle={`منصة ${connector?.label ?? (isAmazon ? "أمازون" : "عامة")} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
           backHref="/platforms"
           action={
             <PlatformHeaderActions
@@ -229,8 +229,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Kpi label="عدد المنتجات" value={int(productCount)} hint="أصناف الكتالوج النشطة" />
-          <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />
-          <Kpi label="مخزون النظام (FBA)" value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
+          {isAmazon && <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />}
+          <Kpi label={isAmazon ? "مخزون النظام (FBA)" : "مخزون النظام"} value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
           <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
           <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
           <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />
@@ -244,13 +244,13 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           <Card>
             <CardHeader>
               <CardTitle>ربحية المنصة (P&L)</CardTitle>
-              <CardDescription>إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم أمازون الفعلية من التسويات.</CardDescription>
+              <CardDescription>إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم المنصة الفعلية من التسويات.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <Field label="المبيعات">{fmt(pnl.revenue)}</Field>
-                <Field label="عمولة أمازون">{fmt(pnl.referralFee)}</Field>
-                <Field label="رسوم FBA">{fmt(pnl.fbaFee)}</Field>
+                <Field label={isAmazon ? "عمولة أمازون" : "عمولة المنصة"}>{fmt(pnl.referralFee)}</Field>
+                {isAmazon && <Field label="رسوم FBA">{fmt(pnl.fbaFee)}</Field>}
                 <Field label="رسوم أخرى">{fmt(pnl.otherFee)}</Field>
                 <Field label="تكلفة البضاعة">{fmt(pnl.cogs)}</Field>
                 <Field label="صافي الربح">
