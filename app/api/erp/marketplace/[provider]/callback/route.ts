@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
@@ -30,8 +29,18 @@ async function extractCallback(connector: MarketplaceConnector, url: URL, state:
 /** OAuth redirect target: exchange the code for a refresh token and store it. */
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
-  const back = (ok: boolean, msg?: string) =>
-    redirect(`/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`);
+  // Client-side redirect (meta-refresh + JS), NOT a server 307. The callback is
+  // reached via a cross-site navigation from the OAuth provider; a server redirect
+  // to the protected platform page rides that cross-site context and some browsers
+  // withhold the SameSite=Lax session cookie on it → the middleware bounces to /login
+  // even though the tenant is logged in. A client-side navigation from this returned
+  // HTML is unambiguously same-site, so the session cookie is always sent.
+  const back = (ok: boolean, msg?: string): Response => {
+    const to = `/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`;
+    const j = JSON.stringify(to);
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${to.replace(/"/g, "&quot;")}"><title>جارٍ التحويل…</title></head><body style="font-family:system-ui;padding:2rem;text-align:center">جارٍ إتمام الربط…<script>location.replace(${j})</script></body></html>`;
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  };
 
   const connector = getConnector(provider);
   if (!connector?.oauth) return back(false, "موصّل غير مدعوم");
