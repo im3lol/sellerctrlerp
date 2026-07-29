@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, platformCredentials } from "@/db/schema";
+import { organizations, platformCredentials, orgSubscriptions } from "@/db/schema";
+import { expiryReminderEmail } from "@/lib/saas/email-templates";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
 import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
@@ -68,6 +69,28 @@ export async function GET(req: Request) {
   try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
   try { await pruneReportDownloads(7); } catch { /* non-fatal */ }
 
+  // 1e) Subscription expiry reminders (dunning): email each org whose ACTIVE
+  // subscription is 7 / 3 / 1 days from expiry. Assumes a DAILY cron, so each
+  // threshold day fires exactly once — no per-org marker needed. Goes to the org's
+  // email; no-ops when email isn't configured or the org has none.
+  let reminders = 0;
+  try {
+    const soon = new Date(now.getTime() + 8 * 86400000);
+    const expiring = await db.select({
+      email: organizations.email, name: organizations.nameAr,
+      planName: orgSubscriptions.planName, expiresAt: orgSubscriptions.expiresAt,
+    }).from(orgSubscriptions)
+      .innerJoin(organizations, eq(organizations.id, orgSubscriptions.organizationId))
+      .where(and(eq(orgSubscriptions.status, "ACTIVE"), gte(orgSubscriptions.expiresAt, now), lte(orgSubscriptions.expiresAt, soon)));
+    for (const s of expiring) {
+      if (!s.email || !s.expiresAt) continue;
+      const daysLeft = Math.ceil((new Date(s.expiresAt).getTime() - now.getTime()) / 86400000);
+      if (![1, 3, 7].includes(daysLeft)) continue;
+      const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin });
+      if (await sendEmail({ to: s.email, subject: mail.subject, html: mail.html, text: mail.text })) reminders++;
+    }
+  } catch (e) { console.error("[expiry-reminders]", e); }
+
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
   // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.
   let backedUp = 0;
@@ -77,7 +100,7 @@ export async function GET(req: Request) {
 
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -99,6 +122,6 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, sent });
   });
 }

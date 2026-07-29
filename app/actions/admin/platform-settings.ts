@@ -81,3 +81,43 @@ export async function saveShopifySettingsAction(input: { clientId?: string; clie
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }
+
+/** Owner reads the SMTP email config — the password is never returned, only whether it's set. */
+export async function getEmailSettingsAdmin() {
+  await requireCapability("employee.manage");
+  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  return {
+    host: row?.smtpHost ?? "",
+    port: row?.smtpPort ?? 587,
+    user: row?.smtpUser ?? "",
+    from: row?.smtpFrom ?? "",
+    fromName: row?.smtpFromName ?? "SellerCtrl",
+    hasPass: !!row?.smtpPass,
+  };
+}
+
+/**
+ * Save the SMTP email config. The password is encrypted; a BLANK password keeps the
+ * stored value. Everything else is set as given.
+ */
+export async function saveEmailSettingsAction(input: { host?: string; port?: number; user?: string; pass?: string; from?: string; fromName?: string }): Promise<Res> {
+  await requireCapability("employee.manage");
+  try {
+    const set: Record<string, unknown> = {
+      id: SINGLETON,
+      smtpHost: input.host?.trim() || null,
+      smtpPort: input.port && input.port > 0 ? Math.trunc(input.port) : null,
+      smtpUser: input.user?.trim() || null,
+      smtpFrom: input.from?.trim() || null,
+      smtpFromName: input.fromName?.trim() || null,
+      updatedAt: new Date(),
+    };
+    if (input.pass?.trim()) set.smtpPass = encryptSecret(input.pass.trim());
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[email-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
