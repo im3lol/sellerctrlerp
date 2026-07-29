@@ -32,9 +32,13 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
 
   const save = () => start(async () => {
-    const r = await saveXpaySettingsAction({ secretKey, webhookSecret, baseUrl });
-    if ("ok" in r) { toast.success("تم حفظ إعدادات xpay"); setSecretKey(""); setWebhookSecret(""); router.refresh(); }
-    else toast.error(r.error);
+    try {
+      const r = await saveXpaySettingsAction({ secretKey, webhookSecret, baseUrl });
+      if ("ok" in r) { toast.success("تم حفظ إعدادات xpay"); setSecretKey(""); setWebhookSecret(""); router.refresh(); }
+      else toast.error(r.error);
+    } catch (e) {
+      toast.error("تعذّر الحفظ: " + (e instanceof Error ? e.message : "خطأ غير متوقع"));
+    }
   });
 
   const base = (appUrl || "").replace(/\/$/, "");
