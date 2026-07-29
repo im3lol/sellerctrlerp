@@ -19,9 +19,8 @@ import {
   Truck,
   Search,
   ChartPie,
-  Globe,
   Mail,
-  Share2,
+  MessageCircle,
   Check,
   UserCog,
   Warehouse,
@@ -58,7 +57,7 @@ const MODULES = [
   { icon: Boxes, title: "مخزون دقيق", desc: "متعدد المستودعات، تكلفة بالدفعة (FIFO)، تتبّع الدفعات وتاريخ الصلاحية (FEFO)، تسويات وتحويلات، وتنبيهات النواقص والانتهاء." },
   { icon: ShoppingCart, title: "دورة شراء كاملة", desc: "أمر شراء ← إذن استلام ← فاتورة ← دفعة، مع المرتجعات وأعمار ذمم الموردين." },
   { icon: ReceiptText, title: "دورة بيع كاملة", desc: "أمر بيع ← تسليم ← فاتورة ← تحصيل، مع المرتجعات وأعمار ذمم العملاء." },
-  { icon: Store, title: "منصات البيع", desc: "اربط أمازون ونون — استورد الطلبات والتسويات والمرتجعات، وكل عملية تترحّل لمخزونك وحساباتك تلقائياً." },
+  { icon: Store, title: "تكامل أمازون", desc: "اربط حساب أمازون واستورد الطلبات والتسويات والمرتجعات والرسوم — وكل عملية تترحّل لمخزونك وحساباتك تلقائياً. (نون قريبًا)" },
   { icon: LayoutDashboard, title: "لوحة تحكم لحظية", desc: "الأرباح والنقدية والذمم وقيمة المخزون — صورة كاملة لتجارتك في شاشة واحدة." },
 ];
 
@@ -84,7 +83,11 @@ const FAQS = [
   { q: "بياناتي آمنة؟", a: "بيانات كل منشأة معزولة تماماً، والوصول محكوم بصلاحيات دقيقة لكل مستخدم." },
 ];
 
-const MARKETPLACES = ["amazon", "noon", "Trendyol", "جرير", "سوق"];
+// Only real integrations. Amazon is live; Noon is on the roadmap (marked قريبًا).
+const MARKETPLACES: { name: string; soon?: boolean }[] = [
+  { name: "amazon" },
+  { name: "noon", soon: true },
+];
 
 export default async function Home() {
   // Degrade to the empty-state pricing card if the DB is unreachable at build/runtime.
@@ -142,7 +145,7 @@ export default async function Home() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="text-base">
-              <Link href="/login">شاهد عرضاً توضيحياً</Link>
+              <Link href="#modules">استكشف المزايا</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
@@ -162,11 +165,12 @@ export default async function Home() {
       {/* Marketplaces */}
       <section id="marketplaces" className="border-y bg-muted/30 py-10">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
-          <p className="text-center text-sm text-muted-foreground">يدير تجارتك على مختلف المنصات</p>
+          <p className="text-center text-sm text-muted-foreground">مصمّم لبائعي أمازون — يستورد الطلبات والتسويات ويرحّلها لحساباتك</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
             {MARKETPLACES.map((m) => (
-              <span key={m} className="text-xl font-bold text-muted-foreground/70" dir="ltr">
-                {m}
+              <span key={m.name} className="flex items-center gap-2 text-xl font-bold text-muted-foreground/70" dir="ltr">
+                {m.name}
+                {m.soon && <span dir="rtl" className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">قريبًا</span>}
               </span>
             ))}
           </div>
@@ -312,23 +316,35 @@ export default async function Home() {
             <div className="space-y-3">
               <Logo className="text-2xl text-primary-foreground" />
               <p className="text-sm text-primary-foreground/70">
-                SellerCtrl — نظام ERP موحّد يدير تجارتك بالكامل من مكان واحد.
+                SellerCtrl — نظام ERP عربي موحّد لبائعي أمازون: محاسبة ومخزون وبيع وشراء وربط منصات في مكان واحد.
               </p>
             </div>
-            <FooterCol title="المنتج" links={["الموديولات", "لماذا نحن", "الأسعار", "الأمان"]} />
-            <FooterCol title="الشركة" links={["من نحن", "المدونة", "الوظائف", "تواصل معنا"]} />
-            <FooterCol title="الدعم" links={["المساعدة", "التوثيق", "الحالة", "سياسة الخصوصية"]} />
+            <FooterCol title="المنتج" links={[
+              { label: "المزايا", href: "#modules" },
+              { label: "لماذا نحن", href: "#why" },
+              { label: "الأسعار", href: "#pricing" },
+              { label: "الأسئلة الشائعة", href: "#faq" },
+            ]} />
+            <FooterCol title="تواصل معنا" links={[
+              { label: "info@sellerctrl.com", href: "mailto:info@sellerctrl.com" },
+              { label: "واتساب: 201025246324+", href: "https://wa.me/201025246324" },
+              { label: "تسجيل الدخول", href: "/login" },
+            ]} />
+            <FooterCol title="قانوني" links={[
+              { label: "سياسة الخصوصية", href: "/privacy" },
+            ]} />
           </div>
           <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-primary-foreground/20 pt-6 sm:flex-row">
             <p className="text-sm text-primary-foreground/60">
               © {new Date().getFullYear()} SellerCtrl. جميع الحقوق محفوظة.
             </p>
             <div className="flex gap-3">
-              {[Globe, Mail, Share2].map((I, i) => (
-                <a key={i} href="#" className="grid size-9 place-items-center rounded-full bg-primary-foreground/10 transition hover:bg-primary-foreground/20">
-                  <I className="size-4" />
-                </a>
-              ))}
+              <a href="mailto:info@sellerctrl.com" aria-label="البريد الإلكتروني" className="grid size-9 place-items-center rounded-full bg-primary-foreground/10 transition hover:bg-primary-foreground/20">
+                <Mail className="size-4" />
+              </a>
+              <a href="https://wa.me/201025246324" target="_blank" rel="noopener noreferrer" aria-label="واتساب" className="grid size-9 place-items-center rounded-full bg-primary-foreground/10 transition hover:bg-primary-foreground/20">
+                <MessageCircle className="size-4" />
+              </a>
             </div>
           </div>
         </div>
@@ -449,14 +465,14 @@ function DashboardPreview() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: string[] }) {
+function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
   return (
     <div>
       <h4 className="font-semibold">{title}</h4>
       <ul className="mt-3 space-y-2 text-sm text-primary-foreground/70">
         {links.map((l) => (
-          <li key={l}>
-            <a href="#" className="hover:text-primary-foreground">{l}</a>
+          <li key={l.label}>
+            <a href={l.href} className="hover:text-primary-foreground">{l.label}</a>
           </li>
         ))}
       </ul>
