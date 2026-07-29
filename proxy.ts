@@ -22,6 +22,7 @@ export default auth((req) => {
     path.startsWith("/api/v1") || // public REST API — authed per-request by API key, not session
     path.startsWith("/api/cron") || // Vercel Cron — authed by CRON_SECRET in the route, not session
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
+    path.startsWith("/api/subscription/xpay") || // xpay gateway callback/return — verified server-side by transaction lookup, not session
     path.startsWith("/_next") ||
     path.startsWith("/brand") ||
     path.startsWith("/sounds"); // static notification chimes — no auth needed

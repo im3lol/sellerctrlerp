@@ -12,5 +12,6 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "الأكاديمية", href: "/admin/academy", icon: "GraduationCap", desc: "محتوى التدريب والشرح للمنتج." },
   { label: "آخر التحديثات", href: "/admin/changelog", icon: "Sparkles", desc: "ملاحظات الإصدارات المعروضة للعملاء." },
   { label: "الاقتراحات والشكاوى", href: "/admin/feedback", icon: "MessageSquarePlus", desc: "صندوق ملاحظات المؤسسات عبر النظام." },
+  { label: "التكاملات", href: "/admin/integrations", icon: "Plug", desc: "بوابات الدفع (xpay) ومفاتيح الربط." },
   { label: "أدوات النظام", href: "/admin/system", icon: "Server", desc: "حالة الخادم وقاعدة البيانات والتخزين." },
 ];

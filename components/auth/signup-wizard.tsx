@@ -35,7 +35,9 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
   // Step 3: pick a plan to subscribe now (with payment), or leave null for trial-only.
   const [planId, setPlanId] = useState<string | null>(null);
   const [interval, setInterval] = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
-  const [payMethod, setPayMethod] = useState<string>(PAYMENT_METHODS.find((m) => m.enabled)!.key);
+  // xpay (online gateway) needs an active org session, so it's offered only from
+  // /settings/subscription after signup — here the manual transfer methods only.
+  const [payMethod, setPayMethod] = useState<string>(PAYMENT_METHODS.find((m) => m.enabled && m.key !== "XPAY")!.key);
   const [payReference, setPayReference] = useState("");
   const selectedPlan = plans.find((p) => p.id === planId) ?? null;
   const chosenMethod = PAYMENT_METHODS.find((m) => m.key === payMethod)!;
@@ -157,14 +159,14 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                 </div>
                 <div className="space-y-1.5"><Label>طريقة الدفع</Label>
                   <select className={selectCls} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
-                    {PAYMENT_METHODS.filter((m) => m.enabled).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    {PAYMENT_METHODS.filter((m) => m.enabled && m.key !== "XPAY").map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </select>
                 </div>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <div className="mb-1 font-medium">المبلغ: {egp(planPrice)} ج.م</div>
                 <p className="text-muted-foreground">{chosenMethod.detail}</p>
-                {payMethod === "INSTAPAY" && (
+                {(payMethod === "INSTAPAY" || payMethod === "VODAFONE") && (
                   <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
                     className="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 font-mono text-base font-semibold hover:bg-accent" dir="ltr">
                     {WALLET_NUMBER}<Copy className="size-3.5" />
