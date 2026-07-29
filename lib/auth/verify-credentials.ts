@@ -8,13 +8,15 @@ import { BCRYPT_COST, lockoutAfterFailure } from "@/lib/auth/password-policy";
 import { decryptSecret } from "@/lib/crypto";
 
 export type VerifiedUser = { id: string; name: string; email: string | null; role: string; avatarUrl: string | null };
+type UserRow = typeof users.$inferSelect;
 
 /**
- * Verify an email-or-username + password (+ optional TOTP/backup code). Shared by
- * the web credentials provider (auth.ts) and the mobile API login route so both
- * paths use identical password/MFA rules. Returns the user on success, else null.
+ * Identifier + password gate — shared first phase. Looks the user up, enforces
+ * the brute-force lockout, and verifies the password (upgrading legacy hashes).
+ * Records a failure + returns null on any miss; on success returns the row
+ * WITHOUT clearing failures or checking MFA (the caller owns those).
  */
-export async function verifyCredentials(rawIdentifier: string, password: string, otp?: string): Promise<VerifiedUser | null> {
+async function checkPassword(rawIdentifier: string, password: string): Promise<UserRow | null> {
   const identifier = String(rawIdentifier ?? "").toLowerCase().trim();
   if (!identifier || !password) return null;
 
@@ -35,11 +37,6 @@ export async function verifyCredentials(rawIdentifier: string, password: string,
   // NAT/proxies); returns null (generic) rather than a "locked" signal to avoid
   // rippling the return type into both callers — a distinct UI message can come later.
   const now = new Date();
-  const recordFailure = async () => {
-    const next = lockoutAfterFailure(user.failedLoginAttempts ?? 0, now.getTime());
-    await db.update(users).set(next).where(eq(users.id, user.id));
-    return null;
-  };
   if (user.lockedUntil && new Date(user.lockedUntil) > now) return null;
 
   let ok = false;
@@ -53,12 +50,44 @@ export async function verifyCredentials(rawIdentifier: string, password: string,
       await db.update(users).set({ passwordHash: upgraded }).where(eq(users.id, user.id));
     }
   }
-  if (!ok) return recordFailure();
+  if (!ok) {
+    const next = lockoutAfterFailure(user.failedLoginAttempts ?? 0, now.getTime());
+    await db.update(users).set(next).where(eq(users.id, user.id));
+    return null;
+  }
+  return user;
+}
+
+async function recordFailure(user: UserRow): Promise<null> {
+  const next = lockoutAfterFailure(user.failedLoginAttempts ?? 0, Date.now());
+  await db.update(users).set(next).where(eq(users.id, user.id));
+  return null;
+}
+
+/**
+ * Login step-1 probe (web two-step flow): validate the password only and report
+ * whether a second factor is still required — without failing the request the
+ * way verifyCredentials does when MFA is on but no code was supplied yet.
+ */
+export async function passwordLoginStep(rawIdentifier: string, password: string): Promise<"invalid" | "mfa" | "ok"> {
+  const user = await checkPassword(rawIdentifier, password);
+  if (!user) return "invalid";
+  return user.mfaEnabled ? "mfa" : "ok";
+}
+
+/**
+ * Verify an email-or-username + password (+ optional TOTP/backup code). Shared by
+ * the web credentials provider (auth.ts) and the mobile API login route so both
+ * paths use identical password/MFA rules. Returns the user on success, else null.
+ */
+export async function verifyCredentials(rawIdentifier: string, password: string, otp?: string): Promise<VerifiedUser | null> {
+  const user = await checkPassword(rawIdentifier, password);
+  if (!user) return null;
 
   // Second factor: valid TOTP or a one-time backup code (consumed on use).
   if (user.mfaEnabled) {
     const code = String(otp ?? "").trim();
-    if (!code) return recordFailure();
+    if (!code) return recordFailure(user);
     const secret = user.mfaSecret ? decryptSecret(user.mfaSecret) : null;
     let mfaOk = secret ? authenticator.check(code, secret) : false;
     if (!mfaOk && Array.isArray(user.mfaBackupCodes)) {
@@ -70,7 +99,7 @@ export async function verifyCredentials(rawIdentifier: string, password: string,
         }
       }
     }
-    if (!mfaOk) return recordFailure();
+    if (!mfaOk) return recordFailure(user);
   }
 
   // Full success — clear any accumulated failures/freeze.
