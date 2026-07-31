@@ -130,9 +130,13 @@ export function PlatformHeaderActions({
       </Dialog>
 
       <PlatformActions code={code} isAmazon={isAmazon} open={ioOpen} onOpenChange={setIoOpen} />
-      <SyncProgress code={code} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
-      <AuditProgress code={code} open={auditOpen} onClose={() => setAuditOpen(false)} />
-      <OrdersProgress code={code} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
+      {/* All background-job cards share one anchor and stack vertically so
+          concurrent syncs never overlap. Each renders null when closed. */}
+      <div className="fixed bottom-24 left-4 z-[60] flex flex-col gap-3">
+        <SyncProgress code={code} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
+        <AuditProgress code={code} open={auditOpen} onClose={() => setAuditOpen(false)} />
+        <OrdersProgress code={code} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
+      </div>
     </div>
   );
 }

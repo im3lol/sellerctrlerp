@@ -25,12 +25,14 @@ export function OrdersProgress({ code, open, onClose }: { code: string; open: bo
       // A paced backfill (Amazon rate limits) can run ~1s/order → tens of minutes.
       // Poll for up to ~2h; if still running past that, stop polling and tell the
       // user it continues in the background (the job isn't tied to this popup).
+      // Poll first, THEN sleep: without Redis the pull runs inline and is already
+      // done when this popup opens, so a sleep-first loop would spin a pointless 5s.
       for (let i = 0; i < 1440; i++) {
-        await sleep(5000);
         let s: OrdersStatus;
-        try { s = await ordersSyncStatusAction(code); } catch { continue; }
+        try { s = await ordersSyncStatusAction(code); } catch { await sleep(5000); continue; }
         setSt(s);
         if (s.phase === "done" || s.phase === "error") { router.refresh(); return; }
+        await sleep(5000);
       }
       setTimedOut(true);
     })();
@@ -42,7 +44,7 @@ export function OrdersProgress({ code, open, onClose }: { code: string; open: bo
   const running = st.phase === "running" || st.phase === "idle";
 
   return (
-    <div className="fixed bottom-24 left-4 z-[60] w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold"><ShoppingCart className={`size-4 ${running ? "animate-pulse" : ""}`} />سحب المبيعات</div>
         <button onClick={close} aria-label="إغلاق" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>

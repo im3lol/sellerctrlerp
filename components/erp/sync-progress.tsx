@@ -92,7 +92,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
   const done = steps.filter((s) => s.status === "done" || s.status === "error").length;
 
   return (
-    <div className="fixed bottom-24 left-4 z-[60] w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
           <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة أمازون
