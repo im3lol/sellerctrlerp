@@ -12,9 +12,10 @@ export type MarketplaceConnection = {
   autoSync: boolean;
   needsReauth: boolean;
   realtime: boolean; // ORDER_CHANGE subscription active
+  ordersSyncedAt: string | null; // orders watermark — null = never pulled orders yet
 };
 
-const EMPTY: MarketplaceConnection = { connected: false, sellerId: null, marketplaceId: null, region: null, lastSyncAt: null, lastSyncStatus: null, autoSync: false, needsReauth: false, realtime: false };
+const EMPTY: MarketplaceConnection = { connected: false, sellerId: null, marketplaceId: null, region: null, lastSyncAt: null, lastSyncStatus: null, autoSync: false, needsReauth: false, realtime: false, ordersSyncedAt: null };
 
 /** Read a tenant's connection for a provider (no secrets exposed). */
 export async function getConnection(orgId: string, provider: string): Promise<MarketplaceConnection> {
@@ -24,6 +25,7 @@ export async function getConnection(orgId: string, provider: string): Promise<Ma
     lastSyncStatus: platformCredentials.lastSyncStatus, autoSync: platformCredentials.autoSync,
     needsReauth: platformCredentials.needsReauth,
     notifSubscriptionId: platformCredentials.notifSubscriptionId,
+    ordersSyncedAt: platformCredentials.ordersSyncedAt,
   }).from(platformCredentials)
     .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider.toLowerCase()))).limit(1);
   if (!c) return EMPTY;
@@ -32,5 +34,6 @@ export async function getConnection(orgId: string, provider: string): Promise<Ma
     lastSyncAt: c.lastSyncAt ? new Date(c.lastSyncAt).toISOString() : null, lastSyncStatus: c.lastSyncStatus, autoSync: c.autoSync,
     needsReauth: c.needsReauth,
     realtime: !!c.notifSubscriptionId,
+    ordersSyncedAt: c.ordersSyncedAt ? new Date(c.ordersSyncedAt).toISOString() : null,
   };
 }

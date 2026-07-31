@@ -24,9 +24,9 @@ import type { SyncFlags } from "@/components/erp/marketplace-connect";
  * header uncluttered.
  */
 export function PlatformHeaderActions({
-  code, isAmazon, connected, syncFlags, canManage,
+  code, isAmazon, connected, syncFlags, hasOrderHistory, canManage,
 }: {
-  code: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; canManage: boolean;
+  code: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; canManage: boolean;
 }) {
   const [syncOpen, setSyncOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
@@ -95,7 +95,9 @@ export function PlatformHeaderActions({
             {connected && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setPullOpen(true)}>
+                {/* First pull asks for a start date (historical backfill); once the
+                    platform has an orders watermark, run incrementally with no prompt. */}
+                <DropdownMenuItem onClick={() => (hasOrderHistory ? pullOrders() : setPullOpen(true))} disabled={pullPending}>
                   <ShoppingCart className="size-4" />سحب المبيعات
                 </DropdownMenuItem>
               </>

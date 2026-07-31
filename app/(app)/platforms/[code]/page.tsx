@@ -179,6 +179,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               isAmazon={isAmazon}
               connected={!!conn?.connected}
               syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
+              hasOrderHistory={!!conn?.ordersSyncedAt}
               canManage={can("sales.create")}
             />
           }
