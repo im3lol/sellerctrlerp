@@ -13,7 +13,7 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { confirm } from "@/components/erp/confirm";
 import {
   saveOpeningBalanceAction, startOpeningPostAction, openingPostStatusAction, reverseOpeningBalanceAction,
-  searchItemsAction, parseOpeningCsvAction,
+  searchItemsAction, parseOpeningCsvAction, previewAmazonOpeningStockAction,
 } from "@/app/actions/erp/opening-balance";
 import { totals, validateOpening, OPENING_EQUITY_CODE, type OpeningKind, type OpeningLine } from "@/lib/erp/opening-balance";
 import { cn } from "@/lib/utils";
@@ -97,8 +97,9 @@ const CSV_TEMPLATE: Record<OpeningKind, string> = {
   ITEM: "code,warehouse,quantity,unit_cost\nSKU-001,المخزن الرئيسي,10,25.50\n",
 };
 
-/** CSV import + match preview for a section — upload, review matched/unmatched, add. */
-function CsvImport({ kind, onAdd }: { kind: OpeningKind; onAdd: (rows: CsvRow[]) => void }) {
+/** CSV import + match preview for a section — upload, review matched/unmatched, add.
+ *  `amazonCode` (ITEM only) adds a "pull from Amazon" button feeding the same preview. */
+function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (rows: CsvRow[]) => void; amazonCode?: string }) {
   const [pending, start] = useTransition();
   const [preview, setPreview] = useState<CsvRow[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -111,6 +112,11 @@ function CsvImport({ kind, onAdd }: { kind: OpeningKind; onAdd: (rows: CsvRow[])
     });
     rd.readAsText(f);
   };
+  const fromAmazon = () => start(async () => {
+    const r = await previewAmazonOpeningStockAction(amazonCode!);
+    if (!r.length) { toast.error("لا يوجد مخزون FBA أو تعذّر الجلب من أمازون"); return; }
+    setPreview(r);
+  });
   const apply = () => {
     const ok = (preview ?? []).filter((p) => !p.error && p.refId);
     if (!ok.length) { toast.error("لا توجد صفوف صالحة"); return; }
@@ -126,6 +132,11 @@ function CsvImport({ kind, onAdd }: { kind: OpeningKind; onAdd: (rows: CsvRow[])
       <div className="flex flex-wrap items-center gap-2">
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}><Icon name="Upload" className="size-4" /> استيراد CSV</Button>
+        {amazonCode && (
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={fromAmazon}>
+            {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />} استيراد المخزون من أمازون
+          </Button>
+        )}
         <Button type="button" variant="ghost" size="sm" onClick={dl}><Icon name="Download" className="size-4" /> قالب</Button>
         <span className="text-xs text-muted-foreground">{CSV_COLS[kind]}</span>
       </div>
@@ -157,11 +168,12 @@ function CsvImport({ kind, onAdd }: { kind: OpeningKind; onAdd: (rows: CsvRow[])
  * the Opening Balance Equity account, with a live balance check and CSV import.
  * Totals/validation run through the same pure functions the server posts with.
  */
-export function OpeningBalanceEditor({ posted, date: initialDate, initial, accounts, customers, suppliers, warehouses }: {
+export function OpeningBalanceEditor({ posted, date: initialDate, initial, accounts, customers, suppliers, warehouses, amazonCode }: {
   posted: { id: string; date: string }[];
   date: string;
   initial: Omit<Row, "key">[];
   accounts: Opt[]; customers: Opt[]; suppliers: Opt[]; warehouses: Opt[];
+  amazonCode?: string;
 }) {
   const router = useRouter();
   const [date, setDate] = useState(initialDate);
@@ -349,7 +361,8 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         {/* ── Opening stock (manual + CSV) ── */}
         <TabsContent value="ITEM">
           <Card><CardContent className="space-y-3 pt-6">
-            <CsvImport kind="ITEM" onAdd={mergeCsv} />
+            <CsvImport kind="ITEM" onAdd={mergeCsv} amazonCode={amazonCode} />
+            {amazonCode && <p className="text-xs text-muted-foreground">«استيراد المخزون من أمازون» يجلب كميات FBA الحالية للأصناف المربوطة. أدخل تكلفة الوحدة لكل صنف قبل الترحيل — أمازون لا يعرف تكلفة شرائك.</p>}
             <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
               <thead className="text-right text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">الصنف</th><th className="p-2 font-medium w-44">المخزن</th><th className="p-2 font-medium w-24">الكمية</th><th className="p-2 font-medium w-32">تكلفة الوحدة</th><th className="p-2 font-medium w-32">القيمة</th><th className="w-10" />

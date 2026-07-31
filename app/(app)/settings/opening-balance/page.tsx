@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines } from "@/db/schema";
+import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines, salesPlatforms, platformCredentials } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { OpeningBalanceEditor } from "@/components/erp/opening-balance-editor";
@@ -28,6 +28,14 @@ export default async function OpeningBalancePage() {
       db.select({ id: warehouses.id, code: warehouses.code, nameAr: warehouses.nameAr }).from(warehouses)
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
     ]);
+
+    // A connected marketplace (has stored credentials) enables "pull opening stock
+    // from Amazon". First one wins — the common case is a single Amazon account.
+    const [connectedMkt] = await db.select({ code: salesPlatforms.code }).from(salesPlatforms)
+      .innerJoin(platformCredentials, eq(platformCredentials.platformId, salesPlatforms.id))
+      .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.isActive, true)))
+      .orderBy(asc(salesPlatforms.code)).limit(1);
+    const amazonCode = connectedMkt?.code.toLowerCase();
 
     // The editor edits the single open DRAFT; POSTED ones are shown as reversible
     // history so more sections can be added and posted separately over time.
@@ -96,6 +104,7 @@ export default async function OpeningBalancePage() {
           customers={custOpts}
           suppliers={suppOpts}
           warehouses={whOpts}
+          amazonCode={amazonCode}
         />
       </div>
     );
