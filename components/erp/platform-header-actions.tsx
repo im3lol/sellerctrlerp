@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown } from "lucide-react";
+import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2 } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
 import { refreshAmazonFeesAction, startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
 import { SyncProgress } from "@/components/erp/sync-progress";
@@ -74,6 +74,11 @@ export function PlatformHeaderActions({
             <Button variant="outline">أدوات<ChevronDown className="size-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            {connected && (
+              <DropdownMenuItem asChild>
+                <Link href={`/platforms/${code}/verify`}><Link2 className="size-4" />تحقق من ربط أمازون</Link>
+              </DropdownMenuItem>
+            )}
             {connected && isAmazon && (
               <DropdownMenuItem onClick={runAudit} disabled={auditPending}>
                 <ClipboardCheck className="size-4" />تدقيق المخزون

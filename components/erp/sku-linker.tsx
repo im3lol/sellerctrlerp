@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { previewAmazonCodeLinkAction, saveAmazonCodeLinksAction, createItemsFromSkusAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
+import { previewAmazonCodeLinkAction, previewMarketplaceListingsAction, saveAmazonCodeLinksAction, createItemsFromSkusAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,10 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 
 type Preview = { rows: SkuLinkRow[]; items: { id: string; label: string }[]; alreadyLinked: number; totalSkus: number };
 
-export function SkuLinker() {
+/** `amazonCode` set → live "verify links" mode: pull the seller's Amazon listings
+ *  instead of an uploaded report. Omitted → the file-upload flow. */
+export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
+  const live = !!amazonCode;
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({}); // sku → itemId
@@ -28,18 +31,23 @@ export function SkuLinker() {
   const busy = previewing || saving || creating;
 
   const doPreview = () => {
-    if (!file) { toast.error("اختر ملف أمازون أولاً"); return; }
+    if (!live && !file) { toast.error("اختر ملف أمازون أولاً"); return; }
     startPreview(async () => {
-      const fd = new FormData();
-      fd.append("file", file);
-      const r = await previewAmazonCodeLinkAction(fd);
+      let r;
+      if (live) {
+        r = await previewMarketplaceListingsAction(amazonCode!);
+      } else {
+        const fd = new FormData();
+        fd.append("file", file!);
+        r = await previewAmazonCodeLinkAction(fd);
+      }
       if (!r.ok) { toast.error(r.error); setPreview(null); return; }
       setPreview(r);
       // Pre-fill auto-matched suggestions.
       const init: Record<string, string> = {};
       for (const row of r.rows) if (row.autoItemId) init[row.sku] = row.autoItemId;
       setChosen(init);
-      if (r.rows.length === 0) toast.success("كل أكواد الملف مربوطة بالفعل 🎉");
+      if (r.rows.length === 0) toast.success(live ? "كل منتجات أمازون مربوطة بالفعل 🎉" : "كل أكواد الملف مربوطة بالفعل 🎉");
     });
   };
 
@@ -77,23 +85,26 @@ export function SkuLinker() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>ربط أكواد أمازون بالأصناف</CardTitle>
+          <CardTitle>{live ? "التحقق من ربط منتجات أمازون" : "ربط أكواد أمازون بالأصناف"}</CardTitle>
           <CardDescription>
-            ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)،
-            أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة.
+            {live
+              ? "اضغط «تحقق الآن» لجلب منتجاتك من أمازون ومقارنتها بأصنافك. المنتجات غير المربوطة تظهر بالأسفل — اربط كلاً منها بصنف موجود (يُقترح تلقائياً)، أو أنشئ صنفاً جديداً مباشرة. بعد ما يكون كل شيء مربوطاً تقدر تعمل مزامنة الطلبات والمخزون والمرتجعات بأمان."
+              : "ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)، أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); setChosen({}); }}
-              className="block text-sm file:me-3 file:rounded-md file:border file:border-input file:bg-muted file:px-3 file:py-1.5 file:text-sm"
-            />
-            <Button onClick={doPreview} disabled={!file || busy}>
+            {!live && (
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); setChosen({}); }}
+                className="block text-sm file:me-3 file:rounded-md file:border file:border-input file:bg-muted file:px-3 file:py-1.5 file:text-sm"
+              />
+            )}
+            <Button onClick={doPreview} disabled={busy || (!live && !file)}>
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
-              فحص الأكواد
+              {live ? "تحقق الآن" : "فحص الأكواد"}
             </Button>
             {preview && preview.rows.length > 0 && (
               <>
@@ -117,7 +128,7 @@ export function SkuLinker() {
               <Badge className="bg-emerald-600">مربوطة سابقاً: {preview.alreadyLinked}</Badge>
               <Badge variant="destructive">غير مربوطة: {preview.rows.length}</Badge>
               {autoCount > 0 && <Badge variant="outline">مُقترح تلقائياً: {autoCount}</Badge>}
-              <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>
+              {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>}
             </div>
           )}
         </CardContent>
