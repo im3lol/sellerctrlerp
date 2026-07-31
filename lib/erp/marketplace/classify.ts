@@ -8,7 +8,7 @@ import type { MarketplaceOrder, MarketplaceProduct } from "./dto";
 export type MatchedLine = MarketplaceOrder["lines"][number] & { itemId: string | null; itemName: string | null };
 export type PreviewOrder = {
   externalId: string; date: string; status: string;
-  subtotal: number; shippingTotal: number; total: number;
+  subtotal: number; shippingTotal: number; discount?: number; total: number;
   lines: MatchedLine[];
   existingId?: string; existingStatus?: string;
 };
@@ -41,7 +41,7 @@ export function classifyOrders(
       const m = resolve(l.code, l.altCode);
       return { ...l, itemId: m.itemId, itemName: m.itemName };
     });
-    const po: PreviewOrder = { externalId: o.externalId, date: o.date, status: o.status, subtotal: o.subtotal, shippingTotal: o.shippingTotal, total: o.total, lines };
+    const po: PreviewOrder = { externalId: o.externalId, date: o.date, status: o.status, subtotal: o.subtotal, shippingTotal: o.shippingTotal, discount: o.discount, total: o.total, lines };
     const fullyMatched = lines.every((l) => l.itemId);
     const ex = existing.get(o.externalId);
 

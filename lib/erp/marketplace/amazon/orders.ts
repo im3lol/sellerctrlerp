@@ -11,7 +11,7 @@ import type { MarketplaceOrder, DateRange } from "../dto";
 type Money = { Amount?: string | number };
 type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string };
 type OrdersResponse = { payload?: { Orders?: ApiOrder[]; NextToken?: string } };
-type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money };
+type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money; PromotionDiscount?: Money; ShipPromotionDiscount?: Money };
 type ItemsResponse = { payload?: { OrderItems?: ApiOrderItem[]; NextToken?: string } };
 
 const amt = (m?: Money) => Number(m?.Amount ?? 0) || 0;
@@ -28,9 +28,13 @@ export function toMarketplaceOrder(o: ApiOrder, items: ApiOrderItem[]): Marketpl
   });
   const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const shippingTotal = round2(lines.reduce((s, l) => s + l.shipping, 0));
+  // Buyer pays ItemPrice + ShippingPrice − PromotionDiscount − ShipPromotionDiscount.
+  // ItemPrice/ShippingPrice are gross, so the promos are what the buyer actually saved
+  // (e.g. a free-shipping promo of −20). Without this the SO total overstates by the promo.
+  const discount = round2(items.reduce((s, it) => s + amt(it.PromotionDiscount) + amt(it.ShipPromotionDiscount), 0));
   return {
     externalId: o.AmazonOrderId ?? "", date: o.PurchaseDate ?? new Date().toISOString(), status: mapStatus(o.OrderStatus),
-    lines, subtotal, shippingTotal, total: round2(subtotal + shippingTotal),
+    lines, subtotal, shippingTotal, discount, total: round2(subtotal + shippingTotal - discount),
   };
 }
 

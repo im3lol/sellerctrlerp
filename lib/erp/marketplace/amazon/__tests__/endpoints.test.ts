@@ -27,6 +27,14 @@ describe("toMarketplaceOrder (getOrders + getOrderItems)", () => {
     expect(o).toMatchObject({ externalId: "111-22", status: "Shipped", subtotal: 100, shippingTotal: 5, total: 105 });
     expect(o.lines[0]).toMatchObject({ code: "SKU1", altCode: "ASIN1", qty: 2, unitPrice: 50, lineTotal: 100, shipping: 5 });
   });
+  it("subtracts item + shipping promotions from the total", () => {
+    // 1025 item + 20 shipping − 20 free-shipping promo = 1025 (matches Seller Central).
+    const o = toMarketplaceOrder(
+      { AmazonOrderId: "P-1", OrderStatus: "Shipped" },
+      [{ SellerSKU: "SKU1", QuantityOrdered: 1, ItemPrice: { Amount: "1025" }, ShippingPrice: { Amount: "20" }, ShipPromotionDiscount: { Amount: "20" } }],
+    );
+    expect(o).toMatchObject({ subtotal: 1025, shippingTotal: 20, discount: 20, total: 1025 });
+  });
   it("maps a non-shipped status to Pending", () => {
     expect(toMarketplaceOrder({ AmazonOrderId: "X", OrderStatus: "Unshipped" }, []).status).toBe("Pending");
   });

@@ -21,6 +21,7 @@ export type MarketplaceOrder = {
   lines: MarketplaceOrderLine[];
   subtotal: number;
   shippingTotal: number;
+  discount?: number; // order-level promotions (item + shipping), subtracted from total
   total: number;
 };
 

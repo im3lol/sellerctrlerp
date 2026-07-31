@@ -213,8 +213,8 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
         const number = await nextDocumentNumber(tx, orgId, "SO", d.getFullYear());
         const [so] = await tx.insert(salesOrders).values({
           organizationId: orgId, number, customerId: ctx.customerId, date: d, status,
-          subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
-          totalAmount: String(round2(o.subtotal + o.shippingTotal)),
+          subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
+          totalAmount: String(round2(o.subtotal + o.shippingTotal - (o.discount ?? 0))),
           channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status, notes: `${ctx.label} ${o.externalId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
         await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
@@ -254,7 +254,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // Re-write a still-editable DRAFT order's lines + totals + channel status from the
   // latest fetch. Backfills prices Amazon only reveals once an order leaves Pending.
   const refreshDraft = async (existingId: string, o: PreviewOrder) => {
-    const newTotal = round2(o.subtotal + o.shippingTotal);
+    const newTotal = round2(o.subtotal + o.shippingTotal - (o.discount ?? 0));
     const [prev] = await db.select({ total: salesOrders.totalAmount }).from(salesOrders).where(eq(salesOrders.id, existingId));
     const changed = prev != null && Math.abs(Number(prev.total) - newTotal) > 0.001;
     await db.transaction(async (tx) => {
@@ -264,7 +264,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
         quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
       })));
       await tx.update(salesOrders).set({
-        subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
+        subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
         totalAmount: String(newTotal), channelStatus: o.status, updatedAt: new Date(),
       }).where(eq(salesOrders.id, existingId));
     });
