@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { Check } from "lucide-react";
 import { db } from "@/lib/db";
@@ -10,6 +11,10 @@ export const revalidate = 3600;
 const POINTS = ["إعداد شركتك ودليل حساباتك في دقائق", "١٤ يوماً مجاناً بكل الوحدات", "بدون بطاقة ائتمان — ألغِ في أي وقت"];
 
 export default async function SignupPage() {
+  // Self-serve signup is closed by default — the landing routes leads through
+  // "request a demo" (WhatsApp) instead. Reopen with SIGNUP_OPEN=1 (no deploy).
+  if (process.env.SIGNUP_OPEN !== "1") redirect("/");
+
   const rows = await db.select().from(plans).where(eq(plans.isActive, true))
     .orderBy(asc(plans.sortOrder), asc(plans.priceMonthly)).catch(() => []);
   const catalog = rows.map((p) => ({

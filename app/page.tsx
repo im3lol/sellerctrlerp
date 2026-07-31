@@ -15,7 +15,6 @@ import {
   Building2,
   Zap,
   ShieldCheck,
-  ArrowLeft,
   Truck,
   Search,
   ChartPie,
@@ -37,6 +36,7 @@ import { plans } from "@/db/schema";
 import { Logo } from "@/components/brand/logo";
 import { Pricing } from "@/components/brand/pricing";
 import { SourceTracker } from "@/components/brand/source-tracker";
+import { DemoRequestButton } from "@/components/brand/demo-request";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -115,11 +115,9 @@ export default async function Home() {
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild>
-              <Link href="/login">تسجيل الدخول</Link>
+              <Link href="/login">دخول العملاء</Link>
             </Button>
-            <Button asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
-              <Link href="/signup">ابدأ الآن</Link>
-            </Button>
+            <DemoRequestButton label="اطلب ديمو" className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90" />
           </div>
         </div>
       </header>
@@ -140,18 +138,13 @@ export default async function Home() {
             مصمّمة خصيصاً لبائعي أمازون ونون والعلامات التجارية.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" asChild className="text-base">
-              <Link href="/signup">
-                ابدأ مجاناً الآن
-                <ArrowLeft className="size-4" />
-              </Link>
-            </Button>
+            <DemoRequestButton label="اطلب ديمو مجاني" size="lg" className="text-base" />
             <Button size="lg" variant="outline" asChild className="text-base">
               <Link href="#modules">استكشف المزايا</Link>
             </Button>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            بدون بطاقة ائتمان · إعداد في دقائق · دعم بالعربي
+            جرّب النظام كامل · إعداد في دقائق · دعم بالعربي على واتساب
           </p>
 
           {/* Dashboard preview — a live, on-brand mockup of the unified board */}
@@ -299,14 +292,12 @@ export default async function Home() {
             ابدأ اليوم وأدِر المحاسبة والمخزون والمبيعات والمشتريات من نظام واحد.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base">
-              <Link href="/signup">ابدأ الآن مجاناً</Link>
-            </Button>
+            <DemoRequestButton label="اطلب ديمو مجاني" size="lg" className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base" />
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-primary-foreground/80">
-            <span className="flex items-center gap-1.5"><Check className="size-4" /> بدون بطاقة ائتمان</span>
+            <span className="flex items-center gap-1.5"><Check className="size-4" /> جرّب النظام كامل</span>
             <span className="flex items-center gap-1.5"><Check className="size-4" /> إعداد خلال دقائق</span>
-            <span className="flex items-center gap-1.5"><Check className="size-4" /> دعم بالعربية</span>
+            <span className="flex items-center gap-1.5"><Check className="size-4" /> دعم بالعربية على واتساب</span>
           </div>
         </div>
       </section>

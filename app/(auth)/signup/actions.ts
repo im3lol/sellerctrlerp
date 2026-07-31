@@ -54,6 +54,8 @@ const schema = z.object({
  * bootstraps the chart of accounts, then signs the owner in (redirects).
  */
 export async function signupAction(input: SignupInput): Promise<{ error: string }> {
+  // Self-serve signup is closed (see signup/page.tsx). Reopen with SIGNUP_OPEN=1.
+  if (process.env.SIGNUP_OPEN !== "1") return { error: "التسجيل الذاتي مغلق حاليًا — اطلب ديمو وسنتواصل معك عبر واتساب." };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
