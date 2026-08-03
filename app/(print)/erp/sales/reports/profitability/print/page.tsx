@@ -2,8 +2,9 @@ import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines, platformItemFees } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
 import { buildProfitability } from "@/lib/erp/profitability";
+import { getSettlementFeesByItem } from "@/lib/erp/item-pnl";
 import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { ReportSheet, type ReportKpi } from "@/components/erp/print/report-sheet";
@@ -23,7 +24,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
-    const [{ org, currency }, revRows, cogsRows, returnRows, feeRows] = await Promise.all([
+    const [{ org, currency }, revRows, cogsRows, returnRows, feesByItem] = await Promise.all([
       loadPrintHeader(orgId),
       db.select({
         itemId: salesInvoiceLines.itemId, code: items.code, name: items.nameAr,
@@ -50,13 +51,11 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
         .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
         .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
         .groupBy(salesReturnLines.itemId),
-      db.select({ itemId: platformItemFees.itemId, totalFees: platformItemFees.totalFees })
-        .from(platformItemFees).where(eq(platformItemFees.organizationId, orgId)),
+      getSettlementFeesByItem(orgId, fromD, toD),
     ]);
 
     const cogsByItem = new Map(cogsRows.map((r) => [r.itemId, Number(r.cogs ?? 0)]));
     const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
-    const feesByItem = new Map(feeRows.map((r) => [r.itemId, Number(r.totalFees ?? 0)]));
     let list = buildProfitability(
       revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
       returnsByItem, cogsByItem, feesByItem,
@@ -78,7 +77,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
       { label: "الربح الإجمالي", value: money(tProfit, currency), tone: tProfit >= 0 ? "success" : "danger" },
       { label: "هامش الربح", value: pct(tMargin) },
       ...(hasFees ? [
-        { label: "رسوم أمازون المقدرة", value: money(tFees, currency) },
+        { label: "رسوم أمازون الفعلية", value: money(tFees, currency) },
         { label: "صافي الربح بعد الرسوم", value: money(tNet, currency), tone: (tNet >= 0 ? "success" : "danger") as ReportKpi["tone"] },
       ] : []),
     ];
@@ -104,7 +103,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
             { label: "الربح", align: "end" },
             { label: "الهامش", align: "end" },
             ...(hasFees ? [
-              { label: "رسوم أمازون", align: "end" as const },
+              { label: "رسوم أمازون الفعلية", align: "end" as const },
               { label: "الصافي بعد الرسوم", align: "end" as const },
             ] : []),
           ],
