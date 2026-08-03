@@ -1,14 +1,14 @@
 import "server-only";
 import crypto from "node:crypto";
-import { NOON_GATEWAY, NOON_LOGIN_PATH, parseNoonCreds, type NoonCreds } from "./constants";
+import { NOON_GATEWAY, NOON_LOGIN_PATH, NOON_USER_AGENT, parseNoonCreds, type NoonCreds } from "./constants";
 
 /**
- * Noon API client. Auth (verified against the live gateway):
- *   POST /identity/public/v1/api/login  body { token: <JWT>, project_code }
+ * Noon API client. Auth (verified live against the gateway):
+ *   POST /identity/public/v1/api/login  body { token: <JWT>, default_project_code }
  *   JWT: RS256, header.kid = key_id; claims { sub: key_id, iss: channel_identifier,
  *   iat, exp, jti: <uuid> }  → sets session cookies (_npsid, _nprtnetid) reused on
  *   every subsequent call. Sessions last ~30 days; we cache the cookie in-process
- *   and re-login on 401.
+ *   and re-login on 401. Every data call also needs a User-Agent header.
  */
 
 export class NoonError extends Error {
@@ -39,8 +39,8 @@ const SESSION_TTL_MS = 25 * 24 * 60 * 60 * 1000; // re-login well within the 30-
 async function login(c: NoonCreds): Promise<string> {
   const res = await fetch(NOON_GATEWAY + NOON_LOGIN_PATH, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ token: signJwt(c), project_code: c.project_code }),
+    headers: { "content-type": "application/json", accept: "application/json", "user-agent": NOON_USER_AGENT },
+    body: JSON.stringify({ token: signJwt(c), default_project_code: c.project_code }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -67,7 +67,7 @@ export async function noonFetch<T>(refreshToken: string, path: string, init: Req
   const c = parseNoonCreds(refreshToken);
   const call = async (cookie: string) => fetch(NOON_GATEWAY + path, {
     ...init,
-    headers: { accept: "application/json", ...(init.headers ?? {}), cookie },
+    headers: { accept: "application/json", "user-agent": NOON_USER_AGENT, ...(init.headers ?? {}), cookie },
   });
 
   let res = await call(await ensureSession(c));

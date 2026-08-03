@@ -1,6 +1,7 @@
 import type { MarketplaceConnector } from "./connector";
 import { amazonConnector } from "./amazon/connector";
 import { shopifyConnector } from "./shopify/connector";
+import { noonConnector } from "./noon/connector";
 
 // Every integration provider, keyed by uppercase code (= sales_platforms.code +
 // platform_credentials.provider). A platform whose code is here gets official
@@ -10,9 +11,13 @@ import { shopifyConnector } from "./shopify/connector";
 // Shopify is fully built + tested but not yet feature-complete (no returns/fees), so
 // it's gated behind SHOPIFY_ENABLED — flip it on per-deployment when ready (demo first,
 // prod once productionized). Off ⇒ Shopify is manual-import only, same as before.
+// Noon is read-only (products + stock pull, orders via webhook) and connects by a
+// pasted service-account .json, not OAuth — so it never appears in connectableConnectors().
+// Gated behind NOON_ENABLED per-deployment, same as Shopify.
 export const CONNECTORS: Record<string, MarketplaceConnector> = {
   AMAZON: amazonConnector,
   ...(process.env.SHOPIFY_ENABLED === "1" ? { SHOPIFY: shopifyConnector } : {}),
+  ...(process.env.NOON_ENABLED === "1" ? { NOON: noonConnector } : {}),
 };
 
 export function getConnector(code: string): MarketplaceConnector | undefined {

@@ -6,7 +6,7 @@ import { Plug, PlugZap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { disconnectMarketplaceAction } from "@/app/actions/erp/marketplace-connect";
+import { disconnectMarketplaceAction, connectNoonAction } from "@/app/actions/erp/marketplace-connect";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
@@ -21,18 +21,28 @@ export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean
  * page-header «أدوات» dropdown; the auto-sync toggle lives in الإعدادات.
  */
 export function MarketplaceConnect({
-  provider, label, marketplaces, conn, justConnected, error, needsShop,
+  provider, label, marketplaces, conn, justConnected, error, needsShop, needsCredential,
 }: {
   provider: string; label: string; marketplaces: ConnectMarketplace[];
   conn: MarketplaceConnection; justConnected?: boolean; error?: string;
   /** Shop-domain-first connectors (Shopify): show a store-domain input instead of a
    *  marketplace picker; connect via ?shop= instead of ?marketplace=. */
   needsShop?: boolean;
+  /** Credential-based connectors (Noon): paste the service-account .json instead of an
+   *  OAuth redirect; connect via connectNoonAction. */
+  needsCredential?: boolean;
 }) {
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
+  const [cred, setCred] = useState("");
   const [pending, start] = useTransition();
   const shopValid = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop.trim().toLowerCase());
+
+  const connectNoon = () => start(async () => {
+    const r = await connectNoonAction(cred);
+    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setCred(""); }
+    else toast.error(r.error);
+  });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
@@ -68,9 +78,15 @@ export function MarketplaceConnect({
               <div className="text-sm font-medium text-destructive">
                 انتهت صلاحية ربط {label} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب.
               </div>
-              <Button asChild size="sm" variant="destructive">
-                <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
-              </Button>
+              {needsCredential ? (
+                <Button size="sm" variant="destructive" onClick={disconnect} disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}افصل ثم أعد لصق ملف الاعتماد
+                </Button>
+              ) : (
+                <Button asChild size="sm" variant="destructive">
+                  <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -84,7 +100,24 @@ export function MarketplaceConnect({
         <CardTitle className="flex items-center gap-2"><Plug className="size-5" />ربط {label}</CardTitle>
         <CardDescription>{error ? <span className="text-destructive">تعذّر الربط: {error}</span> : `اربط حساب ${label} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا.`}</CardDescription>
       </CardHeader>
-      {needsShop ? (
+      {needsCredential ? (
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">ملف اعتماد نون (JSON)</label>
+            <p className="text-xs text-muted-foreground">
+              من <span dir="ltr">access.noon.partners</span> ← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.
+            </p>
+            <textarea
+              value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={6} spellCheck={false}
+              placeholder='{ "key_id": "...", "private_key": "-----BEGIN PRIVATE KEY-----...", "channel_identifier": "...", "project_code": "PRJ..." }'
+              className="block w-full rounded-md border bg-background p-3 font-mono text-xs"
+            />
+          </div>
+          <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+          </Button>
+        </CardContent>
+      ) : needsShop ? (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">دومين المتجر</label>

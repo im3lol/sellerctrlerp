@@ -4,6 +4,8 @@ import "server-only";
 // stock / fbpi. Override per-deployment with NOON_BASE_URL.
 export const NOON_GATEWAY = process.env.NOON_BASE_URL || "https://noon-api-gateway.noon.partners";
 export const NOON_LOGIN_PATH = "/identity/public/v1/api/login";
+// Noon rejects requests without a User-Agent identifying the integration.
+export const NOON_USER_AGENT = "SellerCtrl/1.0 (+https://sellerctrl.com)";
 
 /** The service-account key file a seller downloads from access.noon.partners.
  *  We store the whole JSON (encrypted) in platform_credentials.refreshToken. */

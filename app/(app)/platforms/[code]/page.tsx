@@ -146,7 +146,9 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     // card; others stay manual-import only.
     const connector = getConnector(platform.code);
     const connectable = connector?.oauth;
-    const conn = connectable ? await getConnection(orgId, connector.code) : null;
+    // Any registered connector has a connection card — OAuth ones (Amazon/Shopify) show
+    // a connect button; credential-based ones (Noon) show a paste-.json form.
+    const conn = connector ? await getConnection(orgId, connector.code) : null;
 
     // Latest FBA inventory audit (read-only) — a compact summary here; the full
     // report is its own page (/inventory/reconciliation).
@@ -185,15 +187,16 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           }
         />
 
-        {connectable && conn && (
+        {connector && conn && (
           <MarketplaceConnect
-            provider={connector!.code.toLowerCase()}
-            label={connector!.label}
-            marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
+            provider={connector.code.toLowerCase()}
+            label={connector.label}
+            marketplaces={(connectable?.marketplaces ?? []).map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
-            needsShop={connectable.needsTarget}
+            needsShop={connectable?.needsTarget}
+            needsCredential={!connectable}
           />
         )}
 

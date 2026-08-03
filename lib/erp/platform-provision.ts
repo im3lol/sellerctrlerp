@@ -168,10 +168,73 @@ export async function ensureShopifyPlatform(orgId: string): Promise<PlatformProv
   return { platformId: existing.id, customerId, warehouseId, bankAccountId };
 }
 
+/**
+ * Get-or-create the "Noon Wallet" payout bank on its OWN wallet GL (1111) — distinct
+ * from Amazon (1109) and Shopify (1110). Noon holds sales until it remits; this
+ * wallet's balance tracks the unremitted amount.
+ */
+async function ensureNoonBank(orgId: string): Promise<string> {
+  const walletGl = await ensurePlatformWalletGl(orgId, "1111", "محفظة نون");
+  const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
+    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, "محفظة نون"))).limit(1);
+  if (existing) return existing.id;
+  const [row] = await db.insert(bankAccounts)
+    .values({ organizationId: orgId, nameAr: "محفظة نون", bankName: "نون", glAccountId: walletGl })
+    .returning({ id: bankAccounts.id });
+  return row.id;
+}
+
+/**
+ * Resolve (get-or-create) the NOON sales platform + its customer, warehouse and
+ * payout bank. Mirror of ensureShopifyPlatform: no FBA split, own wallet GL (1111).
+ */
+export async function ensureNoonPlatform(orgId: string): Promise<PlatformProvision> {
+  const [existing] = await db.select().from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, "NOON"))).limit(1);
+
+  let customerId = existing?.customerId ?? null;
+  if (!customerId) {
+    let [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.organizationId, orgId), eq(customers.code, "NOON"))).limit(1);
+    if (!cust) [cust] = await db.insert(customers)
+      .values({ organizationId: orgId, code: "NOON", nameAr: "نون" }).returning({ id: customers.id });
+    customerId = cust.id;
+  }
+
+  let warehouseId = existing?.defaultWarehouseId ?? null;
+  if (!warehouseId) {
+    let [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.code, "NOON-WH"))).limit(1);
+    if (!wh) [wh] = await db.insert(warehouses)
+      .values({ organizationId: orgId, code: "NOON-WH", nameAr: "مخزن نون", nameEn: "Noon" }).returning({ id: warehouses.id });
+    warehouseId = wh.id;
+  }
+
+  const bankAccountId = existing?.bankAccountId ?? await ensureNoonBank(orgId);
+
+  if (!existing) {
+    const [created] = await db.insert(salesPlatforms).values({
+      organizationId: orgId, name: "نون", code: "NOON", integrationType: "noon",
+      customerId, defaultWarehouseId: warehouseId, bankAccountId,
+    }).onConflictDoUpdate({
+      target: [salesPlatforms.organizationId, salesPlatforms.code],
+      set: { customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() },
+    }).returning({ id: salesPlatforms.id });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId };
+  }
+
+  if (!existing.customerId || !existing.defaultWarehouseId || !existing.bankAccountId) {
+    await db.update(salesPlatforms).set({ customerId, defaultWarehouseId: warehouseId, bankAccountId, updatedAt: new Date() })
+      .where(eq(salesPlatforms.id, existing.id));
+  }
+  return { platformId: existing.id, customerId, warehouseId, bankAccountId };
+}
+
 /** Dispatch to the connector's platform provisioner. Unknown/manual codes no-op
  *  (null) — the platform already exists or is manual-import only. */
 export async function ensurePlatform(orgId: string, code: string): Promise<PlatformProvision | null> {
   if (code === "AMAZON") return ensureAmazonPlatform(orgId);
   if (code === "SHOPIFY") return ensureShopifyPlatform(orgId);
+  if (code === "NOON") return ensureNoonPlatform(orgId);
   return null;
 }
