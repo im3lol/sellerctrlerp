@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2 } from "lucide-react";
+import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
 import { refreshAmazonFeesAction, startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
 import { SyncProgress } from "@/components/erp/sync-progress";
@@ -96,6 +96,9 @@ export function PlatformHeaderActions({
             )}
             <DropdownMenuItem asChild>
               <Link href={`/platforms/${code}/fees`}><Percent className="size-4" />مصاريف التسويات</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/platforms/${code}/payouts`}><Wallet className="size-4" />المحفظة والمدفوعات</Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIoOpen(true)}>
               <ArrowRightLeft className="size-4" />استيراد / تصدير
