@@ -92,8 +92,11 @@ Double-entry, and **the general ledger is only ever written by one function**:
 
 - **Balanced or it throws.** Debits must equal credits, validated in integer cents to avoid
   float drift.
-- **Idempotent.** A unique index on `(organization_id, source_type, source_id)` means posting
-  the same source document twice is a no-op — safe to retry.
+- **Double-post-proof.** A unique index on `(organization_id, source_type, source_id)` means a
+  second post of the same source document raises a unique violation that **rolls the whole
+  transaction back** — the double-post is impossible. Note it is *not* a silent no-op: a retry
+  surfaces an error, so callers that expect idempotent retries must catch it (or the source
+  action re-checks status first).
 - **Numbered** `JV-YYYY-NNNN` via the atomic `nextDocumentNumber` sequence.
 - **Reversible.** `reverseEntry` writes a mirror entry (swaps Dr/Cr); originals are never
   deleted or mutated.

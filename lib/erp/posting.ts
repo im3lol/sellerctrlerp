@@ -101,6 +101,21 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
     throw new Error(`القيد غير متوازن (مدين ${(debit / 100).toFixed(2)} ≠ دائن ${(credit / 100).toFixed(2)})`);
   }
 
+  // Never post to a non-leaf/header account — it corrupts every parent-rollup report.
+  // This is the single GL choke point, so guard it here rather than trusting callers
+  // (postDraft guards the manual path; engine callers land here). allowManualEntries is
+  // NOT checked — the engine legitimately posts to system accounts; this only bars
+  // header accounts and cross-org account ids.
+  const accIds = [...new Set(lines.map((l) => l.accountId))];
+  const accRows = await tx.select({ id: accounts.id, isLeaf: accounts.isLeaf })
+    .from(accounts).where(and(eq(accounts.organizationId, input.orgId), inArray(accounts.id, accIds)));
+  const leafById = new Map(accRows.map((a) => [a.id, a.isLeaf]));
+  for (const id of accIds) {
+    const leaf = leafById.get(id);
+    if (leaf === undefined) throw new Error("حساب غير موجود في هذه المؤسسة");
+    if (!leaf) throw new Error("لا يمكن الترحيل على حساب رئيسي — اختر حساباً فرعياً");
+  }
+
   // Assign to the open fiscal period covering the date (auto-creates the year if
   // none exists; throws on a CLOSED period). The closing entry itself may post
   // into a SOFT_CLOSED (frozen) year.

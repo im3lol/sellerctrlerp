@@ -1,8 +1,25 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { round4 } from "@/lib/erp/money";
 import { db } from "@/lib/db";
-import { stockMovements, stockBatches, stockMovementBatches, items } from "@/db/schema";
+import { stockMovements, stockBatches, stockMovementBatches, items, fiscalPeriods } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+
+/**
+ * A stock move dated into a locked fiscal period must be rejected — the quantity
+ * ledger is as immutable as the GL. Value-bearing moves are already covered
+ * transitively (their paired postEntry throws on a closed period), but zero-value
+ * moves and pure adjustments skip the GL, so they need their own guard here. Unlike
+ * ensurePeriod this never CREATES a period — no covering period = allow (nothing to
+ * corrupt, and the GL leg, if any, auto-creates one).
+ */
+async function assertPeriodOpenForStock(tx: Tx, orgId: string, date: Date): Promise<void> {
+  const [p] = await tx.select({ status: fiscalPeriods.status }).from(fiscalPeriods)
+    .where(and(eq(fiscalPeriods.organizationId, orgId), lte(fiscalPeriods.startDate, date), gte(fiscalPeriods.endDate, date)))
+    .limit(1);
+  if (p && (p.status === "CLOSED" || p.status === "SOFT_CLOSED")) {
+    throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن تسجيل حركة مخزون بتاريخها");
+  }
+}
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -167,6 +184,7 @@ async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanL
  * depletes lots FEFO (or pinned via `allocations`).
  */
 export async function postStockMovement(tx: Tx, input: StockInput): Promise<StockResult> {
+  await assertPeriodOpenForStock(tx, input.orgId, input.date);
   const { qty: priorQty, value: priorValue } = await priorBalance(tx, input.orgId, input.itemId, input.warehouseId);
   const wac = priorQty > 0 ? priorValue / priorQty : 0;
 

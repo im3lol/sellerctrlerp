@@ -65,6 +65,9 @@ export const organizations = pgTable(
     email: text("email"),
     taxNumber: text("tax_number"),
     logo: text("logo"),
+    // DEPRECATED / unused: the base currency is derived from the currencies.isBase flag
+    // (see lib/erp/currency.ts::getBaseCurrencyCode), NOT this column. Kept only to avoid
+    // a drop migration; do not read or write it.
     baseCurrencyId: text("base_currency_id"),
     fiscalYearStart: text("fiscal_year_start"),
     vatRate: money("vat_rate").notNull().default("14"),
