@@ -91,7 +91,9 @@ function CreatePlatformDialog({
         name, code, integrationType, productSyncMode: "create",
         syncProducts: true, syncOrders: true, syncInventory: true, syncSettlements: true,
         autoPostSettlements: false, autoMode: "invoice",
-        defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
+        createWarehouse: warehouseId === "__new__", createBank: bankAccountId === "__new__",
+        defaultWarehouseId: warehouseId === "__new__" ? null : (warehouseId || null),
+        bankAccountId: bankAccountId === "__new__" ? null : (bankAccountId || null),
       });
       if (r.ok) { toast.success("تم إنشاء المنصة وعميلها"); onClose(); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
@@ -180,7 +182,7 @@ function CreatePlatformDialog({
                 const active = code === p.code;
                 return (
                   <button key={p.code} type="button"
-                    onClick={() => { setName(p.label); setCode(p.code); setIntegrationType(p.type); }}
+                    onClick={() => { setName(p.label); setCode(p.code); setIntegrationType(p.type); setWarehouseId("__new__"); setBankAccountId("__new__"); }}
                     className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs transition-colors ${active ? "border-primary bg-primary/5" : "hover:border-primary"}`}>
                     {p.logo
                       // eslint-disable-next-line @next/next/no-img-element
@@ -212,6 +214,7 @@ function CreatePlatformDialog({
               <Label>المخزن الافتراضي</Label>
               <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
                 <option value="">— بدون —</option>
+                <option value="__new__">➕ إنشاء مخزن جديد لهذه المنصة</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
               </select>
             </div>
@@ -219,6 +222,7 @@ function CreatePlatformDialog({
               <Label>الحساب البنكي للتسويات</Label>
               <select className={selectCls} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
                 <option value="">— بدون —</option>
+                <option value="__new__">➕ إنشاء حساب تسويات جديد</option>
                 {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
               </select>
             </div>

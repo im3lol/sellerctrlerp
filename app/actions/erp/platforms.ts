@@ -5,7 +5,7 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { salesPlatforms, customers, warehouses, bankAccounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
+import { salesPlatforms, customers, warehouses, bankAccounts, accounts, items, itemCodes, salesOrders, salesOrderLines, receiptVouchers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -22,6 +22,10 @@ const schema = z.object({
   integrationType: z.enum(["amazon", "generic"]).default("generic"),
   defaultWarehouseId: z.string().optional().nullable(),
   bankAccountId: z.string().optional().nullable(),
+  // Auto-create a dedicated warehouse / settlement wallet-bank for this platform
+  // (manual flow) instead of picking existing ones.
+  createWarehouse: z.boolean().optional(),
+  createBank: z.boolean().optional(),
   productSyncMode: z.enum(["create", "link"]).optional(),
   fulfillmentType: z.enum(["FBA", "FBM", "FLEX"]).optional().nullable(),
   syncProducts: z.boolean().optional(),
@@ -78,14 +82,45 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
             .returning({ id: customers.id });
         }
 
+        // Auto-create a dedicated warehouse for this platform (first free WH-<CODE>).
+        let whId = defaultWarehouseId || null;
+        if (parsed.data.createWarehouse) {
+          let whCode = `WH-${code}`;
+          for (let n = 2; (await tx.select({ id: warehouses.id }).from(warehouses).where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.code, whCode))).limit(1))[0]; n++) whCode = `WH-${code}-${n}`;
+          const [w] = await tx.insert(warehouses)
+            .values({ organizationId: auth.orgId, code: whCode, nameAr: `مخزن ${name}`, nameEn: name, type: "WAREHOUSE" })
+            .returning({ id: warehouses.id });
+          whId = w.id;
+        }
+
+        // Auto-create a settlement wallet-bank on its own wallet GL (Amazon 1109 /
+        // Shopify 1110 / WALLET-<CODE> for others) — mirrors the auto-provision flow.
+        let bankId = bankAccountId || null;
+        if (parsed.data.createBank) {
+          const walletCode = code === "AMAZON" ? "1109" : code === "SHOPIFY" ? "1110" : `WALLET-${code}`;
+          let [gl] = await tx.select({ id: accounts.id }).from(accounts)
+            .where(and(eq(accounts.organizationId, auth.orgId), eq(accounts.code, walletCode))).limit(1);
+          if (!gl) {
+            const [parent] = await tx.select({ id: accounts.id }).from(accounts)
+              .where(and(eq(accounts.organizationId, auth.orgId), eq(accounts.code, "11"))).limit(1);
+            [gl] = await tx.insert(accounts)
+              .values({ organizationId: auth.orgId, code: walletCode, nameAr: `محفظة ${name}`, type: "ASSET", normalBalance: "DEBIT", parentId: parent?.id ?? null, isLeaf: true })
+              .returning({ id: accounts.id });
+          }
+          const [b] = await tx.insert(bankAccounts)
+            .values({ organizationId: auth.orgId, nameAr: `تسويات ${name}`, bankName: name, glAccountId: gl.id })
+            .returning({ id: bankAccounts.id });
+          bankId = b.id;
+        }
+
         const [platform] = await tx.insert(salesPlatforms).values({
           organizationId: auth.orgId,
           name,
           code,
           integrationType,
           customerId: cust.id,
-          defaultWarehouseId: defaultWarehouseId || null,
-          bankAccountId: bankAccountId || null,
+          defaultWarehouseId: whId,
+          bankAccountId: bankId,
           ...(parsed.data.productSyncMode ? { productSyncMode: parsed.data.productSyncMode } : {}),
           ...(parsed.data.fulfillmentType !== undefined ? { fulfillmentType: parsed.data.fulfillmentType } : {}),
           ...(parsed.data.syncProducts !== undefined ? { syncProducts: parsed.data.syncProducts } : {}),
