@@ -208,9 +208,14 @@ export function parseSettlementFlatFile(tsv: string): SettlementTxn[] {
       groups.set(key, g);
     }
     const amt = num(f[c.amount]);
-    const b = bucketOf(str(f[c.amountType]), str(f[c.amountDesc]), type);
+    const amountDesc = str(f[c.amountDesc]);
+    const b = bucketOf(str(f[c.amountType]), amountDesc, type);
     g[b] = r2(g[b] + amt);
     g.total = r2(g.total + amt);
+    // Keep the fee description for non-order rows — it's how ads/storage/subscription
+    // are told apart later (the fee categorizer reads type + description). Order rows
+    // keep it empty; their split lives in the buckets above.
+    if (!g.description && type !== "Order" && type !== "Refund" && amountDesc) g.description = amountDesc;
   }
 
   const out = [...groups.values()];

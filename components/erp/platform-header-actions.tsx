@@ -94,6 +94,9 @@ export function PlatformHeaderActions({
                 <Link href={`/platforms/${code}/reimbursements`}><HandCoins className="size-4" />التعويضات</Link>
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem asChild>
+              <Link href={`/platforms/${code}/fees`}><Percent className="size-4" />مصاريف التسويات</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIoOpen(true)}>
               <ArrowRightLeft className="size-4" />استيراد / تصدير
             </DropdownMenuItem>
