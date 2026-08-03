@@ -2,6 +2,7 @@ import "server-only";
 import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "../connector";
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
+import { getAmazonConfig } from "@/lib/saas/amazon-config";
 import { fetchCatalog } from "./catalog";
 import { fetchListings, mergeProducts } from "./listings";
 import { fetchFullListings } from "./reports";
@@ -24,8 +25,8 @@ export const amazonConnector: MarketplaceConnector = {
   capabilities: { products: true, catalog: true, orders: true, inventory: true, settlements: true },
   oauth: {
     marketplaces,
-    authorizeUrl(state, marketplaceCode) {
-      const appId = process.env.SPAPI_APP_ID;
+    async authorizeUrl(state, marketplaceCode) {
+      const appId = (await getAmazonConfig())?.appId;
       const mp = marketplaceByCode(marketplaceCode);
       if (!appId || !mp) return null;
       const url = new URL(`${mp.sellerCentral}/apps/authorize/consent`);

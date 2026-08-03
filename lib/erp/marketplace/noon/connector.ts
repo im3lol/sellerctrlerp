@@ -1,7 +1,6 @@
 import "server-only";
 import type { MarketplaceConnector } from "../connector";
 import { isNoonAuthError } from "./client";
-import { noonOAuthConfigured } from "./constants";
 import { authorizeUrl, exchangeCode, verifyCallback } from "./oauth";
 import { fetchProducts, fetchFullProducts } from "./products";
 import { fetchInventory } from "./inventory";
@@ -24,17 +23,15 @@ export const noonConnector: MarketplaceConnector = {
   label: "نون",
   capabilities: { products: true, catalog: false, orders: true, inventory: true, settlements: false },
   isAuthError: isNoonAuthError,
-  // One-click OAuth only when configured; otherwise the platform page shows the
-  // paste-.json card (needsCredential = !oauth).
-  ...(noonOAuthConfigured() ? {
-    oauth: {
-      marketplaces: [],          // single consent screen — no marketplace/shop picker
-      needsTarget: false,
-      authorizeUrl: (state: string) => authorizeUrl(state),
-      exchangeCode: (code: string) => exchangeCode(code),
-      verifyCallback,
-    },
-  } : {}),
+  // OAuth block is always present; authorizeUrl returns null when the client creds
+  // aren't configured (DB/env), and the platform page then shows the paste-.json card.
+  oauth: {
+    marketplaces: [],          // single consent screen — no marketplace/shop picker
+    needsTarget: false,
+    authorizeUrl: (state: string) => authorizeUrl(state),
+    exchangeCode: (code: string) => exchangeCode(code),
+    verifyCallback,
+  },
   fetchProducts,
   fetchFullProducts,
   fetchOrders,

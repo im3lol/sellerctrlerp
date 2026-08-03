@@ -8,16 +8,14 @@ import { noonConnector } from "./noon/connector";
 // connection + sync; any other code is manual-import only. Add a marketplace by
 // dropping its connector here — no ERP change needed.
 //
-// Shopify is fully built + tested but not yet feature-complete (no returns/fees), so
-// it's gated behind SHOPIFY_ENABLED — flip it on per-deployment when ready (demo first,
-// prod once productionized). Off ⇒ Shopify is manual-import only, same as before.
-// Noon is read-only (products + stock pull, orders via webhook) and connects by a
-// pasted service-account .json, not OAuth — so it never appears in connectableConnectors().
-// Gated behind NOON_ENABLED per-deployment, same as Shopify.
+// All connectors are REGISTERED unconditionally; whether each is ENABLED for this
+// deployment is a request-time check (enabledConnectorCodes() in lib/saas/connector-enabled.ts,
+// owner-toggled in /admin/integrations, env fallback). Registration ≠ enablement, so
+// getConnector stays synchronous; the UI/connect gates filter by the enabled set.
 export const CONNECTORS: Record<string, MarketplaceConnector> = {
   AMAZON: amazonConnector,
-  ...(process.env.SHOPIFY_ENABLED === "1" ? { SHOPIFY: shopifyConnector } : {}),
-  ...(process.env.NOON_ENABLED === "1" ? { NOON: noonConnector } : {}),
+  SHOPIFY: shopifyConnector,
+  NOON: noonConnector,
 };
 
 export function getConnector(code: string): MarketplaceConnector | undefined {

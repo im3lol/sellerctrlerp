@@ -21,7 +21,7 @@ export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean
  * page-header «أدوات» dropdown; the auto-sync toggle lives in الإعدادات.
  */
 export function MarketplaceConnect({
-  provider, label, marketplaces, conn, justConnected, error, needsShop, needsCredential,
+  provider, label, marketplaces, conn, justConnected, error, needsShop, needsCredential, oauthReady = true,
 }: {
   provider: string; label: string; marketplaces: ConnectMarketplace[];
   conn: MarketplaceConnection; justConnected?: boolean; error?: string;
@@ -31,6 +31,9 @@ export function MarketplaceConnect({
   /** Credential-based connectors (Noon): paste the service-account .json instead of an
    *  OAuth redirect; connect via connectNoonAction. */
   needsCredential?: boolean;
+  /** OAuth client creds are configured (DB/env). False ⇒ show a "set the keys in the
+   *  admin panel" note instead of a broken connect button (Amazon/Shopify). */
+  oauthReady?: boolean;
 }) {
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
@@ -116,6 +119,13 @@ export function MarketplaceConnect({
           <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
           </Button>
+        </CardContent>
+      ) : !oauthReady ? (
+        // OAuth-capable connector whose client keys aren't set yet (Amazon/Shopify).
+        <CardContent>
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
+            لم تُضبط مفاتيح ربط {label} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات.
+          </div>
         </CardContent>
       ) : needsShop ? (
         <CardContent className="flex flex-wrap items-end gap-2">

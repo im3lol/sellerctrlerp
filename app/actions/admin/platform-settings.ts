@@ -56,6 +56,7 @@ export async function getShopifySettingsAdmin() {
     clientId: row?.shopifyClientId ?? "", // public — safe to prefill
     apiVersion: row?.shopifyApiVersion ?? "",
     hasClientSecret: !!row?.shopifyClientSecret,
+    enabled: row?.shopifyEnabled ?? (process.env.SHOPIFY_ENABLED === "1"),
   };
 }
 
@@ -63,13 +64,14 @@ export async function getShopifySettingsAdmin() {
  * Save the Shopify Partner app config. The client secret is encrypted; a BLANK secret
  * keeps the stored value. Client id + api version are public so they're always set.
  */
-export async function saveShopifySettingsAction(input: { clientId?: string; clientSecret?: string; apiVersion?: string }): Promise<Res> {
+export async function saveShopifySettingsAction(input: { clientId?: string; clientSecret?: string; apiVersion?: string; enabled?: boolean }): Promise<Res> {
   await requireCapability("employee.manage");
   try {
     const set: Record<string, unknown> = {
       id: SINGLETON,
       shopifyClientId: input.clientId?.trim() || null,
       shopifyApiVersion: input.apiVersion?.trim() || null,
+      shopifyEnabled: input.enabled ?? false,
       updatedAt: new Date(),
     };
     if (input.clientSecret?.trim()) set.shopifyClientSecret = encryptSecret(input.clientSecret.trim());
@@ -78,6 +80,72 @@ export async function saveShopifySettingsAction(input: { clientId?: string; clie
     return { ok: true };
   } catch (e) {
     console.error("[shopify-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
+
+/** Owner reads the Amazon SP-API app config — the LWA secret is never returned. */
+export async function getAmazonSettingsAdmin() {
+  await requireCapability("employee.manage");
+  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  return {
+    lwaClientId: row?.amazonLwaClientId ?? "",
+    appId: row?.amazonAppId ?? "",
+    hasClientSecret: !!row?.amazonLwaClientSecret,
+    enabled: row?.amazonEnabled ?? true, // Amazon is first-class → default on
+  };
+}
+
+/** Save Amazon SP-API app config. LWA secret encrypted; blank keeps the stored value. */
+export async function saveAmazonSettingsAction(input: { lwaClientId?: string; lwaClientSecret?: string; appId?: string; enabled?: boolean }): Promise<Res> {
+  await requireCapability("employee.manage");
+  try {
+    const set: Record<string, unknown> = {
+      id: SINGLETON,
+      amazonLwaClientId: input.lwaClientId?.trim() || null,
+      amazonAppId: input.appId?.trim() || null,
+      amazonEnabled: input.enabled ?? true,
+      updatedAt: new Date(),
+    };
+    if (input.lwaClientSecret?.trim()) set.amazonLwaClientSecret = encryptSecret(input.lwaClientSecret.trim());
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[amazon-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
+
+/** Owner reads the Noon integrator OAuth config — secrets never returned. */
+export async function getNoonSettingsAdmin() {
+  await requireCapability("employee.manage");
+  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  return {
+    clientId: row?.noonClientId ?? "",
+    hasClientSecret: !!row?.noonClientSecret,
+    hasWebhookSecret: !!row?.noonWebhookSecret,
+    enabled: row?.noonEnabled ?? (process.env.NOON_ENABLED === "1"),
+  };
+}
+
+/** Save Noon OAuth config. client + webhook secrets encrypted; blank keeps the stored value. */
+export async function saveNoonSettingsAction(input: { clientId?: string; clientSecret?: string; webhookSecret?: string; enabled?: boolean }): Promise<Res> {
+  await requireCapability("employee.manage");
+  try {
+    const set: Record<string, unknown> = {
+      id: SINGLETON,
+      noonClientId: input.clientId?.trim() || null,
+      noonEnabled: input.enabled ?? false,
+      updatedAt: new Date(),
+    };
+    if (input.clientSecret?.trim()) set.noonClientSecret = encryptSecret(input.clientSecret.trim());
+    if (input.webhookSecret?.trim()) set.noonWebhookSecret = encryptSecret(input.webhookSecret.trim());
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[noon-settings] save failed:", e);
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }

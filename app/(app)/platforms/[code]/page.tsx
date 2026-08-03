@@ -17,6 +17,7 @@ import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { getConnection } from "@/lib/erp/marketplace/connection";
+import { oauthConfigured } from "@/lib/saas/connector-enabled";
 
 // Marketplace sync (server actions on this route) polls Amazon's async reports —
 // allow a longer function budget on Vercel (needs a Pro/Fluid plan for >60s).
@@ -146,8 +147,10 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     // card; others stay manual-import only.
     const connector = getConnector(platform.code);
     const connectable = connector?.oauth;
-    // Any registered connector has a connection card — OAuth ones (Amazon/Shopify) show
-    // a connect button; credential-based ones (Noon) show a paste-.json form.
+    // OAuth is "ready" only when its client creds are configured (DB/env). Noon without
+    // creds falls back to the paste-.json card; Amazon/Shopify without creds show a
+    // "set the keys in the admin panel" note (handled in MarketplaceConnect).
+    const oauthReady = connectable ? await oauthConfigured(connector!.code) : false;
     const conn = connector ? await getConnection(orgId, connector.code) : null;
 
     // Latest FBA inventory audit (read-only) — a compact summary here; the full
@@ -196,7 +199,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
             needsShop={connectable?.needsTarget}
-            needsCredential={!connectable}
+            needsCredential={connector.code === "NOON" && !oauthReady}
+            oauthReady={oauthReady}
           />
         )}
 

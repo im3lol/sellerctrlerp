@@ -6,6 +6,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { ensureNoonPlatform } from "@/lib/erp/platform-provision";
 import { fetchNoonOrder } from "@/lib/erp/marketplace/noon/orders";
 import { ingestOrders, type PlatformCtx } from "@/lib/erp/marketplace/ingest";
+import { getNoonWebhookSecret } from "@/lib/saas/noon-config";
 import type { Credential } from "@/lib/erp/marketplace/connector";
 
 export const runtime = "nodejs";
@@ -27,9 +28,10 @@ const ok = (msg = "ok") => new Response(JSON.stringify({ ok: true, msg }), { sta
 const bad = (status: number, error: string) => new Response(JSON.stringify({ ok: false, error }), { status, headers: { "content-type": "application/json" } });
 
 export async function POST(req: Request) {
-  // Optional shared-secret gate: set NOON_WEBHOOK_SECRET and register the webhook URL
-  // with ?key=… — blocks spoofed calls. Unset ⇒ open (Noon has no signature scheme).
-  const secret = process.env.NOON_WEBHOOK_SECRET;
+  // Optional shared-secret gate: owner sets it in /admin/integrations (or env) and
+  // registers the webhook URL with ?key=… — blocks spoofed calls. Unset ⇒ open (Noon
+  // has no signature scheme).
+  const secret = await getNoonWebhookSecret();
   if (secret && new URL(req.url).searchParams.get("key") !== secret) return bad(401, "unauthorized");
 
   let body: WebhookBody;

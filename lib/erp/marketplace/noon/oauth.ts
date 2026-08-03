@@ -3,8 +3,9 @@ import type { OAuthExchange } from "../connector";
 import type { OAuthState } from "../oauth-state";
 import {
   NOON_GATEWAY, NOON_OAUTH_AUTHORIZE, NOON_OAUTH_TOKEN_CREATE, NOON_OAUTH_TOKEN_EXCHANGE,
-  NOON_USER_AGENT, noonClientId, noonClientSecret, noonOAuthConfigured, type NoonCreds,
+  NOON_USER_AGENT, type NoonCreds,
 } from "./constants";
+import { getNoonConfig } from "@/lib/saas/noon-config";
 
 /**
  * Noon integrator OAuth — the one-click "connect like Amazon" flow. Two steps after
@@ -18,10 +19,11 @@ import {
  */
 
 /** Consent URL. Null when OAuth isn't configured (falls back to the paste-.json card). */
-export function authorizeUrl(state: string): string | null {
-  if (!noonOAuthConfigured()) return null;
+export async function authorizeUrl(state: string): Promise<string | null> {
+  const cfg = await getNoonConfig();
+  if (!cfg) return null;
   const u = new URL(NOON_OAUTH_AUTHORIZE);
-  u.searchParams.set("client_id", noonClientId());
+  u.searchParams.set("client_id", cfg.clientId);
   u.searchParams.set("state", state);
   return u.toString();
 }
@@ -44,12 +46,13 @@ const pick = (o: Record<string, unknown>, ...keys: string[]) => {
 
 /** code → seller service-account credentials, stored as the refreshToken JSON. */
 export async function exchangeCode(code: string): Promise<OAuthExchange> {
-  if (!noonOAuthConfigured()) return { error: "ربط نون بالـOAuth غير مُهيّأ (NOON_CLIENT_ID/SECRET)" };
+  const cfg = await getNoonConfig();
+  if (!cfg) return { error: "ربط نون بالـOAuth غير مُهيّأ — اضبط المفاتيح من لوحة الأدمن (التكاملات)" };
   try {
     // 1) authorization code → access_token (+ project_code)
     const cr = await fetch(NOON_GATEWAY + NOON_OAUTH_TOKEN_CREATE, {
       method: "POST", headers: JSONH,
-      body: JSON.stringify({ grant_type: "authorization_code", code, client_id: noonClientId(), client_secret: noonClientSecret() }),
+      body: JSON.stringify({ grant_type: "authorization_code", code, client_id: cfg.clientId, client_secret: cfg.clientSecret }),
     });
     if (!cr.ok) return { error: `فشل تبادل رمز نون: ${(await cr.text().catch(() => "")).slice(0, 160)}` };
     const created = await cr.json() as { access_token?: string; project_code?: string };

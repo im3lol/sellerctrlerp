@@ -2021,6 +2021,17 @@ export const platformSettings = pgTable("platform_settings", {
   shopifyClientId: text("shopify_client_id"),         // Shopify Partner app client id (public)
   shopifyClientSecret: text("shopify_client_secret"), // Shopify app secret — encryptSecret() ciphertext
   shopifyApiVersion: text("shopify_api_version"),     // null = SHOPIFY_API_VERSION default
+  shopifyEnabled: boolean("shopify_enabled"),         // null ⇒ env SHOPIFY_ENABLED fallback
+  // Amazon SP-API app (LWA) — one app serves every tenant. Secret = encryptSecret() ciphertext.
+  amazonLwaClientId: text("amazon_lwa_client_id"),
+  amazonLwaClientSecret: text("amazon_lwa_client_secret"),
+  amazonAppId: text("amazon_app_id"),                 // SP-API application_id for the consent URL
+  amazonEnabled: boolean("amazon_enabled"),           // null ⇒ default on (Amazon is the first-class connector)
+  // Noon integrator OAuth. client secret + webhook secret = encryptSecret() ciphertext.
+  noonClientId: text("noon_client_id"),
+  noonClientSecret: text("noon_client_secret"),
+  noonWebhookSecret: text("noon_webhook_secret"),
+  noonEnabled: boolean("noon_enabled"),               // null ⇒ env NOON_ENABLED fallback
   smtpHost: text("smtp_host"),                        // transactional email (SMTP) — welcome / receipt / dunning
   smtpPort: integer("smtp_port"),                     // 587 (STARTTLS) or 465 (SSL)
   smtpUser: text("smtp_user"),

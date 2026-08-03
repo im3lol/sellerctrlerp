@@ -15,11 +15,8 @@ export const NOON_USER_AGENT = "SellerCtrl/1.0 (+https://sellerctrl.com)";
 export const NOON_OAUTH_AUTHORIZE = process.env.NOON_OAUTH_BASE || "https://oauth.noon.partners/";
 export const NOON_OAUTH_TOKEN_CREATE = "/identity/oauth/v1/token/create";
 export const NOON_OAUTH_TOKEN_EXCHANGE = "/identity/oauth/v1/token/exchange";
-export const noonClientId = () => process.env.NOON_CLIENT_ID || "";
-export const noonClientSecret = () => process.env.NOON_CLIENT_SECRET || "";
-/** True when integrator OAuth is configured — flips the platform from paste-.json to
- *  one-click connect. */
-export const noonOAuthConfigured = () => !!(noonClientId() && noonClientSecret());
+// The OAuth client_id/secret live in platform_settings (owner sets them in
+// /admin/integrations), env as fallback — see lib/saas/noon-config.ts getNoonConfig().
 
 /** The service-account key file a seller downloads from access.noon.partners.
  *  We store the whole JSON (encrypted) in platform_credentials.refreshToken. */
