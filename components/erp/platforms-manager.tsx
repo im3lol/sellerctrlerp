@@ -39,7 +39,6 @@ const MANUAL_PRESETS: { code: string; label: string; type: string; logo?: string
   { code: "AMAZON", label: "أمازون", type: "amazon", logo: "/brand/logos/amazon.svg" },
   { code: "NOON", label: "نون", type: "generic", logo: "/brand/logos/noon.svg" },
   { code: "SHOPIFY", label: "شوبيفاي", type: "generic", logo: "/brand/logos/shopify.svg" },
-  { code: "JUMIA", label: "جوميا", type: "generic" },
 ];
 const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean }[] = [
   { code: "FBA", label: "FBA", hint: "أمازون يخزّن ويشحن", active: true },
@@ -176,7 +175,7 @@ function CreatePlatformDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>منصة جاهزة (اختياري)</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {MANUAL_PRESETS.map((p) => {
                 const active = code === p.code;
                 return (
