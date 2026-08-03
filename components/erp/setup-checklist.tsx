@@ -28,7 +28,7 @@ const STEPS: Step[] = [
   ] },
   { key: "customers", icon: "Users", title: "العملاء", desc: "أضف عملاءك (منصات البيع تُنشئ عميلها تلقائيًا عند ربطها).", ctas: [{ label: "العملاء", href: "/sales/customers" }] },
   { key: "suppliers", icon: "Truck", title: "الموردون", desc: "أضف مورّديك لتسجيل المشتريات وأذون الاستلام والفواتير.", ctas: [{ label: "الموردون", href: "/purchases/suppliers" }] },
-  { key: "opening", icon: "Scale", title: "الأرصدة الافتتاحية", desc: "منتقل من نظام آخر؟ أدخل أرصدة المخزون والعملاء والموردين والبنوك كما هي اليوم. شركة جديدة؟ تخطَّ هذه الخطوة.", ctas: [{ label: "الأرصدة الافتتاحية", href: "/settings/opening-balance" }], optional: true },
+  { key: "opening", icon: "Scale", title: "الأرصدة الافتتاحية", desc: "الأهم قبل أول عملية: أدخل أرصدة المخزون والعملاء والموردين والبنوك كما هي اليوم — تقدر تسحب كميات مخزونك مباشرة من أمازون. شركة جديدة بلا أرصدة؟ اضغط الدائرة لتمييزها كمكتملة.", ctas: [{ label: "الأرصدة الافتتاحية", href: "/settings/opening-balance" }] },
   { key: "numbering", icon: "Hash", title: "ترقيم المستندات", desc: "غيّر بادئات أرقام الفواتير والأوامر (SI، SO…) لو أردت ترقيمًا خاصًا — الافتراضي جاهز.", ctas: [{ label: "الترقيم", href: "/settings/numbering" }], optional: true },
   { key: "platform", icon: "Store", title: "ربط منصة بيع", desc: "اربط أمازون أو أضف منصة يدوية — مبيعاتها ومدفوعاتها تتزامن أو تُستورد لعميلها ومخزنها.", ctas: [{ label: "المنصات", href: "/platforms" }], optional: true },
 ];

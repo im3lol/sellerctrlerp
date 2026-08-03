@@ -8,7 +8,7 @@ import {
 
 /**
  * Derived onboarding state — computed live from the org's real data, never stored.
- * Essential steps (7) drive the progress bar; optional ones are informative.
+ * Essential steps (8) drive the progress bar; optional ones are informative.
  */
 export type SetupStatus = {
   company: boolean;      // org profile touched (tax number / logo / fiscal-year start)
@@ -18,7 +18,7 @@ export type SetupStatus = {
   items: boolean;
   customers: boolean;
   suppliers: boolean;
-  opening: boolean;      // opening balances posted (optional)
+  opening: boolean;      // opening balances posted (essential — new companies mark it done)
   numbering: boolean;    // document prefixes customized (optional)
   platform: boolean;     // a sales platform exists (optional)
   essentialDone: number;
@@ -56,12 +56,12 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     numbering: nPrefixes > 0,
     platform: nPlatforms > 0,
     essentialDone: 0,
-    essentialTotal: 7,
+    essentialTotal: 8,
   };
   // Steps the admin marked done manually override the derived state.
   for (const k of org?.setupSkipped ?? []) {
     if (k in s && typeof s[k as keyof SetupStatus] === "boolean") (s as Record<string, unknown>)[k] = true;
   }
-  s.essentialDone = [s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers].filter(Boolean).length;
+  s.essentialDone = [s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
   return s;
 }
