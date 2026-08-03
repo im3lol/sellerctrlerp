@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseNoonCreds } from "../constants";
 import { rowsToInventory } from "../inventory";
 import { offerToProduct } from "../products";
-import { mapNoonOrder } from "../orders";
+import { mapNoonOrder, orderNrsFrom } from "../orders";
 
 describe("parseNoonCreds — credential validation", () => {
   const good = JSON.stringify({ key_id: "k", private_key: "-----BEGIN", channel_identifier: "s@p1.idp.noon.partners", project_code: "PRJ1" });
@@ -63,5 +63,14 @@ describe("mapNoonOrder — FBPI order → MarketplaceOrder", () => {
     expect(mapNoonOrder({ fbpi_order_nr: "S", items: [{ partner_sku: "A", mp_status: "MP_ITEM_STATUS_SHIPPED" }] }).status).toBe("Shipped");
     expect(mapNoonOrder({ fbpi_order_nr: "C", items: [{ partner_sku: "A", mp_status: "MP_ITEM_STATUS_CANCELLED" }] }).status).toBe("Canceled");
     expect(mapNoonOrder({ fbpi_order_nr: "P", items: [{ partner_sku: "A", mp_status: "MP_ITEM_STATUS_CONFIRMED" }] }).status).toBe("Pending");
+  });
+});
+
+describe("orderNrsFrom — ListFbpiOrders extraction (pull)", () => {
+  it("reads order numbers under any wrapper key and row shape, de-duped", () => {
+    expect(orderNrsFrom({ orders: [{ fbpi_order_nr: "N1" }, { order_nr: "N2" }] })).toEqual(["N1", "N2"]);
+    expect(orderNrsFrom({ items: ["N3", "N3", "  "] })).toEqual(["N3"]);
+    expect(orderNrsFrom({ data: [{ mp_order_nr: "N4" }] })).toEqual(["N4"]);
+    expect(orderNrsFrom({})).toEqual([]);
   });
 });

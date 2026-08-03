@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, platformCredentials } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformsManager } from "@/components/erp/platforms-manager";
-import { connectableConnectors } from "@/lib/erp/marketplace/registry";
+import { registeredConnectors } from "@/lib/erp/marketplace/registry";
 
 export default async function PlatformsPage() {
   return loadErpPage("sales.view", async ({ orgId, can }) => {
@@ -55,7 +55,7 @@ export default async function PlatformsPage() {
           warehouses={whRows}
           bankAccounts={bankRows}
           canManage={can("sales.create")}
-          connectors={connectableConnectors().map((c) => ({ code: c.code, label: c.label }))}
+          connectors={registeredConnectors().map((c) => ({ code: c.code, label: c.label }))}
         />
       </div>
     );

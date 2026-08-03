@@ -1,7 +1,8 @@
 import "server-only";
 import type { Credential } from "../connector";
-import type { MarketplaceOrder, MarketplaceOrderLine } from "../dto";
+import type { MarketplaceOrder, MarketplaceOrderLine, DateRange } from "../dto";
 import { noonFetch } from "./client";
+import { stockList } from "./inventory";
 
 // An FBPI order → neutral MarketplaceOrder. The order webhook delivers only the
 // order_nr; we then GET the full order and map it. (Customer details live behind a
@@ -68,4 +69,62 @@ export function mapNoonOrder(o: NoonOrder): MarketplaceOrder {
 export async function fetchNoonOrder(cred: Credential, orderNr: string): Promise<MarketplaceOrder> {
   const raw = await noonFetch<NoonOrder>(cred.refreshToken, `/fbpi/v1/fbpi-order/${encodeURIComponent(orderNr)}/get`);
   return mapNoonOrder(raw);
+}
+
+// ── Order PULL (backfill / on-demand), complements the webhook PUSH ──
+// ListFbpiOrders REQUIRES filters.warehouse_code, and Noon has no ListWarehouses API,
+// so we discover warehouse codes from the stock service (SaaS: never ask the seller).
+
+type OrderListResp = { orders?: unknown[]; items?: unknown[]; data?: unknown[] };
+
+/** Pure: pull the order numbers out of a ListFbpiOrders response, whatever the
+ *  wrapper key or the row shape (a bare string or an object with an *_order_nr). */
+export function orderNrsFrom(resp: OrderListResp): string[] {
+  const rows = resp.orders ?? resp.items ?? resp.data ?? [];
+  const out: string[] = [];
+  for (const r of rows) {
+    if (typeof r === "string") { if (r.trim()) out.push(r.trim()); continue; }
+    const o = r as Record<string, unknown>;
+    const nr = (o.fbpi_order_nr ?? o.order_nr ?? o.mp_order_nr ?? o.nr) as string | undefined;
+    if (nr && String(nr).trim()) out.push(String(nr).trim());
+  }
+  return [...new Set(out)];
+}
+
+/** Distinct warehouse codes the seller has, discovered from the stock service. */
+async function warehouseCodes(cred: Credential): Promise<string[]> {
+  const codes = (await stockList(cred)).map((i) => (i.warehouse_code ?? "").trim()).filter(Boolean);
+  return [...new Set(codes)];
+}
+
+/**
+ * Pull orders in the window. Lists order numbers per warehouse, then fetches each
+ * full order. Range is applied client-side (the list filter schema isn't confirmed).
+ * Empty when no warehouse is discoverable (fresh account) — the webhook still covers
+ * live orders. ponytail: single list page per warehouse + no server-side date filter;
+ * add pagination + a `created_after` filter once a real ListFbpiOrders payload confirms
+ * the field names.
+ */
+export async function fetchOrders(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]> {
+  const whs = await warehouseCodes(cred);
+  const nrs = new Set<string>();
+  for (const wh of whs) {
+    try {
+      const resp = await noonFetch<OrderListResp>(cred.refreshToken, "/fbpi/v1/fbpi-orders/list", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filters: { warehouse_code: wh } }),
+      });
+      for (const nr of orderNrsFrom(resp)) nrs.add(nr);
+    } catch { /* one warehouse failing shouldn't sink the rest */ }
+  }
+  const orders: MarketplaceOrder[] = [];
+  for (const nr of nrs) {
+    try {
+      const o = await fetchNoonOrder(cred, nr);
+      const d = new Date(o.date).getTime();
+      if (d >= range.from.getTime() && d <= range.to.getTime()) orders.push(o);
+    } catch { /* skip an order that fails to fetch */ }
+  }
+  return orders;
 }

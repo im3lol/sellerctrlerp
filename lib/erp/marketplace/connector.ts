@@ -32,7 +32,12 @@ export type CatalogRecord = {
   category?: string;     // browse-node leaf display name → item category
 };
 
-export type OAuthExchange = { refreshToken: string } | { error: string };
+// Some providers only learn the seller's identity (Noon's project_code) from the token
+// exchange itself, so exchangeCode may return it — the callback prefers these over the
+// (possibly null) values from verifyCallback.
+export type OAuthExchange =
+  | { refreshToken: string; sellerId?: string | null; marketplaceId?: string | null; region?: string }
+  | { error: string };
 
 /**
  * One integration provider. A connector with an `oauth` block supports official

@@ -7,6 +7,20 @@ export const NOON_LOGIN_PATH = "/identity/public/v1/api/login";
 // Noon rejects requests without a User-Agent identifying the integration.
 export const NOON_USER_AGENT = "SellerCtrl/1.0 (+https://sellerctrl.com)";
 
+// ── Integrator OAuth (one-click seller connect, like Amazon) ──
+// The seller authorizes SellerCtrl on Noon's consent screen; we exchange the code for
+// the seller's own service-account credentials (private key + project_code) and store
+// them exactly like a pasted .json. Requires OAuth client creds from Noon (contact
+// them to register SellerCtrl as an integrator + whitelist the redirect URI).
+export const NOON_OAUTH_AUTHORIZE = process.env.NOON_OAUTH_BASE || "https://oauth.noon.partners/";
+export const NOON_OAUTH_TOKEN_CREATE = "/identity/oauth/v1/token/create";
+export const NOON_OAUTH_TOKEN_EXCHANGE = "/identity/oauth/v1/token/exchange";
+export const noonClientId = () => process.env.NOON_CLIENT_ID || "";
+export const noonClientSecret = () => process.env.NOON_CLIENT_SECRET || "";
+/** True when integrator OAuth is configured — flips the platform from paste-.json to
+ *  one-click connect. */
+export const noonOAuthConfigured = () => !!(noonClientId() && noonClientSecret());
+
 /** The service-account key file a seller downloads from access.noon.partners.
  *  We store the whole JSON (encrypted) in platform_credentials.refreshToken. */
 export type NoonCreds = {

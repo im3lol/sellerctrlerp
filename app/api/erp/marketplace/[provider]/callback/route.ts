@@ -55,6 +55,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const appUrl = process.env.APP_URL || url.origin;
   const ex = await connector.oauth.exchangeCode(v.code, `${appUrl}/api/erp/marketplace/${provider.toLowerCase()}/callback`, state.marketplace);
   if ("error" in ex) return back(false, ex.error);
+  // A provider whose seller identity is only known post-exchange (Noon: project_code)
+  // returns it here — prefer it over verifyCallback's (possibly null) values.
+  const sellerId = ex.sellerId ?? v.sellerId;
+  const marketplaceId = ex.marketplaceId ?? v.marketplaceId;
+  const region = ex.region ?? v.region;
 
   // Resolve/provision the platform + store the token, RLS-scoped to the signed
   // state.orgId. The token exchange above ran unscoped (network I/O); the redirect
@@ -68,12 +73,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
     await db.insert(platformCredentials).values({
       organizationId: state.orgId, platformId, provider: connector.code.toLowerCase(),
       refreshToken: encryptSecret(ex.refreshToken),
-      sellerId: v.sellerId, marketplaceId: v.marketplaceId, region: v.region, updatedAt: new Date(),
+      sellerId, marketplaceId, region, updatedAt: new Date(),
     }).onConflictDoUpdate({
       target: [platformCredentials.organizationId, platformCredentials.provider],
       set: {
-        refreshToken: encryptSecret(ex.refreshToken), sellerId: v.sellerId,
-        marketplaceId: v.marketplaceId, region: v.region, platformId, updatedAt: new Date(),
+        refreshToken: encryptSecret(ex.refreshToken), sellerId,
+        marketplaceId, region, platformId, updatedAt: new Date(),
         // Fresh token — clear any revoked-token flag so the scheduler resumes.
         needsReauth: false, lastSyncStatus: null,
       },

@@ -132,6 +132,13 @@ export function MarketplaceConnect({
             </a>
           </Button>
         </CardContent>
+      ) : marketplaces.length === 0 ? (
+        // No-target OAuth (Noon): a single consent screen — one button, no picker.
+        <CardContent>
+          <Button asChild>
+            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />ربط {label}</a>
+          </Button>
+        </CardContent>
       ) : (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">

@@ -24,7 +24,14 @@ export function getConnector(code: string): MarketplaceConnector | undefined {
   return CONNECTORS[code.toUpperCase()];
 }
 
-/** Codes that support an official (OAuth) connection, e.g. for the add-platform picker. */
+/** Codes that support an official (OAuth) connection, e.g. for the OAuth connect card. */
 export function connectableConnectors(): MarketplaceConnector[] {
   return Object.values(CONNECTORS).filter((c) => c.oauth);
+}
+
+/** Every registered connector — OAuth (Amazon/Shopify) AND credential-based (Noon).
+ *  The add-platform «ربط آلي» picker uses this so Noon (no oauth) is still offered:
+ *  provision → then paste the credential .json on the platform page. */
+export function registeredConnectors(): MarketplaceConnector[] {
+  return Object.values(CONNECTORS);
 }

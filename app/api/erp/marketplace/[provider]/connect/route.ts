@@ -22,7 +22,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
 
   const url = new URL(req.url);
   const target = url.searchParams.get("shop") || url.searchParams.get("marketplace") || connector.oauth.marketplaces[0]?.code || "";
-  if (!target) return new Response("حدّد المتجر أو السوق أولًا", { status: 400 });
+  // A no-target connector (Noon: one consent screen, no marketplace/shop) may proceed
+  // with an empty target; only require one when the provider actually needs it.
+  if (!target && (connector.oauth.needsTarget || connector.oauth.marketplaces.length > 0)) {
+    return new Response("حدّد المتجر أو السوق أولًا", { status: 400 });
+  }
   const state = signState({ orgId, provider: connector.code, marketplace: target, ts: Date.now() });
   const authUrl = await connector.oauth.authorizeUrl(state, target);
   if (!authUrl) return new Response("تعذّر بناء رابط التفويض — تحقق من إعداد التطبيق", { status: 500 });
