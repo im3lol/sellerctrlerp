@@ -1,8 +1,8 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals, accounts } from "@/db/schema";
+import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals, accounts, organizations } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { fiscalYearBounds } from "@/lib/erp/default-chart";
+import { fiscalYearBoundsFor } from "@/lib/erp/fiscal";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -65,9 +65,12 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date, allowSoftClosed =
     return existing.id;
   }
 
-  const year = date.getUTCFullYear();
+  // Fill the "no period" gap on the org's fiscal-year boundaries (calendar when unset).
+  const [org] = await tx.select({ f: organizations.fiscalYearStart })
+    .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const b = fiscalYearBoundsFor(org?.f, date);
   const [created] = await tx.insert(fiscalPeriods)
-    .values({ organizationId: orgId, name: `السنة المالية ${year}`, ...fiscalYearBounds(year), status: "OPEN" })
+    .values({ organizationId: orgId, name: b.name, startDate: b.startDate, endDate: b.endDate, status: "OPEN" })
     .onConflictDoNothing({ target: [fiscalPeriods.organizationId, fiscalPeriods.startDate, fiscalPeriods.endDate] })
     .returning({ id: fiscalPeriods.id });
   if (created) return created.id;

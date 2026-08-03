@@ -8,9 +8,10 @@ import {
 
 /**
  * Derived onboarding state — computed live from the org's real data, never stored.
- * Essential steps (8) drive the progress bar; optional ones are informative.
+ * Essential steps (9) drive the progress bar; optional ones are informative.
  */
 export type SetupStatus = {
+  basis: boolean;        // accounting basis confirmed — the fiscal-year start is set (drives every period)
   company: boolean;      // org profile touched (tax number / logo / fiscal-year start)
   chart: boolean;        // chart of accounts exists (auto-seeded at signup)
   units: boolean;        // at least one unit of measure
@@ -45,6 +46,7 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
   ]);
 
   const s: SetupStatus = {
+    basis: !!org?.fiscalYearStart,
     company: !!(org?.taxNumber || org?.logo || org?.fiscalYearStart),
     chart: nAccounts > 0,
     units: nUnits > 0,
@@ -56,12 +58,12 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     numbering: nPrefixes > 0,
     platform: nPlatforms > 0,
     essentialDone: 0,
-    essentialTotal: 8,
+    essentialTotal: 9,
   };
   // Steps the admin marked done manually override the derived state.
   for (const k of org?.setupSkipped ?? []) {
     if (k in s && typeof s[k as keyof SetupStatus] === "boolean") (s as Record<string, unknown>)[k] = true;
   }
-  s.essentialDone = [s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
+  s.essentialDone = [s.basis, s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
   return s;
 }
