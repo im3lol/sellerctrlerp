@@ -12,6 +12,7 @@ export type ReorderInput = {
   leadDays: number;     // supplier lead time — how long a reorder takes to arrive
   coverDays: number;    // target days of stock to reorder up to
   minStock: number;     // legacy static floor — fallback when there's no sales history
+  inbound?: number;     // units already on the way (e.g. FBA inbound) — don't re-order these
 };
 
 export type ReorderStatus = "out" | "critical" | "low" | "ok";
@@ -31,10 +32,11 @@ export function planReorder(i: ReorderInput): ReorderPlan {
   const reorderPoint = Math.round(velocity * i.leadDays * 100) / 100;
 
   // With sales history: order up to `coverDays` of stock. Without it: fall back to the
-  // static min_stock floor (bring on-hand up to min).
+  // static min_stock floor. Subtract inbound either way — those units are already coming.
+  const inbound = i.inbound ?? 0;
   const suggestedQty = velocity > 0
-    ? Math.max(0, Math.ceil(velocity * i.coverDays - i.onHand))
-    : Math.max(0, Math.ceil(i.minStock - i.onHand));
+    ? Math.max(0, Math.ceil(velocity * i.coverDays - i.onHand - inbound))
+    : Math.max(0, Math.ceil(i.minStock - i.onHand - inbound));
 
   const status: ReorderStatus =
     i.onHand <= 0 ? "out"

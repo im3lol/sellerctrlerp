@@ -15,7 +15,7 @@ import { planReorder, type ReorderStatus } from "@/lib/erp/reorder";
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const d1 = (n: number) => (n === Infinity ? "∞" : n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 }));
 
-type Row = { code: string; name: string; min_stock: string; on_hand: string; sold: string };
+type Row = { code: string; name: string; min_stock: string; on_hand: string; sold: string; inbound: string };
 
 const WINDOWS = [30, 60, 90];
 const LEADS = [7, 14, 21, 30, 45, 60];
@@ -54,12 +54,20 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
         WHERE organization_id = ${orgId} AND type = 'OUT'
           AND reference_type IN ('DELIVERY','SALES_INVOICE') AND date >= ${since}
         GROUP BY item_id
+      ), inbound AS (
+        -- Units already on the way from the most recent FBA audit snapshot.
+        SELECT item_id, SUM(inbound) AS inbound FROM inventory_audit_lines
+        WHERE organization_id = ${orgId} AND item_id IS NOT NULL
+          AND audit_id = (SELECT id FROM inventory_audits WHERE organization_id = ${orgId} AND status = 'OK' ORDER BY created_at DESC LIMIT 1)
+        GROUP BY item_id
       )
       SELECT i.code, coalesce(i.name_ar, i.code) AS name, coalesce(i.min_stock, 0) AS min_stock,
-             coalesce(sum(l.balance_quantity), 0) AS on_hand, coalesce(max(v.sold), 0) AS sold
+             coalesce(sum(l.balance_quantity), 0) AS on_hand, coalesce(max(v.sold), 0) AS sold,
+             coalesce(max(ib.inbound), 0) AS inbound
       FROM items i
       LEFT JOIN latest l ON l.item_id = i.id
       LEFT JOIN velocity v ON v.item_id = i.id
+      LEFT JOIN inbound ib ON ib.item_id = i.id
       WHERE i.organization_id = ${orgId} AND i.is_active = true
       GROUP BY i.id
     `);
@@ -67,10 +75,10 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
     const planned = (res.rows as Row[])
       .map((r) => ({
         code: r.code, name: r.name,
-        onHand: Number(r.on_hand),
+        onHand: Number(r.on_hand), inbound: Number(r.inbound),
         ...planReorder({
           onHand: Number(r.on_hand), soldInWindow: Number(r.sold), windowDays, leadDays, coverDays,
-          minStock: Number(r.min_stock),
+          minStock: Number(r.min_stock), inbound: Number(r.inbound),
         }),
       }))
       .filter((r) => r.needsReorder);
@@ -129,6 +137,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                       <TableHead className="text-start">الكود</TableHead>
                       <TableHead className="text-start">الصنف</TableHead>
                       <TableHead className="text-start">المتاح</TableHead>
+                      <TableHead className="text-start">الوارد</TableHead>
                       <TableHead className="text-start">بيع/يوم</TableHead>
                       <TableHead className="text-start">أيام التغطية</TableHead>
                       <TableHead className="text-start">حد الطلب</TableHead>
@@ -144,6 +153,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                           <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
                           <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
                           <TableCell>{q(r.onHand)}</TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">{r.inbound > 0 ? q(r.inbound) : "—"}</TableCell>
                           <TableCell className="tabular-nums">{d1(r.velocity)}</TableCell>
                           <TableCell className="tabular-nums">{d1(r.daysOfCover)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{d1(r.reorderPoint)}</TableCell>

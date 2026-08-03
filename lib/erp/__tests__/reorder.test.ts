@@ -33,6 +33,18 @@ describe("planReorder", () => {
     expect(p.suggestedQty).toBe(7); // 10 − 3
   });
 
+  it("inbound units reduce the suggested order (don't re-order what's shipping)", () => {
+    // 2/day, 20 on-hand (critical), would suggest 100; but 70 already inbound → 30.
+    const p = planReorder({ ...base, onHand: 20, soldInWindow: 60, inbound: 70 });
+    expect(p.status).toBe("critical"); // sellable cover is still low
+    expect(p.suggestedQty).toBe(30);   // 2×60 − 20 − 70
+  });
+
+  it("inbound covering the full target → nothing more to order", () => {
+    const p = planReorder({ ...base, onHand: 20, soldInWindow: 60, inbound: 200 });
+    expect(p.suggestedQty).toBe(0);
+  });
+
   it("no sales, no min_stock, some stock → nothing to do", () => {
     const p = planReorder({ ...base, onHand: 5, soldInWindow: 0, minStock: 0 });
     expect(p.status).toBe("ok");
