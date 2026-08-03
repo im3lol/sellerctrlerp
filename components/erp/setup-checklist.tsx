@@ -21,7 +21,7 @@ const STEPS: Step[] = [
     { label: "ضبط الأساس المحاسبي", href: "/settings/organization" },
     { label: "العملة الأساسية", href: "/settings/currencies" },
   ] },
-  { key: "company", icon: "Building2", title: "بيانات الشركة", desc: "الاسم القانوني والرقم الضريبي وبداية السنة المالية والشعار — تظهر على فواتيرك المطبوعة.", ctas: [{ label: "فتح الإعدادات", href: "/settings/organization" }] },
+  { key: "company", icon: "Building2", title: "بيانات الشركة", desc: "أدخل الرقم الضريبي (يظهر على فواتيرك الضريبية) مع الاسم القانوني والشعار. لست مسجّلاً ضريبيًا؟ اضغط الدائرة لتمييز الخطوة كمكتملة.", ctas: [{ label: "فتح الإعدادات", href: "/settings/organization" }] },
   { key: "chart", icon: "BookOpen", title: "دليل الحسابات", desc: "أُنشئ لك دليل قياسي كامل تلقائيًا — راجعه وعدّل ما يلزم ليطابق نشاطك.", ctas: [{ label: "مراجعة الدليل", href: "/accounting/chart" }] },
   { key: "units", icon: "Ruler", title: "وحدات القياس", desc: "قطعة، كرتونة، كيلو… تحتاج وحدة واحدة على الأقل قبل إضافة الأصناف.", ctas: [{ label: "إدارة الوحدات", href: "/inventory/items" }] },
   { key: "warehouses", icon: "Warehouse", title: "المخازن", desc: "أُنشئ «المستودع الرئيسي» تلقائيًا — أضف مخازن أخرى لو عندك أكثر من موقع.", ctas: [{ label: "المخازن", href: "/inventory/warehouses" }] },

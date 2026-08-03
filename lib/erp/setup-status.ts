@@ -12,7 +12,7 @@ import {
  */
 export type SetupStatus = {
   basis: boolean;        // accounting basis confirmed — the fiscal-year start is set (drives every period)
-  company: boolean;      // org profile touched (tax number / logo / fiscal-year start)
+  company: boolean;      // tax number set — the thing that actually matters on a tax invoice
   chart: boolean;        // chart of accounts exists (auto-seeded at signup)
   units: boolean;        // at least one unit of measure
   warehouses: boolean;   // at least one warehouse (WH-01 auto-seeded)
@@ -47,7 +47,9 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
 
   const s: SetupStatus = {
     basis: !!org?.fiscalYearStart,
-    company: !!(org?.taxNumber || org?.logo || org?.fiscalYearStart),
+    // The tax number is what a compliant invoice needs; a logo alone shouldn't tick
+    // "company set". Non-VAT sellers can mark this step done manually.
+    company: !!org?.taxNumber,
     chart: nAccounts > 0,
     units: nUnits > 0,
     warehouses: nWarehouses > 0,
