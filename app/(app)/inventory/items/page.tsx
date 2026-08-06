@@ -79,7 +79,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
     const rows = await db
       .select({
         id: items.id, code: items.code, nameAr: items.nameAr, image: items.image,
-        sellPrice: items.sellPrice, isActive: items.isActive,
+        sellPrice: items.sellPrice, isActive: items.isActive, minStock: items.minStock,
         parentItemId: items.parentItemId,
         codeCount: sql<number>`count(${itemCodes.id})`,
         childCount: sql<number>`(SELECT count(*) FROM items c WHERE c.parent_item_id = ${items.id})`,
@@ -91,6 +91,22 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
       .orderBy(asc(items.code))
       .limit(PER_PAGE)
       .offset((safePage - 1) * PER_PAGE);
+
+    // On-hand per item for THIS page only (latest running balance per item+warehouse,
+    // summed across warehouses) — same source as the dashboard/stock report.
+    const pageIds = rows.map((r) => r.id);
+    const onHandById = new Map<string, number>();
+    if (pageIds.length) {
+      const idList = sql.join(pageIds.map((id) => sql`${id}`), sql`, `);
+      const stockRes = await db.execute<{ item_id: string; qty: string }>(sql`
+        SELECT item_id, COALESCE(SUM(bq), 0) AS qty FROM (
+          SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bq
+          FROM stock_movements
+          WHERE organization_id = ${orgId} AND item_id IN (${idList})
+          ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+        ) t GROUP BY item_id`);
+      for (const r of stockRes.rows as { item_id: string; qty: string }[]) onHandById.set(r.item_id, Number(r.qty));
+    }
 
     const hasFilters = Boolean(q || fStatus || fCategory || fMissing || showRelated);
     const qs = (p: number) => {
@@ -172,7 +188,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
             ) : (
               <>
                 <ItemsTable
-                  rows={rows.map((r) => ({ ...r, codeCount: Number(r.codeCount), childCount: Number(r.childCount) }))}
+                  rows={rows.map((r) => ({ ...r, codeCount: Number(r.codeCount), childCount: Number(r.childCount), onHand: onHandById.get(r.id) ?? 0, minStock: Number(r.minStock ?? 0) }))}
                   total={Number(total)}
                   canDelete={can("inventory.delete")}
                   filter={{ q, status: fStatus, category: fCategory, missing: fMissing }}
