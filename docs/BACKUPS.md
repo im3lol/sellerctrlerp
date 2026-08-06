@@ -44,8 +44,14 @@ pg_restore --no-owner --no-privileges --dbname="postgres://postgres:***@localhos
 # or overwrite in place (DESTRUCTIVE — drops+recreates objects)
 pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" backup.dump
 ```
-After a restore, re-run the RLS bootstrap if roles were lost: `db/rls/00-appuser.sql`
-then `01-policies.sql` + `02-line-policies.sql` (see `db/rls/CUTOVER.md`).
+Or use the wrapper (same flags): `DATABASE_URL=… ./scripts/backup/pg-restore.sh <dump>`.
+
+After a restore, re-apply RLS: **`npm run db:rls`** (recreates the appuser role +
+policies; see `db/rls/CUTOVER.md`).
+
+> **Restore is tested.** A dump from the compose `backup` service was restored into a
+> scratch DB and verified (orgs / customers / GL lines all present) — the restore path
+> works, not just the backup path.
 
 ### Point-in-time recovery (PITR) — optional, sub-day granularity
 
