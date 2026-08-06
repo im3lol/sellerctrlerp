@@ -13,6 +13,7 @@
     "db:rls": "tsx scripts/apply-rls.ts",
     "rls:leak": "tsx scripts/rls-leak-check.ts",
     "test:engine": "tsx scripts/engine-check.ts",
+    "gen:secrets": "tsx scripts/gen-secrets.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
