@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import {
   organizations, accounts, unitsOfMeasure, warehouses, items, customers, suppliers,
   stockMovements, documentPrefixes, salesPlatforms, journalEntries,
@@ -27,6 +28,7 @@ export type SetupStatus = {
 };
 
 export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
+ return withOrgScope(orgId, false, async () => {
   const cnt = (p: Promise<{ n: number }[]>) => p.then((r) => Number(r[0]?.n ?? 0));
   const [org, nAccounts, nUnits, nWarehouses, nItems, nCustomers, nSuppliers, nOpeningStock, nOpeningJournal, nPrefixes, nPlatforms] = await Promise.all([
     db.select({ taxNumber: organizations.taxNumber, logo: organizations.logo, fiscalYearStart: organizations.fiscalYearStart, setupSkipped: organizations.setupSkipped })
@@ -68,4 +70,5 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
   }
   s.essentialDone = [s.basis, s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
   return s;
+ });
 }
