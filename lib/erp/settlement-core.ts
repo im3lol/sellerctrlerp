@@ -16,6 +16,7 @@ import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensurePlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, type SettleAmounts } from "@/lib/erp/settlement-gl";
+import { bust, orgKey } from "@/lib/cache";
 
 // Session-less settlement engine shared by the file-upload action, the SP-API sync
 // job, and the manual "post" button. All functions assume the caller already
@@ -452,6 +453,7 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
   }
 
   const ret = await processSettlementRefunds(orgId, channel);
+  await bust(orgKey(orgId, "platform-pnl")); // posting changed platform profitability → drop its cached report
   return { posted: postableRowIds.length, perOrderEntries, heldForImport, historicalSkipped, deferredHeld, returnsCreated: ret.created, returnsUnmatched: ret.unmatched };
 }
 
@@ -545,5 +547,6 @@ export async function reverseSettlementPosting(orgId: string, userId?: string | 
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر عكس ترحيل التسوية" };
   }
+  if (reversed > 0) await bust(orgKey(orgId, "platform-pnl")); // un-posting changed profitability too
   return { reversed };
 }

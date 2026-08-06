@@ -30,10 +30,31 @@ const EMPTY = (code: string): IntegrationConfig => ({
   redirectUri: null, scopes: null, region: null, apiVersion: null, appId: null, enabled: null, extra: {},
 });
 
-/** Read one connector's stored config (DB only). Returns an all-empty shape if unset or
- *  the table predates its migration. Never throws. */
+// Short IN-PROCESS memo (NOT Redis): the config holds DECRYPTED secrets, so it must never be
+// written to the shared/persisted Redis cache. This just spares a DB read + decrypt on every
+// SP-API/Noon call in the hot worker path. A save busts it in this process; other processes
+// pick up the change within the TTL.
+const CONFIG_TTL_MS = 30_000;
+const memo = new Map<string, { v: IntegrationConfig; exp: number }>();
+
+/** Drop the memoised config for a connector (or all) — called after an admin save. */
+export function bustIntegrationConfig(code?: string): void {
+  if (code) memo.delete(code.toUpperCase());
+  else memo.clear();
+}
+
+/** Read one connector's stored config (DB, memoised 30s in-process). Returns an all-empty
+ *  shape if unset or the table predates its migration. Never throws. */
 export async function getIntegrationConfig(code: string): Promise<IntegrationConfig> {
   const c = code.toUpperCase();
+  const hit = memo.get(c);
+  if (hit && hit.exp > Date.now()) return hit.v;
+  const v = await readIntegrationConfig(c);
+  memo.set(c, { v, exp: Date.now() + CONFIG_TTL_MS });
+  return v;
+}
+
+async function readIntegrationConfig(c: string): Promise<IntegrationConfig> {
   let row: typeof platformIntegrations.$inferSelect | undefined;
   try { [row] = await db.select().from(platformIntegrations).where(eq(platformIntegrations.code, c)).limit(1); }
   catch { return EMPTY(c); }

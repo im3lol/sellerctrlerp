@@ -54,6 +54,8 @@ export async function saveIntegrationSettingsAction(
     if (input.webhookSecret?.trim()) set.webhookSecret = encryptSecret(input.webhookSecret.trim());
     if (input.enabled !== undefined) set.enabled = input.enabled;
     await withPlatformScope(() => db.insert(platformIntegrations).values(set as typeof platformIntegrations.$inferInsert).onConflictDoUpdate({ target: platformIntegrations.code, set }));
+    const { bustIntegrationConfig } = await import("@/lib/saas/integration-config");
+    bustIntegrationConfig(c); // this process picks up the new config immediately
     revalidatePath("/admin/integrations");
     return { ok: true };
   } catch (e) {

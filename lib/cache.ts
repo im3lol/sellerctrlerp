@@ -1,10 +1,11 @@
 import "server-only";
+import { sharedCacheAvailable, cachedShared, bustShared } from "@/lib/redis-cache";
 
-// Tiny in-process TTL memo for expensive READ-ONLY reports (P&L, aging) so a dashboard
-// view doesn't recompute from raw SQL on every load — cutting the per-request DB
-// connection-hold that dominates at scale. Per-instance (fine for a single VPS; each
-// replica keeps its own cache, still correct because keys are tenant-scoped). Short TTL
-// bounds staleness; MAX bounds memory. NEVER cache writes or per-user data here.
+// TTL memo for expensive READ-ONLY reports/config so a view doesn't recompute from raw SQL
+// on every load — cutting the per-request DB connection-hold that dominates at scale. When
+// Redis is configured it's a SHARED cache across replicas/workers (lib/redis-cache); else an
+// in-process Map (fine for a single VPS). Keys are tenant-scoped either way. Short TTL bounds
+// staleness; MAX bounds the local map. NEVER cache writes or per-user data here.
 type Entry = { value: unknown; expires: number };
 const store = new Map<string, Entry>();
 const MAX = 2000;
@@ -18,9 +19,10 @@ export function orgKey(orgId: string, ...parts: (string | number | null | undefi
   return `${orgId}|${parts.map((p) => (p == null ? "∅" : String(p))).join("|")}`;
 }
 
-/** Memoize `fn`'s result under `key` for `ttlMs`. Cache hit returns the stored value; a
- *  miss runs `fn` in the caller's scope and stores it. */
+/** Memoize `fn`'s result under `key` for `ttlMs`. Shared via Redis when available, else an
+ *  in-process Map. Cache hit returns the stored value; a miss runs `fn` and stores it. */
 export async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  if (sharedCacheAvailable()) return cachedShared(key, ttlMs, fn);
   const now = Date.now();
   const hit = store.get(key);
   if (hit && hit.expires > now) return hit.value as T;
@@ -33,5 +35,12 @@ export async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>
   return value;
 }
 
-/** Test/ops hook: clear everything (e.g. after a bulk import in the same process). */
+/** Invalidate every cache key beginning with `prefix` — in the local map AND the shared
+ *  Redis cache. Call after a write that changes a cached read (e.g. a settlement post). */
+export async function bust(prefix: string): Promise<void> {
+  for (const k of [...store.keys()]) if (k.startsWith(prefix)) store.delete(k);
+  await bustShared(prefix);
+}
+
+/** Test/ops hook: clear the in-process map (e.g. after a bulk import in the same process). */
 export function clearCache(): void { store.clear(); }
