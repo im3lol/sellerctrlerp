@@ -9,6 +9,7 @@ import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
 import { secretEquals } from "@/lib/crypto";
+import { log } from "@/lib/log";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
@@ -43,9 +44,9 @@ export async function GET(req: Request) {
   // 1) Materialise due recurring expenses + journals as DRAFTs (regardless of email config).
   let generated = 0;
   for (const org of orgs) {
-    try { generated += await generateDueRecurringExpenses(org.id, now); } catch { /* skip org on error */ }
-    try { generated += await generateDueRecurringJournals(org.id, now); } catch { /* skip org on error */ }
-    try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
+    try { generated += await generateDueRecurringExpenses(org.id, now); } catch (e) { log.warn("cron.recurring_expenses_failed", { orgId: org.id, err: e }); }
+    try { generated += await generateDueRecurringJournals(org.id, now); } catch (e) { log.warn("cron.recurring_journals_failed", { orgId: org.id, err: e }); }
+    try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch (e) { log.warn("cron.recurring_sales_failed", { orgId: org.id, err: e }); }
   }
 
   // 1b) Daily marketplace discovery — ENQUEUE one incremental discovery job per
@@ -61,15 +62,15 @@ export async function GET(req: Request) {
         ? incrementalFrom(new Date(c.productsSyncedAt), c.connectedAt ? new Date(c.connectedAt) : null, now.getTime()).toISOString()
         : undefined;
       if (await enqueue(QUEUES.discovery, { orgId: c.orgId, provider: c.provider, since })) productsRun++;
-    } catch { /* skip a connection on error */ }
+    } catch (e) { log.warn("cron.discovery_enqueue_failed", { orgId: c.orgId, provider: c.provider, err: e }); }
   }
 
   // 1c) Platform SaaS metrics: mark any lapsed subscriptions as EXPIRED events, then
   // snapshot today's MRR — the only source of trend/churn history.
   let expired = 0;
-  try { expired = await sweepExpirations(now); } catch { /* non-fatal */ }
-  try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
-  try { await pruneReportDownloads(7); } catch { /* non-fatal */ }
+  try { expired = await sweepExpirations(now); } catch (e) { log.warn("cron.sweep_expirations_failed", { err: e }); }
+  try { await writeDailySnapshot(now); } catch (e) { log.warn("cron.mrr_snapshot_failed", { err: e }); }
+  try { await pruneReportDownloads(7); } catch (e) { log.warn("cron.prune_reports_failed", { err: e }); }
 
   // 1e) Subscription expiry reminders (dunning): email each org whose ACTIVE
   // subscription is 7 / 3 / 1 days from expiry. Assumes a DAILY cron, so each
@@ -91,13 +92,13 @@ export async function GET(req: Request) {
       const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin });
       if (await sendEmail({ to: s.email, subject: mail.subject, html: mail.html, text: mail.text })) reminders++;
     }
-  } catch (e) { console.error("[expiry-reminders]", e); }
+  } catch (e) { log.error("cron.expiry_reminders_failed", { err: e }); }
 
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
   // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.
   let backedUp = 0;
   for (const org of orgs) {
-    try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch { /* skip org (e.g. storage unconfigured) */ }
+    try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch (e) { log.warn("cron.backup_failed", { orgId: org.id, err: e }); }
   }
 
   // 2) Daily reminder digest — only when email is configured.
