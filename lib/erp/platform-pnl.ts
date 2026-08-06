@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesInvoiceLines, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
+import { cached, orgKey } from "@/lib/cache";
 
 export type PlatformPnl = {
   units: number; revenue: number; cogs: number;
@@ -13,9 +14,15 @@ export type PlatformPnl = {
 /**
  * P&L for a whole marketplace: booked revenue/COGS/units from the platform's
  * auto-customer invoices + ACTUAL Amazon fees from its settlement transactions.
- * `net = revenue − cogs − fees`.
+ * `net = revenue − cogs − fees`. Cached 60s per (org, channel, customer) — a dashboard
+ * P&L doesn't need to recompute from raw SQL on every load; the key is tenant-scoped so
+ * one org's figure can never be served to another.
  */
 export async function getPlatformPnl(orgId: string, channel: string, customerId: string | null): Promise<PlatformPnl> {
+  return cached(orgKey(orgId, "platform-pnl", channel, customerId), 60_000, () => computePlatformPnl(orgId, channel, customerId));
+}
+
+async function computePlatformPnl(orgId: string, channel: string, customerId: string | null): Promise<PlatformPnl> {
   const [sales] = customerId
     ? await db.select({
         units: sql<string>`coalesce(sum(${salesInvoiceLines.quantity}), 0)`,
