@@ -8,6 +8,7 @@ import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
 import { enqueue, QUEUES } from "@/lib/queue/queues";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
+import { secretEquals } from "@/lib/crypto";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
@@ -27,7 +28,8 @@ const row = (label: string, count: number, href: string) =>
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!secret || !secretEquals(provided, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
