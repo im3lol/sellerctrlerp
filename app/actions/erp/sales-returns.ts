@@ -543,3 +543,29 @@ export async function createDeliveryReturnAction(input: unknown): Promise<SaveRe
     }
   });
 }
+
+export type SalesReturnsFilter = { q?: string; status?: string; channel?: string; disposition?: string; from?: string; to?: string; draftOnly?: boolean };
+
+/**
+ * Bulk confirm/delete DRAFT sales returns from the register. Reuses the single-item
+ * actions (each re-opens its own scope and re-checks eligibility), so bulk-confirm
+ * routes every return's stock by its stored disposition — a page of FBA returns is
+ * posted with a damaged unit written off, not restocked as sellable. Ineligible rows
+ * (non-DRAFT) are skipped, not failed. ids is the explicit selection (page-scoped).
+ */
+export async function bulkSalesReturnsAction(op: "confirm" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
+  const auth = await authorizeErp(op === "confirm" ? "sales.confirm" : "sales.create");
+  if ("error" in auth) return auth;
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return { error: "لم يتم تحديد أي مرتجع" };
+  let count = 0;
+  let lastError: string | undefined;
+  for (const id of unique) {
+    const r = op === "confirm" ? await confirmSalesReturnAction(id) : await deleteSalesReturnAction(id);
+    if (r.ok) count++;
+    else lastError = r.error;
+  }
+  if (count === 0) return { error: lastError ?? "تعذّر تنفيذ العملية على المحدّد" };
+  revalidatePath("/sales/returns");
+  return { ok: true, count };
+}

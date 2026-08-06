@@ -77,7 +77,22 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
           <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
           <Field label="التاريخ">{dt(ret.date)}</Field>
           <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
+          <Field label="المصدر">{ret.channel ? ({ AMAZON: "أمازون", NOON: "نون", SHOPIFY: "شوبيفاي" } as Record<string, string>)[ret.channel] ?? ret.channel : "يدوي"}</Field>
+          {ret.disposition && (
+            <Field label="حالة البضاعة">
+              <Badge variant="outline" className={ret.disposition !== "SELLABLE" ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>
+                {ret.disposition !== "SELLABLE" ? "تالف / غير قابل للبيع" : "قابل للبيع"}
+              </Badge>
+            </Field>
+          )}
+          {ret.reason && <Field label="سبب الإرجاع">{ret.reason}</Field>}
+          {ret.externalReturnId && <Field label="رقم الطلب بالمنصّة">{ret.externalReturnId}</Field>}
         </div>
+        {ret.status === "DRAFT" && ret.disposition && ret.disposition !== "SELLABLE" && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950/20">
+            بضاعة تالفة/غير قابلة للبيع — عند التأكيد لن تُعاد للمخزون القابل للبيع؛ تُقيَّد تكلفتها كخسارة (عجز وتالف).
+          </div>
+        )}
 
         <Card>
           <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
