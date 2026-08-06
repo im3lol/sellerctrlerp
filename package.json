@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "rls:check": "tsx scripts/rls-unscoped-check.ts",
+    "db:rls": "tsx scripts/apply-rls.ts",
+    "rls:leak": "tsx scripts/rls-leak-check.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
