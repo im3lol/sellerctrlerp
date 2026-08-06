@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesReturns, salesReturnLines, customers, items, salesInvoices, deliveryNotes } from "@/db/schema";
+import { salesReturns, salesReturnLines, customers, items, salesInvoices, deliveryNotes, warehouses } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReturnDetailActions } from "@/components/erp/return-detail-actions";
+import { SalesReturnConfirm } from "@/components/erp/sales-return-confirm";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -57,6 +58,11 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
     if (dn) { const href = `/sales/deliveries/${encodeURIComponent(dn.number)}`; linked.push({ label: "إذن صرف", number: dn.number, href }); backHref = href; }
     const st = STATUS[ret.status] ?? { label: ret.status, variant: "secondary" as const };
     const canManage = can("sales.create");
+    // Damaged-warehouse options for the disposition picker (only when a DRAFT can be confirmed).
+    const whs = ret.status === "DRAFT" && canManage
+      ? await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses)
+          .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
+      : [];
 
     return (
       <div className="space-y-6">
@@ -66,9 +72,11 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
           subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
           backHref={backHref}
           action={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <PrintDocLink href={`/sales/returns/${encodeURIComponent(ret.number)}/print`} />
-              <ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} dest={backHref} />
+              {canManage && ret.status === "DRAFT"
+                ? <SalesReturnConfirm id={ret.id} defaultDisposition={ret.disposition} warehouses={whs} dest={backHref} />
+                : <ReturnDetailActions id={ret.id} type="sales" status={ret.status} canManage={canManage} dest={backHref} />}
             </div>
           }
         />
