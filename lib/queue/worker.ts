@@ -6,7 +6,7 @@ import { syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
-import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runReimbursementsJob, runLedgerJob, runPricingJob } from "./handlers";
+import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runReimbursementsJob, runLedgerJob, runPricingJob, runMaintenanceJob } from "./handlers";
 
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
@@ -28,6 +28,7 @@ const CONC: Record<QueueName, number> = {
   "amazon-returns": 1,
   "amazon-reimbursements": 1,
   "amazon-ledger": 1,
+  "maintenance": 3, // per-tenant daily backups fan out — a few at a time is plenty
 };
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
 
@@ -64,6 +65,7 @@ export function startWorkers(): void {
   make(QUEUES.returns, runReturnsJob);
   make(QUEUES.reimbursements, runReimbursementsJob);
   make(QUEUES.ledger, runLedgerJob);
+  make(QUEUES.maintenance, runMaintenanceJob);
   console.log("[queue] Amazon sync workers started");
 
   // Near-real-time: self-trigger the due-syncs enqueue every minute — no external

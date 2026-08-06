@@ -2,7 +2,10 @@ import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { SyncJob } from "./queues";
 import { db } from "@/lib/db";
-import { organizationMembers } from "@/db/schema";
+import { organizationMembers, organizations } from "@/db/schema";
+import { withPlatformScope } from "@/lib/db-scope";
+import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
+import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
 import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
@@ -200,4 +203,21 @@ export async function runPricingJob(d: SyncJob): Promise<void> {
     console.error("[queue] fees sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تقدير الرسوم");
   }
+}
+
+/** Per-tenant daily maintenance: the safety backup to object storage + prune to the
+ *  last 14. Fanning this out of the cron's serial per-org loop (which timed out on a
+ *  large fleet) into one job per org — the heavy full-DB export now runs concurrently
+ *  under the worker's fairness limits instead of blocking a 60s serverless function. */
+export async function runMaintenanceJob(d: SyncJob): Promise<void> {
+  await withPlatformScope(async () => {
+    const [org] = await db.select({ name: organizations.nameAr }).from(organizations).where(eq(organizations.id, d.orgId)).limit(1);
+    if (!org) return;
+    try {
+      await backupOrgToStorage(d.orgId, org.name);
+      await pruneBackups(d.orgId, 14);
+    } catch (e) {
+      log.warn("maintenance.backup_failed", { orgId: d.orgId, err: e });
+    }
+  });
 }

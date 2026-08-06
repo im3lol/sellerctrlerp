@@ -6,6 +6,7 @@ import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
 import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
 import { enqueue, QUEUES } from "@/lib/queue/queues";
+import { redisEnabled } from "@/lib/queue/redis";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
 import { secretEquals } from "@/lib/crypto";
@@ -95,15 +96,24 @@ export async function GET(req: Request) {
   } catch (e) { log.error("cron.expiry_reminders_failed", { err: e }); }
 
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
-  // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.
-  let backedUp = 0;
-  for (const org of orgs) {
-    try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch (e) { log.warn("cron.backup_failed", { orgId: org.id, err: e }); }
+  // Fan out one job per tenant when Redis is available so the heavy full-DB export runs
+  // concurrently in the worker instead of this 60s function looping serially over the
+  // whole fleet (which timed out mid-loop at scale, silently skipping later tenants).
+  // No Redis → fall back to the in-line loop (unchanged behavior).
+  let backedUp = 0, backupQueued = 0;
+  if (redisEnabled()) {
+    for (const org of orgs) {
+      if (await enqueue(QUEUES.maintenance, { orgId: org.id, provider: "" })) backupQueued++;
+    }
+  } else {
+    for (const org of orgs) {
+      try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch (e) { log.warn("cron.backup_failed", { orgId: org.id, err: e }); }
+    }
   }
 
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -125,6 +135,6 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });
   });
 }

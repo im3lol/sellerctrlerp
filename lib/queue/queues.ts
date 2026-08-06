@@ -16,6 +16,7 @@ export const QUEUES = {
   returns: "amazon-returns",     // FBA customer returns -> DRAFT مرتجعات
   reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
   ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
+  maintenance: "maintenance",    // per-tenant daily backup (fans the cron out of one serial loop)
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
