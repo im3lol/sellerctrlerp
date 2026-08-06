@@ -2,6 +2,7 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { SPAPI_ENDPOINT, type Region } from "./constants";
 import { refreshAccessToken } from "./lwa";
+import { redisEnabled, redisConnection } from "@/lib/queue/redis";
 import type { Credential } from "../connector";
 
 // SP-API HTTP client: mints a short-lived LWA access token from the stored
@@ -94,7 +95,7 @@ export function credKey(cred: Credential): string {
   return cred.sellerId || cred.marketplaceId || cred.refreshToken.slice(0, 16);
 }
 
-export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
+function pacedInProcess<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
     const gap = Date.now() - (gateLast.get(key) ?? 0);
     if (gap < minIntervalMs) await sleep(minIntervalMs - gap);
@@ -104,6 +105,39 @@ export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T
   const next = (gateChain.get(key) ?? Promise.resolve()).then(run, run); // serialize past failures too
   gateChain.set(key, next.catch(() => {}));
   return next;
+}
+
+// Distributed pacer (opt-in via REDIS_PACER=1) — REQUIRED before running >1 worker
+// replica; the in-process gate above only rate-limits within one process. A tiny atomic
+// Lua slot allocator spaces call STARTS by minIntervalMs across ALL replicas, using
+// Redis's own clock (no cross-host skew). It's deliberately CONSERVATIVE: it can only
+// ever make a caller wait LONGER (never sooner), and on any Redis error it falls back to
+// the known-correct in-process gate — so a bug slows sync, it never sends calls faster
+// (which is what would trip SP-API throttling/bans). Default off ⇒ zero behavior change.
+const SLOT_LUA =
+  "local t=redis.call('TIME') local now=t[1]*1000+math.floor(t[2]/1000) " +
+  "local interval=tonumber(ARGV[1]) " +
+  "local nextAllowed=tonumber(redis.call('GET',KEYS[1]) or '0') " +
+  "if nextAllowed<now then nextAllowed=now end " +
+  "redis.call('SET',KEYS[1],nextAllowed+interval,'PX',60000) " +
+  "return nextAllowed-now";
+
+async function pacedRedis<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
+  try {
+    const delay = Number(await redisConnection().eval(SLOT_LUA, 1, `sp:pace:${key}`, String(minIntervalMs)));
+    if (!Number.isFinite(delay)) return pacedInProcess(key, minIntervalMs, fn);
+    if (delay > 0) await sleep(delay);
+    return fn();
+  } catch {
+    return pacedInProcess(key, minIntervalMs, fn); // any Redis issue → known-correct local gate
+  }
+}
+
+/** Space SP-API call starts for `key` by ≥minIntervalMs so we stay under the per-account
+ *  rate limit. Cross-process (Redis) when REDIS_PACER=1 + Redis is up, else in-process. */
+export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
+  if (process.env.REDIS_PACER === "1" && redisEnabled()) return pacedRedis(key, minIntervalMs, fn);
+  return pacedInProcess(key, minIntervalMs, fn);
 }
 
 const API_TIMEOUT_MS = 30_000;
