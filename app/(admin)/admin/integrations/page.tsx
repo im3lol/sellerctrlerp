@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { getXpaySettingsAdmin, getEmailSettingsAdmin, getIntegrationSettingsAdmin } from "@/app/actions/admin/platform-settings";
 import { registeredConnectors } from "@/lib/erp/marketplace/registry";
 import { IntegrationCard } from "@/components/admin/integration-card";
+import { SettingsTile } from "@/components/admin/settings-tile";
 import { XpaySettingsForm } from "@/components/admin/xpay-settings-form";
 import { EmailSettingsForm } from "@/components/admin/email-settings-form";
 
@@ -32,9 +33,15 @@ export default async function IntegrationsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">الدفع والبريد</h2>
-        <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
-          <XpaySettingsForm initial={xpay} appUrl={appUrl} />
-          <EmailSettingsForm initial={email} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <SettingsTile label="بوابة الدفع xpay" icon="CreditCard" brandCls="bg-indigo-500/15 text-indigo-600" configured={xpay.hasSecretKey}
+            dialogTitle="بوابة الدفع xpay" dialogDescription="مفاتيح حساب xpay لتحصيل الاشتراكات أونلاين.">
+            <XpaySettingsForm initial={xpay} appUrl={appUrl} />
+          </SettingsTile>
+          <SettingsTile label="البريد الإلكتروني (SMTP)" icon="Mail" brandCls="bg-sky-500/15 text-sky-600" configured={email.hasPass}
+            dialogTitle="البريد الإلكتروني (SMTP)" dialogDescription="خادم SMTP لرسائل الترحيب والإيصالات والتذكيرات.">
+            <EmailSettingsForm initial={email} />
+          </SettingsTile>
         </div>
       </section>
     </div>
