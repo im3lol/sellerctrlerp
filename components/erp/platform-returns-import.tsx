@@ -66,7 +66,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     start(async () => {
       const r = await importPlatformReturnsAction(platformId, returns);
       setResult(r);
-      if (r.ok) { toast.success(`تم تسجيل ${int(r.created)} مرتجع`); router.refresh(); }
+      if (r.ok) { toast.success(`تم إنشاء ${int(r.created)} مسودّة مرتجع`); router.refresh(); }
       else toast.error(r.error);
     });
   };
@@ -85,7 +85,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     <Card>
       <CardHeader>
         <CardTitle>استيراد المرتجعات — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ إشعار خصم + نُعيد الصنف للمخزون. المكرر يُتخطّى.</CardDescription>
+        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ <b>مسودّة</b> مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
@@ -111,9 +111,8 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم تسجيل <b>{int(result.created)}</b> مرتجع (إشعار خصم + إعادة للمخزون).</div>
+            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <a href="/sales/returns" className="underline">سجل المرتجعات</a>.</div>
             {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{int(result.skippedDuplicate)}</b> مرتجع مكرر.</div>}
-            {result.restockFailed > 0 && <div className="text-destructive">⚠ <b>{int(result.restockFailed)}</b> مرتجع: تم الإشعار المالي لكن تعذّرت إعادة المخزون — أعِدها يدويًا.</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">
                 لم تُعالَج: {result.noOrder > 0 && <span>{int(result.noOrder)} بلا أمر مطابق · </span>}
