@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -49,9 +49,14 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
       .where(and(
         eq(marketplaceSettlementTxns.organizationId, orgId),
         eq(marketplaceSettlementTxns.channel, channel),
-        eq(marketplaceSettlementTxns.status, "Released"),
-        gte(marketplaceSettlementTxns.postedAt, fromDate),
-        lte(marketplaceSettlementTxns.postedAt, toDate),
+        // Only rows actually posted to the GL — so this screen foots to the رسوم أمازون
+        // (5203) / receivable balances. Counting Released-but-unposted or pre-go-live rows
+        // (as the old postedAt filter did) made the total diverge from the ledger.
+        isNotNull(marketplaceSettlementTxns.journalEntryId),
+        // Date by the SAME basis the posting engine uses (releaseDate, postedAt fallback),
+        // not Amazon's postedAt — otherwise the period boundary misaligns with the GL.
+        sql`coalesce(${marketplaceSettlementTxns.releaseDate}, ${marketplaceSettlementTxns.postedAt}) >= ${fromDate}`,
+        sql`coalesce(${marketplaceSettlementTxns.releaseDate}, ${marketplaceSettlementTxns.postedAt}) <= ${toDate}`,
       ));
 
     const feeRows: SettlementFeeRow[] = rows.map((r) => ({
@@ -90,7 +95,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
           <CardContent className="pt-6">
             {s.categories.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد تسويات مُحرّرة في هذه الفترة. اسحب تقرير التسويات من صفحة المنصّة أولًا.
+                لا توجد تسويات مُرحّلة إلى الدفتر في هذه الفترة. اسحب تقرير التسويات ثم رحّله من صفحة المنصّة أولًا.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -116,7 +121,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">أرقام فعلية من تقرير تسويات أمازون (الصفوف المُحرّرة فقط). الإعلانات تظهر تلقائيًا لأنها تنزل كرسوم خدمة في التسوية — بدون الحاجة لأي ربط إعلانات.</p>
+            <p className="mt-3 text-xs text-muted-foreground">أرقام فعلية من تقرير تسويات أمازون — الصفوف المُرحّلة إلى الدفتر فقط، مؤرّخة بتاريخ الإصدار، فتتطابق مع رصيد حساب رسوم أمازون. الإعلانات تظهر تلقائيًا لأنها تنزل كرسوم خدمة في التسوية — بدون الحاجة لأي ربط إعلانات.</p>
           </CardContent>
         </Card>
       </div>
