@@ -2,10 +2,14 @@ import { desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
-import { getOwnerAnalytics } from "@/lib/erp/platform-metrics";
+import { getOwnerAnalytics, getMrrTrend } from "@/lib/erp/platform-metrics";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
+import { TrendChart } from "@/components/charts/trend-chart";
+
+/** YYYY-MM-DD → DD/MM for a compact x-axis label. */
+const dayLabel = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/${m}`; };
 
 const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`;
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
@@ -14,6 +18,9 @@ const pct = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maxi
 export default async function AnalyticsPage() {
   return withPlatformScope(async () => {
     const a = await getOwnerAnalytics();
+    const trend = await getMrrTrend(90); // daily snapshots, ascending
+    const mrrSeries = trend.map((t) => ({ label: dayLabel(t.date), value: t.mrr }));
+    const activeSeries = trend.map((t) => ({ label: dayLabel(t.date), value: t.activeCount }));
 
     // Acquisition attribution: where tenants came from at signup.
     const sources = await db.select({
@@ -49,6 +56,23 @@ export default async function AnalyticsPage() {
               {k.hint && <div className="text-xs text-muted-foreground">{k.hint}</div>}
             </CardContent></Card>
           ))}
+        </div>
+
+        {/* Growth lines — the "up and to the right" investors look for. Fills daily from
+            the MRR snapshots; sparse until history accrues. */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card><CardContent className="pt-6">
+            <h3 className="mb-4 flex items-center gap-2 font-semibold"><Icon name="TrendingUp" className="size-4" />نموّ الإيراد الشهري (MRR)</h3>
+            {mrrSeries.length >= 2
+              ? <TrendChart data={mrrSeries} valueLabel="MRR" money id="mrr" />
+              : <p className="py-12 text-center text-sm text-muted-foreground">لسه بيتراكم — لقطة MRR بتتسجّل يوميًا، والخط هيظهر بعد أول يومين.</p>}
+          </CardContent></Card>
+          <Card><CardContent className="pt-6">
+            <h3 className="mb-4 flex items-center gap-2 font-semibold"><Icon name="Users" className="size-4" />نموّ العملاء المفعّلين</h3>
+            {activeSeries.length >= 2
+              ? <TrendChart data={activeSeries} valueLabel="عملاء مفعّلين" id="active" />
+              : <p className="py-12 text-center text-sm text-muted-foreground">لسه بيتراكم يوميًا.</p>}
+          </CardContent></Card>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
