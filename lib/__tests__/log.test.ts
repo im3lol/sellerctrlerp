@@ -20,3 +20,29 @@ describe("log — structured JSON, error serialization", () => {
     expect(typeof parsed.err.stack).toBe("string");
   });
 });
+
+describe("external error sink (ERROR_WEBHOOK_URL) — dep-free Sentry stand-in", () => {
+  it("no-ops when unset, POSTs the error payload when set", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
+
+    delete process.env.ERROR_WEBHOOK_URL;
+    log.error("x");
+    expect(fetchSpy).not.toHaveBeenCalled(); // unset → no external call
+
+    process.env.ERROR_WEBHOOK_URL = "https://hook.example/ingest";
+    log.error("y", { orgId: "o1" });
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example/ingest");
+    delete process.env.ERROR_WEBHOOK_URL;
+  });
+
+  it("warn/info never hit the external sink (only errors alert)", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
+    process.env.ERROR_WEBHOOK_URL = "https://hook.example/ingest";
+    log.warn("noise");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    delete process.env.ERROR_WEBHOOK_URL;
+  });
+});
