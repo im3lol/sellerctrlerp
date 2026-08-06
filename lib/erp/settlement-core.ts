@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { round2 as r2 } from "@/lib/erp/money";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
@@ -214,7 +214,7 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
   const values = txns.map((t) => ({
     organizationId: orgId, channel, settlementId: t.settlementId || null, type: t.type,
     orderId: t.orderId || null, sku: t.sku || null, description: t.description || null,
-    quantity: String(t.quantity), postedAt: t.postedAt, status: t.status, releaseDate: t.releaseDate,
+    quantity: String(t.quantity), postedAt: t.postedAt, status: t.status, releaseDate: t.releaseDate, currency: t.currency ?? null,
     productSales: String(t.productSales), shippingCredits: String(t.shippingCredits), promotionalRebates: String(t.promotionalRebates),
     sellingFees: String(t.sellingFees), fbaFees: String(t.fbaFees), otherTransactionFees: String(t.otherTransactionFees),
     other: String(t.other), total: String(t.total), dedupKey: settlementDedupKey(t),
@@ -468,16 +468,27 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
  * system-generated aggregate, not a hand-entered document, so removing it is the
  * clean un-post. `userId` kept for signature parity / future audit.
  */
-export async function reverseSettlementPosting(orgId: string, userId?: string | null, channel = "AMAZON"): Promise<{ reversed: number } | { error: string }> {
+export async function reverseSettlementPosting(orgId: string, userId?: string | null, channel = "AMAZON", settlementId?: string | null): Promise<{ reversed: number } | { error: string }> {
   void userId;
   const cfg = channelCfg(channel);
-  const posted = await db.select({ jid: journalEntries.id })
-    .from(journalEntries)
-    .where(and(
-      eq(journalEntries.organizationId, orgId),
-      eq(journalEntries.sourceType, cfg.sourceType),
-      eq(journalEntries.status, "POSTED"),
-    ));
+  // Scope to a single settlement when asked (reverse one fortnight, not the whole history):
+  // its posted journal entries are those linked from its txns. Otherwise all channel entries.
+  const posted = settlementId
+    ? (await db.selectDistinct({ jid: marketplaceSettlementTxns.journalEntryId })
+        .from(marketplaceSettlementTxns)
+        .where(and(
+          eq(marketplaceSettlementTxns.organizationId, orgId),
+          eq(marketplaceSettlementTxns.channel, channel),
+          eq(marketplaceSettlementTxns.settlementId, settlementId),
+          isNotNull(marketplaceSettlementTxns.journalEntryId),
+        ))).map((r) => ({ jid: r.jid! }))
+    : await db.select({ jid: journalEntries.id })
+        .from(journalEntries)
+        .where(and(
+          eq(journalEntries.organizationId, orgId),
+          eq(journalEntries.sourceType, cfg.sourceType),
+          eq(journalEntries.status, "POSTED"),
+        ));
   if (posted.length === 0) return { reversed: 0 };
 
   let reversed = 0;

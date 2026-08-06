@@ -13,13 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
+import { SettlementReverseButton } from "@/components/erp/settlement-reverse-button";
 
 const money = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 type SP = { from?: string; to?: string };
-type Row = { settlement_id: string; from_d: string | null; to_d: string | null; gross: string; net: string; transferred: string; n: number };
+type Row = { settlement_id: string; from_d: string | null; to_d: string | null; gross: string; net: string; transferred: string; n: number; currency: string | null; posted: boolean };
 
 /**
  * Per-settlement statement — the report every Amazon/Noon seller expects: each settlement
@@ -30,7 +31,8 @@ type Row = { settlement_id: string; from_d: string | null; to_d: string | null; 
  */
 export default async function PlatformStatementsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
   const { code } = await params;
-  return loadErpPage("accounting.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
+    const canReverse = can("accounting.reverse");
     const channel = code.toUpperCase();
     const [platform] = await db.select({ name: salesPlatforms.name }).from(salesPlatforms)
       .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, channel))).limit(1);
@@ -50,7 +52,9 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
              coalesce(sum(product_sales + shipping_credits + promotional_rebates), 0) AS gross,
              coalesce(sum(total) filter (where type <> 'Transfer'), 0) AS net,
              coalesce(-sum(total) filter (where type = 'Transfer'), 0) AS transferred,
-             count(*)::int AS n
+             count(*)::int AS n,
+             min(currency) AS currency,
+             bool_or(journal_entry_id IS NOT NULL) AS posted
       FROM marketplace_settlement_txns
       WHERE organization_id = ${orgId} AND channel = ${channel} AND settlement_id IS NOT NULL
         AND coalesce(release_date, posted_at) >= ${fromDate}
@@ -61,7 +65,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
 
     const stmts = rows.map((r) => {
       const gross = Number(r.gross), net = Number(r.net), transferred = Number(r.transferred);
-      return { id: r.settlement_id, from: r.from_d, to: r.to_d, n: Number(r.n), gross, deductions: gross - net, net, transferred, diff: net - transferred };
+      return { id: r.settlement_id, from: r.from_d, to: r.to_d, n: Number(r.n), gross, deductions: gross - net, net, transferred, diff: net - transferred, currency: r.currency, posted: r.posted };
     });
     const tot = stmts.reduce((a, s) => ({ gross: a.gross + s.gross, net: a.net + s.net, transferred: a.transferred + s.transferred }), { gross: 0, net: 0, transferred: 0 });
 
@@ -118,14 +122,17 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
                           <TableCell className="whitespace-nowrap text-muted-foreground">{dt(s.from)} — {dt(s.to)}</TableCell>
                           <TableCell className="tabular-nums">{money(s.gross)}</TableCell>
                           <TableCell className="tabular-nums text-destructive">−{money(s.deductions)}</TableCell>
-                          <TableCell className="tabular-nums font-semibold">{money(s.net)}</TableCell>
+                          <TableCell className="tabular-nums font-semibold whitespace-nowrap">{money(s.net)}{s.currency ? <span className="ms-1 text-xs text-muted-foreground">{s.currency}</span> : null}</TableCell>
                           <TableCell className="tabular-nums text-emerald-600">{s.transferred ? money(s.transferred) : "—"}</TableCell>
                           <TableCell>
-                            {s.transferred === 0
-                              ? <Badge variant="secondary">لم تُحوَّل بعد</Badge>
-                              : foots
-                                ? <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">مطابِقة</Badge>
-                                : <span className="text-xs text-amber-600" title="غالبًا رصيد مُرحّل من/إلى تسوية أخرى">فرق {money(s.diff)}</span>}
+                            <div className="flex items-center gap-2">
+                              {s.transferred === 0
+                                ? <Badge variant="secondary">لم تُحوَّل بعد</Badge>
+                                : foots
+                                  ? <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">مطابِقة</Badge>
+                                  : <span className="text-xs text-amber-600" title="غالبًا رصيد مُرحّل من/إلى تسوية أخرى">فرق {money(s.diff)}</span>}
+                              {canReverse && s.posted && <SettlementReverseButton channel={channel} settlementId={s.id} />}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

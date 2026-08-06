@@ -1713,6 +1713,7 @@ export const marketplaceSettlementTxns = pgTable(
     postedAt: ts("posted_at"),
     status: text("status").notNull().default("Released"), // Released | Deferred
     releaseDate: ts("release_date"),
+    currency: text("currency"), // settlement currency (e.g. AED/SAR/EGP) — for display on multi-marketplace payouts
     productSales: money("product_sales").notNull().default("0"),
     shippingCredits: money("shipping_credits").notNull().default("0"),
     promotionalRebates: money("promotional_rebates").notNull().default("0"),
