@@ -1,20 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// The readers select the platform_settings singleton then apply DB-first + env-fallback
-// logic. We mock the db row and env, and assert the resolution rules.
-
-const state: { row: Record<string, unknown> | undefined } = { row: undefined };
-vi.mock("@/lib/db", () => ({
-  db: { select: () => ({ from: () => ({ limit: async () => (state.row ? [state.row] : []) }) }) },
+// The readers resolve DB-first (platform_integrations via getIntegrationConfig) then env
+// fallback. We mock the generic reader per connector code and assert the resolution rules.
+type Cfg = { clientId: string; clientSecret: string; webhookSecret: string; appId: string | null; enabled: boolean | null };
+const state: { byCode: Record<string, Partial<Cfg>> } = { byCode: {} };
+const full = (code: string, o: Partial<Cfg>) => ({
+  code, clientId: "", clientSecret: "", webhookSecret: "", redirectUri: null, scopes: null,
+  region: null, apiVersion: null, appId: null, enabled: null, extra: {}, ...o,
+});
+vi.mock("../integration-config", () => ({
+  getIntegrationConfig: async (code: string) => full(code.toUpperCase(), state.byCode[code.toUpperCase()] ?? {}),
+  getIntegrationEnabled: async (code: string) => state.byCode[code.toUpperCase()]?.enabled ?? null,
 }));
-vi.mock("@/lib/crypto", () => ({ decryptSecret: (s: string) => `dec(${s})` }));
 
 import { enabledConnectorCodes } from "../connector-enabled";
 import { getAmazonConfig } from "../amazon-config";
 import { getNoonConfig } from "../noon-config";
 
 beforeEach(() => {
-  state.row = undefined;
+  state.byCode = {};
   delete process.env.SPAPI_LWA_CLIENT_ID; delete process.env.SPAPI_LWA_CLIENT_SECRET; delete process.env.SPAPI_APP_ID;
   delete process.env.NOON_CLIENT_ID; delete process.env.NOON_CLIENT_SECRET;
   delete process.env.SHOPIFY_ENABLED; delete process.env.NOON_ENABLED;
@@ -31,7 +35,7 @@ describe("enabledConnectorCodes — DB toggle over env, Amazon default on", () =
   });
   it("DB toggle wins over env (explicit false disables despite env=1)", async () => {
     process.env.NOON_ENABLED = "1";
-    state.row = { noonEnabled: false, amazonEnabled: false };
+    state.byCode = { NOON: { enabled: false }, AMAZON: { enabled: false } };
     const s = await enabledConnectorCodes();
     expect(s.has("NOON")).toBe(false);
     expect(s.has("AMAZON")).toBe(false); // explicit false overrides the default-on
@@ -47,8 +51,8 @@ describe("getAmazonConfig / getNoonConfig — DB-first, env fallback, null when 
     process.env.SPAPI_LWA_CLIENT_ID = "id"; process.env.SPAPI_LWA_CLIENT_SECRET = "sec"; process.env.SPAPI_APP_ID = "app";
     expect(await getAmazonConfig()).toEqual({ lwaClientId: "id", lwaClientSecret: "sec", appId: "app" });
   });
-  it("DB row wins and its secret is decrypted", async () => {
-    state.row = { amazonLwaClientId: "dbid", amazonLwaClientSecret: "ct", amazonAppId: "dbapp" };
-    expect(await getAmazonConfig()).toEqual({ lwaClientId: "dbid", lwaClientSecret: "dec(ct)", appId: "dbapp" });
+  it("DB row wins (secret already decrypted by the generic reader)", async () => {
+    state.byCode = { AMAZON: { clientId: "dbid", clientSecret: "plain", appId: "dbapp" } };
+    expect(await getAmazonConfig()).toEqual({ lwaClientId: "dbid", lwaClientSecret: "plain", appId: "dbapp" });
   });
 });
