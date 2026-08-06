@@ -1,6 +1,13 @@
 import "server-only";
 import crypto from "node:crypto";
+import { paced } from "../amazon/client";
 import { NOON_GATEWAY, NOON_LOGIN_PATH, NOON_USER_AGENT, parseNoonCreds, type NoonCreds } from "./constants";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Noon rate-limits per Project Code (fixed window, ~1500/60s). Pace ~5 req/s per project —
+// well under the limit — and honor 429 with jittered backoff. Reuses the shared pacer, so
+// the distributed (Redis) gate covers multi-worker deployments too.
+const NOON_PACE_MS = 200;
 
 /**
  * Noon API client. Auth (verified live against the gateway):
@@ -70,11 +77,19 @@ export async function noonFetch<T>(refreshToken: string, path: string, init: Req
     headers: { accept: "application/json", "user-agent": NOON_USER_AGENT, ...(init.headers ?? {}), cookie },
   });
 
-  let res = await call(await ensureSession(c));
-  if (res.status === 401) { sessions.delete(c.key_id); res = await call(await login(c)); }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new NoonError(`طلب نون فشل (${path}): ${body.slice(0, 200)}`, res.status, res.status === 401);
-  }
-  return res.json() as Promise<T>;
+  return paced(`noon:${c.project_code || c.key_id}`, NOON_PACE_MS, async () => {
+    let res = await call(await ensureSession(c));
+    if (res.status === 401) { sessions.delete(c.key_id); res = await call(await login(c)); }
+    // Fixed-window 429 → jittered exponential backoff (Noon documents no Retry-After).
+    for (let attempt = 0; res.status === 429 && attempt < 5; attempt++) {
+      const ra = Number(res.headers.get("retry-after"));
+      await sleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 + Math.random() * 500 : Math.random() * Math.min(2 ** attempt, 30) * 1000 + 500);
+      res = await call(await ensureSession(c));
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new NoonError(`طلب نون فشل (${path}): ${body.slice(0, 200)}`, res.status, res.status === 401);
+    }
+    return res.json() as Promise<T>;
+  });
 }

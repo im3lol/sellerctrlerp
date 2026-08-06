@@ -74,6 +74,32 @@ function countRequest(): void {
   if (c) c.n++;
 }
 
+// Adaptive pacing: SP-API rate limits are DYNAMIC (per selling-partner × operation, adjusted
+// by Amazon over time) and returned in the `x-amzn-RateLimit-Limit` header. We observe that
+// header per pacing key and let it drive the interval — a seller whose dynamic limit dropped
+// paces slower (avoids 429 storms), one whose limit rose syncs faster. The static per-op
+// constants remain the safe FLOOR used until the first header is seen (or if it's absent).
+const rateMap = new Map<string, number>(); // pacing key → observed interval (ms)
+const pacingKeyStore = new AsyncLocalStorage<string>(); // current pacing key, so spFetch can attribute the header
+function clampInterval(ms: number): number { return Math.min(65_000, Math.max(60, ms)); }
+/** The interval to use for a key: the observed one (authoritative) if seen, else the floor. */
+function adaptiveInterval(key: string, floorMs: number): number {
+  const obs = rateMap.get(key);
+  return obs && obs > 0 ? obs : floorMs;
+}
+/** Pure: an `x-amzn-RateLimit-Limit` header value (req/s) → the clamped pacing interval in
+ *  ms, or null if the header is absent/unparseable. */
+export function intervalFromRateHeader(headerVal: string | null): number | null {
+  const rate = Number(headerVal);
+  return Number.isFinite(rate) && rate > 0 ? clampInterval(1000 / rate) : null;
+}
+/** Record the rate Amazon reported for the current operation (attributed via the ALS key). */
+function noteRate(headerVal: string | null): void {
+  const key = pacingKeyStore.getStore();
+  const iv = intervalFromRateHeader(headerVal);
+  if (key && iv != null) rateMap.set(key, iv);
+}
+
 // Proactive rate limiting: SP-API operations have tight per-second quotas
 // (getOrderItems 0.5/s, getOrders ~1/s burst). Firing calls back-to-back blows
 // the quota and triggers "You exceeded your quota" 429s that outlast our backoff.
@@ -100,7 +126,7 @@ function pacedInProcess<T>(key: string, minIntervalMs: number, fn: () => Promise
     const gap = Date.now() - (gateLast.get(key) ?? 0);
     if (gap < minIntervalMs) await sleep(minIntervalMs - gap);
     gateLast.set(key, Date.now());
-    return fn();
+    return pacingKeyStore.run(key, fn); // attribute the response's rate header to this key
   };
   const next = (gateChain.get(key) ?? Promise.resolve()).then(run, run); // serialize past failures too
   gateChain.set(key, next.catch(() => {}));
@@ -127,7 +153,7 @@ async function pacedRedis<T>(key: string, minIntervalMs: number, fn: () => Promi
     const delay = Number(await redisConnection().eval(SLOT_LUA, 1, `sp:pace:${key}`, String(minIntervalMs)));
     if (!Number.isFinite(delay)) return pacedInProcess(key, minIntervalMs, fn);
     if (delay > 0) await sleep(delay);
-    return fn();
+    return pacingKeyStore.run(key, fn); // attribute the response's rate header to this key
   } catch {
     return pacedInProcess(key, minIntervalMs, fn); // any Redis issue → known-correct local gate
   }
@@ -136,8 +162,12 @@ async function pacedRedis<T>(key: string, minIntervalMs: number, fn: () => Promi
 /** Space SP-API call starts for `key` by ≥minIntervalMs so we stay under the per-account
  *  rate limit. Cross-process (Redis) when REDIS_PACER=1 + Redis is up, else in-process. */
 export function paced<T>(key: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
-  if (process.env.REDIS_PACER === "1" && redisEnabled()) return pacedRedis(key, minIntervalMs, fn);
-  return pacedInProcess(key, minIntervalMs, fn);
+  // Use the observed dynamic limit for this key when we have one; else the static floor.
+  const interval = adaptiveInterval(key, minIntervalMs);
+  // Distributed pacer is ON by default whenever Redis is available (safe for >1 worker);
+  // set REDIS_PACER=0 to force the in-process gate. Falls back to in-process on any Redis error.
+  if (process.env.REDIS_PACER !== "0" && redisEnabled()) return pacedRedis(key, interval, fn);
+  return pacedInProcess(key, interval, fn);
 }
 
 const API_TIMEOUT_MS = 30_000;
@@ -158,6 +188,7 @@ export async function spFetch(cred: Credential, path: string, init: RequestInit 
     signal: init.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
   });
   countRequest();
+  noteRate(res.headers.get("x-amzn-RateLimit-Limit")); // adapt this key's interval to the reported dynamic limit
   const throttled = res.status === 429 || res.status === 503;
   const serverErr = res.status === 500 || res.status === 502 || res.status === 504;
   if ((throttled && attempt < 8) || (serverErr && attempt < 3)) {
