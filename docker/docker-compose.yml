@@ -101,7 +101,9 @@ services:
     mem_limit: 2g
     cpus: 1.5
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      # 127.0.0.1 not localhost — busybox wget resolves localhost to IPv6 (::1) but the
+      # Next server binds IPv4 0.0.0.0, so localhost gives "connection refused".
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
