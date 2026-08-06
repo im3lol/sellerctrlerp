@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { getAttachmentsAction, addAttachmentAction, deleteAttachmentAction, getAttachmentContentAction, type AttachmentMeta } from "@/app/actions/erp/attachments";
+import { getAttachmentsAction, addAttachmentAction, deleteAttachmentAction, type AttachmentMeta } from "@/app/actions/erp/attachments";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -70,19 +70,9 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
     reader.readAsDataURL(file);
   };
 
-  const download = (att: AttachmentMeta) => {
-    startLoad(async () => {
-      const r = await getAttachmentContentAction(att.id);
-      if ("error" in r) { toast.error(r.error); return; }
-      const byteChars = atob(r.content);
-      const bytes = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([bytes], { type: r.mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = r.fileName; a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
+  // The download route authorizes then redirects to a signed URL (or serves legacy
+  // inline bytes) — the binary no longer round-trips through a server action.
+  const download = (att: AttachmentMeta) => { window.open(`/api/erp/attachments/${att.id}`, "_blank", "noopener"); };
 
   const remove = (id: string) => {
     startDelete(async () => {

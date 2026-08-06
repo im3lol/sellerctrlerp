@@ -959,7 +959,10 @@ export const documentAttachments = pgTable(
     fileName: text("file_name").notNull(),
     fileSize: integer("file_size").notNull(), // bytes
     mimeType: text("mime_type").notNull(),
-    content: text("content").notNull(), // base64-encoded
+    // The binary lives in object storage under `storageKey`; `content` (base64) is the
+    // legacy path kept for rows created before the storage migration. Exactly one is set.
+    storageKey: text("storage_key"),
+    content: text("content"), // base64-encoded (legacy — new uploads use storageKey)
     uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },

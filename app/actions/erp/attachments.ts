@@ -8,6 +8,7 @@ import { authorizeErp } from "@/lib/erp/action-auth";
 import type { ErpPermission } from "@/lib/erp/permissions";
 import { getActiveOrg } from "@/lib/erp/org";
 import { storageLimitError } from "@/lib/erp/plans";
+import { putObject, deleteObject } from "@/lib/storage";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -69,11 +70,18 @@ export async function addAttachmentAction(
 
   // Rough byte size: base64 is ~4/3 ratio
   return withOrgScope(auth.orgId, false, async () => {
-    const fileSize = Math.round((base64Content.length * 3) / 4);
+    const buf = Buffer.from(base64Content, "base64");
+    const fileSize = buf.length;
     if (fileSize > MAX_FILE_SIZE) return { error: "حجم الملف أكبر من 10 ميجابايت" };
 
     const storageError = await storageLimitError(auth.orgId, fileSize);
     if (storageError) return { error: storageError };
+
+    // The binary goes to object storage (not the DB); only its key is stored.
+    const safe = fileName.replace(/[^\w.\-]+/g, "_");
+    const storageKey = `attachments/${auth.orgId}/${Date.now()}-${safe}`;
+    try { await putObject(storageKey, buf, mimeType); }
+    catch { return { error: "تعذّر رفع الملف للتخزين" }; }
 
     const [row] = await db
       .insert(documentAttachments)
@@ -84,7 +92,7 @@ export async function addAttachmentAction(
         fileName,
         fileSize,
         mimeType,
-        content: base64Content,
+        storageKey,
         uploadedBy: auth.userId,
       })
       .returning({ id: documentAttachments.id });
@@ -106,7 +114,7 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<{ ok
   if ("error" in org) return org;
 
   const [row] = await db
-    .select({ id: documentAttachments.id, entityType: documentAttachments.entityType })
+    .select({ id: documentAttachments.id, entityType: documentAttachments.entityType, storageKey: documentAttachments.storageKey })
     .from(documentAttachments)
     .where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, org.orgId)))
     .limit(1);
@@ -117,16 +125,19 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<{ ok
 
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(documentAttachments).where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, auth.orgId)));
+    // Remove the object too (best-effort; a leftover object is harmless, a failed delete shouldn't block).
+    if (row.storageKey) { try { await deleteObject(row.storageKey); } catch { /* orphan object, non-fatal */ } }
     return { ok: true };
   });
 }
 
-export async function getAttachmentContentAction(attachmentId: string): Promise<{ content: string; mimeType: string; fileName: string } | { error: string }> {
+export async function getAttachmentContentAction(attachmentId: string): Promise<{ storageKey: string | null; content: string | null; mimeType: string; fileName: string } | { error: string }> {
   const org = await activeOrgId();
   if ("error" in org) return org;
 
   const [row] = await db
     .select({
+      storageKey: documentAttachments.storageKey,
       content: documentAttachments.content,
       mimeType: documentAttachments.mimeType,
       fileName: documentAttachments.fileName,
@@ -140,7 +151,5 @@ export async function getAttachmentContentAction(attachmentId: string): Promise<
   const auth = await authorizeErp(permsFor(row.entityType).view);
   if ("error" in auth) return auth;
 
-  return withOrgScope(auth.orgId, false, async () => {
-    return { content: row.content, mimeType: row.mimeType, fileName: row.fileName };
-  });
+  return { storageKey: row.storageKey, content: row.content, mimeType: row.mimeType, fileName: row.fileName };
 }
