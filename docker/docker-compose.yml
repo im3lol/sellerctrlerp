@@ -88,7 +88,10 @@ services:
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgres://sellerctrl:sellerctrl@postgres:5432/sellerctrl
+      # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
+      # enforced — the owner role would bypass every policy. Migrations still run as the
+      # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
+      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       AUTH_TRUST_HOST: "true"
@@ -128,7 +131,10 @@ services:
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgres://sellerctrl:sellerctrl@postgres:5432/sellerctrl
+      # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
+      # enforced — the owner role would bypass every policy. Migrations still run as the
+      # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
+      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       WORKER: "1"
