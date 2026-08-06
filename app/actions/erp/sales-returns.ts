@@ -14,8 +14,11 @@ import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
+import { planReturnStock, RETURN_DISPOSITIONS } from "@/lib/erp/return-disposition";
 
 export type SaveReturnState = ActionState & { id?: string };
+
+export type ConfirmReturnOpts = { disposition?: string | null; damagedWarehouseId?: string | null };
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
@@ -26,6 +29,11 @@ const schema = z.object({
   salesInvoiceId: z.string().min(1, "اختر الفاتورة"),
   date: z.string().min(1, "التاريخ مطلوب"),
   notes: z.string().optional(),
+  // Marketplace origin metadata — optional, set by the FBA/CSV return sync, absent for manual returns.
+  reason: z.string().optional(),
+  disposition: z.enum(RETURN_DISPOSITIONS).optional(),
+  channel: z.string().optional(),
+  externalReturnId: z.string().optional(),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 async function nextNumber(orgId: string, year: number): Promise<string> {
@@ -43,7 +51,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0].message };
-    const { salesInvoiceId, date, notes, lines } = parsed.data;
+    const { salesInvoiceId, date, notes, reason, disposition, channel, externalReturnId, lines } = parsed.data;
 
     const [inv] = await db.select().from(salesInvoices)
       .where(and(eq(salesInvoices.id, salesInvoiceId), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
@@ -101,6 +109,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
           organizationId: auth.orgId, number, date: d, status: "DRAFT",
           customerId: inv.customerId, warehouseId: wh?.id ?? "", salesInvoiceId: inv.id, salesOrderId: orderId,
           totalAmount: String(total), notes: notes || null,
+          reason: reason || null, disposition: disposition || null, channel: channel || null, externalReturnId: externalReturnId || null,
         }).returning({ id: salesReturns.id });
 
         await tx.insert(salesReturnLines).values(lines.map((l) => ({
@@ -125,7 +134,7 @@ export async function createSalesReturnAction(input: unknown): Promise<SaveRetur
  *   + restock at WAC and reverse COGS: Dr المخزون (1104) · Cr ت.ب.م (5101)
  *   + reduce the customer balance. Sets status = POSTED.
  */
-export async function confirmSalesReturnAction(id: string): Promise<ActionState> {
+export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnOpts): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
 
@@ -134,6 +143,18 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       .where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!ret) return { error: "المرتجع غير موجود" };
     if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
+
+    // Effective disposition: the operator's confirm-time choice overrides the stored
+    // (marketplace-suggested) one. A designated damaged warehouse must belong to the org
+    // and be active — else an unsellable unit is written off (never restocked to sellable).
+    const effDisposition = opts?.disposition ?? ret.disposition ?? null;
+    let damagedWh: string | null = null;
+    if (opts?.damagedWarehouseId) {
+      const [dw] = await db.select({ id: warehouses.id }).from(warehouses)
+        .where(and(eq(warehouses.id, opts.damagedWarehouseId), eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
+      if (!dw) return { error: "المخزن المخصّص للتالف غير صالح" };
+      damagedWh = dw.id;
+    }
 
     // Delivery return (stock side): restock + Dr 1104 / Cr 5101 (reverse COGS), drop deliveredQty.
     if (ret.deliveryNoteId) {
@@ -162,8 +183,12 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
       // differ from the header warehouse) — else per-warehouse balances corrupt.
       const whByItem = new Map(delMoves.map((m) => [m.itemId, m.warehouseId]));
       const net = round2(rLines.reduce((s, l) => s + Number(l.quantity) * costOf(l), 0));
-      const A = await resolveAccountIds(auth.orgId, ["1104", "5101"]);
+      const A = await resolveAccountIds(auth.orgId, ["1104", "5101", "5301"]);
       if (!A["1104"] || !A["5101"]) return { error: "حسابات الترحيل غير مكتملة." };
+      // Per-item sellable warehouse is the one each line shipped from; disposition decides
+      // whether goods go back there, to a damaged warehouse, or are written off (no restock).
+      const plan = planReturnStock(effDisposition, "", damagedWh);
+      if (plan.kind === "WRITE_OFF" && !A["5301"]) return { error: "حساب «عجز وتالف المخزون» (5301) غير موجود — أضِفه لشطب المرتجع التالف." };
       const soLines = dn.salesOrderId
         ? await db.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId))
         : [];
@@ -190,12 +215,20 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
           }
           for (const l of rLines) {
             const q = Number(l.quantity);
-            await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? dn.warehouseId, type: "IN", quantity: q, unitCost: costOf(l), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
+            // Always drop deliveredQty (the unit physically came back regardless of condition).
+            // Restock stock only when the goods re-enter inventory (sellable or damaged wh);
+            // a write-off books no IN — the cost becomes a 5301 loss below.
+            if (plan.kind === "RESTOCK") {
+              const wh = plan.warehouseId || whByItem.get(l.itemId) || dn.warehouseId;
+              await postStockMovement(tx, { orgId: auth.orgId, itemId: l.itemId, warehouseId: wh, type: "IN", quantity: q, unitCost: costOf(l), date: d, referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع إذن صرف ${dn.number}` });
+            }
             const sol = soByItem.get(l.itemId);
             if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${q})` }).where(eq(salesOrderLines.id, sol.id));
           }
+          // RESTOCK: cost returns to inventory (Dr 1104 / Cr 5101, reversing COGS).
+          // WRITE_OFF: cost is a damaged-goods loss (Dr 5301 / Cr 5101) — no inventory added.
           await postEntry(tx, { orgId: auth.orgId, date: d, sourceType: "SALES_RETURN", sourceId: ret.id, description: `مرتجع إذن صرف ${dn.number}`, journalType: "GENERAL", userId: auth.userId, lines: [
-            { accountId: A["1104"], debit: net, credit: 0, description: `إرجاع مخزون ${ret.number}` },
+            { accountId: plan.kind === "RESTOCK" ? A["1104"] : A["5301"], debit: net, credit: 0, description: plan.kind === "RESTOCK" ? `إرجاع مخزون ${ret.number}` : `تالف مرتجع ${ret.number}` },
             { accountId: A["5101"], debit: 0, credit: net, description: `عكس ت.ب.م ${ret.number}` },
           ] });
           if (dn.salesOrderId) await recomputeSalesOrderStatus(tx, dn.salesOrderId);
@@ -227,8 +260,10 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
     const tax = round2(net * taxRate);
     const total = round2(net + tax);
 
-    const A = await resolveAccountIds(auth.orgId, ["4102", "2102", "1103", "1104", "5101"]);
+    const A = await resolveAccountIds(auth.orgId, ["4102", "2102", "1103", "1104", "5101", "5301"]);
     if (!A["4102"] || !A["1103"]) return { error: "حسابات الترحيل غير مكتملة (مردودات/العملاء)." };
+    const invPlan = planReturnStock(effDisposition, ret.warehouseId, damagedWh);
+    if (invPlan.kind === "WRITE_OFF" && !A["5301"]) return { error: "حساب «عجز وتالف المخزون» (5301) غير موجود — أضِفه لشطب المرتجع التالف." };
 
     const whId = ret.warehouseId;
     const d = ret.date instanceof Date ? ret.date : new Date(ret.date);
@@ -271,19 +306,25 @@ export async function confirmSalesReturnAction(id: string): Promise<ActionState>
         if (!inv.deliveryNoteId && whId && A["1104"] && A["5101"]) {
           for (const l of lines) {
             const { avgCost } = await currentStock(auth.orgId, l.itemId, whId, tx);
-            const r = await postStockMovement(tx, {
-              orgId: auth.orgId, itemId: l.itemId, warehouseId: whId, type: "IN",
-              quantity: l.quantity, unitCost: avgCost, date: d,
-              referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع بيع ${ret.number}`,
-            });
-            cogs += r.totalCost;
+            if (invPlan.kind === "RESTOCK") {
+              const r = await postStockMovement(tx, {
+                orgId: auth.orgId, itemId: l.itemId, warehouseId: invPlan.warehouseId, type: "IN",
+                quantity: l.quantity, unitCost: avgCost, date: d,
+                referenceType: "SALES_RETURN", referenceId: ret.id, reason: `مرتجع بيع ${ret.number}`,
+              });
+              cogs += r.totalCost;
+            } else {
+              // Write-off: no stock IN. Cost (at the sellable warehouse's WAC) becomes a loss.
+              cogs += round2(l.quantity * avgCost);
+            }
           }
           if (cogs > 0) {
+            // RESTOCK: cost back to inventory (Dr 1104). WRITE_OFF: cost to 5301 loss. Cr 5101 either way.
             await postEntry(tx, {
               orgId: auth.orgId, date: d, sourceType: "SALES_RETURN_COGS", sourceId: ret.id,
-              description: `عكس ت.ب.م مرتجع ${ret.number}`, journalType: "GENERAL",
+              description: invPlan.kind === "RESTOCK" ? `عكس ت.ب.م مرتجع ${ret.number}` : `تالف مرتجع ${ret.number}`, journalType: "GENERAL",
               lines: [
-                { accountId: A["1104"], debit: cogs, credit: 0, description: `إرجاع مخزون ${ret.number}` },
+                { accountId: invPlan.kind === "RESTOCK" ? A["1104"] : A["5301"], debit: cogs, credit: 0, description: invPlan.kind === "RESTOCK" ? `إرجاع مخزون ${ret.number}` : `تالف مرتجع ${ret.number}` },
                 { accountId: A["5101"], debit: 0, credit: cogs, description: `عكس ت.ب.م ${ret.number}` },
               ],
             });

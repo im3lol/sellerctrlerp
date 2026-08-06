@@ -1964,11 +1964,21 @@ export const salesReturns = pgTable(
     deliveryNoteId: text("delivery_note_id"),
     totalAmount: money("total_amount").notNull().default("0"),
     notes: text("notes"),
+    // Marketplace return metadata (null for hand-keyed returns). `disposition` drives the
+    // stock side at confirm: SELLABLE → restock; UNSELLABLE/DAMAGED/DEFECTIVE → damaged
+    // warehouse or write-off (5301). `channel` marks the origin (AMAZON/NOON…) so the
+    // register can badge marketplace vs manual; `externalReturnId` is the platform's id.
+    reason: text("reason"),
+    disposition: text("disposition"),
+    channel: text("channel"),
+    externalReturnId: text("external_return_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number),
+    // The register lists/filters returns by org + date, and marketplace returns by channel.
+    index("sales_returns_org_date_idx").on(t.organizationId, t.date),
     // createSalesReturnAction sums prior POSTED returns for the invoice/delivery to
     // work out what is still returnable — one lookup per credit note.
     index("sales_returns_invoice_idx").on(t.salesInvoiceId),

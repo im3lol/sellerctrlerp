@@ -16,6 +16,17 @@ import { returnDedupKey, type FbaReturnRow } from "@/lib/erp/amazon-returns";
 
 const CHANNEL = "AMAZON";
 
+/** Map an Amazon FBA-return disposition onto the ERP's condition enum. Anything that
+ *  isn't explicitly sellable is unsellable — so it never silently restocks as sellable. */
+function mapDisposition(d: string | null | undefined): "SELLABLE" | "DAMAGED" | "DEFECTIVE" | "UNSELLABLE" | undefined {
+  if (!d) return undefined;
+  const u = d.toUpperCase();
+  if (u === "SELLABLE") return "SELLABLE";
+  if (u.includes("DEFECT")) return "DEFECTIVE";
+  if (u.includes("DAMAGED")) return "DAMAGED";
+  return "UNSELLABLE";
+}
+
 /** Idempotent upsert of returns-report rows (no documents). */
 export async function upsertPlatformReturns(orgId: string, rows: FbaReturnRow[]): Promise<{ imported: number; skipped: number }> {
   if (rows.length === 0) return { imported: 0, skipped: 0 };
@@ -49,6 +60,7 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
   const pending = await db.select({
     id: platformReturns.id, orderId: platformReturns.orderId, sku: platformReturns.sku,
     quantity: platformReturns.quantity, returnDate: platformReturns.returnDate,
+    disposition: platformReturns.disposition, reason: platformReturns.reason,
   }).from(platformReturns)
     .where(and(eq(platformReturns.organizationId, orgId), isNull(platformReturns.salesReturnId)));
   if (pending.length === 0) return { created: 0, linkedToSettlement: 0, unmatched: 0 };
@@ -117,6 +129,10 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
     const ret = await createSalesReturnAction({
       salesInvoiceId: inv.id, date,
       notes: `مرتجع أمازون FBA — طلب ${p.orderId}`,
+      // Carry the marketplace metadata so the register can badge origin and the confirm
+      // step routes the stock by condition (a damaged unit won't restock as sellable).
+      reason: p.reason || undefined, disposition: mapDisposition(p.disposition),
+      channel: CHANNEL, externalReturnId: p.orderId,
       lines: [{ itemId, quantity: qty, unitPrice: Number(invLine.unitPrice) }],
     });
     if (!ret.ok || !ret.id) { unmatched++; continue; }
