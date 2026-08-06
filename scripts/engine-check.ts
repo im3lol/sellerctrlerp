@@ -6,10 +6,11 @@
  *
  *   npm run test:engine        # against local Docker (owner on :5433)
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, accounts, journalEntryLines } from "@/db/schema";
+import { organizations, accounts, journalEntryLines, items, warehouses } from "@/db/schema";
 import { postEntry, type PostInput } from "@/lib/erp/posting";
+import { postStockMovement, type StockInput } from "@/lib/erp/inventory";
 
 let failures = 0;
 const pass = (n: string) => console.log(`  ✓  ${n}`);
@@ -72,6 +73,31 @@ async function main() {
     [{ accountId: a.id, debit: 0, credit: 0 }, { accountId: b.id, debit: 0, credit: 0 }], "صفر");
   await expectReject("posting to a header (non-leaf) account is rejected", orgId,
     [{ accountId: header.id, debit: 100, credit: 0 }, { accountId: b.id, debit: 0, credit: 100 }], "رئيسي");
+
+  // ── perpetual stock/WAC engine (postStockMovement) ──
+  const [item] = await db.select({ id: items.id }).from(items).where(eq(items.organizationId, orgId)).limit(1);
+  const [wh] = await db.select({ id: warehouses.id }).from(warehouses).where(eq(warehouses.organizationId, orgId)).limit(1);
+  if (item && wh) {
+    console.log("\nperpetual stock engine (postStockMovement):");
+    const stock = (over: Partial<StockInput>): StockInput => ({
+      orgId, itemId: item.id, warehouseId: wh.id, type: "IN", quantity: 1, date: new Date(),
+      referenceType: "engine-check", referenceId: "engine-check", ...over,
+    } as StockInput);
+    const rejectStock = async (name: string, input: StockInput, needle: string) => {
+      try {
+        await db.transaction(async (tx) => { await postStockMovement(tx, input); });
+        fail(name, "expected a rejection, but it wrote");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes(needle)) pass(name);
+        else fail(name, `rejected, but message was: ${msg.slice(0, 120)}`);
+      }
+    };
+    await rejectStock("inbound without a unit cost is rejected", stock({ type: "IN", quantity: 10 }), "التكلفة");
+    await rejectStock("outbound beyond available stock is rejected (no negative)", stock({ type: "OUT", quantity: 1e9 }), "غير متاحة");
+  } else {
+    console.log("\n(skipped stock engine — org has no item/warehouse seeded)");
+  }
 
   console.log(failures === 0 ? "\n✅ engine check PASSED" : `\n❌ engine check FAILED (${failures})`);
   process.exit(failures === 0 ? 0 : 1);
