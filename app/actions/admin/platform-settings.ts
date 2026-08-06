@@ -1,14 +1,66 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
-import { platformSettings } from "@/db/schema";
+import { platformSettings, platformIntegrations } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
+
+// ─────────────── Generic per-connector integration config (platform_integrations) ───────────────
+// One save/read path for ANY marketplace connector; the fields shown come from the
+// connector's configFields. Secrets encrypted; a blank secret keeps the stored value.
+const TEXT_KEYS = ["clientId", "appId", "scopes", "apiVersion", "region", "redirectUri"] as const;
+type TextKey = (typeof TEXT_KEYS)[number];
+
+type IntegrationAdmin = {
+  text: Record<TextKey, string>;
+  has: { clientSecret: boolean; webhookSecret: boolean };
+  enabled: boolean;
+};
+
+/** Owner reads a connector's stored config — secrets never returned, only `has*`. */
+export async function getIntegrationSettingsAdmin(code: string): Promise<IntegrationAdmin> {
+  await requireCapability("employee.manage");
+  const c = code.toUpperCase();
+  const [row] = await withPlatformScope(() => db.select().from(platformIntegrations).where(eq(platformIntegrations.code, c)).limit(1));
+  const dflt = c === "AMAZON" ? true : process.env[`${c}_ENABLED`] === "1";
+  return {
+    text: {
+      clientId: row?.clientId ?? "", appId: row?.appId ?? "", scopes: row?.scopes ?? "",
+      apiVersion: row?.apiVersion ?? "", region: row?.region ?? "", redirectUri: row?.redirectUri ?? "",
+    },
+    has: { clientSecret: !!row?.clientSecret, webhookSecret: !!row?.webhookSecret },
+    enabled: row?.enabled ?? dflt,
+  };
+}
+
+/** Save a connector's config. Text fields set as-is; secret fields (clientSecret,
+ *  webhookSecret) encrypted, a BLANK secret keeps the stored value. Upsert on code. */
+export async function saveIntegrationSettingsAction(
+  code: string,
+  input: { text?: Partial<Record<TextKey, string>>; clientSecret?: string; webhookSecret?: string; enabled?: boolean },
+): Promise<Res> {
+  await requireCapability("employee.manage");
+  const c = code.toUpperCase();
+  try {
+    const set: Record<string, unknown> = { code: c, updatedAt: new Date() };
+    for (const k of TEXT_KEYS) if (input.text && k in input.text) set[k] = input.text[k]?.trim() || null;
+    if (input.clientSecret?.trim()) set.clientSecret = encryptSecret(input.clientSecret.trim());
+    if (input.webhookSecret?.trim()) set.webhookSecret = encryptSecret(input.webhookSecret.trim());
+    if (input.enabled !== undefined) set.enabled = input.enabled;
+    await withPlatformScope(() => db.insert(platformIntegrations).values(set as typeof platformIntegrations.$inferInsert).onConflictDoUpdate({ target: platformIntegrations.code, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[integration-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
 
 /** Owner reads the xpay config — secrets are never returned, only whether they're set. */
 export async function getXpaySettingsAdmin() {
@@ -44,108 +96,6 @@ export async function saveXpaySettingsAction(input: { secretKey?: string; publis
     return { ok: true };
   } catch (e) {
     console.error("[xpay-settings] save failed:", e);
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
-  }
-}
-
-/** Owner reads the Shopify app config — the secret is never returned, only whether it's set. */
-export async function getShopifySettingsAdmin() {
-  await requireCapability("employee.manage");
-  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
-  return {
-    clientId: row?.shopifyClientId ?? "", // public — safe to prefill
-    apiVersion: row?.shopifyApiVersion ?? "",
-    hasClientSecret: !!row?.shopifyClientSecret,
-    enabled: row?.shopifyEnabled ?? (process.env.SHOPIFY_ENABLED === "1"),
-  };
-}
-
-/**
- * Save the Shopify Partner app config. The client secret is encrypted; a BLANK secret
- * keeps the stored value. Client id + api version are public so they're always set.
- */
-export async function saveShopifySettingsAction(input: { clientId?: string; clientSecret?: string; apiVersion?: string; enabled?: boolean }): Promise<Res> {
-  await requireCapability("employee.manage");
-  try {
-    const set: Record<string, unknown> = {
-      id: SINGLETON,
-      shopifyClientId: input.clientId?.trim() || null,
-      shopifyApiVersion: input.apiVersion?.trim() || null,
-      shopifyEnabled: input.enabled ?? false,
-      updatedAt: new Date(),
-    };
-    if (input.clientSecret?.trim()) set.shopifyClientSecret = encryptSecret(input.clientSecret.trim());
-    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
-    revalidatePath("/admin/integrations");
-    return { ok: true };
-  } catch (e) {
-    console.error("[shopify-settings] save failed:", e);
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
-  }
-}
-
-/** Owner reads the Amazon SP-API app config — the LWA secret is never returned. */
-export async function getAmazonSettingsAdmin() {
-  await requireCapability("employee.manage");
-  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
-  return {
-    lwaClientId: row?.amazonLwaClientId ?? "",
-    appId: row?.amazonAppId ?? "",
-    hasClientSecret: !!row?.amazonLwaClientSecret,
-    enabled: row?.amazonEnabled ?? true, // Amazon is first-class → default on
-  };
-}
-
-/** Save Amazon SP-API app config. LWA secret encrypted; blank keeps the stored value. */
-export async function saveAmazonSettingsAction(input: { lwaClientId?: string; lwaClientSecret?: string; appId?: string; enabled?: boolean }): Promise<Res> {
-  await requireCapability("employee.manage");
-  try {
-    const set: Record<string, unknown> = {
-      id: SINGLETON,
-      amazonLwaClientId: input.lwaClientId?.trim() || null,
-      amazonAppId: input.appId?.trim() || null,
-      amazonEnabled: input.enabled ?? true,
-      updatedAt: new Date(),
-    };
-    if (input.lwaClientSecret?.trim()) set.amazonLwaClientSecret = encryptSecret(input.lwaClientSecret.trim());
-    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
-    revalidatePath("/admin/integrations");
-    return { ok: true };
-  } catch (e) {
-    console.error("[amazon-settings] save failed:", e);
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
-  }
-}
-
-/** Owner reads the Noon integrator OAuth config — secrets never returned. */
-export async function getNoonSettingsAdmin() {
-  await requireCapability("employee.manage");
-  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
-  return {
-    clientId: row?.noonClientId ?? "",
-    hasClientSecret: !!row?.noonClientSecret,
-    hasWebhookSecret: !!row?.noonWebhookSecret,
-    enabled: row?.noonEnabled ?? (process.env.NOON_ENABLED === "1"),
-  };
-}
-
-/** Save Noon OAuth config. client + webhook secrets encrypted; blank keeps the stored value. */
-export async function saveNoonSettingsAction(input: { clientId?: string; clientSecret?: string; webhookSecret?: string; enabled?: boolean }): Promise<Res> {
-  await requireCapability("employee.manage");
-  try {
-    const set: Record<string, unknown> = {
-      id: SINGLETON,
-      noonClientId: input.clientId?.trim() || null,
-      noonEnabled: input.enabled ?? false,
-      updatedAt: new Date(),
-    };
-    if (input.clientSecret?.trim()) set.noonClientSecret = encryptSecret(input.clientSecret.trim());
-    if (input.webhookSecret?.trim()) set.noonWebhookSecret = encryptSecret(input.webhookSecret.trim());
-    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
-    revalidatePath("/admin/integrations");
-    return { ok: true };
-  } catch (e) {
-    console.error("[noon-settings] save failed:", e);
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }

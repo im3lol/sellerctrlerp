@@ -22,6 +22,11 @@ export const noonConnector: MarketplaceConnector = {
   code: "NOON",
   label: "نون",
   capabilities: { products: true, catalog: false, orders: true, inventory: true, settlements: false },
+  configFields: [
+    { key: "clientId", label: "Client ID", placeholder: "integrator client id" },
+    { key: "clientSecret", label: "Client Secret", secret: true },
+    { key: "webhookSecret", label: "Webhook Secret", secret: true, help: "السرّ المشترك لتأمين ويب‌هوك الطلبات (?key=)" },
+  ],
   isAuthError: isNoonAuthError,
   // OAuth block is always present; authorizeUrl returns null when the client creds
   // aren't configured (DB/env), and the platform page then shows the paste-.json card.

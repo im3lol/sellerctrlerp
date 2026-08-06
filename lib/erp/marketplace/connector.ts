@@ -39,6 +39,14 @@ export type OAuthExchange =
   | { refreshToken: string; sellerId?: string | null; marketplaceId?: string | null; region?: string }
   | { error: string };
 
+// Admin-editable integration config field. `key` maps to a platform_integrations column.
+// `secret` fields are stored encrypted and never sent back to the browser (a blank input
+// keeps the stored value). This lets /admin/integrations render a connector's whole config
+// form generically — a new connector declares its fields and needs no new column/form.
+export type IntegrationFieldKey =
+  | "clientId" | "clientSecret" | "webhookSecret" | "redirectUri" | "scopes" | "region" | "apiVersion" | "appId";
+export type IntegrationField = { key: IntegrationFieldKey; label: string; secret?: boolean; placeholder?: string; help?: string };
+
 /**
  * One integration provider. A connector with an `oauth` block supports official
  * connection + automatic sync; without it, its platform is manual-import only.
@@ -48,6 +56,10 @@ export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
   capabilities: { products: boolean; catalog: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+  /** The credential/config fields the owner sets in /admin/integrations. Present ⇒ the
+   *  generic integration form renders for this connector. An `oauth` block also adds a
+   *  Redirect-URI section automatically. */
+  configFields?: IntegrationField[];
   /** True → this provider's own token-invalid/auth error. Omitted → the sync core
    *  falls back to the Amazon isAuthError. Lets coreFail flag needsReauth per provider. */
   isAuthError?(e: unknown): boolean;

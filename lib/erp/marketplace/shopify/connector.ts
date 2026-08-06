@@ -17,6 +17,12 @@ export const shopifyConnector: MarketplaceConnector = {
   code: "SHOPIFY",
   label: "شوبيفاي",
   capabilities: { products: true, catalog: false, orders: true, inventory: true, settlements: true },
+  configFields: [
+    { key: "clientId", label: "Client ID", placeholder: "app client id" },
+    { key: "clientSecret", label: "Client Secret", secret: true },
+    { key: "apiVersion", label: "API Version", placeholder: "2024-10" },
+    { key: "scopes", label: "Scopes", placeholder: "read_products,read_orders,read_inventory,…", help: "افصل بينها بفاصلة — فارغ يستخدم الافتراضي" },
+  ],
   isAuthError: isShopifyAuthError,
   oauth: {
     marketplaces: [], // shop-domain-first: no fixed marketplace list

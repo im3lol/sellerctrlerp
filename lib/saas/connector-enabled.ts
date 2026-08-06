@@ -1,22 +1,22 @@
 import "server-only";
-import { db } from "@/lib/db";
-import { platformSettings } from "@/db/schema";
+import { getIntegrationConfig, getIntegrationEnabled } from "./integration-config";
 
 /**
  * Which marketplace connectors are enabled for this deployment. Owner toggles them in
- * /admin/integrations (platform_settings.*_enabled); NULL falls back to the env flag,
- * so nothing changes until the owner sets a toggle. Amazon defaults on. This replaces
- * the module-load env gate in registry.ts — enablement is now a request-time check.
+ * /admin/integrations (platform_integrations.enabled per code); NULL falls back to the env
+ * flag `<CODE>_ENABLED`, so nothing changes until the owner sets a toggle. Amazon defaults
+ * on. Iterates the registered connectors, so a NEW connector is picked up automatically.
  */
 export async function enabledConnectorCodes(): Promise<Set<string>> {
-  let row: typeof platformSettings.$inferSelect | undefined;
-  try { [row] = await db.select().from(platformSettings).limit(1); } catch { row = undefined; }
-  const on = (dbFlag: boolean | null | undefined, env: boolean, dflt = false) =>
-    dbFlag ?? (env || dflt);
+  // Dynamic import breaks the registry→connectors→config load-time cycle.
+  const { CONNECTORS } = await import("@/lib/erp/marketplace/registry");
+  const codes = Object.keys(CONNECTORS);
+  const flags = await Promise.all(codes.map((c) => getIntegrationEnabled(c)));
   const set = new Set<string>();
-  if (on(row?.amazonEnabled, false, true)) set.add("AMAZON"); // Amazon is first-class → default on
-  if (on(row?.shopifyEnabled, process.env.SHOPIFY_ENABLED === "1")) set.add("SHOPIFY");
-  if (on(row?.noonEnabled, process.env.NOON_ENABLED === "1")) set.add("NOON");
+  codes.forEach((code, i) => {
+    const dflt = code === "AMAZON" ? true : process.env[`${code}_ENABLED`] === "1"; // Amazon is first-class
+    if (flags[i] ?? dflt) set.add(code);
+  });
   return set;
 }
 
@@ -25,11 +25,14 @@ export async function connectorEnabled(code: string): Promise<boolean> {
 }
 
 /** Whether a connector's OAuth client creds are configured (DB/env) — decides one-click
- *  OAuth vs. the Noon paste-.json fallback vs. an "unconfigured" note on the platform page. */
+ *  OAuth vs. the Noon paste-.json fallback vs. an "unconfigured" note on the platform page.
+ *  Generic: any connector with a stored client id + secret counts as configured; the three
+ *  first-class connectors also honor their legacy env fallbacks via their config wrappers. */
 export async function oauthConfigured(code: string): Promise<boolean> {
   const c = code.toUpperCase();
   if (c === "AMAZON") return !!(await (await import("./amazon-config")).getAmazonConfig());
   if (c === "NOON") return !!(await (await import("./noon-config")).getNoonConfig());
   if (c === "SHOPIFY") return !!(await (await import("./shopify-config")).getShopifyConfig());
-  return false;
+  const cfg = await getIntegrationConfig(c);
+  return !!(cfg.clientId && cfg.clientSecret);
 }

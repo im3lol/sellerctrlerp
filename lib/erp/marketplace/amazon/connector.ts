@@ -21,8 +21,13 @@ const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
 /** Amazon SP-API connector (first real MarketplaceConnector). */
 export const amazonConnector: MarketplaceConnector = {
   code: "AMAZON",
-  label: "أمازون",
+  label: "أمازون (Amazon SP-API)",
   capabilities: { products: true, catalog: true, orders: true, inventory: true, settlements: true },
+  configFields: [
+    { key: "clientId", label: "LWA Client ID", placeholder: "amzn1.application-oa2-client.…" },
+    { key: "clientSecret", label: "LWA Client Secret", secret: true, placeholder: "amzn1.oa2-cs.…" },
+    { key: "appId", label: "Application ID (للموافقة)", placeholder: "amzn1.sp.solution.…" },
+  ],
   oauth: {
     marketplaces,
     async authorizeUrl(state, marketplaceCode) {

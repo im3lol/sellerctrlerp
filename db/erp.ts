@@ -2056,6 +2056,26 @@ export const platformSettings = pgTable("platform_settings", {
   updatedAt: updatedAt(),
 });
 
+// Generic per-connector integration config — one row per marketplace connector (AMAZON,
+// NOON, SHOPIFY, …). Replaces the fixed per-platform columns on platform_settings so a NEW
+// connector is code-only: its credentials/redirect/scopes/webhook all live here and render
+// in /admin/integrations from the connector's declared configFields. Platform-wide (not
+// RLS-policied), like platform_settings. Secrets stored as encryptSecret() ciphertext.
+export const platformIntegrations = pgTable("platform_integrations", {
+  code: text("code").primaryKey(),                    // uppercase connector code
+  clientId: text("client_id"),                        // public OAuth/app client id
+  clientSecret: text("client_secret"),                // encryptSecret() ciphertext
+  webhookSecret: text("webhook_secret"),              // encryptSecret() ciphertext (optional)
+  redirectUri: text("redirect_uri"),                  // null ⇒ derived from APP_URL
+  scopes: text("scopes"),                             // null ⇒ connector default
+  region: text("region"),
+  apiVersion: text("api_version"),
+  appId: text("app_id"),                              // e.g. Amazon SP-API application_id for consent
+  enabled: boolean("enabled"),                        // null ⇒ env/default fallback
+  extra: jsonb("extra").$type<Record<string, unknown>>().notNull().default({}), // connector-specific overflow
+  updatedAt: updatedAt(),
+});
+
 // One subscription/entitlement record per customer organization. `enabledModules`
 // is the source of truth for which ERP modules the tenant may access; the page
 // guards + nav read it. maxUsers/storageGb are the enforced caps (snapshot from
