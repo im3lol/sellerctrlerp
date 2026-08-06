@@ -8,25 +8,27 @@ import { sqsConfigured, ensureOrderNotifications } from "@/lib/erp/marketplace/a
 import { decryptSecret } from "@/lib/crypto";
 import { enqueue, QUEUES } from "./queues";
 
-// Real-time ORDER_CHANGE listener: long-polls the shared SP-API SQS queue and
-// turns each notification into a narrow incremental orders job for its tenant.
+// Real-time SP-API notification listener: long-polls the shared queue and turns each
+// push into the right per-tenant job — ORDER_CHANGE → incremental orders,
+// FBA_INVENTORY_AVAILABILITY_CHANGES → inventory reconcile. Replaces polling loops.
 // Silently off unless SPAPI_SQS_QUEUE_URL/ARN + AWS creds are configured.
 // ponytail: one listener loop, one worker replica; shard by queue if volume demands.
 
-type SpNotification = {
-  notificationType?: string;
-  NotificationType?: string;
-  payload?: { orderChangeNotification?: { sellerId?: string } };
-  Payload?: { OrderChangeNotification?: { SellerId?: string } };
-};
+type SpNotification = { notificationType?: string; NotificationType?: string; [k: string]: unknown };
 
-function sellerIdOf(n: SpNotification): string | null {
-  return n.payload?.orderChangeNotification?.sellerId
-    ?? n.Payload?.OrderChangeNotification?.SellerId
-    ?? null;
-}
 function typeOf(n: SpNotification): string {
   return n.notificationType ?? n.NotificationType ?? "";
+}
+
+/** Find the seller id anywhere in the notification body (payload shapes differ per type).
+ *  Depth-limited recursive scan for a sellerId/SellerId string. */
+function findSellerId(obj: unknown, depth = 0): string | null {
+  if (!obj || typeof obj !== "object" || depth > 6) return null;
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if ((k === "sellerId" || k === "SellerId") && typeof v === "string" && v) return v;
+    if (v && typeof v === "object") { const found = findSellerId(v, depth + 1); if (found) return found; }
+  }
+  return null;
 }
 
 let started = false;
@@ -36,7 +38,7 @@ export function startSqsListener(): void {
   started = true;
   const queueUrl = process.env.SPAPI_SQS_QUEUE_URL!;
   const client = new SQSClient({}); // region/creds from the standard AWS env chain
-  console.log("[sqs] ORDER_CHANGE listener started");
+  console.log("[sqs] SP-API notification listener started (orders + FBA inventory)");
 
   // Lazy backfill: connections made before SQS was configured get subscribed on
   // worker boot (idempotent; failures just retry next boot).
@@ -65,19 +67,23 @@ export function startSqsListener(): void {
         for (const msg of res.Messages ?? []) {
           try {
             const body = JSON.parse(msg.Body ?? "{}") as SpNotification;
-            const sellerId = typeOf(body) === "ORDER_CHANGE" ? sellerIdOf(body) : null;
-            if (sellerId) {
+            const type = typeOf(body);
+            const sellerId = findSellerId(body);
+            if (sellerId && (type === "ORDER_CHANGE" || type === "FBA_INVENTORY_AVAILABILITY_CHANGES")) {
               const [cred] = await withPlatformScope(() =>
                 db.select({ orgId: platformCredentials.organizationId, provider: platformCredentials.provider, marketplaceId: platformCredentials.marketplaceId })
                   .from(platformCredentials).where(eq(platformCredentials.sellerId, sellerId)).limit(1));
               if (cred) {
-                // Coalesce a burst of changes for one org into one job per minute
-                // (a completed BullMQ jobId blocks re-adds, so the id carries a
-                // minute bucket); runOrdersJob is idempotent anyway.
-                await enqueue(QUEUES.orders, {
-                  orgId: cred.orgId, provider: cred.provider, marketplaceId: cred.marketplaceId ?? undefined,
-                  since: new Date(Date.now() - 60 * 60 * 1000).toISOString(), ordersMode: "updated",
-                }, { jobId: `notif-${cred.orgId}-${Math.floor(Date.now() / 60_000)}`, delay: 15_000 });
+                const bucket = Math.floor(Date.now() / 60_000); // coalesce a burst into one job/min
+                const base = { orgId: cred.orgId, provider: cred.provider, marketplaceId: cred.marketplaceId ?? undefined };
+                if (type === "ORDER_CHANGE") {
+                  // runOrdersJob is idempotent; the minute-bucket jobId blocks re-adds.
+                  await enqueue(QUEUES.orders, { ...base, since: new Date(Date.now() - 60 * 60 * 1000).toISOString(), ordersMode: "updated" },
+                    { jobId: `notif-orders-${cred.orgId}-${bucket}`, delay: 15_000 });
+                } else {
+                  // FBA stock shifted → refresh the read-only Inventory Auditor snapshot.
+                  await enqueue(QUEUES.inventory, base, { jobId: `notif-inv-${cred.orgId}-${bucket}`, delay: 30_000 });
+                }
               }
             }
           } catch (e) {

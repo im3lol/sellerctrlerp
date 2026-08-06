@@ -38,6 +38,16 @@ export async function connectNoonAction(credentialJson: string): Promise<{ ok: t
         region: "eg", platformId, updatedAt: new Date(), needsReauth: false, lastSyncStatus: null,
       },
     });
+    // Best-effort: auto-register the Noon HTTPS webhook destination so orders push in
+    // real time (instead of the owner registering the URL by hand). Never blocks connect.
+    try {
+      const { ensureNoonWebhook } = await import("@/lib/erp/marketplace/noon/webhook");
+      const r = await ensureNoonWebhook(credentialJson.trim());
+      if ("destinationId" in r && r.destinationId) {
+        await db.update(platformCredentials).set({ notifDestinationId: r.destinationId, updatedAt: new Date() })
+          .where(and(eq(platformCredentials.organizationId, auth.orgId), eq(platformCredentials.provider, "noon")));
+      }
+    } catch { /* webhook auto-register is optional; manual ?key= URL is the fallback */ }
     revalidatePath("/platforms/noon");
     return { ok: true };
   });
