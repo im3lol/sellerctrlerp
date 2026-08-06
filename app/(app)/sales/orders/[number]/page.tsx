@@ -30,6 +30,12 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون" };
+// Raw marketplace order status → Arabic (matches the list view). The platform's own
+// fulfillment state, distinct from the ERP document status.
+const CHANNEL_STATUS: Record<string, string> = {
+  Pending: "معلّق", Unshipped: "لم يُشحن", PartiallyShipped: "شحن جزئي",
+  Shipped: "مكتمل", Canceled: "ملغى", Cancelled: "ملغى", Refunded: "مسترد",
+};
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
@@ -127,6 +133,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             <span className="text-sm text-muted-foreground">رقم طلب {CHANNEL_LABEL[so.channel] ?? "المتجر"}:</span>
             <Copyable text={so.externalOrderId} className="font-mono text-base font-semibold"><span dir="ltr">{so.externalOrderId}</span></Copyable>
             {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{CHANNEL_LABEL[so.channel]}</Badge>}
+            {so.channelStatus && <Badge variant="outline" title="حالة الطلب على المنصّة">حالة المنصّة: {CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus}</Badge>}
           </div>
         )}
 
