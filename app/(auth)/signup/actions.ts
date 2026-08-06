@@ -8,6 +8,7 @@ import { signIn } from "@/auth";
 import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
+import { log } from "@/lib/log";
 import { eq as _eq } from "drizzle-orm";
 import { users, organizations, organizationMembers, orgSubscriptions, plans, subscriptionRequests } from "@/db/schema";
 import { ALL_MODULES } from "@/lib/erp/module-list";
@@ -115,7 +116,11 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
 
   // Best-effort chart-of-accounts bootstrap (writes policied tables → platform scope);
   // the tenant can re-run it from settings if it fails.
-  try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); } catch { /* non-fatal */ }
+  // Non-fatal to signup, but NOT silent: if the chart-of-accounts bootstrap fails the
+  // org lands with an incomplete chart and every posting dead-ends until it's re-run
+  // from settings — so log it loudly (hits the error sink) instead of swallowing.
+  try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); }
+  catch (e) { log.error("signup.accounting_bootstrap_failed", { orgId, err: e }); }
 
   // Best-effort welcome email (no-op if email isn't configured; never blocks signup).
   try {

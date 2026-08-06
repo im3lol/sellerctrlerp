@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import {
@@ -40,7 +40,9 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     cnt(db.select({ n: sql<number>`count(*)` }).from(customers).where(eq(customers.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(stockMovements)
-      .where(and(eq(stockMovements.organizationId, orgId), eq(stockMovements.referenceType, "OPENING_STOCK")))),
+      // The real opening-balance post writes referenceType "OPENING_BALANCE"
+      // (opening-balance.ts); "OPENING_STOCK" is only the demo seed. Count both.
+      .where(and(eq(stockMovements.organizationId, orgId), inArray(stockMovements.referenceType, ["OPENING_BALANCE", "OPENING_STOCK"])))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(journalEntries)
       .where(and(eq(journalEntries.organizationId, orgId), eq(journalEntries.sourceType, "OPENING_BALANCE")))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(documentPrefixes).where(eq(documentPrefixes.organizationId, orgId))),
