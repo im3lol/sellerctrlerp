@@ -165,7 +165,32 @@ services:
     command: >
       sh -c 'printf "0 6 * * * wget -q -O /dev/null --header=\"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron\n" > /etc/crontabs/root && crond -f -l 8'
 
+  # Physical DB backup (full pg_dump, custom format) — the DBA-level DR layer beneath
+  # the app's per-tenant logical export. Daily loop + 14-day retention into a dedicated
+  # volume. ⚠️ On-box only: for real DR, copy /backups offsite (S3/rsync) — a backup on
+  # the same VPS as pgdata dies with the box. Runs as the owner (reads every row).
+  backup:
+    profiles: ["app"]
+    image: postgres:16-alpine
+    container_name: sellerctrl-backup
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: sellerctrl
+    volumes:
+      - dbbackups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # $$ so the container shell runs date at runtime (compose would interpolate a single $).
+    command: >
+      sh -c 'while true; do
+      pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f /backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump && echo "[backup] ok" || echo "[backup] FAILED";
+      find /backups -name "sellerctrl-*.dump" -mtime +14 -delete;
+      sleep 86400;
+      done'
+
 volumes:
   pgdata:
   miniodata:
   redisdata:
+  dbbackups:
