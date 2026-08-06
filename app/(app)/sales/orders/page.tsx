@@ -31,6 +31,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
     const fChannel = one(sp.channel);
+    const fFulfillment = one(sp.fulfillment); // FBA | FBM
     const fCustomer = one(sp.customer);
     const from = one(sp.from);
     const to = one(sp.to);
@@ -41,6 +42,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     if (fStatus) conds.push(eq(salesOrders.status, fStatus));
     if (fChannel === "MANUAL") conds.push(isNull(salesOrders.channel));
     else if (fChannel) conds.push(eq(salesOrders.channel, fChannel));
+    if (fFulfillment) conds.push(eq(salesOrders.fulfillmentType, fFulfillment));
     if (fCustomer) conds.push(eq(salesOrders.customerId, fCustomer));
     if (from) conds.push(gte(salesOrders.date, new Date(from)));
     if (to) conds.push(lte(salesOrders.date, new Date(to + "T23:59:59")));
@@ -63,7 +65,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const safePage = Math.min(page, pages);
 
     const rows = await db
-      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus })
+      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus, fulfillmentType: salesOrders.fulfillmentType })
       .from(salesOrders)
       .leftJoin(customers, eq(customers.id, salesOrders.customerId))
       .where(where)
@@ -109,12 +111,13 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       returns: retsBySo.get(r.id) ?? [],
     }));
 
-    const hasFilters = Boolean(q || fStatus || fChannel || fCustomer || from || to);
+    const hasFilters = Boolean(q || fStatus || fChannel || fFulfillment || fCustomer || from || to);
     const qs = (p: number) => {
       const u = new URLSearchParams();
       if (q) u.set("q", q);
       if (fStatus) u.set("status", fStatus);
       if (fChannel) u.set("channel", fChannel);
+      if (fFulfillment) u.set("fulfillment", fFulfillment);
       if (fCustomer) u.set("customer", fCustomer);
       if (from) u.set("from", from);
       if (to) u.set("to", to);
@@ -162,6 +165,14 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
                   <select id="channel" name="channel" defaultValue={fChannel} className={selectCls}>
                     <option value="">الكل</option>
                     {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="fulfillment">التنفيذ</Label>
+                  <select id="fulfillment" name="fulfillment" defaultValue={fFulfillment} className={selectCls}>
+                    <option value="">الكل</option>
+                    <option value="FBA">FBA</option>
+                    <option value="FBM">FBM</option>
                   </select>
                 </div>
                 <div className="space-y-1">

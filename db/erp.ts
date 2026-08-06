@@ -1566,6 +1566,10 @@ export const salesOrders = pgTable(
     // Raw marketplace order status (Pending/Shipped/Canceled/…) for display, kept in
     // sync on every pull. Distinct from `status` (our internal document lifecycle).
     channelStatus: text("channel_status"),
+    // Per-order fulfillment: FBA (Amazon-fulfilled) vs FBM (merchant-fulfilled). From the
+    // marketplace order (Amazon AFN/MFN) when available, else the platform's default. Null
+    // for manual orders. Drives fee/fulfillment segmentation the platform-level flag can't.
+    fulfillmentType: text("fulfillment_type"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

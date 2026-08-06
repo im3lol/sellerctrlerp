@@ -60,6 +60,8 @@ async function categoryIdByName(orgId: string, name: string, cache: Map<string, 
  */
 export type PlatformCtx = {
   platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode;
+  /** The platform's default fulfillment (FBA/FBM) — used when the order itself doesn't report one. */
+  fulfillmentType?: string | null;
   /** The platform's go-live accounting start date, if set. syncOrdersCore derives
    *  `createFloor` from it per sync mode. */
   accountingStartDate?: Date | null;
@@ -215,7 +217,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
           organizationId: orgId, number, customerId: ctx.customerId, date: d, status,
           subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
           totalAmount: String(round2(o.subtotal + o.shippingTotal - (o.discount ?? 0))),
-          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status, notes: `${ctx.label} ${o.externalId}`,
+          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status,
+          fulfillmentType: o.fulfillment ?? ctx.fulfillmentType ?? null,
+          notes: `${ctx.label} ${o.externalId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
         await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId: ctx.warehouseId,

@@ -26,7 +26,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[]; channel?: string; externalOrderId?: string | null; channelStatus?: string | null };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; customer: string | null; orderedQty: number; deliveredQty: number; returned?: boolean; returns?: ReturnRow[]; channel?: string; externalOrderId?: string | null; channelStatus?: string | null; fulfillmentType?: string | null };
 
 const CHANNEL_LABEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون" };
 
@@ -112,6 +112,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                     {r.externalOrderId && (
                       <div className="mt-0.5 flex items-center gap-1">
                         {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
+                        {r.fulfillmentType && <Badge variant="outline" className="text-[10px]" title="قناة التنفيذ">{r.fulfillmentType}</Badge>}
                         {r.channelStatus && CHANNEL_STATUS[r.channelStatus] && (
                           <Badge variant={CHANNEL_STATUS[r.channelStatus].variant} className={`text-[10px] ${CHANNEL_STATUS[r.channelStatus].cls ?? ""}`}>
                             {CHANNEL_STATUS[r.channelStatus].label}

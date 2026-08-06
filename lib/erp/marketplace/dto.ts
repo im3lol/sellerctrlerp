@@ -18,6 +18,7 @@ export type MarketplaceOrder = {
   externalId: string;
   date: string; // ISO
   status: string; // "Shipped" → fulfill now; anything else → stays DRAFT
+  fulfillment?: string; // "FBA" | "FBM" — the platform-fulfilled vs merchant-fulfilled channel, when the source reports it
   lines: MarketplaceOrderLine[];
   subtotal: number;
   shippingTotal: number;

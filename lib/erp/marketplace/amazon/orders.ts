@@ -9,7 +9,7 @@ import type { MarketplaceOrder, DateRange } from "../dto";
 
 
 type Money = { Amount?: string | number };
-type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string };
+type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string; FulfillmentChannel?: string };
 type OrdersResponse = { payload?: { Orders?: ApiOrder[]; NextToken?: string } };
 type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money; PromotionDiscount?: Money; ShipPromotionDiscount?: Money };
 type ItemsResponse = { payload?: { OrderItems?: ApiOrderItem[]; NextToken?: string } };
@@ -34,6 +34,8 @@ export function toMarketplaceOrder(o: ApiOrder, items: ApiOrderItem[]): Marketpl
   const discount = round2(items.reduce((s, it) => s + amt(it.PromotionDiscount) + amt(it.ShipPromotionDiscount), 0));
   return {
     externalId: o.AmazonOrderId ?? "", date: o.PurchaseDate ?? new Date().toISOString(), status: mapStatus(o.OrderStatus),
+    // AFN = Amazon-fulfilled (FBA), MFN = merchant-fulfilled (FBM).
+    fulfillment: o.FulfillmentChannel === "AFN" ? "FBA" : o.FulfillmentChannel === "MFN" ? "FBM" : undefined,
     lines, subtotal, shippingTotal, discount, total: round2(subtotal + shippingTotal - discount),
   };
 }

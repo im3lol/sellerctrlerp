@@ -281,6 +281,7 @@ export async function importPlatformOrdersAction(platformId: string, ordersInput
             organizationId: auth.orgId, number, customerId: platform.customerId!, date: orderDate, status: "DRAFT",
             subtotal: String(subtotal), totalAmount: String(subtotal),
             channel: platform.code, platformId: platform.id, externalOrderId: o.externalOrderId,
+            fulfillmentType: platform.fulfillmentType ?? null,
             notes: `استيراد ${platform.name} (${o.externalOrderId})`,
           }).returning({ id: salesOrders.id });
           await tx.insert(salesOrderLines).values(resolved.map((l) => ({

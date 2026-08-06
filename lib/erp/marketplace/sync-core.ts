@@ -52,11 +52,11 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     await ensurePlatform(orgId, connector.code);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate, fulfillmentType: salesPlatforms.fulfillmentType })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
-    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice", accountingStartDate: p.accountingStartDate ? new Date(p.accountingStartDate) : null };
+    const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice", accountingStartDate: p.accountingStartDate ? new Date(p.accountingStartDate) : null, fulfillmentType: p.fulfillmentType };
     const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements, returns: p.syncReturns };
     return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
