@@ -152,8 +152,10 @@ services:
       - ../.env
     depends_on:
       - app
+    # $$ so Compose passes a literal $ through; the container shell expands CRON_SECRET
+    # from env_file at runtime (single-$ would be interpolated empty at parse time).
     command: >
-      sh -c 'printf "0 6 * * * wget -q -O /dev/null --header=\"Authorization: Bearer $CRON_SECRET\" http://app:3000/api/cron\n" > /etc/crontabs/root && crond -f -l 8'
+      sh -c 'printf "0 6 * * * wget -q -O /dev/null --header=\"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron\n" > /etc/crontabs/root && crond -f -l 8'
 
 volumes:
   pgdata:
