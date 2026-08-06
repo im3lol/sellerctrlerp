@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { Icon } from "@/components/icon";
 
 const money = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
@@ -78,6 +80,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
           title={`محفظة ومدفوعات ${platform.name}`}
           subtitle="ما لم تُحوّله المنصّة بعد مقابل ما أودعته في البنك — من التسويات"
           backHref={`/platforms/${code}`}
+          action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />كشوف التسويات</Link></Button>}
         />
 
         <Card>
@@ -91,9 +94,9 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
         </Card>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">رصيد المحفظة (لم يُحوَّل بعد)</div><div className="text-2xl font-bold tabular-nums">{money(walletBalance)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المُحوَّل للبنك (الفترة)</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalDisbursed)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد التحويلات</div><div className="text-2xl font-bold tabular-nums">{disbursements.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">رصيد المحفظة الآن (لم يُحوَّل بعد)</div><div className="text-2xl font-bold tabular-nums">{money(walletBalance)}</div><div className="text-xs text-muted-foreground">رصيد حالي — لا يتأثر بفلتر التاريخ</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المُحوَّل للبنك (خلال الفترة)</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalDisbursed)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد التحويلات (خلال الفترة)</div><div className="text-2xl font-bold tabular-nums">{disbursements.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
         </div>
 
         <Card>
