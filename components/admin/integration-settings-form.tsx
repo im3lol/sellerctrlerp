@@ -3,14 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Copy, CheckCircle2 } from "lucide-react";
+import { Loader2, Copy } from "lucide-react";
 import { saveIntegrationSettingsAction } from "@/app/actions/admin/platform-settings";
 import type { IntegrationField } from "@/lib/erp/marketplace/connector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type TextKey = "clientId" | "appId" | "scopes" | "apiVersion" | "region" | "redirectUri";
 export type IntegrationInitial = {
@@ -47,7 +46,6 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
   const [text, setText] = useState<Record<string, string>>({ ...initial.text });
   const [secrets, setSecrets] = useState<Record<string, string>>({});
 
-  const configured = initial.has.clientSecret || !!initial.text.clientId;
   const base = (appUrl || "").replace(/\/$/, "");
   const defaultRedirect = `${base}/api/erp/marketplace/${code.toLowerCase()}/callback`;
 
@@ -65,20 +63,14 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
     else toast.error(r.error);
   });
 
+  // Rendered inside the connector dialog (chrome + title live there).
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2">
-            {label}
-            {configured && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600"><CheckCircle2 className="size-3.5" />مُعدّة</span>}
-          </CardTitle>
-          <label className="flex items-center gap-2 text-sm"><Switch checked={enabled} onCheckedChange={setEnabled} />{enabled ? "مُفعّلة" : "موقوفة"}</label>
-        </div>
-        <CardDescription>مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {fields.map((f) => (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+        <span className="text-sm text-muted-foreground">حالة التكامل</span>
+        <label className="flex items-center gap-2 text-sm"><Switch checked={enabled} onCheckedChange={setEnabled} />{enabled ? "مُفعّلة" : "موقوفة"}</label>
+      </div>
+      {fields.map((f) => (
           <div key={f.key} className="space-y-2">
             <Label htmlFor={`${code}-${f.key}`}>{f.label}</Label>
             <Input
@@ -103,10 +95,10 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
           </div>
         )}
 
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات</Button>
-        </div>
-      </CardContent>
-    </Card>
+      <p className="text-xs text-muted-foreground">مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</p>
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات</Button>
+      </div>
+    </div>
   );
 }
