@@ -15,6 +15,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Long-lived immutable cache for content-hashed build assets. Vercel sets this
+  // automatically; the self-host path (Docker + Cloudflare tunnel) serves them from
+  // Node with no cache header, so every chunk re-downloads. /_next/static filenames
+  // carry a content hash → safe to cache forever. This is the whole CDN win here;
+  // remote item/logo images are already behind their own CDNs (Amazon media, Supabase
+  // Storage), so next/image server-side re-encoding would only add VPS load.
+  // ponytail: headers() only. Skipped next/image — no sharp, and it'd re-optimize
+  // already-CDN'd remote images per request. Add if we ever self-host uncached images.
+  async headers() {
+    return [
+      { source: "/_next/static/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+    ];
+  },
   // The ERP moved off the /erp prefix (sellerctrl.com/inventory, not /erp/inventory).
   // Redirect old links/bookmarks so nothing 404s. /api/erp stays as-is.
   async redirects() {
