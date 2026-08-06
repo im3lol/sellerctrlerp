@@ -2274,6 +2274,7 @@ export const inventoryAuditLines = pgTable(
     reserved: integer("reserved").notNull().default(0),
     inbound: integer("inbound").notNull().default(0),
     damaged: integer("damaged").notNull().default(0),
+    expired: integer("expired").notNull().default(0), // subset of `damaged` — surfaced separately (removal candidate)
     researching: integer("researching").notNull().default(0),
     diff: numeric("diff", { precision: 18, scale: 3 }).notNull().default("0"),
     status: text("status").notNull(),      // MATCHED | RECEIVING | FOUND | RESEARCHING | DAMAGED | LOST | UNMATCHED

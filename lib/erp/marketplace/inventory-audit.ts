@@ -27,6 +27,7 @@ export type AuditRow = {
   reserved: number;
   inbound: number;         // working + shipped + receiving
   damaged: number;         // unfulfillable total
+  expired: number;         // subset of damaged — expiry-dated units, surfaced separately
   researching: number;
   diff: number;            // erpQty − amazonTotal  (+ = missing from Amazon, − = extra at Amazon)
   status: AuditStatus;
@@ -54,7 +55,7 @@ export function classifyAudit(d: MarketplaceInventoryDetail, itemId: string | nu
   return {
     code: d.code, asin: d.asin, title: d.title, itemId,
     erpQty: r3(erpQty), amazonTotal: d.total, available: d.fulfillable,
-    reserved: d.reservedTotal, inbound, damaged: d.unfulfillableTotal, researching: d.researching,
+    reserved: d.reservedTotal, inbound, damaged: d.unfulfillableTotal, expired: d.expired, researching: d.researching,
     diff, status,
   };
 }
