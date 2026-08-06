@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { SyncJob } from "./queues";
 import { db } from "@/lib/db";
 import { organizationMembers, organizations } from "@/db/schema";
-import { withPlatformScope } from "@/lib/db-scope";
+import { withPlatformScope, withOrgScope } from "@/lib/db-scope";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
@@ -21,12 +21,15 @@ import { allErpPermissions } from "@/lib/erp/permissions";
  * as the org's admin (falls back to the oldest active member).
  */
 async function workerErpContext(orgId: string): Promise<ErpContext | null> {
-  const [m] = await db
+  // organization_members is RLS-policied — this MUST run inside a tenant scope or the
+  // app's appuser role sees zero rows (fail-closed) and every sync job aborts with "no
+  // active member". withOrgScope is re-entrant, matching the startRun/prepareSync callers.
+  const [m] = await withOrgScope(orgId, false, () => db
     .select({ userId: organizationMembers.userId, role: organizationMembers.role })
     .from(organizationMembers)
     .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
     .orderBy(sql`case when ${organizationMembers.role} = 'admin' then 0 else 1 end`, asc(organizationMembers.joinedAt))
-    .limit(1);
+    .limit(1));
   if (!m) return null;
   return { userId: m.userId, orgId, role: "admin", permissions: new Set(allErpPermissions) };
 }
