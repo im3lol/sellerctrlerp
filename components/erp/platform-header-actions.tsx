@@ -24,9 +24,9 @@ import type { SyncFlags } from "@/components/erp/marketplace-connect";
  * header uncluttered.
  */
 export function PlatformHeaderActions({
-  code, isAmazon, connected, syncFlags, hasOrderHistory, canManage,
+  code, label, isAmazon, connected, syncFlags, hasOrderHistory, canManage,
 }: {
-  code: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; canManage: boolean;
+  code: string; label: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; canManage: boolean;
 }) {
   const [syncOpen, setSyncOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
@@ -76,7 +76,7 @@ export function PlatformHeaderActions({
           <DropdownMenuContent align="end" className="w-56">
             {connected && (
               <DropdownMenuItem asChild>
-                <Link href={`/platforms/${code}/verify`}><Link2 className="size-4" />تحقق من ربط أمازون</Link>
+                <Link href={`/platforms/${code}/verify`}><Link2 className="size-4" />تحقق من ربط {label}</Link>
               </DropdownMenuItem>
             )}
             {connected && isAmazon && (
@@ -146,9 +146,9 @@ export function PlatformHeaderActions({
       {/* All background-job cards share one anchor and stack vertically so
           concurrent syncs never overlap. Each renders null when closed. */}
       <div className="fixed bottom-24 left-4 z-[60] flex flex-col gap-3">
-        <SyncProgress code={code} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
+        <SyncProgress code={code} label={label} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
         <AuditProgress code={code} open={auditOpen} onClose={() => setAuditOpen(false)} />
-        <OrdersProgress code={code} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
+        <OrdersProgress code={code} label={label} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
       </div>
     </div>
   );

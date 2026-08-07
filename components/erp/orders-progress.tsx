@@ -11,7 +11,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Bottom-left progress card for the background sales (orders) sync. Polls the
  *  latest ORDERS sync_run; closing keeps the server job running. */
-export function OrdersProgress({ code, open, onClose }: { code: string; open: boolean; onClose: () => void }) {
+export function OrdersProgress({ code, label = "المنصة", open, onClose }: { code: string; label?: string; open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [st, setSt] = useState<OrdersStatus>({ phase: "running" });
   const [timedOut, setTimedOut] = useState(false);
@@ -61,7 +61,7 @@ export function OrdersProgress({ code, open, onClose }: { code: string; open: bo
             : <X className="size-3.5 text-destructive" />}
         </span>
         <div className="min-w-0 flex-1">
-          {running && !timedOut && <span>جاري سحب الطلبات من أمازون… (قد يستغرق دقائق — أمازون بتحدّد المعدّل)</span>}
+          {running && !timedOut && <span>جاري سحب الطلبات من {label}… (قد يستغرق دقائق حسب معدّل المنصة)</span>}
           {running && timedOut && <span className="text-muted-foreground">السحب لسه شغّال في الخلفية. <Link href="/sales/orders" className="text-primary hover:underline">افتح الطلبات</Link> لمتابعة الجديد.</span>}
           {st.phase === "done" && <span className="text-muted-foreground">تم سحب <b>{st.created ?? 0}</b> أمر بيع. <Link href="/sales/orders" className="text-primary hover:underline">افتح الطلبات</Link></span>}
           {st.phase === "error" && <span className="text-destructive">{st.error ?? "فشل سحب المبيعات"}</span>}

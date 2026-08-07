@@ -20,7 +20,7 @@ const initial = (flags: Flags): Step[] => [
   flags.inventory && { key: "inventory", label: "المخزون", icon: <Warehouse className="size-4" />, status: "pending" as Status, detail: "" },
 ].filter(Boolean) as Step[];
 
-export function SyncProgress({ code, flags, open, onClose }: { code: string; flags: Flags; open: boolean; onClose: () => void }) {
+export function SyncProgress({ code, label = "المنصة", flags, open, onClose }: { code: string; label?: string; flags: Flags; open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
@@ -42,7 +42,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
   // Amazon report, so we fire them concurrently — the reports generate in
   // parallel instead of back-to-back (roughly 3× faster wall time).
   async function step<T extends { ok: boolean; error?: string }>(key: string, fn: () => Promise<T>, ok: (r: Extract<T, { ok: true }>) => string) {
-    set(key, "running", "جاري السحب من أمازون…");
+    set(key, "running", `جاري السحب من ${label}…`);
     try {
       const r = await fn();
       set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? "فشل"));
@@ -65,7 +65,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
       if (!s.ok) { set("products", "error", s.error ?? "فشل"); return; }
     }
     for (let i = 0; i < 450; i++) { // ~30 min ceiling at 4s
-      set("products", "running", "جاري السحب من أمازون… (السحب الكامل قد يستغرق عدة دقائق)");
+      set("products", "running", `جاري السحب من ${label}… (السحب الكامل قد يستغرق عدة دقائق)`);
       await sleep(4000);
       let st: ProductSyncStatus;
       try { st = await productsSyncStatusAction(code); } catch { continue; }
@@ -95,7 +95,7 @@ export function SyncProgress({ code, flags, open, onClose }: { code: string; fla
     <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
-          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة أمازون
+          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة {label}
         </div>
         {/* Always closable: the full product sync runs server-side and keeps
             going after the popup closes. */}

@@ -189,6 +189,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           action={
             <PlatformHeaderActions
               code={platform.code.toLowerCase()}
+              label={platform.name}
               isAmazon={isAmazon}
               connected={!!conn?.connected}
               syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
