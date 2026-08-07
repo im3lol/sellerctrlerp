@@ -45,6 +45,26 @@ const pick = (o: Record<string, unknown>, ...keys: string[]) => {
   return "";
 };
 
+/** Recursively locate the credential object anywhere in the exchange `result` — the one
+ *  carrying a private key. The workflow result nests it differently per integration, so we
+ *  search by shape (has a private_key) rather than guessing the exact path. */
+function findCredObject(node: unknown, depth = 0): Record<string, unknown> | null {
+  if (!node || typeof node !== "object" || depth > 6) return null;
+  const o = node as Record<string, unknown>;
+  if (typeof o.private_key === "string" || typeof o.privateKey === "string") return o;
+  for (const v of Object.values(o)) { const f = findCredObject(v, depth + 1); if (f) return f; }
+  return null;
+}
+
+/** A values-redacted shape of a JSON object (keys + value kinds only) — safe to log for
+ *  diagnosing an unexpected response without ever leaking a private key or token. */
+function shapeOf(node: unknown, depth = 0): unknown {
+  if (node === null || typeof node !== "object") return typeof node === "string" ? `<str:${(node as string).length}>` : typeof node;
+  if (Array.isArray(node)) return depth > 5 ? "[…]" : node.slice(0, 3).map((v) => shapeOf(v, depth + 1));
+  if (depth > 5) return "{…}";
+  return Object.fromEntries(Object.entries(node as Record<string, unknown>).map(([k, v]) => [k, shapeOf(v, depth + 1)]));
+}
+
 /** code → seller service-account credentials, stored as the refreshToken JSON. */
 export async function exchangeCode(code: string): Promise<OAuthExchange> {
   const cfg = await getNoonConfig();
@@ -66,18 +86,21 @@ export async function exchangeCode(code: string): Promise<OAuthExchange> {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ access_token: created.access_token }),
     });
-    // result holds the protected resource; the credential may be at its root or under `credential`.
+    // result holds the protected resource; the credential nests differently per workflow, so
+    // locate the object carrying a private_key wherever it sits.
     const res = (exchanged.result ?? {}) as Record<string, unknown>;
-    const r = ((res.credential as Record<string, unknown>) ?? res) as Record<string, unknown>;
+    const r = findCredObject(res) ?? res;
 
     const creds: NoonCreds = {
-      key_id: pick(r, "key_id", "keyId", "kid"),
+      key_id: pick(r, "key_id", "keyId", "kid", "sub"),
       private_key: pick(r, "private_key", "privateKey"),
-      channel_identifier: pick(r, "channel_identifier", "channelIdentifier", "username"),
+      channel_identifier: pick(r, "channel_identifier", "channelIdentifier", "username", "email"),
       project_code: pick(r, "project_code", "projectCode") || exchanged.project_code || created.project_code || "",
       type: "apijwt",
     };
     if (!creds.key_id || !creds.private_key || !creds.channel_identifier || !creds.project_code) {
+      // Log the values-redacted shape so we can map the real field names from the container logs.
+      console.error("[noon-oauth] exchange result shape (redacted):", JSON.stringify(shapeOf(exchanged)));
       return { error: "اعتماد نون المُستلم ناقص — راجع إعداد workflow الخاص بتطبيق OAuth عند نون" };
     }
     // sellerId = project_code so the order webhook can resolve the tenant.
