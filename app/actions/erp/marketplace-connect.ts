@@ -7,8 +7,10 @@ import { db } from "@/lib/db";
 import { platformCredentials } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { encryptSecret } from "@/lib/crypto";
-import { ensureNoonPlatform } from "@/lib/erp/platform-provision";
+import { ensureNoonPlatform, ensureWooPlatform, ensureJumiaPlatform } from "@/lib/erp/platform-provision";
 import { parseNoonCreds } from "@/lib/erp/marketplace/noon/constants";
+import { validateStoreUrl, WOO_REGION } from "@/lib/erp/marketplace/woo/constants";
+import { JUMIA_REGION } from "@/lib/erp/marketplace/jumia/constants";
 
 /**
  * Connect Noon by pasting the service-account credential .json (from
@@ -49,6 +51,64 @@ export async function connectNoonAction(credentialJson: string): Promise<{ ok: t
       }
     } catch { /* webhook auto-register is optional; manual ?key= URL is the fallback */ }
     revalidatePath("/platforms/noon");
+    return { ok: true };
+  });
+}
+
+/**
+ * Connect WooCommerce by pasting the store URL + REST consumer key/secret (WooCommerce ▸
+ * Settings ▸ Advanced ▸ REST API). The secret is stored encrypted; the store URL is kept
+ * plaintext in `sellerId` so the webhook can resolve the tenant by X-WC-Webhook-Source, and
+ * the consumer key in `marketplaceId` (both read by the Woo client). No secret is logged.
+ */
+export async function connectWooAction(input: { storeUrl: string; consumerKey: string; consumerSecret: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await authorizeErp("sales.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  const storeUrl = validateStoreUrl(input.storeUrl || "");
+  const consumerKey = (input.consumerKey || "").trim();
+  const consumerSecret = (input.consumerSecret || "").trim();
+  if (!storeUrl) return { ok: false, error: "رابط المتجر غير صالح — استخدم https://" };
+  if (!consumerKey || !consumerSecret) return { ok: false, error: "أدخل Consumer Key وConsumer Secret" };
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const platformId = (await ensureWooPlatform(auth.orgId)).platformId;
+    const values = {
+      refreshToken: encryptSecret(consumerSecret), sellerId: storeUrl, marketplaceId: consumerKey,
+      region: WOO_REGION, platformId, updatedAt: new Date(), needsReauth: false, lastSyncStatus: null,
+    };
+    await db.insert(platformCredentials).values({ organizationId: auth.orgId, provider: "woo", ...values })
+      .onConflictDoUpdate({ target: [platformCredentials.organizationId, platformCredentials.provider], set: values });
+    revalidatePath("/platforms/woo");
+    return { ok: true };
+  });
+}
+
+/**
+ * Connect Jumia by pasting the UserID (seller email) + API key + region API host (Vendor
+ * Center ▸ Settings ▸ Integration). The API key is stored encrypted (used only to sign
+ * requests); UserID plaintext in `sellerId`, host in `marketplaceId` — both read by the
+ * Jumia client. No secret is logged.
+ */
+export async function connectJumiaAction(input: { userId: string; apiKey: string; apiHost: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await authorizeErp("sales.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  const userId = (input.userId || "").trim();
+  const apiKey = (input.apiKey || "").trim();
+  const apiHost = validateStoreUrl(input.apiHost || "");
+  if (!userId || !apiKey) return { ok: false, error: "أدخل UserID وAPI Key" };
+  if (!apiHost) return { ok: false, error: "عنوان الواجهة (API Host) غير صالح — استخدم https://" };
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const platformId = (await ensureJumiaPlatform(auth.orgId)).platformId;
+    const values = {
+      refreshToken: encryptSecret(apiKey), sellerId: userId, marketplaceId: apiHost,
+      region: JUMIA_REGION, platformId, updatedAt: new Date(), needsReauth: false, lastSyncStatus: null,
+    };
+    await db.insert(platformCredentials).values({ organizationId: auth.orgId, provider: "jumia", ...values })
+      .onConflictDoUpdate({ target: [platformCredentials.organizationId, platformCredentials.provider], set: values });
+    revalidatePath("/platforms/jumia");
     return { ok: true };
   });
 }

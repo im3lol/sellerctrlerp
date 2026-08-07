@@ -26,3 +26,10 @@ export async function getWooConfig(): Promise<WooConfig | null> {
 export function wooCredential(cfg: WooConfig): Credential {
   return { refreshToken: cfg.consumerSecret, marketplaceId: cfg.consumerKey, sellerId: cfg.storeUrl, region: WOO_REGION };
 }
+
+/** The webhook signing secret (owner-set in /admin/integrations, env fallback). The WC store
+ *  must be configured with the SAME secret so X-WC-Webhook-Signature verifies. "" ⇒ webhook off. */
+export async function getWooWebhookSecret(): Promise<string> {
+  const c = await getIntegrationConfig("WOO");
+  return c.webhookSecret || process.env.WOO_WEBHOOK_SECRET || "";
+}

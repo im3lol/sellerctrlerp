@@ -27,7 +27,7 @@ export default auth((req) => {
     path.startsWith("/api/admin/init-accounting") || // token-authed one-time tenant setup; route enforces INIT_SETUP_TOKEN
     path.startsWith("/api/subscription/xpay") || // xpay gateway callback/return — verified server-side by transaction lookup, not session
     (path.startsWith("/api/erp/marketplace/") && path.endsWith("/callback")) || // OAuth return — verified by the signed state (+ provider HMAC), not the app session
-    path === "/api/erp/marketplace/noon/webhook" || // Noon order webhook — no app session; tenant resolved by project_code (+ optional NOON_WEBHOOK_SECRET)
+    (path.startsWith("/api/erp/marketplace/") && path.endsWith("/webhook")) || // order webhooks (Noon ?key=, Woo X-WC-Webhook-Signature) — each route authenticates the caller itself, no app session
     path.startsWith("/_next") ||
     path.startsWith("/brand") ||
     path.startsWith("/sounds"); // static notification chimes — no auth needed

@@ -230,11 +230,80 @@ export async function ensureNoonPlatform(orgId: string): Promise<PlatformProvisi
   return { platformId: existing.id, customerId, warehouseId, bankAccountId };
 }
 
+/** Generic wallet+bank get-or-create for a marketplace with no dedicated legacy repoint
+ *  (Shopify/Noon/Woo/Jumia all follow this shape). `walletCode` is the distinct wallet GL. */
+async function ensureSimpleBank(orgId: string, nameAr: string, bankName: string, walletCode: string): Promise<string> {
+  const walletGl = await ensurePlatformWalletGl(orgId, walletCode, nameAr);
+  const [existing] = await db.select({ id: bankAccounts.id }).from(bankAccounts)
+    .where(and(eq(bankAccounts.organizationId, orgId), eq(bankAccounts.nameAr, nameAr))).limit(1);
+  if (existing) return existing.id;
+  const [row] = await db.insert(bankAccounts)
+    .values({ organizationId: orgId, nameAr, bankName, glAccountId: walletGl })
+    .returning({ id: bankAccounts.id });
+  return row.id;
+}
+
+/** Generic get-or-create of a sales platform + its customer, warehouse and payout bank —
+ *  used by the settlements-free connectors (Woo/Jumia). Mirrors ensureNoonPlatform exactly. */
+async function ensureSimplePlatform(orgId: string, o: {
+  code: string; name: string; integrationType: string; custCode: string; whCode: string;
+  bankNameAr: string; bankName: string; walletCode: string;
+}): Promise<PlatformProvision> {
+  const [existing] = await db.select().from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, o.code))).limit(1);
+
+  let customerId = existing?.customerId ?? null;
+  if (!customerId) {
+    let [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.organizationId, orgId), eq(customers.code, o.custCode))).limit(1);
+    if (!cust) [cust] = await db.insert(customers)
+      .values({ organizationId: orgId, code: o.custCode, nameAr: o.name }).returning({ id: customers.id });
+    customerId = cust.id;
+  }
+
+  let warehouseId = existing?.defaultWarehouseId ?? null;
+  if (!warehouseId) {
+    let [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.code, o.whCode))).limit(1);
+    if (!wh) [wh] = await db.insert(warehouses)
+      .values({ organizationId: orgId, code: o.whCode, nameAr: `مخزن ${o.name}`, nameEn: o.code }).returning({ id: warehouses.id });
+    warehouseId = wh.id;
+  }
+
+  const bankAccountId = existing?.bankAccountId ?? await ensureSimpleBank(orgId, o.bankNameAr, o.bankName, o.walletCode);
+
+  if (!existing) {
+    const [created] = await db.insert(salesPlatforms).values({
+      organizationId: orgId, name: o.name, code: o.code, integrationType: o.integrationType,
+      customerId, defaultWarehouseId: warehouseId, bankAccountId,
+    }).onConflictDoUpdate({
+      target: [salesPlatforms.organizationId, salesPlatforms.code],
+      set: { customerId, defaultWarehouseId: warehouseId, updatedAt: new Date() },
+    }).returning({ id: salesPlatforms.id });
+    return { platformId: created.id, customerId, warehouseId, bankAccountId };
+  }
+  if (!existing.customerId || !existing.defaultWarehouseId || !existing.bankAccountId) {
+    await db.update(salesPlatforms).set({ customerId, defaultWarehouseId: warehouseId, bankAccountId, updatedAt: new Date() })
+      .where(eq(salesPlatforms.id, existing.id));
+  }
+  return { platformId: existing.id, customerId, warehouseId, bankAccountId };
+}
+
+/** WooCommerce platform (own wallet GL 1112). */
+export const ensureWooPlatform = (orgId: string) =>
+  ensureSimplePlatform(orgId, { code: "WOO", name: "ووكومرس", integrationType: "generic", custCode: "WOO", whCode: "WOO-WH", bankNameAr: "محفظة ووكومرس", bankName: "ووكومرس", walletCode: "1112" });
+
+/** Jumia platform (own wallet GL 1113). */
+export const ensureJumiaPlatform = (orgId: string) =>
+  ensureSimplePlatform(orgId, { code: "JUMIA", name: "جوميا", integrationType: "generic", custCode: "JUMIA", whCode: "JUMIA-WH", bankNameAr: "محفظة جوميا", bankName: "جوميا", walletCode: "1113" });
+
 /** Dispatch to the connector's platform provisioner. Unknown/manual codes no-op
  *  (null) — the platform already exists or is manual-import only. */
 export async function ensurePlatform(orgId: string, code: string): Promise<PlatformProvision | null> {
   if (code === "AMAZON") return ensureAmazonPlatform(orgId);
   if (code === "SHOPIFY") return ensureShopifyPlatform(orgId);
   if (code === "NOON") return ensureNoonPlatform(orgId);
+  if (code === "WOO") return ensureWooPlatform(orgId);
+  if (code === "JUMIA") return ensureJumiaPlatform(orgId);
   return null;
 }

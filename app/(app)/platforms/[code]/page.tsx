@@ -199,7 +199,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
             needsShop={connectable?.needsTarget}
-            needsCredential={connector.code === "NOON" && !oauthReady}
+            credentialKind={connector.code === "WOO" ? "woo" : connector.code === "JUMIA" ? "jumia" : (connector.code === "NOON" && !oauthReady) ? "noon" : undefined}
             oauthReady={oauthReady}
           />
         )}
