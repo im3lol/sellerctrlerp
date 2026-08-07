@@ -3,7 +3,8 @@ import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, itemCodes, inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { CHANNEL_CODE_TYPE } from "@/lib/erp/marketplace-code";
 import { AuditStats } from "@/components/erp/audit-summary";
 import { getPlatformPnl } from "@/lib/erp/platform-pnl";
 import { Field } from "@/components/erp/document-detail";
@@ -114,8 +115,15 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
       // Catalog size, on-hand for the platform's warehouse, and a 30-day sales trend.
       const whId = platform.defaultWarehouseId;
       const since = new Date(Date.now() - 30 * 864e5);
+      // Catalog count scoped to THIS platform: items carrying the channel's own code
+      // (NOON/ASIN/…). Without a code type (manual platforms) fall back to the org catalog.
+      const codeType = CHANNEL_CODE_TYPE[platform.code];
       const [[pc], invRes, trendR] = await Promise.all([
-        db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
+        codeType
+          ? db.select({ n: sql<number>`count(distinct ${itemCodes.itemId})` }).from(itemCodes)
+              .innerJoin(items, eq(items.id, itemCodes.itemId))
+              .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, codeType), eq(items.isActive, true)))
+          : db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
         db.execute<{ q: string }>(sql`
           SELECT COALESCE(SUM(bq), 0) AS q FROM (
             SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
@@ -236,7 +244,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Kpi label="عدد المنتجات" value={int(productCount)} hint="أصناف الكتالوج النشطة" />
+          <Kpi label="عدد المنتجات" value={int(productCount)} hint={`أصناف ${platform.name} النشطة`} />
           {isAmazon && <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />}
           <Kpi label={isAmazon ? "مخزون النظام (FBA)" : "مخزون النظام"} value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
           <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
