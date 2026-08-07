@@ -4,9 +4,10 @@ import { eq } from "drizzle-orm";
 import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
-import { platformSettings, platformIntegrations } from "@/db/schema";
+import { platformSettings, platformIntegrations, platformCredentials } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
+import { connectorConfigured } from "@/lib/saas/connector-configured";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
@@ -21,6 +22,7 @@ type IntegrationAdmin = {
   text: Record<TextKey, string>;
   has: { clientSecret: boolean; webhookSecret: boolean };
   enabled: boolean;
+  configured: boolean;
 };
 
 /** Owner reads a connector's stored config — secrets never returned, only `has*`. */
@@ -29,13 +31,22 @@ export async function getIntegrationSettingsAdmin(code: string): Promise<Integra
   const c = code.toUpperCase();
   const [row] = await withPlatformScope(() => db.select().from(platformIntegrations).where(eq(platformIntegrations.code, c)).limit(1));
   const dflt = c === "AMAZON" ? true : process.env[`${c}_ENABLED`] === "1";
+  // "Set up" if app creds resolve (DB row OR env) OR a tenant is actually connected. Amazon's
+  // LWA creds live in env and the connection lives in platform_credentials, so reading only the
+  // platform_integrations row wrongly showed a live, connected Amazon as "غير مُعدّة / موقوفة".
+  const [conn] = await withPlatformScope(() => db.select({ id: platformCredentials.id })
+    .from(platformCredentials).where(eq(platformCredentials.provider, c.toLowerCase())).limit(1));
+  const connected = !!conn;
+  const configured = !!row?.clientSecret || !!row?.clientId || connected || (await connectorConfigured(c));
   return {
     text: {
       clientId: row?.clientId ?? "", appId: row?.appId ?? "", scopes: row?.scopes ?? "",
       apiVersion: row?.apiVersion ?? "", region: row?.region ?? "", redirectUri: row?.redirectUri ?? "",
     },
     has: { clientSecret: !!row?.clientSecret, webhookSecret: !!row?.webhookSecret },
-    enabled: row?.enabled ?? dflt,
+    // A connected connector isn't "موقوفة" unless the owner explicitly turned it off (false).
+    enabled: row?.enabled ?? (connected || dflt),
+    configured,
   };
 }
 

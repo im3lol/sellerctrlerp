@@ -16,6 +16,7 @@ export type IntegrationInitial = {
   text: Record<TextKey, string>;
   has: { clientSecret: boolean; webhookSecret: boolean };
   enabled: boolean;
+  configured: boolean;
 };
 
 function CopyRow({ label, value }: { label: string; value: string }) {

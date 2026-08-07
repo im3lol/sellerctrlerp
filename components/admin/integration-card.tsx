@@ -17,7 +17,9 @@ export function IntegrationCard({ code, label, fields, hasOAuth, appUrl, initial
   code: string; label: string; fields: IntegrationField[]; hasOAuth: boolean; appUrl: string; initial: IntegrationInitial;
 }) {
   const brand = BRAND[code] ?? { cls: "bg-muted text-muted-foreground", icon: "Store" };
-  const configured = initial.has.clientSecret || !!initial.text.clientId;
+  // Server already folded in env-config + a live connection (Amazon's creds live in env);
+  // keep the row-only check as a floor for older callers.
+  const configured = initial.configured || initial.has.clientSecret || !!initial.text.clientId;
   return (
     <SettingsTile
       label={label} icon={brand.icon} brandCls={brand.cls}
