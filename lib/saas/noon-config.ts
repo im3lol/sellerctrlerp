@@ -1,5 +1,6 @@
 import "server-only";
 import { getIntegrationConfig } from "./integration-config";
+import { parseNoonCreds } from "@/lib/erp/marketplace/noon/constants";
 
 /**
  * Noon integrator OAuth config — ONE app for the whole platform. Reads the generic
@@ -22,4 +23,23 @@ export async function getNoonConfig(): Promise<NoonConfig | null> {
 export async function getNoonWebhookSecret(): Promise<string> {
   const c = await getIntegrationConfig("NOON");
   return c.webhookSecret || process.env.NOON_WEBHOOK_SECRET || "";
+}
+
+/**
+ * SellerCtrl's OWN Noon service-account credentials (.json). The integrator OAuth endpoints
+ * (token/create, token/exchange) require an authenticated session — unlike the seller's
+ * future creds, this is OUR platform identity that drives the exchange "on the seller's
+ * behalf". Set ONCE by the owner via NOON_INTEGRATOR_CREDS (raw JSON or base64 — base64 is
+ * easier for the multiline PEM in an env var) or platform_integrations.extra.integratorCreds.
+ * Returns the JSON string (ready for noonFetch) or null when unset/invalid.
+ */
+export async function getNoonIntegratorCreds(): Promise<string | null> {
+  let raw = (process.env.NOON_INTEGRATOR_CREDS || "").trim();
+  if (!raw) {
+    const extra = (await getIntegrationConfig("NOON")).extra as { integratorCreds?: string };
+    raw = (extra?.integratorCreds || "").trim();
+  }
+  if (!raw) return null;
+  const text = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
+  try { parseNoonCreds(text); return text; } catch { return null; }
 }
