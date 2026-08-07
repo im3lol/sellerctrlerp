@@ -13,8 +13,11 @@ export const NOON_USER_AGENT = "SellerCtrl/1.0 (+https://sellerctrl.com)";
 // them exactly like a pasted .json. Requires OAuth client creds from Noon (contact
 // them to register SellerCtrl as an integrator + whitelist the redirect URI).
 export const NOON_OAUTH_AUTHORIZE = process.env.NOON_OAUTH_BASE || "https://oauth.noon.partners/";
-export const NOON_OAUTH_TOKEN_CREATE = "/identity/oauth/v1/token/create";
-export const NOON_OAUTH_TOKEN_EXCHANGE = "/identity/oauth/v1/token/exchange";
+// Token endpoints hang off NOON_GATEWAY. The exact sub-path isn't in Noon's public SPA docs
+// and the gateway serves its HTML app for unmatched routes, so make these overridable —
+// once you have the real path from the Noon developer portal, set the env var (no redeploy).
+export const NOON_OAUTH_TOKEN_CREATE = process.env.NOON_OAUTH_CREATE_PATH || "/identity/oauth/v1/token/create";
+export const NOON_OAUTH_TOKEN_EXCHANGE = process.env.NOON_OAUTH_EXCHANGE_PATH || "/identity/oauth/v1/token/exchange";
 // The OAuth client_id/secret live in platform_settings (owner sets them in
 // /admin/integrations), env as fallback — see lib/saas/noon-config.ts getNoonConfig().
 

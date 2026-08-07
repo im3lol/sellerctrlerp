@@ -39,10 +39,24 @@ export async function verifyCallback(params: URLSearchParams, _state: OAuthState
 }
 
 const JSONH = { "content-type": "application/json", accept: "application/json", "user-agent": NOON_USER_AGENT };
+const OAUTH_TIMEOUT_MS = 15_000;
 const pick = (o: Record<string, unknown>, ...keys: string[]) => {
   for (const k of keys) { const v = o[k]; if (typeof v === "string" && v.trim()) return v.trim(); }
   return "";
 };
+
+/** Read a Noon token response as JSON. The gateway serves its HTML app for unmatched
+ *  routes, so an HTML body means the OAuth path is wrong (not a real API error) — surface
+ *  that clearly instead of throwing a cryptic JSON-parse error (or hanging into a 524). */
+async function readTokenJson(res: Response, step: string): Promise<Record<string, unknown> | { __err: string }> {
+  const text = await res.text().catch(() => "");
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("text/html") || text.trimStart().startsWith("<")) {
+    return { __err: `مسار OAuth الخاص بنون غير صحيح (${step}) — عيّن NOON_OAUTH_CREATE_PATH / NOON_OAUTH_EXCHANGE_PATH بالمسار الصحيح من بوابة مطوّري نون` };
+  }
+  if (!res.ok) return { __err: `فشل ${step} من نون: ${text.slice(0, 160)}` };
+  try { return JSON.parse(text) as Record<string, unknown>; } catch { return { __err: `رد غير صالح من نون (${step})` }; }
+}
 
 /** code → seller service-account credentials, stored as the refreshToken JSON. */
 export async function exchangeCode(code: string): Promise<OAuthExchange> {
@@ -51,19 +65,21 @@ export async function exchangeCode(code: string): Promise<OAuthExchange> {
   try {
     // 1) authorization code → access_token (+ project_code)
     const cr = await fetch(NOON_GATEWAY + NOON_OAUTH_TOKEN_CREATE, {
-      method: "POST", headers: JSONH,
+      method: "POST", headers: JSONH, signal: AbortSignal.timeout(OAUTH_TIMEOUT_MS),
       body: JSON.stringify({ grant_type: "authorization_code", code, client_id: cfg.clientId, client_secret: cfg.clientSecret }),
     });
-    if (!cr.ok) return { error: `فشل تبادل رمز نون: ${(await cr.text().catch(() => "")).slice(0, 160)}` };
-    const created = await cr.json() as { access_token?: string; project_code?: string };
+    const created = await readTokenJson(cr, "token/create") as { access_token?: string; project_code?: string; __err?: string };
+    if (created.__err) return { error: created.__err };
     if (!created.access_token) return { error: "لم تُرجع نون رمز وصول" };
 
     // 2) access_token → the seller's service-account credentials
     const ex = await fetch(NOON_GATEWAY + NOON_OAUTH_TOKEN_EXCHANGE, {
       method: "POST", headers: { ...JSONH, authorization: `Bearer ${created.access_token}` }, body: "{}",
+      signal: AbortSignal.timeout(OAUTH_TIMEOUT_MS),
     });
-    if (!ex.ok) return { error: `فشل جلب اعتماد نون: ${(await ex.text().catch(() => "")).slice(0, 160)}` };
-    const body = await ex.json() as Record<string, unknown>;
+    const exBody = await readTokenJson(ex, "token/exchange");
+    if ("__err" in exBody) return { error: exBody.__err as string };
+    const body = exBody;
     // The creds may sit at the root or under `result`/`data`.
     const r = (body.result ?? body.data ?? body) as Record<string, unknown>;
 
