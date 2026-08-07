@@ -2,6 +2,8 @@ import "server-only";
 import { getAmazonConfig } from "./amazon-config";
 import { getShopifyConfig } from "./shopify-config";
 import { getNoonConfig } from "./noon-config";
+import { getWooConfig } from "./woo-config";
+import { getJumiaConfig } from "./jumia-config";
 
 /**
  * "Configured" = the connector's ONE platform-wide app credential set actually resolves —
@@ -16,6 +18,8 @@ const RESOLVERS: Record<string, () => Promise<unknown | null>> = {
   AMAZON: getAmazonConfig,
   SHOPIFY: getShopifyConfig,
   NOON: getNoonConfig,
+  WOO: getWooConfig,
+  JUMIA: getJumiaConfig,
 };
 
 export async function connectorConfigured(code: string): Promise<boolean> {

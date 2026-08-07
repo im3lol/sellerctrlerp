@@ -10,6 +10,8 @@ const BRAND: Record<string, { cls: string; icon: string }> = {
   AMAZON: { cls: "bg-amber-500/15 text-amber-600", icon: "Store" },
   NOON: { cls: "bg-yellow-400/20 text-yellow-600", icon: "ShoppingBag" },
   SHOPIFY: { cls: "bg-emerald-500/15 text-emerald-600", icon: "ShoppingCart" },
+  WOO: { cls: "bg-violet-500/15 text-violet-600", icon: "ShoppingCart" },
+  JUMIA: { cls: "bg-orange-500/15 text-orange-600", icon: "Store" },
 };
 
 /** A sales-platform tile that opens the connector's config dialog. */

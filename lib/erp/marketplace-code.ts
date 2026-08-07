@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { itemCodes } from "@/db/schema";
 
 // The item_codes.codeType that carries each sales channel's own SKU.
-export const CHANNEL_CODE_TYPE: Record<string, string> = { AMAZON: "ASIN", NOON: "NOON", SHOPIFY: "SHOPIFY" };
+export const CHANNEL_CODE_TYPE: Record<string, string> = { AMAZON: "ASIN", NOON: "NOON", SHOPIFY: "SHOPIFY", WOO: "WOO", JUMIA: "JUMIA" };
 
 /**
  * Map itemId → the marketplace's own SKU (ASIN for Amazon, كود نون for Noon) for a

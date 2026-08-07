@@ -2,6 +2,8 @@ import type { MarketplaceConnector } from "./connector";
 import { amazonConnector } from "./amazon/connector";
 import { shopifyConnector } from "./shopify/connector";
 import { noonConnector } from "./noon/connector";
+import { wooConnector } from "./woo/connector";
+import { jumiaConnector } from "./jumia/connector";
 
 // Every integration provider, keyed by uppercase code (= sales_platforms.code +
 // platform_credentials.provider). A platform whose code is here gets official
@@ -16,6 +18,8 @@ export const CONNECTORS: Record<string, MarketplaceConnector> = {
   AMAZON: amazonConnector,
   SHOPIFY: shopifyConnector,
   NOON: noonConnector,
+  WOO: wooConnector,
+  JUMIA: jumiaConnector,
 };
 
 export function getConnector(code: string): MarketplaceConnector | undefined {
