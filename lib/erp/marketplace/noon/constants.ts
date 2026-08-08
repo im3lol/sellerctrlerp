@@ -21,12 +21,6 @@ export const NOON_OAUTH_TOKEN_EXCHANGE = process.env.NOON_OAUTH_EXCHANGE_PATH ||
 // The OAuth client_id/secret live in platform_settings (owner sets them in
 // /admin/integrations), env as fallback — see lib/saas/noon-config.ts getNoonConfig().
 
-// FBPI single-return fetch. The return webhook delivers only the return_nr; we GET the
-// full return and map it. Path mirrors the order endpoint (/fbpi/v1/fbpi-order/{nr}/get)
-// but the return schema isn't in Noon's public docs, so keep the base overridable —
-// set NOON_RETURN_PATH once a real payload confirms the exact route.
-export const NOON_RETURN_BASE = process.env.NOON_RETURN_PATH || "/fbpi/v1/fbpi-return";
-
 /** The service-account key file a seller downloads from access.noon.partners.
  *  We store the whole JSON (encrypted) in platform_credentials.refreshToken. */
 export type NoonCreds = {
