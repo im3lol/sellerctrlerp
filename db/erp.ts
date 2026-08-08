@@ -1809,8 +1809,11 @@ export const fbaReimbursements = pgTable(
     amountTotal: money("amount_total").notNull().default("0"),
     quantityReimbursedCash: money("quantity_reimbursed_cash").notNull().default("0"),
     quantityReimbursedInventory: money("quantity_reimbursed_inventory").notNull().default("0"),
+    status: text("status").notNull().default("PENDING"), // PENDING | PROCESSED
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
     raw: jsonb("raw"),
     createdAt: createdAt(),
+    updatedAt: ts("updated_at"),
   },
   (t) => [
     uniqueIndex("fba_reimbursements_dedup_idx").on(t.organizationId, t.reimbursementId, t.sku),
