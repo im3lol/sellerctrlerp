@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders } from "@/db/schema";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -94,29 +94,37 @@ export async function buildMatcher(orgId: string, orders: MarketplaceOrder[]) {
     if (l.altCode) norms.add(normalizeCode(l.altCode));
   }
   const normList = [...norms].filter(Boolean);
-  const byNorm = new Map<string, string>();
+  // norm → the SET of items carrying it. A shared code (ASIN, barcode) can belong to several
+  // products, so we keep all of them and only match when exactly ONE owns the code — never
+  // guess an arbitrary product from an ambiguous shared code.
+  const byNorm = new Map<string, Set<string>>();
   for (let i = 0; i < normList.length; i += 800) {
     const rows = await db.select({ norm: itemCodes.normalizedCode, itemId: itemCodes.itemId })
       .from(itemCodes)
       .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.normalizedCode, normList.slice(i, i + 800))));
-    for (const r of rows) if (r.norm) byNorm.set(r.norm, r.itemId);
+    for (const r of rows) if (r.norm) { let s = byNorm.get(r.norm); if (!s) byNorm.set(r.norm, (s = new Set())); s.add(r.itemId); }
   }
 
   const itemRows = await db.select({ id: items.id, code: items.code, nameAr: items.nameAr })
     .from(items).where(eq(items.organizationId, orgId));
   const nameById = new Map<string, string>();
-  const byItemCode = new Map<string, string>();
+  const byItemCode = new Map<string, string>(); // items.code is unique per org → single owner
   for (const it of itemRows) {
     nameById.set(it.id, it.nameAr || it.code);
     byItemCode.set(normalizeCode(it.code), it.id);
   }
 
+  const hit = (id: string) => ({ itemId: id, itemName: nameById.get(id) ?? null });
   return (code: string, altCode?: string): { itemId: string | null; itemName: string | null } => {
+    // Try the line's own code first (the seller SKU — unique), then altCode (ASIN — shared).
     for (const c of [code, altCode]) {
       const n = normalizeCode(c || "");
       if (!n) continue;
-      const id = byNorm.get(n) ?? byItemCode.get(n);
-      if (id) return { itemId: id, itemName: nameById.get(id) ?? null };
+      const direct = byItemCode.get(n);
+      if (direct) return hit(direct);                       // internal item.code — unambiguous
+      const owners = byNorm.get(n);
+      if (owners && owners.size === 1) return hit([...owners][0]); // exactly one product owns it
+      // owners.size > 1 → ambiguous shared code → don't guess; fall through to the next code.
     }
     return { itemId: null, itemName: null };
   };
@@ -186,11 +194,12 @@ export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "chann
  * movement. Idempotent via (org, channel, externalId).
  */
 export async function ingestOrders(orgId: string, userId: string | null, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
-  let resolve = await buildMatcher(orgId, orders);
-  // Unknown SKUs → auto-create review stubs so the order imports; re-resolve so
-  // those lines now match. Orders touching a review item are forced DRAFT below.
-  const autoCreated = await ensureItemsForOrders(orgId, orders, resolve);
-  if (autoCreated) resolve = await buildMatcher(orgId, orders);
+  const resolve = await buildMatcher(orgId, orders);
+  // We NEVER auto-create products from a marketplace order — that duplicates items across
+  // platforms and pollutes the catalog. An order whose SKU isn't linked to a product is
+  // parked in unmatched_orders + surfaced as a notification; the seller creates the product
+  // (with its platform codes) and the order manually. See recordUnmatched below.
+  const autoCreated = 0;
   const reviewIds = new Set(
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
@@ -202,6 +211,28 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   const existing = await existingOrders(orgId, ctx.channel);
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
+
+  // Park each unmatched order (unknown product) for manual handling, and clear any parked
+  // order that now resolves (its product was created since). Best-effort: a parking hiccup
+  // must never block the matched orders from importing.
+  try {
+    if (blocked.length) {
+      await db.insert(unmatchedOrders).values(blocked.map((o) => ({
+        organizationId: orgId, channel: ctx.channel, externalId: o.externalId, payload: o, status: "PENDING", updatedAt: new Date(),
+      }))).onConflictDoUpdate({
+        target: [unmatchedOrders.organizationId, unmatchedOrders.channel, unmatchedOrders.externalId],
+        set: { payload: sql`excluded.payload`, status: "PENDING", updatedAt: new Date() },
+      });
+    }
+    const nowMatched = [...toCreate, ...transitions].map((o) => o.externalId);
+    if (nowMatched.length) {
+      await db.update(unmatchedOrders).set({ status: "RESOLVED", updatedAt: new Date() })
+        .where(and(eq(unmatchedOrders.organizationId, orgId), eq(unmatchedOrders.channel, ctx.channel),
+          inArray(unmatchedOrders.externalId, nowMatched), eq(unmatchedOrders.status, "PENDING")));
+    }
+  } catch (e) {
+    console.error("[ingest] unmatched-orders parking failed:", e instanceof Error ? e.message : e);
+  }
 
   let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0, skippedPreGoLive = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];

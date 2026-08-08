@@ -1661,6 +1661,26 @@ export const salesPlatforms = pgTable(
   (t) => [uniqueIndex("sales_platforms_org_code_idx").on(t.organizationId, t.code)],
 );
 
+// A marketplace order that couldn't be recorded because one of its line SKUs isn't linked
+// to any product (no matching item_code). We do NOT auto-create the product/order (that
+// pollutes the catalog); instead we park the full order here + notify, and the seller
+// creates the product + order manually. Idempotent per (org, channel, external_id); cleared
+// (RESOLVED) once handled or once the code exists on a later sync.
+export const unmatchedOrders = pgTable(
+  "unmatched_orders",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull(),          // AMAZON | NOON | …
+    externalId: text("external_id").notNull(),   // marketplace order id
+    payload: jsonb("payload").notNull(),         // the full order (lines + which codes are unmatched)
+    status: text("status").notNull().default("PENDING"), // PENDING | RESOLVED
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("unmatched_orders_org_channel_ext_idx").on(t.organizationId, t.channel, t.externalId)],
+);
+
 // Per-tenant SP-API (or other provider) connection. The refresh token is stored
 // encrypted (AES-256-GCM via lib/crypto). One connection per (org, provider).
 export const platformCredentials = pgTable(

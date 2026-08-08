@@ -32,7 +32,7 @@ DECLARE
     'recurring_journals','recurring_sales_invoices','sales_invoices','sales_orders',
     'sales_platforms','sales_quotations','sales_returns','stock_adjustments','stock_assemblies',
     'stock_batches','stock_movement_batches','stock_movements','stock_transfers',
-    'subscription_requests','suppliers','units_of_measure','warehouses','withdrawals'
+    'subscription_requests','suppliers','units_of_measure','unmatched_orders','warehouses','withdrawals'
   ];
 BEGIN
   FOREACH t IN ARRAY org_tables LOOP

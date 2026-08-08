@@ -59,6 +59,7 @@ export function NotificationBell() {
 
   const rows = [
     { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: "طلبات أمازون جديدة", count: n?.newOrders ?? 0, href: "/sales/orders" },
+    { show: !!n?.unmatched, icon: <PackageX className="size-4" />, tone: "red", label: "طلبات بمنتج غير معرَّف", count: n?.unmatched ?? 0, href: "/sales/orders/unmatched" },
     { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف من أمازون تحتاج مراجعة", count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
     { show: !!n?.stockWaiting, icon: <PackageX className="size-4" />, tone: "amber", label: "أذون صرف بانتظار توفّر المخزون", count: n?.stockWaiting ?? 0, href: "/sales/deliveries?status=DRAFT" },
     { show: !!n?.pendingDrafts, icon: <FileClock className="size-4" />, tone: "amber", label: "مسودات بانتظار التأكيد", count: n?.pendingDrafts ?? 0, href: "/drafts" },
