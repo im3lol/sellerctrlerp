@@ -103,5 +103,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       }
     }
   } catch { /* notifications are optional */ }
+
+  // Best-effort: register our order/return webhook as a Noon destination so the seller
+  // never has to do it by hand on the Noon portal. Mirrors the paste-.json path
+  // (connectNoonAction); no-op unless the webhook secret + APP_URL are configured.
+  try {
+    if (connector.code === "NOON") {
+      const { ensureNoonWebhook } = await import("@/lib/erp/marketplace/noon/webhook");
+      await ensureNoonWebhook(ex.refreshToken);
+    }
+  } catch { /* webhook auto-registration is best-effort — the manual portal form is the fallback */ }
   return back(true);
 }
