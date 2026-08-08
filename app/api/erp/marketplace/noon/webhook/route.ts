@@ -29,21 +29,42 @@ type WebhookBody = {
   event_type?: string;
   metadata?: { project_code?: string };
   payload?: { order_nr?: string; return_nr?: string; fbpi_return_nr?: string };
+  key?: string;
 };
 
 const ok = (msg = "ok") => new Response(JSON.stringify({ ok: true, msg }), { status: 200, headers: { "content-type": "application/json" } });
 const bad = (status: number, error: string) => new Response(JSON.stringify({ ok: false, error }), { status, headers: { "content-type": "application/json" } });
 
+// Noon's destination UI attaches the shared secret as a Key/Value credential — and how it
+// arrives on the wire isn't documented (header vs body vs a ?key= you bake into the URL).
+// So we accept the secret from any of them. Register the credential with Key = "key" (or
+// just put ?key=<secret> in the Destination URL) — either way this authenticates.
+function providedKey(req: Request, body: WebhookBody): string | null {
+  const q = new URL(req.url).searchParams.get("key");
+  if (q) return q;
+  const h = req.headers;
+  for (const name of ["key", "x-webhook-key", "x-noon-key", "x-api-key"]) {
+    const v = h.get(name);
+    if (v) return v;
+  }
+  const auth = h.get("authorization");
+  if (auth) return auth.replace(/^Bearer\s+/i, "").trim();
+  if (typeof body.key === "string" && body.key) return body.key;
+  return null;
+}
+
 export async function POST(req: Request) {
-  // Mandatory shared-secret gate (fail-closed): owner sets it in /admin/integrations
-  // (or env) and registers the webhook URL with ?key=… — Noon has no signature scheme,
-  // so an unset secret means we can't authenticate the caller and reject. Constant-time.
+  // Mandatory shared-secret gate (fail-closed): owner sets it in /admin/integrations (or
+  // env) and enters the same value as the destination credential — Noon has no signature
+  // scheme, so an unset secret means we can't authenticate the caller and reject.
   const secret = await getNoonWebhookSecret();
   if (!secret) return bad(503, "webhook secret not configured");
-  if (!secretEquals(new URL(req.url).searchParams.get("key"), secret)) return bad(401, "unauthorized");
 
   let body: WebhookBody;
   try { body = (await req.json()) as WebhookBody; } catch { return bad(400, "bad json"); }
+
+  // Constant-time compare, secret accepted from URL / header / body (see providedKey).
+  if (!secretEquals(providedKey(req, body), secret)) return bad(401, "unauthorized");
 
   const projectCode = body.metadata?.project_code?.trim();
   // Always 200 on a payload we can't act on — a non-2xx makes Noon retry a poison event.
