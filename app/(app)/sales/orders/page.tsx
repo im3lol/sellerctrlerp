@@ -171,8 +171,10 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
                   <Label htmlFor="fulfillment">التنفيذ</Label>
                   <select id="fulfillment" name="fulfillment" defaultValue={fFulfillment} className={selectCls}>
                     <option value="">الكل</option>
-                    <option value="FBA">FBA</option>
-                    <option value="FBM">FBM</option>
+                    <option value="FBA">FBA (أمازون)</option>
+                    <option value="FBM">FBM (التاجر)</option>
+                    <option value="FBN">FBN (نون)</option>
+                    <option value="FBP">FBP (الشريك)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
