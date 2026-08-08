@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
+import { getConnector } from "@/lib/erp/marketplace/registry";
+import { NoonTransferForm } from "@/components/erp/noon-transfer-form";
 
 const money = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
@@ -82,6 +84,13 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
           backHref={`/platforms/${code}`}
           action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />كشوف التسويات</Link></Button>}
         />
+
+        {/* Noon has no settlement API → record its payouts by hand. Gated to NOON because
+            the action posts to the Noon wallet (1111); a channel WITH a settlement API
+            pulls transfers automatically and needs no manual form. */}
+        {channel === "NOON" && !getConnector(channel)?.capabilities.settlements && wallet?.gl && (
+          <NoonTransferForm today={iso(new Date())} />
+        )}
 
         <Card>
           <CardContent className="pt-6">

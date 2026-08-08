@@ -31,6 +31,10 @@ type ChannelCfg = { label: string; walletCode: string; walletName: string; sourc
 const CHANNELS: Record<string, ChannelCfg> = {
   AMAZON: { label: "أمازون", walletCode: "1109", walletName: "محفظة أمازون", sourceType: "AMAZON_SETTLEMENT", srcPrefix: "AMZ" },
   SHOPIFY: { label: "شوبيفاي", walletCode: "1110", walletName: "محفظة شوبيفاي", sourceType: "SHOPIFY_SETTLEMENT", srcPrefix: "SHOP" },
+  // Noon has NO settlement API — its rows come from the manual "record transfer" entry
+  // (recordNoonTransferAction). Same double-entry, own wallet GL (1111 محفظة نون), so
+  // channelCfg("NOON") must NOT fall through to Amazon (wrong wallet/label/sourceType).
+  NOON: { label: "نون", walletCode: "1111", walletName: "محفظة نون", sourceType: "NOON_SETTLEMENT", srcPrefix: "NOON" },
 };
 const channelCfg = (channel: string): ChannelCfg => CHANNELS[channel] ?? CHANNELS.AMAZON;
 

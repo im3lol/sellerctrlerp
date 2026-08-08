@@ -18,6 +18,7 @@ export type Notifications = {
   newOrders: number;
   needsReview: number;
   unmatched: number;
+  unclaimedReturns: number;
   total: number;
   recent: Activity[];
 };
@@ -46,7 +47,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const ZERO = Promise.resolve({ rows: [{ n: 0 }] } as { rows: { n: number }[] });
   const ZERO_TOTAL = Promise.resolve({ rows: [{ n: 0, total: "0" }] } as { rows: { n: number; total: string }[] });
 
-  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes] = await Promise.all([
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id FROM items i
@@ -100,6 +101,11 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
     can("sales.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM unmatched_orders
       WHERE organization_id = ${orgId} AND status = 'PENDING'`) : ZERO,
+    // Marketplace returns (e.g. Noon webhook) whose DRAFT credit note isn't created yet —
+    // usually the order isn't invoiced. Surfaced so deferred returns don't get lost.
+    can("sales.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM platform_returns
+      WHERE organization_id = ${orgId} AND sales_return_id IS NULL`) : ZERO,
   ]);
 
   const lowStock = Number(low.rows[0]?.n ?? 0);
@@ -113,6 +119,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const needsReview = Number(reviewRes.rows[0]?.n ?? 0);
   const stockWaiting = Number(stockWaitRes.rows[0]?.n ?? 0);
   const unmatched = Number(unmatchedRes.rows[0]?.n ?? 0);
+  const unclaimedReturns = Number(unclaimedReturnsRes.rows[0]?.n ?? 0);
   const recent: Activity[] = activity
     .filter((a) => { const p = ENTITY_PERM[a.entityType]; return !p || can(p); }) // only docs this member can see
     .slice(0, 8)
@@ -120,5 +127,5 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
       const base = ENTITY_PATH[a.entityType];
       return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
     });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, unmatched, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview + unmatched, recent };
+  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns, recent };
 }

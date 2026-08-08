@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { computeNotifications, type Notifications } from "@/lib/erp/notifications-data";
 
-const EMPTY: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, pendingDrafts: 0, stockWaiting: 0, newActivity: 0, newOrders: 0, needsReview: 0, unmatched: 0, total: 0, recent: [] };
+const EMPTY: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, pendingDrafts: 0, stockWaiting: 0, newActivity: 0, newOrders: 0, needsReview: 0, unmatched: 0, unclaimedReturns: 0, total: 0, recent: [] };
 
 export async function getNotificationsAction(sinceIso?: string): Promise<Notifications> {
   const { org } = await getActiveOrg();

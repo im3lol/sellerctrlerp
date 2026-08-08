@@ -111,7 +111,7 @@ export function settlementDedupKey(t: SettlementTxn): string {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-function emptyTxn(settlementId: string, type: string): SettlementTxn {
+export function emptyTxn(settlementId: string, type: string): SettlementTxn {
   return {
     postedAt: null, settlementId, type, orderId: "", sku: "", description: "", quantity: 0,
     status: "Released", releaseDate: null, currency: null, productSales: 0, shippingCredits: 0, promotionalRebates: 0,

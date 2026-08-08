@@ -5,7 +5,9 @@ import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 import { decryptSecret } from "@/lib/crypto";
 import { ensureNoonPlatform } from "@/lib/erp/platform-provision";
 import { fetchNoonOrder } from "@/lib/erp/marketplace/noon/orders";
+import { fetchNoonReturn } from "@/lib/erp/marketplace/noon/returns";
 import { ingestOrders, type PlatformCtx } from "@/lib/erp/marketplace/ingest";
+import { upsertPlatformReturns, processPlatformReturns } from "@/lib/erp/returns-core";
 import { getNoonWebhookSecret } from "@/lib/saas/noon-config";
 import { secretEquals } from "@/lib/crypto";
 import type { Credential } from "@/lib/erp/marketplace/connector";
@@ -13,16 +15,20 @@ import type { Credential } from "@/lib/erp/marketplace/connector";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Noon FBPI order webhook. Noon POSTs { metadata: { project_code }, payload: { order_nr } }
-// on each order event — the payload carries ONLY the order_nr, so we resolve the tenant
-// by project_code, GET the full order with that tenant's credentials, and ingest it as
-// a DRAFT sales order (no session here → never auto-fulfils; a later sync/human advances
-// it). Idempotent via (org, channel, externalId) inside ingestOrders.
+// Noon FBPI event webhook. Noon POSTs { event_type, metadata: { project_code }, payload }
+// per event — the payload carries only an id (order_nr OR return_nr), so we resolve the
+// tenant by project_code, GET the full record with that tenant's credentials, and:
+//   • ORDER event  → ingest a DRAFT sales order (never auto-fulfils; a later sync/human
+//     advances it). Idempotent via (org, channel, externalId) inside ingestOrders.
+//   • RETURN event → upsert the return + create a DRAFT مرتجع against the original order's
+//     posted invoice (processPlatformReturns). Idempotent via the return dedupKey.
+// A return whose order isn't invoiced yet stays unclaimed and is re-checked opportunistically
+// on the next event.
 
 type WebhookBody = {
   event_type?: string;
   metadata?: { project_code?: string };
-  payload?: { order_nr?: string };
+  payload?: { order_nr?: string; return_nr?: string; fbpi_return_nr?: string };
 };
 
 const ok = (msg = "ok") => new Response(JSON.stringify({ ok: true, msg }), { status: 200, headers: { "content-type": "application/json" } });
@@ -40,9 +46,14 @@ export async function POST(req: Request) {
   try { body = (await req.json()) as WebhookBody; } catch { return bad(400, "bad json"); }
 
   const projectCode = body.metadata?.project_code?.trim();
-  const orderNr = body.payload?.order_nr?.trim();
   // Always 200 on a payload we can't act on — a non-2xx makes Noon retry a poison event.
-  if (!projectCode || !orderNr) return ok("ignored: missing project_code/order_nr");
+  if (!projectCode) return ok("ignored: missing project_code");
+
+  const eventType = (body.event_type ?? "").toLowerCase();
+  const orderNr = body.payload?.order_nr?.trim();
+  const returnNr = (body.payload?.return_nr ?? body.payload?.fbpi_return_nr)?.trim();
+  const isReturn = !!returnNr || eventType.includes("return") || eventType.includes("refund");
+  if (!orderNr && !returnNr) return ok("ignored: no order_nr/return_nr");
 
   // Resolve the tenant from project_code (stored plaintext in sellerId at connect).
   const [cred] = await withPlatformScope(() =>
@@ -56,8 +67,27 @@ export async function POST(req: Request) {
   if (!refreshToken) return ok("ignored: undecryptable credential");
   const credential: Credential = { refreshToken, sellerId: projectCode, marketplaceId: null, region: "eg" };
 
+  // ── RETURN event → DRAFT مرتجع (or park unclaimed until the order is invoiced) ──
+  if (isReturn) {
+    if (!returnNr) return ok("ignored: return event without return_nr");
+    try {
+      const rows = await fetchNoonReturn(credential, returnNr); // network, unscoped
+      if (rows.length === 0) return ok("ignored: empty return");
+      await withOrgScope(cred.orgId, false, async () => {
+        await ensureNoonPlatform(cred.orgId);
+        await upsertPlatformReturns(cred.orgId, rows, "NOON");
+        await processPlatformReturns(cred.orgId);
+      });
+      return ok("return ingested");
+    } catch (e) {
+      console.error("[noon-webhook] return ingest failed:", e instanceof Error ? e.message : e);
+      return ok("deferred: return fetch failed");
+    }
+  }
+
+  // ── ORDER event → DRAFT sales order ──
   try {
-    const order = await fetchNoonOrder(credential, orderNr); // network, unscoped
+    const order = await fetchNoonOrder(credential, orderNr!); // network, unscoped
     if (!order.externalId || order.lines.length === 0) return ok("ignored: empty order");
 
     await withOrgScope(cred.orgId, false, async () => {
@@ -67,6 +97,9 @@ export async function POST(req: Request) {
         channel: "NOON", label: "نون", autoMode: "draft",
       };
       await ingestOrders(cred.orgId, null, ctx, [order]);
+      // A return that arrived before this order was invoiced sits unclaimed — cheap to
+      // re-check now that order activity happened (no-op when nothing is pending).
+      await processPlatformReturns(cred.orgId);
     });
     return ok("ingested");
   } catch (e) {

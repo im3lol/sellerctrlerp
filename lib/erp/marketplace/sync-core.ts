@@ -9,7 +9,7 @@ import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { AutoMode } from "@/lib/erp/fulfillment";
 import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
-import { upsertPlatformReturns, processPlatformReturns } from "@/lib/erp/returns-core";
+import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
@@ -257,7 +257,7 @@ export async function syncReturnsCore(p: SyncPrep, range: DateRange): Promise<Re
   if (!p.connector.fetchReturns) return { ok: false, error: "المنصة لا تدعم مزامنة المرتجعات" };
   try {
     const rows = await p.connector.fetchReturns(p.cred, range); // slow fetch, unscoped
-    const up = await withOrgScope(p.orgId, false, () => upsertPlatformReturns(p.orgId, rows));
+    const up = await withOrgScope(p.orgId, false, () => upsertPlatformReturns(p.orgId, rows.map(fromFbaReturn), p.connector.code));
     const pr = await withOrgScope(p.orgId, false, () => processPlatformReturns(p.orgId));
     return { ok: true, imported: up.imported, ...pr };
   } catch (e) {
