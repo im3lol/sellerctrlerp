@@ -74,7 +74,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     const match = or(eq(salesOrders.platformId, platform.id), eq(salesOrders.channel, platform.code));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const custId = platform.customerId;
-    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, custId) : null;
+    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, platform.id) : null;
 
     // Analytics are best-effort: a slow/failed query (e.g. DB connection pressure on
     // serverless) degrades this section instead of crashing the whole page. Split
@@ -102,9 +102,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           .where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(items.id).orderBy(desc(sql`sum(${salesOrderLines.totalAmount})`)).limit(5),
         db.select({ number: salesOrders.number, date: salesOrders.date, status: salesOrders.status, ext: salesOrders.externalOrderId, total: salesOrders.totalAmount })
           .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(8),
-        custId
-          ? db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.customerId, custId)))
-          : Promise.resolve([{ n: 0, total: "0" }]),
+        // Returns scoped to THIS platform by channel (not by the shared auto-customer).
+        db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.channel, platform.code))),
         custId
           ? db.select({ total: sql<string>`coalesce(sum(${receiptVouchers.amount}),0)` }).from(receiptVouchers).where(and(eq(receiptVouchers.organizationId, orgId), eq(receiptVouchers.customerId, custId), eq(receiptVouchers.status, "POSTED")))
           : Promise.resolve([{ total: "0" }]),
@@ -124,11 +123,14 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               .innerJoin(items, eq(items.id, itemCodes.itemId))
               .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, codeType), eq(items.isActive, true)))
           : db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
+        // On-hand for THIS platform: its own items (carrying the channel's code) in its
+        // warehouse. Without a code type (manual platform) fall back to the warehouse total.
         db.execute<{ q: string }>(sql`
           SELECT COALESCE(SUM(bq), 0) AS q FROM (
             SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
             FROM stock_movements
             WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
+            ${codeType ? sql`AND item_id IN (SELECT item_id FROM item_codes WHERE organization_id = ${orgId} AND code_type = ${codeType})` : sql``}
             ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
           ) t`),
         db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
