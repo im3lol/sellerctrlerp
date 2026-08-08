@@ -25,10 +25,15 @@ export const dynamic = "force-dynamic";
 // A return whose order isn't invoiced yet stays unclaimed and is re-checked opportunistically
 // on the next event.
 
+// Noon's real event types (from the destination subscription UI): namespace FBPI →
+// ORDER_SYNC (orders), namespace RETURNS → REFERENCE_UPDATE (returns). The event_type
+// string doesn't contain "return", so we route by BOTH the event name and the namespace.
 type WebhookBody = {
   event_type?: string;
-  metadata?: { project_code?: string };
-  payload?: { order_nr?: string; return_nr?: string; fbpi_return_nr?: string };
+  event_name?: string;
+  namespace?: string;
+  metadata?: { project_code?: string; namespace?: string; event_type?: string };
+  payload?: Record<string, unknown> & { order_nr?: string; return_nr?: string; fbpi_return_nr?: string; return_reference?: string };
   key?: string;
 };
 
@@ -66,14 +71,23 @@ export async function POST(req: Request) {
   // Constant-time compare, secret accepted from URL / header / body (see providedKey).
   if (!secretEquals(providedKey(req, body), secret)) return bad(401, "unauthorized");
 
+  // ponytail: TEMP diagnostic — logs the real Noon event schema so we can finalise the
+  // field mapping from a live event, then trim to a one-line summary. Remove once mapped.
+  console.log("[noon-webhook] event:", JSON.stringify({
+    event_type: body.event_type, event_name: body.event_name, namespace: body.namespace,
+    metadata: body.metadata, payload: body.payload,
+  }).slice(0, 1500));
+
   const projectCode = body.metadata?.project_code?.trim();
   // Always 200 on a payload we can't act on — a non-2xx makes Noon retry a poison event.
   if (!projectCode) return ok("ignored: missing project_code");
 
-  const eventType = (body.event_type ?? "").toLowerCase();
-  const orderNr = body.payload?.order_nr?.trim();
-  const returnNr = (body.payload?.return_nr ?? body.payload?.fbpi_return_nr)?.trim();
-  const isReturn = !!returnNr || eventType.includes("return") || eventType.includes("refund");
+  // Route by event name AND namespace (Noon: FBPI/ORDER_SYNC vs RETURNS/REFERENCE_UPDATE).
+  const evt = `${body.event_type ?? ""} ${body.event_name ?? ""} ${body.namespace ?? ""} ${body.metadata?.namespace ?? ""} ${body.metadata?.event_type ?? ""}`.toLowerCase();
+  const p = body.payload ?? {};
+  const orderNr = (p.order_nr ?? (p.mp_order_nr as string | undefined) ?? (p.fbpi_order_nr as string | undefined))?.toString().trim();
+  const returnNr = (p.return_nr ?? p.fbpi_return_nr ?? p.return_reference ?? (p.reference_nr as string | undefined) ?? (p.mp_return_nr as string | undefined))?.toString().trim();
+  const isReturn = !!returnNr || evt.includes("return") || evt.includes("refund") || evt.includes("reference");
   if (!orderNr && !returnNr) return ok("ignored: no order_nr/return_nr");
 
   // Resolve the tenant from project_code (stored plaintext in sellerId at connect).
