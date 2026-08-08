@@ -1,6 +1,6 @@
 import "server-only";
 import { noonFetch } from "./client";
-import { getNoonWebhookSecret } from "@/lib/saas/noon-config";
+import { ensureNoonWebhookSecret } from "@/lib/saas/noon-config";
 import { getIntegrationConfig } from "@/lib/saas/integration-config";
 
 // Noon Event Notifications: register our HTTPS webhook as a destination so Noon pushes
@@ -31,8 +31,8 @@ async function allEventTypes(credentialJson: string): Promise<string[]> {
  *  Returns the destination id if Noon reports one. Never throws. */
 export async function ensureNoonWebhook(credentialJson: string): Promise<{ destinationId?: string } | { error: string }> {
   const appUrl = process.env.APP_URL;
-  const secret = await getNoonWebhookSecret();
-  if (!appUrl || !secret) return { error: "APP_URL أو سرّ الويب‌هوك غير مضبوط" };
+  const secret = await ensureNoonWebhookSecret(); // auto-generates on first use
+  if (!appUrl || !secret) return { error: "APP_URL غير مضبوط" };
   // An admin redirect/base override can also drive the webhook host.
   const base = ((await getIntegrationConfig("NOON")).redirectUri?.replace(/\/api\/.*$/, "") || appUrl).replace(/\/$/, "");
   const url = `${base}/api/erp/marketplace/noon/webhook?key=${encodeURIComponent(secret)}`;

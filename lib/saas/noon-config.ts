@@ -1,6 +1,11 @@
 import "server-only";
-import { getIntegrationConfig } from "./integration-config";
+import { randomBytes } from "crypto";
+import { getIntegrationConfig, bustIntegrationConfig } from "./integration-config";
 import { parseNoonCreds } from "@/lib/erp/marketplace/noon/constants";
+import { db } from "@/lib/db";
+import { withPlatformScope } from "@/lib/db-scope";
+import { platformIntegrations } from "@/db/schema";
+import { encryptSecret } from "@/lib/crypto";
 
 /**
  * Noon integrator OAuth config — ONE app for the whole platform. Reads the generic
@@ -23,6 +28,34 @@ export async function getNoonConfig(): Promise<NoonConfig | null> {
 export async function getNoonWebhookSecret(): Promise<string> {
   const c = await getIntegrationConfig("NOON");
   return c.webhookSecret || process.env.NOON_WEBHOOK_SECRET || "";
+}
+
+/** Persist the Noon webhook secret (encrypted) to platform_integrations + bust the memo.
+ *  A stored value takes precedence over the env fallback in getNoonWebhookSecret. */
+async function persistNoonWebhookSecret(secret: string): Promise<void> {
+  const enc = encryptSecret(secret);
+  await withPlatformScope(() => db.insert(platformIntegrations)
+    .values({ code: "NOON", webhookSecret: enc, updatedAt: new Date() } as typeof platformIntegrations.$inferInsert)
+    .onConflictDoUpdate({ target: platformIntegrations.code, set: { webhookSecret: enc, updatedAt: new Date() } }));
+  bustIntegrationConfig("NOON");
+}
+
+/** Get the webhook secret, generating + persisting a random one if none is set — so the
+ *  seller never has to invent/enter it. Idempotent: returns the existing secret once set. */
+export async function ensureNoonWebhookSecret(): Promise<string> {
+  const existing = await getNoonWebhookSecret();
+  if (existing) return existing;
+  const secret = randomBytes(24).toString("hex");
+  await persistNoonWebhookSecret(secret);
+  return secret;
+}
+
+/** Rotate to a fresh random secret (returns it). The caller re-registers the Noon
+ *  destination so the new secret takes effect. */
+export async function rotateNoonWebhookSecret(): Promise<string> {
+  const secret = randomBytes(24).toString("hex");
+  await persistNoonWebhookSecret(secret);
+  return secret;
 }
 
 /**
