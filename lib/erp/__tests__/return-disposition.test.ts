@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planReturnStock, isUnsellable } from "../return-disposition";
+import { planReturnStock, isUnsellable, planReceipt } from "../return-disposition";
 
 describe("planReturnStock — disposition drives the stock side", () => {
   it("null/SELLABLE restocks the sellable warehouse (unchanged legacy behavior)", () => {
@@ -20,5 +20,19 @@ describe("planReturnStock — disposition drives the stock side", () => {
     expect(isUnsellable(null)).toBe(false);
     expect(isUnsellable("SELLABLE")).toBe(false);
     expect(isUnsellable("DAMAGED")).toBe(true);
+  });
+});
+
+describe("planReceipt — the trader's receipt gate on a platform return", () => {
+  it("received-sellable → reverse invoice + restock as sellable", () => {
+    expect(planReceipt("RECEIVED_SELLABLE")).toEqual({ restock: true, disposition: "SELLABLE", status: "RECEIVED" });
+  });
+  it("received-damaged → reverse invoice + restock unsellable (write-off / damaged wh)", () => {
+    expect(planReceipt("RECEIVED_DAMAGED")).toEqual({ restock: true, disposition: "UNSELLABLE", status: "RECEIVED" });
+  });
+  it("NOT received → reverse invoice only, NO restock (awaiting reimbursement)", () => {
+    const p = planReceipt("NOT_RECEIVED");
+    expect(p.restock).toBe(false);
+    expect(p.status).toBe("NOT_RECEIVED");
   });
 });

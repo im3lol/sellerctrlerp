@@ -25,3 +25,20 @@ export function planReturnStock(disposition: string | null | undefined, sellable
   if (damagedWh) return { kind: "RESTOCK", warehouseId: damagedWh };
   return { kind: "WRITE_OFF" };
 }
+
+// ── Platform-return RECEIPT gate ──────────────────────────────────────────────
+// A marketplace customer return only hits the books once the trader physically has the
+// unit back — the customer returns to the platform, which doesn't always ship it on to
+// the trader. So confirming is a decision:
+//   RECEIVED_SELLABLE → reverse the invoice AND restock (sellable).
+//   RECEIVED_DAMAGED  → reverse the invoice AND book the unit unsellable (write-off / damaged wh).
+//   NOT_RECEIVED      → reverse the invoice only; no restock (awaiting a reimbursement).
+export const RETURN_RECEIPTS = ["RECEIVED_SELLABLE", "RECEIVED_DAMAGED", "NOT_RECEIVED"] as const;
+export type ReturnReceipt = (typeof RETURN_RECEIPTS)[number];
+
+/** Pure: receipt choice → what the confirm does (restock? which disposition? status stamp). */
+export function planReceipt(r: ReturnReceipt): { restock: boolean; disposition: ReturnDisposition; status: string } {
+  if (r === "RECEIVED_SELLABLE") return { restock: true, disposition: "SELLABLE", status: "RECEIVED" };
+  if (r === "RECEIVED_DAMAGED") return { restock: true, disposition: "UNSELLABLE", status: "RECEIVED" };
+  return { restock: false, disposition: "SELLABLE", status: "NOT_RECEIVED" };
+}

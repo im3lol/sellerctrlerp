@@ -139,6 +139,7 @@ export const NAV: NavSection[] = [
       { label: "أوامر البيع", href: "/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "المرتجعات", href: "/sales/returns", icon: "Undo2", capability: "erp.sales.view", group: "دورة البيع" },
+      { label: "مرتجعات المنصات", href: "/sales/marketplace-returns", icon: "PackageX", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "الفواتير الدورية", href: "/sales/recurring", icon: "Repeat", capability: "erp.sales.view", group: "دورة البيع" },
 
       { label: "تقرير الدفتر", href: "/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view", group: "التقارير" },
