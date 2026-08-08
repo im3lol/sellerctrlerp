@@ -14,6 +14,7 @@ export const QUEUES = {
   pricing: "amazon-pricing",     // fee estimates (Product Fees API)
   inventory: "amazon-inventory", // read-only Inventory Auditor
   returns: "amazon-returns",     // FBA customer returns -> DRAFT مرتجعات
+  removals: "amazon-removals",   // FBA removal orders -> DRAFT تسويات مخزون (on trader confirm)
   reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
   ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
   maintenance: "maintenance",    // per-tenant daily backup (fans the cron out of one serial loop)

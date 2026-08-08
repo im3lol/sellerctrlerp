@@ -7,7 +7,7 @@ import { withPlatformScope, withOrgScope } from "@/lib/db-scope";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
 import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
@@ -172,6 +172,25 @@ export async function runReimbursementsJob(d: SyncJob): Promise<void> {
   } catch (e) {
     console.error("[queue] reimbursements sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التعويضات");
+  }
+}
+
+/** FBA removal orders: upsert the window's rows (idempotent). No documents → no ErpContext;
+ *  the trader confirms each removal (restock/write-off) from the removals workspace. */
+export async function runRemovalsJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "REMOVALS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  if (!prep.flags.removals) { await finishRun(d.orgId, runId, "OK", {}); return; } // source toggled off
+  await markSync(d.orgId, d.provider, { removalsSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [r, apiRequests] = await withRequestCount(() => syncRemovalsCore(prep, { from, to: new Date() }));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported, newProducts: r.imported, apiRequests });
+  } catch (e) {
+    console.error("[queue] removals sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة أوامر السحب");
   }
 }
 

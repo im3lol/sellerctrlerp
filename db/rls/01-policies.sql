@@ -30,7 +30,7 @@ DECLARE
     'platform_credentials','profit_distributions','purchase_invoices','purchase_orders',
     'purchase_receipts','purchase_returns','receipt_vouchers','recurring_expenses',
     'recurring_journals','recurring_sales_invoices','sales_invoices','sales_orders',
-    'sales_platforms','sales_quotations','sales_returns','stock_adjustments','stock_assemblies',
+    'platform_removals','sales_platforms','sales_quotations','sales_returns','stock_adjustments','stock_assemblies',
     'stock_batches','stock_movement_batches','stock_movements','stock_transfers',
     'subscription_requests','suppliers','units_of_measure','unmatched_orders','warehouses','withdrawals'
   ];

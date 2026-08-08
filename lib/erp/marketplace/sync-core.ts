@@ -11,6 +11,7 @@ import type { AutoMode } from "@/lib/erp/fulfillment";
 import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
 import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
+import { upsertPlatformRemovals } from "@/lib/erp/removals-core";
 import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
@@ -20,7 +21,7 @@ import { orderCreateFloor } from "./sync-range";
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
 
-export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean; returns: boolean };
+export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean; returns: boolean; removals: boolean };
 export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags; autoPostSettlements: boolean };
 
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
@@ -52,19 +53,19 @@ export async function prepareSync(orgId: string, code: string): Promise<SyncPrep
     const cred: Credential = { refreshToken, sellerId: row.sellerId, marketplaceId: row.marketplaceId, region: row.region };
 
     await ensurePlatform(orgId, connector.code);
-    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate, fulfillmentType: salesPlatforms.fulfillmentType })
+    const [p] = await db.select({ id: salesPlatforms.id, customerId: salesPlatforms.customerId, warehouseId: salesPlatforms.defaultWarehouseId, name: salesPlatforms.name, mode: salesPlatforms.productSyncMode, syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements, syncReturns: salesPlatforms.syncReturns, syncRemovals: salesPlatforms.syncRemovals, autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, accountingStartDate: salesPlatforms.accountingStartDate, fulfillmentType: salesPlatforms.fulfillmentType })
       .from(salesPlatforms).where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, connector.code))).limit(1);
     if (!p?.customerId) return { error: "المنصة بلا عميل مرتبط" };
 
     const ctx: PlatformCtx = { platformId: p.id, customerId: p.customerId, warehouseId: p.warehouseId, channel: connector.code, label: p.name, autoMode: (p.autoMode as AutoMode) ?? "invoice", accountingStartDate: p.accountingStartDate ? new Date(p.accountingStartDate) : null, fulfillmentType: p.fulfillmentType };
-    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements, returns: p.syncReturns };
+    const flags: SyncFlags = { products: p.syncProducts, orders: p.syncOrders, inventory: p.syncInventory, settlements: p.syncSettlements, returns: p.syncReturns, removals: p.syncRemovals };
     return { orgId, connector, cred, ctx, mode: (p.mode as ProductSyncMode) ?? "create", provider, flags, autoPostSettlements: p.autoPostSettlements };
   });
 }
 
 export { incrementalFrom, SYNC_OVERLAP_MS, orderCreateFloor } from "./sync-range";
 
-export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date; returnsSyncedAt: Date; reimbursementsSyncedAt: Date; ledgerSyncedAt: Date; feesSyncedAt: Date }> = {}) {
+export async function markSync(orgId: string, provider: string, patch: Partial<{ lastSyncStatus: string; needsReauth: boolean; productsSyncedAt: Date; ordersSyncedAt: Date; settlementsSyncedAt: Date; returnsSyncedAt: Date; removalsSyncedAt: Date; reimbursementsSyncedAt: Date; ledgerSyncedAt: Date; feesSyncedAt: Date }> = {}) {
   await withOrgScope(orgId, false, () =>
     db.update(platformCredentials).set({ lastSyncAt: new Date(), updatedAt: new Date(), ...patch })
       .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, provider))));
@@ -276,6 +277,20 @@ export async function syncReimbursementsCore(p: SyncPrep, range: DateRange): Pro
     return { ok: true, ...up };
   } catch (e) {
     return coreFail(p, e, "فشل سحب التعويضات");
+  }
+}
+
+/** FBA removal orders: upsert the window's report rows (idempotent). The trader confirms
+ *  each one (restock received / write-off disposed) from the removals workspace — nothing
+ *  posts here. */
+export async function syncRemovalsCore(p: SyncPrep, range: DateRange): Promise<{ ok: true; imported: number } | { ok: false; error: string }> {
+  if (!p.connector.fetchRemovals) return { ok: false, error: "المنصة لا تدعم أوامر السحب" };
+  try {
+    const rows = await p.connector.fetchRemovals(p.cred, range);
+    const up = await withOrgScope(p.orgId, false, () => upsertPlatformRemovals(p.orgId, rows, p.connector.code));
+    return { ok: true, imported: up.imported };
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب أوامر السحب");
   }
 }
 

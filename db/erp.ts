@@ -1638,6 +1638,7 @@ export const salesPlatforms = pgTable(
     syncInventory: boolean("sync_inventory").notNull().default(true),
     syncSettlements: boolean("sync_settlements").notNull().default(true),
     syncReturns: boolean("sync_returns").notNull().default(true),
+    syncRemovals: boolean("sync_removals").notNull().default(true),
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
@@ -1704,6 +1705,7 @@ export const platformCredentials = pgTable(
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
     settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls
     returnsSyncedAt: ts("returns_synced_at"),               // cadence timer for FBA returns pulls
+    removalsSyncedAt: ts("removals_synced_at"),             // cadence timer for FBA removal-order pulls
     reimbursementsSyncedAt: ts("reimbursements_synced_at"), // cadence timer for reimbursement pulls
     ledgerSyncedAt: ts("ledger_synced_at"),                 // cadence timer for FBA ledger pulls
     feesSyncedAt: ts("fees_synced_at"),                     // cadence timer for fee-estimate refreshes
@@ -1813,6 +1815,38 @@ export const fbaReimbursements = pgTable(
   (t) => [
     uniqueIndex("fba_reimbursements_dedup_idx").on(t.organizationId, t.reimbursementId, t.sku),
     index("fba_reimbursements_sku_idx").on(t.organizationId, t.sku),
+  ],
+);
+
+// FBA removal orders — stock taken OUT of the platform warehouse (dead stock / defective /
+// on the seller's request): Return type ships units back to the seller (restock on receipt),
+// Disposal type destroys them (write-off). NOT a customer return — never reverses revenue.
+export const platformRemovals = pgTable(
+  "platform_removals",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    removalOrderId: text("removal_order_id").notNull(),
+    orderType: text("order_type"),   // Return | Disposal
+    orderStatus: text("order_status"),
+    sku: text("sku").notNull(),
+    fnsku: text("fnsku"),
+    disposition: text("disposition"),
+    requestedQty: money("requested_qty").notNull().default("0"),
+    disposedQty: money("disposed_qty").notNull().default("0"),
+    shippedQty: money("shipped_qty").notNull().default("0"),
+    requestDate: ts("request_date"),
+    status: text("status").notNull().default("PENDING"), // PENDING | RESTOCKED | DISPOSED | IGNORED
+    stockAdjustmentId: text("stock_adjustment_id").references(() => stockAdjustments.id, { onDelete: "set null" }),
+    dedupKey: text("dedup_key").notNull(),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+    updatedAt: ts("updated_at"),
+  },
+  (t) => [
+    uniqueIndex("platform_removals_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("platform_removals_order_idx").on(t.organizationId, t.removalOrderId),
   ],
 );
 

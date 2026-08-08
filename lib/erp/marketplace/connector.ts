@@ -4,6 +4,7 @@ import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
 import type { FbaReimbursementRow } from "@/lib/erp/amazon-reimbursements";
 import type { FbaLedgerRow } from "@/lib/erp/amazon-ledger";
+import type { RemovalRow } from "@/lib/erp/amazon-removals";
 import type { FeeEstimate } from "@/lib/erp/marketplace/amazon/fees";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
@@ -97,6 +98,9 @@ export interface MarketplaceConnector {
   fetchSettlements?(cred: Credential, range: DateRange): Promise<SettlementTxn[]>;
   /** FBA customer returns in the window (returns report) — feeds the DRAFT-return sync. */
   fetchReturns?(cred: Credential, range: DateRange): Promise<FbaReturnRow[]>;
+  /** FBA removal orders in the window (removal-order detail report) — stock out of the
+   *  platform warehouse (Return → restock on receipt / Disposal → write-off). */
+  fetchRemovals?(cred: Credential, range: DateRange): Promise<RemovalRow[]>;
   /** FBA reimbursements in the window (read-only feed). */
   fetchReimbursements?(cred: Credential, range: DateRange): Promise<FbaReimbursementRow[]>;
   /** FBA ledger detail events in the window (read-only feed). */

@@ -6,7 +6,7 @@ import { syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
-import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runReimbursementsJob, runLedgerJob, runPricingJob, runMaintenanceJob } from "./handlers";
+import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runRemovalsJob, runReimbursementsJob, runLedgerJob, runPricingJob, runMaintenanceJob } from "./handlers";
 
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
@@ -26,6 +26,7 @@ const CONC: Record<QueueName, number> = {
   "amazon-pricing": 2,
   "amazon-inventory": 2,
   "amazon-returns": 1,
+  "amazon-removals": 1,
   "amazon-reimbursements": 1,
   "amazon-ledger": 1,
   "maintenance": 3, // per-tenant daily backups fan out — a few at a time is plenty
@@ -63,6 +64,7 @@ export function startWorkers(): void {
   make(QUEUES.inventory, runInventoryAuditJob);
   make(QUEUES.pricing, runPricingJob);
   make(QUEUES.returns, runReturnsJob);
+  make(QUEUES.removals, runRemovalsJob);
   make(QUEUES.reimbursements, runReimbursementsJob);
   make(QUEUES.ledger, runLedgerJob);
   make(QUEUES.maintenance, runMaintenanceJob);

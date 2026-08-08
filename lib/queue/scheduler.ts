@@ -29,7 +29,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
     // Reap dead RUNNING order/settlement syncs (a crashed job never wrote its finish
     // row) so the dedup checks below don't block forever on a stuck run.
     await db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف غير متوقّع" })
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"),
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"),
         sql`${syncRuns.startedAt} < now() - interval '${sql.raw(String(STALE_MIN))} minutes'`));
 
     const creds = await db.select({
@@ -40,6 +40,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       ordersSyncedAt: platformCredentials.ordersSyncedAt,
       settlementsSyncedAt: platformCredentials.settlementsSyncedAt,
       returnsSyncedAt: platformCredentials.returnsSyncedAt,
+      removalsSyncedAt: platformCredentials.removalsSyncedAt,
       reimbursementsSyncedAt: platformCredentials.reimbursementsSyncedAt,
       ledgerSyncedAt: platformCredentials.ledgerSyncedAt,
       feesSyncedAt: platformCredentials.feesSyncedAt,
@@ -67,6 +68,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       const can = {
         settlements: !!conn?.fetchSettlements,
         returns: !!conn?.fetchReturns,
+        removals: !!conn?.fetchRemovals,
         reimbursements: !!conn?.fetchReimbursements,
         ledger: !!conn?.fetchLedgerEvents,
         fees: !!conn?.fetchFees,
@@ -97,6 +99,9 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       const due = (at: Date | null, ms: number) => !at || now - new Date(at).getTime() > ms;
       if (can.returns && due(c.returnsSyncedAt, RETURNS_MS) && !(await isRunning(c.orgId, "RETURNS"))) {
         if (await enqueue(QUEUES.returns, base)) feeds++;
+      }
+      if (can.removals && due(c.removalsSyncedAt, RETURNS_MS) && !(await isRunning(c.orgId, "REMOVALS"))) {
+        if (await enqueue(QUEUES.removals, base)) feeds++;
       }
       if (can.reimbursements && due(c.reimbursementsSyncedAt, FINANCE_MS) && !(await isRunning(c.orgId, "REIMBURSEMENTS"))) {
         if (await enqueue(QUEUES.reimbursements, base)) feeds++;
