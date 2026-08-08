@@ -25,7 +25,8 @@ export const noonConnector: MarketplaceConnector = {
   configFields: [
     { key: "clientId", label: "Client ID", placeholder: "integrator client id" },
     { key: "clientSecret", label: "Client Secret", secret: true },
-    { key: "webhookSecret", label: "Webhook Secret", secret: true, help: "السرّ المشترك لتأمين ويب‌هوك الطلبات (?key=)" },
+    // Webhook secret is auto-generated + managed in the dedicated section below (not a
+    // manual field) — the owner never invents it.
   ],
   isAuthError: isNoonAuthError,
   // OAuth block is always present; authorizeUrl returns null when the client creds

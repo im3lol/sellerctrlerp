@@ -185,29 +185,13 @@ export function MarketplaceConnect({
           </Button>
         </CardContent>
       ) : marketplaces.length === 0 ? (
-        // No-target OAuth (Noon): a single consent screen — one button, no picker.
-        <CardContent className="space-y-3">
+        // No-target OAuth (Noon): a single consent screen — one button, nothing technical.
+        // The seller just authorizes on the marketplace; the owner handles all config
+        // (app keys + webhook) from the admin panel.
+        <CardContent>
           <Button asChild>
             <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />ربط {label} (تفويض بنقرة واحدة)</a>
           </Button>
-          {provider === "noon" && (
-            // Fallback: paste the service-account .json directly (hits the verified gateway).
-            // Use this if the one-click OAuth fails to complete.
-            <details className="rounded-lg border bg-muted/20 p-3">
-              <summary className="cursor-pointer text-sm font-medium">أو الصق ملف الخدمة (service-account .json) يدويًا</summary>
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-muted-foreground">من <span dir="ltr">access.noon.partners</span> ← Service Account ← نزّل ملف المفاتيح والصقه هنا.</p>
-                <textarea
-                  value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={5} spellCheck={false}
-                  placeholder='{ "key_id": "...", "private_key": "-----BEGIN PRIVATE KEY-----...", "channel_identifier": "...", "project_code": "PRJ..." }'
-                  className="block w-full rounded-md border bg-background p-3 font-mono text-xs"
-                />
-                <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط بالملف
-                </Button>
-              </div>
-            </details>
-          )}
         </CardContent>
       ) : (
         <CardContent className="flex flex-wrap items-end gap-2">

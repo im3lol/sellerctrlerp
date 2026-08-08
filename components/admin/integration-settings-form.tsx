@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Copy } from "lucide-react";
 import { saveIntegrationSettingsAction } from "@/app/actions/admin/platform-settings";
+import { getNoonWebhookInfo, regenerateNoonWebhookAction } from "@/app/actions/erp/noon-webhook";
 import type { IntegrationField } from "@/lib/erp/marketplace/connector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,26 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
 
   const base = (appUrl || "").replace(/\/$/, "");
   const defaultRedirect = `${base}/api/erp/marketplace/${code.toLowerCase()}/callback`;
+
+  // Noon webhook: owner-only, auto-generated secret. Revealed/rotated on demand so the
+  // secret never sits in the page HTML.
+  const webhookUrl = `${base}/api/erp/marketplace/noon/webhook`;
+  const [whSecret, setWhSecret] = useState<string | null>(null);
+  const [whBusy, setWhBusy] = useState(false);
+  const revealSecret = () => start(async () => {
+    setWhBusy(true);
+    const r = await getNoonWebhookInfo();
+    setWhSecret(r.secret || "");
+    if (!r.secret) toast.info("لم يُولَّد سرّ بعد — اضغط «تجديد السرّ»");
+    setWhBusy(false);
+  });
+  const regenSecret = () => start(async () => {
+    setWhBusy(true);
+    const r = await regenerateNoonWebhookAction();
+    if (r.ok) { setWhSecret(r.secret); toast.success(r.note ?? (r.registered ? "تم تجديد السرّ وإعادة التسجيل" : "تم تجديد السرّ")); }
+    else toast.error(r.error);
+    setWhBusy(false);
+  });
 
   const setField = (key: string, secret: boolean, v: string) =>
     secret ? setSecrets((s) => ({ ...s, [key]: v })) : setText((t) => ({ ...t, [key]: v }));
@@ -95,6 +116,26 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
             </div>
           </div>
         )}
+
+      {code === "NOON" && (
+        <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
+          <div className="text-sm font-medium">ويب‌هوك نون (طلبات + مرتجعات)</div>
+          <p className="text-xs text-muted-foreground">السرّ بيتولّد تلقائيًا. نون ما بتتيحش تسجيلًا تلقائيًا عبر API، فانسخ القيم دي وسجّلها <b>مرة واحدة</b> في بوابة نون: Event Notifications → Destinations → Create Destination. العميل ما بيشوفش الجزء ده.</p>
+          <CopyRow label="Destination URL" value={webhookUrl} />
+          <CopyRow label="Credentials · Key" value="key" />
+          {whSecret !== null && whSecret !== "" && <CopyRow label="Credentials · Value (السرّ)" value={whSecret} />}
+          <div className="flex flex-wrap items-center gap-2">
+            {whSecret === null && (
+              <Button type="button" variant="outline" size="sm" onClick={revealSecret} disabled={whBusy}>
+                {whBusy && <Loader2 className="size-3.5 animate-spin" />}إظهار السرّ
+              </Button>
+            )}
+            <Button type="button" variant="outline" size="sm" onClick={regenSecret} disabled={whBusy}>
+              {whBusy && <Loader2 className="size-3.5 animate-spin" />}تجديد السرّ
+            </Button>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</p>
       <div className="flex justify-end">

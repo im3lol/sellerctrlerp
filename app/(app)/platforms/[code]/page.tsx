@@ -14,8 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PlatformHeaderActions } from "@/components/erp/platform-header-actions";
 import { MarketplaceConnect } from "@/components/erp/marketplace-connect";
-import { NoonWebhookCard } from "@/components/erp/noon-webhook-card";
-import { getNoonWebhookInfo } from "@/app/actions/erp/noon-webhook";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
 import { getConnector } from "@/lib/erp/marketplace/registry";
@@ -162,8 +160,6 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     // "set the keys in the admin panel" note (handled in MarketplaceConnect).
     const oauthReady = connectable ? await oauthConfigured(connector!.code) : false;
     const conn = connector ? await getConnection(orgId, connector.code) : null;
-    // Noon webhook self-service card (URL + auto-generated secret + rotate button).
-    const noonWebhook = connector?.code === "NOON" && conn?.connected ? await getNoonWebhookInfo() : null;
 
     // Latest FBA inventory audit (read-only) — a compact summary here; the full
     // report is its own page (/inventory/reconciliation).
@@ -216,8 +212,6 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             oauthReady={oauthReady}
           />
         )}
-
-        {noonWebhook && <NoonWebhookCard initial={noonWebhook} />}
 
         {analyticsFailed && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
