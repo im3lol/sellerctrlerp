@@ -19,6 +19,9 @@ export type Notifications = {
   needsReview: number;
   unmatched: number;
   unclaimedReturns: number;
+  mktReturns: number;
+  mktRemovals: number;
+  mktReimbursements: number;
   total: number;
   recent: Activity[];
 };
@@ -47,7 +50,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const ZERO = Promise.resolve({ rows: [{ n: 0 }] } as { rows: { n: number }[] });
   const ZERO_TOTAL = Promise.resolve({ rows: [{ n: 0, total: "0" }] } as { rows: { n: number; total: string }[] });
 
-  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes, mktReturnsRes, mktRemovalsRes, mktReimbursementsRes] = await Promise.all([
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id FROM items i
@@ -106,6 +109,19 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
     can("sales.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM platform_returns
       WHERE organization_id = ${orgId} AND sales_return_id IS NULL`) : ZERO,
+    // Marketplace customer returns awaiting the trader's receipt decision (DRAFT channel
+    // credit notes) → /sales/marketplace-returns.
+    can("sales.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM sales_returns
+      WHERE organization_id = ${orgId} AND status = 'DRAFT' AND channel IS NOT NULL AND sales_invoice_id IS NOT NULL`) : ZERO,
+    // Synced removal orders awaiting the received/disposed decision → /sales/marketplace-removals.
+    can("sales.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM platform_removals
+      WHERE organization_id = ${orgId} AND status = 'PENDING'`) : ZERO,
+    // Reimbursements awaiting recognition → /sales/marketplace-reimbursements.
+    can("accounting.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM fba_reimbursements
+      WHERE organization_id = ${orgId} AND status = 'PENDING'`) : ZERO,
   ]);
 
   const lowStock = Number(low.rows[0]?.n ?? 0);
@@ -120,6 +136,9 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const stockWaiting = Number(stockWaitRes.rows[0]?.n ?? 0);
   const unmatched = Number(unmatchedRes.rows[0]?.n ?? 0);
   const unclaimedReturns = Number(unclaimedReturnsRes.rows[0]?.n ?? 0);
+  const mktReturns = Number(mktReturnsRes.rows[0]?.n ?? 0);
+  const mktRemovals = Number(mktRemovalsRes.rows[0]?.n ?? 0);
+  const mktReimbursements = Number(mktReimbursementsRes.rows[0]?.n ?? 0);
   const recent: Activity[] = activity
     .filter((a) => { const p = ENTITY_PERM[a.entityType]; return !p || can(p); }) // only docs this member can see
     .slice(0, 8)
@@ -127,5 +146,5 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
       const base = ENTITY_PATH[a.entityType];
       return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
     });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns, recent };
+  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
 }
