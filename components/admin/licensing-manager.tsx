@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, SlidersHorizontal, LogIn } from "lucide-react";
 import { setSubscriptionAction } from "@/app/actions/admin/licensing";
 import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
@@ -198,9 +198,9 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
                   <TableCell className="text-sm">{o.expiresAt || <span className="text-muted-foreground">بلا انتهاء</span>}</TableCell>
                   <TableCell className="text-sm">{o.status === "NONE" ? "الكل (افتراضي)" : `${o.enabledModules.length}/${ALL_MODULES.length}`}</TableCell>
                   <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(o)}>تعديل / تفعيل</Button>
-                      <Button size="sm" variant="ghost" disabled={imp} onClick={() => support(o.id)} title="دخول لمساحة المؤسسة للدعم">دخول للدعم</Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(o)}><SlidersHorizontal className="size-3.5" />تعديل</Button>
+                      <Button size="sm" variant="ghost" className="gap-1.5 text-primary hover:bg-primary/10" disabled={imp} onClick={() => support(o.id)} title="دخول لمساحة المؤسسة للدعم">{imp ? <Loader2 className="size-3.5 animate-spin" /> : <LogIn className="size-3.5" />}دخول للدعم</Button>
                     </div>
                   </TableCell>
                 </TableRow>
