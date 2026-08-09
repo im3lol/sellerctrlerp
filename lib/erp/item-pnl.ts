@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   salesInvoiceLines, salesInvoices, salesOrderLines, salesOrders,
@@ -58,7 +58,9 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
       .from(marketplaceSettlementTxns)
       .where(and(
         eq(marketplaceSettlementTxns.organizationId, orgId),
-        sql`regexp_replace(upper(coalesce(${marketplaceSettlementTxns.sku}, '')), '[^A-Z0-9]', '', 'g') = ANY(${norms})`,
+        // inArray → valid `… in ($2,$3,…)`. Interpolating the JS array straight into
+        // `= ANY(${norms})` renders a row/tuple, which Postgres rejects.
+        inArray(sql`regexp_replace(upper(coalesce(${marketplaceSettlementTxns.sku}, '')), '[^A-Z0-9]', '', 'g')`, norms),
       ))
     : [{ referral: "0", fba: "0", other: "0", n: "0" }];
 
