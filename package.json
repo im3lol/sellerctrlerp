@@ -1,6 +1,9 @@
 {
   "name": "sellerctrl",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,7 +38,7 @@
     "ioredis": "^5.11.1",
     "lucide-react": "^1.18.0",
     "next": "16.2.9",
-    "next-auth": "^5.0.0-beta.31",
+    "next-auth": "5.0.0-beta.31",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.13",
     "otplib": "^12.0.1",

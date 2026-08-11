@@ -107,6 +107,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.prebuilt
+    # Stable image name so scripts/deploy.sh can tag the current build as :rollback and
+    # restore it with `up --no-build` on a failed health gate.
+    image: sellerctrl-app:latest
     container_name: sellerctrl-app
     restart: unless-stopped
     env_file:
@@ -208,14 +211,20 @@ services:
       sh -c 'printf "0 6 * * * wget -q -O /dev/null --header=\"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron\n" > /etc/crontabs/root && crond -f -l 8'
 
   # Physical DB backup (full pg_dump, custom format) — the DBA-level DR layer beneath
-  # the app's per-tenant logical export. Daily loop + 14-day retention into a dedicated
-  # volume. ⚠️ On-box only: for real DR, copy /backups offsite (S3/rsync) — a backup on
-  # the same VPS as pgdata dies with the box. Runs as the owner (reads every row).
+  # the app's per-tenant logical export. Daily loop + 14-day on-box retention, AND an
+  # OFFSITE copy to Cloudflare R2 (or any S3-compatible bucket) when configured — so a
+  # laptop/SSD loss doesn't take every backup with it. Runs as the owner (reads every row).
+  #
+  # Offsite activates automatically once these are set in ../.env (no-op until then):
+  #   OFFSITE_S3_BUCKET, OFFSITE_S3_ENDPOINT (R2: https://<account>.r2.cloudflarestorage.com),
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
   backup:
     profiles: ["app"]
     image: postgres:16-alpine
     container_name: sellerctrl-backup
     restart: unless-stopped
+    env_file:
+      - ../.env
     environment:
       PGPASSWORD: sellerctrl
     volumes:
@@ -223,12 +232,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # $$ so the container shell runs date at runtime (compose would interpolate a single $).
+    # $$ → literal $ for the container shell (compose would interpolate a single $).
+    # mc is a single static binary (no package install) that speaks S3/R2.
     command: >
-      sh -c 'while true; do
-      pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f /backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump && echo "[backup] ok" || echo "[backup] FAILED";
-      find /backups -name "sellerctrl-*.dump" -mtime +14 -delete;
-      sleep 86400;
+      sh -c '[ -x /usr/local/bin/mc ] || (wget -qO /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x /usr/local/bin/mc) || true;
+      while true; do
+        f=/backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump;
+        if pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f "$$f"; then
+          echo "[backup] ok";
+          if [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ]; then
+            mc alias set offsite "$$OFFSITE_S3_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" >/dev/null 2>&1 && mc cp "$$f" "offsite/$$OFFSITE_S3_BUCKET/pg/" >/dev/null 2>&1 && echo "[backup] offsite ok" || echo "[backup] offsite FAILED";
+          fi;
+        else echo "[backup] FAILED"; fi;
+        find /backups -name "sellerctrl-*.dump" -mtime +14 -delete;
+        sleep 86400;
       done'
 
 volumes:
