@@ -184,6 +184,12 @@ async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanL
  * depletes lots FEFO (or pinned via `allocations`).
  */
 export async function postStockMovement(tx: Tx, input: StockInput): Promise<StockResult> {
+  // Serialize concurrent movements on the same (org,item,warehouse). The running balance
+  // is read (priorBalance) then written; without this lock two documents shipping the same
+  // item can both read the same prior balance and oversell / corrupt the quantity & WAC.
+  // Transaction-scoped advisory lock → auto-released on commit/rollback; a hash collision
+  // only ever over-serializes two unrelated lots (correctness-safe).
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${input.orgId}:${input.itemId}:${input.warehouseId}`}))`);
   await assertPeriodOpenForStock(tx, input.orgId, input.date);
   const { qty: priorQty, value: priorValue } = await priorBalance(tx, input.orgId, input.itemId, input.warehouseId);
   const wac = priorQty > 0 ? priorValue / priorQty : 0;

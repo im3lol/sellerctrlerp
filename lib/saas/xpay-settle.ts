@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { subscriptionRequests } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { fromMinorUnits, isCompleteStatus } from "./xpay";
-import { activateFromRequest } from "@/app/actions/admin/subscription-requests";
+import { activateFromRequest } from "@/lib/saas/subscription-activate";
 
 /**
  * Activate the subscription a completed xpay checkout session settles. Matches the

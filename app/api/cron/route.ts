@@ -13,7 +13,7 @@ import { secretEquals } from "@/lib/crypto";
 import { log } from "@/lib/log";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
-import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
+import { pruneReportDownloads } from "@/lib/erp/report-downloads-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

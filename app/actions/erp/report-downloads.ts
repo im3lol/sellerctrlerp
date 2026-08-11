@@ -1,6 +1,5 @@
 "use server";
 
-import { lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { reportDownloads } from "@/db/schema";
@@ -28,11 +27,4 @@ export async function recordReportDownloadAction(input: {
     });
     return { ok: true };
   });
-}
-
-/** Prune download history older than `days` (called by the daily cron). */
-export async function pruneReportDownloads(days = 7): Promise<number> {
-  const cutoff = new Date(Date.now() - days * 864e5);
-  const r = await db.delete(reportDownloads).where(lt(reportDownloads.createdAt, cutoff)).returning({ id: reportDownloads.id });
-  return r.length;
 }
