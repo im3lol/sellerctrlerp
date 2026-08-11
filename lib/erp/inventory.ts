@@ -3,6 +3,7 @@ import { round4 } from "@/lib/erp/money";
 import { db } from "@/lib/db";
 import { stockMovements, stockBatches, stockMovementBatches, items, fiscalPeriods } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+import { log } from "@/lib/log";
 
 /**
  * A stock move dated into a locked fiscal period must be rejected — the quantity
@@ -137,7 +138,7 @@ type PlanLine = { batchId: string; qty: number; unitCost: number };
 /** FEFO depletion plan with per-lot cost: earliest expiry first (NULLs last), then received date. */
 async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: string, need: number): Promise<PlanLine[]> {
   const lots = await tx
-    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost })
+    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost, exp: stockBatches.expiryDate })
     .from(stockBatches)
     .where(and(
       eq(stockBatches.organizationId, orgId),
@@ -149,13 +150,20 @@ async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: stri
 
   let left = round4(need);
   const plan: PlanLine[] = [];
+  const now = new Date();
+  let expiredIssued = 0;
   for (const lot of lots) {
     if (left <= 1e-9) break;
     const take = Math.min(left, Number(lot.rem));
     if (take <= 1e-9) continue;
+    if (lot.exp && new Date(lot.exp) < now) expiredIssued = round4(expiredIssued + take);
     plan.push({ batchId: lot.id, qty: round4(take), unitCost: Number(lot.cost) });
     left = round4(left - take);
   }
+  // Shipping EXPIRED stock: surface it (log→Telegram) rather than hard-block the sale —
+  // blocking an issue could halt legitimate clearance; the trader decides. FEFO already
+  // consumes earliest-expiry first, so this only fires when nothing fresher was available.
+  if (expiredIssued > 1e-9) log.warn("inventory.expired_issue", { orgId, itemId, warehouseId, qty: expiredIssued });
   if (left > 1e-9) {
     const syn = await ensureSynthetic(tx, orgId, itemId, warehouseId);
     plan.push({ batchId: syn.id, qty: round4(left), unitCost: syn.unitCost }); // overflow may drive synthetic negative

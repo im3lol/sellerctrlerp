@@ -2155,6 +2155,10 @@ export const orgSubscriptions = pgTable(
     storageGb: integer("storage_gb"), // snapshot; null = unlimited
     startedAt: ts("started_at"),
     expiresAt: ts("expires_at"),
+    // Dunning catch-up marker: the last expiry-reminder threshold (7/3/1 days) sent this
+    // cycle. Lets the daily cron fire each threshold exactly once AND catch up a threshold
+    // it skipped (laptop asleep at 06:00) instead of losing it. 999 = none sent yet.
+    dunningStage: integer("dunning_stage").default(999),
     activatedByCodeId: text("activated_by_code_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

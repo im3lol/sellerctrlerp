@@ -101,8 +101,8 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty })
-      .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
+      .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     // Per-line pick warehouses flow into stock movements — verify they belong to the org.
     const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
@@ -120,6 +120,13 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
       if (want < -EPS) return { error: "كمية غير صالحة" };
       if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
+      // Enforce expiry capture for perishables at the source (data-entry time): a
+      // perishable item must arrive with an expiry date, or an item shelf-life to derive
+      // one — otherwise its stock lands in the untracked NULL-expiry lot and FEFO/alerts
+      // can't see it. (Safe: recoverable — enter the expiry and retry.)
+      if (want > EPS && l.isPerishable && !(p?.expiryDate) && !(l.shelfLifeDays && l.shelfLifeDays > 0)) {
+        return { error: `الصنف «${l.name || l.code}» قابل للتلف — حدِّد تاريخ صلاحية للاستلام (أو اضبط «مدة الصلاحية» للصنف).` };
+      }
       if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null });
     }
     if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
