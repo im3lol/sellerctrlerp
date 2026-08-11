@@ -26,7 +26,7 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "1103", nameAr: "العملاء (المدينون)", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "1104", nameAr: "المخزون", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "1107", nameAr: "ضريبة المدخلات", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
-  { code: "1108", nameAr: "مجمع إعادة تقييم العملة الأجنبية", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
+  { code: "1105", nameAr: "مجمع إعادة تقييم العملة الأجنبية", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "2", nameAr: "الخصوم", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: null },
   { code: "21", nameAr: "الخصوم المتداولة", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: "2" },
   { code: "2101", nameAr: "الموردون (الدائنون)", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },

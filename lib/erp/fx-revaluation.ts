@@ -11,7 +11,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export type FxRow = { currency: string; kind: "AR" | "AP"; foreignRemaining: number; book: number; revalued: number; gain: number };
 export type FxRevaluation = { base: string; rows: FxRow[]; netGain: number; arAdj: number; apAdj: number };
 
-type InvRow = { currencyCode: string; foreignAmount: string | null; totalAmount: string; balanceDue: string };
+export type InvRow = { currencyCode: string; foreignAmount: string | null; totalAmount: string; balanceDue: string };
 
 /**
  * Unrealized FX on open foreign-currency AR/AP: revalue each currency's outstanding
@@ -33,7 +33,16 @@ export async function computeFxRevaluation(orgId: string): Promise<FxRevaluation
       .from(purchaseInvoices).where(and(eq(purchaseInvoices.organizationId, orgId), inArray(purchaseInvoices.status, OPEN), gt(purchaseInvoices.balanceDue, "0"), ne(purchaseInvoices.currencyCode, base))),
   ]);
   const rate = new Map(rateRows.rows.map((r) => [r.currency_code, Number(r.rate)]));
+  return { base, ...revalueOpenBalances(arRows, apRows, rate) };
+}
 
+/**
+ * Pure revaluation math (no DB) — extracted so it's unit-testable. Given open AR/AP
+ * invoice rows and a currency→latest-rate map, returns the per-currency revalued rows
+ * plus the net unrealized gain and the AR/AP base-value adjustments. A currency with
+ * no rate in the map is passed through un-revalued (contributes 0 gain).
+ */
+export function revalueOpenBalances(arRows: InvRow[], apRows: InvRow[], rate: Map<string, number>): Omit<FxRevaluation, "base"> {
   const aggregate = (rows: InvRow[], kind: "AR" | "AP") => {
     const m = new Map<string, FxRow>();
     for (const r of rows) {
@@ -57,21 +66,21 @@ export async function computeFxRevaluation(orgId: string): Promise<FxRevaluation
   const arAdj = r2(rows.filter((r) => r.kind === "AR").reduce((s, r) => s + (r.revalued - r.book), 0));
   const apAdj = r2(rows.filter((r) => r.kind === "AP").reduce((s, r) => s + (r.revalued - r.book), 0));
   const netGain = r2(rows.reduce((s, r) => s + r.gain, 0));
-  return { base, rows, netGain, arAdj, apAdj };
+  return { rows, netGain, arAdj, apAdj };
 }
 
-/** FX gain (4203) + loss (5304) + unrealized-revaluation valuation account (1108),
+/** FX gain (4203) + loss (5304) + unrealized-revaluation valuation account (1105),
  *  created on demand for older orgs (new orgs get them from the default chart). The
  *  valuation account is the balance-sheet leg — we deliberately DON'T revalue the AR/AP
  *  control accounts directly, so they stay reconciled with their subledgers (and don't
  *  trip the control-reconciliation alarm). */
 export async function ensureFxAccounts(orgId: string): Promise<{ gain: string | null; loss: string | null; valuation: string | null }> {
-  const ov = await resolveAccountIds(orgId, ["4203", "5304", "1108", "4", "5", "11"]);
+  const ov = await resolveAccountIds(orgId, ["4203", "5304", "1105", "4", "5", "11"]);
   let gain = ov["4203"] ?? null;
   let loss = ov["5304"] ?? null;
-  let valuation = ov["1108"] ?? null;
+  let valuation = ov["1105"] ?? null;
   if (!gain) { const [r] = await db.insert(accounts).values({ organizationId: orgId, code: "4203", nameAr: "أرباح فروق العملة", type: "REVENUE", normalBalance: "CREDIT", parentId: ov["4"] ?? null, isLeaf: true }).returning({ id: accounts.id }); gain = r?.id ?? null; }
   if (!loss) { const [r] = await db.insert(accounts).values({ organizationId: orgId, code: "5304", nameAr: "خسائر فروق العملة", type: "EXPENSE", normalBalance: "DEBIT", parentId: ov["5"] ?? null, isLeaf: true }).returning({ id: accounts.id }); loss = r?.id ?? null; }
-  if (!valuation) { const [r] = await db.insert(accounts).values({ organizationId: orgId, code: "1108", nameAr: "مجمع إعادة تقييم العملة الأجنبية", type: "ASSET", normalBalance: "DEBIT", parentId: ov["11"] ?? null, isLeaf: true }).returning({ id: accounts.id }); valuation = r?.id ?? null; }
+  if (!valuation) { const [r] = await db.insert(accounts).values({ organizationId: orgId, code: "1105", nameAr: "مجمع إعادة تقييم العملة الأجنبية", type: "ASSET", normalBalance: "DEBIT", parentId: ov["11"] ?? null, isLeaf: true }).returning({ id: accounts.id }); valuation = r?.id ?? null; }
   return { gain, loss, valuation };
 }
