@@ -30,7 +30,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       orgActiveMemberCount(orgId),
       orgStorageBytes(orgId),
       db.select().from(plans).where(eq(plans.isActive, true)).orderBy(asc(plans.sortOrder), asc(plans.name)),
-      getMyLatestRequest(orgId),
+      getMyLatestRequest(),
     ]);
 
     const planCards = catalog.map((p) => ({

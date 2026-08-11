@@ -2,15 +2,16 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { accounts, investors, investments, investorShares, profitDistributions, withdrawals } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
-import { allocateProfit, computeOwnership } from "@/lib/erp/investors";
+import { allocateProfit } from "@/lib/erp/investors";
 import { round2 } from "@/lib/erp/money";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { investorNetCapital, investorProfitDue, orgOwnership } from "@/lib/erp/investor-equity-queries";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -340,36 +341,5 @@ export async function deleteDistributionAction(id: string): Promise<ActionState>
   });
 }
 
-/* ══════════════════ Queries ══════════════════ */
-
-/** Net capital (contributions − capital withdrawals) for one investor. */
-export async function investorNetCapital(orgId: string, investorId: string): Promise<number> {
-  const [inV] = await db.select({ v: sql<string>`coalesce(sum(${investments.amount}), 0)` })
-    .from(investments).where(and(eq(investments.organizationId, orgId), eq(investments.investorId, investorId)));
-  const [outV] = await db.select({ v: sql<string>`coalesce(sum(${withdrawals.amount}), 0)` })
-    .from(withdrawals).where(and(eq(withdrawals.organizationId, orgId), eq(withdrawals.investorId, investorId), eq(withdrawals.type, "capital")));
-  return round2(Number(inV?.v ?? 0) - Number(outV?.v ?? 0));
-}
-
-/** Declared-but-unpaid profit for one investor: POSTED shares − profit withdrawals. */
-export async function investorProfitDue(orgId: string, investorId: string): Promise<number> {
-  const [declared] = await db.select({ v: sql<string>`coalesce(sum(${investorShares.profitShare}), 0)` })
-    .from(investorShares)
-    .innerJoin(profitDistributions, eq(profitDistributions.id, investorShares.distributionId))
-    .where(and(eq(profitDistributions.organizationId, orgId), eq(profitDistributions.status, "POSTED"), eq(investorShares.investorId, investorId)));
-  const [paid] = await db.select({ v: sql<string>`coalesce(sum(${withdrawals.amount}), 0)` })
-    .from(withdrawals).where(and(eq(withdrawals.organizationId, orgId), eq(withdrawals.investorId, investorId), eq(withdrawals.type, "profit")));
-  return round2(Number(declared?.v ?? 0) - Number(paid?.v ?? 0));
-}
-
-/** Ownership split across the org, from every investor's net capital. */
-export async function orgOwnership(orgId: string) {
-  const inRows = await db.select({ investorId: investments.investorId, amount: investments.amount })
-    .from(investments).where(eq(investments.organizationId, orgId));
-  const outRows = await db.select({ investorId: withdrawals.investorId, amount: withdrawals.amount })
-    .from(withdrawals).where(and(eq(withdrawals.organizationId, orgId), eq(withdrawals.type, "capital")));
-  return computeOwnership([
-    ...inRows.map((r) => ({ investorId: r.investorId, amount: Number(r.amount) })),
-    ...outRows.map((r) => ({ investorId: r.investorId, amount: -Number(r.amount) })),
-  ]);
-}
+/* Queries moved to lib/erp/investor-equity-queries.ts (server-only) — they take an
+   orgId directly and must not be callable server actions. Re-imported above. */

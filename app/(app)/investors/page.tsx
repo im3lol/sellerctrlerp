@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { investors, investments, profitDistributions, withdrawals } from "@/db/schema";
-import { orgOwnership } from "@/app/actions/erp/investor-equity";
+import { orgOwnership } from "@/lib/erp/investor-equity-queries";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
