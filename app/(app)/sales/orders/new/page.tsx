@@ -17,7 +17,7 @@ export default async function NewSalesOrderPage({
         .where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice }).from(items)
         .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
-      db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
+      db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
     ]);
 
     // Prefill from an accepted quotation (customer + priced lines).
@@ -45,7 +45,7 @@ export default async function NewSalesOrderPage({
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر بيع جديد" subtitle={initialLines ? "معبّأ من عرض السعر — راجِع وأكمل" : "التزام بيع — يُحوّل لفاتورة لاحقاً"} backHref="/sales/orders" />
-        <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} defaultCustomerId={defaultCustomerId} channelCustomerId={channelCustomerId} initialLines={initialLines} />
+        <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} defaultCustomerId={defaultCustomerId} channelCustomerId={channelCustomerId} initialLines={initialLines} />
       </div>
     );
   });

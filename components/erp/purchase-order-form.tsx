@@ -14,21 +14,24 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
+import { lineVat } from "@/lib/erp/vat";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
-type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; taxAmount: number };
+type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + l.taxAmount);
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 });
+// VAT base = goods value net of discount (freight excluded), matching the sales side.
+const lineTax = (l: Line, vatRate: number) => lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, l.exempt);
+const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate));
+const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initialLines, lastPrices = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number> }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -68,7 +71,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, taxAmount: 0 };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
       return [...ls, line];
@@ -78,10 +81,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const shipping = round2(lines.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
     const discount = round2(lines.reduce((s, l) => s + l.quantity * l.discountPerUnit, 0));
-    const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
+    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate), 0));
     const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
     return { subtotal, shipping, discount, tax, qty, total: round2(subtotal + shipping - discount + tax) };
-  }, [lines]);
+  }, [lines, vatRate]);
 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
@@ -90,7 +93,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
     start(async () => {
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
-        taxAmount: l.taxAmount, discountAmount: round2(l.quantity * l.discountPerUnit),
+        taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit),
       }));
       const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
       if (r.ok) {
@@ -149,7 +152,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
                 <TableHead className="w-24 text-start">الكمية</TableHead>
                 <TableHead className="w-28 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
-                <TableHead className="w-28 text-start">ضريبة</TableHead>
+                <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
                 <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
@@ -164,9 +167,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, initi
                   <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-[3.5rem] tabular-nums">{fmt(lineTax(l, vatRate))}</span>
+                      <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
+                    </div>
+                  </TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.shippingPerUnit} onChange={(e) => setLine(i, { shippingPerUnit: Number(e.target.value) })} /></TableCell>
-                  <TableCell className="font-medium">{fmt(lineTotal(l))}</TableCell>
+                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate))}</TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}

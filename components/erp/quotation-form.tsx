@@ -13,17 +13,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ItemPicker } from "@/components/erp/item-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { lineVat } from "@/lib/erp/vat";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null };
-type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number };
+type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, taxAmount: 0 });
-const lineTotal = (l: Line) => round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount);
+const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, exempt: false });
+const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice - l.discountAmount + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt));
 
-export function QuotationForm({ customers, items, orgName }: { customers: Customer[]; items: Item[]; orgName: string }) {
+export function QuotationForm({ customers, items, orgName, vatRate }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -44,15 +46,15 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
-    const tax = round2(lines.reduce((s, l) => s + l.taxAmount, 0));
+    const tax = round2(lines.reduce((s, l) => s + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), 0));
     return { subtotal, discount, tax, total: round2(subtotal - discount + tax) };
-  }, [lines]);
+  }, [lines, vatRate]);
 
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines });
+      const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt) })) });
       if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -84,7 +86,7 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
               <TableHead className="w-24 text-start">الكمية</TableHead>
               <TableHead className="w-28 text-start">السعر</TableHead>
               <TableHead className="w-24 text-start">خصم</TableHead>
-              <TableHead className="w-24 text-start">ضريبة</TableHead>
+              <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
               <TableHead className="w-28 text-start">الإجمالي</TableHead>
               <TableHead className="w-10" />
             </TableRow></TableHeader>
@@ -95,8 +97,13 @@ export function QuotationForm({ customers, items, orgName }: { customers: Custom
                   <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.taxAmount} onChange={(e) => setLine(i, { taxAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell className="font-medium">{fmt(lineTotal(l))}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-[3.5rem] tabular-nums">{fmt(lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt))}</span>
+                      <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate))}</TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}
