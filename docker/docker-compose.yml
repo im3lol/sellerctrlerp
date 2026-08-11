@@ -8,12 +8,16 @@ services:
       POSTGRES_PASSWORD: sellerctrl
       POSTGRES_DB: sellerctrl
     ports:
-      # Host 5433 → container 5432 (5432 is used by another local project).
-      # The app connects internally via postgres:5432, so this only affects
-      # external tools (psql/adminer from the host).
-      - "5433:5432"
+      # Host 5433 → container 5432 (5432 is used by another local project). Bound to
+      # 127.0.0.1 so it's reachable only from this box (host psql), never the LAN — the
+      # app connects internally via postgres:5432 and never needs the host port.
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Cap RAM so a heavy report/pg_dump can't OOM-cascade the whole single-box fleet;
+    # a contained Postgres restart beats taking every co-located service down with it.
+    mem_limit: 2g
+    cpus: 2.0
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sellerctrl"]
       interval: 5s
@@ -28,9 +32,13 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+    # Bound to 127.0.0.1: the app reaches MinIO internally via minio:9000; the host
+    # ports are for local tooling/console only, never the LAN.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    mem_limit: 512m
+    cpus: 1.0
     volumes:
       - miniodata:/data
     healthcheck:
@@ -60,12 +68,16 @@ services:
       echo 'buckets ready';
       "
 
+  # DB web console — a full unauthenticated-to-the-network admin surface, so it is NOT
+  # part of the default prod stack. Start it deliberately only when needed:
+  #   docker compose --profile tools up -d adminer   (reachable at 127.0.0.1:8080)
   adminer:
     image: adminer:latest
     container_name: sellerctrl-adminer
+    profiles: ["tools"]
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - postgres
 
@@ -73,9 +85,14 @@ services:
     image: redis:7-alpine
     container_name: sellerctrl-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    # noeviction (not the default) so a full Redis REJECTS new writes instead of silently
+    # evicting queued BullMQ jobs — never lose a job. maxmemory caps growth; appendonly
+    # keeps jobs across restarts.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     ports:
-      - "6380:6379" # host 6380 → container 6379 (6379 may be used by another project)
+      - "127.0.0.1:6380:6379" # bound to localhost; app reaches redis:6379 internally
+    mem_limit: 384m
+    cpus: 0.5
     volumes:
       - redisdata:/data
     healthcheck:
@@ -105,9 +122,12 @@ services:
       NODE_ENV: production
       # Open public self-serve signup (/signup). Unset = closed (landing → request a demo).
       SIGNUP_OPEN: "1"
+    # PID-1 init so SIGTERM reaches node (graceful shutdown) instead of being swallowed.
+    init: true
     ports:
-      # Host 3001 → container 3000 (3000 is used by another local project).
-      - "3001:3000"
+      # Host 3001 → container 3000. Bound to 127.0.0.1 — only the co-located Cloudflare
+      # tunnel (→ localhost:3001) should reach the app; never expose it to the LAN.
+      - "127.0.0.1:3001:3000"
     # Resource caps so one runaway request/report can't OOM the box and take the
     # co-located Postgres/Redis down with it (whole-fleet outage on a single VPS).
     mem_limit: 2g
@@ -150,6 +170,19 @@ services:
       NODE_ENV: production
     mem_limit: 1500m
     cpus: 1.0
+    # PID-1 init + a longer grace so SIGTERM drains in-flight BullMQ jobs (worker.close())
+    # before Docker SIGKILLs on deploy/restart, instead of hard-killing mid-job.
+    init: true
+    stop_grace_period: 45s
+    # The worker also serves /api/health (same image runs server.js); with WORKER=1 that
+    # probe requires DB + Redis + a fresh liveness heartbeat, so a wedged/dead processor
+    # goes unhealthy and Docker restarts it (a background worker has no other liveness signal).
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy

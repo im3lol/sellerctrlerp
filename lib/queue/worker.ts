@@ -34,6 +34,12 @@ const CONC: Record<QueueName, number> = {
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
 
 let started = false;
+let closing = false;
+const workers: Worker[] = [];
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+/** Liveness key: the worker refreshes it on an interval; /api/health (WORKER=1) 503s
+ *  when it goes stale so a wedged event loop / dead worker gets restarted by Docker. */
+export const WORKER_HEARTBEAT_KEY = "worker:heartbeat";
 
 export function startWorkers(): void {
   if (started) return;
@@ -52,6 +58,7 @@ export function startWorkers(): void {
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
     const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data), { connection, concurrency: CONC[name] ?? 2, limiter: LIMITER });
     w.on("failed", (job, err) => console.error(`[queue] ${name} job ${job?.id} failed:`, err?.message));
+    workers.push(w);
     return w;
   };
 
@@ -70,10 +77,30 @@ export function startWorkers(): void {
   make(QUEUES.maintenance, runMaintenanceJob);
   console.log("[queue] Amazon sync workers started");
 
+  // Liveness heartbeat: refresh a short-TTL Redis key so the worker container's
+  // healthcheck (via /api/health) can tell a live processor from a wedged event loop
+  // or a dead process — and Docker restarts it when the beat goes stale.
+  const beat = () => { void connection.set(WORKER_HEARTBEAT_KEY, String(Date.now()), "EX", 90).catch(() => {}); };
+  beat();
+  heartbeatTimer = setInterval(beat, 30_000);
+
   // Near-real-time: self-trigger the due-syncs enqueue every minute — no external
   // cron needed. Dynamic import keeps this off the web container's boot path.
   void import("./scheduler").then(({ startScheduler }) => startScheduler(60_000));
 
   // Real-time ORDER_CHANGE via SQS (no-op unless AWS env is configured).
   void import("./sqs-listener").then((m) => m.startSqsListener()).catch((e) => console.error("[sqs] boot failed:", e));
+}
+
+/**
+ * Graceful shutdown for SIGTERM/SIGINT (deploy/restart): stop the heartbeat and let
+ * BullMQ finish in-flight jobs. `worker.close()` waits for active jobs to complete
+ * (up to the container's stop_grace_period) instead of hard-killing them mid-write.
+ */
+export async function stopWorkers(): Promise<void> {
+  if (closing) return;
+  closing = true;
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  await Promise.all(workers.map((w) => w.close().catch((e) => console.error("[queue] worker close failed:", e))));
+  console.log("[queue] workers drained");
 }

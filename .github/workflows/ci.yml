@@ -1,12 +1,16 @@
 name: CI
 
+# `develop` is what actually deploys to prod (docker), so it MUST be gated too —
+# not just main. Otherwise a broken migration / failing engine check / RLS leak
+# ships with zero automated checks.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
+  # Static + build checks (no DB needed).
   check:
     runs-on: ubuntu-latest
     steps:
@@ -40,3 +44,55 @@ jobs:
           DATABASE_URL: postgres://user:pass@localhost:5432/db
           AUTH_SECRET: ci-placeholder-secret-not-used-at-build
           NEXT_PUBLIC_REALTIME: poll
+
+  # DB-backed checks: prove migrations apply on a fresh DB, RLS covers every org table,
+  # tenant isolation holds, and the financial engine (GL == inventory ledger, balanced
+  # postings, COGS) is intact. This is the regression net the money paths were missing.
+  db-checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sellerctrl
+          POSTGRES_PASSWORD: sellerctrl
+          POSTGRES_DB: sellerctrl
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sellerctrl"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DATABASE_URL: postgres://sellerctrl:sellerctrl@localhost:5432/sellerctrl
+      APPUSER_DATABASE_URL: postgres://appuser:appuser@localhost:5432/sellerctrl
+      AUTH_SECRET: ci-placeholder-secret-not-used
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Every migration must apply cleanly on a fresh DB — catches a broken/half-written
+      # migration before it reaches prod.
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      # appuser role + FORCE RLS + org_isolation policies (the core files).
+      - name: Apply RLS
+        run: npm run db:rls
+
+      # Every org-scoped table must have enforced RLS (fails if a new table slips through).
+      - name: RLS coverage guard
+        run: npx tsx scripts/checks/chk-rls-coverage.ts
+
+      - name: Seed demo data
+        run: npm run db:seed
+
+      # Financial-engine invariants (balanced postings, GL == inventory ledger, COGS).
+      - name: Engine checks
+        run: npm run test:engine
+
+      # Tenant isolation go/no-go: scope A never sees B, WITH CHECK blocks cross-writes.
+      - name: RLS leak test
+        run: npm run rls:leak
