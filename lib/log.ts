@@ -6,15 +6,39 @@ import "server-only";
 // or similar later, add the sink here behind an env flag — call sites don't change.
 type Level = "error" | "warn" | "info";
 
-// Optional external error sink — dep-free stand-in for Sentry. If ERROR_WEBHOOK_URL is
-// set (a Sentry/Slack/webhook ingest URL), error events are POSTed there fire-and-forget
-// so the team is alerted instead of the failure only sitting in `docker logs`. Unset →
-// no-op. Never throws, never blocks the request.
-function forward(payload: string): void {
+// Optional external error sink — dep-free stand-in for Sentry. Two channels, both
+// fire-and-forget so a failure alerts the owner instead of only sitting in `docker logs`:
+//   • Telegram  — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (instant push to the phone)
+//   • Generic   — set ERROR_WEBHOOK_URL (Slack/Sentry/any webhook; receives the raw JSON)
+// Unset → no-op. Never throws, never blocks the request.
+//
+// Throttle: at most one alert per distinct event name per minute, so an error LOOP (the
+// worst case: a failing job retried every few seconds) can't flood the channel. The map
+// is bounded by the fixed set of event-name string literals in the codebase.
+const lastAlert = new Map<string, number>();
+function forward(level: Level, event: string, line: string): void {
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgChat = process.env.TELEGRAM_CHAT_ID;
   const url = process.env.ERROR_WEBHOOK_URL;
-  if (!url) return;
-  void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: payload })
-    .catch(() => {}); // alerting must never break the app
+  if (!url && !(tgToken && tgChat)) return;
+
+  const now = Date.now();
+  const prev = lastAlert.get(event);
+  if (prev && now - prev < 60_000) return;
+  lastAlert.set(event, now);
+
+  if (tgToken && tgChat) {
+    const text = `🔴 SellerCtrl [${level}] ${event}\n${line.slice(0, 3500)}`;
+    void fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: tgChat, text, disable_web_page_preview: true }),
+    }).catch(() => {});
+  }
+  if (url) {
+    void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: line })
+      .catch(() => {}); // alerting must never break the app
+  }
 }
 
 function emit(level: Level, event: string, ctx?: Record<string, unknown>): void {
@@ -25,7 +49,7 @@ function emit(level: Level, event: string, ctx?: Record<string, unknown>): void 
     }
   }
   const line = JSON.stringify(out);
-  if (level === "error") { console.error(line); forward(line); }
+  if (level === "error") { console.error(line); forward(level, event, line); }
   else if (level === "warn") console.warn(line);
   else console.log(line);
 }
