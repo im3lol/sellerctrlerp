@@ -17,6 +17,7 @@ import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/con
 import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 import { orderCreateFloor } from "./sync-range";
+import { log } from "@/lib/log";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
 // (which add auth on top) and the auto-sync cron (which has no user session).
@@ -79,7 +80,16 @@ export async function markSync(orgId: string, provider: string, patch: Partial<{
 async function coreFail(p: SyncPrep, e: unknown, fallback: string): Promise<{ ok: false; error: string }> {
   const authErr = p.connector.isAuthError?.(e) ?? isAmazonAuthError(e);
   if (authErr) {
+    // Alert once on the transition into needs-reauth (not on every retry, or the
+    // scheduler would page on each pass). log.error forwards to Telegram — otherwise a
+    // revoked token silently stops the seller's orders with no signal beyond the settings page.
+    const [cur] = await withOrgScope(p.orgId, false, () =>
+      db.select({ needsReauth: platformCredentials.needsReauth }).from(platformCredentials)
+        .where(and(eq(platformCredentials.organizationId, p.orgId), eq(platformCredentials.provider, p.provider))).limit(1));
     await markSync(p.orgId, p.provider, { needsReauth: true, lastSyncStatus: "reauth" }).catch(() => {});
+    if (!cur?.needsReauth) {
+      log.error("marketplace.reauth_required", { orgId: p.orgId, provider: p.provider, channel: p.connector.code, label: p.connector.label });
+    }
     return { ok: false, error: `انتهت صلاحية ربط ${p.connector.label} — أعد ربط الحساب` };
   }
   return { ok: false, error: e instanceof Error ? e.message : fallback };

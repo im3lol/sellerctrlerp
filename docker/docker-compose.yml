@@ -236,14 +236,15 @@ services:
     # mc is a single static binary (no package install) that speaks S3/R2.
     command: >
       sh -c '[ -x /usr/local/bin/mc ] || (wget -qO /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x /usr/local/bin/mc) || true;
+      alert() { [ -n "$$TELEGRAM_BOT_TOKEN" ] && [ -n "$$TELEGRAM_CHAT_ID" ] && wget -qO- --post-data="chat_id=$$TELEGRAM_CHAT_ID&text=$$1" "https://api.telegram.org/bot$$TELEGRAM_BOT_TOKEN/sendMessage" >/dev/null 2>&1 || true; };
       while true; do
         f=/backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump;
         if pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f "$$f"; then
           echo "[backup] ok";
           if [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ]; then
-            mc alias set offsite "$$OFFSITE_S3_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" >/dev/null 2>&1 && mc cp "$$f" "offsite/$$OFFSITE_S3_BUCKET/pg/" >/dev/null 2>&1 && echo "[backup] offsite ok" || echo "[backup] offsite FAILED";
+            mc alias set offsite "$$OFFSITE_S3_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" >/dev/null 2>&1 && mc cp "$$f" "offsite/$$OFFSITE_S3_BUCKET/pg/" >/dev/null 2>&1 && echo "[backup] offsite ok" || { echo "[backup] offsite FAILED"; alert "SellerCtrl_backup_offsite_upload_FAILED"; };
           fi;
-        else echo "[backup] FAILED"; fi;
+        else echo "[backup] FAILED"; alert "SellerCtrl_nightly_pg_dump_FAILED"; fi;
         find /backups -name "sellerctrl-*.dump" -mtime +14 -delete;
         sleep 86400;
       done'
