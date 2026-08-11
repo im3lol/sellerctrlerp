@@ -57,7 +57,7 @@ export function exportOrgData(orgId: string, orgName = "org"): Promise<OrgBackup
 export async function backupOrgToStorage(orgId: string, orgName: string, kind: "SCHEDULED" | "MANUAL" = "SCHEDULED", userId: string | null = null) {
   const b = await exportOrgData(orgId, orgName);
   const key = `backups/${orgId}/${b.filename}`;
-  await putObject(key, b.buffer, "application/gzip");
+  await putObject(key, b.buffer, "application/gzip", { private: true });
   await db.insert(backupRuns).values({ organizationId: orgId, storageKey: key, sizeBytes: b.buffer.length, totalRows: b.totalRows, tableCount: b.tableCount, kind, createdById: userId });
   return { key, ...b };
 }
@@ -81,7 +81,7 @@ export async function pruneBackups(orgId: string, keep = 14): Promise<number> {
     .from(backupRuns).where(eq(backupRuns.organizationId, orgId)).orderBy(desc(backupRuns.createdAt));
   const old = rows.slice(keep);
   for (const r of old) {
-    try { await deleteObject(r.storageKey); } catch { /* object may already be gone */ }
+    try { await deleteObject(r.storageKey, { private: true }); } catch { /* object may already be gone */ }
     await db.delete(backupRuns).where(eq(backupRuns.id, r.id));
   }
   return old.length;

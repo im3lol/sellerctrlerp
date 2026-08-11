@@ -39,7 +39,12 @@ services:
       timeout: 5s
       retries: 10
 
-  # Creates the bucket on first boot.
+  # Creates the buckets on first boot. Two buckets by sensitivity:
+  #   sellerctrl          — PUBLIC (anonymous download): display assets only (item images,
+  #                         org logos, academy images) served via publicUrl().
+  #   sellerctrl-private  — PRIVATE (no anonymous): per-tenant backups + document
+  #                         attachments; reachable ONLY via short-lived presigned URLs
+  #                         issued by guarded routes. Never expose this bucket.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -50,7 +55,9 @@ services:
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/sellerctrl &&
       mc anonymous set download local/sellerctrl &&
-      echo 'bucket ready';
+      mc mb --ignore-existing local/sellerctrl-private &&
+      mc anonymous set none local/sellerctrl-private &&
+      echo 'buckets ready';
       "
 
   adminer:

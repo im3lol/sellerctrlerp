@@ -80,7 +80,7 @@ export async function addAttachmentAction(
     // The binary goes to object storage (not the DB); only its key is stored.
     const safe = fileName.replace(/[^\w.\-]+/g, "_");
     const storageKey = `attachments/${auth.orgId}/${Date.now()}-${safe}`;
-    try { await putObject(storageKey, buf, mimeType); }
+    try { await putObject(storageKey, buf, mimeType, { private: true }); }
     catch { return { error: "تعذّر رفع الملف للتخزين" }; }
 
     const [row] = await db
@@ -126,7 +126,7 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<{ ok
   return withOrgScope(auth.orgId, false, async () => {
     await db.delete(documentAttachments).where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, auth.orgId)));
     // Remove the object too (best-effort; a leftover object is harmless, a failed delete shouldn't block).
-    if (row.storageKey) { try { await deleteObject(row.storageKey); } catch { /* orphan object, non-fatal */ } }
+    if (row.storageKey) { try { await deleteObject(row.storageKey, { private: true }); } catch { /* orphan object, non-fatal */ } }
     return { ok: true };
   });
 }
