@@ -96,6 +96,8 @@ services:
       REDIS_URL: redis://redis:6379
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
+      # Open public self-serve signup (/signup). Unset = closed (landing → request a demo).
+      SIGNUP_OPEN: "1"
     ports:
       # Host 3001 → container 3000 (3000 is used by another local project).
       - "3001:3000"
