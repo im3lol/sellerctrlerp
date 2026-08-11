@@ -66,7 +66,10 @@ export async function getStockBalances(orgId: string, filters: StockBalanceFilte
       JOIN items i ON i.id = sm.item_id
       JOIN warehouses w ON w.id = sm.warehouse_id
       WHERE sm.organization_id = ${orgId}
-      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, sm.number DESC
+      -- Tie-break the "latest movement per item+wh" on the NNNN part of SM-YYYY-NNNN
+      -- NUMERICALLY: as text "SM-2026-9999" sorts after "SM-2026-10001", which would
+      -- pick a stale balance once an org passes 9999 movements/year. Matches inventory.ts.
+      ORDER BY sm.item_id, sm.warehouse_id, sm.created_at DESC, split_part(sm.number, '-', 3)::int DESC
     `),
     db.execute<{ item_id: string; warehouse_id: string; nearest: string }>(sql`
       SELECT item_id, warehouse_id, min(expiry_date) AS nearest FROM stock_batches

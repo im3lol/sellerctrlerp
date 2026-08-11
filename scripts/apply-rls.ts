@@ -21,7 +21,7 @@ const OWNER_URL =
   process.env.DATABASE_URL ??
   "postgres://sellerctrl:sellerctrl@localhost:5433/sellerctrl";
 
-const FILES = ["00-appuser.sql", "01-policies.sql", "02-line-policies.sql"];
+const FILES = ["00-appuser.sql", "01-policies.sql", "02-line-policies.sql", "03-triggers.sql"];
 
 async function main() {
   const pool = new Pool({ connectionString: OWNER_URL });

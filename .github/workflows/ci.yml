@@ -73,13 +73,14 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # Every migration must apply cleanly on a fresh DB — catches a broken/half-written
-      # migration before it reaches prod.
-      - name: Apply migrations
-        run: npm run db:migrate
+      # Build the full schema from db/schema.ts (the source of truth — the drizzle
+      # migration journal is frozen at 0051; later DDL is maintained via push). --force
+      # is safe on an empty CI DB (no data to lose) and non-interactive.
+      - name: Apply schema (drizzle push)
+        run: npx drizzle-kit push --force
 
-      # appuser role + FORCE RLS + org_isolation policies (the core files).
-      - name: Apply RLS
+      # appuser role + FORCE RLS + org_isolation policies + integrity triggers.
+      - name: Apply RLS + triggers
         run: npm run db:rls
 
       # Every org-scoped table must have enforced RLS (fails if a new table slips through).
