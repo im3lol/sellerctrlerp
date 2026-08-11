@@ -26,6 +26,7 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "1103", nameAr: "العملاء (المدينون)", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "1104", nameAr: "المخزون", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "1107", nameAr: "ضريبة المدخلات", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
+  { code: "1108", nameAr: "مجمع إعادة تقييم العملة الأجنبية", type: "ASSET", normalBalance: "DEBIT", isLeaf: true, parent: "11" },
   { code: "2", nameAr: "الخصوم", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: null },
   { code: "21", nameAr: "الخصوم المتداولة", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: false, parent: "2" },
   { code: "2101", nameAr: "الموردون (الدائنون)", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
@@ -39,12 +40,14 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "4103", nameAr: "تعويضات المنصات (إيرادات أخرى)", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4201", nameAr: "فائض المخزون (أرباح جرد)", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "4202", nameAr: "أرباح بيع أصول ثابتة", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
+  { code: "4203", nameAr: "أرباح فروق العملة", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
   { code: "5", nameAr: "المصروفات", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: false, parent: null },
   { code: "5101", nameAr: "تكلفة البضاعة المباعة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5201", nameAr: "مصروفات عمومية وإدارية", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5301", nameAr: "عجز وتالف المخزون (خسائر جرد)", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5302", nameAr: "فروق أسعار مرتجعات الشراء", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
   { code: "5303", nameAr: "خسائر بيع أصول ثابتة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
+  { code: "5304", nameAr: "خسائر فروق العملة", type: "EXPENSE", normalBalance: "DEBIT", isLeaf: true, parent: "5" },
 ];
 
 export const DEFAULT_JOURNALS = [
