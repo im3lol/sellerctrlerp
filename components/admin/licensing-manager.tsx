@@ -4,17 +4,20 @@ import Link from "next/link";
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, SlidersHorizontal, LogIn } from "lucide-react";
+import { Loader2, SlidersHorizontal, LogIn, MoreVertical, Plus, Ban, Play, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { setSubscriptionAction } from "@/app/actions/admin/licensing";
 import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
+import { createTenantAction, resetTenantAction, deleteTenantAction, setTenantStatusAction } from "@/app/actions/admin/tenants";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { selectCls } from "@/lib/utils";
 
 export type OrgSub = { id: string; name: string; status: string; planId: string; planName: string; interval: string; price: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null; members: number; storageBytes: number; expiresAt: string };
@@ -124,8 +127,13 @@ const daysLeftOf = (o: OrgSub) => (o.expiresAt ? Math.ceil((new Date(o.expiresAt
 const isAtRisk = (o: OrgSub) => { const d = daysLeftOf(o); return o.status === "EXPIRED" || o.status === "CANCELLED" || o.status === "SUSPENDED" || (o.status === "ACTIVE" && d != null && d <= 7); };
 
 export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanOpt[] }) {
+  const router = useRouter();
   const [editing, setEditing] = useState<OrgSub | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [resetting, setResetting] = useState<OrgSub | null>(null);
+  const [deleting, setDeleting] = useState<OrgSub | null>(null);
   const [imp, startImp] = useTransition();
+  const [busy, startBusy] = useTransition();
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("ALL");
   const [sortK, setSortK] = useState("name");
@@ -133,6 +141,11 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
   const support = (id: string) => startImp(async () => {
     const r = await impersonateTenantAction(id); // redirects on success; returns on error
     if (r && "error" in r) toast.error(r.error);
+  });
+  const flipStatus = (o: OrgSub, status: string) => startBusy(async () => {
+    const r = await setTenantStatusAction({ orgId: o.id, status });
+    if (r.ok) { toast.success(status === "SUSPENDED" ? "تم إيقاف المؤسسة" : "تمت إعادة تفعيل المؤسسة"); router.refresh(); }
+    else toast.error(r.error);
   });
 
   const view = useMemo(() => {
@@ -167,7 +180,8 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
             <option value="members">ترتيب: المستخدمون</option>
           </select>
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground"><input type="checkbox" checked={riskOnly} onChange={(e) => setRiskOnly(e.target.checked)} className="size-4" />معرّض للخطر فقط</label>
-          <span className="ms-auto text-sm text-muted-foreground tabular-nums">{view.length} / {orgs.length}</span>
+          <Button size="sm" className="ms-auto gap-1.5" onClick={() => setCreating(true)}><Plus className="size-4" />إضافة مؤسسة</Button>
+          <span className="text-sm text-muted-foreground tabular-nums">{view.length} / {orgs.length}</span>
         </div>
         <Table>
           <TableHeader>
@@ -201,6 +215,19 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
                     <div className="flex items-center gap-1.5">
                       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(o)}><SlidersHorizontal className="size-3.5" />تعديل</Button>
                       <Button size="sm" variant="ghost" className="gap-1.5 text-primary hover:bg-primary/10" disabled={imp} onClick={() => support(o.id)} title="دخول لمساحة المؤسسة للدعم">{imp ? <Loader2 className="size-3.5 animate-spin" /> : <LogIn className="size-3.5" />}دخول للدعم</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="size-8 text-muted-foreground" disabled={busy} title="إجراءات أخرى"><MoreVertical className="size-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          {o.status === "SUSPENDED"
+                            ? <DropdownMenuItem onClick={() => flipStatus(o, "ACTIVE")}><Play className="size-4" />إعادة التفعيل</DropdownMenuItem>
+                            : <DropdownMenuItem onClick={() => flipStatus(o, "SUSPENDED")}><Ban className="size-4" />إيقاف المؤسسة</DropdownMenuItem>}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setResetting(o)} className="text-amber-600 focus:text-amber-600"><RotateCcw className="size-4" />تصفير البيانات</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleting(o)} className="text-destructive focus:text-destructive"><Trash2 className="size-4" />حذف المؤسسة</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -212,6 +239,123 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         {editing && <EditDialog key={editing.id} org={editing} plans={plans} onClose={() => setEditing(null)} />}
       </Dialog>
+      <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
+        {creating && <CreateDialog onClose={() => setCreating(false)} />}
+      </Dialog>
+      <Dialog open={!!resetting} onOpenChange={(o) => !o && setResetting(null)}>
+        {resetting && <ResetDialog key={resetting.id} org={resetting} onClose={() => setResetting(null)} />}
+      </Dialog>
+      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        {deleting && <DeleteDialog key={deleting.id} org={deleting} onClose={() => setDeleting(null)} />}
+      </Dialog>
     </Card>
+  );
+}
+
+/** Create a new tenant (org + owner login + trial). */
+function CreateDialog({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [f, setF] = useState({ companyName: "", ownerName: "", email: "", password: "", phone: "" });
+  const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const submit = () => start(async () => {
+    const r = await createTenantAction(f);
+    if (r.ok) { toast.success("تم إنشاء المؤسسة وحساب المالك"); onClose(); router.refresh(); }
+    else toast.error(r.error);
+  });
+  return (
+    <DialogContent dir="rtl">
+      <DialogHeader>
+        <DialogTitle>إضافة مؤسسة</DialogTitle>
+        <DialogDescription>تُنشأ المؤسسة بفترة تجريبية + حساب دخول للمالك يسجّل بالبريد وكلمة المرور أدناه.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3">
+        <div className="space-y-1.5"><Label>اسم المؤسسة</Label><Input value={f.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="شركة ..." /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5"><Label>اسم المالك</Label><Input value={f.ownerName} onChange={(e) => set("ownerName", e.target.value)} placeholder="الاسم الكامل" /></div>
+          <div className="space-y-1.5"><Label>الهاتف (اختياري)</Label><Input value={f.phone} onChange={(e) => set("phone", e.target.value)} dir="ltr" /></div>
+        </div>
+        <div className="space-y-1.5"><Label>البريد الإلكتروني (للدخول)</Label><Input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} dir="ltr" placeholder="owner@company.com" /></div>
+        <div className="space-y-1.5"><Label>كلمة المرور المؤقتة</Label><Input type="text" value={f.password} onChange={(e) => set("password", e.target.value)} dir="ltr" placeholder="8 أحرف على الأقل" /></div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button onClick={submit} disabled={pending || !f.companyName || !f.ownerName || !f.email || !f.password}>{pending && <Loader2 className="size-4 animate-spin" />}إنشاء</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+/** Reset a tenant's data (keeps identity). Typed-name confirm + optional master wipe. */
+function ResetDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [confirmName, setConfirmName] = useState("");
+  const [wipeMaster, setWipeMaster] = useState(false);
+  const go = () => start(async () => {
+    const r = await resetTenantAction({ orgId: org.id, confirmName, wipeMasterData: wipeMaster });
+    if (r.ok) { toast.success(`تم تصفير بيانات «${org.name}»`); onClose(); router.refresh(); }
+    else toast.error(r.error);
+  });
+  return (
+    <DialogContent dir="rtl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2 text-amber-600"><RotateCcw className="size-5" />تصفير بيانات المؤسسة</DialogTitle>
+        <DialogDescription>
+          يُمسح كل الحركات في «{org.name}» (فواتير، أوامر، أذون، مرتجعات، قيود، حركة المخزون، التسويات، المدفوعات) بشكل
+          لا يمكن التراجع عنه. تبقى هوية الشركة: الاسم والمستخدمون والاشتراك وربط المنصات.
+        </DialogDescription>
+      </DialogHeader>
+      <label className="flex items-start gap-2.5 rounded-lg border p-3 text-sm">
+        <Checkbox checked={wipeMaster} onCheckedChange={(v) => setWipeMaster(!!v)} className="mt-0.5" />
+        <span>
+          <span className="font-medium text-destructive">امسح البيانات الأساسية كمان</span>
+          <span className="block text-xs text-muted-foreground">أصناف، عملاء، موردين، مخازن، دليل الحسابات، البنوك — ثم يُعاد إنشاء دليل حسابات ومخزن افتراضي نظيف.</span>
+        </span>
+      </label>
+      <div className="space-y-1.5">
+        <Label>للتأكيد، اكتب اسم المؤسسة بالضبط:</Label>
+        <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={org.name} autoComplete="off" />
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button onClick={go} disabled={pending || confirmName.trim() !== org.name.trim()} className="bg-amber-600 text-white hover:bg-amber-700">
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}تصفير البيانات
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+/** Permanently delete a tenant. Typed-name confirm. */
+function DeleteDialog({ org, onClose }: { org: OrgSub; onClose: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [confirmName, setConfirmName] = useState("");
+  const go = () => start(async () => {
+    const r = await deleteTenantAction({ orgId: org.id, confirmName });
+    if ("ok" in r && r.ok) { toast.success(`تم حذف «${org.name}» وكل بياناتها نهائيًا`); onClose(); router.refresh(); }
+    else toast.error(("error" in r && r.error) || "تعذّر الحذف");
+  });
+  return (
+    <DialogContent dir="rtl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2 text-destructive"><TriangleAlert className="size-5" />حذف المؤسسة نهائيًا</DialogTitle>
+        <DialogDescription>
+          سيُحذف كل شيء يخص «{org.name}» بلا رجعة: المستخدمون، الفواتير، القيود، المخزون، الاشتراك، وربط المنصات.
+          للتأكيد، اكتب اسم المؤسسة بالضبط:
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-1.5">
+        <Label>اسم المؤسسة</Label>
+        <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={org.name} autoComplete="off" />
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="destructive" onClick={go} disabled={pending || confirmName.trim() !== org.name.trim()}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف نهائي
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
