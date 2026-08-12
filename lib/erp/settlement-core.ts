@@ -15,7 +15,8 @@ import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturn
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensurePlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
-import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, type SettleAmounts } from "@/lib/erp/settlement-gl";
+import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
+import { FEE_CATEGORY_ACCOUNT, FEE_CATEGORY_LABEL, type FeeCatKey } from "@/lib/erp/settlement-fees";
 import { bust, orgKey } from "@/lib/cache";
 
 // Session-less settlement engine shared by the file-upload action, the SP-API sync
@@ -61,39 +62,47 @@ export function aggregateGL(rows: { type: string; productSales: number; shipping
   return { receivable: r2(receivable), fees: r2(fees), bank: r2(bank), clearing: r2(clearing) };
 }
 
-/** Get-or-create the Amazon clearing (asset) + Amazon fees (expense) accounts.
- *  Resolves the org's configured accounts (receivable/bank/clearing/fees) via the
- *  override layer; only creates 1108/5203 with default codes when neither an
- *  override nor an existing account is found. */
-async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; fees: string; receivable: string; bank: string } | { error: string }> {
-  const ov = await resolveAccountIds(orgId, ["1103", "1102", "1108", "5203"]);
+/** Get-or-create the Amazon clearing (asset) + Amazon fees (expense) accounts + the
+ *  per-category fee sub-accounts. Resolves the org's configured accounts via the override
+ *  layer; only creates the default-coded ones when neither an override nor an existing
+ *  account is found. `feeAcc` maps each routed fee category → its GL account. */
+async function ensureAmazonAccounts(orgId: string): Promise<{ clearing: string; fees: string; receivable: string; bank: string; feeAcc: Partial<Record<FeeCatKey, string>> } | { error: string }> {
+  const feeDefs = Object.entries(FEE_CATEGORY_ACCOUNT) as [FeeCatKey, { code: string; nameAr: string }][];
+  const ov = await resolveAccountIds(orgId, ["1103", "1102", "1108", "5203", "5", "11", ...feeDefs.map(([, d]) => d.code)]);
   const receivable = ov["1103"];
   const bank = ov["1102"];
   if (!receivable || !bank) return { error: "أنشئ دليل الحسابات القياسي أولاً (حسابات الذمم/البنك غير موجودة)" };
+  const parent5 = ov["5"] ?? null;
+  const parent11 = ov["11"] ?? null;
 
   let clearing = ov["1108"];
   let fees = ov["5203"];
-  if (!clearing || !fees) {
-    // Only load the rollup parents when we actually need to create an account.
-    const parents = await db.select({ id: accounts.id, code: accounts.code }).from(accounts)
-      .where(and(eq(accounts.organizationId, orgId), inArray(accounts.code, ["11", "5"])));
-    const byCode = new Map(parents.map((a) => [a.code, a.id]));
-    if (!clearing) {
-      const [r] = await db.insert(accounts).values({
-        organizationId: orgId, code: "1108", nameAr: "رصيد أمازون الوسيط", type: "ASSET", normalBalance: "DEBIT",
-        parentId: byCode.get("11") ?? null, isLeaf: true,
-      }).returning({ id: accounts.id });
-      clearing = r.id;
-    }
-    if (!fees) {
-      const [r] = await db.insert(accounts).values({
-        organizationId: orgId, code: "5203", nameAr: "رسوم أمازون", type: "EXPENSE", normalBalance: "DEBIT",
-        parentId: byCode.get("5") ?? null, isLeaf: true,
-      }).returning({ id: accounts.id });
-      fees = r.id;
-    }
+  if (!clearing) {
+    const [r] = await db.insert(accounts).values({
+      organizationId: orgId, code: "1108", nameAr: "رصيد أمازون الوسيط", type: "ASSET", normalBalance: "DEBIT", parentId: parent11, isLeaf: true,
+    }).returning({ id: accounts.id });
+    clearing = r.id;
   }
-  return { clearing, fees, receivable, bank };
+  if (!fees) {
+    const [r] = await db.insert(accounts).values({
+      organizationId: orgId, code: "5203", nameAr: "رسوم أمازون", type: "EXPENSE", normalBalance: "DEBIT", parentId: parent5, isLeaf: true,
+    }).returning({ id: accounts.id });
+    fees = r.id;
+  }
+  // Per-category fee sub-accounts (advertising/FBA/referral/…), created on demand so the
+  // P&L splits fees instead of lumping them on 5203. Reimbursement/other stay on 5203.
+  const feeAcc: Partial<Record<FeeCatKey, string>> = {};
+  for (const [key, def] of feeDefs) {
+    let id = ov[def.code];
+    if (!id) {
+      const [r] = await db.insert(accounts).values({
+        organizationId: orgId, code: def.code, nameAr: def.nameAr, type: "EXPENSE", normalBalance: "DEBIT", parentId: parent5, isLeaf: true,
+      }).returning({ id: accounts.id });
+      id = r.id;
+    }
+    feeAcc[key] = id;
+  }
+  return { clearing, fees, receivable, bank, feeAcc };
 }
 
 /** Map order ids in the file to existing sales orders on this channel. */
@@ -320,7 +329,7 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
   if (startDate) toPostConds.push(sql`${marketplaceSettlementTxns.releaseDate} >= ${startDate}`);
 
   const toPost = await db.select({
-    id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type,
+    id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type, description: marketplaceSettlementTxns.description,
     productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
     promotionalRebates: marketplaceSettlementTxns.promotionalRebates, sellingFees: marketplaceSettlementTxns.sellingFees,
     fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
@@ -372,6 +381,23 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
   const line = (accountId: string, amount: number, description: string) =>
     ({ accountId, debit: amount >= 0 ? amount : 0, credit: amount < 0 ? -amount : 0, description });
 
+  // Split the total fee across per-category GL sub-accounts, with a residual line on the
+  // base fees account (5203) absorbing rounding + reimbursement/other so Σ == totalFees
+  // exactly (the balance trigger rejects any 0.01 drift). Same shape whether the categories
+  // come from an order's fee buckets or the non-order rows.
+  const routedCats = Object.keys(FEE_CATEGORY_ACCOUNT) as FeeCatKey[];
+  const feeLines = (totalFees: number, byCat: Partial<Record<FeeCatKey, number>>, label: string) => {
+    const out: ReturnType<typeof line>[] = [];
+    let residual = r2(totalFees);
+    for (const k of routedCats) {
+      const amt = r2(byCat[k] ?? 0);
+      const acc = accs.feeAcc[k];
+      if (amt !== 0 && acc) { out.push(line(acc, amt, `${FEE_CATEGORY_LABEL[k]} — ${label}`)); residual = r2(residual - amt); }
+    }
+    if (residual !== 0) out.push(line(accs.fees, residual, `رسوم ${label}`));
+    return out;
+  };
+
   const nonOrderPostable = nonOrderRows.length > 0 && (() => {
     const gl = nonOrderGL(nonOrderRows.map(numAmounts));
     return gl.fees !== 0 || gl.bank !== 0 || gl.clearing !== 0;
@@ -407,7 +433,7 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
         const inv = invByOrder.get(oid)!;
         const lines = [
           line(accs.clearing, gl.clearing, `رصيد ${cfg.label} — فاتورة ${inv.invoiceNumber}`),
-          line(accs.fees, gl.fees, `رسوم ${cfg.label} — فاتورة ${inv.invoiceNumber}`),
+          ...feeLines(gl.fees, perOrderFeesByCat(grp.map(numAmounts)), `${cfg.label} — فاتورة ${inv.invoiceNumber}`),
           line(accs.receivable, -gl.receivable, `تحصيل ذمم — فاتورة ${inv.invoiceNumber}`),
         ].filter((l) => l.debit !== 0 || l.credit !== 0);
         if (lines.length === 0) continue;
@@ -435,9 +461,10 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
       // ── one aggregated entry for non-order rows (ads / fees / transfers) ──
       if (nonOrderPostable) {
         const gl = nonOrderGL(nonOrderRows.map(numAmounts));
+        const byCat = nonOrderFeesByCat(nonOrderRows.map((r) => ({ type: r.type, description: r.description, total: Number(r.total) })));
         const lines = [
           line(accs.clearing, gl.clearing, `صافي رصيد ${cfg.label} (بنود غير مرتبطة بطلب)`),
-          line(accs.fees, gl.fees, `رسوم ومصاريف ${cfg.label}`),
+          ...feeLines(gl.fees, byCat, `${cfg.label}`),
           line(accs.bank, gl.bank, `تحويلات ${cfg.label} إلى البنك`),
         ].filter((l) => l.debit !== 0 || l.credit !== 0);
         if (lines.length > 0) {

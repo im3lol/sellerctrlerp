@@ -31,6 +31,22 @@ export const FEE_CATEGORY_LABEL: Record<FeeCatKey, string> = {
 /** Only `reimbursement` is income (money in); every other category is a cost. */
 export const isIncomeCategory = (k: FeeCatKey) => k === "reimbursement";
 
+/**
+ * Expense fee categories that get their own GL sub-account at settlement post time, so
+ * the P&L shows advertising vs FBA vs referral as separate lines instead of one lump.
+ * `other` and `reimbursement` are intentionally excluded — they stay on the residual
+ * account (5203) so the reimbursement income-offset behaviour is unchanged. Created on
+ * demand under the expenses parent (5); the org can rename them.
+ */
+export const FEE_CATEGORY_ACCOUNT: Partial<Record<FeeCatKey, { code: string; nameAr: string }>> = {
+  referral: { code: "5211", nameAr: "عمولة بيع الأسواق (Referral)" },
+  fba: { code: "5212", nameAr: "رسوم تنفيذ FBA" },
+  other_txn: { code: "5213", nameAr: "رسوم معاملات الأسواق" },
+  advertising: { code: "5214", nameAr: "إعلانات الأسواق" },
+  storage: { code: "5215", nameAr: "تخزين FBA" },
+  subscription: { code: "5216", nameAr: "اشتراك البائع" },
+};
+
 export type SettlementFeeRow = {
   type: string;
   description?: string | null;
