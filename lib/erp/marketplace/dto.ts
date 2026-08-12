@@ -62,6 +62,11 @@ export type MarketplaceInventoryDetail = {
   researching: number;         // Amazon investigating a discrepancy
 };
 
+/** One inventory write-back: set the channel's available quantity for a seller SKU.
+ *  Produced by computePushUpdates (the ERP→channel diff) and consumed by a connector's
+ *  optional pushInventory — the multi-channel oversell-prevention seam. */
+export type MarketplaceInventoryUpdate = { code: string; available: number };
+
 /** A marketplace listing — matched to an item by `code` (SKU) or `altCode` (ASIN). */
 export type MarketplaceProduct = {
   code: string;      // seller SKU

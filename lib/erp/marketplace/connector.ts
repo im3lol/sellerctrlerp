@@ -1,4 +1,4 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, MarketplaceInventoryUpdate, DateRange } from "./dto";
 import type { OAuthState } from "./oauth-state";
 import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
@@ -90,6 +90,11 @@ export interface MarketplaceConnector {
   fetchCatalog?(cred: Credential, asins: string[]): Promise<CatalogRecord[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
+  /** OPTIONAL write-back (P2.1): set the channel's available quantity for these SKUs, to stop
+   *  the same SKU overselling across channels. Only connectors that support inventory WRITES
+   *  implement it; the push is gated per-platform and OFF by default, and must be verified on
+   *  a sandbox channel before any live account. Returns how many were pushed + per-SKU errors. */
+  pushInventory?(cred: Credential, updates: MarketplaceInventoryUpdate[]): Promise<{ pushed: number; errors: { code: string; error: string }[] }>;
   /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
    *  the Inventory Auditor's data source. */
   fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
