@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
@@ -59,6 +59,14 @@ export async function applyInventoryReconciliationAction(
     const [platform] = await db.select({ warehouseId: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
       .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
     if (!platform?.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
+
+    // Refuse a blanket "set" into a warehouse another platform also uses — setting stock to
+    // THIS channel's on-hand would wipe the other channel's stock in the shared warehouse.
+    // Reconciliation must land in a channel-dedicated warehouse.
+    const [shared] = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.defaultWarehouseId, platform.warehouseId), ne(salesPlatforms.id, platformId))).limit(1);
+    if (shared) return { ok: false, error: "هذا المخزن مشترك مع منصّة أخرى — تطبيق المطابقة سيضبط المخزون على أرقام هذه القناة ويمحو مخزون القناة الأخرى. خصّص مخزنًا مستقلًا لكل منصة أولًا." };
+
     const clean = entries.filter((e) => e.itemId && Number.isFinite(e.qty) && e.qty >= 0);
     if (clean.length === 0) return { ok: false, error: "لا توجد بنود للمطابقة" };
     if (clean.length > 500) return { ok: false, error: "عدد كبير من البنود — طابق حتى 500 صنف في المرة" };
