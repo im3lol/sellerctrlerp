@@ -143,21 +143,23 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
     }
 
     // 2) restock only when actually received, via a delivery return off the original delivery.
+    // If restock is required but CANNOT be done, surface an error — never fall through and
+    // stamp RECEIVED, which would leave the invoice reversed but the goods lost from the books.
+    // The money credit note stays posted; a retry (money already POSTED → step 1 skips) finishes
+    // the stock side once the cause is fixed, then stamps below.
     if (plan.restock && money.salesOrderId) {
       const [dn] = await db.select({ id: deliveryNotes.id }).from(deliveryNotes)
         .where(and(eq(deliveryNotes.organizationId, auth.orgId), eq(deliveryNotes.salesOrderId, money.salesOrderId)))
         .orderBy(desc(deliveryNotes.createdAt)).limit(1);
       const rLines = await db.select({ itemId: salesReturnLines.itemId, quantity: salesReturnLines.quantity })
         .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, salesReturnId));
-      if (dn && rLines.length) {
-        const date = new Date().toISOString().slice(0, 10);
-        // unitPrice 0: the delivery-return confirm recomputes real restock cost server-side.
-        const created = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: rLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: 0 })) });
-        if (created.ok && created.id) {
-          const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition });
-          if ("error" in c) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${c.error}` };
-        }
-      }
+      if (!dn || !rLines.length) return { error: "تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: لا يوجد إذن تسليم مرتبط بالأمر — أرجِع المخزون يدويًا ثم أعد المحاولة." };
+      const date = new Date().toISOString().slice(0, 10);
+      // unitPrice 0: the delivery-return confirm recomputes real restock cost server-side.
+      const created = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: rLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: 0 })) });
+      if (!created.ok || !created.id) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${("error" in created && created.error) || "فشل إنشاء إرجاع التسليم"}` };
+      const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition });
+      if ("error" in c) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${c.error}` };
     }
 
     // Stamp the linked platform_returns row (if this return came from the sync) so R3 can

@@ -1,8 +1,9 @@
 import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates, organizations } from "@/db/schema";
 import { getBaseCurrencyCode } from "@/lib/erp/currency";
 import { orderToBase, isForeign } from "./order-fx";
+import { splitInclusiveOrderVat } from "@/lib/erp/vat";
 import { log } from "@/lib/log";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
@@ -176,6 +177,11 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // with NO rate on file is left unconverted; the loops below keep it DRAFT (never auto-invoice a
   // wrong-currency order) and we alert once per currency.
   const base = await getBaseCurrencyCode(orgId);
+  // Marketplace prices are VAT-INCLUSIVE — carve the VAT component out at ingest so the
+  // order/invoice recognises output VAT (2102) instead of booking 100% of channel revenue
+  // as tax-free. The gross total is preserved (settlement still reconciles).
+  const [orgRow] = await db.select({ vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const vatRate = Number(orgRow?.vatRate ?? 0);
   const foreignCodes = [...new Set(orders.filter((o) => isForeign(o, base)).map((o) => o.currency!))];
   const rateBy = new Map<string, number>();
   if (foreignCodes.length) {
@@ -227,19 +233,22 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
     try {
+      // Carve VAT out of the inclusive marketplace prices: net subtotal + per-line/order tax,
+      // gross line/order totals preserved (settlement still reconciles).
+      const vat = splitInclusiveOrderVat(o.lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal })), vatRate);
       return await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, orgId, "SO", d.getFullYear());
         const [so] = await tx.insert(salesOrders).values({
           organizationId: orgId, number, customerId: ctx.customerId, date: d, status,
-          subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
+          subtotal: String(vat.subtotalNet), taxAmount: String(vat.taxTotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
           totalAmount: String(round2(o.subtotal + o.shippingTotal - (o.discount ?? 0))),
           channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status,
           fulfillmentType: o.fulfillment ?? ctx.fulfillmentType ?? null,
           notes: `${ctx.label} ${o.externalId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
-        await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
+        await tx.insert(salesOrderLines).values(o.lines.map((l, i) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId: ctx.warehouseId,
-          quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
+          quantity: String(l.qty), unitPrice: String(vat.lines[i].unitPriceNet), taxAmount: String(vat.lines[i].taxAmount), totalAmount: String(l.lineTotal),
         })));
         // Always log — userId is null for the automatic (cron/worker) sync, which the
         // audit card shows as "تلقائي (النظام)". A manual sync carries the actor.
@@ -275,16 +284,17 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // latest fetch. Backfills prices Amazon only reveals once an order leaves Pending.
   const refreshDraft = async (existingId: string, o: PreviewOrder) => {
     const newTotal = round2(o.subtotal + o.shippingTotal - (o.discount ?? 0));
+    const vat = splitInclusiveOrderVat(o.lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal })), vatRate);
     const [prev] = await db.select({ total: salesOrders.totalAmount }).from(salesOrders).where(eq(salesOrders.id, existingId));
     const changed = prev != null && Math.abs(Number(prev.total) - newTotal) > 0.001;
     await db.transaction(async (tx) => {
       await tx.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, existingId));
-      if (o.lines.length) await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
+      if (o.lines.length) await tx.insert(salesOrderLines).values(o.lines.map((l, i) => ({
         salesOrderId: existingId, itemId: l.itemId!, warehouseId: ctx.warehouseId,
-        quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
+        quantity: String(l.qty), unitPrice: String(vat.lines[i].unitPriceNet), taxAmount: String(vat.lines[i].taxAmount), totalAmount: String(l.lineTotal),
       })));
       await tx.update(salesOrders).set({
-        subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
+        subtotal: String(vat.subtotalNet), taxAmount: String(vat.taxTotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
         totalAmount: String(newTotal), channelStatus: o.status, updatedAt: new Date(),
       }).where(eq(salesOrders.id, existingId));
     });
