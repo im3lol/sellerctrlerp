@@ -63,6 +63,7 @@ export function mapNoonOrder(o: NoonOrder): MarketplaceOrder {
     // FBPI orders are Fulfilled By Partner by definition (the seller ships). Noon's other
     // model is FBN (Fulfilled By Noon); a future FBN pull sets that instead.
     fulfillment: "FBP",
+    currency: o.currency_code,
     lines,
     subtotal, shippingTotal: 0, total: subtotal,
   };

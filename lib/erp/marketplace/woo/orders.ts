@@ -51,6 +51,7 @@ export function orderToDto(o: WooOrder): MarketplaceOrder {
     externalId: String(o.number || o.id),
     date: o.date_created_gmt ? `${o.date_created_gmt}Z` : (o.date_created ?? new Date(0).toISOString()),
     status: o.status === "completed" ? "Shipped" : o.status,
+    currency: o.currency,
     lines,
     subtotal,
     shippingTotal,

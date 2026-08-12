@@ -19,6 +19,7 @@ export type MarketplaceOrder = {
   date: string; // ISO
   status: string; // "Shipped" → fulfill now; anything else → stays DRAFT
   fulfillment?: string; // "FBA" | "FBM" — the platform-fulfilled vs merchant-fulfilled channel, when the source reports it
+  currency?: string; // ISO code the amounts are in (e.g. "AED"); absent = base currency (domestic). Foreign amounts are converted to base at ingest.
   lines: MarketplaceOrderLine[];
   subtotal: number;
   shippingTotal: number;

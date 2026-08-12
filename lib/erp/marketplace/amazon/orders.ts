@@ -8,7 +8,7 @@ import type { MarketplaceOrder, DateRange } from "../dto";
 // async report. Replaces the all-orders flat-file report in the connector.
 
 
-type Money = { Amount?: string | number };
+type Money = { Amount?: string | number; CurrencyCode?: string };
 type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string; FulfillmentChannel?: string };
 type OrdersResponse = { payload?: { Orders?: ApiOrder[]; NextToken?: string } };
 type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money; PromotionDiscount?: Money; ShipPromotionDiscount?: Money };
@@ -34,6 +34,9 @@ export function toMarketplaceOrder(o: ApiOrder, items: ApiOrderItem[]): Marketpl
   const discount = round2(items.reduce((s, it) => s + amt(it.PromotionDiscount) + amt(it.ShipPromotionDiscount), 0));
   return {
     externalId: o.AmazonOrderId ?? "", date: o.PurchaseDate ?? new Date().toISOString(), status: mapStatus(o.OrderStatus),
+    // Order currency from the line prices (all lines share it). amazon.eg → EGP (= base, no
+    // conversion); amazon.ae/.sa → AED/SAR, converted to base at ingest.
+    currency: items.find((it) => it.ItemPrice?.CurrencyCode)?.ItemPrice?.CurrencyCode,
     // AFN = Amazon-fulfilled (FBA), MFN = merchant-fulfilled (FBM).
     fulfillment: o.FulfillmentChannel === "AFN" ? "FBA" : o.FulfillmentChannel === "MFN" ? "FBM" : undefined,
     lines, subtotal, shippingTotal, discount, total: round2(subtotal + shippingTotal - discount),

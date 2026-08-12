@@ -1,6 +1,9 @@
-import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates } from "@/db/schema";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
+import { orderToBase, isForeign } from "./order-fx";
+import { log } from "@/lib/log";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -209,8 +212,32 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // (runOrdersJob passes the acting user's id). userId=null → import DRAFT only.
   const canFulfill = userId != null;
 
+  // Multi-currency: the ERP stores documents/GL in base currency. Convert any foreign-currency
+  // order (e.g. amazon.ae in AED) to base at the latest exchange rate on file BEFORE classify —
+  // otherwise its raw magnitude posts as if it were base (EGP). An order in a foreign currency
+  // with NO rate on file is left unconverted; the loops below keep it DRAFT (never auto-invoice a
+  // wrong-currency order) and we alert once per currency.
+  const base = await getBaseCurrencyCode(orgId);
+  const foreignCodes = [...new Set(orders.filter((o) => isForeign(o, base)).map((o) => o.currency!))];
+  const rateBy = new Map<string, number>();
+  if (foreignCodes.length) {
+    const rows = await db.select({ code: exchangeRates.currencyCode, rate: exchangeRates.rate, date: exchangeRates.date })
+      .from(exchangeRates)
+      .where(and(eq(exchangeRates.organizationId, orgId), inArray(exchangeRates.currencyCode, foreignCodes)))
+      .orderBy(exchangeRates.currencyCode, desc(exchangeRates.date));
+    for (const r of rows) if (!rateBy.has(r.code)) rateBy.set(r.code, Number(r.rate)); // first per code = latest
+  }
+  const fxAlerted = new Set<string>();
+  const prepped = orders.map((o) => {
+    if (!isForeign(o, base)) return o;
+    const rate = rateBy.get(o.currency!);
+    if (rate && rate > 0) return orderToBase(o, rate, base);
+    if (!fxAlerted.has(o.currency!)) { fxAlerted.add(o.currency!); log.error("marketplace.fx_rate_missing", { orgId, channel: ctx.channel, currency: o.currency }); }
+    return o; // unconverted → stays DRAFT below
+  });
+
   const existing = await existingOrders(orgId, ctx.channel);
-  const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
+  const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(prepped, resolve, existing);
 
   // Park each unmatched order (unknown product) for manual handling, and clear any parked
   // order that now resolves (its product was created since). Best-effort: a parking hiccup
@@ -318,7 +345,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
     // No identity (userId null) → keep DRAFT for a later authenticated sync.
     // autoMode "draft" = the user chose import-as-draft-only: never auto-confirm.
-    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft";
+    // A foreign order with no exchange rate on file was left unconverted — never auto-invoice it
+    // in the wrong currency; import as DRAFT so a human sets the rate / handles it.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft" && !isForeign(o, base);
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -327,6 +356,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of transitions) {
     if (!o.existingId) continue;
+    if (isForeign(o, base)) continue; // unconverted foreign (no rate) → don't refresh/advance in the wrong currency
     if (!o.lines.every((l) => l.itemId)) continue; // a line without an item → leave as-is
     // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
     if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
