@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, accountingJournals, fiscalPeriods, warehouses, currencies, organizations } from "@/db/schema";
+import { accounts, accountingJournals, fiscalPeriods, warehouses, currencies, organizations, unitsOfMeasure, customers } from "@/db/schema";
 import { fiscalYearBoundsFor } from "@/lib/erp/fiscal";
 
 /**
@@ -33,6 +33,7 @@ export const DEFAULT_COA: CoaEntry[] = [
   { code: "2102", nameAr: "ضريبة المخرجات", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
   { code: "2103", nameAr: "بضاعة مستلمة لم تُفوتر", type: "LIABILITY", normalBalance: "CREDIT", isLeaf: true, parent: "21" },
   { code: "3", nameAr: "حقوق الملكية", type: "EQUITY", normalBalance: "CREDIT", isLeaf: false, parent: null },
+  { code: "3002", nameAr: "حساب الأرصدة الافتتاحية", type: "EQUITY", normalBalance: "CREDIT", isLeaf: true, parent: "3" },
   { code: "3101", nameAr: "رأس المال", type: "EQUITY", normalBalance: "CREDIT", isLeaf: true, parent: "3" },
   { code: "4", nameAr: "الإيرادات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: false, parent: null },
   { code: "4101", nameAr: "إيرادات المبيعات", type: "REVENUE", normalBalance: "CREDIT", isLeaf: true, parent: "4" },
@@ -80,6 +81,8 @@ export type InitAccountingResult = {
   periodCreated: boolean;
   warehouseCreated: boolean;
   currencyCreated: boolean;
+  unitCreated: boolean;
+  cashCustomerCreated: boolean;
   skipped: boolean;
 };
 
@@ -100,7 +103,8 @@ export type InitAccountingResult = {
 export async function initializeAccountingForOrg(orgId: string): Promise<InitAccountingResult> {
   const result: InitAccountingResult = {
     accountsCreated: 0, journalsCreated: 0, periodCreated: false,
-    warehouseCreated: false, currencyCreated: false, skipped: false,
+    warehouseCreated: false, currencyCreated: false, unitCreated: false,
+    cashCustomerCreated: false, skipped: false,
   };
 
   const [{ n: acctCount }] = await db
@@ -170,6 +174,30 @@ export async function initializeAccountingForOrg(orgId: string): Promise<InitAcc
       exchangeRate: "1",
     });
     result.currencyCreated = true;
+  }
+
+  // Default unit of measure — the onboarding checklist counts "at least one unit" as an
+  // essential step, and item forms offer no unit creator, so without a seed a non-import
+  // seller can never satisfy it. PCS ("قطعة") is the sensible default; rename/add more later.
+  const [{ n: uomCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(unitsOfMeasure)
+    .where(eq(unitsOfMeasure.organizationId, orgId));
+  if (Number(uomCount) === 0) {
+    await db.insert(unitsOfMeasure).values({ organizationId: orgId, code: "PCS", nameAr: "قطعة", nameEn: "Piece" });
+    result.unitCreated = true;
+  }
+
+  // Default cash / walk-in customer — invoices hard-require a customer, so the most common
+  // first transaction (a one-off cash sale) otherwise forces the seller to create a customer
+  // first. Seed one they can rename/delete.
+  const [{ n: custCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(customers)
+    .where(eq(customers.organizationId, orgId));
+  if (Number(custCount) === 0) {
+    await db.insert(customers).values({ organizationId: orgId, code: "CASH", nameAr: "عميل نقدي" });
+    result.cashCustomerCreated = true;
   }
 
   return result;
