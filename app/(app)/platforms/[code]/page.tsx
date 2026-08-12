@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, itemCodes, inventoryAudits, inventoryAuditLines } from "@/db/schema";
 import { CHANNEL_CODE_TYPE } from "@/lib/erp/marketplace-code";
 import { AuditStats } from "@/components/erp/audit-summary";
+import { AuditAdjustmentButton } from "@/components/erp/audit-adjustment-button";
+import { Button } from "@/components/ui/button";
 import { getPlatformPnl } from "@/lib/erp/platform-pnl";
 import { Field } from "@/components/erp/document-detail";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -58,7 +60,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
         integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive,
         syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory,
-        defaultWarehouseId: salesPlatforms.defaultWarehouseId,
+        defaultWarehouseId: salesPlatforms.defaultWarehouseId, accountingStartDate: salesPlatforms.accountingStartDate,
         customerId: salesPlatforms.customerId, customerName: customers.nameAr, customerBalance: customers.balance,
         warehouseName: warehouses.nameAr, bankName: bankAccounts.nameAr,
       })
@@ -192,10 +194,12 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             <PlatformHeaderActions
               code={platform.code.toLowerCase()}
               label={platform.name}
+              platformId={platform.id}
               isAmazon={isAmazon}
               connected={!!conn?.connected}
               syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
               hasOrderHistory={!!conn?.ordersSyncedAt}
+              hasStartDate={!!platform.accountingStartDate}
               canManage={can("sales.create")}
             />
           }
@@ -238,6 +242,21 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               ) : (
                 <>
                   <AuditStats audit={audit} />
+                  {/* Fix-it: the audit is read-only — this is where the trader turns it into
+                      books. Empty system + Amazon holds stock → a COSTED opening balance
+                      (the zero-cost FOUND adjustment would poison COGS); otherwise real
+                      quantity diffs → one DRAFT adjustment to review then post. */}
+                  {amazonFbaQty > 0 && invQty === 0 ? (
+                    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
+                      <p className="flex-1 text-sm text-muted-foreground">مخزون النظام صفر بينما أمازون لديها {int(amazonFbaQty)} وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.</p>
+                      <Button asChild variant="outline"><Link href="/settings/opening-balance">إنشاء رصيد افتتاحي</Link></Button>
+                    </div>
+                  ) : audit.withDiff > 0 ? (
+                    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
+                      <p className="flex-1 text-sm text-muted-foreground">توجد فروقات كمية بين أمازون والنظام — أنشئ مسودة تسوية من التدقيق وراجعها قبل الترحيل.</p>
+                      <AuditAdjustmentButton />
+                    </div>
+                  ) : null}
                   <div className="text-xs text-muted-foreground">آخر تدقيق: {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} · يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل</Link>.</div>
                 </>
               )}

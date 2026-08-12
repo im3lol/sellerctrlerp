@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
 import { refreshAmazonFeesAction, startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
+import { updatePlatformAction } from "@/app/actions/erp/platforms";
 import { SyncProgress } from "@/components/erp/sync-progress";
 import { AuditProgress } from "@/components/erp/audit-progress";
 import { OrdersProgress } from "@/components/erp/orders-progress";
@@ -24,9 +25,9 @@ import type { SyncFlags } from "@/components/erp/marketplace-connect";
  * header uncluttered.
  */
 export function PlatformHeaderActions({
-  code, label, isAmazon, connected, syncFlags, hasOrderHistory, canManage,
+  code, label, platformId, isAmazon, connected, syncFlags, hasOrderHistory, hasStartDate, canManage,
 }: {
-  code: string; label: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; canManage: boolean;
+  code: string; label: string; platformId: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; hasStartDate: boolean; canManage: boolean;
 }) {
   const [syncOpen, setSyncOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
@@ -34,9 +35,16 @@ export function PlatformHeaderActions({
   const [pullOpen, setPullOpen] = useState(false);    // سحب المبيعات date dialog
   const [ordersOpen, setOrdersOpen] = useState(false); // orders backfill progress
   const [ordersSince, setOrdersSince] = useState("");
+  // First-sync go-live gate: no accounting start date yet → ask for it BEFORE syncing,
+  // save it, backfill orders from it (queued), and run the rest of the sync stages.
+  const [startOpen, setStartOpen] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [startSaved, setStartSaved] = useState(false);
+  const [ordersViaBackfill, setOrdersViaBackfill] = useState(false); // exclude orders from this run's SyncProgress
   const [auditPending, startAudit] = useTransition();
   const [feesPending, startFees] = useTransition();
   const [pullPending, startPull] = useTransition();
+  const [startPending, startSave] = useTransition();
 
   const runAudit = () => startAudit(async () => {
     const r = await startInventoryAuditAction(code);
@@ -57,13 +65,27 @@ export function PlatformHeaderActions({
     setOrdersOpen(true);
   });
 
+  // Save the go-live date, then run the first sync: orders backfill from that date
+  // (queued, its own progress card) + products/inventory via the normal sync popup.
+  const saveStartAndSync = () => startSave(async () => {
+    if (!startDate) { toast.error("اختر تاريخ البدء أولًا"); return; }
+    const u = await updatePlatformAction(platformId, { accountingStartDate: startDate });
+    if ("error" in u && u.error) { toast.error(u.error); return; }
+    setStartSaved(true);
+    setStartOpen(false);
+    const r = await startOrdersSyncAction(code, startDate);
+    if (r.ok) { setOrdersViaBackfill(true); setOrdersOpen(true); }
+    else toast.error(r.error ?? "تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»");
+    setSyncOpen(true); // products + inventory (orders excluded this run — the backfill owns them)
+  });
+
   // Nothing in the dropdown → don't render an empty trigger.
   const hasTools = connected || isAmazon;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       {connected && (
-        <Button onClick={() => setSyncOpen(true)} disabled={syncOpen}>
+        <Button onClick={() => (hasStartDate || startSaved ? setSyncOpen(true) : setStartOpen(true))} disabled={syncOpen}>
           {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
         </Button>
       )}
@@ -123,6 +145,29 @@ export function PlatformHeaderActions({
         </Button>
       )}
 
+      {/* First sync: ask for the accounting go-live date BEFORE anything runs — without it
+          the order floor silently lands on today and history never reaches the books. */}
+      <Dialog open={startOpen} onOpenChange={setStartOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تاريخ بدء المحاسبة</DialogTitle>
+            <DialogDescription>
+              من أي تاريخ نبدأ محاسبة مبيعات {label}؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم منه يُتجاهل.
+              يُحفظ مرة واحدة ويمكن تعديله لاحقًا من إعدادات المنصّة.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label htmlFor="goLiveDate" className="text-sm font-medium">تاريخ البدء</label>
+            <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
+          </div>
+          <DialogFooter>
+            <Button onClick={saveStartAndSync} disabled={startPending || !startDate}>
+              {startPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}حفظ وبدء المزامنة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* سحب المبيعات: pick a start date (blank = today only). */}
       <Dialog open={pullOpen} onOpenChange={setPullOpen}>
         <DialogContent dir="rtl">
@@ -146,7 +191,14 @@ export function PlatformHeaderActions({
       {/* All background-job cards share one anchor and stack vertically so
           concurrent syncs never overlap. Each renders null when closed. */}
       <div className="fixed bottom-24 left-4 z-[60] flex flex-col gap-3">
-        <SyncProgress code={code} label={label} flags={syncFlags} open={syncOpen} onClose={() => setSyncOpen(false)} />
+        <SyncProgress
+          code={code}
+          label={label}
+          flags={ordersViaBackfill ? { ...syncFlags, orders: false } : syncFlags}
+          auditInventory={isAmazon}
+          open={syncOpen}
+          onClose={() => { setSyncOpen(false); setOrdersViaBackfill(false); }}
+        />
         <AuditProgress code={code} open={auditOpen} onClose={() => setAuditOpen(false)} />
         <OrdersProgress code={code} label={label} open={ordersOpen} onClose={() => setOrdersOpen(false)} />
       </div>

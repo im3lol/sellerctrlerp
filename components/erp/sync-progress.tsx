@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
 import { syncProductsAction, productsSyncStatusAction, syncOrdersAction, syncInventoryAction } from "@/app/actions/erp/marketplace-sync";
+import { startInventoryAuditAction, inventoryAuditStatusAction } from "@/app/actions/erp/fba-inventory";
 import type { ProductSyncStatus } from "@/lib/erp/marketplace/sync-core";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -20,7 +21,7 @@ const initial = (flags: Flags): Step[] => [
   flags.inventory && { key: "inventory", label: "المخزون", icon: <Warehouse className="size-4" />, status: "pending" as Status, detail: "" },
 ].filter(Boolean) as Step[];
 
-export function SyncProgress({ code, label = "المنصة", flags, open, onClose }: { code: string; label?: string; flags: Flags; open: boolean; onClose: () => void }) {
+export function SyncProgress({ code, label = "المنصة", flags, auditInventory = false, open, onClose }: { code: string; label?: string; flags: Flags; auditInventory?: boolean; open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
@@ -76,11 +77,33 @@ export function SyncProgress({ code, label = "المنصة", flags, open, onClos
     set("products", "running", "لا تزال المزامنة شغّالة في الخلفية — حدّث الصفحة بعد قليل لرؤية النتيجة.");
   }
 
+  // Inventory for audit-capable platforms (Amazon FBA): run the REAL audit — the one
+  // that persists the inventory_audits snapshot the dashboard cards read — instead of
+  // the ephemeral compare-toast. Read-only by design: never writes stock; the trader
+  // turns the result into an opening balance / DRAFT adjustment from the audit card.
+  async function runAudit() {
+    set("inventory", "running", `تدقيق مخزون FBA…`);
+    const s = await startInventoryAuditAction(code).catch(() => null);
+    if (!s?.ok) { set("inventory", "error", s?.error ?? "فشل بدء التدقيق"); return; }
+    if (!s.started) { set("inventory", "done", "اكتمل التدقيق — راجع كارت تدقيق المخزون"); return; } // inline fallback already ran
+    await sleep(5000); // let the worker write its RUN row so we don't read a stale older audit
+    for (let i = 0; i < 150; i++) { // ~10 min ceiling at 4s
+      let st; try { st = await inventoryAuditStatusAction(code); } catch { await sleep(4000); continue; }
+      if (st.phase === "done") { set("inventory", "done", `${st.totalSkus ?? 0} صنف · ${st.withDiff ?? 0} فرق`); return; }
+      if (st.phase === "error") { set("inventory", "error", st.error ?? "فشل التدقيق"); return; }
+      await sleep(4000);
+    }
+    set("inventory", "running", "التدقيق لا يزال يعمل في الخلفية — حدّث الصفحة لاحقًا.");
+  }
+
   async function run() {
     const jobs: Promise<unknown>[] = [];
     if (flags.products) jobs.push(runProducts());
-    if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) => `${r.created} أمر · ${r.fulfilled} دورة كاملة${r.cancelled ? ` · ${r.cancelled} ملغى` : ""}`));
-    if (flags.inventory) jobs.push(step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
+    if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) =>
+      `${r.created} أمر · ${r.fulfilled} دورة كاملة${r.cancelled ? ` · ${r.cancelled} ملغى` : ""}${r.skippedPreGoLive ? `\nتم تخطّي ${r.skippedPreGoLive} أمر أقدم من تاريخ البدء` : ""}`));
+    if (flags.inventory) jobs.push(auditInventory
+      ? runAudit()
+      : step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
     await Promise.allSettled(jobs);
     setRunning(false);
     router.refresh(); // one refresh at the end → updates the product-count card

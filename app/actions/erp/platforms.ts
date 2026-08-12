@@ -195,8 +195,11 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
       ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
       ...(parsed.data.accountingStartDate !== undefined ? { accountingStartDate: parsed.data.accountingStartDate || null } : {}),
-      defaultWarehouseId: defaultWarehouseId || null,
-      bankAccountId: bankAccountId || null,
+      // Only touch these when the caller actually sent them — a partial update (e.g. the
+      // first-sync start-date dialog sending {accountingStartDate} alone) must NOT wipe
+      // the platform's warehouse/bank links.
+      ...(defaultWarehouseId !== undefined ? { defaultWarehouseId: defaultWarehouseId || null } : {}),
+      ...(bankAccountId !== undefined ? { bankAccountId: bankAccountId || null } : {}),
       updatedAt: new Date(),
     }).where(and(eq(salesPlatforms.id, id), eq(salesPlatforms.organizationId, auth.orgId)));
     revalidatePath("/platforms");
