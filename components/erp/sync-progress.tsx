@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
 import { syncProductsAction, productsSyncStatusAction, syncOrdersAction, syncInventoryAction } from "@/app/actions/erp/marketplace-sync";
@@ -12,7 +13,7 @@ const productsDetail = (s: ProductSyncStatus) =>
   `${s.total ?? 0} منتج · ${s.created ?? 0} جديد · ${s.linked ?? 0} مربوط`;
 
 type Status = "pending" | "running" | "done" | "error";
-type Step = { key: string; label: string; icon: React.ReactNode; status: Status; detail: string };
+type Step = { key: string; label: string; icon: React.ReactNode; status: Status; detail: string; href?: string; hrefLabel?: string };
 type Flags = { products: boolean; orders: boolean; inventory: boolean };
 
 const initial = (flags: Flags): Step[] => [
@@ -36,8 +37,8 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const set = (key: string, status: Status, detail = "") =>
-    setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, status, detail } : s)));
+  const set = (key: string, status: Status, detail = "", href?: string, hrefLabel?: string) =>
+    setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, status, detail, href, hrefLabel } : s)));
 
   // Run a step and update its row as it resolves. Each source pulls its own
   // Amazon report, so we fire them concurrently — the reports generate in
@@ -89,7 +90,12 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     await sleep(5000); // let the worker write its RUN row so we don't read a stale older audit
     for (let i = 0; i < 150; i++) { // ~10 min ceiling at 4s
       let st; try { st = await inventoryAuditStatusAction(code); } catch { await sleep(4000); continue; }
-      if (st.phase === "done") { set("inventory", "done", `${st.totalSkus ?? 0} صنف · ${st.withDiff ?? 0} فرق`); return; }
+      if (st.phase === "done") {
+        // Answer «الفرق أشوفه منين؟» in place: the diffs live in the reconciliation report.
+        set("inventory", "done", `${st.totalSkus ?? 0} صنف · ${st.withDiff ?? 0} فرق`,
+          (st.withDiff ?? 0) > 0 ? "/inventory/reconciliation" : undefined, "عرض الفروقات ←");
+        return;
+      }
       if (st.phase === "error") { set("inventory", "error", st.error ?? "فشل التدقيق"); return; }
       await sleep(4000);
     }
@@ -141,6 +147,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">{s.label}</div>
               {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{s.detail}</div>}
+              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? "التفاصيل ←"}</Link>}
             </div>
           </li>
         ))}

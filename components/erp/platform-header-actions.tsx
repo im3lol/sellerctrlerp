@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet } from "lucide-react";
+import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet, Image as ImageIcon, Boxes, Warehouse } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
-import { refreshAmazonFeesAction, startOrdersSyncAction } from "@/app/actions/erp/marketplace-sync";
+import { refreshAmazonFeesAction, startOrdersSyncAction, startImagesSyncAction } from "@/app/actions/erp/marketplace-sync";
 import { updatePlatformAction } from "@/app/actions/erp/platforms";
 import { SyncProgress } from "@/components/erp/sync-progress";
 import { AuditProgress } from "@/components/erp/audit-progress";
@@ -35,15 +35,18 @@ export function PlatformHeaderActions({
   const [pullOpen, setPullOpen] = useState(false);    // سحب المبيعات date dialog
   const [ordersOpen, setOrdersOpen] = useState(false); // orders backfill progress
   const [ordersSince, setOrdersSince] = useState("");
-  // First-sync go-live gate: no accounting start date yet → ask for it BEFORE syncing,
-  // save it, backfill orders from it (queued), and run the rest of the sync stages.
-  const [startOpen, setStartOpen] = useState(false);
+  // «مزامنة الآن» chooser: the seller PICKS what to sync (products/orders/inventory)
+  // instead of a blanket everything-run. Hosts the go-live gate too: no accounting
+  // start date yet + orders selected → the same dialog asks for the date first.
+  const [chooseOpen, setChooseOpen] = useState(false);
+  const [chosen, setChosen] = useState<SyncFlags>(syncFlags);
   const [startDate, setStartDate] = useState("");
   const [startSaved, setStartSaved] = useState(false);
-  const [ordersViaBackfill, setOrdersViaBackfill] = useState(false); // exclude orders from this run's SyncProgress
+  const [runFlags, setRunFlags] = useState<SyncFlags | null>(null); // this run's selection
   const [auditPending, startAudit] = useTransition();
   const [feesPending, startFees] = useTransition();
   const [pullPending, startPull] = useTransition();
+  const [imagesPending, startImages] = useTransition();
   const [startPending, startSave] = useTransition();
 
   const runAudit = () => startAudit(async () => {
@@ -65,18 +68,32 @@ export function PlatformHeaderActions({
     setOrdersOpen(true);
   });
 
-  // Save the go-live date, then run the first sync: orders backfill from that date
-  // (queued, its own progress card) + products/inventory via the normal sync popup.
-  const saveStartAndSync = () => startSave(async () => {
-    if (!startDate) { toast.error("اختر تاريخ البدء أولًا"); return; }
-    const u = await updatePlatformAction(platformId, { accountingStartDate: startDate });
-    if ("error" in u && u.error) { toast.error(u.error); return; }
-    setStartSaved(true);
-    setStartOpen(false);
-    const r = await startOrdersSyncAction(code, startDate);
-    if (r.ok) { setOrdersViaBackfill(true); setOrdersOpen(true); }
-    else toast.error(r.error ?? "تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»");
-    setSyncOpen(true); // products + inventory (orders excluded this run — the backfill owns them)
+  // On-demand image sync: backfill images for items still missing one (Catalog API).
+  const syncImages = () => startImages(async () => {
+    const r = await startImagesSyncAction(code);
+    if (r.ok) toast.success(r.started ? "بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون" : "اكتملت مزامنة الصور — حدّث صفحة المنتجات");
+    else toast.error(r.error ?? "تعذّر بدء مزامنة الصور");
+  });
+
+  // Start the chosen sync. If orders are selected with no go-live date yet: save the
+  // date first, backfill orders from it (queued, its own progress card), and let the
+  // normal popup run the remaining selected stages.
+  const beginSync = () => startSave(async () => {
+    const sel = { ...chosen };
+    if (!sel.products && !sel.orders && !sel.inventory) { toast.error("اختر مصدرًا واحدًا على الأقل"); return; }
+    const needDate = sel.orders && !hasStartDate && !startSaved;
+    if (needDate) {
+      if (!startDate) { toast.error("اختر تاريخ بدء المحاسبة أولًا"); return; }
+      const u = await updatePlatformAction(platformId, { accountingStartDate: startDate });
+      if ("error" in u && u.error) { toast.error(u.error); return; }
+      setStartSaved(true);
+      const r = await startOrdersSyncAction(code, startDate);
+      if (r.ok) setOrdersOpen(true);
+      else toast.error(r.error ?? "تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»");
+      sel.orders = false; // the backfill owns orders this run
+    }
+    setChooseOpen(false);
+    if (sel.products || sel.orders || sel.inventory) { setRunFlags(sel); setSyncOpen(true); }
   });
 
   // Nothing in the dropdown → don't render an empty trigger.
@@ -85,7 +102,7 @@ export function PlatformHeaderActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {connected && (
-        <Button onClick={() => (hasStartDate || startSaved ? setSyncOpen(true) : setStartOpen(true))} disabled={syncOpen}>
+        <Button onClick={() => { setChosen(syncFlags); setChooseOpen(true); }} disabled={syncOpen}>
           {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
         </Button>
       )}
@@ -109,6 +126,11 @@ export function PlatformHeaderActions({
             {connected && isAmazon && (
               <DropdownMenuItem onClick={refreshFees} disabled={feesPending}>
                 <Percent className="size-4" />تحديث الرسوم
+              </DropdownMenuItem>
+            )}
+            {connected && isAmazon && (
+              <DropdownMenuItem onClick={syncImages} disabled={imagesPending}>
+                <ImageIcon className="size-4" />مزامنة الصور
               </DropdownMenuItem>
             )}
             {isAmazon && (
@@ -145,24 +167,43 @@ export function PlatformHeaderActions({
         </Button>
       )}
 
-      {/* First sync: ask for the accounting go-live date BEFORE anything runs — without it
-          the order floor silently lands on today and history never reaches the books. */}
-      <Dialog open={startOpen} onOpenChange={setStartOpen}>
+      {/* «مزامنة الآن» chooser: pick exactly what to sync. Also hosts the one-time
+          go-live date question — without it the order floor silently lands on today. */}
+      <Dialog open={chooseOpen} onOpenChange={setChooseOpen}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>تاريخ بدء المحاسبة</DialogTitle>
-            <DialogDescription>
-              من أي تاريخ نبدأ محاسبة مبيعات {label}؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم منه يُتجاهل.
-              يُحفظ مرة واحدة ويمكن تعديله لاحقًا من إعدادات المنصّة.
-            </DialogDescription>
+            <DialogTitle>مزامنة {label}</DialogTitle>
+            <DialogDescription>اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label htmlFor="goLiveDate" className="text-sm font-medium">تاريخ البدء</label>
-            <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
+          <div className="space-y-2.5">
+            {([
+              { key: "products" as const, label: "المنتجات", desc: "الأصناف + الصور والبيانات", icon: <Boxes className="size-4" /> },
+              { key: "orders" as const, label: "المبيعات", desc: "استيراد الطلبات ودورتها المحاسبية", icon: <ShoppingCart className="size-4" /> },
+              { key: "inventory" as const, label: "المخزون (تدقيق)", desc: "مقارنة كميات المنصّة بالنظام — قراءة فقط", icon: <Warehouse className="size-4" /> },
+            ]).map((s) => (
+              <label key={s.key} className={`flex items-start gap-3 rounded-lg border p-3 ${syncFlags[s.key] ? "cursor-pointer" : "opacity-50"}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={chosen[s.key]}
+                  disabled={!syncFlags[s.key]}
+                  onChange={(e) => setChosen((c) => ({ ...c, [s.key]: e.target.checked }))}
+                />
+                <span className="flex items-center gap-2 text-sm font-medium">{s.icon}{s.label}</span>
+                <span className="mr-auto text-xs text-muted-foreground">{syncFlags[s.key] ? s.desc : "موقوف من إعدادات المنصّة"}</span>
+              </label>
+            ))}
           </div>
+          {chosen.orders && !hasStartDate && !startSaved && (
+            <div className="space-y-1.5 rounded-lg border border-dashed p-3">
+              <label htmlFor="goLiveDate" className="text-sm font-medium">تاريخ بدء المحاسبة</label>
+              <p className="text-xs text-muted-foreground">من أي تاريخ نبدأ محاسبة مبيعات {label}؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.</p>
+              <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
+            </div>
+          )}
           <DialogFooter>
-            <Button onClick={saveStartAndSync} disabled={startPending || !startDate}>
-              {startPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}حفظ وبدء المزامنة
+            <Button onClick={beginSync} disabled={startPending}>
+              {startPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}بدء المزامنة
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -194,10 +235,10 @@ export function PlatformHeaderActions({
         <SyncProgress
           code={code}
           label={label}
-          flags={ordersViaBackfill ? { ...syncFlags, orders: false } : syncFlags}
+          flags={runFlags ?? syncFlags}
           auditInventory={isAmazon}
           open={syncOpen}
-          onClose={() => { setSyncOpen(false); setOrdersViaBackfill(false); }}
+          onClose={() => { setSyncOpen(false); setRunFlags(null); }}
         />
         <AuditProgress code={code} open={auditOpen} onClose={() => setAuditOpen(false)} />
         <OrdersProgress code={code} label={label} open={ordersOpen} onClose={() => setOrdersOpen(false)} />

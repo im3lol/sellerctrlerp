@@ -185,6 +185,22 @@ export async function syncInventoryAction(code: string): Promise<InventorySync> 
   return r;
 }
 
+/** On-demand image sync: backfill images (Catalog Items API — not a report) for items
+ *  still missing one. Enqueues the images job; inline fallback when Redis is absent. */
+export async function startImagesSyncAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {
+  const auth = await authorizeErp("sales.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchCatalog) return { ok: false, error: "المنصة لا تدعم كتالوج الصور" };
+  if (await enqueue(QUEUES.images, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined })) {
+    return { ok: true, started: true };
+  }
+  const { runImagesJob } = await import("@/lib/queue/handlers"); // inline fallback (no Redis)
+  await runImagesJob({ orgId: p.orgId, provider: p.provider });
+  return { ok: true, started: false };
+}
+
 /** Enqueue an on-demand refresh of estimated Amazon fees for all linked items. */
 export async function refreshAmazonFeesAction(code: string): Promise<{ ok: boolean; error?: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");
