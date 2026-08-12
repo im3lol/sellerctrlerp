@@ -18,7 +18,10 @@ import { planReturnStock, RETURN_DISPOSITIONS } from "@/lib/erp/return-dispositi
 
 export type SaveReturnState = ActionState & { id?: string };
 
-export type ConfirmReturnOpts = { disposition?: string | null; damagedWarehouseId?: string | null };
+export type ConfirmReturnOpts = { disposition?: string | null; damagedWarehouseId?: string | null;
+  /** Internal: set only by confirmPlatformReturnAction, which handles the restock (delivery
+   *  return) itself. Bypasses the marketplace-return guard below. Not sent by any UI. */
+  viaPlatform?: boolean };
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
@@ -143,6 +146,17 @@ export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnO
       .where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!ret) return { error: "المرتجع غير موجود" };
     if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
+
+    // R1 guard: a marketplace (channel-tagged) MONEY credit note (deliveryNoteId=null) whose
+    // invoice was DELIVERY-billed must be confirmed via the marketplace receipt flow
+    // (confirmPlatformReturnAction) — that flow records the disposition AND creates the
+    // delivery return that restocks. Confirming it here (the generic register) reverses
+    // revenue/VAT/AR but never restocks → permanent inventory/GL divergence.
+    if (!opts?.viaPlatform && ret.channel && ret.channel !== "MANUAL" && !ret.deliveryNoteId) {
+      const [inv0] = await db.select({ deliveryNoteId: salesInvoices.deliveryNoteId }).from(salesInvoices)
+        .where(and(eq(salesInvoices.id, ret.salesInvoiceId ?? ""), eq(salesInvoices.organizationId, auth.orgId))).limit(1);
+      if (inv0?.deliveryNoteId) return { error: "ده مرتجع منصّة — أكّده من «مرتجعات المنصّة» لتسجيل قرار الاستلام وإرجاع المخزون." };
+    }
 
     // Effective disposition: the operator's confirm-time choice overrides the stored
     // (marketplace-suggested) one. A designated damaged warehouse must belong to the org

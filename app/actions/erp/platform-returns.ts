@@ -136,9 +136,10 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
     if (!money) return { error: "المرتجع غير موجود" };
     if (money.deliveryNoteId) return { error: "ده مرتجع مخزون — أكّده من سجل المرتجعات" };
 
-    // 1) money credit note (reverse revenue/VAT/AR) — skip if already posted.
+    // 1) money credit note (reverse revenue/VAT/AR) — skip if already posted. viaPlatform tells
+    // confirmSalesReturnAction we own the restock (step 2), bypassing its marketplace-return guard.
     if (money.status === "DRAFT") {
-      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition });
+      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition, viaPlatform: true });
       if ("error" in r) return r;
     }
 
