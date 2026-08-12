@@ -1,6 +1,6 @@
 import "server-only";
 import { gzipSync } from "node:zlib";
-import { sql, eq, and, desc } from "drizzle-orm";
+import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { backupRuns } from "@/db/schema";
@@ -80,9 +80,13 @@ export async function pruneBackups(orgId: string, keep = 14): Promise<number> {
   const rows = await db.select({ id: backupRuns.id, storageKey: backupRuns.storageKey })
     .from(backupRuns).where(eq(backupRuns.organizationId, orgId)).orderBy(desc(backupRuns.createdAt));
   const old = rows.slice(keep);
+  if (old.length === 0) return 0;
+  // Best-effort object deletes first, then drop all rows in ONE statement: a crash mid-prune
+  // leaves at most an orphaned object (harmless, retried next prune) — never a row whose
+  // object is already gone (which would 404 a "download" link).
   for (const r of old) {
     try { await deleteObject(r.storageKey, { private: true }); } catch { /* object may already be gone */ }
-    await db.delete(backupRuns).where(eq(backupRuns.id, r.id));
   }
+  await db.delete(backupRuns).where(inArray(backupRuns.id, old.map((r) => r.id)));
   return old.length;
 }

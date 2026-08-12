@@ -141,48 +141,6 @@ async function existingOrders(orgId: string, channel: string): Promise<Map<strin
   return m;
 }
 
-/**
- * Auto-create a stub catalog item for every order-line SKU not yet in the catalog,
- * so the order imports instead of being skipped. The stub carries the order's name
- * + sell price but no cost and needs_review=true — callers keep such orders DRAFT
- * (never auto-post) until a human sets the cost. Returns the count created.
- */
-async function ensureItemsForOrders(orgId: string, orders: MarketplaceOrder[], resolve: ItemResolver): Promise<number> {
-  const missing = new Map<string, { code: string; altCode?: string; name?: string; price: number }>();
-  for (const o of orders) {
-    if (o.status === "Canceled") continue; // a cancellation tears down; no item needed
-    for (const l of o.lines) {
-      if (!l.code || resolve(l.code, l.altCode).itemId) continue;
-      const key = normalizeCode(l.code);
-      if (!key || missing.has(key)) continue;
-      missing.set(key, { code: l.code, altCode: l.altCode, name: l.name, price: l.unitPrice });
-    }
-  }
-  if (missing.size === 0) return 0;
-
-  const list = [...missing.values()];
-  const codes = await nextItemCodes(orgId, list.length);
-  const uomId = await pieceUomId(orgId);
-  const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
-  const pushCode = (itemId: string, codeType: string, code: string) => {
-    const c = (code || "").trim(); const norm = normalizeCode(c);
-    if (c && norm) codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
-  };
-  await db.transaction(async (tx) => {
-    for (const slice of chunk(list.map((p, i) => ({ p, code: codes[i] })), 500)) {
-      const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
-        organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId,
-        sellPrice: String(round2(p.price || 0)), needsReview: true,
-      }))).returning({ id: items.id });
-      inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
-    }
-    for (const slice of chunk(codeValues, 500)) {
-      await tx.insert(itemCodes).values(slice).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
-    }
-  });
-  return list.length;
-}
-
 /** Parse+match preview (no writes). */
 export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "channel">, orders: MarketplaceOrder[]): Promise<OrdersPreview> {
   const resolve = await buildMatcher(orgId, orders);

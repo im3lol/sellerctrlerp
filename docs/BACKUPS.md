@@ -31,8 +31,10 @@ Notes:
 - Use the **owner/superuser** connection (`postgres`), not `appuser` — a dump must read
   every row; under RLS a non-BYPASSRLS role would dump nothing.
 - Connect **direct** (`:5432`), not the transaction pooler (`:6543`).
-- Set `OFFSITE_BUCKET` to also copy each dump to S3/MinIO (offsite is what saves you when
-  the whole box dies). Restic/rclone to a second provider is even better.
+- Set `OFFSITE_S3_BUCKET` (+ `OFFSITE_S3_ENDPOINT` for Cloudflare R2/MinIO, `AWS_*` creds) to
+  also copy each dump offsite — the **same** vars the docker compose `backup` sidecar uses, so
+  one `.env` drives both. Offsite is what saves you when the whole box dies; Restic/rclone to a
+  second provider is even better.
 
 ### Restore (full DB)
 

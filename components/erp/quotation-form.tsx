@@ -54,7 +54,7 @@ export function QuotationForm({ customers, items, orgName, vatRate }: { customer
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt) })) });
+      const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })) });
       if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });

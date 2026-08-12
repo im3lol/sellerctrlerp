@@ -6,10 +6,13 @@
 #   DATABASE_URL="postgres://postgres:***@localhost:5432/sellerctrl" ./scripts/backup/pg-backup.sh
 #
 # Env:
-#   DATABASE_URL   (required) owner/superuser connection, DIRECT (:5432, not the :6543 pooler)
-#   BACKUP_DIR     (default /var/backups/sellerctrl)
-#   KEEP_DAYS      (default 14) prune dumps older than this
-#   OFFSITE_BUCKET (optional) also `aws s3 cp` each dump here — offsite is what saves you
+#   DATABASE_URL        (required) owner/superuser connection, DIRECT (:5432, not the :6543 pooler)
+#   BACKUP_DIR          (default /var/backups/sellerctrl)
+#   KEEP_DAYS           (default 14) prune dumps older than this
+#   OFFSITE_S3_BUCKET   (optional) also copy each dump here — offsite is what saves you.
+#                       SAME vars as the docker compose `backup` sidecar + .env, so one config drives both.
+#   OFFSITE_S3_ENDPOINT (optional) S3-compatible endpoint (Cloudflare R2 / MinIO); omit for AWS S3.
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  (required when OFFSITE_S3_BUCKET is set)
 
 set -euo pipefail
 
@@ -29,10 +32,13 @@ echo "[$(date -Is)] wrote $FILE ($(du -h "$FILE" | cut -f1))"
 # Retention: delete local dumps older than KEEP_DAYS.
 find "$BACKUP_DIR" -maxdepth 1 -name 'sellerctrl-*.dump' -mtime +"$KEEP_DAYS" -print -delete
 
-# Offsite copy (best-effort — a local-only backup dies with the box).
-if [ -n "${OFFSITE_BUCKET:-}" ]; then
-  echo "[$(date -Is)] offsite → s3://$OFFSITE_BUCKET/db/"
-  aws s3 cp "$FILE" "s3://$OFFSITE_BUCKET/db/" || echo "WARN: offsite copy failed"
+# Offsite copy (best-effort — a local-only backup dies with the box). Uses the SAME env
+# vars as the docker compose `backup` sidecar (OFFSITE_S3_*), so a single .env drives both
+# the server cron and the container instead of two divergent variable sets.
+if [ -n "${OFFSITE_S3_BUCKET:-}" ]; then
+  ep="${OFFSITE_S3_ENDPOINT:+--endpoint-url $OFFSITE_S3_ENDPOINT}"
+  echo "[$(date -Is)] offsite → s3://$OFFSITE_S3_BUCKET/db/"
+  aws s3 cp $ep "$FILE" "s3://$OFFSITE_S3_BUCKET/db/" || echo "WARN: offsite copy failed"
 fi
 
 echo "[$(date -Is)] done"

@@ -93,7 +93,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
     start(async () => {
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
-        taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit),
+        taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit), exempt: l.exempt,
       }));
       const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
       if (r.ok) {

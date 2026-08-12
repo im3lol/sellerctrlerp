@@ -28,9 +28,9 @@ export default async function NewSalesOrderPage({
         .where(and(eq(salesQuotations.id, sp.fromQuotation), eq(salesQuotations.organizationId, orgId))).limit(1);
       if (qt) {
         quotedCustomerId = qt.customerId;
-        const ql = await db.select({ itemId: salesQuotationLines.itemId, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount })
+        const ql = await db.select({ itemId: salesQuotationLines.itemId, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount, isExempt: salesQuotationLines.isTaxExempt })
           .from(salesQuotationLines).where(eq(salesQuotationLines.quotationId, qt.id));
-        if (ql.length) initialLines = ql.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) }));
+        if (ql.length) initialLines = ql.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount), exempt: l.isExempt }));
       }
     }
 

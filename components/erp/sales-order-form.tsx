@@ -29,7 +29,7 @@ const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity:
 
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
-export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[] }) {
+export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; exempt?: boolean }[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -42,7 +42,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const [shippingAmount, setShippingAmount] = useState(0);
   const [lines, setLines] = useState<Line[]>(
     initialLines?.length
-      ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount }))
+      ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, exempt: l.exempt ?? false }))
       : [newLine()],
   );
 
@@ -86,7 +86,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       const r = await createSalesOrderAction({
         customerId, date, dueDate: dueDate || undefined, notes,
         channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
-        lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt) })),
+        lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })),
       });
       if (r.ok) {
         toast.success("تم حفظ أمر البيع (مسودة) — أكّده");

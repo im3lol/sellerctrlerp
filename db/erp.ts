@@ -1378,6 +1378,9 @@ export const salesQuotationLines = pgTable("sales_quotation_lines", {
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
+  // VAT-exempt line: tax stays 0 on this line even under the org VAT rate. Persisted so the
+  // exemption survives quotation→order conversion + re-derivation instead of silently re-taxing.
+  isTaxExempt: boolean("is_tax_exempt").notNull().default(false),
 }, (t) => [
   index("sales_quotation_lines_qt_idx").on(t.quotationId),
 ]);
@@ -1535,6 +1538,7 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
+  isTaxExempt: boolean("is_tax_exempt").notNull().default(false), // VAT-exempt line (persists exemption from the form)
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
 }, (t) => [
@@ -1600,6 +1604,7 @@ export const salesOrderLines = pgTable(
     unitPrice: money("unit_price").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
+    isTaxExempt: boolean("is_tax_exempt").notNull().default(false), // VAT-exempt line (persists exemption from the quotation/form)
     totalAmount: money("total_amount").notNull().default("0"),
     notes: text("notes"),
   },

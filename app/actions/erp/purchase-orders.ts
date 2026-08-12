@@ -21,6 +21,7 @@ const lineSchema = z.object({
   shippingPerUnit: z.coerce.number().min(0).default(0),
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
+  exempt: z.coerce.boolean().default(false),
 });
 const schema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
@@ -71,7 +72,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
         }).returning({ id: purchaseOrders.id });
         await tx.insert(purchaseOrderLines).values(computed.map((l) => ({
           purchaseOrderId: po.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-          shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+          shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
         })));
         return po.id;
       });

@@ -24,6 +24,7 @@ const schema = z.object({
     unitPrice: z.coerce.number().min(0),
     discountAmount: z.coerce.number().min(0).default(0),
     taxAmount: z.coerce.number().min(0).default(0),
+    exempt: z.coerce.boolean().default(false),
   })).min(1, "أضف بنداً واحداً على الأقل"),
 });
 
@@ -53,7 +54,7 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
         }).returning({ id: salesQuotations.id });
         await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({
           quotationId: qt.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt,
         })));
         return qt.id;
       });
