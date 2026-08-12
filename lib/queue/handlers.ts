@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, eq, sql } from "drizzle-orm";
-import type { SyncJob } from "./queues";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { enqueue, QUEUES, type SyncJob } from "./queues";
 import { db } from "@/lib/db";
-import { organizationMembers, organizations } from "@/db/schema";
+import { organizationMembers, organizations, items, itemCodes } from "@/db/schema";
 import { withPlatformScope, withOrgScope } from "@/lib/db-scope";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
+import { enrichItems } from "@/lib/erp/marketplace/ingest";
 import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
@@ -45,6 +46,10 @@ async function runProducts(d: SyncJob, kind: "IMPORT" | "DISCOVERY", run: (p: Sy
   if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
   await markSync(d.orgId, d.provider, { lastSyncStatus: kind === "IMPORT" ? "ok" : "auto", needsReauth: false, productsSyncedAt: new Date() });
   await finishRun(d.orgId, runId, "OK", { productsProcessed: r.total, newProducts: r.created, updatedProducts: r.linked, apiRequests });
+  // Chase the stragglers: batch enrichment only covers THIS sync's fetch batch and a
+  // failed catalog batch is swallowed — so after every successful import/discovery,
+  // sweep items still missing an image (also gives a ~daily cadence via DISCOVERY).
+  await enqueue(QUEUES.images, { orgId: d.orgId, provider: d.provider, marketplaceId: d.marketplaceId }).catch(() => {});
 }
 
 /** One-time full catalog import via the Reports API (complete, no 1000 cap). */
@@ -62,8 +67,42 @@ export function runDiscoveryJob(d: SyncJob): Promise<void> {
 /** Per-item catalog detail enrichment — Phase 3. */
 export function runDetailsJob(_d: SyncJob): Promise<void> { return Promise.resolve(); }
 
-/** Per-item image enrichment — Phase 3. */
-export function runImagesJob(_d: SyncJob): Promise<void> { return Promise.resolve(); }
+/** Image (+catalog-field) BACKFILL for items still missing an image. The per-sync
+ *  enrichment only covers that sync's fetch batch and swallows failed catalog batches,
+ *  so an item whose batch 429'd — or whose listing never changes again — stayed
+ *  imageless forever. Sweep up to 500 imageless ASIN-coded items per run through the
+ *  existing fetchCatalog + enrichItems (fill-only guard = idempotent); enqueued after
+ *  every product import/discovery. Amazon-only — Noon's API exposes no images. */
+export async function runImagesJob(d: SyncJob): Promise<void> {
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) return;
+  const fetchCatalog = prep.connector.fetchCatalog;
+  if (!fetchCatalog) return;
+
+  const rows = await withOrgScope(d.orgId, false, () =>
+    db.select({ asin: itemCodes.code })
+      .from(itemCodes)
+      .innerJoin(items, eq(items.id, itemCodes.itemId))
+      .where(and(
+        eq(itemCodes.organizationId, d.orgId),
+        eq(itemCodes.codeType, "ASIN"),
+        eq(items.isActive, true),
+        or(isNull(items.image), eq(items.image, "")),
+      )).limit(500));
+  const asins = [...new Set(rows.map((r) => r.asin).filter(Boolean))];
+  if (!asins.length) return;
+
+  try {
+    const [records, apiRequests] = await withRequestCount(() => fetchCatalog(prep.cred, asins));
+    const e = await withOrgScope(d.orgId, false, () => enrichItems(d.orgId, records));
+    // Surface the outcome instead of swallowing: "requested vs got vs filled" is the
+    // signal when Amazon has no image for an ASIN (normal) vs batches failing (not).
+    log.info("images.backfill", { orgId: d.orgId, provider: d.provider, requested: asins.length, records: records.length, filled: e.images, apiRequests });
+    if (records.length === 0) log.warn("images.backfill_empty", { orgId: d.orgId, provider: d.provider, requested: asins.length });
+  } catch (err) {
+    log.warn("images.backfill_failed", { orgId: d.orgId, provider: d.provider, requested: asins.length, error: err instanceof Error ? err.message : String(err) });
+  }
+}
 
 /** Incremental Amazon order poll (near-real-time). `since` from the cron watermark;
  *  absent → last 24h. Drives the DRAFT→fulfil sales cycle + records new-order events. */
