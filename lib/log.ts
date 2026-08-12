@@ -12,20 +12,22 @@ type Level = "error" | "warn" | "info";
 //   • Generic   — set ERROR_WEBHOOK_URL (Slack/Sentry/any webhook; receives the raw JSON)
 // Unset → no-op. Never throws, never blocks the request.
 //
-// Throttle: at most one alert per distinct event name per minute, so an error LOOP (the
-// worst case: a failing job retried every few seconds) can't flood the channel. The map
-// is bounded by the fixed set of event-name string literals in the codebase.
+// Throttle: at most one alert per distinct throttle key per minute, so an error LOOP (the
+// worst case: a failing job retried every few seconds) can't flood the channel. The key is
+// the event name, PLUS the org id when the event carries one — so a fleet-wide failure
+// (e.g. Amazon revoking many tenants' tokens at once) still pages once PER org instead of
+// collapsing every tenant into a single event-name bucket and silencing all but the first.
 const lastAlert = new Map<string, number>();
-function forward(level: Level, event: string, line: string): void {
+function forward(level: Level, event: string, line: string, throttleKey: string): void {
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
   const tgChat = process.env.TELEGRAM_CHAT_ID;
   const url = process.env.ERROR_WEBHOOK_URL;
   if (!url && !(tgToken && tgChat)) return;
 
   const now = Date.now();
-  const prev = lastAlert.get(event);
+  const prev = lastAlert.get(throttleKey);
   if (prev && now - prev < 60_000) return;
-  lastAlert.set(event, now);
+  lastAlert.set(throttleKey, now);
 
   if (tgToken && tgChat) {
     const text = `🔴 SellerCtrl [${level}] ${event}\n${line.slice(0, 3500)}`;
@@ -49,7 +51,10 @@ function emit(level: Level, event: string, ctx?: Record<string, unknown>): void 
     }
   }
   const line = JSON.stringify(out);
-  if (level === "error") { console.error(line); forward(level, event, line); }
+  // Per-org throttle key when the event carries an orgId (see forward()); else by event name.
+  const orgId = ctx && typeof ctx.orgId === "string" ? ctx.orgId : undefined;
+  const throttleKey = orgId ? `${event}:${orgId}` : event;
+  if (level === "error") { console.error(line); forward(level, event, line, throttleKey); }
   else if (level === "warn") console.warn(line);
   else console.log(line);
 }

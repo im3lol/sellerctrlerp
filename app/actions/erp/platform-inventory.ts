@@ -60,11 +60,18 @@ export async function applyInventoryReconciliationAction(
       .where(and(eq(salesPlatforms.id, platformId), eq(salesPlatforms.organizationId, auth.orgId))).limit(1);
     if (!platform?.warehouseId) return { ok: false, error: "اضبط المخزن الافتراضي للمنصة أولًا" };
 
-    // Refuse a blanket "set" into a warehouse another platform also uses — setting stock to
-    // THIS channel's on-hand would wipe the other channel's stock in the shared warehouse.
-    // Reconciliation must land in a channel-dedicated warehouse.
+    // Refuse a blanket "set" into a warehouse another ACTIVE, inventory-syncing platform also
+    // uses — setting stock to THIS channel's on-hand would wipe the other channel's stock in
+    // the shared warehouse. A deactivated or non-inventory-syncing sibling never runs a `set`,
+    // so it must not block a legitimate recon; only a live sharer does.
     const [shared] = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
-      .where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.defaultWarehouseId, platform.warehouseId), ne(salesPlatforms.id, platformId))).limit(1);
+      .where(and(
+        eq(salesPlatforms.organizationId, auth.orgId),
+        eq(salesPlatforms.defaultWarehouseId, platform.warehouseId),
+        ne(salesPlatforms.id, platformId),
+        eq(salesPlatforms.isActive, true),
+        eq(salesPlatforms.syncInventory, true),
+      )).limit(1);
     if (shared) return { ok: false, error: "هذا المخزن مشترك مع منصّة أخرى — تطبيق المطابقة سيضبط المخزون على أرقام هذه القناة ويمحو مخزون القناة الأخرى. خصّص مخزنًا مستقلًا لكل منصة أولًا." };
 
     const clean = entries.filter((e) => e.itemId && Number.isFinite(e.qty) && e.qty >= 0);
