@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { postDraftEntryAction, reverseEntryAction, deleteDraftEntryAction } from "@/app/actions/erp/journal";
@@ -14,6 +15,7 @@ export function JournalEntryActions({
   canPost,
   canReverse,
   canDelete,
+  editHref,
 }: {
   entryId: string;
   status: string;
@@ -21,6 +23,7 @@ export function JournalEntryActions({
   canPost: boolean;
   canReverse: boolean;
   canDelete: boolean;
+  editHref?: string; // set by the detail page only for an editable (DRAFT, manual) entry
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -43,6 +46,11 @@ export function JournalEntryActions({
       {status === "DRAFT" && canPost && (
         <Button disabled={pending} onClick={() => run(() => postDraftEntryAction(entryId), "تم ترحيل القيد")}>
           <Icon name="Check" className="size-4" />ترحيل
+        </Button>
+      )}
+      {status === "DRAFT" && canDelete && editHref && (
+        <Button variant="outline" asChild>
+          <Link href={editHref}><Icon name="Pencil" className="size-4" />تعديل</Link>
         </Button>
       )}
       {status === "DRAFT" && canDelete && (

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createManualEntryAction } from "@/app/actions/erp/journal";
+import { createManualEntryAction, updateManualEntryAction } from "@/app/actions/erp/journal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,21 +18,26 @@ type Line = { accountId: string; description: string; debit: string; credit: str
 const emptyLine = (): Line => ({ accountId: "", description: "", debit: "", credit: "", costCenterId: "" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+export type JournalEntryInitial = { id: string; date: string; description: string; reference: string; lines: Line[] };
+
 export function JournalEntryForm({
   accounts,
   costCenters,
+  initial,
 }: {
   accounts: Option[];
   costCenters: Option[];
+  initial?: JournalEntryInitial;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
+  const isEdit = !!initial?.id;
 
-  const [date, setDate] = useState(today);
-  const [description, setDescription] = useState("");
-  const [reference, setReference] = useState("");
-  const [lines, setLines] = useState<Line[]>([emptyLine(), emptyLine()]);
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [reference, setReference] = useState(initial?.reference ?? "");
+  const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [emptyLine(), emptyLine()]);
 
   const accountOptions = useMemo(
     () => accounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` })),
@@ -84,10 +89,12 @@ export function JournalEntryForm({
             costCenterId: l.costCenterId || undefined,
           })),
       };
-      const r = await createManualEntryAction(payload);
+      const r = isEdit
+        ? await updateManualEntryAction(initial!.id, { date, description, reference, lines: payload.lines })
+        : await createManualEntryAction(payload);
       if (r.ok) {
-        toast.success(mode === "post" ? "تم ترحيل القيد" : "تم حفظ المسودة");
-        router.push("/accounting/journal");
+        toast.success(isEdit ? "تم حفظ التعديلات" : mode === "post" ? "تم ترحيل القيد" : "تم حفظ المسودة");
+        router.push(isEdit ? `/accounting/journal/${initial!.id}` : "/accounting/journal");
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر الحفظ");
@@ -201,12 +208,20 @@ export function JournalEntryForm({
               <Icon name="Plus" className="size-4" />إضافة بند
             </Button>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" disabled={pending} onClick={() => submit("draft")}>
-                حفظ كمسودة
-              </Button>
-              <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
-                <Icon name="Check" className="size-4" />حفظ وترحيل
-              </Button>
+              {isEdit ? (
+                <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("draft")}>
+                  <Icon name="Check" className="size-4" />حفظ التعديلات
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" disabled={pending} onClick={() => submit("draft")}>
+                    حفظ كمسودة
+                  </Button>
+                  <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
+                    <Icon name="Check" className="size-4" />حفظ وترحيل
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardContent>

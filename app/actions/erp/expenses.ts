@@ -61,6 +61,42 @@ export async function createExpenseAction(input: unknown): Promise<SaveExpenseSt
 }
 
 /** Confirm (post) a DRAFT expense: Dr expense category · Cr cash/bank. */
+/** Edit a DRAFT expense in place, keep the number. Only DRAFT is editable (no GL yet). */
+export async function updateExpenseAction(id: string, input: unknown): Promise<SaveExpenseState> {
+  const auth = await authorizeErp("accounting.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { expenseAccountId, cashAccountId, amount, date, paymentMethod, payee, reference, notes } = parsed.data;
+
+    const [existing] = await db.select({ status: expenses.status }).from(expenses)
+      .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "المصروف غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل مصروف مُرحّل" };
+
+    const [exp] = await db.select({ type: accounts.type, isLeaf: accounts.isLeaf })
+      .from(accounts).where(and(eq(accounts.id, expenseAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
+    if (!exp || exp.type !== "EXPENSE" || !exp.isLeaf) return { error: "بند المصروف غير صالح (يجب أن يكون حساب مصروف تفصيلي)" };
+    const [cash] = await db.select({ type: accounts.type, isLeaf: accounts.isLeaf })
+      .from(accounts).where(and(eq(accounts.id, cashAccountId), eq(accounts.organizationId, auth.orgId))).limit(1);
+    if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
+
+    try {
+      await db.update(expenses).set({
+        expenseAccountId, cashAccountId, date: new Date(date), amount: String(amount), paymentMethod,
+        payee: payee || null, reference: reference || null, notes: notes || null, updatedAt: new Date(),
+      }).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId)));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "EXPENSE", entityId: id, summary: `تعديل مصروف (مسودة)`, metadata: { amount } });
+      revalidatePath("/accounting/expenses");
+      return { ok: true, id };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 export async function confirmExpenseAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("accounting.post");
   if ("error" in auth) return auth;
