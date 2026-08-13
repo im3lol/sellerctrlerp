@@ -2,7 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { customers, users } from "@/db/schema";
@@ -12,13 +12,22 @@ import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 export type ActionState = { error?: string; ok?: boolean };
 
 const schema = z.object({
-  code: z.string().min(1, "الكود مطلوب"),
+  code: z.string().optional(),
   nameAr: z.string().min(2, "الاسم قصير جداً"),
   phone: z.string().optional(),
   email: z.string().email("بريد غير صحيح").optional().or(z.literal("")),
   creditLimit: z.coerce.number().min(0).default(0),
   paymentTerms: z.coerce.number().int().min(0).default(30),
 });
+
+// Next auto code CUST-#### from the highest existing CUST-<n> for this org.
+async function nextCustomerCode(orgId: string): Promise<string> {
+  const rows = await db.select({ code: customers.code }).from(customers)
+    .where(and(eq(customers.organizationId, orgId), like(customers.code, "CUST-%")));
+  let max = 0;
+  for (const r of rows) { const m = /^CUST-(\d+)$/.exec(r.code); if (m) max = Math.max(max, Number(m[1])); }
+  return `CUST-${String(max + 1).padStart(4, "0")}`;
+}
 
 export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = (formData.get("id") as string) || "";
@@ -36,8 +45,15 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
     });
     if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+    let code = (parsed.data.code ?? "").trim();
+    const autoGen = !code;
+    if (autoGen) {
+      if (id) return { error: "الكود مطلوب" }; // only new customers auto-generate
+      code = await nextCustomerCode(auth.orgId);
+    }
+
     const data = {
-      code: parsed.data.code,
+      code,
       nameAr: parsed.data.nameAr,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
@@ -45,15 +61,21 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
       paymentTerms: parsed.data.paymentTerms,
     };
 
+    const isUnique = (e: unknown) => e instanceof Error && e.message.includes("unique");
     try {
       if (id) {
         await db.update(customers).set(data).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
       } else {
-        await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+        try {
+          await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+        } catch (e) {
+          // Auto-generated code collided with a concurrent insert — regenerate once.
+          if (autoGen && isUnique(e)) await db.insert(customers).values({ ...data, code: await nextCustomerCode(auth.orgId), organizationId: auth.orgId });
+          else throw e;
+        }
       }
     } catch (e) {
-      const msg = e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ";
-      return { error: msg };
+      return { error: isUnique(e) ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
 
     revalidatePath("/sales/customers");
