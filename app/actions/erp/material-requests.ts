@@ -54,6 +54,42 @@ export async function createMaterialRequestAction(input: unknown): Promise<SaveS
   });
 }
 
+/** Edit a DRAFT requisition in place: replace its lines + header, keep the number.
+ *  Only DRAFT is editable. */
+export async function updateMaterialRequestAction(id: string, input: unknown): Promise<SaveState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { date, notes, lines } = parsed.data;
+
+    const [mr] = await db.select({ status: materialRequests.status }).from(materialRequests)
+      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1);
+    if (!mr) return { error: "الطلب غير موجود" };
+    if (mr.status !== "DRAFT") return { error: "لا يمكن تعديل طلب معتمد" };
+
+    const found = await db.select({ id: items.id }).from(items).where(eq(items.organizationId, auth.orgId));
+    const valid = new Set(found.map((f) => f.id));
+    if ([...new Set(lines.map((l) => l.itemId))].some((iid) => !valid.has(iid))) return { error: "صنف غير موجود في هذه المؤسسة" };
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(materialRequests).set({ date: new Date(date), notes: notes || null, updatedAt: new Date() })
+          .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
+        await tx.delete(materialRequestLines).where(eq(materialRequestLines.materialRequestId, id));
+        await tx.insert(materialRequestLines).values(lines.map((l) => ({ materialRequestId: id, itemId: l.itemId, quantity: String(l.quantity) })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "MATERIAL_REQUEST", entityId: id, summary: "تعديل طلب مواد (مسودة)" });
+      revalidatePath("/purchases/requisitions");
+      revalidatePath(`/purchases/requisitions/${id}`);
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 /** Approve a DRAFT requisition (makes it ready to convert to a PO). */
 export async function approveMaterialRequestAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.confirm");

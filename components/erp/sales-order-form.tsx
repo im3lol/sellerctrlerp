@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createSalesOrderAction } from "@/app/actions/erp/sales-orders";
+import { createSalesOrderAction, updateSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { getItemWarehouseStockAction, type WarehouseStock } from "@/app/actions/erp/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,22 +29,42 @@ const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity:
 
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
-export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; exempt?: boolean }[] }) {
+export type SalesOrderInitial = {
+  id: string; number: string; customerId: string; date: string; dueDate: string; notes: string;
+  channel: string; externalOrderId: string; shippingAmount: number;
+  lines: { itemId: string; warehouseId: string; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean }[];
+};
+
+export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; exempt?: boolean }[]; initial?: SalesOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
-  const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
-  const [date, setDate] = useState(today);
-  const [dueDate, setDueDate] = useState("");
-  const [notes, setNotes] = useState("");
-  const [channel, setChannel] = useState("MANUAL");
-  const [externalOrderId, setExternalOrderId] = useState("");
-  const [shippingAmount, setShippingAmount] = useState(0);
+  const isEdit = !!initial?.id;
+  const [customerId, setCustomerId] = useState(initial?.customerId ?? defaultCustomerId ?? "");
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [channel, setChannel] = useState(initial?.channel ?? "MANUAL");
+  const [externalOrderId, setExternalOrderId] = useState(initial?.externalOrderId ?? "");
+  const [shippingAmount, setShippingAmount] = useState(initial?.shippingAmount ?? 0);
   const [lines, setLines] = useState<Line[]>(
-    initialLines?.length
+    initial?.lines?.length
+      ? initial.lines.map((l) => ({ ...newLine(), itemId: l.itemId, warehouseId: l.warehouseId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, exempt: l.exempt }))
+      : initialLines?.length
       ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, exempt: l.exempt ?? false }))
       : [newLine()],
   );
+
+  // Editing: load each seeded line's warehouse stock once so the warehouse picker shows
+  // options + on-hand, keeping the stored warehouse selected.
+  useEffect(() => {
+    if (!isEdit) return;
+    lines.forEach((l, i) => {
+      if (!l.itemId) return;
+      getItemWarehouseStockAction(l.itemId).then((r) => { if (r.ok && r.stock) setLine(i, { stock: r.stock }); });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Switching to a marketplace channel auto-selects its default customer (e.g. «أمازون مصر») if one exists.
   const onChannel = (c: string) => {
@@ -83,13 +103,14 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
     if (channel !== "MANUAL" && !externalOrderId.trim()) return toast.error("أدخل رقم الطلب");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createSalesOrderAction({
+      const body = {
         customerId, date, dueDate: dueDate || undefined, notes,
         channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
         lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })),
-      });
+      };
+      const r = isEdit ? await updateSalesOrderAction(initial!.id, body) : await createSalesOrderAction(body);
       if (r.ok) {
-        toast.success("تم حفظ أمر البيع (مسودة) — أكّده");
+        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر البيع (مسودة) — أكّده");
         if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
         router.push(r.id ? `/sales/orders/${r.id}` : "/sales/orders"); router.refresh();
       }
@@ -103,8 +124,8 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>بيانات أمر البيع</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/sales/orders")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/orders/${initial!.id}` : "/sales/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
@@ -126,7 +147,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className={`grid grid-cols-1 gap-4 sm:grid-cols-4 ${isEdit ? "hidden" : ""}`}>
           <div className="space-y-2">
             <Label>القناة</Label>
             <select className={selectCls} value={channel} onChange={(e) => onChannel(e.target.value)}>

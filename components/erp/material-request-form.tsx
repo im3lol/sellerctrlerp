@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createMaterialRequestAction } from "@/app/actions/erp/material-requests";
+import { createMaterialRequestAction, updateMaterialRequestAction } from "@/app/actions/erp/material-requests";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,14 +16,16 @@ import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Item = { id: string; nameAr: string | null };
 type Line = { itemId: string; quantity: number };
+export type MaterialRequestInitial = { id: string; date: string; notes: string; lines: Line[] };
 
-export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName: string }) {
+export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]; orgName: string; initial?: MaterialRequestInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
-  const [date, setDate] = useState(today);
-  const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ itemId: "", quantity: 1 }]);
+  const isEdit = !!initial?.id;
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [{ itemId: "", quantity: 1 }]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, { itemId: "", quantity: 1 }]);
@@ -42,8 +44,9 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
   const submit = () => {
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createMaterialRequestAction({ date, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })) });
-      if (r.ok) { toast.success("تم حفظ طلب المواد (مسودة)"); router.push(r.id ? `/purchases/requisitions/${r.id}` : "/purchases/requisitions"); router.refresh(); }
+      const body = { date, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })) };
+      const r = isEdit ? await updateMaterialRequestAction(initial!.id, body) : await createMaterialRequestAction(body);
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ طلب المواد (مسودة)"); router.push(r.id ? `/purchases/requisitions/${r.id}` : "/purchases/requisitions"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -54,8 +57,8 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>بيانات طلب المواد</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الطلب</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/requisitions")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الطلب"}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/requisitions/${initial!.id}` : "/purchases/requisitions")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

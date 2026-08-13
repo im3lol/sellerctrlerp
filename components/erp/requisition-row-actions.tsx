@@ -21,6 +21,7 @@ export function RequisitionRowActions({ id, status, canManage }: { id: string; s
       {status === "DRAFT" && (
         <>
           <Button size="sm" disabled={pending} onClick={() => run(() => approveMaterialRequestAction(id), "تم اعتماد الطلب")}><Icon name="Check" className="size-4" />اعتماد</Button>
+          <Button size="sm" variant="outline" asChild><Link href={`/purchases/requisitions/${id}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></Button>
           <Button size="icon" variant="ghost" disabled={pending} aria-label="حذف" onClick={() => run(() => deleteMaterialRequestAction(id), "تم الحذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
         </>
       )}

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createQuotationAction } from "@/app/actions/erp/quotations";
+import { createQuotationAction, updateQuotationAction } from "@/app/actions/erp/quotations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,15 +25,18 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, exempt: false });
 const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice - l.discountAmount + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt));
 
-export function QuotationForm({ customers, items, orgName, vatRate }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number }) {
+export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; lines: Line[] };
+
+export function QuotationForm({ customers, items, orgName, vatRate, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; initial?: QuotationInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
-  const [customerId, setCustomerId] = useState("");
-  const [date, setDate] = useState(today);
-  const [validUntil, setValidUntil] = useState("");
-  const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const isEdit = !!initial?.id;
+  const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [validUntil, setValidUntil] = useState(initial?.validUntil ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [newLine()]);
 
   const custOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
   const custLabel = useMemo(() => new Map(custOptions.map((o) => [o.id, o.label])), [custOptions]);
@@ -54,8 +57,9 @@ export function QuotationForm({ customers, items, orgName, vatRate }: { customer
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const r = await createQuotationAction({ customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })) });
-      if (r.ok) { toast.success("تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
+      const body = { customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })) };
+      const r = isEdit ? await updateQuotationAction(initial!.id, body) : await createQuotationAction(body);
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -66,8 +70,8 @@ export function QuotationForm({ customers, items, orgName, vatRate }: { customer
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>بيانات عرض السعر</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ العرض</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/sales/quotations")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ العرض"}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${initial!.id}` : "/sales/quotations")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

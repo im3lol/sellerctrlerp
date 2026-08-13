@@ -67,6 +67,47 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
   });
 }
 
+/** Edit a DRAFT quotation in place: replace its lines + header, keep the number.
+ *  Only DRAFT is editable. */
+export async function updateQuotationAction(id: string, input: unknown): Promise<SaveState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const d = parsed.data;
+
+    const [existing] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
+      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "العرض غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل عرض غير مسودة" };
+
+    const [cust] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.id, d.customerId), eq(customers.organizationId, auth.orgId))).limit(1);
+    if (!cust) return { error: "العميل غير موجود" };
+    const valid = new Set((await db.select({ id: items.id }).from(items).where(eq(items.organizationId, auth.orgId))).map((r) => r.id));
+    if (d.lines.some((l) => !valid.has(l.itemId))) return { error: "صنف غير موجود" };
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(salesQuotations).set({
+          customerId: d.customerId, date: new Date(d.date), validUntil: d.validUntil ? new Date(d.validUntil) : null, notes: d.notes || null, updatedAt: new Date(),
+        }).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
+        await tx.delete(salesQuotationLines).where(eq(salesQuotationLines.quotationId, id));
+        await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({
+          quotationId: id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt,
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "QUOTATION", entityId: id, summary: "تعديل عرض سعر (مسودة)" });
+      revalidatePath("/sales/quotations");
+      revalidatePath(`/sales/quotations/${id}`);
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 /** Update a quotation's status (SENT / ACCEPTED / REJECTED). */
 export async function setQuotationStatusAction(id: string, status: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");

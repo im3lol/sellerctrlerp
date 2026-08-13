@@ -114,6 +114,58 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
   });
 }
 
+/** Edit a DRAFT sales order in place: replace its lines + header, keep the number and
+ *  the marketplace linkage (channel + externalOrderId). Only DRAFT is editable. */
+export async function updateSalesOrderAction(id: string, input: unknown): Promise<SaveOrderState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { customerId, date, dueDate, notes, lines } = parsed.data;
+    const shippingAmount = round2(parsed.data.shippingAmount);
+
+    const [existing] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "الأمر غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً" };
+
+    const [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
+    if (!cust) return { error: "العميل غير موجود في هذه المؤسسة" };
+
+    const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
+    const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
+    const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
+    const totalAmount = round2(subtotal - discountAmount + taxAmount + shippingAmount);
+
+    try {
+      await db.transaction(async (tx) => {
+        // channel + externalOrderId intentionally left untouched — editing must not alter
+        // a marketplace order's identity.
+        await tx.update(salesOrders).set({
+          customerId, date: new Date(date), dueDate: dueDate ? new Date(dueDate) : null,
+          subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
+          shippingAmount: String(shippingAmount), totalAmount: String(totalAmount), notes: notes || null, updatedAt: new Date(),
+        }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+        await tx.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+        await tx.insert(salesOrderLines).values(computed.map((l) => ({
+          salesOrderId: id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "SALES_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر بيع ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/orders/${id}`);
+      return { ok: true, id };
+    } catch {
+      return { error: "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 /** Confirm a DRAFT sales order (approval/reservation — no stock/GL). */
 export async function confirmSalesOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm");
