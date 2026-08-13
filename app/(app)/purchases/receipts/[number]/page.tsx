@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, purchaseOrders, purchaseInvoices, purchaseReturns, itemCodes } from "@/db/schema";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
-import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
+import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
+import { toPrintCodes } from "@/lib/erp/print-codes";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -38,7 +39,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     if (!grn) notFound();
 
     // All independent once `grn` is known — one round-trip.
-    const [[sup], [wh], lines, [po], [pi], retDocs, audit, barcodeRows] = await Promise.all([
+    const [[sup], [wh], lines, [po], [pi], retDocs, audit] = await Promise.all([
       grn.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
@@ -57,14 +58,20 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
       db.select({ number: purchaseReturns.number, status: purchaseReturns.status }).from(purchaseReturns)
         .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId))),
       getDocumentAudit(orgId, grn.id),
-      db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.isPrimary, true))),
     ]);
     const anyRejected = lines.some((l) => Number(l.rejected) > 0);
 
-    const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
-    const barcodeItems = lines
-      .filter((l) => l.itemId && barcodeMap[l.itemId])
-      .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.code ?? "", itemName: l.name ?? "", quantity: Math.max(1, Math.round(Number(l.qty ?? 1))) }));
+    // All codes (SKU/ASIN/FNSKU/…) for the lines' items, so the label dialog can pick per line.
+    const lineItemIds = [...new Set(lines.map((l) => l.itemId).filter(Boolean) as string[])];
+    const codeRows = lineItemIds.length
+      ? await db.select({ itemId: itemCodes.itemId, codeType: itemCodes.codeType, code: itemCodes.code })
+          .from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
+      : [];
+    const barcodeRows: BulkRow[] = lines.filter((l) => l.itemId).map((l) => ({
+      itemName: l.name ?? l.code ?? "",
+      qty: Math.max(1, Math.round(Number(l.qty ?? 1))),
+      codes: toPrintCodes(l.code, codeRows.filter((c) => c.itemId === l.itemId)),
+    })).filter((r) => r.codes.length);
 
     const linked: DocLink[] = [];
     if (po) linked.push({ label: "أمر شراء", number: po.number, href: `/purchases/orders/${encodeURIComponent(po.number)}` });
@@ -87,7 +94,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
           action={
             <div className="flex gap-2">
               <PrintDocLink href={`/purchases/receipts/${encodeURIComponent(grn.number)}/print`} />
-              <BarcodePrintButton items={barcodeItems} printPageHref={`/barcodes/receipt/${grn.id}`} />
+              <BulkBarcodePrintButton docTitle={`إذن استلام ${grn.number}`} rows={barcodeRows} />
               <ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />
             </div>
           }

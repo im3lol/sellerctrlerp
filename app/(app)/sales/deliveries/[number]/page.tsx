@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { deliveryNotes, deliveryNoteLines, customers, items, warehouses, salesOrders, salesInvoices, salesReturns, itemCodes } from "@/db/schema";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DeliveryDetailActions } from "@/components/erp/delivery-detail-actions";
-import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
+import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
+import { toPrintCodes } from "@/lib/erp/print-codes";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -38,7 +39,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     if (!dn) notFound();
 
     // All independent of each other once `dn` is known — fetch in one round-trip.
-    const [[cust], [wh], lines, [so], [si], retDocs, audit, barcodeRows] = await Promise.all([
+    const [[cust], [wh], lines, [so], [si], retDocs, audit] = await Promise.all([
       dn.customerId
         ? db.select({ code: customers.code, name: customers.nameAr }).from(customers).where(eq(customers.id, dn.customerId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
@@ -57,13 +58,19 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
       db.select({ number: salesReturns.number, status: salesReturns.status }).from(salesReturns)
         .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.organizationId, orgId))),
       getDocumentAudit(orgId, dn.id),
-      db.select({ itemId: itemCodes.itemId, barcode: itemCodes.code }).from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.isPrimary, true))),
     ]);
 
-    const barcodeMap = Object.fromEntries(barcodeRows.map((r) => [r.itemId, r.barcode]));
-    const barcodeItems = lines
-      .filter((l) => l.itemId && barcodeMap[l.itemId])
-      .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.code ?? "", itemName: l.name ?? "", quantity: Math.max(1, Math.round(Number(l.qty ?? 1))) }));
+    // All codes (SKU/ASIN/FNSKU/…) for the lines' items, so the label dialog can pick per line.
+    const lineItemIds = [...new Set(lines.map((l) => l.itemId).filter(Boolean) as string[])];
+    const codeRows = lineItemIds.length
+      ? await db.select({ itemId: itemCodes.itemId, codeType: itemCodes.codeType, code: itemCodes.code })
+          .from(itemCodes).where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.itemId, lineItemIds)))
+      : [];
+    const barcodeRows: BulkRow[] = lines.filter((l) => l.itemId).map((l) => ({
+      itemName: l.name ?? l.code ?? "",
+      qty: Math.max(1, Math.round(Number(l.qty ?? 1))),
+      codes: toPrintCodes(l.code, codeRows.filter((c) => c.itemId === l.itemId)),
+    })).filter((r) => r.codes.length);
 
     const linked: DocLink[] = [];
     if (so) linked.push({ label: "أمر بيع", number: so.number, href: `/sales/orders/${encodeURIComponent(so.number)}` });
@@ -86,7 +93,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
           action={
             <div className="flex gap-2">
               <PrintDocLink href={`/sales/deliveries/${encodeURIComponent(dn.number)}/print`} />
-              <BarcodePrintButton items={barcodeItems} printPageHref={`/barcodes/delivery/${dn.id}`} />
+              <BulkBarcodePrintButton docTitle={`إذن صرف ${dn.number}`} rows={barcodeRows} />
               <DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />
             </div>
           }
