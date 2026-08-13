@@ -38,6 +38,53 @@ async function nextNumber(orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(db, orgId, "PO", year);
 }
 
+type POParsed = z.infer<typeof schema>;
+
+// Validate supplier + warehouse (org-scoped, IDOR guard), resolve the document currency,
+// and convert every line amount to base currency — shared by create + update so the FX
+// math never diverges. Returns {error} or the fully computed header + line values (base).
+async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
+  const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
+    .where(and(eq(suppliers.id, data.supplierId), eq(suppliers.organizationId, orgId))).limit(1);
+  if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
+  const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
+    .where(and(eq(warehouses.id, data.warehouseId), eq(warehouses.organizationId, orgId))).limit(1);
+  if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
+
+  const d = new Date(data.date);
+  // Foreign currency: line amounts arrive in the document currency; convert to base (EGP)
+  // once here so everything downstream (inventory valuation, GL) stays base-only.
+  const baseCode = await getBaseCurrencyCode(orgId);
+  const code = (data.currencyCode ?? baseCode).toUpperCase();
+  const isForeign = code !== baseCode.toUpperCase();
+  const rate = isForeign ? await getExchangeRate(orgId, code, baseCode, d) : 1;
+  if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات ثم أعد المحاولة` };
+  const toBase = (n: number) => round2(n * rate);
+  const foreignTotal = round2(data.lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));
+
+  const computed = data.lines.map((l) => {
+    const unitPrice = toBase(l.unitPrice);
+    const shippingPerUnit = toBase(l.shippingPerUnit);
+    const discountAmount = toBase(l.discountAmount);
+    const taxAmount = toBase(l.taxAmount);
+    return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
+      totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
+  });
+  const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const shippingAmount = round2(computed.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
+  const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
+  const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
+  const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
+  return { values: { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
+}
+
+type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number };
+const poLineRows = (parentId: string, computed: POComputedLine[]) =>
+  computed.map((l) => ({
+    purchaseOrderId: parentId, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+    shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
+  }));
+
 /** Create a purchase order as DRAFT (no effect until confirmed). */
 export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrderState> {
   const auth = await authorizeErp("purchases.create");
@@ -46,43 +93,10 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0].message };
-    const { supplierId, warehouseId, date, notes, lines } = parsed.data;
-
-    const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
-      .where(and(eq(suppliers.id, supplierId), eq(suppliers.organizationId, auth.orgId))).limit(1);
-    if (!sup) return { error: "المورد غير موجود في هذه المؤسسة" };
-    // The warehouse id flows into the GRN and its stock movements — verify it
-    // belongs to the org (same IDOR class as the supplier check above).
-    const [wh] = await db.select({ id: warehouses.id }).from(warehouses)
-      .where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
-    if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
-
-    const d = new Date(date);
-
-    // Foreign currency: line amounts arrive in the document currency; convert to base
-    // (EGP) once here so everything downstream (inventory valuation, GL) stays base.
-    const baseCode = await getBaseCurrencyCode(auth.orgId);
-    const code = (parsed.data.currencyCode ?? baseCode).toUpperCase();
-    const isForeign = code !== baseCode.toUpperCase();
-    const rate = isForeign ? await getExchangeRate(auth.orgId, code, baseCode, d) : 1;
-    if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات ثم أعد المحاولة` };
-    const toBase = (n: number) => round2(n * rate);
-    // Foreign document total (as entered) — kept for display only.
-    const foreignTotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));
-
-    const computed = lines.map((l) => {
-      const unitPrice = toBase(l.unitPrice);
-      const shippingPerUnit = toBase(l.shippingPerUnit);
-      const discountAmount = toBase(l.discountAmount);
-      const taxAmount = toBase(l.taxAmount);
-      return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
-        totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
-    });
-    const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-    const shippingAmount = round2(computed.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
-    const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
-    const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
-    const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
+    const r = await resolvePurchaseOrderValues(auth.orgId, parsed.data);
+    if ("error" in r) return { error: r.error };
+    const { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
+    const { supplierId, warehouseId, notes } = parsed.data;
 
     const number = await nextNumber(auth.orgId, d.getFullYear());
 
@@ -94,10 +108,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null,
         }).returning({ id: purchaseOrders.id });
-        await tx.insert(purchaseOrderLines).values(computed.map((l) => ({
-          purchaseOrderId: po.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-          shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
-        })));
+        await tx.insert(purchaseOrderLines).values(poLineRows(po.id, computed));
         return po.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
@@ -105,6 +116,46 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
+    }
+  });
+}
+
+/** Edit a DRAFT purchase order in place: replace its lines + header, keep the number.
+ *  Only DRAFT is editable (no stock/GL yet) — mirrors the delete guard. */
+export async function updatePurchaseOrderAction(id: string, input: unknown): Promise<SaveOrderState> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const [existing] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "الأمر غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً" };
+
+    const r = await resolvePurchaseOrderValues(auth.orgId, parsed.data);
+    if ("error" in r) return { error: r.error };
+    const { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
+    const { supplierId, warehouseId, notes } = parsed.data;
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(purchaseOrders).set({
+          supplierId, warehouseId, date: d,
+          subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
+          totalAmount: String(totalAmount), notes: notes || null,
+          currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
+        }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+        await tx.delete(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
+        await tx.insert(purchaseOrderLines).values(poLineRows(id, computed));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر شراء ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
+      revalidatePath("/purchases/orders");
+      revalidatePath(`/purchases/orders/${id}`);
+      return { ok: true, id };
+    } catch {
+      return { error: "تعذّر حفظ التعديل" };
     }
   });
 }

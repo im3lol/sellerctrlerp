@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createPurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
+import { createPurchaseOrderAction, updatePurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,12 @@ type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
 type Currency = { code: string; nameAr: string; isBase: boolean };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; exempt: boolean };
+// Editing an existing DRAFT: line amounts are already in the document currency (the edit
+// page converts the stored base amounts back to foreign), so they seed Line directly.
+export type PurchaseOrderInitial = {
+  id: string; number: string; supplierId: string; warehouseId: string; date: string; notes: string;
+  currencyCode: string; exchangeRate: number; lines: Line[];
+};
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,22 +38,27 @@ const lineTax = (l: Line, vatRate: number) => lineVat(l.quantity, l.unitPrice, l
 const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate));
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {}, currencies = [], latestRates = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number> }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {}, currencies = [], latestRates = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
-  const [supplierId, setSupplierId] = useState("");
-  const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
-  const [date, setDate] = useState(today);
-  const [notes, setNotes] = useState("");
+  const isEdit = !!initial?.id;
+  const [supplierId, setSupplierId] = useState(initial?.supplierId ?? "");
+  const [warehouseId, setWarehouseId] = useState(initial?.warehouseId ?? warehouses[0]?.id ?? "");
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   // Document currency. Amounts are entered in this currency; the server converts to the
   // base (EGP) at the exchange rate before posting. `rate` = 1 unit currency → base units.
   const baseCode = currencies.find((c) => c.isBase)?.code ?? "EGP";
-  const [currency, setCurrency] = useState(baseCode);
+  const [currency, setCurrency] = useState(initial?.currencyCode ?? baseCode);
   const isForeign = currency !== baseCode;
-  const rate = isForeign ? (latestRates[currency] ?? 0) : 1;
+  // When editing and the currency is unchanged, keep the document's original rate; otherwise
+  // use the latest rate on file for the chosen currency.
+  const rate = !isForeign ? 1 : (isEdit && currency === initial?.currencyCode ? Number(initial.exchangeRate) : (latestRates[currency] ?? 0));
   const [lines, setLines] = useState<Line[]>(
-    initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 })) : [newLine()],
+    initial?.lines?.length ? initial.lines
+      : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 }))
+      : [newLine()],
   );
   // Landed costs: total import charges auto-allocated onto each line's shipping/unit.
   const [lc, setLc] = useState({ shipping: "", customs: "", insurance: "", other: "" });
@@ -103,9 +114,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
         taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit), exempt: l.exempt,
       }));
-      const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, currencyCode: currency, lines: payload });
+      const body = { supplierId, warehouseId, date, notes, currencyCode: currency, lines: payload };
+      const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
-        toast.success("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
+        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
         router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
@@ -118,8 +130,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>بيانات أمر الشراء</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الأمر</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/orders")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/orders/${initial!.id}` : "/purchases/orders")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>
