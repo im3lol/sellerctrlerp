@@ -73,6 +73,50 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
   });
 }
 
+/** Edit a DRAFT transfer in place: replace its lines + header, keep the number.
+ *  Only DRAFT is editable (no stock moved yet). */
+export async function updateStockTransferAction(id: string, input: unknown): Promise<SaveTransferState> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { date, notes, lines } = parsed.data;
+
+    const [existing] = await db.select({ status: stockTransfers.status, number: stockTransfers.number }).from(stockTransfers)
+      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "التحويل غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل تحويل مُرحّل" };
+
+    const whIds = [...new Set(lines.flatMap((l) => [l.fromWarehouseId, l.toWarehouseId]))];
+    const whs = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, auth.orgId), inArray(warehouses.id, whIds)));
+    const valid = new Set(whs.map((w) => w.id));
+    for (const l of lines) {
+      if (!valid.has(l.fromWarehouseId) || !valid.has(l.toWarehouseId)) return { error: "مستودع غير صالح" };
+      if (l.fromWarehouseId === l.toWarehouseId) return { error: "المستودع المصدر والوجهة متماثلان في أحد الأصناف" };
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(stockTransfers).set({ date: new Date(date), notes: notes || null, updatedAt: new Date() })
+          .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
+        await tx.delete(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
+        await tx.insert(stockTransferLines).values(lines.map((l) => ({
+          stockTransferId: id, itemId: l.itemId, fromWarehouseId: l.fromWarehouseId, toWarehouseId: l.toWarehouseId, quantity: String(l.quantity),
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: existing.number, summary: `تعديل تحويل مخزني ${existing.number} (مسودة)`, metadata: { lines: lines.length } });
+      revalidatePath("/inventory/transfers");
+      revalidatePath(`/inventory/transfers/${id}`);
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 /**
  * Confirm (post) a DRAFT transfer: per line OUT from its source at WAC, IN to its
  * destination at the same unit cost. Total inventory value is unchanged, so no

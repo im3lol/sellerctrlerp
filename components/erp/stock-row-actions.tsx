@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmStockTransferAction, deleteStockTransferAction } from "@/app/actions/erp/stock-transfers";
@@ -45,6 +46,11 @@ export function StockRowActions({
           () => isTransfer ? confirmStockTransferAction(docId) : confirmStockAdjustmentAction(docId), "تم التأكيد والترحيل")}>
         <Icon name="Check" className="size-4" />تأكيد
       </Button>
+      {isTransfer && (
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/inventory/transfers/${docId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+        </Button>
+      )}
       <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
         onClick={() => run(
           { title: "حذف المسودة", description: `سيتم حذف مسودة ${label} نهائياً.`, confirmText: "حذف", danger: true },
