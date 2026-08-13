@@ -22,21 +22,22 @@ type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
 type Currency = { code: string; nameAr: string; isBase: boolean };
-type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; exempt: boolean };
+type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number };
 // Editing an existing DRAFT: line amounts are already in the document currency (the edit
 // page converts the stored base amounts back to foreign), so they seed Line directly.
 export type PurchaseOrderInitial = {
   id: string; number: string; supplierId: string; warehouseId: string; date: string; notes: string;
-  currencyCode: string; exchangeRate: number; lines: Line[];
+  currencyCode: string; exchangeRate: number; applyVat: boolean; lines: Line[];
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-// VAT base = goods value net of discount (freight excluded), matching the sales side.
-const lineTax = (l: Line, vatRate: number) => lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, l.exempt);
-const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate));
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false });
+// VAT is a single document-level choice (not per line). Base = goods value net of discount
+// (freight excluded), same convention as the sales side. `applyVat=false` → tax 0.
+const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, false) : 0);
+const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
+const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0 });
 
 export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {}, currencies = [], latestRates = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
@@ -55,6 +56,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
   // When editing and the currency is unchanged, keep the document's original rate; otherwise
   // use the latest rate on file for the chosen currency.
   const rate = !isForeign ? 1 : (isEdit && currency === initial?.currencyCode ? Number(initial.exchangeRate) : (latestRates[currency] ?? 0));
+  // VAT is a single choice for the whole order (not per line). Default: on when the org has a rate.
+  const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : vatRate > 0);
   const [lines, setLines] = useState<Line[]>(
     initial?.lines?.length ? initial.lines
       : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 }))
@@ -89,7 +92,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0 };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? line : l));
       return [...ls, line];
@@ -99,10 +102,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const shipping = round2(lines.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
     const discount = round2(lines.reduce((s, l) => s + l.quantity * l.discountPerUnit, 0));
-    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate), 0));
+    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat), 0));
     const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
     return { subtotal, shipping, discount, tax, qty, total: round2(subtotal + shipping - discount + tax) };
-  }, [lines, vatRate]);
+  }, [lines, vatRate, applyVat]);
 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
@@ -112,7 +115,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
     start(async () => {
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
-        taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit), exempt: l.exempt,
+        taxAmount: lineTax(l, vatRate, applyVat), discountAmount: round2(l.quantity * l.discountPerUnit),
       }));
       const body = { supplierId, warehouseId, date, notes, currencyCode: currency, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
@@ -154,13 +157,20 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
           <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
         </div>
 
-        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-3">
+        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-4">
           <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
           <div className="space-y-2">
             <Label>المستودع</Label>
             <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label>الضريبة</Label>
+            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
+              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+            </label>
           </div>
           <div className="space-y-2">
             <Label>العملة</Label>
@@ -185,7 +195,6 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                 <TableHead className="w-28 text-start">الكمية</TableHead>
                 <TableHead className="w-36 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
-                <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
                 <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
@@ -200,14 +209,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                   <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
                   <TableCell><Input type="number" step="0.01" inputMode="decimal" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-[3.5rem] tabular-nums">{fmt(lineTax(l, vatRate))}</span>
-                      <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
-                    </div>
-                  </TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.shippingPerUnit} onChange={(e) => setLine(i, { shippingPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
-                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate))}</TableCell>
+                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}

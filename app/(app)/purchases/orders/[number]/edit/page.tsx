@@ -41,12 +41,12 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     const initial: PurchaseOrderInitial = {
       id: po.id, number: po.number, supplierId: po.supplierId, warehouseId: po.warehouseId,
       date: new Date(po.date).toISOString().slice(0, 10), notes: po.notes ?? "",
-      currencyCode: po.currencyCode, exchangeRate: rate,
+      currencyCode: po.currencyCode, exchangeRate: rate, applyVat: Number(po.taxAmount) > 0,
       lines: poLines.map((l) => {
         const qty = Number(l.quantity) || 0;
         return {
           itemId: l.itemId, quantity: qty, unitPrice: toForeign(l.unitPrice), shippingPerUnit: toForeign(l.shippingPerUnit),
-          discountPerUnit: qty > 0 ? round2(toForeign(l.discountAmount) / qty) : 0, exempt: !!l.isTaxExempt,
+          discountPerUnit: qty > 0 ? round2(toForeign(l.discountAmount) / qty) : 0,
         };
       }),
     };
