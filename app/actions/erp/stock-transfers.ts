@@ -100,6 +100,12 @@ export async function updateStockTransferAction(id: string, input: unknown): Pro
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: confirm claims the same row, so whoever
+        // gets here second sees POSTED and aborts instead of rewriting the lines behind
+        // stock movements that were already posted from them.
+        const [live] = await tx.select({ status: stockTransfers.status }).from(stockTransfers)
+          .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل تحويل مُرحّل");
         await tx.update(stockTransfers).set({ date: new Date(date), notes: notes || null, updatedAt: new Date() })
           .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
         await tx.delete(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
@@ -132,11 +138,7 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
     if (!tr) return { error: "التحويل غير موجود" };
     if (tr.status !== "DRAFT") return { error: "التحويل مُرحّل بالفعل" };
 
-    const ls = await db.select().from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
-    if (ls.length === 0) return { error: "لا توجد بنود في التحويل" };
-
-    const d = tr.date instanceof Date ? tr.date : new Date(tr.date);
-
+    let lineCount = 0;
     try {
       await db.transaction(async (tx) => {
         // Claim the transfer before moving any stock. The status check above runs
@@ -147,19 +149,28 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
         // run both legs twice and conjure stock (source −10, destination +20).
         // This conditional UPDATE takes the row lock: the loser matches 0 rows and
         // rolls back.
-        const claimed = await tx.update(stockTransfers).set({ status: "POSTED" })
+        const [claimed] = await tx.update(stockTransfers).set({ status: "POSTED" })
           .where(and(eq(stockTransfers.id, tr.id), eq(stockTransfers.status, "DRAFT")))
-          .returning({ id: stockTransfers.id });
-        if (claimed.length === 0) throw new Error("ALREADY_POSTED");
+          .returning({ id: stockTransfers.id, number: stockTransfers.number, date: stockTransfers.date,
+            fromWarehouseId: stockTransfers.fromWarehouseId, toWarehouseId: stockTransfers.toWarehouseId });
+        if (!claimed) throw new Error("ALREADY_POSTED");
+
+        // Header AND lines are read only after the claim holds the row lock, so a
+        // concurrent draft edit either finished before it (we post the new lines) or
+        // is still blocked on it (and will then find the transfer POSTED and abort).
+        const ls = await tx.select().from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
+        if (ls.length === 0) throw new Error("لا توجد بنود في التحويل");
+        lineCount = ls.length;
+        const d = claimed.date instanceof Date ? claimed.date : new Date(claimed.date);
 
         for (const l of ls) {
-          const from = l.fromWarehouseId ?? tr.fromWarehouseId;
-          const to = l.toWarehouseId ?? tr.toWarehouseId;
+          const from = l.fromWarehouseId ?? claimed.fromWarehouseId;
+          const to = l.toWarehouseId ?? claimed.toWarehouseId;
           if (!from || !to) throw new Error("مستودع غير محدد لأحد الأصناف");
           const qty = Number(l.quantity);
           const out = await postStockMovement(tx, {
             orgId: auth.orgId, itemId: l.itemId, warehouseId: from, type: "OUT",
-            quantity: qty, date: d, referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
+            quantity: qty, date: d, referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${claimed.number}`,
           });
           // Carry each consumed lot's batch/expiry to the destination warehouse
           // (one IN per source allocation) — value-neutral (same unit cost).
@@ -168,11 +179,11 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
               orgId: auth.orgId, itemId: l.itemId, warehouseId: to, type: "IN",
               quantity: Math.abs(a.quantity), unitCost: a.unitCost, date: d,
               batchNo: a.batchNo, expiryDate: a.expiryDate,
-              referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
+              referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${claimed.number}`,
             });
           }
         }
-        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: ls.length } });
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: claimed.number, summary: `تأكيد وترحيل تحويل مخزني ${claimed.number}`, metadata: { lines: lineCount } });
       });
 
       revalidatePath("/inventory/transfers");
@@ -198,7 +209,10 @@ export async function deleteStockTransferAction(id: string): Promise<ActionState
     if (!tr) return { error: "التحويل غير موجود" };
     if (tr.status !== "DRAFT") return { error: "لا يمكن حذف تحويل مُرحّل" };
 
-    await db.delete(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
+    const gone = await db.delete(stockTransfers)
+      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId), eq(stockTransfers.status, "DRAFT")))
+      .returning({ id: stockTransfers.id });
+    if (!gone.length) return { error: "لا يمكن حذف تحويل مُرحّل" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "STOCK_TRANSFER", entityId: id, summary: "حذف تحويل مخزني (مسودة)" });
     revalidatePath("/inventory/transfers");
     return { ok: true };

@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -141,6 +141,12 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: «تأكيد» can land between the read above
+        // and here, and rewriting a confirmed order's lines would leave the documents
+        // built from it (GRN, invoice) describing quantities nobody ever approved.
+        const [live] = await tx.select({ status: purchaseOrders.status }).from(purchaseOrders)
+          .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً");
         await tx.update(purchaseOrders).set({
           supplierId, warehouseId, date: d,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
@@ -154,8 +160,8 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
       revalidatePath("/purchases/orders");
       revalidatePath(`/purchases/orders/${id}`);
       return { ok: true, id };
-    } catch {
-      return { error: "تعذّر حفظ التعديل" };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
   });
 }
@@ -177,7 +183,12 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
       return { error: `أمر شراء بقيمة تتجاوز حد الاعتماد (${threshold.toLocaleString("ar-EG")}) — يجب اعتماده أولاً` };
     }
 
-    await db.update(purchaseOrders).set({ status: "CONFIRMED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+    // Compare-and-swap on the status the checks above were made against, so a concurrent
+    // edit/cancel/confirm can't slip in between the read and this write.
+    const done = await db.update(purchaseOrders).set({ status: "CONFIRMED" })
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, "DRAFT")))
+      .returning({ id: purchaseOrders.id });
+    if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
     revalidatePath(`/purchases/orders/${id}`);
@@ -195,7 +206,10 @@ export async function approvePurchaseOrderAction(id: string): Promise<ActionStat
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "DRAFT") return { error: "لا يمكن اعتماد أمر مؤكّد" };
     if (po.approvedAt) return { error: "الأمر معتمد بالفعل" };
-    await db.update(purchaseOrders).set({ approvedBy: auth.userId, approvedAt: new Date() }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+    const approved = await db.update(purchaseOrders).set({ approvedBy: auth.userId, approvedAt: new Date() })
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, "DRAFT"), isNull(purchaseOrders.approvedAt)))
+      .returning({ id: purchaseOrders.id });
+    if (!approved.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `اعتماد أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
     revalidatePath(`/purchases/orders/${id}`);
@@ -217,7 +231,10 @@ export async function deletePurchaseOrderAction(id: string): Promise<ActionState
         .where(and(eq(purchaseReceipts.purchaseOrderId, id), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
       if (grn) return { error: "لا يمكن حذف أمر مرتبط بإذون استلام" };
     }
-    await db.delete(purchaseOrders).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+    const gone = await db.delete(purchaseOrders)
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, po.status)))
+      .returning({ id: purchaseOrders.id });
+    if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `حذف أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
     return { ok: true };
@@ -276,7 +293,10 @@ export async function cancelPurchaseOrderAction(id: string): Promise<ActionState
     if (moved.some((l) => Number(l.r) > 0 || Number(l.inv) > 0)) {
       return { error: "الأمر مستلم/مفوتر جزئيًا — اعكس الاستلام أو أنشئ مرتجعًا بدل الإلغاء" };
     }
-    await db.update(purchaseOrders).set({ status: "CANCELLED" }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
+    const cancelled = await db.update(purchaseOrders).set({ status: "CANCELLED" })
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, po.status)))
+      .returning({ id: purchaseOrders.id });
+    if (!cancelled.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إلغاء أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
     return { ok: true };

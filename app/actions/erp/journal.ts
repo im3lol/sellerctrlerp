@@ -178,6 +178,13 @@ export async function updateManualEntryAction(id: string, input: unknown): Promi
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check under a row lock — postDraft takes the same lock, so posting and
+        // editing can no longer interleave and write a ledger that disagrees with the
+        // entry's own lines.
+        const [live] = await tx.select({ status: journalEntries.status, sourceType: journalEntries.sourceType }).from(journalEntries)
+          .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل قيد مُرحّل");
+        if (live.sourceType !== "MANUAL") throw new Error("لا يمكن تعديل قيد آلي — عدّل المستند المصدر");
         await tx.update(journalEntries).set({ date: new Date(date), reference: reference || null, description, updatedAt: new Date() })
           .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId)));
         await tx.delete(journalEntryLines).where(eq(journalEntryLines.journalEntryId, id));
@@ -259,7 +266,10 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
         .limit(1);
       if (!entry) return { error: "القيد غير موجود" };
       if (entry.status !== "DRAFT") return { error: "لا يمكن حذف قيد مُرحّل — استخدم العكس" };
-      await db.delete(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId)));
+      const gone = await db.delete(journalEntries)
+        .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.status, "DRAFT")))
+        .returning({ id: journalEntries.id });
+      if (!gone.length) return { error: "لا يمكن حذف قيد مُرحّل — استخدم العكس" };
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "حذف قيد يومية (مسودة)" });
       revalidatePath("/accounting/journal");
       return { ok: true };

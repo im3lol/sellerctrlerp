@@ -75,6 +75,11 @@ export async function updateMaterialRequestAction(id: string, input: unknown): P
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: approval can land between the read above
+        // and here, and the PO converted from it would carry lines nobody approved.
+        const [live] = await tx.select({ status: materialRequests.status }).from(materialRequests)
+          .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل طلب معتمد");
         await tx.update(materialRequests).set({ date: new Date(date), notes: notes || null, updatedAt: new Date() })
           .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
         await tx.delete(materialRequestLines).where(eq(materialRequestLines.materialRequestId, id));
@@ -99,8 +104,10 @@ export async function approveMaterialRequestAction(id: string): Promise<ActionSt
       .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1);
     if (!mr) return { error: "الطلب غير موجود" };
     if (mr.status !== "DRAFT") return { error: "الطلب معتمد بالفعل" };
-    await db.update(materialRequests).set({ status: "APPROVED", approvedBy: auth.userId, updatedAt: new Date() })
-      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
+    const done = await db.update(materialRequests).set({ status: "APPROVED", approvedBy: auth.userId, updatedAt: new Date() })
+      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId), eq(materialRequests.status, "DRAFT")))
+      .returning({ id: materialRequests.id });
+    if (!done.length) return { error: "تغيّرت حالة الطلب — حدّث الصفحة" };
     revalidatePath("/purchases/requisitions");
     revalidatePath(`/purchases/requisitions/${id}`);
     return { ok: true };
@@ -116,7 +123,10 @@ export async function deleteMaterialRequestAction(id: string): Promise<ActionSta
       .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1);
     if (!mr) return { error: "الطلب غير موجود" };
     if (mr.status === "APPROVED") return { error: "لا يمكن حذف طلب معتمد" };
-    await db.delete(materialRequests).where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId)));
+    const gone = await db.delete(materialRequests)
+      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId), eq(materialRequests.status, mr.status)))
+      .returning({ id: materialRequests.id });
+    if (!gone.length) return { error: "تغيّرت حالة الطلب — حدّث الصفحة" };
     revalidatePath("/purchases/requisitions");
     return { ok: true };
   });

@@ -143,6 +143,12 @@ export async function updateSalesOrderAction(id: string, input: unknown): Promis
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: «تأكيد» can land between the read above
+        // and here, and rewriting a confirmed order's lines would leave the delivery /
+        // invoice built from it describing quantities nobody ever approved.
+        const [live] = await tx.select({ status: salesOrders.status }).from(salesOrders)
+          .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً");
         // channel + externalOrderId intentionally left untouched — editing must not alter
         // a marketplace order's identity.
         await tx.update(salesOrders).set({
@@ -160,8 +166,8 @@ export async function updateSalesOrderAction(id: string, input: unknown): Promis
       revalidatePath("/sales/orders");
       revalidatePath(`/sales/orders/${id}`);
       return { ok: true, id };
-    } catch {
-      return { error: "تعذّر حفظ التعديل" };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
   });
 }
@@ -175,7 +181,11 @@ export async function confirmSalesOrderAction(id: string): Promise<ActionState> 
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
     if (!so) return { error: "الأمر غير موجود" };
     if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
-    await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    // Compare-and-swap on the status just read, so a concurrent edit/cancel can't slip in.
+    const done = await db.update(salesOrders).set({ status: "CONFIRMED" })
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, "DRAFT")))
+      .returning({ id: salesOrders.id });
+    if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
     revalidatePath(`/sales/orders/${id}`);
@@ -197,7 +207,10 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
         .where(and(eq(deliveryNotes.salesOrderId, id), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
       if (dn) return { error: "لا يمكن حذف أمر مرتبط بإذون صرف" };
     }
-    await db.delete(salesOrders).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    const gone = await db.delete(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, so.status)))
+      .returning({ id: salesOrders.id });
+    if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
     return { ok: true };
@@ -367,7 +380,10 @@ export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
     if (moved.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) {
       return { error: "الأمر مصروف/مفوتر جزئيًا — اعكس الصرف أو أنشئ مرتجعًا بدل الإلغاء" };
     }
-    await db.update(salesOrders).set({ status: "CANCELLED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    const cancelled = await db.update(salesOrders).set({ status: "CANCELLED" })
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, so.status)))
+      .returning({ id: salesOrders.id });
+    if (!cancelled.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
     return { ok: true };

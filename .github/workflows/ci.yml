@@ -101,6 +101,10 @@ jobs:
       - name: Engine checks
         run: npm run test:engine
 
+      # Editing a draft while it is being confirmed must not post unvalidated lines.
+      - name: Draft-edit race
+        run: npx tsx scripts/checks/chk-draft-edit-race.ts
+
       # Tenant isolation go/no-go: scope A never sees B, WITH CHECK blocks cross-writes.
       - name: RLS leak test
         run: npm run rls:leak

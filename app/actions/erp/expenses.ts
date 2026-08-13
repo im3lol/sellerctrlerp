@@ -84,10 +84,15 @@ export async function updateExpenseAction(id: string, input: unknown): Promise<S
     if (!cash || cash.type !== "ASSET" || !cash.isLeaf) return { error: "حساب النقدية/البنك غير صالح" };
 
     try {
-      await db.update(expenses).set({
+      // status = DRAFT in the WHERE, not just in the check above: a single UPDATE is
+      // atomic, so a «تأكيد» that lands in between makes this match 0 rows instead of
+      // silently changing the amount of an expense already posted to the ledger.
+      const saved = await db.update(expenses).set({
         expenseAccountId, cashAccountId, date: new Date(date), amount: String(amount), paymentMethod,
         payee: payee || null, reference: reference || null, notes: notes || null, updatedAt: new Date(),
-      }).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId)));
+      }).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId), eq(expenses.status, "DRAFT")))
+        .returning({ id: expenses.id });
+      if (!saved.length) return { error: "لا يمكن تعديل مصروف مُرحّل" };
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "EXPENSE", entityId: id, summary: `تعديل مصروف (مسودة)`, metadata: { amount } });
       revalidatePath("/accounting/expenses");
       return { ok: true, id };
@@ -102,14 +107,16 @@ export async function confirmExpenseAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
-    const [e] = await db.select().from(expenses)
-      .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId))).limit(1);
-    if (!e) return { error: "المصروف غير موجود" };
-    if (e.status !== "DRAFT") return { error: "المصروف مؤكّد بالفعل" };
-
-    const amount = Number(e.amount);
     try {
       await db.transaction(async (tx) => {
+        // Read the expense under a row lock and post from THAT copy: a draft edit can
+        // change the amount, and posting a stale one would leave the ledger and the
+        // expense record disagreeing about how much was spent.
+        const [e] = await tx.select().from(expenses)
+          .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId))).limit(1).for("update");
+        if (!e) throw new Error("المصروف غير موجود");
+        if (e.status !== "DRAFT") throw new Error("المصروف مؤكّد بالفعل");
+        const amount = Number(e.amount);
         await postEntry(tx, {
           orgId: auth.orgId, date: new Date(e.date), sourceType: "EXPENSE", sourceId: e.id,
           description: `مصروف ${e.number}${e.payee ? ` — ${e.payee}` : ""}`,
@@ -141,7 +148,10 @@ export async function deleteExpenseAction(id: string): Promise<ActionState> {
       .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId))).limit(1);
     if (!e) return { error: "المصروف غير موجود" };
     if (e.status !== "DRAFT") return { error: "لا يمكن حذف مصروف مؤكّد" };
-    await db.delete(expenses).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId)));
+    const gone = await db.delete(expenses)
+      .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId), eq(expenses.status, "DRAFT")))
+      .returning({ id: expenses.id });
+    if (!gone.length) return { error: "لا يمكن حذف مصروف مؤكّد" };
     revalidatePath("/accounting/expenses");
     return { ok: true };
   });

@@ -182,11 +182,18 @@ export async function postDraft(
   tx: Tx,
   input: { orgId: string; entryId: string; userId?: string | null },
 ): Promise<void> {
+  // FOR UPDATE: the choke point for every draft source, so it is also where the
+  // draft-edit race is closed. Editing a draft replaces its lines wholesale; without
+  // this lock a posting that had already read the old lines would write them to the
+  // ledger and then stamp the entry POSTED, leaving the GL disagreeing with the
+  // entry the user is looking at. Whoever locks first wins; the loser re-reads and
+  // sees POSTED (posting side) or aborts (edit side).
   const [entry] = await tx
     .select()
     .from(journalEntries)
     .where(and(eq(journalEntries.id, input.entryId), eq(journalEntries.organizationId, input.orgId)))
-    .limit(1);
+    .limit(1)
+    .for("update");
   if (!entry) throw new Error("القيد غير موجود");
   if (entry.status !== "DRAFT") throw new Error("القيد ليس مسودة قابلة للترحيل");
 
