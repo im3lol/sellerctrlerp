@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
+import { BarcodeScan } from "@/components/erp/barcode-scan";
+import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Item = { id: string; nameAr: string | null };
 type Line = { itemId: string; quantity: number };
@@ -26,6 +28,16 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, { itemId: "", quantity: 1 }]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
+
+  // Scanned/typed code → bump an existing line or fill the first empty one (append if none).
+  const addOrBumpItem = (item: ItemSearchResult) =>
+    setLines((ls) => {
+      const idx = ls.findIndex((l) => l.itemId === item.id);
+      if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
+      const emptyIdx = ls.findIndex((l) => !l.itemId);
+      if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? { itemId: item.id, quantity: 1 } : l));
+      return [...ls, { itemId: item.id, quantity: 1 }];
+    });
 
   const submit = () => {
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
@@ -52,6 +64,10 @@ export function MaterialRequestForm({ items, orgName }: { items: Item[]; orgName
           <div className="space-y-2"><Label>الشركة</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        </div>
+
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="space-y-2 sm:max-w-sm"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
         <div className="rounded-xl border">

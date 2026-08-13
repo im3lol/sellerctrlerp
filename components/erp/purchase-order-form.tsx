@@ -238,8 +238,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
             <div>الشحن: <span className="font-medium">{fmt(totals.shipping)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : ""}</div>
-            {isForeign && rate > 0 && <div className="text-xs text-muted-foreground">≈ {fmt(round2(totals.total * rate))} {baseCode} (يُرحّل بالحسابات)</div>}
+            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
+            {isForeign && rate > 0 && (
+              <div className="text-base font-bold">الإجمالي: {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">(يُرحّل بالحسابات)</span></div>
+            )}
           </div>
         </div>
       </CardContent>
