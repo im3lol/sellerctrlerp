@@ -158,7 +158,7 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر شراء ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/purchases/orders");
-      revalidatePath(`/purchases/orders/${id}`);
+      revalidatePath(`/purchases/orders/${encodeURIComponent(existing.number)}`);
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
@@ -191,7 +191,7 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
     if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
-    revalidatePath(`/purchases/orders/${id}`);
+    revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
     return { ok: true };
   });
 }
@@ -212,7 +212,7 @@ export async function approvePurchaseOrderAction(id: string): Promise<ActionStat
     if (!approved.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `اعتماد أمر شراء ${po.number}` });
     revalidatePath("/purchases/orders");
-    revalidatePath(`/purchases/orders/${id}`);
+    revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
     return { ok: true };
   });
 }
@@ -359,7 +359,7 @@ export async function revertPurchaseOrderToDraftAction(id: string): Promise<Acti
     await db.update(purchaseOrders).set({ status: "DRAFT" }).where(eq(purchaseOrders.id, id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `إعادة فتح أمر شراء ${po.number} كمسودة` });
     revalidatePath("/purchases/orders");
-    revalidatePath(`/purchases/orders/${id}`);
+    revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
     return { ok: true };
   });
 }

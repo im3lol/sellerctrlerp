@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build output isn't only at the repo root — docker/.next/ is a copied standalone
+    // bundle, and linting its minified chunks produced half of eslint's error count.
+    "**/.next/**",
+    "android/**",
+    "mobile/dist/**",
   ]),
 ]);
 

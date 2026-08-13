@@ -181,7 +181,7 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
 export async function postDraft(
   tx: Tx,
   input: { orgId: string; entryId: string; userId?: string | null },
-): Promise<void> {
+): Promise<{ number: string }> {
   // FOR UPDATE: the choke point for every draft source, so it is also where the
   // draft-edit race is closed. Editing a draft replaces its lines wholesale; without
   // this lock a posting that had already read the old lines would write them to the
@@ -237,6 +237,10 @@ export async function postDraft(
       postedById: input.userId ?? null,
     })
     .where(eq(journalEntries.id, entry.id));
+
+  // Posting REPLACES the draft's number, so the entry moves to a new URL — callers
+  // need this to revalidate the page it actually lives on.
+  return { number };
 }
 
 /**

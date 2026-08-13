@@ -33,6 +33,11 @@ jobs:
       - name: Tenant-isolation guard (RLS scope static check)
         run: npm run rls:check
 
+      # A revalidatePath() that matches no route is a silent no-op, so stale pages
+      # never announce themselves. Cheap static check, no DB.
+      - name: revalidatePath targets resolve
+        run: npx tsx scripts/checks/chk-revalidate-paths.ts
+
       - name: Unit tests
         run: npm test
 

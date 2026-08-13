@@ -87,7 +87,6 @@ export async function addUserToOrgAction(userId: string, role: string): Promise<
     } else {
       await db.insert(organizationMembers).values({ organizationId: org.id, userId, role });
     }
-    revalidatePath(`/admin/users/${userId}`);
     revalidatePath("/hr/employees");
     return { ok: true };
   });
@@ -112,7 +111,6 @@ export async function setMemberOverridesAction(userId: string, grant: string[], 
     await db.update(organizationMembers).set({ permissionOverrides: overrides })
       .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId)));
     revalidatePath("/settings/permissions");
-    revalidatePath(`/admin/users/${userId}`);
     return { ok: true };
   });
 }
@@ -125,7 +123,6 @@ export async function removeUserFromOrgAction(userId: string): Promise<ActionSta
     const org = { id: auth.orgId };
     await db.delete(organizationMembers)
       .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, userId)));
-    revalidatePath(`/admin/users/${userId}`);
     revalidatePath("/hr/employees");
     return { ok: true };
   });

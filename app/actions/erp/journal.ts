@@ -155,7 +155,7 @@ export async function updateManualEntryAction(id: string, input: unknown): Promi
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const { date, description, reference, lines } = parsed.data;
 
-    const [existing] = await db.select({ status: journalEntries.status, sourceType: journalEntries.sourceType }).from(journalEntries)
+    const [existing] = await db.select({ status: journalEntries.status, sourceType: journalEntries.sourceType, number: journalEntries.number }).from(journalEntries)
       .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
     if (!existing) return { error: "القيد غير موجود" };
     if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل قيد مُرحّل" };
@@ -195,7 +195,7 @@ export async function updateManualEntryAction(id: string, input: unknown): Promi
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "JOURNAL_ENTRY", entityId: id, summary: `تعديل قيد يدوي (مسودة): ${description}`, metadata: { debit: totalDebit / 100 } });
       revalidatePath("/accounting/journal");
-      revalidatePath(`/accounting/journal/${id}`);
+      revalidatePath(`/accounting/journal/${encodeURIComponent(existing.number)}`);
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
@@ -209,10 +209,10 @@ export async function postDraftEntryAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     try {
-      await db.transaction((tx) => postDraft(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId }));
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, summary: "ترحيل قيد يومية" });
+      const { number } = await db.transaction((tx) => postDraft(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId }));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, entityNumber: number, summary: `ترحيل قيد يومية ${number}` });
       revalidatePath("/accounting/journal");
-      revalidatePath(`/accounting/journal/${id}`);
+      revalidatePath(`/accounting/journal/${encodeURIComponent(number)}`);
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الترحيل" };
@@ -232,7 +232,7 @@ export async function reverseEntryAction(id: string, reason?: string): Promise<A
   const auth = await authorizeErp("accounting.reverse");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [entry] = await db.select({ sourceType: journalEntries.sourceType }).from(journalEntries)
+    const [entry] = await db.select({ sourceType: journalEntries.sourceType, number: journalEntries.number }).from(journalEntries)
       .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
     if (!entry) return { error: "القيد غير موجود" };
     if (!REVERSIBLE_SOURCES.has(entry.sourceType ?? "MANUAL")) {
@@ -244,7 +244,7 @@ export async function reverseEntryAction(id: string, reason?: string): Promise<A
       );
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "عكس قيد يومية", metadata: { reversalId, reason: reason || null } });
       revalidatePath("/accounting/journal");
-      revalidatePath(`/accounting/journal/${id}`);
+      revalidatePath(`/accounting/journal/${encodeURIComponent(entry.number)}`);
       return { ok: true, reversalId };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر عكس القيد";

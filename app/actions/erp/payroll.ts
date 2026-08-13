@@ -109,7 +109,6 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
 
     revalidatePath("/hr/employees");
     revalidatePath("/hr"); // headcount + payroll cost on the module overview
-    revalidatePath("/admin/users");
     return { ok: true };
   });
 }

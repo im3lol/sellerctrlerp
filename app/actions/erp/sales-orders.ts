@@ -164,7 +164,7 @@ export async function updateSalesOrderAction(id: string, input: unknown): Promis
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "SALES_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر بيع ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/sales/orders");
-      revalidatePath(`/sales/orders/${id}`);
+      revalidatePath(`/sales/orders/${encodeURIComponent(existing.number)}`);
       return { ok: true, id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
@@ -188,7 +188,7 @@ export async function confirmSalesOrderAction(id: string): Promise<ActionState> 
     if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
-    revalidatePath(`/sales/orders/${id}`);
+    revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
   });
 }
@@ -405,7 +405,7 @@ export async function revertSalesOrderToDraftAction(id: string): Promise<ActionS
     await db.update(salesOrders).set({ status: "DRAFT" }).where(eq(salesOrders.id, id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إعادة فتح أمر بيع ${so.number} كمسودة` });
     revalidatePath("/sales/orders");
-    revalidatePath(`/sales/orders/${id}`);
+    revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
   });
 }
