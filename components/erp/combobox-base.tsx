@@ -72,7 +72,7 @@ export function ComboboxBase({
     ? createPortal(
         <div
           ref={ddRef}
-          style={{ position: "fixed", top: rect.top, left: rect.left, width: Math.max(rect.width, 240), zIndex: 9999 }}
+          style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, minWidth: rect.width, zIndex: 9999 }}
           className="max-h-72 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg"
         >
           {filtered.map((o) => (

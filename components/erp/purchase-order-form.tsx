@@ -149,8 +149,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
             <TableHeader>
               <TableRow>
                 <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
+                <TableHead className="w-28 text-start">الكمية</TableHead>
+                <TableHead className="w-36 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
                 <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
                 <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
