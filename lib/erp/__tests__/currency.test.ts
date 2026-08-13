@@ -36,4 +36,15 @@ describe("resolveCurrency", () => {
     const r = resolveCurrency("SAR", "USD", 3, 1000); // 333.3333...
     expect(r.foreignAmount).toBe(333.3333);
   });
+
+  // Invariant tying the two document directions together: a purchase order converts the
+  // ENTERED foreign total to base (base = foreign × rate); the invoice derives the foreign
+  // figure back from base (base ÷ rate). Both must agree or the AED shown ≠ the AED typed.
+  it("round-trips: foreign entered → base stored → foreign shown", () => {
+    const enteredForeign = 1000; // AED
+    const rate = 13.5;           // 1 AED = 13.5 EGP
+    const base = Math.round(enteredForeign * rate * 100) / 100; // PO stores 13500 EGP
+    const back = resolveCurrency("EGP", "AED", rate, base);
+    expect(back.foreignAmount).toBe(enteredForeign);
+  });
 });

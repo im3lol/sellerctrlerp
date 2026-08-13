@@ -21,6 +21,7 @@ import { selectCls } from "@/lib/utils";
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null };
+type Currency = { code: string; nameAr: string; isBase: boolean };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -31,7 +32,7 @@ const lineTax = (l: Line, vatRate: number) => lineVat(l.quantity, l.unitPrice, l
 const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate));
 const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, exempt: false });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number> }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, lastPrices = {}, currencies = [], latestRates = {} }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -39,6 +40,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
+  // Document currency. Amounts are entered in this currency; the server converts to the
+  // base (EGP) at the exchange rate before posting. `rate` = 1 unit currency → base units.
+  const baseCode = currencies.find((c) => c.isBase)?.code ?? "EGP";
+  const [currency, setCurrency] = useState(baseCode);
+  const isForeign = currency !== baseCode;
+  const rate = isForeign ? (latestRates[currency] ?? 0) : 1;
   const [lines, setLines] = useState<Line[]>(
     initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 })) : [newLine()],
   );
@@ -89,13 +96,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!warehouseId) return toast.error("اختر المستودع");
+    if (isForeign && rate <= 0) return toast.error(`أضِف سعر صرف لـ${currency} من الإعدادات ← العملات أولاً`);
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
         taxAmount: lineTax(l, vatRate), discountAmount: round2(l.quantity * l.discountPerUnit), exempt: l.exempt,
       }));
-      const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, lines: payload });
+      const r = await createPurchaseOrderAction({ supplierId, warehouseId, date, notes, currencyCode: currency, lines: payload });
       if (r.ok) {
         toast.success("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
         router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
@@ -134,13 +142,26 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
           <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
         </div>
 
-        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
+        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-3">
           <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
           <div className="space-y-2">
             <Label>المستودع</Label>
             <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label>العملة</Label>
+            {currencies.length <= 1 ? (
+              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{baseCode}</div>
+            ) : (
+              <select className={selectCls} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                {currencies.map((c) => <option key={c.code} value={c.code}>{c.nameAr} ({c.code})</option>)}
+              </select>
+            )}
+            {isForeign && (rate > 0
+              ? <p className="text-xs text-muted-foreground">١ {currency} = {qtyf(rate)} {baseCode} — تُرحّل الحسابات بالـ{baseCode}</p>
+              : <p className="text-xs text-destructive">لا يوجد سعر صرف لـ{currency} — أضِفه من الإعدادات ← العملات</p>)}
           </div>
         </div>
 
@@ -217,7 +238,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
             <div>الشحن: <span className="font-medium">{fmt(totals.shipping)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : ""}</div>
+            {isForeign && rate > 0 && <div className="text-xs text-muted-foreground">≈ {fmt(round2(totals.total * rate))} {baseCode} (يُرحّل بالحسابات)</div>}
           </div>
         </div>
       </CardContent>

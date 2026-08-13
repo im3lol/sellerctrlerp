@@ -94,6 +94,11 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           <Field label="الشحن">{fmt(po.shippingAmount)}</Field>
           <Field label="الضريبة">{fmt(po.taxAmount)}</Field>
           <Field label="الإجمالي">{fmt(po.totalAmount)}</Field>
+          {po.foreignAmount != null && (
+            <Field label={`الإجمالي (${po.currencyCode})`}>
+              {fmt(po.foreignAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
+            </Field>
+          )}
         </div>
 
         <Card>

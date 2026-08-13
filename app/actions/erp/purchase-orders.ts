@@ -10,6 +10,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
+import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
 export type SaveOrderState = ActionState & { id?: string };
@@ -28,6 +29,9 @@ const schema = z.object({
   warehouseId: z.string().min(1, "اختر المستودع"),
   date: z.string().min(1, "التاريخ مطلوب"),
   notes: z.string().optional(),
+  // Document currency: line amounts arrive in THIS currency and are converted to base
+  // (× exchange rate) before storing, so the GL/inventory stay base-only. Omitted = base.
+  currencyCode: z.string().optional(),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 async function nextNumber(orgId: string, year: number): Promise<string> {
@@ -53,14 +57,33 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
       .where(and(eq(warehouses.id, warehouseId), eq(warehouses.organizationId, auth.orgId))).limit(1);
     if (!wh) return { error: "المستودع غير موجود في هذه المؤسسة" };
 
-    const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount) }));
+    const d = new Date(date);
+
+    // Foreign currency: line amounts arrive in the document currency; convert to base
+    // (EGP) once here so everything downstream (inventory valuation, GL) stays base.
+    const baseCode = await getBaseCurrencyCode(auth.orgId);
+    const code = (parsed.data.currencyCode ?? baseCode).toUpperCase();
+    const isForeign = code !== baseCode.toUpperCase();
+    const rate = isForeign ? await getExchangeRate(auth.orgId, code, baseCode, d) : 1;
+    if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات ثم أعد المحاولة` };
+    const toBase = (n: number) => round2(n * rate);
+    // Foreign document total (as entered) — kept for display only.
+    const foreignTotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));
+
+    const computed = lines.map((l) => {
+      const unitPrice = toBase(l.unitPrice);
+      const shippingPerUnit = toBase(l.shippingPerUnit);
+      const discountAmount = toBase(l.discountAmount);
+      const taxAmount = toBase(l.taxAmount);
+      return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
+        totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
+    });
     const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const shippingAmount = round2(computed.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
     const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
     const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
     const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
 
-    const d = new Date(date);
     const number = await nextNumber(auth.orgId, d.getFullYear());
 
     try {
@@ -69,6 +92,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
           organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "DRAFT",
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
+          currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null,
         }).returning({ id: purchaseOrders.id });
         await tx.insert(purchaseOrderLines).values(computed.map((l) => ({
           purchaseOrderId: po.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
@@ -168,6 +192,8 @@ export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<A
     const r = await createPurchaseInvoiceAction({
       supplierId: po.supplierId, warehouseId: po.warehouseId, date: new Date(po.date).toISOString().slice(0, 10),
       notes: `من أمر شراء ${po.number}`,
+      // Carry the PO's document currency so the invoice shows it (amounts are already base).
+      currencyCode: po.currencyCode, exchangeRate: Number(po.exchangeRate),
       // Capitalise shipping into the unit cost for the direct (no-receipt) path.
       lines: lines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) + Number(l.shippingPerUnit), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) })),
     });

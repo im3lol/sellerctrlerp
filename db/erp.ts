@@ -1515,6 +1515,12 @@ export const purchaseOrders = pgTable(
     taxAmount: money("tax_amount").notNull().default("0"),
     taxPercent: money("tax_percent").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
+    // Multi-currency: amount columns above are ALWAYS base currency (EGP). These
+    // preserve the foreign figure the buyer entered (e.g. AED) for display; the
+    // conversion base = foreign × exchangeRate happens once, at PO create.
+    currencyCode: text("currency_code").notNull().default("EGP"),
+    exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    foreignAmount: money("foreign_amount"), // totalAmount in the document currency
     notes: text("notes"),
     // Approval control: POs above the org's poApprovalThreshold must be approved
     // before they can be confirmed.
