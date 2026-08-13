@@ -105,9 +105,13 @@ export function ItemPicker({
       : null;
 
   return (
-    <div ref={wrapRef} className="min-w-48">
+    <div ref={wrapRef} className="min-w-64">
       <Input
         value={q}
+        // dir="auto" → each name takes its own direction, so a long English name shows
+        // from its START (left) and an Arabic one from its start (right), never the middle.
+        dir="auto"
+        className="text-start"
         placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
         onFocus={() => { setEditing(true); setQ(""); }}
         onChange={(e) => setQ(e.target.value)}

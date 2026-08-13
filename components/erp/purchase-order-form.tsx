@@ -25,6 +25,12 @@ type Currency = { code: string; nameAr: string; isBase: boolean };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+// Cap a money input to 5 integer digits (+2 decimals) so a mis-scan can't stuff a
+// 16-digit barcode into the price. Returns the parsed number (≤ 99999.99).
+const capMoney = (raw: string) => {
+  const [intp = "", decp] = raw.replace(/[^\d.]/g, "").split(".");
+  return Number(intp.slice(0, 5) + (decp !== undefined ? "." + decp.slice(0, 2) : "")) || 0;
+};
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 // VAT base = goods value net of discount (freight excluded), matching the sales side.
@@ -186,15 +192,15 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                     <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })} />
                   </TableCell>
                   <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} className="w-32 min-w-32 text-start tabular-nums" /></TableCell>
-                  <TableCell><Input type="number" step="0.01" min="0" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                  <TableCell><Input type="number" step="0.01" inputMode="decimal" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: capMoney(e.target.value) })} className="w-32 min-w-32 text-start tabular-nums" /></TableCell>
+                  <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: capMoney(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="min-w-[3.5rem] tabular-nums">{fmt(lineTax(l, vatRate))}</span>
                       <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
                     </div>
                   </TableCell>
-                  <TableCell><Input type="number" step="0.01" min="0" value={l.shippingPerUnit} onChange={(e) => setLine(i, { shippingPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                  <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.shippingPerUnit} onChange={(e) => setLine(i, { shippingPerUnit: capMoney(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                   <TableCell className="font-medium">{fmt(lineTotal(l, vatRate))}</TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
