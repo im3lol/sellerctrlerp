@@ -48,7 +48,7 @@ function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="s-code">الكود</Label><Input id="s-code" name="code" defaultValue={editing?.code} required /></div>
+            <div className="space-y-2"><Label htmlFor="s-code">الكود</Label><Input id="s-code" name="code" defaultValue={editing?.code} placeholder="تلقائي إن تُرك فارغاً" /></div>
             <div className="space-y-2"><Label htmlFor="s-name">الاسم</Label><Input id="s-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
             <div className="space-y-2"><Label htmlFor="s-phone">الهاتف</Label><Input id="s-phone" name="phone" defaultValue={editing?.phone ?? ""} dir="ltr" /></div>
             <div className="space-y-2"><Label htmlFor="s-terms">مدة السداد (يوم)</Label><Input id="s-terms" name="paymentTerms" type="number" defaultValue={editing?.paymentTerms ?? 30} /></div>
