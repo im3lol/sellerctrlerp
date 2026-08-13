@@ -19,27 +19,27 @@ import type { Role } from "@/lib/rbac";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const activeOrg = await getActiveOrg();
+  const org = activeOrg.org;
 
-  // Modules the active tenant may see (owner sees all). Drives nav visibility;
-  // page guards enforce the same entitlement server-side.
-  const enabledModules = user.role === "system_admin"
-    ? [...ALL_MODULES]
-    : activeOrg.org ? [...(await getEnabledModules(activeOrg.org.id))] : [];
-
-  // Nav visibility is driven by the member's ERP permissions in the active org
-  // (their org role), NOT the platform OS role — so an invited team member sees
-  // only the modules their role grants. Owners/system_admin have all perms → full nav.
-  const access = activeOrg.org ? await getMemberAccess(activeOrg.org.id, user) : { role: null, permissions: new Set<string>() };
-  const erpPermissions = [...access.permissions];
-
-  // Live platforms listed under the "المنصات" nav group. The layout renders outside
-  // any page's loadErpPage scope, so this policied read must open its own org scope.
-  const platforms = activeOrg.org
-    ? await withOrgScope(activeOrg.org.id, false, () =>
+  // The three nav inputs below are independent of each other (they only depend on the
+  // active org), so fetch them concurrently — this layout re-renders on every navigation
+  // and every mutation's revalidation, so shaving the sequential round-trips is felt app-wide.
+  //  - enabledModules: modules the tenant may see (owner/system_admin → all). Nav visibility.
+  //  - access: the member's ERP permissions in THIS org (their org role, not the OS role),
+  //    so an invited member sees only what their role grants.
+  //  - platforms: active sales platforms under the "المنصات" nav group (own org scope —
+  //    the layout renders outside any page's loadErpPage scope).
+  const [enabledModules, access, platforms] = await Promise.all([
+    user.role === "system_admin" ? Promise.resolve([...ALL_MODULES])
+      : org ? getEnabledModules(org.id).then((m) => [...m]) : Promise.resolve([]),
+    org ? getMemberAccess(org.id, user) : Promise.resolve({ role: null, permissions: new Set<string>() }),
+    org ? withOrgScope(org.id, false, () =>
         db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
-          .where(and(eq(salesPlatforms.organizationId, activeOrg.org!.id), eq(salesPlatforms.isActive, true)))
+          .where(and(eq(salesPlatforms.organizationId, org.id), eq(salesPlatforms.isActive, true)))
           .orderBy(asc(salesPlatforms.name)))
-    : [];
+      : Promise.resolve([] as { id: string; name: string; code: string }[]),
+  ]);
+  const erpPermissions = [...access.permissions];
 
   return (
     <div className="flex min-h-screen bg-muted/30">
