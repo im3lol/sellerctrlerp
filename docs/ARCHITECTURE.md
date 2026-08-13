@@ -201,8 +201,22 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 - **Schema is code.** `db/schema.ts` (OS tables: `users`, `attendance`) re-exports
   `db/erp.ts` (all ERP tables). Money is `numeric`, PKs are `text`/uuid.
-- **Migrations.** `db/migrations/` is the canonical drizzle-kit history. Workflow:
-  edit the schema → `npm run db:generate` → review the SQL → `npm run db:migrate`.
+- **Migrations.** `db/migrations/` is the canonical history, and `meta/_journal.json` is
+  what drizzle actually reads — **a `.sql` file that isn't in the journal does not exist**.
+  Workflow: edit the schema → `npm run db:generate` → review the SQL → `npm run db:migrate`
+  → `npm run db:rls`. Hand-written SQL is fine (most of 0052+ is) as long as it's
+  idempotent and gets its own journal entry.
+- **Never `drizzle-kit push` against a database with real data.** Push mutates the schema
+  without leaving a migration behind; that is how the chain silently drifted 46 files out
+  of date (reconciled in `0098_push_drift.sql`). `db:migrate` is the only write path.
+- **Order matters on a fresh database:** `db:migrate` applies `db/rls/00-appuser.sql`
+  first, because migrations from 0055 on `GRANT` to the `appuser` role; policies and
+  triggers come after in `db:rls` since they reference the finished tables.
+- **Adopting a database built by the old push flow** (complete schema, empty
+  `drizzle.__drizzle_migrations`): run `npm run db:baseline` **once** before the first
+  `db:migrate`, or migrate replays from 0000 and fails on `CREATE TABLE` — the early
+  drizzle-generated files have no `IF NOT EXISTS`. Baseline only writes drizzle's
+  bookkeeping rows; it never touches the schema, and it refuses to double-stamp.
 - `db/seed.ts` builds a demo tenant: users, chart of accounts, warehouses, and a set of
   sample documents that leave the books balanced.
 - `scripts/migrations/` holds *historical* one-off patches applied before the schema

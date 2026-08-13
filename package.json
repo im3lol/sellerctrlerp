@@ -18,8 +18,8 @@
     "test:engine": "tsx scripts/engine-check.ts",
     "gen:secrets": "tsx scripts/gen-secrets.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "db:migrate": "tsx scripts/apply-rls.ts 00-appuser.sql && drizzle-kit migrate",
+    "db:baseline": "tsx scripts/baseline-migrations.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx db/seed.ts"
   },

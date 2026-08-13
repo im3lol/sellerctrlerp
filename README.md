@@ -41,7 +41,8 @@ npx auth secret          # writes AUTH_SECRET; DATABASE_URL default points at lo
 docker compose -f docker/docker-compose.yml up -d postgres minio minio-init adminer
 
 # 4. Create the schema + demo data
-npm run db:migrate
+npm run db:migrate       # appuser role + the full migration chain
+npm run db:rls           # tenant-isolation policies + integrity triggers
 npm run db:seed
 
 # 5. Run
@@ -137,7 +138,9 @@ npm run lint         # eslint
 npm run test         # vitest
 
 npm run db:generate  # generate a migration from schema changes
-npm run db:migrate   # apply migrations
+npm run db:migrate   # appuser role + apply the migration chain
+npm run db:rls       # (re)apply RLS policies + integrity triggers — after every migrate
+npm run db:baseline  # once, on a DB built by the old `push` flow (see ARCHITECTURE)
 npm run db:studio    # drizzle studio
 npm run db:seed      # reseed demo data
 ```

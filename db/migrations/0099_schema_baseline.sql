@@ -1,0 +1,9 @@
+-- Intentionally empty: snapshot marker, not DDL.
+--
+-- The drizzle snapshot chain stalled at 0051 while migrations 0052–0098 were hand-written
+-- SQL, so `db:generate` had no idea what the schema actually looked like. This entry exists
+-- to carry `meta/0099_snapshot.json` — a snapshot regenerated from db/schema.ts, which the
+-- chain up to 0098 already builds. Nothing to apply; `db:generate` diffs from here on.
+--
+-- The stale 0000–0051 snapshots were deleted with it: drizzle only ever reads the newest,
+-- and those described a schema 47 migrations out of date.

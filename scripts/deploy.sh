@@ -18,11 +18,13 @@ echo "▶ 2/6  copy static + public into standalone…"
 cp -r .next/static .next/standalone/.next/
 cp -r public .next/standalone/
 
-echo "▶ 3/6  apply policies + integrity triggers (idempotent, safe on live data)…"
-# NOTE: schema changes are a REVIEWED pre-step, not auto-applied here — never run
-# `push --force` against the live-data DB blind. If you changed db/schema.ts, run
-# `npx drizzle-kit push` first, review the diff, apply it, THEN deploy. (CI proves the
-# schema applies cleanly on a fresh DB, so a broken schema is caught before this point.)
+echo "▶ 3/6  apply schema + policies + integrity triggers (idempotent, safe on live data)…"
+# Migrations are additive and idempotent, so applying them before the swap is safe: the
+# old code keeps running against the new schema until the container swaps.
+# NEVER `drizzle-kit push` against this DB — it changes the schema without recording a
+# migration, and that drift is invisible until a fresh deploy comes up missing columns.
+# A DB built by the old push flow needs `npm run db:baseline` once first (see ARCHITECTURE).
+npm run db:migrate
 npm run db:rls
 
 echo "▶ 4/6  tag the running image for rollback…"
