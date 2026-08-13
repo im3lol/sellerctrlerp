@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import JsBarcode from "jsbarcode";
 import { toast } from "sonner";
 import { Printer, Loader2 } from "lucide-react";
@@ -26,16 +26,20 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
   const [printer, setPrinter] = useState("");
   const [qzOk, setQzOk] = useState<boolean | null>(null); // null = probing
   const [busy, setBusy] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null);
+  // Callback-ref as state: fires when the <svg> actually mounts (Radix mounts the
+  // dialog body in a portal a tick after `open` flips, so a plain ref is still null
+  // on first open → the barcode wouldn't draw until you switched codes). Keying the
+  // effect on the node itself removes that race.
+  const [svgEl, setSvgEl] = useState<SVGSVGElement | null>(null);
   const value = codes[sel]?.value ?? "";
 
-  // Live preview — regenerate the barcode whenever the chosen code changes.
+  // Live preview — regenerate the barcode whenever the svg mounts or the code changes.
   useEffect(() => {
-    if (!open || !svgRef.current || !value) return;
+    if (!svgEl || !value) return;
     try {
-      JsBarcode(svgRef.current, value, { format: "CODE128", displayValue: false, margin: 0, height: 40, width: 2 });
+      JsBarcode(svgEl, value, { format: "CODE128", displayValue: false, margin: 0, height: 40, width: 2 });
     } catch { /* a value Code128 can't encode — preview stays stale; print is still gated on qz */ }
-  }, [open, value]);
+  }, [svgEl, value]);
 
   // Connect to the local QZ Tray app + list printers when the dialog opens.
   useEffect(() => {
@@ -59,7 +63,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
 
   // The printed page: exactly the 50×25mm label, embedding the preview SVG as-is.
   const labelHtml = () => {
-    const svg = svgRef.current ? new XMLSerializer().serializeToString(svgRef.current) : "";
+    const svg = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
     // Horizontal padding = the barcode's QUIET ZONE: bars must NOT reach the label edges
     // or a scanner can't read them. Content sits centered in ~40mm with ~5mm clear each side.
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -134,7 +138,7 @@ svg{width:100%;height:12mm}
             {/* px-[10%] mirrors the printed label's 5mm/50mm quiet zone so the preview matches. */}
             <div className="mx-auto flex w-64 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border bg-white px-[10%] py-[6%] text-black shadow-sm" style={{ aspectRatio: "2 / 1" }} dir="ltr">
               <div className="max-w-full truncate text-[10px] leading-tight">{itemName}</div>
-              <svg ref={svgRef} className="h-10 w-full" />
+              <svg ref={setSvgEl} className="h-10 w-full" />
               <div className="font-mono text-[11px] tracking-widest">{value}</div>
             </div>
           </div>
