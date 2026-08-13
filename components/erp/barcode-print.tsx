@@ -60,12 +60,14 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
   // The printed page: exactly the 50×25mm label, embedding the preview SVG as-is.
   const labelHtml = () => {
     const svg = svgRef.current ? new XMLSerializer().serializeToString(svgRef.current) : "";
+    // Horizontal padding = the barcode's QUIET ZONE: bars must NOT reach the label edges
+    // or a scanner can't read them. Content sits centered in ~40mm with ~5mm clear each side.
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 @page{size:50mm 25mm;margin:0}*{margin:0;padding:0;box-sizing:border-box}
-body{width:50mm;height:25mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5mm;font-family:Arial,sans-serif;overflow:hidden}
-.n{font-size:6.5pt;max-width:48mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
-svg{width:46mm;height:11mm}
-.c{font-size:8pt;letter-spacing:1px;font-family:monospace}
+body{width:50mm;height:25mm;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8mm;font-family:Arial,sans-serif;overflow:hidden}
+.n{font-size:6pt;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+svg{width:100%;height:12mm}
+.c{font-size:7.5pt;letter-spacing:1px;font-family:monospace}
 </style></head><body><div class="n">${esc(itemName)}</div>${svg}<div class="c">${esc(value)}</div></body></html>`;
   };
 
@@ -129,9 +131,10 @@ svg{width:46mm;height:11mm}
           {/* Live preview: same proportions as the physical 50×25mm label (2:1). */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">معاينة الملصق</label>
-            <div className="mx-auto flex w-64 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border bg-white p-1.5 text-black shadow-sm" style={{ aspectRatio: "2 / 1" }} dir="ltr">
+            {/* px-[10%] mirrors the printed label's 5mm/50mm quiet zone so the preview matches. */}
+            <div className="mx-auto flex w-64 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border bg-white px-[10%] py-[6%] text-black shadow-sm" style={{ aspectRatio: "2 / 1" }} dir="ltr">
               <div className="max-w-full truncate text-[10px] leading-tight">{itemName}</div>
-              <svg ref={svgRef} className="h-10 w-[95%]" />
+              <svg ref={svgRef} className="h-10 w-full" />
               <div className="font-mono text-[11px] tracking-widest">{value}</div>
             </div>
           </div>
