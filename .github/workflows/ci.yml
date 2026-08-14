@@ -36,7 +36,7 @@ jobs:
       # A revalidatePath() that matches no route is a silent no-op, so stale pages
       # never announce themselves. Cheap static check, no DB.
       - name: revalidatePath targets resolve
-        run: npx tsx scripts/checks/chk-revalidate-paths.ts
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-revalidate-paths.ts
 
       - name: Unit tests
         run: npm test
@@ -97,7 +97,7 @@ jobs:
 
       # Every org-scoped table must have enforced RLS (fails if a new table slips through).
       - name: RLS coverage guard
-        run: npx tsx scripts/checks/chk-rls-coverage.ts
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-rls-coverage.ts
 
       - name: Seed demo data
         run: npm run db:seed
@@ -108,7 +108,7 @@ jobs:
 
       # Editing a draft while it is being confirmed must not post unvalidated lines.
       - name: Draft-edit race
-        run: npx tsx scripts/checks/chk-draft-edit-race.ts
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-draft-edit-race.ts
 
       # Tenant isolation go/no-go: scope A never sees B, WITH CHECK blocks cross-writes.
       - name: RLS leak test

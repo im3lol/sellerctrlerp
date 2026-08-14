@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
@@ -111,7 +112,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <a href="/sales/returns" className="underline">سجل المرتجعات</a>.</div>
+            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <Link href="/sales/returns" className="underline">سجل المرتجعات</Link>.</div>
             {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{int(result.skippedDuplicate)}</b> مرتجع مكرر.</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">

@@ -7,7 +7,7 @@ import { organizations, accounts, journalEntries, journalEntryLines,
 
 const ROLLBACK = "RB";
 const r2 = (n: number) => Math.round(n * 100) / 100;
-async function acctBal(orgId: string, code: string, tx: typeof db) {
+async function acctBal(orgId: string, code: string, tx: Pick<typeof db, "select">) {
   const [a] = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.organizationId, orgId), eq(accounts.code, code))).limit(1);
   const [r] = await tx.select({ d: sql<string>`coalesce(sum(${journalEntryLines.debit}),0)`, c: sql<string>`coalesce(sum(${journalEntryLines.credit}),0)` })
     .from(journalEntryLines).innerJoin(journalEntries, and(eq(journalEntries.id, journalEntryLines.journalEntryId), eq(journalEntries.status, "POSTED")))
@@ -17,7 +17,7 @@ async function acctBal(orgId: string, code: string, tx: typeof db) {
 
 async function main() {
   const [org] = await db.select().from(organizations).limit(1);
-  const grniBefore = await acctBal(org.id, "2103", db as any);
+  const grniBefore = await acctBal(org.id, "2103", db);
   console.log("GRNI (2103) before convert:", grniBefore.toFixed(2), "(goods received not invoiced)");
 
   try {
@@ -35,7 +35,7 @@ async function main() {
         { journalEntryId:jePi.id, accountId:A["1107"], debit:String(pTax), credit:"0" },
         { journalEntryId:jePi.id, accountId:A["2101"], debit:"0", credit:String(pTot) },
       ]);
-      const grniAfter = await acctBal(org.id, "2103", tx as any);
+      const grniAfter = await acctBal(org.id, "2103", tx);
       console.log("GRNI (2103) after GRN→invoice:", grniAfter.toFixed(2), grniAfter===0?"✅ cleared":"(remaining)");
 
       // --- Convert DLV-2026-0001 → sales invoice (revenue only) ---
@@ -54,7 +54,7 @@ async function main() {
       const [bal] = await tx.select({ d:sql<string>`coalesce(sum(${journalEntryLines.debit}),0)`, c:sql<string>`coalesce(sum(${journalEntryLines.credit}),0)` })
         .from(journalEntryLines).innerJoin(journalEntries, and(eq(journalEntries.id,journalEntryLines.journalEntryId), eq(journalEntries.organizationId,org.id), eq(journalEntries.status,"POSTED")));
       console.log("Books after both conversions:", Number(bal.d).toFixed(2), Number(bal.d)===Number(bal.c)?"✅ balanced":"❌");
-      console.log("AR 1103:", (await acctBal(org.id,"1103",tx as any)).toFixed(2), "| AP 2101:", (-(await acctBal(org.id,"2101",tx as any))).toFixed(2));
+      console.log("AR 1103:", (await acctBal(org.id,"1103",tx)).toFixed(2), "| AP 2101:", (-(await acctBal(org.id,"2101",tx))).toFixed(2));
       throw new Error(ROLLBACK);
     });
   } catch(e){ if(e instanceof Error && e.message===ROLLBACK) console.log("✅ rolled back — demo untouched"); else throw e; }

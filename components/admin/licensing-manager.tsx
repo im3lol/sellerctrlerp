@@ -150,7 +150,7 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
 
   const view = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    let v = orgs.filter((o) =>
+    const v = orgs.filter((o) =>
       (!needle || o.name.toLowerCase().includes(needle)) &&
       (statusF === "ALL" || o.status === statusF) &&
       (!riskOnly || isAtRisk(o)),

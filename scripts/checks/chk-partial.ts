@@ -70,7 +70,7 @@ async function main() {
 
   // Deliver 2 of `ordered`.
   await deliver(org.id, so.id, [{ lineId: line.id, itemId: line.itemId, qty: 2 }], wh.id, A);
-  let [l] = await db.select().from(salesOrderLines).where(eq(salesOrderLines.id, line.id));
+  const [l] = await db.select().from(salesOrderLines).where(eq(salesOrderLines.id, line.id));
   console.log(`after deliver 2 → deliveredQty=${l.deliveredQty} remaining=${ordered - Number(l.deliveredQty)}`);
   show("AFTER deliver 2", await books(org.id));
 
