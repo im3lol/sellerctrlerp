@@ -7,9 +7,8 @@ import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformPaymentsAction, type PlatformPaymentsResult } from "@/app/actions/erp/platforms";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ColumnMapSelect } from "@/components/erp/column-map-select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { selectCls } from "@/lib/utils";
 
 const guess = (headers: string[], keys: string[]) => {
   const idx = headers.findIndex((h) => keys.some((k) => h.toLowerCase().includes(k)));
@@ -73,15 +72,12 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
   };
 
   const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
-  const MapSelect = ({ label, k, optional }: { label: string; k: keyof Mapping; optional?: boolean }) => (
-    <div className="space-y-1.5">
-      <Label>{label}{optional && <span className="text-muted-foreground"> (اختياري)</span>}</Label>
-      <select className={selectCls} value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: e.target.value }))}>
-        <option value="">— اختر العمود —</option>
-        {colOptions}
-      </select>
-    </div>
-  );
+  // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
+  const mapProps = (k: keyof Mapping) => ({
+    value: map[k],
+    colOptions,
+    onChange: (v: string) => setMap((m) => ({ ...m, [k]: v })),
+  });
 
   return (
     <Card>
@@ -106,9 +102,9 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3">
-              <MapSelect label="المرجع / رقم الدفعة" k="reference" />
-              <MapSelect label="المبلغ" k="amount" />
-              <MapSelect label="التاريخ" k="date" optional />
+              <ColumnMapSelect label="المرجع / رقم الدفعة" {...mapProps("reference")} />
+              <ColumnMapSelect label="المبلغ" {...mapProps("amount")} />
+              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{ready ? <>جاهز: <b>{payments.length}</b> دفعة</> : "اربط المرجع والمبلغ لعرض المعاينة."}</span>

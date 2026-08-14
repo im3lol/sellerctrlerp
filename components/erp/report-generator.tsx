@@ -13,6 +13,16 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
 
 /** One-page report generator: module → report → period → format → export. */
+// Module scope, not inside the component: declaring it inline gave React a new component
+// type every render, remounting each step header. It closes over nothing, so this is a
+// straight move.
+const Step = ({ n, title, done }: { n: number; title: string; done?: boolean }) => (
+  <div className="mb-3 flex items-center gap-2">
+    <span className={`grid size-6 place-items-center rounded-full text-xs font-bold ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{n}</span>
+    <span className="text-sm font-semibold">{title}</span>
+  </div>
+);
+
 export function ReportGenerator() {
   const [moduleKey, setModuleKey] = useState<string | null>(null);
   const [report, setReport] = useState<CatalogReport | null>(null);
@@ -41,13 +51,6 @@ export function ReportGenerator() {
       window.open(`${report.view}?${sep}print=1`, "_blank");
     }
   };
-
-  const Step = ({ n, title, done }: { n: number; title: string; done?: boolean }) => (
-    <div className="mb-3 flex items-center gap-2">
-      <span className={`grid size-6 place-items-center rounded-full text-xs font-bold ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{n}</span>
-      <span className="text-sm font-semibold">{title}</span>
-    </div>
-  );
 
   return (
     <Card>

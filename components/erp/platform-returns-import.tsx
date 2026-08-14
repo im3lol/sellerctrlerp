@@ -8,9 +8,8 @@ import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformReturnsAction, type PlatformReturnsResult } from "@/app/actions/erp/platform-returns";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ColumnMapSelect } from "@/components/erp/column-map-select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { selectCls } from "@/lib/utils";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => keys.some((k) => x.toLowerCase().includes(k))); return i >= 0 ? String(i) : ""; };
@@ -73,14 +72,12 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
   };
 
   const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
-  const MapSelect = ({ label, k, optional }: { label: string; k: keyof Mapping; optional?: boolean }) => (
-    <div className="space-y-1.5">
-      <Label>{label}{optional && <span className="text-muted-foreground"> (اختياري)</span>}</Label>
-      <select className={selectCls} value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: e.target.value }))}>
-        <option value="">— اختر العمود —</option>{colOptions}
-      </select>
-    </div>
-  );
+  // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
+  const mapProps = (k: keyof Mapping) => ({
+    value: map[k],
+    colOptions,
+    onChange: (v: string) => setMap((m) => ({ ...m, [k]: v })),
+  });
 
   return (
     <Card>
@@ -98,10 +95,10 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-4">
-              <MapSelect label="رقم الطلب" k="order" />
-              <MapSelect label="كود الصنف / SKU" k="sku" />
-              <MapSelect label="الكمية المرتجعة" k="qty" />
-              <MapSelect label="التاريخ" k="date" optional />
+              <ColumnMapSelect label="رقم الطلب" {...mapProps("order")} />
+              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
+              <ColumnMapSelect label="الكمية المرتجعة" {...mapProps("qty")} />
+              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{ready ? <>جاهز: <b>{int(returns.length)}</b> مرتجع</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
