@@ -44,7 +44,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-muted/30">
       <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+      {/* overflow-x-CLIP, not hidden: `hidden` computes overflow-y to `auto`, which makes
+          this div a scroll container — and that silently broke the topbar's `sticky top-0`
+          (it scrolled away with the page). `clip` contains a stray wide child just the same
+          without creating a scrollport, so the header sticks again. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <Topbar
           user={{
             name: user.name,
