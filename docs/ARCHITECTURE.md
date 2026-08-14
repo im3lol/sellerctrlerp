@@ -240,13 +240,40 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 ## Deployment
 
+> ### ⚠️ Two stacks are live at once, on different code
+>
+> Measured 2026-08-14 from the public internet:
+>
+> | Host | Served by | Evidence |
+> |------|-----------|----------|
+> | `sellerctrl.com`, `www.sellerctrl.com` | **Vercel** | `x-vercel-id` / `x-vercel-cache` response headers |
+> | `app.sellerctrl.com` | **Docker** (this repo's compose stack) | no Vercel headers; matches `scripts/deploy.sh` |
+>
+> They are **not** running the same build: `/signup` answers `200` on `app.` and `307` on
+> `www.`. Vercel deploys from git, and its production branch is `main`, which is ~140
+> commits behind `develop` — that is the drift.
+>
+> **Before merging `develop` → `main`,** decide what Vercel production is for. Merging
+> auto-deploys the whole backlog to `www.sellerctrl.com`, and **Vercel's pipeline has no
+> migration step** — the new code would meet whatever schema its Supabase project happens
+> to be on. If that stack is still wanted, run `npm run db:baseline` then `npm run db:migrate`
+> against it *first* (see the migrations section). If it is not wanted, retire it before the
+> merge, not after: disconnect the project, or point the DNS at the Docker host.
+>
+> Keep the `process.env.VERCEL` branches (`lib/db.ts`, `next.config.ts`, storage, cron) until
+> that call is made — they are what keeps the currently-live site working.
+
 Two supported targets:
 
-- **Vercel + Supabase (managed).** The live stack. `DATABASE_URL` points at the Supabase
-  transaction pooler (port 6543). Item images use Supabase Storage (`SUPABASE_URL` +
-  `SUPABASE_SERVICE_KEY` + `SUPABASE_BUCKET`); `CRON_SECRET` guards `/api/cron`.
-- **Docker (self-hosted).** `docker/docker-compose.yml` runs Postgres + MinIO + the app.
-  The app image ships the **host-built** `.next/standalone` bundle. Rebuild flow:
+- **Vercel + Supabase (managed).** Serves `www.sellerctrl.com` today, from `main`.
+  `DATABASE_URL` points at the Supabase transaction pooler (port 6543). Item images use
+  Supabase Storage (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` + `SUPABASE_BUCKET`);
+  `CRON_SECRET` guards `/api/cron`. No migration step — schema changes are applied out of
+  band, which is why the warning above exists.
+- **Docker (self-hosted).** Serves `app.sellerctrl.com` today, from `develop`.
+  `docker/docker-compose.yml` runs Postgres + MinIO + the app. The app image ships the
+  **host-built** `.next/standalone` bundle. `scripts/deploy.sh` is the one-shot flow
+  (build → migrate → RLS → swap → health gate with auto-rollback); the manual equivalent:
 
   ```bash
   NODE_OPTIONS=--max-old-space-size=6144 npx next build          # host build (in-Docker OOMs)
