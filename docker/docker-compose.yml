@@ -128,9 +128,17 @@ services:
     # PID-1 init so SIGTERM reaches node (graceful shutdown) instead of being swallowed.
     init: true
     ports:
-      # Host 3001 → container 3000. Bound to 127.0.0.1 — only the co-located Cloudflare
-      # tunnel (→ localhost:3001) should reach the app; never expose it to the LAN.
+      # Host 3001 → container 3000. Loopback only — the co-located Cloudflare tunnel
+      # (→ localhost:3001) is the sole intended client; never expose it to the LAN.
+      #
+      # BOTH loopback families, and that is a performance fix, not tidiness: `localhost`
+      # resolves to ::1 first on Windows and modern Linux. With only the v4 socket bound,
+      # every client (browser AND cloudflared) tried ::1, got nothing, and sat through the
+      # Happy-Eyeballs fallback delay before retrying 127.0.0.1. Measured in Chrome against
+      # this container: localhost → 312 ms TCP connect, 785 ms to responseEnd; 127.0.0.1 →
+      # 0.4 ms connect, 71 ms. Same page, same container.
       - "127.0.0.1:3001:3000"
+      - "[::1]:3001:3000"
     # Resource caps so one runaway request/report can't OOM the box and take the
     # co-located Postgres/Redis down with it (whole-fleet outage on a single VPS).
     mem_limit: 2g
