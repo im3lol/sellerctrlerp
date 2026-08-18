@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -46,7 +47,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       po.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
+      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
         .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
       db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, invoiceId: purchaseReceipts.purchaseInvoiceId })
         .from(purchaseReceipts).where(eq(purchaseReceipts.purchaseOrderId, po.id)),
@@ -114,6 +115,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14 text-start">صورة</TableHead>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">الكمية</TableHead>
                   <TableHead className="text-start">السعر</TableHead>
@@ -126,7 +128,11 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal">
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
+                    </TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{dfmt(l.unitPrice)}</TableCell>
                     <TableCell>{dfmt(l.discount)}</TableCell>

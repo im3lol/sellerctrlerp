@@ -3,32 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
-import { Image as ImageIcon } from "lucide-react";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { Input } from "@/components/ui/input";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
-/** Same treatment as the items table: object-contain in a fixed box, placeholder when the
- *  item has no image, so rows never jump between having one and not. */
-function Thumb({ src, className = "size-9" }: { src?: string | null; className?: string }) {
-  return (
-    <div className={`${className} shrink-0 overflow-hidden rounded-md border bg-muted/40`}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="size-full object-contain" loading="lazy" />
-      ) : (
-        <div className="flex size-full items-center justify-center text-muted-foreground"><ImageIcon className="size-4" /></div>
-      )}
-    </div>
-  );
-}
-
-/**
- * In-cell searchable item picker for document line tables. Shows the selected
- * item's label; on focus it clears for a typeahead search (name / internal code
- * / any external code / barcode). The results panel renders in a portal with
- * fixed positioning so it is never clipped by the table's overflow.
- */
 export function ItemPicker({
   selectedLabel,
   selected,
@@ -108,7 +87,7 @@ export function ItemPicker({
             ) : (
               results.map((it) => (
                 <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
-                  <Thumb src={it.image} />
+                  <ItemThumb src={it.image} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{it.name}</div>
                     <div className="truncate text-xs text-muted-foreground">
@@ -139,14 +118,13 @@ export function ItemPicker({
   const resting = selected !== undefined ? selected : picked;
 
   return (
-    <div ref={wrapRef} className="min-w-64">
+    <div ref={wrapRef} className="w-full min-w-0">
       {resting && !editing ? (
         <button
           type="button"
           onClick={() => { setEditing(true); setQ(""); }}
           className="flex h-auto min-h-9 w-full items-center gap-2 rounded-md border bg-background px-2 py-1 text-start transition-colors hover:bg-accent"
         >
-          <Thumb src={resting.image} />
           <span className="min-w-0 flex-1">
             {/* dir="auto" per line: an English name reads from its start (left), an Arabic
                 one from its start (right) — never truncated from the middle. */}

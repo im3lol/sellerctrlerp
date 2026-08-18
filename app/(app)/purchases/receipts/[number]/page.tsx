@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
 import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
@@ -44,7 +45,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
       db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1),
-      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, wh: warehouses.nameAr })
+      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, image: items.image, wh: warehouses.nameAr })
         .from(purchaseReceiptLines)
         .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
         .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
@@ -113,6 +114,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14 text-start">صورة</TableHead>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">مخزن الاستلام</TableHead>
                   <TableHead className="text-start">الكمية المستلمة</TableHead>
@@ -122,7 +124,11 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal">
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
+                    </TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                     <TableCell>{qtyf(l.qty)}</TableCell>
                     {anyRejected && <TableCell className={Number(l.rejected) > 0 ? "text-destructive" : "text-muted-foreground"}>{qtyf(l.rejected)}</TableCell>}

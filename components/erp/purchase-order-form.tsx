@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
@@ -193,7 +194,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
+                <TableHead className="w-14 text-start">صورة</TableHead>
+                <TableHead className="w-[260px] text-start">الصنف</TableHead>
                 <TableHead className="w-28 text-start">الكمية</TableHead>
                 <TableHead className="w-36 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
@@ -206,6 +208,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
+                    <ItemThumb src={itemById.get(l.itemId)?.image} />
+                  </TableCell>
+                  <TableCell className="max-w-[260px]">
                     <ItemPicker
                       selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                       onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })}
