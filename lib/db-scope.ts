@@ -8,7 +8,7 @@ import { realDb, scopeStore } from "@/lib/db";
  * at the database, not just by an app-code filter.
  *
  * The GUC is transaction-scoped (`set_config(..., true)`) on purpose: that's the only
- * form that survives the Supabase transaction pooler (:6543), which hands the server
+ * form that survives a transaction-mode pooler (PgBouncer et al), which hands the server
  * connection back after each transaction.
  *
  * Reuses an already-open scope rather than nesting a second top-level transaction —

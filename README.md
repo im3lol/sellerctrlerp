@@ -17,7 +17,7 @@ purchase document cycle — with a fully **Arabic, right-to-left** UI.
 | Styling      | TailwindCSS · shadcn/ui (Radix) · Thmanyah (ثمانية) font |
 | Database     | PostgreSQL · [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit |
 | Auth         | Auth.js v5 — credentials (username **or** email), JWT sessions, role-based |
-| Object store | MinIO (local) / Supabase Storage (on Vercel) — item images |
+| Object store | MinIO / any S3-compatible service — item images, attachments, backups |
 | Charts       | Recharts |
 | Tests        | Vitest |
 
@@ -69,7 +69,7 @@ docker compose -f docker/docker-compose.yml --profile app up -d --build app   # 
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment) for the Docker rebuild
-flow and the Vercel + Supabase deployment model.
+flow and the self-hosted deployment model.
 
 ---
 
@@ -99,7 +99,7 @@ lib/
   db.ts             Drizzle client (pooled pg)
   session.ts        requireUser / requireCapability (OS auth)
   rbac.ts           Global role → capability matrix
-  storage.ts        S3/MinIO or Supabase-Storage object storage
+  storage.ts        S3/MinIO object storage (public + presigned private bucket)
   env.ts            Boot-time env validation
 
 db/

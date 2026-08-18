@@ -4,7 +4,7 @@
  * is separate from the app's runtime connection.
  *
  *   npm run db:rls                    # local Docker (owner on :5433)
- *   MIGRATE_DATABASE_URL=… npm run db:rls   # prod/Supabase (owner/postgres role)
+ *   MIGRATE_DATABASE_URL=… npm run db:rls   # another host (owner role)
  *   tsx scripts/apply-rls.ts 00-appuser.sql # one file — used by db:migrate, see below
  *
  * All four SQL files are idempotent (DO-guarded role + drop/recreate policies), so this

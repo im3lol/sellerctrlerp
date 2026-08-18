@@ -1,5 +1,15 @@
 # RLS Production Cutover — Runbook
 
+> **Historical.** This was written for the Supabase-hosted deployment, which is being
+> retired in favour of the self-hosted Docker stack. The cutover it describes is **already
+> done** there: `docker/docker-compose.yml` runs the app and worker as `appuser`, and
+> `npm run db:rls` (re)applies the role, the policies and the integrity triggers on every
+> deploy. `scripts/rls-leak-check.ts` is the go/no-go.
+>
+> Kept because the *reasoning* — why the app must not connect as the table owner, and what
+> order the flip has to happen in — applies to any host. Read the Supabase/Vercel specifics
+> below as "the managed platform's env store", not as instructions to follow verbatim.
+
 Flipping the running app from the table **owner** (bypasses RLS) to the non-owner
 **`appuser`** (RLS enforced). Order matters; do the steps exactly as numbered.
 
@@ -7,7 +17,7 @@ Everything the app needs is already built and green locally: the scope wrappers 
 every handler, the policies, migration 0050, and the leak test. This runbook is only
 the infra flip — no code changes.
 
-> **Reversible:** the whole thing is undone by flipping one Vercel env var back
+> **Reversible:** the whole thing is undone by flipping one env var back
 > (step 6). The policies can stay in place; they simply don't filter the owner.
 
 ---

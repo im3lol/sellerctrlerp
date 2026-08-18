@@ -14,7 +14,7 @@ console.log(`ENCRYPTION_KEY=${key()}`);
 console.log(`CRON_SECRET=${key()}`);
 console.log(`NOON_WEBHOOK_SECRET=${key()}`);
 console.log(`INIT_SETUP_TOKEN=${key()}`);
-console.log("\n# Paste these into the PLATFORM's secret store (Vercel env / VPS secrets),");
+console.log("\n# Paste these into the deployment host's .env (or its secrets store),");
 console.log("# NOT a committed file. Rotating AUTH_SECRET invalidates sessions; keeping the");
 console.log("# OLD AUTH_SECRET as the ENCRYPTION_KEY fallback would still decrypt existing");
 console.log("# marketplace tokens — set ENCRYPTION_KEY to the OLD AUTH_SECRET first, deploy,");

@@ -25,7 +25,7 @@ const row = (label: string, count: number, href: string) =>
   `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0"><a href="${href}" style="color:#1e3a8a;text-decoration:none">${label}</a></td><td style="padding:10px 0;text-align:left;font-weight:bold">${fmt(count)}</td></tr>`;
 
 /**
- * Daily reminder digest (Vercel Cron, guarded by CRON_SECRET). Emails each org's
+ * Daily reminder digest (driven by the compose cron sidecar, guarded by CRON_SECRET). Emails each org's
  * pending drafts + overdue invoices + inventory alerts to REMINDER_EMAIL_TO.
  * No-op when email isn't configured.
  */

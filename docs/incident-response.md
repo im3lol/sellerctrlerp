@@ -19,7 +19,7 @@ Amazon Services API Data Protection Policy (DPP).
 - **Purpose:** ensure security incidents are detected, contained, eradicated,
   recovered, reported, and reviewed in a consistent, timely way.
 - **Scope:** all SellerCtrl systems, data, and personnel — production application
-  (Vercel), database (Supabase Postgres), object storage, source control, CI/CD,
+  (the Docker host), database (self-hosted Postgres), object storage (MinIO), source control, CI/CD,
   and any environment that processes tenant or Amazon Information.
 - **Amazon Information** = any data obtained from Amazon's APIs (orders,
   inventory, financial settlements, catalog). SellerCtrl uses **non-restricted
@@ -54,8 +54,8 @@ misconfiguration exposing data, or loss/theft of a device with production access
 > - Executive Sponsor: **Ali Hassan Mostafa** — `ali@sellerctrl.com`, +20 155 825 3938
 
 ## 4. Detection & reporting (how incidents are found)
-- **Automated:** application error/runtime logs (Vercel), database logs
-  (Supabase), append-only **audit log** of privileged mutations (`audit_logs`),
+- **Automated:** application error/runtime logs (`docker logs`), Postgres logs,
+  append-only **audit log** of privileged mutations (`audit_logs`),
   failed-auth patterns, dependency/security alerts (GitHub/Dependabot).
 - **Manual:** any employee who suspects an incident reports it **immediately** to
   the Security Lead via `security@sellerctrl.com` (or the on-call channel).
@@ -76,7 +76,7 @@ Target: begin triage **within 1 hour** of detection for SEV-1/2.
    maintenance if needed. Preserve logs/evidence before changes.
 3. **Eradicate** — remove the root cause: patch the vulnerability, remove malware,
    close the misconfiguration, invalidate sessions/tokens.
-4. **Recover** — restore from known-good state (Supabase point-in-time backups),
+4. **Recover** — restore from known-good state (the `pg_dump`/PITR procedure in this repo),
    verify integrity, re-enable access, monitor for recurrence.
 5. **Notify** — see §6.
 6. **Close** — Security Lead confirms containment/eradication and closes the
@@ -119,9 +119,9 @@ The controls that reduce incident likelihood and support this plan:
   complexity** policy (`lib/auth/password-policy.ts`), **TOTP MFA** with
   encrypted secrets and one-time backup codes, and **365-day rotation** with
   reuse prevention (`password_history`).
-- **Encryption in transit:** TLS everywhere (Vercel HTTPS; Supabase with a pinned
+- **Encryption in transit:** TLS everywhere (HTTPS at the edge; Postgres with a verified
   CA and certificate verification).
-- **Encryption at rest:** provider disk encryption (Supabase) plus
+- **Encryption at rest:** host disk encryption plus
   application-level **AES-256-GCM** for stored secrets (`lib/crypto.ts`).
 - **Secrets management:** all secrets in environment variables; `.env` is
   git-ignored; API keys stored only as SHA-256 hashes; no hardcoded credentials.

@@ -1,7 +1,7 @@
 # Secret rotation (owner runbook)
 
 The DD found live secrets in the working-tree `.env` (a real Amazon SP-API client
-secret + a Supabase DB password) alongside a weak dev `AUTH_SECRET`. Treat all of them
+secret + a database password) alongside a weak dev `AUTH_SECRET`. Treat all of them
 as **compromised** and rotate. The app code already supports a dedicated `ENCRYPTION_KEY`
 and reads every secret from the env — nothing in the repo blocks this; the actions below
 are **console/env changes only the account owner can make**.
@@ -10,7 +10,7 @@ are **console/env changes only the account owner can make**.
 ```bash
 npm run gen:secrets
 ```
-Copy the output into the **platform secret store** (Vercel env vars / VPS `.env` injected
+Copy the output into the **platform secret store** (the deployment host's `.env`, injected
 at deploy) — never a committed file.
 
 ## 2. Rotate `AUTH_SECRET` + introduce `ENCRYPTION_KEY` WITHOUT bricking stored tokens
@@ -28,7 +28,7 @@ keeping stored tokens decryptable:
 ## 3. Rotate the provider secrets (console actions)
 - **Amazon SP-API**: in Seller Central / the developer console, rotate the LWA client
   secret, then update it in **/admin/integrations → Amazon** (or `SPAPI_LWA_CLIENT_SECRET`).
-- **Supabase**: rotate the database password; update the pooler `DATABASE_URL` in the
+- **Postgres**: rotate the database password; update `DATABASE_URL` in the
   platform env.
 - **Noon**: rotate `client_secret` if issued; update in **/admin/integrations → Noon**.
 

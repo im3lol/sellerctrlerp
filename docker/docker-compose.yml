@@ -200,7 +200,7 @@ services:
       redis:
         condition: service_healthy
 
-  # Scheduled-jobs trigger for the VPS. On Vercel this is Vercel Cron; self-hosted there
+  # Scheduled-jobs trigger for the VPS. Self-hosted has no platform scheduler, so there
   # is no trigger, so per-tenant backups / recurring docs / dunning would silently never
   # run. This busybox sidecar fires the daily /api/cron (06:00) via crond — no image
   # deps (busybox has wget + crond). CRON_SECRET comes from ../.env.

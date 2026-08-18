@@ -23,7 +23,7 @@ import { getConnection } from "@/lib/erp/marketplace/connection";
 import { oauthConfigured } from "@/lib/saas/connector-enabled";
 
 // Marketplace sync (server actions on this route) polls Amazon's async reports —
-// allow a longer function budget on Vercel (needs a Pro/Fluid plan for >60s).
+// a self-hosted Node server has no function timeout, so this is only a ceiling.
 export const maxDuration = 300;
 
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

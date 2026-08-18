@@ -240,37 +240,39 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 ## Deployment
 
-> ### ⚠️ Two stacks are live at once, on different code
+> ### ⛔ Cutover in progress — Docker is the only target, Vercel is being retired
 >
+> The Vercel + Supabase stack is **still serving the public site** while this is written.
 > Measured 2026-08-14 from the public internet:
 >
 > | Host | Served by | Evidence |
 > |------|-----------|----------|
-> | `sellerctrl.com`, `www.sellerctrl.com` | **Vercel** | `x-vercel-id` / `x-vercel-cache` response headers |
-> | `app.sellerctrl.com` | **Docker** (this repo's compose stack) | no Vercel headers; matches `scripts/deploy.sh` |
+> | `sellerctrl.com`, `www.sellerctrl.com` | **Vercel** (from `main`) | `x-vercel-id` / `x-vercel-cache` response headers |
+> | `app.sellerctrl.com` | **Docker** (this repo's compose stack, from `develop`) | no Vercel headers |
 >
-> They are **not** running the same build: `/signup` answers `200` on `app.` and `307` on
-> `www.`. Vercel deploys from git, and its production branch is `main`, which is ~140
-> commits behind `develop` — that is the drift.
+> They are not the same build — `/signup` answers `307` on `www.` and `200` on `app.` —
+> because `main` is ~140 commits behind `develop`.
 >
-> **Before merging `develop` → `main`,** decide what Vercel production is for. Merging
-> auto-deploys the whole backlog to `www.sellerctrl.com`, and **Vercel's pipeline has no
-> migration step** — the new code would meet whatever schema its Supabase project happens
-> to be on. If that stack is still wanted, run `npm run db:baseline` then `npm run db:migrate`
-> against it *first* (see the migrations section). If it is not wanted, retire it before the
-> merge, not after: disconnect the project, or point the DNS at the Docker host.
+> **The code no longer supports Vercel or Supabase.** The `process.env.VERCEL` branches,
+> the Supabase Storage backend and the pinned Supabase CA are gone from this branch. That
+> is safe while it stays on `develop`, because Vercel deploys from `main`.
 >
-> Keep the `process.env.VERCEL` branches (`lib/db.ts`, `next.config.ts`, storage, cron) until
-> that call is made — they are what keeps the currently-live site working.
+> **Merging `develop` → `main` IS the cutover.** It replaces the live public site with a
+> build that has no Supabase storage, no serverless pool sizing, and no migration step in
+> Vercel's pipeline. Do these first, in this order:
+>
+> 1. **Check the Supabase database for data worth keeping.** If it holds real tenants, export
+>    and load it into the Docker Postgres — nothing else in this runbook recovers it.
+> 2. **Serve the public hostnames from Docker.** `app.sellerctrl.com` already is; add
+>    `sellerctrl.com` + `www` to the same origin.
+> 3. **Move DNS** in Cloudflare to that origin, and confirm the headers change.
+> 4. **Then merge**, and disconnect the Vercel project and the Supabase project.
+>
+> Doing 4 before 2–3 takes the public site down.
 
-Two supported targets:
+One target:
 
-- **Vercel + Supabase (managed).** Serves `www.sellerctrl.com` today, from `main`.
-  `DATABASE_URL` points at the Supabase transaction pooler (port 6543). Item images use
-  Supabase Storage (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` + `SUPABASE_BUCKET`);
-  `CRON_SECRET` guards `/api/cron`. No migration step — schema changes are applied out of
-  band, which is why the warning above exists.
-- **Docker (self-hosted).** Serves `app.sellerctrl.com` today, from `develop`.
+- **Docker (self-hosted).** The only supported target.
   `docker/docker-compose.yml` runs Postgres + MinIO + the app. The app image ships the
   **host-built** `.next/standalone` bundle. `scripts/deploy.sh` is the one-shot flow
   (build → migrate → RLS → swap → health gate with auto-rollback); the manual equivalent:
