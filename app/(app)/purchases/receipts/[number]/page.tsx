@@ -9,9 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
-import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
+import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -93,11 +92,14 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
           subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
           backHref="/purchases/receipts"
           action={
-            <div className="flex gap-2">
-              <PrintDocLink href={`/purchases/receipts/${encodeURIComponent(grn.number)}/print`} />
-              <BulkBarcodePrintButton docTitle={`إذن استلام ${grn.number}`} rows={barcodeRows} />
-              <ReceiptDetailActions id={grn.id} number={grn.number} status={grn.status} canManage={canManage} />
-            </div>
+            <ReceiptDetailActions
+              id={grn.id}
+              number={grn.number}
+              status={grn.status}
+              canManage={canManage}
+              printHref={`/purchases/receipts/${encodeURIComponent(grn.number)}/print`}
+              barcodeRows={barcodeRows}
+            />
           }
         />
 

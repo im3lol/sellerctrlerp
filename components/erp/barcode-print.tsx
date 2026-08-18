@@ -179,8 +179,24 @@ const seed = (rows: BulkRow[]): EditRow[] => rows.map((r) => ({ ...r, sel: 0, in
  * line, quantity prefilled from the line. Before printing you can edit the quantity, drop
  * a line, pick one code for ALL lines, then override any line individually. Prints via QZ Tray.
  */
-export function BulkBarcodePrintButton({ docTitle, rows }: { docTitle: string; rows: BulkRow[] }) {
-  const [open, setOpen] = useState(false);
+export function BulkBarcodePrintButton({
+  docTitle,
+  rows,
+  open: openProp,
+  onOpenChange,
+  hideTrigger,
+}: {
+  docTitle: string;
+  rows: BulkRow[];
+  /** Controlled mode: let a caller (e.g. an «إجراءات» menu item) own the open state and
+   *  drop the built-in trigger. Uncontrolled — the plain button — stays the default. */
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
+}) {
+  const [openSelf, setOpenSelf] = useState(false);
+  const open = openProp ?? openSelf;
+  const setOpen = onOpenChange ?? setOpenSelf;
   const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<EditRow[]>(() => seed(rows));
   const { printers, printer, setPrinter, qzOk } = useQzPrinters(open);
@@ -218,9 +234,11 @@ export function BulkBarcodePrintButton({ docTitle, rows }: { docTitle: string; r
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        <Printer className="size-4" />طباعة باركود
-      </Button>
+      {!hideTrigger && (
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Printer className="size-4" />طباعة باركود
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir="rtl" className="max-w-2xl">
           <DialogHeader>
