@@ -42,6 +42,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           total: purchaseOrderLines.totalAmount,
           code: items.code,
           name: items.nameAr,
+          image: items.image,
         })
         .from(purchaseOrderLines)
         .leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
@@ -53,6 +54,8 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
     const docRate = Number(po.exchangeRate) || 1;
     const cur = po.currencyCode ?? "";
     const d = (v: string | number | null) => Number(v ?? 0) / docRate;
+    const subtotal = Number(po.subtotal ?? 0);
+    const shipping = Number(po.shippingAmount ?? 0);
     const discount = Number(po.discountAmount ?? 0);
     const tax = Number(po.taxAmount ?? 0);
 
@@ -75,8 +78,11 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           ...(wh ? [{ label: "التسليم إلى", name: wh.nameAr, lines: [] }] : []),
         ]}
         columns={[
-          { label: "#", width: "6%" },
-          { label: "الصنف", width: "44%" },
+          { label: "#", width: "5%" },
+          // Sits in the org's print-column settings like any other, so a tenant that does
+          // not want pictures on paper can switch it off without a code change.
+          { label: "صورة", align: "center", width: "9%" },
+          { label: "الصنف", width: "36%" },
           { label: "الكمية", align: "center", width: "12%" },
           { label: `السعر (${cur})`, align: "end", width: "18%" },
           { label: "الخصم", align: "end", width: "10%" },
@@ -84,6 +90,16 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
+          // Fixed box + object-fit so a tall or wide picture cannot stretch the row, and
+          // nothing at all when the item has no image — a page of placeholder icons is
+          // noise on paper. Deliberately not lazy: a lazy image below the fold can still
+          // be unloaded when the print dialog snapshots the page.
+          <span key="img" style={{ display: "inline-block", width: 36, height: 36, verticalAlign: "middle" }}>
+            {l.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={l.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : null}
+          </span>,
           <span key="n">
             <b>{l.name}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
@@ -93,7 +109,13 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           Number(l.discount ?? 0) > 0 ? fmt(d(l.discount)) : "—",
           <b key="t">{fmt(d(l.total))}</b>,
         ])}
+        // Every charge line appears only when it carries a value — a printed order should
+        // not list "الجمارك 0" next to a real shipping figure. Shipping was missing from
+        // this list entirely, so an order with freight printed a total that its own rows
+        // did not add up to.
         totals={[
+          { label: "الإجمالي الفرعي", value: `${fmt(d(subtotal))} ${cur}` },
+          ...(shipping > 0 ? [{ label: "الشحن", value: `${fmt(d(shipping))} ${cur}` }] : []),
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${fmt(d(discount))} ${cur}`, tone: "danger" as const }] : []),
           ...(tax > 0 ? [{ label: `الضريبة (${po.taxPercent}%)`, value: `${fmt(d(tax))} ${cur}` }] : []),
         ]}

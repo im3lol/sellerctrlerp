@@ -41,7 +41,12 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
     ]);
 
     const tax = Number(inv.taxAmount ?? 0);
-    const subtotal = Number(inv.totalAmount) - tax;
+    // The stored subtotal, not total − tax: that derivation silently folded freight and
+    // any discount into the goods figure, so an invoice with shipping printed a subtotal
+    // that was too high by exactly the freight it never listed.
+    const subtotal = Number(inv.subtotal ?? 0);
+    const shipping = Number(inv.shippingAmount ?? 0);
+    const discount = Number(inv.discountAmount ?? 0);
     const paid = Number(inv.paidAmount ?? 0);
 
     return (
@@ -85,6 +90,9 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
         ])}
         totals={[
           { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
+          // Charge lines appear only when they carry a value.
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
+          ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
           ...(tax > 0 ? [{ label: `ضريبة المدخلات (${inv.taxPercent}%)`, value: money(tax, currency) }] : []),
           { label: "الإجمالي", value: money(inv.totalAmount, currency), tone: "strong" as const },
           ...(paid > 0 ? [{ label: "المسدَّد", value: `− ${money(paid, currency)}`, tone: "success" as const }] : []),
