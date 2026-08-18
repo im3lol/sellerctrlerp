@@ -27,7 +27,7 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
 export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string; batchNo?: string | null; expiryDate?: string | null };
 
 export type ReceivableLine = {
-  itemId: string; code: string; name: string; ordered: number; received: number; remaining: number;
+  itemId: string; code: string; name: string; image: string | null; ordered: number; received: number; remaining: number;
   stockByWarehouse: Record<string, number>;
   isPerishable: boolean; shelfLifeDays: number | null;
 };
@@ -48,14 +48,14 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
     if (!po) return { error: "الأمر غير موجود" };
 
     const ols = await db
-      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
+      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, image: items.image, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
       .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
       .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     const lines = ols
       .map((l) => {
         const ordered = Number(l.quantity), received = Number(l.receivedQty);
-        return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
+        return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
       })
       .filter((l) => l.remaining > EPS);
 

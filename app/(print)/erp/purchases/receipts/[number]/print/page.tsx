@@ -45,6 +45,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
           expiryDate: purchaseReceiptLines.expiryDate,
           code: items.code,
           name: items.nameAr,
+          image: items.image,
         })
         .from(purchaseReceiptLines)
         .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
@@ -74,14 +75,25 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
           ...(wh ? [{ label: "الاستلام في", name: wh.nameAr, lines: [] }] : []),
         ]}
         columns={[
-          { label: "#", width: "5%" },
-          { label: "الصنف", width: hasBatch ? "42%" : "62%" },
+          { label: "#", width: "4%" },
+          // A normal print column, so it can be switched off in the org's print settings.
+          { label: "صورة", align: "center" as const, width: "9%" },
+          { label: "الصنف", width: hasBatch ? "34%" : "54%" },
           ...(hasBatch ? [{ label: "التشغيلة / الصلاحية", width: "20%" }] : []),
           { label: "المستلم", align: "end" as const, width: "16%" },
           { label: "المرفوض", align: "end" as const, width: "17%" },
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
+          // Real <img> (print drops CSS backgrounds, not images), fixed box so a tall
+          // picture cannot stretch the row, and nothing when the item has no image.
+          // Not lazy: a lazy image can still be unloaded when the print dialog fires.
+          <span key="img" style={{ display: "inline-block", width: 36, height: 36, verticalAlign: "middle" }}>
+            {l.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={l.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : null}
+          </span>,
           <span key="n">
             <b>{l.name}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
