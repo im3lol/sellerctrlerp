@@ -240,37 +240,26 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 ## Deployment
 
-> ### ⛔ Cutover in progress — Docker is the only target, Vercel is being retired
->
-> The Vercel + Supabase stack is **still serving the public site** while this is written.
-> Measured 2026-08-14 from the public internet:
->
-> | Host | Served by | Evidence |
-> |------|-----------|----------|
-> | `sellerctrl.com`, `www.sellerctrl.com` | **Vercel** (from `main`) | `x-vercel-id` / `x-vercel-cache` response headers |
-> | `app.sellerctrl.com` | **Docker** (this repo's compose stack, from `develop`) | no Vercel headers |
->
-> They are not the same build — `/signup` answers `307` on `www.` and `200` on `app.` —
-> because `main` is ~140 commits behind `develop`.
->
-> **The code no longer supports Vercel or Supabase.** The `process.env.VERCEL` branches,
-> the Supabase Storage backend and the pinned Supabase CA are gone from this branch. That
-> is safe while it stays on `develop`, because Vercel deploys from `main`.
->
-> **Merging `develop` → `main` IS the cutover.** It replaces the live public site with a
-> build that has no Supabase storage, no serverless pool sizing, and no migration step in
-> Vercel's pipeline. Do these first, in this order:
->
-> 1. **Check the Supabase database for data worth keeping.** If it holds real tenants, export
->    and load it into the Docker Postgres — nothing else in this runbook recovers it.
-> 2. **Serve the public hostnames from Docker.** `app.sellerctrl.com` already is; add
->    `sellerctrl.com` + `www` to the same origin.
-> 3. **Move DNS** in Cloudflare to that origin, and confirm the headers change.
-> 4. **Then merge**, and disconnect the Vercel project and the Supabase project.
->
-> Doing 4 before 2–3 takes the public site down.
+### Topology
 
-One target:
+Everything is one self-hosted stack. Cutover from Vercel + Supabase completed 2026-08-18;
+verified from the public internet with no `x-vercel-*` header on any hostname:
+
+| Host | Serves |
+|------|--------|
+| `sellerctrl.com`, `www.sellerctrl.com` | landing / marketing, and `/login` into the app |
+| `app.sellerctrl.com` | the same app |
+
+All three are the **same container**. A Cloudflare tunnel (`~/.cloudflared/config.yml`,
+three ingress rules → `http://127.0.0.1:3001`) fronts it; the DNS records are CNAMEs to the
+tunnel. The app image serves the landing page at `/` and the ERP behind `/login`, so no
+split origin is needed.
+
+TTFB through the tunnel is ~250ms, of which the container accounts for ~17ms — the rest is
+the Cloudflare edge round trip, because the origin is a workstation behind a quick tunnel.
+Moving the stack onto a real host removes it; nothing in the app is responsible for it.
+
+The one target:
 
 - **Docker (self-hosted).** The only supported target.
   `docker/docker-compose.yml` runs Postgres + MinIO + the app. The app image ships the

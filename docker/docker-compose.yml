@@ -128,8 +128,10 @@ services:
     # PID-1 init so SIGTERM reaches node (graceful shutdown) instead of being swallowed.
     init: true
     ports:
-      # Host 3001 → container 3000. Loopback only — the co-located Cloudflare tunnel
-      # (→ localhost:3001) is the sole intended client; never expose it to the LAN.
+      # Host 3001 → container 3000. Loopback only — the co-located Cloudflare tunnel is
+      # the sole intended client; never expose it to the LAN. The tunnel maps all three
+      # public hostnames (apex, www, app) here; this one container serves the landing page
+      # at / and the ERP behind /login.
       #
       # BOTH loopback families, and that is a performance fix, not tidiness: `localhost`
       # resolves to ::1 first on Windows and modern Linux. With only the v4 socket bound,
