@@ -20,7 +20,7 @@ import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
-type Item = { id: string; nameAr: string | null };
+type Item = { id: string; nameAr: string | null; code?: string | null; image?: string | null };
 type Currency = { code: string; nameAr: string; isBase: boolean };
 type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number };
 // Editing an existing DRAFT: line amounts are already in the document currency (the edit
@@ -69,6 +69,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
   const lcTotal = round2((Number(lc.shipping) || 0) + (Number(lc.customs) || 0) + (Number(lc.insurance) || 0) + (Number(lc.other) || 0));
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
+  // id → row, so a line cell can show the item's picture and code without another query.
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, newLine()]);
@@ -204,7 +206,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
               {lines.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>
-                    <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })} />
+                    <ItemPicker
+                      selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
+                      onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })}
+                    />
                   </TableCell>
                   <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
                   <TableCell><Input type="number" step="0.01" inputMode="decimal" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>

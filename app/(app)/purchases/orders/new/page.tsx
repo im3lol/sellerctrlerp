@@ -16,7 +16,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr }).from(warehouses)
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
-      db.select({ id: items.id, nameAr: items.nameAr }).from(items)
+      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image }).from(items)
         .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
