@@ -2,12 +2,13 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { customers, users } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
+import { nextCode } from "@/lib/erp/next-code";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -20,14 +21,9 @@ const schema = z.object({
   paymentTerms: z.coerce.number().int().min(0).default(30),
 });
 
-// Next auto code CUST-#### from the highest existing CUST-<n> for this org.
-async function nextCustomerCode(orgId: string): Promise<string> {
-  const rows = await db.select({ code: customers.code }).from(customers)
-    .where(and(eq(customers.organizationId, orgId), like(customers.code, "CUST-%")));
-  let max = 0;
-  for (const r of rows) { const m = /^CUST-(\d+)$/.exec(r.code); if (m) max = Math.max(max, Number(m[1])); }
-  return `CUST-${String(max + 1).padStart(4, "0")}`;
-}
+// Next auto code CUST-#### — max computed in the database (see lib/erp/next-code.ts).
+const nextCustomerCode = (orgId: string) =>
+  nextCode({ table: customers, orgCol: customers.organizationId, codeCol: customers.code, orgId, prefix: "CUST", pad: 4 });
 
 export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = (formData.get("id") as string) || "";

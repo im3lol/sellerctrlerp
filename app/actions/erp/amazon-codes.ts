@@ -5,6 +5,7 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { nextCodes } from "@/lib/erp/next-code";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { parseAmazonWorkbook, normalizeCode } from "@/lib/erp/amazon-import";
@@ -151,21 +152,12 @@ export async function saveAmazonCodeLinksAction(
   });
 }
 
-/** Generate `count` unique internal item codes (P-00001…) that don't collide. */
-async function generateItemCodes(orgId: string, count: number): Promise<string[]> {
-  const existing = await db.select({ code: items.code }).from(items).where(eq(items.organizationId, orgId));
-  const taken = new Set(existing.map((r) => r.code));
-  let max = 0;
-  for (const c of taken) { const m = /^P-(\d+)$/.exec(c); if (m) max = Math.max(max, parseInt(m[1], 10)); }
-  const out: string[] = [];
-  let n = max;
-  while (out.length < count) {
-    n++;
-    const code = `P-${String(n).padStart(5, "0")}`;
-    if (!taken.has(code)) { out.push(code); taken.add(code); }
-  }
-  return out;
-}
+/** Generate `count` unique internal item codes (P-00001…) that don't collide.
+ *  Used to read every item code for the org — 4,705 rows on this database — to work out
+ *  one number; the max now comes back from Postgres as a single integer. Codes are
+ *  strictly above it, so the old `taken` collision set had nothing left to catch. */
+const generateItemCodes = (orgId: string, count: number) =>
+  nextCodes({ table: items, orgCol: items.organizationId, codeCol: items.code, orgId, prefix: "P", pad: 5, count });
 
 /**
  * First-time onboarding: create a brand-new item for each SKU (auto internal

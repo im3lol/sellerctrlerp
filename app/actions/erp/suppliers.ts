@@ -2,12 +2,13 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { suppliers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
+import { nextCode } from "@/lib/erp/next-code";
 
 
 const schema = z.object({
@@ -18,14 +19,10 @@ const schema = z.object({
   paymentTerms: z.coerce.number().int().min(0).default(30),
 });
 
-// Next auto code SUP-#### from the highest existing SUP-<n> for this org.
-async function nextSupplierCode(orgId: string): Promise<string> {
-  const rows = await db.select({ code: suppliers.code }).from(suppliers)
-    .where(and(eq(suppliers.organizationId, orgId), like(suppliers.code, "SUP-%")));
-  let max = 0;
-  for (const r of rows) { const m = /^SUP-(\d+)$/.exec(r.code); if (m) max = Math.max(max, Number(m[1])); }
-  return `SUP-${String(max + 1).padStart(4, "0")}`;
-}
+// Next auto code SUP-#### — the max is computed in the database, not by pulling every
+// code into JS (see lib/erp/next-code.ts).
+const nextSupplierCode = (orgId: string) =>
+  nextCode({ table: suppliers, orgCol: suppliers.organizationId, codeCol: suppliers.code, orgId, prefix: "SUP", pad: 4 });
 
 export async function saveSupplierAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = (formData.get("id") as string) || "";
