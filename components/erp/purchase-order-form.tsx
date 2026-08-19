@@ -195,7 +195,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
             <TableHeader>
               <TableRow>
                 <TableHead className="w-14 text-start">صورة</TableHead>
-                <TableHead className="w-[260px] text-start">الصنف</TableHead>
+                <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
                 <TableHead className="w-28 text-start">الكمية</TableHead>
                 <TableHead className="w-36 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
@@ -210,7 +210,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                   <TableCell>
                     <ItemThumb src={itemById.get(l.itemId)?.image} />
                   </TableCell>
-                  <TableCell className="max-w-[260px]">
+                  <TableCell className="min-w-64 max-w-72">
                     <ItemPicker
                       selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                       onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })}

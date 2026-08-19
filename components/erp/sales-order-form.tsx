@@ -192,7 +192,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             <TableHeader>
               <TableRow>
                 <TableHead className="w-14 text-start">صورة</TableHead>
-                <TableHead className="w-[320px] text-start">الصنف</TableHead>
+                <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
                 <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
                 <TableHead className="w-40 text-center">الكمية</TableHead>
@@ -211,7 +211,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 return (
                   <TableRow key={i}>
                     <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
-                    <TableCell className="max-w-[320px]">
+                    <TableCell className="min-w-64 max-w-72">
                       <ItemPicker
                         selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                         onSelect={(it) => pickItem(i, it)}
