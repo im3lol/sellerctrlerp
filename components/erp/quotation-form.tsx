@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
+import { ItemThumb } from "@/components/erp/item-thumb";
+import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
 
 type Customer = { id: string; nameAr: string };
-type Item = { id: string; nameAr: string | null; sellPrice: string | null };
+type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
 type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -45,6 +47,17 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
   const pickItem = (i: number, it: ItemSearchResult) => setLine(i, { itemId: it.id, unitPrice: Number(it.sellPrice) || 0 });
+
+  const addOrBumpItem = (item: ItemSearchResult) => {
+    const idx = lines.findIndex((l) => l.itemId === item.id);
+    if (idx >= 0) { setLine(idx, { quantity: lines[idx].quantity + 1 }); return; }
+    const empty = lines.findIndex((l) => !l.itemId);
+    if (empty >= 0) { pickItem(empty, item); return; }
+    setLines((ls) => [...ls, newLine()]);
+    pickItem(lines.length, item);
+  };
+
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
 
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -81,15 +94,17 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
           <div className="space-y-2"><Label>العميل</Label><CellCombobox selectedLabel={custLabel.get(customerId) ?? ""} options={custOptions} onSelect={setCustomerId} placeholder="ابحث عن العميل…" /></div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>صالح حتى</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></div>
+          <div className="space-y-2 sm:col-span-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow>
-              <TableHead className="text-start">الصنف</TableHead>
+              <TableHead className="w-14 text-start">صورة</TableHead>
+              <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
               <TableHead className="w-24 text-start">الكمية</TableHead>
-              <TableHead className="w-28 text-start">السعر</TableHead>
-              <TableHead className="w-24 text-start">خصم</TableHead>
+              <TableHead className="w-32 text-start">السعر</TableHead>
+              <TableHead className="w-32 text-start">خصم</TableHead>
               <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
               <TableHead className="w-28 text-start">الإجمالي</TableHead>
               <TableHead className="w-10" />
@@ -97,10 +112,16 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
             <TableBody>
               {lines.map((l, i) => (
                 <TableRow key={i}>
-                  <TableCell><ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => pickItem(i, it)} /></TableCell>
-                  <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                  <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
+                  <TableCell className="min-w-64 max-w-72">
+                    <ItemPicker
+                      selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
+                      onSelect={(it) => pickItem(i, it)}
+                    />
+                  </TableCell>
+                  <TableCell><Input type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                  <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                  <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="min-w-[3.5rem] tabular-nums">{fmt(lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt))}</span>
