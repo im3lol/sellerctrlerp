@@ -8,7 +8,7 @@ import { confirmReceiptVoucherAction, deleteReceiptVoucherAction, reverseReceipt
 import { confirmPaymentVoucherAction, deletePaymentVoucherAction, reversePaymentVoucherAction } from "@/app/actions/erp/payments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { confirm } from "@/components/erp/confirm";
 
 /**
@@ -38,28 +38,26 @@ export function VoucherDetailActions({
     })();
   };
 
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
+  if (canManage && status === "DRAFT") {
+    items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => run(() => isReceipt ? deleteReceiptVoucherAction(id) : deletePaymentVoucherAction(id), "تم حذف المسودة", true, listHref) });
+  }
+  if (canManage && status === "POSTED") {
+    // Reversal writes a mirror entry and restores the customer/supplier + invoice balances.
+    items.push({ label: "عكس السند", icon: "Undo2", danger: true, disabled: pending,
+      onSelect: () => run(() => isReceipt ? reverseReceiptVoucherAction(id) : reversePaymentVoucherAction(id), "تم عكس السند", true) });
+  }
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {canManage && status === "DRAFT" && (
-        <>
-          <Button size="sm" disabled={pending}
-            onClick={() => run(() => isReceipt ? confirmReceiptVoucherAction(id) : confirmPaymentVoucherAction(id), "تم تأكيد السند وترحيله", false)}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
-          </Button>
-          <Button size="sm" variant="ghost" disabled={pending}
-            onClick={() => run(() => isReceipt ? deleteReceiptVoucherAction(id) : deletePaymentVoucherAction(id), "تم حذف المسودة", true, listHref)}>
-            <Icon name="Trash2" className="size-4 text-destructive" />حذف
-          </Button>
-        </>
-      )}
-      {canManage && status === "POSTED" && (
-        <Button size="sm" variant="outline" disabled={pending}
-          onClick={() => run(() => isReceipt ? reverseReceiptVoucherAction(id) : reversePaymentVoucherAction(id), "تم عكس السند", true)}
-          title="سيُنشأ قيد عكسي وتُستعاد أرصدة العميل/المورد والفاتورة">
-          <Icon name="Undo2" className="size-4" />عكس
+    <DocumentActions
+      primary={canManage && status === "DRAFT" ? (
+        <Button size="sm" disabled={pending}
+          onClick={() => run(() => isReceipt ? confirmReceiptVoucherAction(id) : confirmPaymentVoucherAction(id), "تم تأكيد السند وترحيله", false)}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
         </Button>
-      )}
-      <PrintDocLink href={printHref} />
-    </div>
+      ) : undefined}
+      items={items}
+    />
   );
 }

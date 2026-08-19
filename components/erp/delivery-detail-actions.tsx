@@ -7,11 +7,19 @@ import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAc
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
+import { type BulkRow } from "@/components/erp/barcode-print";
 
-export function DeliveryDetailActions({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
+/** إذن صرف header: the workflow's next step stays a button, everything else folds into
+ *  the shared «إجراءات» menu (components/erp/document-actions.tsx). */
+export function DeliveryDetailActions({
+  id, number, status, canManage, printHref, barcodeRows = [],
+}: {
+  id: string; number: string; status: string; canManage: boolean;
+  printHref: string; barcodeRows?: BulkRow[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (!canManage) return null;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
     void (async () => {
@@ -24,40 +32,37 @@ export function DeliveryDetailActions({ id, number, status, canManage }: { id: s
     })();
   };
 
-  // DRAFT: confirm (post stock OUT + COGS) or delete the draft.
-  if (status === "DRAFT") {
-    return (
-      <div className="flex flex-wrap gap-2">
+  const bill = () =>
+    void (async () => {
+      if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة بيع من هذا الإذن؟" }))) return;
+      start(async () => {
+        const r = await convertDeliveryToInvoiceAction(id);
+        if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التحويل");
+      });
+    })();
+
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
+  if (canManage) {
+    if (status === "DRAFT") {
+      items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => run(() => deleteDeliveryAction(id), "تم حذف المسودة", "/sales/deliveries") });
+    } else if (status === "DELIVERED" || status === "INVOICED") {
+      if (status === "DELIVERED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
+      items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending,
+        onSelect: () => router.push(`/sales/deliveries/${encodeURIComponent(number)}/return`) });
+    }
+  }
+
+  return (
+    <DocumentActions
+      primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد إذن الصرف وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد الصرف
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteDeliveryAction(id), "تم حذف المسودة", "/sales/deliveries")}>
-          <Icon name="Trash2" className="size-4 text-destructive" />حذف
-        </Button>
-      </div>
-    );
-  }
-
-  // DELIVERED / INVOICED: bill it (if not yet) and/or take the stock back into the warehouse.
-  if (status === "DELIVERED" || status === "INVOICED") {
-    const bill = () =>
-      void (async () => {
-        if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة بيع من هذا الإذن؟" }))) return;
-        start(async () => {
-          const r = await convertDeliveryToInvoiceAction(id);
-          if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
-          else toast.error(r.error ?? "تعذّر التحويل");
-        });
-      })();
-    return (
-      <div className="flex flex-wrap gap-2">
-        {status === "DELIVERED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => router.push(`/sales/deliveries/${encodeURIComponent(number)}/return`)}>
-          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
-        </Button>
-      </div>
-    );
-  }
-
-  return null; // REVERSED — nothing to do
+      ) : undefined}
+      items={items}
+      barcode={barcodeRows.length ? { docTitle: `إذن صرف ${number}`, rows: barcodeRows } : undefined}
+    />
+  );
 }

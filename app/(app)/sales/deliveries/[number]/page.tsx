@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DeliveryDetailActions } from "@/components/erp/delivery-detail-actions";
-import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
+import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -91,11 +90,14 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
           subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
           backHref="/sales/deliveries"
           action={
-            <div className="flex gap-2">
-              <PrintDocLink href={`/sales/deliveries/${encodeURIComponent(dn.number)}/print`} />
-              <BulkBarcodePrintButton docTitle={`إذن صرف ${dn.number}`} rows={barcodeRows} />
-              <DeliveryDetailActions id={dn.id} number={dn.number} status={dn.status} canManage={canManage} />
-            </div>
+            <DeliveryDetailActions
+              id={dn.id}
+              number={dn.number}
+              status={dn.status}
+              canManage={canManage}
+              printHref={`/sales/deliveries/${encodeURIComponent(dn.number)}/print`}
+              barcodeRows={barcodeRows}
+            />
           }
         />
 

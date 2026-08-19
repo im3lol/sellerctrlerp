@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { Button } from "@/components/ui/button";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 import { waNumber } from "@/lib/phone";
@@ -36,77 +36,40 @@ export function SalesInvoiceDetailActions({
     })();
   };
 
-  const printBtn = <PrintDocLink href={`/sales/invoices/${encodeURIComponent(number)}/print`} />;
-
   const fmt = (v: string | null | undefined) =>
     Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const shareMsg = `فاتورة رقم: ${number}\nالمبلغ الإجمالي: ${fmt(totalAmount)}\nللاستفسار أو الدفع يرجى التواصل معنا.`;
-
+  const shareMsg = `فاتورة رقم: ${number}
+المبلغ الإجمالي: ${fmt(totalAmount)}
+للاستفسار أو الدفع يرجى التواصل معنا.`;
   const waPhone = waNumber(customerPhone);
-  const waBtn = waPhone ? (
-    <Button size="sm" variant="outline" asChild>
-      <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}`} target="_blank" rel="noopener">
-        <Icon name="MessageCircle" className="size-4" />واتساب
-      </a>
-    </Button>
-  ) : null;
+  const hasBalance = Number(balanceDue ?? 0) > 0;
 
-  const emailBtn = customerEmail ? (
-    <Button size="sm" variant="outline" asChild>
-      <a href={`mailto:${customerEmail}?subject=${encodeURIComponent(`فاتورة رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}`}>
-        <Icon name="Mail" className="size-4" />إيميل
-      </a>
-    </Button>
-  ) : null;
+  // Print / share need no write permission — a viewer may still send the customer a copy.
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: `/sales/invoices/${encodeURIComponent(number)}/print`, newTab: true }];
+  if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
+    href: `https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}` });
+  if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
+    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`فاتورة رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}` });
 
   if (status === "DRAFT") {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {canPost && (
-          <Button size="sm" disabled={pending} onClick={() => run(() => postSalesInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
-          </Button>
-        )}
-        {printBtn}
-        {waBtn}
-        {emailBtn}
-        {canManage && (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/sales/invoices")}>
-            <Icon name="Trash2" className="size-4 text-destructive" />حذف
-          </Button>
-        )}
-      </div>
-    );
+    if (canManage) items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => run(() => deleteSalesInvoiceAction(id), "تم حذف المسودة", "/sales/invoices") });
+  } else if (status !== "CANCELLED" && canManage) {
+    items.push({ label: "مرتجع", icon: "Undo2", href: `/sales/invoices/${encodeURIComponent(number)}/return` });
   }
 
-  // Posted (not cancelled): allow collecting payment (if any balance due) + creating a return.
-  if (status !== "CANCELLED" && (canManage || canCollect)) {
-    const hasBalance = Number(balanceDue ?? 0) > 0;
-    return (
-      <div className="flex flex-wrap gap-2">
-        {canCollect && hasBalance && (
-          <Button size="sm" asChild>
-            <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
-          </Button>
-        )}
-        {canManage && (
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/sales/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
-          </Button>
-        )}
-        {printBtn}
-        {waBtn}
-        {emailBtn}
-      </div>
-    );
-  }
+  // Collecting a payment is the next step on an unpaid posted invoice, so it stays visible.
+  const primary =
+    status === "DRAFT" && canPost ? (
+      <Button size="sm" disabled={pending} onClick={() => run(() => postSalesInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
+        {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+      </Button>
+    ) : status !== "CANCELLED" && canCollect && hasBalance ? (
+      <Button size="sm" asChild>
+        <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
+      </Button>
+    ) : undefined;
 
-  return (
-    <div className="flex flex-wrap gap-2">
-      {printBtn}
-      {waBtn}
-      {emailBtn}
-    </div>
-  );
+  return <DocumentActions primary={primary} items={items} />;
 }

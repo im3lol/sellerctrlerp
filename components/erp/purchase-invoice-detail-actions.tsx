@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { Button } from "@/components/ui/button";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
@@ -27,37 +26,24 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     })();
   };
 
-  const printBtn = <PrintDocLink href={`/purchases/invoices/${encodeURIComponent(number)}/print`} />;
+  const printHref = `/purchases/invoices/${encodeURIComponent(number)}/print`;
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
 
   if (status === "DRAFT") {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {canPost && (
-          <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
-          </Button>
-        )}
-        {printBtn}
-        {canManage && (
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/purchases/invoices")}>
-            <Icon name="Trash2" className="size-4 text-destructive" />حذف
-          </Button>
-        )}
-      </div>
-    );
+    if (canManage) items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/purchases/invoices") });
+  } else if (status !== "CANCELLED" && canManage) {
+    items.push({ label: "مرتجع", icon: "Undo2", href: `/purchases/invoices/${encodeURIComponent(number)}/return` });
   }
 
-  // Posted (not cancelled): allow creating a return from this invoice.
-  if (status !== "CANCELLED" && canManage) {
-    return (
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" asChild>
-          <Link href={`/purchases/invoices/${encodeURIComponent(number)}/return`}><Icon name="Undo2" className="size-4" />مرتجع</Link>
+  return (
+    <DocumentActions
+      primary={status === "DRAFT" && canPost ? (
+        <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
         </Button>
-        {printBtn}
-      </div>
-    );
-  }
-
-  return printBtn;
+      ) : undefined}
+      items={items}
+    />
+  );
 }

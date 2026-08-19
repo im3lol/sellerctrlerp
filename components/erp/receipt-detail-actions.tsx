@@ -1,38 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { BulkBarcodePrintButton, type BulkRow } from "@/components/erp/barcode-print";
-import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
+import { type BulkRow } from "@/components/erp/barcode-print";
 
-/**
- * The receipt header's single «إجراءات» menu.
- *
- * These four used to sit in the header as four separate buttons (طباعة · طباعة باركود ·
- * تحويل لفاتورة · مرتجع), which is most of a title bar spent on things you press rarely.
- * One trigger holds them now. The DRAFT case keeps «تأكيد الاستلام» as a visible button —
- * it is the whole point of a draft, and burying the next workflow step behind a menu is
- * the one thing this pattern should not do; everything else folds in beside it.
- *
- * The barcode dialog is driven in controlled mode: a menu item cannot host it directly
- * (picking the item closes the menu and would unmount the dialog with it), so the dialog
- * lives here as a sibling and the item only flips its state.
- */
+/** إذن استلام header: the workflow's next step stays a button, everything else folds into
+ *  the shared «إجراءات» menu (components/erp/document-actions.tsx). */
 export function ReceiptDetailActions({
-  id, number, status, canManage, printHref, barcodeRows,
+  id, number, status, canManage, printHref, barcodeRows = [],
 }: {
   id: string; number: string; status: string; canManage: boolean;
-  printHref: string; barcodeRows: BulkRow[];
+  printHref: string; barcodeRows?: BulkRow[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
     void (async () => {
@@ -55,60 +42,27 @@ export function ReceiptDetailActions({
       });
     })();
 
-  // Printing needs no write permission — a viewer may still take the document to paper.
-  const printItems = (
-    <>
-      <DropdownMenuItem asChild>
-        <Link href={printHref} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />طباعة</Link>
-      </DropdownMenuItem>
-      {barcodeRows.length > 0 && (
-        <DropdownMenuItem onSelect={() => setBarcodeOpen(true)}>
-          <Icon name="Barcode" className="size-4" />طباعة باركود
-        </DropdownMenuItem>
-      )}
-    </>
-  );
-
-  const manageItems = !canManage ? null : status === "DRAFT" ? (
-    <DropdownMenuItem disabled={pending} onSelect={() => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts")}>
-      <Icon name="Trash2" className="size-4 text-destructive" />حذف المسودة
-    </DropdownMenuItem>
-  ) : status === "RECEIVED" || status === "INVOICED" ? (
-    <>
-      {status === "RECEIVED" && (
-        <DropdownMenuItem disabled={pending} onSelect={bill}>
-          <Icon name="FileText" className="size-4" />تحويل لفاتورة
-        </DropdownMenuItem>
-      )}
-      <DropdownMenuItem disabled={pending} onSelect={() => router.push(`/purchases/receipts/${encodeURIComponent(number)}/return`)}>
-        <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
-      </DropdownMenuItem>
-    </>
-  ) : null; // REVERSED — nothing to manage
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
+  if (canManage) {
+    if (status === "DRAFT") {
+      items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts") });
+    } else if (status === "RECEIVED" || status === "INVOICED") {
+      if (status === "RECEIVED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
+      items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending,
+        onSelect: () => router.push(`/purchases/receipts/${encodeURIComponent(number)}/return`) });
+    }
+  }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {canManage && status === "DRAFT" && (
+    <DocumentActions
+      primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد الاستلام
         </Button>
-      )}
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" disabled={pending}>
-            <Icon name="Ellipsis" className="size-4" />إجراءات
-            <Icon name="ChevronDown" className="size-3.5 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {printItems}
-          {manageItems && <DropdownMenuSeparator />}
-          {manageItems}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <BulkBarcodePrintButton docTitle={`إذن استلام ${number}`} rows={barcodeRows} open={barcodeOpen} onOpenChange={setBarcodeOpen} hideTrigger />
-    </div>
+      ) : undefined}
+      items={items}
+      barcode={barcodeRows.length ? { docTitle: `إذن استلام ${number}`, rows: barcodeRows } : undefined}
+    />
   );
 }

@@ -8,6 +8,7 @@ import { confirmPurchaseReturnAction, deletePurchaseReturnAction, reversePurchas
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 
 /** Manage a return from its detail page: delete a draft, or cancel (reverse) a posted one. */
 export function ReturnDetailActions({ id, type, status, canManage, dest: destProp }: { id: string; type: "sales" | "purchase"; status: string; canManage: boolean; dest?: string }) {
@@ -27,26 +28,24 @@ export function ReturnDetailActions({ id, type, status, canManage, dest: destPro
     })();
   };
 
+  const items: DocAction[] = [];
   if (status === "DRAFT") {
-    return (
-      <div className="flex flex-wrap gap-2">
+    items.push({ label: "حذف المرتجع", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => run(() => type === "sales" ? deleteSalesReturnAction(id) : deletePurchaseReturnAction(id), "تم حذف المرتجع") });
+  } else if (status === "POSTED") {
+    items.push({ label: "إلغاء المرتجع", icon: "X", danger: true, disabled: pending,
+      onSelect: () => run(() => type === "sales" ? reverseSalesReturnAction(id) : reversePurchaseReturnAction(id), "تم إلغاء المرتجع وعكسه") });
+  }
+
+  return (
+    <DocumentActions
+      primary={status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => type === "sales" ? confirmSalesReturnAction(id) : confirmPurchaseReturnAction(id), "تم تأكيد المرتجع وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد المرتجع
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => type === "sales" ? deleteSalesReturnAction(id) : deletePurchaseReturnAction(id), "تم حذف المرتجع")}>
-          <Icon name="Trash2" className="size-4 text-destructive" />حذف
-        </Button>
-      </div>
-    );
-  }
-
-  if (status === "POSTED") {
-    return (
-      <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => type === "sales" ? reverseSalesReturnAction(id) : reversePurchaseReturnAction(id), "تم إلغاء المرتجع وعكسه")}>
-        <Icon name="X" className="size-4 text-destructive" />إلغاء المرتجع
-      </Button>
-    );
-  }
-
-  return null; // CANCELLED — nothing to do
+      ) : undefined}
+      items={items}
+    />
+  );
+  // CANCELLED falls through with an empty item list — DocumentActions renders nothing.
 }
