@@ -35,7 +35,7 @@ const lineTax = (l: Line, vatRate: number, applyVat: boolean) =>
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) =>
   round2(l.quantity * l.unitPrice - l.discountAmount + lineTax(l, vatRate, applyVat));
 
-export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; discountAmount: number; lines: Line[] };
+export type QuotationInitial = { id: string; number: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; discountAmount: number; lines: Line[] };
 
 export function QuotationForm({ customers, items, orgName, vatRate, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; initial?: QuotationInitial }) {
   const router = useRouter();
@@ -89,7 +89,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
     start(async () => {
       const body = { customerId, date, validUntil: validUntil || undefined, notes, discountAmount: headerDiscount, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })) };
       const r = isEdit ? await updateQuotationAction(initial!.id, body) : await createQuotationAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.number ? `/sales/quotations/${encodeURIComponent(r.number)}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -101,7 +101,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
           <CardTitle>بيانات عرض السعر</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ العرض"}</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${initial!.id}` : "/sales/quotations")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${encodeURIComponent(initial!.number)}` : "/sales/quotations")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

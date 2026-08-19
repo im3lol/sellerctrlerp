@@ -7,14 +7,17 @@ import { stockTransfers, stockTransferLines, items, warehouses } from "@/db/sche
 import { qty, dt } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintStockTransferPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, stockTransfers,
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/erp/inventory/transfers", "C:/Program Files/Git/print");
     const [tr] = await db.select().from(stockTransfers)
-      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
+      .where(and(eq(stockTransfers.number, number), eq(stockTransfers.organizationId, orgId))).limit(1);
     if (!tr) notFound();
 
     const fromWh = alias(warehouses, "from_wh");
@@ -33,7 +36,7 @@ export default async function PrintStockTransferPage({ params }: Params) {
         .leftJoin(items, eq(items.id, stockTransferLines.itemId))
         .leftJoin(fromWh, eq(fromWh.id, stockTransferLines.fromWarehouseId))
         .leftJoin(toWh, eq(toWh.id, stockTransferLines.toWarehouseId))
-        .where(eq(stockTransferLines.stockTransferId, id))
+        .where(eq(stockTransferLines.stockTransferId, tr.id))
         .orderBy(asc(items.code)),
     ]);
 
@@ -50,7 +53,7 @@ export default async function PrintStockTransferPage({ params }: Params) {
         footerText={footerText}
         title="تحويل مخزني"
         number={tr.number}
-        backHref={`/inventory/transfers/${id}`}
+        backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`}
         watermark={tr.status === "DRAFT" ? "مسودة" : undefined}
         meta={[
           { label: "التاريخ", value: dt(tr.date) },

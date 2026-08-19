@@ -51,7 +51,7 @@ export async function reconcilePlatformInventoryAction(platformId: string, formD
 export async function applyInventoryReconciliationAction(
   platformId: string,
   entries: { itemId: string; qty: number }[],
-): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id?: string; number?: string } | { ok: false; error: string }> {
   const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
@@ -84,6 +84,6 @@ export async function applyInventoryReconciliationAction(
       lines: clean.map((e) => ({ itemId: e.itemId, warehouseId: platform.warehouseId!, mode: "set", value: e.qty })),
     });
     if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء التسوية" };
-    return { ok: true, id: r.id };
+    return { ok: true, id: r.id, number: r.number };
   });
 }

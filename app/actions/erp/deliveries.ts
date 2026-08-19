@@ -524,7 +524,7 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
  * stock adjustment (delta = the missing qty per item/warehouse) the user reviews
  * against a physical count (جرد) then posts. Nothing moves until it's confirmed.
  */
-export async function createDeliveryShortageAdjustmentAction(): Promise<ActionState & { id?: string; count?: number }> {
+export async function createDeliveryShortageAdjustmentAction(): Promise<ActionState & { id?: string; number?: string; count?: number }> {
   const auth = await authorizeErp("inventory.create");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
@@ -542,6 +542,6 @@ export async function createDeliveryShortageAdjustmentAction(): Promise<ActionSt
     });
     if (!r.ok || !r.id) return { error: r.error ?? "تعذّر إنشاء التسوية" };
     revalidatePath("/sales/deliveries");
-    return { ok: true, id: r.id, count: lines.length };
+    return { ok: true, id: r.id, number: r.number, count: lines.length };
   });
 }

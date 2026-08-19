@@ -6,21 +6,24 @@ import { materialRequests, materialRequestLines, items, users } from "@/db/schem
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { dt, qty } from "@/lib/erp/print-format";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 /** طلب شراء داخلي (طلب مواد) — نسخة الطباعة. */
-export default async function RequisitionPrintPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function RequisitionPrintPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, materialRequests,
+      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "C:/Program Files/Git/erp/purchases/requisitions", "C:/Program Files/Git/print");
     const [mr] = await db.select({
       id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status,
       notes: materialRequests.notes, requester: users.name,
     }).from(materialRequests).leftJoin(users, sql`${users.id}::text = ${materialRequests.requestedBy}`)
-      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, orgId))).limit(1);
+      .where(and(eq(materialRequests.number, number), eq(materialRequests.organizationId, orgId))).limit(1);
     if (!mr) notFound();
 
     const lines = await db.select({ name: items.nameAr, code: items.code, quantity: materialRequestLines.quantity })
       .from(materialRequestLines).innerJoin(items, eq(items.id, materialRequestLines.itemId))
-      .where(eq(materialRequestLines.materialRequestId, id)).orderBy(asc(items.code));
+      .where(eq(materialRequestLines.materialRequestId, mr.id)).orderBy(asc(items.code));
 
     const { org, hiddenFor, footerText } = await loadPrintHeader(orgId);
 
@@ -49,7 +52,7 @@ export default async function RequisitionPrintPage({ params }: { params: Promise
         note={mr.notes}
         signatures={["مقدم الطلب", "المعتمد"]}
         watermark={mr.status !== "APPROVED" ? "مسودة" : undefined}
-        backHref={`/purchases/requisitions/${mr.id}`}
+        backHref={`/purchases/requisitions/${encodeURIComponent(mr.number)}`}
       />
     );
   });

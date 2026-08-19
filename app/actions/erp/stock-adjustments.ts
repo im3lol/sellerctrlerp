@@ -10,7 +10,7 @@ import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { createAdjustment, confirmAdjustment, updateAdjustmentLines } from "@/lib/erp/inventory-writes";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveAdjustmentState = ActionState & { id?: string };
+export type SaveAdjustmentState = ActionState & { id?: string; number?: string };
 
 /** Create a multi-line stock adjustment as a DRAFT document (auth wrapper over the shared core). */
 export async function createStockAdjustmentAction(input: unknown): Promise<SaveAdjustmentState> {
@@ -21,7 +21,7 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
     if ("error" in r) return { error: r.error };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_ADJUSTMENT", entityId: r.id, summary: "إنشاء تسوية مخزون (مسودة)" });
     revalidatePath("/inventory/adjustments");
-    return { ok: true, id: r.id };
+    return { ok: true, id: r.id, number: r.number };
   });
 }
 
@@ -92,7 +92,7 @@ export async function updateStockAdjustmentAction(id: string, input: unknown): P
     const r = await updateAdjustmentLines(auth.orgId, auth.userId, id, input);
     if ("error" in r) return { error: r.error };
     revalidatePath("/inventory/adjustments");
-    revalidatePath(`/inventory/adjustments/${id}`);
+    revalidatePath(`/inventory/adjustments/${r.number}`);
     return { ok: true };
   });
 }

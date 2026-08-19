@@ -33,7 +33,7 @@ const schema = z.object({
 });
 
 /** Create a multi-line stock adjustment as a DRAFT document (no stock/GL yet). */
-export async function createAdjustment(orgId: string, userId: string, input: unknown): Promise<CoreResult<{ id: string }>> {
+export async function createAdjustment(orgId: string, userId: string, input: unknown): Promise<CoreResult<{ id: string; number: string }>> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { date, reason, notes, lines } = parsed.data;
@@ -77,7 +77,7 @@ export async function createAdjustment(orgId: string, userId: string, input: unk
       return adj.id;
     });
     await tryRecordAudit({ orgId, userId, action: "CREATE", entityType: "STOCK_ADJUSTMENT", entityId: id, entityNumber: number, summary: `إنشاء تسوية مخزون ${number} (${prepared.length} صنف، مسودة)`, metadata: { lines: prepared.length, reason } });
-    return { ok: true, id };
+    return { ok: true, id, number };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر حفظ التسوية" };
   }
@@ -96,7 +96,7 @@ const updateSchema = z.object({ lines: z.array(updateLineSchema).min(1, "لا ت
  * line becomes mode="set" with the counted value; delta/value re-estimate against
  * the CURRENT balance. Nothing posts until confirmAdjustment.
  */
-export async function updateAdjustmentLines(orgId: string, userId: string, id: string, input: unknown): Promise<CoreResult> {
+export async function updateAdjustmentLines(orgId: string, userId: string, id: string, input: unknown): Promise<CoreResult<{ number: string }>> {
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -136,7 +136,7 @@ export async function updateAdjustmentLines(orgId: string, userId: string, id: s
       await tx.update(stockAdjustments).set({ totalValue: String(total) }).where(eq(stockAdjustments.id, id));
     });
     await tryRecordAudit({ orgId, userId, action: "UPDATE", entityType: "STOCK_ADJUSTMENT", entityId: id, entityNumber: adj.number, summary: `تعديل بنود تسوية مخزون ${adj.number} (${updates.length} بند)` });
-    return { ok: true };
+    return { ok: true, number: adj.number };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديلات" };
   }

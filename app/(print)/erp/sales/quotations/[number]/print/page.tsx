@@ -7,22 +7,24 @@ import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { renderRichText } from "@/lib/erp/rich-text";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 const STATUS: Record<string, string> = {
   DRAFT: "مسودة", SENT: "مُرسل", ACCEPTED: "مقبول", REJECTED: "مرفوض",
 };
 
-// Quotations are the only document keyed by UUID rather than a document number —
-// they have no /[number] route, so the print route follows the detail page's [id].
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintQuotationPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("sales.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, salesQuotations,
+      { id: salesQuotations.id, number: salesQuotations.number, organizationId: salesQuotations.organizationId },
+      "/erp/sales/quotations", "/print");
     const [q] = await db
       .select()
       .from(salesQuotations)
-      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId)))
+      .where(and(eq(salesQuotations.number, number), eq(salesQuotations.organizationId, orgId)))
       .limit(1);
     if (!q) notFound();
 
@@ -65,7 +67,7 @@ export default async function PrintQuotationPage({ params }: Params) {
         title="عرض سعر"
         number={q.number}
         watermark={q.status === "DRAFT" ? "مسودة" : undefined}
-        backHref={`/sales/quotations/${q.id}`}
+        backHref={docHref("/sales/quotations", q.number)}
         meta={[
           { label: "التاريخ", value: dt(q.date) },
           ...(q.validUntil ? [{ label: "ساري حتى", value: dt(q.validUntil) }] : []),

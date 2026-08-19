@@ -5,16 +5,19 @@ import { db } from "@/lib/db";
 import { items, warehouses, organizations, stockTransfers, stockTransferLines } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { TransferForm, type TransferInitial } from "@/components/erp/transfer-form";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string };
 
-export default async function EditTransferPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function EditTransferPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("inventory.create", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, stockTransfers,
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/inventory/transfers");
     const [tr] = await db.select().from(stockTransfers)
-      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
+      .where(and(eq(stockTransfers.number, number), eq(stockTransfers.organizationId, orgId))).limit(1);
     if (!tr) notFound();
-    if (tr.status !== "DRAFT") redirect(`/inventory/transfers/${tr.id}`);
+    if (tr.status !== "DRAFT") redirect(`/inventory/transfers/${encodeURIComponent(tr.number)}`);
 
     const [org, itemList, whList, stockRes, trLines] = await Promise.all([
       db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
@@ -38,7 +41,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ i
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle="مسودة — عدّل الأصناف والمستودعات ثم احفظ" backHref={`/inventory/transfers/${tr.id}`} />
+        <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle="مسودة — عدّل الأصناف والمستودعات ثم احفظ" backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
         <TransferForm
           orgName={org[0]?.nameAr ?? ""}
           items={itemList.map((i) => ({ id: i.id, code: i.code, name: i.name ?? "" }))}

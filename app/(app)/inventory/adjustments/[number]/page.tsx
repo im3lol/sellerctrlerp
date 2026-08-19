@@ -12,18 +12,21 @@ import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustm
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export default async function AdjustmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function AdjustmentDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+    const number = await docNumberParam(raw, orgId, stockAdjustments,
+      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "C:/Program Files/Git/inventory/adjustments");
     const canManage = can("inventory.create");
 
     const [adj] = await db.select().from(stockAdjustments)
-      .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
+      .where(and(eq(stockAdjustments.number, number), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();
     const audit = await getDocumentAudit(orgId, adj.id);
 
@@ -44,7 +47,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
       .from(stockAdjustmentLines)
       .leftJoin(items, eq(items.id, stockAdjustmentLines.itemId))
       .leftJoin(warehouses, eq(warehouses.id, stockAdjustmentLines.warehouseId))
-      .where(eq(stockAdjustmentLines.stockAdjustmentId, id))
+      .where(eq(stockAdjustmentLines.stockAdjustmentId, adj.id))
       .orderBy(asc(items.code));
 
     const isDraft = adj.status === "DRAFT";
@@ -102,8 +105,8 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           backHref="/inventory/adjustments"
           action={
             <div className="flex gap-2">
-              <PrintDocLink href={`/erp/inventory/adjustments/${adj.id}/print`} />
-              {canManage && isDraft && <StockRowActions docId={adj.id} type="adjustment" status={adj.status} canManage={canManage} dest="/inventory/adjustments" />}
+              <PrintDocLink href={`/erp/inventory/adjustments/${encodeURIComponent(adj.number)}/print`} />
+              {canManage && isDraft && <StockRowActions docId={adj.id} docNumber={adj.number} type="adjustment" status={adj.status} canManage={canManage} dest="/inventory/adjustments" />}
             </div>
           }
         />

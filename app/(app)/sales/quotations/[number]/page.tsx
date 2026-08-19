@@ -11,6 +11,7 @@ import { renderRichText } from "@/lib/erp/rich-text";
 import { QuotationDetailActions } from "@/components/erp/quotation-detail-actions";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,21 +21,23 @@ const ST: Record<string, { label: string; variant: "default" | "secondary" | "ou
   ACCEPTED: { label: "مقبول", variant: "default" }, REJECTED: { label: "مرفوض", variant: "destructive" },
 };
 
-export default async function QuotationDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function QuotationDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("sales.view", async ({ orgId, can }) => {
+    const number = await docNumberParam(raw, orgId, salesQuotations,
+      { id: salesQuotations.id, number: salesQuotations.number, organizationId: salesQuotations.organizationId }, "/sales/quotations");
     const [qt] = await db.select({
       id: salesQuotations.id, number: salesQuotations.number, date: salesQuotations.date, validUntil: salesQuotations.validUntil,
       status: salesQuotations.status, notes: salesQuotations.notes, discountAmount: salesQuotations.discountAmount,
       customer: customers.nameAr, customerPhone: customers.phone, customerEmail: customers.email,
     }).from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
-      .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
+      .where(and(eq(salesQuotations.number, number), eq(salesQuotations.organizationId, orgId))).limit(1);
     if (!qt) notFound();
     const audit = await getDocumentAudit(orgId, qt.id);
 
     const lines = await db.select({ name: items.nameAr, code: items.code, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount })
       .from(salesQuotationLines).innerJoin(items, eq(items.id, salesQuotationLines.itemId))
-      .where(eq(salesQuotationLines.quotationId, id)).orderBy(asc(items.code));
+      .where(eq(salesQuotationLines.quotationId, qt.id)).orderBy(asc(items.code));
 
     const gross = lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice) - Number(l.discountAmount) + Number(l.taxAmount), 0);
     const headerDiscount = Number(qt.discountAmount) || 0;

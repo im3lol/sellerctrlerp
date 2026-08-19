@@ -53,7 +53,7 @@ export function QuotationDetailActions({
 
   // Print and share need no write permission — a viewer may still send the customer a copy.
   const items: DocAction[] = [
-    { label: "طباعة", icon: "Printer", href: `/sales/quotations/${id}/print`, newTab: true },
+    { label: "طباعة", icon: "Printer", href: `/sales/quotations/${encodeURIComponent(number)}/print`, newTab: true },
   ];
   if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
     href: `https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}` });
@@ -61,7 +61,7 @@ export function QuotationDetailActions({
     href: `mailto:${customerEmail}?subject=${encodeURIComponent(`عرض سعر رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}` });
 
   if (canManage) {
-    if (status === "DRAFT") items.push({ label: "تعديل", icon: "Pencil", href: `/sales/quotations/${id}/edit` });
+    if (status === "DRAFT") items.push({ label: "تعديل", icon: "Pencil", href: `/sales/quotations/${encodeURIComponent(number)}/edit` });
     if (status === "SENT") items.push({ label: "تسجيل رفض العميل", icon: "X", danger: true, disabled: pending,
       onSelect: () => run(() => setQuotationStatusAction(id, "REJECTED"), "تم تسجيل رفض العرض") });
     if (status !== "ACCEPTED") items.push({ label: "حذف", icon: "Trash2", danger: true, disabled: pending,

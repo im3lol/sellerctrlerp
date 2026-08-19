@@ -6,14 +6,17 @@ import { stockAdjustments, stockAdjustmentLines, items, warehouses } from "@/db/
 import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintStockAdjustmentPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, stockAdjustments,
+      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "C:/Program Files/Git/erp/inventory/adjustments", "C:/Program Files/Git/print");
     const [adj] = await db.select().from(stockAdjustments)
-      .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, orgId))).limit(1);
+      .where(and(eq(stockAdjustments.number, number), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();
 
     const [{ org, currency, hiddenFor, footerText }, lines] = await Promise.all([
@@ -31,7 +34,7 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
         .from(stockAdjustmentLines)
         .leftJoin(items, eq(items.id, stockAdjustmentLines.itemId))
         .leftJoin(warehouses, eq(warehouses.id, stockAdjustmentLines.warehouseId))
-        .where(eq(stockAdjustmentLines.stockAdjustmentId, id))
+        .where(eq(stockAdjustmentLines.stockAdjustmentId, adj.id))
         .orderBy(asc(items.code)),
     ]);
 
@@ -42,7 +45,7 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
         footerText={footerText}
         title="تسوية مخزون"
         number={adj.number}
-        backHref={`/inventory/adjustments/${id}`}
+        backHref={`/inventory/adjustments/${encodeURIComponent(adj.number)}`}
         watermark={adj.status === "DRAFT" ? "مسودة" : undefined}
         meta={[
           { label: "التاريخ", value: dt(adj.date) },

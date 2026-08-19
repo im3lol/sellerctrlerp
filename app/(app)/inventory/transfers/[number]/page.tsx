@@ -13,17 +13,20 @@ import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-export default async function TransferDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function TransferDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+    const number = await docNumberParam(raw, orgId, stockTransfers,
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/inventory/transfers");
     const canManage = can("inventory.create");
 
     const [tr] = await db.select().from(stockTransfers)
-      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, orgId))).limit(1);
+      .where(and(eq(stockTransfers.number, number), eq(stockTransfers.organizationId, orgId))).limit(1);
     if (!tr) notFound();
     const audit = await getDocumentAudit(orgId, tr.id);
 
@@ -43,7 +46,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
       .leftJoin(items, eq(items.id, stockTransferLines.itemId))
       .leftJoin(fromWh, eq(fromWh.id, stockTransferLines.fromWarehouseId))
       .leftJoin(toWh, eq(toWh.id, stockTransferLines.toWarehouseId))
-      .where(eq(stockTransferLines.stockTransferId, id))
+      .where(eq(stockTransferLines.stockTransferId, tr.id))
       .orderBy(asc(items.code));
 
     const lineItemIds = lines.map((l) => l.id).filter(Boolean) as string[];
@@ -58,7 +61,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
         .select({ itemId: stockTransferLines.itemId, quantity: stockTransferLines.quantity, itemCode: items.code, itemName: items.nameAr })
         .from(stockTransferLines)
         .leftJoin(items, eq(items.id, stockTransferLines.itemId))
-        .where(eq(stockTransferLines.stockTransferId, id));
+        .where(eq(stockTransferLines.stockTransferId, tr.id));
       return fullLines
         .filter((l) => l.itemId && barcodeMap[l.itemId])
         .map((l) => ({ barcode: barcodeMap[l.itemId!]!, itemCode: l.itemCode ?? "", itemName: l.itemName ?? "", quantity: Math.max(1, Math.round(Number(l.quantity ?? 1))) }));
@@ -75,9 +78,9 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
           backHref="/inventory/transfers"
           action={
             <div className="flex gap-2">
-              <PrintDocLink href={`/erp/inventory/transfers/${tr.id}/print`} />
+              <PrintDocLink href={`/erp/inventory/transfers/${encodeURIComponent(tr.number)}/print`} />
               <BarcodePrintButton items={transferBarcodeItems} printPageHref={`/barcodes/transfer/${tr.id}`} />
-              {canManage && isDraft && <StockRowActions docId={tr.id} type="transfer" status={tr.status} canManage={canManage} dest="/inventory/transfers" />}
+              {canManage && isDraft && <StockRowActions docId={tr.id} docNumber={tr.number} type="transfer" status={tr.status} canManage={canManage} dest="/inventory/transfers" />}
             </div>
           }
         />

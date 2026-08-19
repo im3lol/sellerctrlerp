@@ -47,13 +47,13 @@ export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; 
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" /></TableCell>}
-                <TableCell><Link href={`/sales/quotations/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
+                <TableCell><Link href={`/sales/quotations/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.validUntil ? dt(r.validUntil) : "—"}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
                 <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                {showSelect && <TableCell><QuotationRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
+                {showSelect && <TableCell><QuotationRowActions id={r.id} number={r.number} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );
           })}

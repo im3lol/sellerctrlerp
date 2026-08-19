@@ -100,7 +100,7 @@ export function TransferForm({
         lines: ready.map((l) => ({ itemId: l.itemId, fromWarehouseId: l.fromWh, toWarehouseId: l.toWh, quantity: Number(l.quantity) })),
       };
       const r = isEdit ? await updateStockTransferAction(initial!.id, body) : await createStockTransferAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push(isEdit ? `/inventory/transfers/${initial!.id}` : "/inventory/transfers"); router.refresh(); }
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push(r.number ? `/inventory/transfers/${encodeURIComponent(r.number)}` : "/inventory/transfers"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 

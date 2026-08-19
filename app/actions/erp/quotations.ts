@@ -11,7 +11,9 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
-export type SaveState = ActionState & { id?: string };
+// `number` so the caller can navigate to the canonical URL — documents are addressed
+// by their number, not their id.
+export type SaveState = ActionState & { id?: string; number?: string };
 
 const schema = z.object({
   customerId: z.string().min(1, "اختر العميل"),
@@ -48,7 +50,7 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
 
     const dt = new Date(d.date);
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, auth.orgId, "QT", dt.getFullYear());
         const [qt] = await tx.insert(salesQuotations).values({
           organizationId: auth.orgId, number, customerId: d.customerId, date: dt,
@@ -59,11 +61,11 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
           quotationId: qt.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
           discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt,
         })));
-        return qt.id;
+        return { id: qt.id, number };
       });
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "QUOTATION", entityId: id, summary: "إنشاء عرض سعر (مسودة)" });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "QUOTATION", entityId: created.id, summary: "إنشاء عرض سعر (مسودة)" });
       revalidatePath("/sales/quotations");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
     }
@@ -80,7 +82,7 @@ export async function updateQuotationAction(id: string, input: unknown): Promise
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const d = parsed.data;
 
-    const [existing] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
+    const [existing] = await db.select({ status: salesQuotations.status, number: salesQuotations.number }).from(salesQuotations)
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
     if (!existing) return { error: "العرض غير موجود" };
     if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل عرض غير مسودة" };
@@ -109,8 +111,8 @@ export async function updateQuotationAction(id: string, input: unknown): Promise
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "QUOTATION", entityId: id, summary: "تعديل عرض سعر (مسودة)" });
       revalidatePath("/sales/quotations");
-      revalidatePath(`/sales/quotations/${id}`);
-      return { ok: true, id };
+      revalidatePath(`/sales/quotations/${existing.number}`);
+      return { ok: true, id, number: existing.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
@@ -123,7 +125,7 @@ export async function setQuotationStatusAction(id: string, status: string): Prom
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     if (!STATUSES.includes(status)) return { error: "حالة غير صحيحة" };
-    const [qt] = await db.select({ status: salesQuotations.status }).from(salesQuotations)
+    const [qt] = await db.select({ status: salesQuotations.status, number: salesQuotations.number }).from(salesQuotations)
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1);
     if (!qt) return { error: "العرض غير موجود" };
     const moved = await db.update(salesQuotations).set({ status, updatedAt: new Date() })
@@ -133,7 +135,7 @@ export async function setQuotationStatusAction(id: string, status: string): Prom
     const label = status === "ACCEPTED" ? "قبول" : status === "REJECTED" ? "رفض" : `تغيير حالة إلى ${status}`;
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: status === "ACCEPTED" ? "CONFIRM" : "UPDATE", entityType: "QUOTATION", entityId: id, summary: `${label} عرض سعر` });
     revalidatePath("/sales/quotations");
-    revalidatePath(`/sales/quotations/${id}`);
+    revalidatePath(`/sales/quotations/${qt.number}`);
     return { ok: true };
   });
 }

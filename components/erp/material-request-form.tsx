@@ -16,7 +16,7 @@ import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
 type Item = { id: string; nameAr: string | null };
 type Line = { itemId: string; quantity: number };
-export type MaterialRequestInitial = { id: string; date: string; notes: string; lines: Line[] };
+export type MaterialRequestInitial = { id: string; number: string; date: string; notes: string; lines: Line[] };
 
 export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]; orgName: string; initial?: MaterialRequestInitial }) {
   const router = useRouter();
@@ -46,7 +46,7 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
     start(async () => {
       const body = { date, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })) };
       const r = isEdit ? await updateMaterialRequestAction(initial!.id, body) : await createMaterialRequestAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ طلب المواد (مسودة)"); router.push(r.id ? `/purchases/requisitions/${r.id}` : "/purchases/requisitions"); router.refresh(); }
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ طلب المواد (مسودة)"); router.push(r.number ? `/purchases/requisitions/${encodeURIComponent(r.number)}` : "/purchases/requisitions"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };
@@ -58,7 +58,7 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
           <CardTitle>بيانات طلب المواد</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الطلب"}</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/requisitions/${initial!.id}` : "/purchases/requisitions")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/requisitions/${encodeURIComponent(initial!.number)}` : "/purchases/requisitions")}>إلغاء</Button>
           </div>
         </div>
       </CardHeader>

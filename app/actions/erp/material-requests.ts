@@ -11,7 +11,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
-export type SaveState = ActionState & { id?: string };
+export type SaveState = ActionState & { id?: string; number?: string };
 
 const schema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
@@ -35,7 +35,7 @@ export async function createMaterialRequestAction(input: unknown): Promise<SaveS
 
     const d = new Date(date);
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, auth.orgId, "MR", d.getFullYear());
         const [mr] = await tx.insert(materialRequests).values({
           organizationId: auth.orgId, number, date: d, status: "DRAFT", requestedBy: auth.userId, notes: notes || null,
@@ -43,11 +43,11 @@ export async function createMaterialRequestAction(input: unknown): Promise<SaveS
         await tx.insert(materialRequestLines).values(lines.map((l) => ({
           materialRequestId: mr.id, itemId: l.itemId, quantity: String(l.quantity),
         })));
-        return mr.id;
+        return { id: mr.id, number };
       });
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "MATERIAL_REQUEST", entityId: id, summary: "إنشاء طلب مواد (مسودة)" });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "MATERIAL_REQUEST", entityId: created.id, summary: "إنشاء طلب مواد (مسودة)" });
       revalidatePath("/purchases/requisitions");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
     }
@@ -64,7 +64,7 @@ export async function updateMaterialRequestAction(id: string, input: unknown): P
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const { date, notes, lines } = parsed.data;
 
-    const [mr] = await db.select({ status: materialRequests.status }).from(materialRequests)
+    const [mr] = await db.select({ status: materialRequests.status, number: materialRequests.number }).from(materialRequests)
       .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1);
     if (!mr) return { error: "الطلب غير موجود" };
     if (mr.status !== "DRAFT") return { error: "لا يمكن تعديل طلب معتمد" };
@@ -87,8 +87,8 @@ export async function updateMaterialRequestAction(id: string, input: unknown): P
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "MATERIAL_REQUEST", entityId: id, summary: "تعديل طلب مواد (مسودة)" });
       revalidatePath("/purchases/requisitions");
-      revalidatePath(`/purchases/requisitions/${id}`);
-      return { ok: true, id };
+      revalidatePath(`/purchases/requisitions/${mr.number}`);
+      return { ok: true, id, number: mr.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
@@ -100,7 +100,7 @@ export async function approveMaterialRequestAction(id: string): Promise<ActionSt
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [mr] = await db.select({ status: materialRequests.status }).from(materialRequests)
+    const [mr] = await db.select({ status: materialRequests.status, number: materialRequests.number }).from(materialRequests)
       .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, auth.orgId))).limit(1);
     if (!mr) return { error: "الطلب غير موجود" };
     if (mr.status !== "DRAFT") return { error: "الطلب معتمد بالفعل" };
@@ -109,7 +109,7 @@ export async function approveMaterialRequestAction(id: string): Promise<ActionSt
       .returning({ id: materialRequests.id });
     if (!done.length) return { error: "تغيّرت حالة الطلب — حدّث الصفحة" };
     revalidatePath("/purchases/requisitions");
-    revalidatePath(`/purchases/requisitions/${id}`);
+    revalidatePath(`/purchases/requisitions/${mr.number}`);
     return { ok: true };
   });
 }

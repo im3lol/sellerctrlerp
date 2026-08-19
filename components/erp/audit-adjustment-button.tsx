@@ -18,7 +18,7 @@ export function AuditAdjustmentButton() {
         const r = await createAdjustmentFromAuditAction();
         if (r.ok && r.id) {
           toast.success(`تم إنشاء مسودة تسوية (${r.count} صنف) — راجعها ثم رحّلها`);
-          router.push(`/inventory/adjustments/${r.id}`);
+          router.push(`/inventory/adjustments/${encodeURIComponent(r.number!)}`);
         } else toast.error(r.error ?? "تعذّر إنشاء التسوية");
       })}>
       <Icon name="ClipboardCheck" className="size-4" />

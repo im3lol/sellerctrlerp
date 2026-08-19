@@ -21,7 +21,7 @@ export type PlatformRemovalsResult =
       ok: true;
       totalDisposed: number; totalReturned: number;
       matchedItems: number; matchedDisposedUnits: number; unmatched: number;
-      unmatchedSkus: string[]; adjustmentId?: string;
+      unmatchedSkus: string[]; adjustmentId?: string; adjustmentNumber?: string;
     }
   | { ok: false; error: string };
 
@@ -86,6 +86,7 @@ export async function importPlatformRemovalsAction(platformId: string, rowsInput
     }
 
     let adjustmentId: string | undefined;
+    let adjustmentNumber: string | undefined;
     if (lines.length > 0) {
       const r = await createStockAdjustmentAction({
         date: new Date().toISOString().slice(0, 10),
@@ -94,11 +95,12 @@ export async function importPlatformRemovalsAction(platformId: string, rowsInput
       });
       if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء تسوية الإتلاف" };
       adjustmentId = r.id;
+      adjustmentNumber = r.number;
     }
 
     return {
       ok: true, totalDisposed, totalReturned, matchedItems, matchedDisposedUnits, unmatched,
-      unmatchedSkus: [...unmatchedSkus].slice(0, 30), adjustmentId,
+      unmatchedSkus: [...unmatchedSkus].slice(0, 30), adjustmentId, adjustmentNumber,
     };
   });
 }

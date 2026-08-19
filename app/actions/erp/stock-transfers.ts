@@ -12,7 +12,7 @@ import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveTransferState = ActionState & { id?: string };
+export type SaveTransferState = ActionState & { id?: string; number?: string };
 
 const lineSchema = z.object({
   itemId: z.string().min(1, "اختر الصنف"),
@@ -53,7 +53,7 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
     const number = await nextDocumentNumber(db, auth.orgId, "TR", d.getFullYear());
 
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [tr] = await tx.insert(stockTransfers).values({
           organizationId: auth.orgId, number, date: d, status: "DRAFT", notes: notes || null,
         }).returning({ id: stockTransfers.id });
@@ -61,12 +61,12 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
           stockTransferId: tr.id, itemId: l.itemId,
           fromWarehouseId: l.fromWarehouseId, toWarehouseId: l.toWarehouseId, quantity: String(l.quantity),
         })));
-        return tr.id;
+        return { id: tr.id, number };
       });
 
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (${lines.length} صنف، مسودة)`, metadata: { lines: lines.length } });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: created.id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (${lines.length} صنف، مسودة)`, metadata: { lines: lines.length } });
       revalidatePath("/inventory/transfers");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التحويل" };
     }
@@ -115,8 +115,8 @@ export async function updateStockTransferAction(id: string, input: unknown): Pro
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: existing.number, summary: `تعديل تحويل مخزني ${existing.number} (مسودة)`, metadata: { lines: lines.length } });
       revalidatePath("/inventory/transfers");
-      revalidatePath(`/inventory/transfers/${id}`);
-      return { ok: true, id };
+      revalidatePath(`/inventory/transfers/${existing.number}`);
+      return { ok: true, id, number: existing.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
@@ -187,6 +187,7 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
       });
 
       revalidatePath("/inventory/transfers");
+      revalidatePath(`/inventory/transfers/${tr.number}`);
       revalidatePath("/inventory/stock");
       revalidatePath("/inventory/ledger");
       return { ok: true };

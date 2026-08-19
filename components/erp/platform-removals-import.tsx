@@ -114,7 +114,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
             <div>إجمالي المُتلَف: <b>{int(result.totalDisposed)}</b> · المُرتجَع للبائع: <b>{int(result.totalReturned)}</b> وحدة.</div>
             <div>طوبق <b>{int(result.matchedItems)}</b> صنف · تم إتلاف <b>{int(result.matchedDisposedUnits)}</b> وحدة (خسارة).</div>
             {result.adjustmentId && (
-              <div>📝 <Link href={`/inventory/adjustments/${result.adjustmentId}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
+              <div>📝 <Link href={`/inventory/adjustments/${encodeURIComponent(result.adjustmentNumber ?? result.adjustmentId!)}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
             )}
             {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} SKU غير مربوط: <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
           </div>

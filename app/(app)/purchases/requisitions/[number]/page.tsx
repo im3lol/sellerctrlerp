@@ -9,28 +9,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { RequisitionRowActions } from "@/components/erp/requisition-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { docNumberParam, docHref } from "@/lib/erp/doc-route";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
-export default async function RequisitionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function RequisitionDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
+    const number = await docNumberParam(raw, orgId, materialRequests,
+      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "C:/Program Files/Git/purchases/requisitions");
     const [mr] = await db.select({
       id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status,
       notes: materialRequests.notes, requester: users.name,
     }).from(materialRequests).leftJoin(users, sql`${users.id}::text = ${materialRequests.requestedBy}`)
-      .where(and(eq(materialRequests.id, id), eq(materialRequests.organizationId, orgId))).limit(1);
+      .where(and(eq(materialRequests.number, number), eq(materialRequests.organizationId, orgId))).limit(1);
     if (!mr) notFound();
 
     const lines = await db.select({ name: items.nameAr, code: items.code, quantity: materialRequestLines.quantity })
       .from(materialRequestLines).innerJoin(items, eq(items.id, materialRequestLines.itemId))
-      .where(eq(materialRequestLines.materialRequestId, id)).orderBy(asc(items.code));
+      .where(eq(materialRequestLines.materialRequestId, mr.id)).orderBy(asc(items.code));
 
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title={`طلب مواد ${mr.number}`} subtitle={`${mr.requester ?? "—"} · ${dt(mr.date)}`} backHref="/purchases/requisitions"
-          action={<div className="flex gap-2"><PrintDocLink href={`/purchases/requisitions/${mr.id}/print`} /><RequisitionRowActions id={mr.id} status={mr.status} canManage={can("purchases.create")} /></div>} />
+          action={<div className="flex gap-2"><PrintDocLink href={`/purchases/requisitions/${encodeURIComponent(mr.number)}/print`} /><RequisitionRowActions id={mr.id} number={mr.number} status={mr.status} canManage={can("purchases.create")} /></div>} />
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>البنود المطلوبة</CardTitle>

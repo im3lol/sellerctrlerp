@@ -18,7 +18,7 @@ export function ShortageAdjustmentButton({ items }: { items: number }) {
         const r = await createDeliveryShortageAdjustmentAction();
         if (r.ok && r.id) {
           toast.success(`تم إنشاء مسودة تسوية جرد (${r.count} صنف) — عدّ الكميات فعليًا ثم رحّلها`);
-          router.push(`/inventory/adjustments/${r.id}`);
+          router.push(`/inventory/adjustments/${encodeURIComponent(r.number!)}`);
         } else toast.error(r.error ?? "تعذّر إنشاء التسوية");
       })}>
       <Icon name="PackageX" className="size-4" />
