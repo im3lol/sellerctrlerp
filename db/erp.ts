@@ -1362,6 +1362,10 @@ export const salesQuotations = pgTable(
     date: ts("date").notNull(),
     validUntil: ts("valid_until"),
     status: text("status").notNull().default("DRAFT"), // DRAFT, SENT, ACCEPTED, REJECTED
+    // A discount on the WHOLE quote, on top of any per-line discounts. The rest of the
+    // header carries no totals — subtotal/tax/total are derived from the lines — but this
+    // one is an input, not a derivation, so it has to be stored.
+    discountAmount: money("discount_amount").notNull().default("0"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

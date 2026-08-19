@@ -44,14 +44,17 @@ export default async function PrintQuotationPage({ params }: Params) {
         .where(eq(salesQuotationLines.quotationId, q.id)),
     ]);
 
-    // No stored totals on a quotation — the header has no total column, so the figures
-    // are derived from the lines here.
+    // No stored totals on a quotation — the header carries no total column, so the figures
+    // are derived from the lines here. The whole-quote discount is the one exception:
+    // it is an input, not a derivation, so it comes off the header.
     const lineNet = (l: (typeof lines)[number]) =>
       Number(l.qty ?? 0) * Number(l.unitPrice ?? 0) - Number(l.discount ?? 0);
     const subtotal = lines.reduce((s, l) => s + Number(l.qty ?? 0) * Number(l.unitPrice ?? 0), 0);
     const discount = lines.reduce((s, l) => s + Number(l.discount ?? 0), 0);
     const tax = lines.reduce((s, l) => s + Number(l.tax ?? 0), 0);
-    const total = subtotal - discount + tax;
+    const headerDiscount = Number(q.discountAmount ?? 0);
+    // Clamped: a discount larger than the bill must not print a negative total.
+    const total = Math.max(0, subtotal - discount + tax - headerDiscount);
 
     return (
       <DocumentSheet
@@ -106,6 +109,7 @@ export default async function PrintQuotationPage({ params }: Params) {
           { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
           ...(tax > 0 ? [{ label: "الضريبة", value: money(tax, currency) }] : []),
+          ...(headerDiscount > 0 ? [{ label: "خصم على الإجمالي", value: `− ${money(headerDiscount, currency)}`, tone: "danger" as const }] : []),
         ]}
         balance={{ label: "الإجمالي", value: money(total, currency) }}
         note={q.notes ?? (q.validUntil ? `هذا العرض ساري حتى ${dt(q.validUntil)}.` : null)}

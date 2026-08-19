@@ -28,6 +28,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
       id: qt.id, customerId: qt.customerId, date: iso(qt.date), validUntil: iso(qt.validUntil), notes: qt.notes ?? "",
       // The toggle is derived, not stored: any line carrying tax means VAT was applied.
       applyVat: qLines.some((l) => Number(l.taxAmount) > 0),
+      discountAmount: Number(qt.discountAmount) || 0,
       lines: qLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0 })),
     };
 

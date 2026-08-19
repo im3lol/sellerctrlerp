@@ -18,6 +18,8 @@ const schema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
   validUntil: z.string().optional(),
   notes: z.string().optional(),
+  // Discount on the whole quote, on top of the per-line ones.
+  discountAmount: z.coerce.number().min(0).default(0),
   lines: z.array(z.object({
     itemId: z.string().min(1),
     quantity: z.coerce.number().positive(),
@@ -51,6 +53,7 @@ export async function createQuotationAction(input: unknown): Promise<SaveState> 
         const [qt] = await tx.insert(salesQuotations).values({
           organizationId: auth.orgId, number, customerId: d.customerId, date: dt,
           validUntil: d.validUntil ? new Date(d.validUntil) : null, status: "DRAFT", notes: d.notes || null,
+          discountAmount: String(d.discountAmount),
         }).returning({ id: salesQuotations.id });
         await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({
           quotationId: qt.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
@@ -95,7 +98,8 @@ export async function updateQuotationAction(id: string, input: unknown): Promise
           .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId))).limit(1).for("update");
         if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل عرض غير مسودة");
         await tx.update(salesQuotations).set({
-          customerId: d.customerId, date: new Date(d.date), validUntil: d.validUntil ? new Date(d.validUntil) : null, notes: d.notes || null, updatedAt: new Date(),
+          customerId: d.customerId, date: new Date(d.date), validUntil: d.validUntil ? new Date(d.validUntil) : null, notes: d.notes || null,
+          discountAmount: String(d.discountAmount), updatedAt: new Date(),
         }).where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, auth.orgId)));
         await tx.delete(salesQuotationLines).where(eq(salesQuotationLines.quotationId, id));
         await tx.insert(salesQuotationLines).values(d.lines.map((l) => ({

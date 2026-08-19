@@ -308,7 +308,7 @@ async function _cashBankAccounts(orgId: string): Promise<DocRow[]> {
 
 /** Sales quotation header + lines (mobile detail; reuses the OrderDetail shape). */
 async function _quotationDetail(orgId: string, id: string): Promise<OrderDetail | null> {
-  const [q] = await db.select({ id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, party: customers.nameAr })
+  const [q] = await db.select({ id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, discount: salesQuotations.discountAmount, party: customers.nameAr })
     .from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
     .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
   if (!q) return null;
@@ -319,7 +319,7 @@ async function _quotationDetail(orgId: string, id: string): Promise<OrderDetail 
     return { name: l.name ?? l.code ?? "—", qty: Number(l.qty), unitPrice: Number(l.unitPrice), total };
   });
   return { id: q.id, number: q.number, party: q.party ?? "—", date: new Date(q.date).toISOString().slice(0, 10), status: q.status,
-    total: mapped.reduce((s, l) => s + l.total, 0), lines: mapped };
+    total: Math.max(0, mapped.reduce((s, l) => s + l.total, 0) - (Number(q.discount) || 0)), lines: mapped };
 }
 
 export type TransferLine = { name: string; qty: number; from: string; to: string };
@@ -674,7 +674,8 @@ const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 async function _quotationList(orgId: string): Promise<DocRow[]> {
   const rows = await db.select({
     id: salesQuotations.id, number: salesQuotations.number, status: salesQuotations.status, date: salesQuotations.date, name: customers.nameAr,
-    total: sql<string>`COALESCE(SUM(${salesQuotationLines.quantity} * ${salesQuotationLines.unitPrice} - ${salesQuotationLines.discountAmount} + ${salesQuotationLines.taxAmount}), 0)`,
+    // GREATEST(…,0): the whole-quote discount can exceed the lines; never show a negative.
+    total: sql<string>`GREATEST(COALESCE(SUM(${salesQuotationLines.quantity} * ${salesQuotationLines.unitPrice} - ${salesQuotationLines.discountAmount} + ${salesQuotationLines.taxAmount}), 0) - ${salesQuotations.discountAmount}, 0)`,
   }).from(salesQuotations)
     .leftJoin(customers, eq(customers.id, salesQuotations.customerId))
     .leftJoin(salesQuotationLines, eq(salesQuotationLines.quotationId, salesQuotations.id))

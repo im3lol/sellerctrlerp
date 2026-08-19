@@ -25,7 +25,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [qt] = await db.select({
       id: salesQuotations.id, number: salesQuotations.number, date: salesQuotations.date, validUntil: salesQuotations.validUntil,
-      status: salesQuotations.status, notes: salesQuotations.notes, customer: customers.nameAr,
+      status: salesQuotations.status, notes: salesQuotations.notes, discountAmount: salesQuotations.discountAmount, customer: customers.nameAr,
     }).from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
     if (!qt) notFound();
@@ -35,7 +35,9 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
       .from(salesQuotationLines).innerJoin(items, eq(items.id, salesQuotationLines.itemId))
       .where(eq(salesQuotationLines.quotationId, id)).orderBy(asc(items.code));
 
-    const total = lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice) - Number(l.discountAmount) + Number(l.taxAmount), 0);
+    const gross = lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice) - Number(l.discountAmount) + Number(l.taxAmount), 0);
+    const headerDiscount = Number(qt.discountAmount) || 0;
+    const total = Math.max(0, gross - headerDiscount);
     const st = ST[qt.status] ?? ST.DRAFT;
 
     return (
@@ -69,7 +71,15 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
                 ))}
               </TableBody>
             </Table>
-            <div className="mt-4 flex justify-end text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
+            <div className="mt-4 flex flex-col items-end gap-1 text-sm">
+              {headerDiscount > 0 && (
+                <>
+                  <div className="text-muted-foreground">الإجمالي قبل الخصم: <span className="font-medium">{fmt(gross)}</span></div>
+                  <div className="text-muted-foreground">خصم على الإجمالي: <span className="font-medium">{fmt(headerDiscount)}</span></div>
+                </>
+              )}
+              <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
+            </div>
             {qt.notes && <p className="mt-3 text-sm text-muted-foreground">ملاحظات: {qt.notes}</p>}
           </CardContent>
         </Card>

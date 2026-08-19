@@ -34,7 +34,7 @@ const lineTax = (l: Line, vatRate: number, applyVat: boolean) =>
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) =>
   round2(l.quantity * l.unitPrice - l.discountAmount + lineTax(l, vatRate, applyVat));
 
-export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; lines: Line[] };
+export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; discountAmount: number; lines: Line[] };
 
 export function QuotationForm({ customers, items, orgName, vatRate, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; initial?: QuotationInitial }) {
   const router = useRouter();
@@ -47,6 +47,8 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const [date, setDate] = useState(initial?.date ?? today);
   const [validUntil, setValidUntil] = useState(initial?.validUntil ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  // Discount on the whole quote, applied after tax — on top of the per-line discounts.
+  const [headerDiscount, setHeaderDiscount] = useState(initial?.discountAmount ?? 0);
   const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [newLine()]);
 
   const [newCustomers, setNewCustomers] = useState<Customer[]>([]);
@@ -76,14 +78,15 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
     const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat), 0));
-    return { subtotal, discount, tax, total: round2(subtotal - discount + tax) };
-  }, [lines, vatRate]);
+    // Never let a header discount larger than the bill print a negative total.
+    return { subtotal, discount, tax, total: round2(Math.max(0, subtotal - discount + tax - headerDiscount)) };
+  }, [lines, vatRate, applyVat, headerDiscount]);
 
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const body = { customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })) };
+      const body = { customerId, date, validUntil: validUntil || undefined, notes, discountAmount: headerDiscount, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })) };
       const r = isEdit ? await updateQuotationAction(initial!.id, body) : await createQuotationAction(body);
       if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
@@ -173,6 +176,11 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="qt-disc" className="whitespace-nowrap">خصم على الإجمالي</Label>
+              <Input id="qt-disc" type="number" min={0} step="0.01" className="h-8 w-28 text-start"
+                value={headerDiscount || ""} onChange={(e) => setHeaderDiscount(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
             <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
           </div>
         </div>
