@@ -37,6 +37,7 @@ export default async function PrintQuotationPage({ params }: Params) {
           tax: salesQuotationLines.taxAmount,
           code: items.code,
           name: items.nameAr,
+          image: items.image,
         })
         .from(salesQuotationLines)
         .leftJoin(items, eq(items.id, salesQuotationLines.itemId))
@@ -72,8 +73,10 @@ export default async function PrintQuotationPage({ params }: Params) {
           lines: [cust.address, cust.phone],
         }] : []}
         columns={[
-          { label: "#", width: "5%" },
-          { label: "الصنف", width: "45%" },
+          { label: "#", width: "4%" },
+          // A normal print column, so it can be switched off in the org's print settings.
+          { label: "صورة", align: "center", width: "9%" },
+          { label: "الصنف", width: "37%" },
           { label: "الكمية", align: "center", width: "10%" },
           { label: "السعر", align: "end", width: "14%" },
           { label: "الخصم", align: "end", width: "11%" },
@@ -81,6 +84,15 @@ export default async function PrintQuotationPage({ params }: Params) {
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
+          // Real <img> (print drops CSS backgrounds, not images), fixed box so a tall
+          // picture cannot stretch the row, and nothing when the item has no image.
+          // Not lazy: a lazy image can still be unloaded when the print dialog fires.
+          <span key="img" style={{ display: "inline-block", width: 36, height: 36, verticalAlign: "middle" }}>
+            {l.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={l.image} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : null}
+          </span>,
           <span key="n">
             <b>{l.name}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}

@@ -20,13 +20,15 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice, code: items.code, image: items.image }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
-      db.select({ itemId: salesQuotationLines.itemId, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, isTaxExempt: salesQuotationLines.isTaxExempt })
+      db.select({ itemId: salesQuotationLines.itemId, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount })
         .from(salesQuotationLines).where(eq(salesQuotationLines.quotationId, qt.id)),
     ]);
 
     const initial: QuotationInitial = {
       id: qt.id, customerId: qt.customerId, date: iso(qt.date), validUntil: iso(qt.validUntil), notes: qt.notes ?? "",
-      lines: qLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0, exempt: !!l.isTaxExempt })),
+      // The toggle is derived, not stored: any line carrying tax means VAT was applied.
+      applyVat: qLines.some((l) => Number(l.taxAmount) > 0),
+      lines: qLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0 })),
     };
 
     return (

@@ -20,21 +20,29 @@ import { lineVat } from "@/lib/erp/vat";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
-type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean };
+type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0, exempt: false });
-const lineTotal = (l: Line, vatRate: number) => round2(l.quantity * l.unitPrice - l.discountAmount + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt));
+const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0 });
+// VAT is a single document-level choice (not per line), same as the purchase order.
+// `applyVat=false` → tax 0. It stays computed PER LINE internally because VAT is linear,
+// so the stored line tax — and anything derived from it downstream — is unchanged.
+const lineTax = (l: Line, vatRate: number, applyVat: boolean) =>
+  (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, false) : 0);
+const lineTotal = (l: Line, vatRate: number, applyVat: boolean) =>
+  round2(l.quantity * l.unitPrice - l.discountAmount + lineTax(l, vatRate, applyVat));
 
-export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; lines: Line[] };
+export type QuotationInitial = { id: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; lines: Line[] };
 
 export function QuotationForm({ customers, items, orgName, vatRate, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; initial?: QuotationInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
   const isEdit = !!initial?.id;
+  // Default: on when the org has a rate at all. Editing restores what the quote stored.
+  const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : vatRate > 0);
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
   const [date, setDate] = useState(initial?.date ?? today);
   const [validUntil, setValidUntil] = useState(initial?.validUntil ?? "");
@@ -67,7 +75,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
-    const tax = round2(lines.reduce((s, l) => s + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), 0));
+    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat), 0));
     return { subtotal, discount, tax, total: round2(subtotal - discount + tax) };
   }, [lines, vatRate]);
 
@@ -75,7 +83,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
     if (!customerId) return toast.error("اختر العميل");
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
-      const body = { customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })) };
+      const body = { customerId, date, validUntil: validUntil || undefined, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })) };
       const r = isEdit ? await updateQuotationAction(initial!.id, body) : await createQuotationAction(body);
       if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.id ? `/sales/quotations/${r.id}` : "/sales/quotations"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
@@ -116,7 +124,14 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>صالح حتى</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></div>
-          <div className="space-y-2 sm:col-span-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
+          <div className="space-y-2">
+            <Label>الضريبة</Label>
+            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
+              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+            </label>
+          </div>
+          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
         <div className="rounded-xl border">
@@ -127,7 +142,6 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               <TableHead className="w-24 text-start">الكمية</TableHead>
               <TableHead className="w-32 text-start">السعر</TableHead>
               <TableHead className="w-32 text-start">خصم</TableHead>
-              <TableHead className="w-40 text-start">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
               <TableHead className="w-28 text-start">الإجمالي</TableHead>
               <TableHead className="w-10" />
             </TableRow></TableHeader>
@@ -144,13 +158,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
                   <TableCell><Input type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-[3.5rem] tabular-nums">{fmt(lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt))}</span>
-                      <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate))}</TableCell>
+                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                   <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}
