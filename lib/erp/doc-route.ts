@@ -36,7 +36,3 @@ export async function docNumberParam(
   if (!row) notFound();
   redirect(`${basePath}/${encodeURIComponent(String(row.number))}${suffix}`);
 }
-
-/** The canonical href for a document — use this rather than interpolating an id. */
-export const docHref = (basePath: string, number: string) =>
-  `${basePath}/${encodeURIComponent(number)}`;

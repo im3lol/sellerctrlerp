@@ -5,13 +5,13 @@ import { db } from "@/lib/db";
 import { materialRequests, materialRequestLines, items, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { MaterialRequestForm, type MaterialRequestInitial } from "@/components/erp/material-request-form";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 export default async function EditMaterialRequestPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
   return loadErpPage("purchases.create", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, materialRequests,
-      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "C:/Program Files/Git/purchases/requisitions");
+      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "/purchases/requisitions");
     const [mr] = await db.select().from(materialRequests)
       .where(and(eq(materialRequests.number, number), eq(materialRequests.organizationId, orgId))).limit(1);
     if (!mr) notFound();

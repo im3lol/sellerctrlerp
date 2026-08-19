@@ -6,7 +6,7 @@ import { stockAdjustments, stockAdjustmentLines, items, warehouses } from "@/db/
 import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 type Params = { params: Promise<{ number: string }> };
 
@@ -14,7 +14,7 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
-      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "C:/Program Files/Git/erp/inventory/adjustments", "C:/Program Files/Git/print");
+      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "/erp/inventory/adjustments", "/print");
     const [adj] = await db.select().from(stockAdjustments)
       .where(and(eq(stockAdjustments.number, number), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();

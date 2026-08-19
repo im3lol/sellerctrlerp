@@ -200,7 +200,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
                 )}
                 <td>
                   <a
-                    href={`/erp/hr/payroll/${run.id}/payslip/${l.employeeId}/print`}
+                    href={`/erp/hr/payroll/${encodeURIComponent(run.number)}/payslip/${l.employeeId}/print`}
                     target="_blank"
                     rel="noopener"
                     title="طباعة قسيمة الراتب"

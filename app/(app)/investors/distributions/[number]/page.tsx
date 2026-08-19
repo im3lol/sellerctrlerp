@@ -8,17 +8,20 @@ import { Badge } from "@/components/ui/badge";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { DistributionActions } from "@/components/erp/distribution-form";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (n: number) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 })}%`;
 const dt = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
 
-export default async function DistributionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DistributionDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("investors.view", async ({ orgId, can }) => {
-    const { id } = await params;
+    const number = await docNumberParam(raw, orgId, profitDistributions,
+      { id: profitDistributions.id, number: profitDistributions.number, organizationId: profitDistributions.organizationId }, "/investors/distributions");
 
     const [dist] = await db.select().from(profitDistributions)
-      .where(and(eq(profitDistributions.id, id), eq(profitDistributions.organizationId, orgId))).limit(1);
+      .where(and(eq(profitDistributions.number, number), eq(profitDistributions.organizationId, orgId))).limit(1);
     if (!dist) notFound();
 
     const shares = await db.select({
@@ -27,7 +30,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
       investor: investors.fullName, code: investors.code,
     }).from(investorShares)
       .innerJoin(investors, eq(investors.id, investorShares.investorId))
-      .where(eq(investorShares.distributionId, id))
+      .where(eq(investorShares.distributionId, dist.id))
       .orderBy(desc(investorShares.profitShare));
 
     const sum = shares.reduce((s, r) => s + Number(r.share), 0);
@@ -43,7 +46,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
           backHref="/investors/distributions"
           action={
             <div className="flex gap-2">
-              <PrintDocLink href={`/erp/investors/distributions/${dist.id}/print`} />
+              <PrintDocLink href={`/erp/investors/distributions/${encodeURIComponent(dist.number)}/print`} />
               {can("accounting.post") && <DistributionActions id={dist.id} status={dist.status} />}
             </div>
           }

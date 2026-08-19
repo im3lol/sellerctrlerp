@@ -5,12 +5,15 @@ import { db } from "@/lib/db";
 import { accounts, expenses } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ExpenseForm, type ExpenseInitial } from "@/components/erp/expense-form";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
-export default async function EditExpensePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function EditExpensePage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("accounting.create", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, expenses,
+      { id: expenses.id, number: expenses.number, organizationId: expenses.organizationId }, "/accounting/expenses", "/edit");
     const [exp] = await db.select().from(expenses)
-      .where(and(eq(expenses.id, id), eq(expenses.organizationId, orgId))).limit(1);
+      .where(and(eq(expenses.number, number), eq(expenses.organizationId, orgId))).limit(1);
     if (!exp) notFound();
     if (exp.status !== "DRAFT") redirect(`/accounting/expenses`);
 

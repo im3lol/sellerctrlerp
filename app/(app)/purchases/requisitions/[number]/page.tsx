@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { RequisitionRowActions } from "@/components/erp/requisition-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -18,7 +18,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
   const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, materialRequests,
-      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "C:/Program Files/Git/purchases/requisitions");
+      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "/purchases/requisitions");
     const [mr] = await db.select({
       id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status,
       notes: materialRequests.notes, requester: users.name,

@@ -7,7 +7,7 @@ import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { renderRichText } from "@/lib/erp/rich-text";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const STATUS: Record<string, string> = {
   DRAFT: "مسودة", SENT: "مُرسل", ACCEPTED: "مقبول", REJECTED: "مرفوض",
@@ -67,7 +67,7 @@ export default async function PrintQuotationPage({ params }: Params) {
         title="عرض سعر"
         number={q.number}
         watermark={q.status === "DRAFT" ? "مسودة" : undefined}
-        backHref={docHref("/sales/quotations", q.number)}
+        backHref={`/sales/quotations/${encodeURIComponent(q.number)}`}
         meta={[
           { label: "التاريخ", value: dt(q.date) },
           ...(q.validUntil ? [{ label: "ساري حتى", value: dt(q.validUntil) }] : []),

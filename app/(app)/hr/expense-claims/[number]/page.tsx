@@ -9,21 +9,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ExpenseClaimRowActions } from "@/components/erp/expense-claim-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default async function ExpenseClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function ExpenseClaimDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
+    const number = await docNumberParam(raw, orgId, expenseClaims,
+      { id: expenseClaims.id, number: expenseClaims.number, organizationId: expenseClaims.organizationId }, "/hr/expense-claims");
     const [claim] = await db.select({ id: expenseClaims.id, number: expenseClaims.number, date: expenseClaims.date, employee: expenseClaims.employeeName, status: expenseClaims.status, notes: expenseClaims.notes, cashName: accounts.nameAr })
       .from(expenseClaims).leftJoin(accounts, eq(accounts.id, expenseClaims.cashAccountId))
-      .where(and(eq(expenseClaims.id, id), eq(expenseClaims.organizationId, orgId))).limit(1);
+      .where(and(eq(expenseClaims.number, number), eq(expenseClaims.organizationId, orgId))).limit(1);
     if (!claim) notFound();
 
     const lines = await db.select({ acc: accounts.nameAr, code: accounts.code, amount: expenseClaimLines.amount, description: expenseClaimLines.description })
       .from(expenseClaimLines).innerJoin(accounts, eq(accounts.id, expenseClaimLines.expenseAccountId))
-      .where(eq(expenseClaimLines.claimId, id));
+      .where(eq(expenseClaimLines.claimId, claim.id));
     const total = lines.reduce((s, l) => s + Number(l.amount), 0);
 
     return (
@@ -31,7 +34,7 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
         <ErpPageHeader icon="ReceiptText" title={`مطالبة ${claim.number}`} subtitle={`${claim.employee} · ${dt(claim.date)} · التعويض من ${claim.cashName ?? "—"}`} backHref="/hr/expense-claims"
           action={
             <div className="flex gap-2">
-              <PrintDocLink href={`/erp/hr/expense-claims/${claim.id}/print`} />
+              <PrintDocLink href={`/erp/hr/expense-claims/${encodeURIComponent(claim.number)}/print`} />
               <ExpenseClaimRowActions id={claim.id} status={claim.status} canManage={can("accounting.post")} />
             </div>
           } />

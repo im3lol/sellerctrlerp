@@ -6,16 +6,19 @@ import { profitDistributions, investorShares, investors } from "@/db/schema";
 import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintDistributionPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("investors.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, profitDistributions,
+      { id: profitDistributions.id, number: profitDistributions.number, organizationId: profitDistributions.organizationId }, "/erp/investors/distributions", "/print");
     const [dist] = await db
       .select()
       .from(profitDistributions)
-      .where(and(eq(profitDistributions.id, id), eq(profitDistributions.organizationId, orgId)))
+      .where(and(eq(profitDistributions.number, number), eq(profitDistributions.organizationId, orgId)))
       .limit(1);
     if (!dist) notFound();
 
@@ -31,7 +34,7 @@ export default async function PrintDistributionPage({ params }: Params) {
         })
         .from(investorShares)
         .innerJoin(investors, eq(investors.id, investorShares.investorId))
-        .where(eq(investorShares.distributionId, id))
+        .where(eq(investorShares.distributionId, dist.id))
         .orderBy(desc(investorShares.profitShare)),
     ]);
     const total = shares.reduce((s, r) => s + Number(r.share), 0);
@@ -43,7 +46,7 @@ export default async function PrintDistributionPage({ params }: Params) {
         footerText={footerText}
         title="توزيع أرباح"
         number={dist.periodName}
-        backHref={`/investors/distributions/${id}`}
+        backHref={`/investors/distributions/${encodeURIComponent(dist.number)}`}
         watermark={dist.status !== "POSTED" ? "مسودة" : undefined}
         meta={[
           { label: "الفترة", value: `${dt(dist.periodStart)} — ${dt(dist.periodEnd)}` },

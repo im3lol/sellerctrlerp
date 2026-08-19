@@ -12,6 +12,7 @@ import { allocateProfit } from "@/lib/erp/investors";
 import { round2 } from "@/lib/erp/money";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { investorNetCapital, investorProfitDue, orgOwnership } from "@/lib/erp/investor-equity-queries";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -246,9 +247,10 @@ export async function createDistributionAction(input: unknown): Promise<ActionSt
     const shares = allocateProfit(total, owners);
 
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
+        const number = await nextDocumentNumber(tx, auth.orgId, "PD", dist.getFullYear());
         const [row] = await tx.insert(profitDistributions).values({
-          organizationId: auth.orgId, periodName: d.periodName.trim(),
+          organizationId: auth.orgId, number, periodName: d.periodName.trim(),
           periodStart: start, periodEnd: end, distributionDate: dist,
           totalProfit: String(total), status: "DRAFT",
         }).returning({ id: profitDistributions.id });
@@ -257,11 +259,11 @@ export async function createDistributionAction(input: unknown): Promise<ActionSt
           distributionId: row.id, investorId: s.investorId,
           ownershipPercent: String(s.percent), profitShare: String(s.share), status: "PENDING",
         })));
-        return row.id;
+        return { id: row.id, number };
       });
 
       revalidatePath("/investors/distributions");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إنشاء التوزيع" };
     }

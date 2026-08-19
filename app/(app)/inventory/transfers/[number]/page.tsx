@@ -13,7 +13,7 @@ import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -22,7 +22,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
-      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/inventory/transfers");
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "/inventory/transfers");
     const canManage = can("inventory.create");
 
     const [tr] = await db.select().from(stockTransfers)

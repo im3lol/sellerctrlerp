@@ -12,7 +12,7 @@ import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustm
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -22,7 +22,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
-      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "C:/Program Files/Git/inventory/adjustments");
+      { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "/inventory/adjustments");
     const canManage = can("inventory.create");
 
     const [adj] = await db.select().from(stockAdjustments)

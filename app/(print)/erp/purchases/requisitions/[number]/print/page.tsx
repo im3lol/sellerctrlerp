@@ -6,14 +6,14 @@ import { materialRequests, materialRequestLines, items, users } from "@/db/schem
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { dt, qty } from "@/lib/erp/print-format";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 /** طلب شراء داخلي (طلب مواد) — نسخة الطباعة. */
 export default async function RequisitionPrintPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, materialRequests,
-      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "C:/Program Files/Git/erp/purchases/requisitions", "C:/Program Files/Git/print");
+      { id: materialRequests.id, number: materialRequests.number, organizationId: materialRequests.organizationId }, "/erp/purchases/requisitions", "/print");
     const [mr] = await db.select({
       id: materialRequests.id, number: materialRequests.number, date: materialRequests.date, status: materialRequests.status,
       notes: materialRequests.notes, requester: users.name,

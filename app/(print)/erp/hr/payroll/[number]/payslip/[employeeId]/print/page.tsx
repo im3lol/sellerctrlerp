@@ -6,18 +6,22 @@ import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
 import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const DANGER = "#d64545";
 
-type Params = { params: Promise<{ id: string; employeeId: string }> };
+type Params = { params: Promise<{ number: string; employeeId: string }> };
 
 export default async function PrintPayslipPage({ params }: Params) {
-  const { id, employeeId } = await params;
+  const { number: raw, employeeId } = await params;
   return loadErpPage("hr.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, payrollRuns,
+      { id: payrollRuns.id, number: payrollRuns.number, organizationId: payrollRuns.organizationId },
+      "/erp/hr/payroll", `/payslip/${employeeId}/print`);
     const [run] = await db
       .select()
       .from(payrollRuns)
-      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, orgId)))
+      .where(and(eq(payrollRuns.number, number), eq(payrollRuns.organizationId, orgId)))
       .limit(1);
     if (!run) notFound();
 
@@ -54,7 +58,7 @@ export default async function PrintPayslipPage({ params }: Params) {
         footerText={footerText}
         title="قسيمة راتب"
         number={run.number}
-        backHref={`/hr/payroll/${id}`}
+        backHref={`/hr/payroll/${encodeURIComponent(run.number)}`}
         watermark={run.status === "DRAFT" ? "مسودة" : undefined}
         meta={[{ label: "الفترة", value: `${dt(run.periodStart)} — ${dt(run.periodEnd)}` }]}
         parties={[{

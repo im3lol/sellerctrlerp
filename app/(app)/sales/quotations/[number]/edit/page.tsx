@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { salesQuotations, salesQuotationLines, customers, items, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { QuotationForm, type QuotationInitial } from "@/components/erp/quotation-form";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
@@ -17,7 +17,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
     const [qt] = await db.select().from(salesQuotations)
       .where(and(eq(salesQuotations.number, number), eq(salesQuotations.organizationId, orgId))).limit(1);
     if (!qt) notFound();
-    if (qt.status !== "DRAFT") redirect(docHref("/sales/quotations", qt.number));
+    if (qt.status !== "DRAFT") redirect(`/sales/quotations/${encodeURIComponent(qt.number)}`);
 
     const [custList, itemList, org, qLines] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
@@ -37,7 +37,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle="مسودة — عدّل الأصناف والأسعار ثم احفظ" backHref={docHref("/sales/quotations", qt.number)} />
+        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle="مسودة — عدّل الأصناف والأسعار ثم احفظ" backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
         <QuotationForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
       </div>
     );

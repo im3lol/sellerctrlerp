@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { items, warehouses, organizations, stockTransfers, stockTransferLines } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { TransferForm, type TransferInitial } from "@/components/erp/transfer-form";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string };
 
@@ -13,7 +13,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ n
   const raw = (await params).number;
   return loadErpPage("inventory.create", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
-      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/inventory/transfers");
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "/inventory/transfers");
     const [tr] = await db.select().from(stockTransfers)
       .where(and(eq(stockTransfers.number, number), eq(stockTransfers.organizationId, orgId))).limit(1);
     if (!tr) notFound();

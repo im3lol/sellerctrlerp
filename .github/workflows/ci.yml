@@ -38,6 +38,11 @@ jobs:
       - name: revalidatePath targets resolve
         run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-revalidate-paths.ts
 
+      # A document's URL is its number, not its UUID. Fails on any new [id] route that
+      # is not master data.
+      - name: Document routes are keyed by number
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-doc-routes.ts
+
       - name: Unit tests
         run: npm test
 

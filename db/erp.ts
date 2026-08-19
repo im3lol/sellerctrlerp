@@ -1952,6 +1952,9 @@ export const investments = pgTable("investments", {
 export const profitDistributions = pgTable("profit_distributions", {
   id: pk(),
   organizationId: orgId(),
+  // Every document carries a system-generated number — it is the document's URL and the
+  // identity printed on it. PD-YYYY-NNNN, from nextDocumentNumber like all the others.
+  number: text("number").notNull(),
   periodName: text("period_name").notNull(),
   periodStart: ts("period_start").notNull(),
   periodEnd: ts("period_end").notNull(),
@@ -1960,7 +1963,7 @@ export const profitDistributions = pgTable("profit_distributions", {
   status: text("status").notNull().default("DRAFT"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [uniqueIndex("profit_distributions_org_number_idx").on(t.organizationId, t.number)]);
 
 export const investorShares = pgTable("investor_shares", {
   id: pk(),

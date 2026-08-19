@@ -6,14 +6,18 @@ import { expenseClaims, expenseClaimLines, accounts } from "@/db/schema";
 import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintExpenseClaimPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("accounting.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, expenseClaims,
+      { id: expenseClaims.id, number: expenseClaims.number, organizationId: expenseClaims.organizationId }, "/erp/hr/expense-claims", "/print");
     const [claim] = await db
       .select({
+        id: expenseClaims.id,
         number: expenseClaims.number,
         date: expenseClaims.date,
         employee: expenseClaims.employeeName,
@@ -23,7 +27,7 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
       })
       .from(expenseClaims)
       .leftJoin(accounts, eq(accounts.id, expenseClaims.cashAccountId))
-      .where(and(eq(expenseClaims.id, id), eq(expenseClaims.organizationId, orgId)))
+      .where(and(eq(expenseClaims.number, number), eq(expenseClaims.organizationId, orgId)))
       .limit(1);
     if (!claim) notFound();
 
@@ -33,7 +37,7 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
         .select({ acc: accounts.nameAr, code: accounts.code, amount: expenseClaimLines.amount, description: expenseClaimLines.description })
         .from(expenseClaimLines)
         .innerJoin(accounts, eq(accounts.id, expenseClaimLines.expenseAccountId))
-        .where(eq(expenseClaimLines.claimId, id)),
+        .where(eq(expenseClaimLines.claimId, claim.id)),
     ]);
     const total = lines.reduce((s, l) => s + Number(l.amount), 0);
 
@@ -44,7 +48,7 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
         footerText={footerText}
         title="مطالبة مصروفات"
         number={claim.number}
-        backHref={`/hr/expense-claims/${id}`}
+        backHref={`/hr/expense-claims/${encodeURIComponent(claim.number)}`}
         watermark={claim.status !== "APPROVED" ? "مسودة" : undefined}
         meta={[
           { label: "التاريخ", value: dt(claim.date) },

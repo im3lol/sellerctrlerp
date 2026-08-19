@@ -6,18 +6,21 @@ import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
 import { fmt, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 const STATUS: Record<string, string> = { DRAFT: "مسودة", POSTED: "مرحَّل", REVERSED: "معكوس" };
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintPayrollRunPage({ params }: Params) {
-  const { id } = await params;
+  const raw = (await params).number;
   return loadErpPage("hr.view", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, payrollRuns,
+      { id: payrollRuns.id, number: payrollRuns.number, organizationId: payrollRuns.organizationId }, "/erp/hr/payroll", "/print");
     const [run] = await db
       .select()
       .from(payrollRuns)
-      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.organizationId, orgId)))
+      .where(and(eq(payrollRuns.number, number), eq(payrollRuns.organizationId, orgId)))
       .limit(1);
     if (!run) notFound();
 
@@ -49,7 +52,7 @@ export default async function PrintPayrollRunPage({ params }: Params) {
         footerText={footerText}
         title="مسير رواتب"
         number={run.number}
-        backHref={`/hr/payroll/${id}`}
+        backHref={`/hr/payroll/${encodeURIComponent(run.number)}`}
         watermark={run.status === "DRAFT" ? "مسودة" : undefined}
         meta={[
           { label: "الفترة", value: `${dt(run.periodStart)} — ${dt(run.periodEnd)}` },

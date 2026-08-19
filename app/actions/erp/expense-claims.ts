@@ -13,7 +13,7 @@ import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { round2 } from "@/lib/erp/money";
 
-export type SaveState = ActionState & { id?: string };
+export type SaveState = ActionState & { id?: string; number?: string };
 
 const schema = z.object({
   employeeName: z.string().trim().min(2, "اسم الموظف مطلوب"),
@@ -48,7 +48,7 @@ export async function createExpenseClaimAction(input: unknown): Promise<SaveStat
 
     const dt = new Date(d.date);
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, auth.orgId, "EC", dt.getFullYear());
         const [claim] = await tx.insert(expenseClaims).values({
           organizationId: auth.orgId, number, employeeName: d.employeeName, submittedBy: auth.userId,
@@ -57,11 +57,11 @@ export async function createExpenseClaimAction(input: unknown): Promise<SaveStat
         await tx.insert(expenseClaimLines).values(d.lines.map((l) => ({
           claimId: claim.id, expenseAccountId: l.expenseAccountId, amount: String(l.amount), description: l.description || null,
         })));
-        return claim.id;
+        return { id: claim.id, number };
       });
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "EXPENSE_CLAIM", entityId: id, summary: `إنشاء مطالبة مصروفات لـ ${d.employeeName} (مسودة)` });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "EXPENSE_CLAIM", entityId: created.id, summary: `إنشاء مطالبة مصروفات لـ ${d.employeeName} (مسودة)` });
       revalidatePath("/hr/expense-claims");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الحفظ" };
     }
@@ -99,7 +99,7 @@ export async function approveExpenseClaimAction(id: string): Promise<ActionState
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "EXPENSE_CLAIM", entityId: claim.id, entityNumber: claim.number, summary: `اعتماد وترحيل مطالبة ${claim.number}`, metadata: { total } });
       });
       revalidatePath("/hr/expense-claims");
-      revalidatePath(`/hr/expense-claims/${id}`);
+      revalidatePath(`/hr/expense-claims/${claim.number}`);
       revalidatePath("/accounting/journal");
       return { ok: true };
     } catch (e) {

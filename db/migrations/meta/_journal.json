@@ -708,6 +708,13 @@
       "when": 1787140863992,
       "tag": "0100_quotation_header_discount",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1787148516401,
+      "tag": "0101_profit_distribution_number",
+      "breakpoints": true
     }
   ]
 }

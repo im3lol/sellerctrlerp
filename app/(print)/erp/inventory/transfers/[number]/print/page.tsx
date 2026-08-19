@@ -7,7 +7,7 @@ import { stockTransfers, stockTransferLines, items, warehouses } from "@/db/sche
 import { qty, dt } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
-import { docNumberParam, docHref } from "@/lib/erp/doc-route";
+import { docNumberParam } from "@/lib/erp/doc-route";
 
 type Params = { params: Promise<{ number: string }> };
 
@@ -15,7 +15,7 @@ export default async function PrintStockTransferPage({ params }: Params) {
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
-      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "C:/Program Files/Git/erp/inventory/transfers", "C:/Program Files/Git/print");
+      { id: stockTransfers.id, number: stockTransfers.number, organizationId: stockTransfers.organizationId }, "/erp/inventory/transfers", "/print");
     const [tr] = await db.select().from(stockTransfers)
       .where(and(eq(stockTransfers.number, number), eq(stockTransfers.organizationId, orgId))).limit(1);
     if (!tr) notFound();
