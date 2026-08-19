@@ -16,6 +16,7 @@ import { ItemThumb } from "@/components/erp/item-thumb";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
 import { selectCls } from "@/lib/utils";
@@ -74,7 +75,13 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
     const cid = channelCustomerId?.[c];
     if (cid) setCustomerId(cid);
   };
-  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  // Customers added from inside the order are not in the server-rendered prop, so they
+  // live here until the next load merges them in from the database.
+  const [newCustomers, setNewCustomers] = useState<Customer[]>([]);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const allCustomers = useMemo(() => [...customers, ...newCustomers], [customers, newCustomers]);
+  const customerOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: c.nameAr })), [allCustomers]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -157,6 +164,15 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
               options={customerOptions}
               onSelect={(id) => setCustomerId(id)}
               placeholder="ابحث عن العميل…"
+              onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
+              createLabel="إضافة عميل"
+            />
+            <QuickCreateParty
+              kind="customer"
+              open={quickOpen}
+              onOpenChange={setQuickOpen}
+              initialName={quickName}
+              onCreated={(p: NewParty) => { setNewCustomers((xs) => [...xs, p]); setCustomerId(p.id); }}
             />
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>

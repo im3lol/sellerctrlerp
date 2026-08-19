@@ -11,6 +11,7 @@ import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 import { nextCode } from "@/lib/erp/next-code";
 
 export type ActionState = { error?: string; ok?: boolean };
+export type SaveCustomerState = ActionState & { created?: { id: string; nameAr: string } };
 
 const schema = z.object({
   code: z.string().optional(),
@@ -25,7 +26,7 @@ const schema = z.object({
 const nextCustomerCode = (orgId: string) =>
   nextCode({ table: customers, orgCol: customers.organizationId, codeCol: customers.code, orgId, prefix: "CUST", pad: 4 });
 
-export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveCustomerAction(_prev: SaveCustomerState, formData: FormData): Promise<SaveCustomerState> {
   const id = (formData.get("id") as string) || "";
   const auth = await authorizeErp(id ? "sales.edit" : "sales.create");
   if ("error" in auth) return auth;
@@ -58,15 +59,18 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
     };
 
     const isUnique = (e: unknown) => e instanceof Error && e.message.includes("unique");
+    // Returned on create so the quick-create popover can select the new customer without
+    // a round trip through the page's server-rendered list.
+    let created: { id: string; nameAr: string } | undefined;
     try {
       if (id) {
         await db.update(customers).set(data).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
       } else {
         try {
-          await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+          [created] = await db.insert(customers).values({ ...data, organizationId: auth.orgId }).returning({ id: customers.id, nameAr: customers.nameAr });
         } catch (e) {
           // Auto-generated code collided with a concurrent insert — regenerate once.
-          if (autoGen && isUnique(e)) await db.insert(customers).values({ ...data, code: await nextCustomerCode(auth.orgId), organizationId: auth.orgId });
+          if (autoGen && isUnique(e)) [created] = await db.insert(customers).values({ ...data, code: await nextCustomerCode(auth.orgId), organizationId: auth.orgId }).returning({ id: customers.id, nameAr: customers.nameAr });
           else throw e;
         }
       }
@@ -76,7 +80,7 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
 
     revalidatePath("/sales/customers");
     revalidatePath("/sales");
-    return { ok: true };
+    return { ok: true, created };
   });
 }
 

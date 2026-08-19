@@ -14,6 +14,7 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
 
@@ -40,7 +41,11 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [newLine()]);
 
-  const custOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const [newCustomers, setNewCustomers] = useState<Customer[]>([]);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const allCustomers = useMemo(() => [...customers, ...newCustomers], [customers, newCustomers]);
+  const custOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: c.nameAr })), [allCustomers]);
   const custLabel = useMemo(() => new Map(custOptions.map((o) => [o.id, o.label])), [custOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -91,7 +96,24 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2"><Label>الشركة</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
-          <div className="space-y-2"><Label>العميل</Label><CellCombobox selectedLabel={custLabel.get(customerId) ?? ""} options={custOptions} onSelect={setCustomerId} placeholder="ابحث عن العميل…" /></div>
+          <div className="space-y-2">
+            <Label>العميل</Label>
+            <CellCombobox
+              selectedLabel={custLabel.get(customerId) ?? ""}
+              options={custOptions}
+              onSelect={setCustomerId}
+              placeholder="ابحث عن العميل…"
+              onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
+              createLabel="إضافة عميل"
+            />
+            <QuickCreateParty
+              kind="customer"
+              open={quickOpen}
+              onOpenChange={setQuickOpen}
+              initialName={quickName}
+              onCreated={(p: NewParty) => { setNewCustomers((xs) => [...xs, p]); setCustomerId(p.id); }}
+            />
+          </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>صالح حتى</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></div>
           <div className="space-y-2 sm:col-span-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>

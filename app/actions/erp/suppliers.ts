@@ -7,6 +7,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { suppliers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+
+export type SaveSupplierState = ActionState & { created?: { id: string; nameAr: string } };
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 import { nextCode } from "@/lib/erp/next-code";
 
@@ -24,7 +26,7 @@ const schema = z.object({
 const nextSupplierCode = (orgId: string) =>
   nextCode({ table: suppliers, orgCol: suppliers.organizationId, codeCol: suppliers.code, orgId, prefix: "SUP", pad: 4 });
 
-export async function saveSupplierAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveSupplierAction(_prev: SaveSupplierState, formData: FormData): Promise<SaveSupplierState> {
   const id = (formData.get("id") as string) || "";
   const auth = await authorizeErp(id ? "purchases.edit" : "purchases.create");
   if ("error" in auth) return auth;
@@ -55,15 +57,18 @@ export async function saveSupplierAction(_prev: ActionState, formData: FormData)
     };
 
     const isUnique = (e: unknown) => e instanceof Error && e.message.includes("unique");
+    // Returned on create so the quick-create popover can select the new supplier without
+    // a round trip through the page's server-rendered list.
+    let created: { id: string; nameAr: string } | undefined;
     try {
       if (id) {
         await db.update(suppliers).set(data).where(and(eq(suppliers.id, id), eq(suppliers.organizationId, auth.orgId)));
       } else {
         try {
-          await db.insert(suppliers).values({ ...data, organizationId: auth.orgId });
+          [created] = await db.insert(suppliers).values({ ...data, organizationId: auth.orgId }).returning({ id: suppliers.id, nameAr: suppliers.nameAr });
         } catch (e) {
           // Auto-generated code collided with a concurrent insert — regenerate once.
-          if (autoGen && isUnique(e)) await db.insert(suppliers).values({ ...data, code: await nextSupplierCode(auth.orgId), organizationId: auth.orgId });
+          if (autoGen && isUnique(e)) [created] = await db.insert(suppliers).values({ ...data, code: await nextSupplierCode(auth.orgId), organizationId: auth.orgId }).returning({ id: suppliers.id, nameAr: suppliers.nameAr });
           else throw e;
         }
       }
@@ -72,7 +77,7 @@ export async function saveSupplierAction(_prev: ActionState, formData: FormData)
     }
     revalidatePath("/purchases/suppliers");
     revalidatePath("/purchases");
-    return { ok: true };
+    return { ok: true, created };
   });
 }
 

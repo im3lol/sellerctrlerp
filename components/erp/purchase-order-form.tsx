@@ -14,6 +14,7 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
 import { lineVat } from "@/lib/erp/vat";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
@@ -68,7 +69,11 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
   const [lc, setLc] = useState({ shipping: "", customs: "", insurance: "", other: "" });
   const [lcMethod, setLcMethod] = useState<"value" | "qty">("value");
   const lcTotal = round2((Number(lc.shipping) || 0) + (Number(lc.customs) || 0) + (Number(lc.insurance) || 0) + (Number(lc.other) || 0));
-  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const [newSuppliers, setNewSuppliers] = useState<Supplier[]>([]);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const allSuppliers = useMemo(() => [...suppliers, ...newSuppliers], [suppliers, newSuppliers]);
+  const supplierOptions = useMemo(() => allSuppliers.map((s) => ({ id: s.id, label: s.nameAr })), [allSuppliers]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
   // id → row, so a line cell can show the item's picture and code without another query.
   const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
@@ -150,6 +155,15 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
               options={supplierOptions}
               onSelect={(id) => setSupplierId(id)}
               placeholder="ابحث عن المورد…"
+              onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
+              createLabel="إضافة مورد"
+            />
+            <QuickCreateParty
+              kind="supplier"
+              open={quickOpen}
+              onOpenChange={setQuickOpen}
+              initialName={quickName}
+              onCreated={(p: NewParty) => { setNewSuppliers((xs) => [...xs, p]); setSupplierId(p.id); }}
             />
           </div>
           <div className="space-y-2">
