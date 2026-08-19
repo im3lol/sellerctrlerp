@@ -23,22 +23,31 @@ import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
-type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean };
+type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0, exempt: false });
+const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0 });
+// VAT is a single document-level choice, same as the purchase order and the quotation:
+// one switch for the whole order instead of a «معفى» box on every line. It stays computed
+// PER LINE internally because VAT is linear, so the stored line tax — and everything
+// derived from it downstream — is unchanged. `applyVat=false` → tax 0.
+const lineTax = (l: Line, vatRate: number, applyVat: boolean) =>
+  (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, false) : 0);
+const lineTotal = (l: Line, vatRate: number, applyVat: boolean) =>
+  round2(l.quantity * l.unitPrice - l.discountAmount + lineTax(l, vatRate, applyVat));
 
 const CHANNELS: [string, string][] = [["MANUAL", "يدوي"], ["AMAZON", "أمازون"], ["NOON", "نون"]];
 
 export type SalesOrderInitial = {
   id: string; number: string; customerId: string; date: string; dueDate: string; notes: string;
   channel: string; externalOrderId: string; shippingAmount: number;
-  lines: { itemId: string; warehouseId: string; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean }[];
+  applyVat: boolean;
+  lines: { itemId: string; warehouseId: string; quantity: number; unitPrice: number; discountAmount: number }[];
 };
 
-export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number; exempt?: boolean }[]; initial?: SalesOrderInitial }) {
+export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[]; initial?: SalesOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -47,14 +56,16 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const [date, setDate] = useState(initial?.date ?? today);
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  // Default: on when the org has a rate at all. Editing restores what the order stored.
+  const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : vatRate > 0);
   const [channel, setChannel] = useState(initial?.channel ?? "MANUAL");
   const [externalOrderId, setExternalOrderId] = useState(initial?.externalOrderId ?? "");
   const [shippingAmount, setShippingAmount] = useState(initial?.shippingAmount ?? 0);
   const [lines, setLines] = useState<Line[]>(
     initial?.lines?.length
-      ? initial.lines.map((l) => ({ ...newLine(), itemId: l.itemId, warehouseId: l.warehouseId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, exempt: l.exempt }))
+      ? initial.lines.map((l) => ({ ...newLine(), itemId: l.itemId, warehouseId: l.warehouseId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount }))
       : initialLines?.length
-      ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, exempt: l.exempt ?? false }))
+      ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount }))
       : [newLine()],
   );
 
@@ -115,10 +126,10 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
     const discount = round2(lines.reduce((s, l) => s + l.discountAmount, 0));
-    const tax = round2(lines.reduce((s, l) => s + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), 0));
+    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat), 0));
     const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
     return { subtotal, discount, tax, qty, total: round2(subtotal - discount + tax + (Number(shippingAmount) || 0)) };
-  }, [lines, shippingAmount]);
+  }, [lines, vatRate, applyVat, shippingAmount]);
 
   const submit = () => {
     if (!customerId) return toast.error("اختر العميل");
@@ -128,13 +139,13 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       const body = {
         customerId, date, dueDate: dueDate || undefined, notes,
         channel, externalOrderId: externalOrderId.trim() || undefined, shippingAmount: Number(shippingAmount) || 0,
-        lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt), exempt: l.exempt })),
+        lines: lines.map((l) => ({ itemId: l.itemId, warehouseId: l.warehouseId || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })),
       };
       const r = isEdit ? await updateSalesOrderAction(initial!.id, body) : await createSalesOrderAction(body);
       if (r.ok) {
         toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر البيع (مسودة) — أكّده");
         if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
-        router.push(r.id ? `/sales/orders/${r.id}` : "/sales/orders"); router.refresh();
+        router.push(r.number ? `/sales/orders/${encodeURIComponent(r.number)}` : "/sales/orders"); router.refresh();
       }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -177,6 +188,13 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+          <div className="space-y-2">
+            <Label>الضريبة</Label>
+            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
+              <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
+              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+            </label>
+          </div>
         </div>
         <div className={`grid grid-cols-1 gap-4 sm:grid-cols-4 ${isEdit ? "hidden" : ""}`}>
           <div className="space-y-2">
@@ -214,7 +232,6 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 <TableHead className="w-24 text-center">الكمية</TableHead>
                 <TableHead className="w-32 text-center">السعر</TableHead>
                 <TableHead className="w-32 text-center">خصم</TableHead>
-                <TableHead className="w-44 text-center">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
@@ -246,13 +263,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                     <TableCell><Input type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                     <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                     <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-[4rem] tabular-nums">{fmt(lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt))}</span>
-                        <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"><input type="checkbox" checked={l.exempt} onChange={(e) => setLine(i, { exempt: e.target.checked })} />معفى</label>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{fmt(round2(l.quantity * l.unitPrice - l.discountAmount + lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt)))}</TableCell>
+                    <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>
                 );

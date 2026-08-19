@@ -14,7 +14,7 @@ import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveOrderState = ActionState & { id?: string; warning?: string };
+export type SaveOrderState = ActionState & { id?: string; number?: string; warning?: string };
 
 const qf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
@@ -92,7 +92,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
     const number = await nextNumber(auth.orgId, d.getFullYear());
 
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [so] = await tx.insert(salesOrders).values({
           organizationId: auth.orgId, number, customerId, date: d, dueDate: dueDate ? new Date(dueDate) : null,
           status: "DRAFT", subtotal: String(subtotal), discountAmount: String(discountAmount),
@@ -103,11 +103,11 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
           salesOrderId: so.id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
           discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
         })));
-        return so.id;
+        return { id: so.id, number };
       });
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: created.id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/sales/orders");
-      return { ok: true, id, warning };
+      return { ok: true, id: created.id, number: created.number, warning };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
     }
@@ -165,7 +165,7 @@ export async function updateSalesOrderAction(id: string, input: unknown): Promis
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "SALES_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر بيع ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/sales/orders");
       revalidatePath(`/sales/orders/${encodeURIComponent(existing.number)}`);
-      return { ok: true, id };
+      return { ok: true, id, number: existing.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }

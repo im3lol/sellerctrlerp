@@ -21,16 +21,18 @@ export default async function EditSalesOrderPage({ params }: { params: Promise<{
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
       db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice, code: items.code, image: items.image }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
-      db.select({ itemId: salesOrderLines.itemId, warehouseId: salesOrderLines.warehouseId, quantity: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discountAmount: salesOrderLines.discountAmount, isTaxExempt: salesOrderLines.isTaxExempt })
+      db.select({ itemId: salesOrderLines.itemId, warehouseId: salesOrderLines.warehouseId, quantity: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discountAmount: salesOrderLines.discountAmount, taxAmount: salesOrderLines.taxAmount })
         .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id)),
     ]);
 
     const initial: SalesOrderInitial = {
       id: so.id, number: so.number, customerId: so.customerId, date: iso(so.date), dueDate: iso(so.dueDate), notes: so.notes ?? "",
       channel: so.channel ?? "MANUAL", externalOrderId: so.externalOrderId ?? "", shippingAmount: Number(so.shippingAmount ?? 0),
+      // The toggle is derived, not stored: any line carrying tax means VAT was applied.
+      applyVat: soLines.some((l) => Number(l.taxAmount) > 0),
       lines: soLines.map((l) => ({
         itemId: l.itemId, warehouseId: l.warehouseId ?? "", quantity: Number(l.quantity) || 0,
-        unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0, exempt: !!l.isTaxExempt,
+        unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0,
       })),
     };
 
