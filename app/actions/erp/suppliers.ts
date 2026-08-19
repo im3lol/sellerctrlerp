@@ -11,6 +11,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 export type SaveSupplierState = ActionState & { created?: { id: string; nameAr: string } };
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 import { nextCode } from "@/lib/erp/next-code";
+import { str } from "@/lib/erp/form-value";
 
 
 const schema = z.object({
@@ -33,9 +34,9 @@ export async function saveSupplierAction(_prev: SaveSupplierState, formData: For
 
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse({
-      code: formData.get("code"),
-      nameAr: formData.get("nameAr"),
-      phone: formData.get("phone") || undefined,
+      code: str(formData.get("code")),
+      nameAr: str(formData.get("nameAr")),
+      phone: str(formData.get("phone")) || undefined,
       email: formData.get("email") || "",
       paymentTerms: formData.get("paymentTerms") || 30,
     });

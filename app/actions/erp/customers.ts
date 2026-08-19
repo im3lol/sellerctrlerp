@@ -9,6 +9,7 @@ import { customers, users } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
 import { nextCode } from "@/lib/erp/next-code";
+import { str } from "@/lib/erp/form-value";
 
 export type ActionState = { error?: string; ok?: boolean };
 export type SaveCustomerState = ActionState & { created?: { id: string; nameAr: string } };
@@ -33,9 +34,9 @@ export async function saveCustomerAction(_prev: SaveCustomerState, formData: For
 
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse({
-      code: formData.get("code"),
-      nameAr: formData.get("nameAr"),
-      phone: formData.get("phone") || undefined,
+      code: str(formData.get("code")),
+      nameAr: str(formData.get("nameAr")),
+      phone: str(formData.get("phone")) || undefined,
       email: formData.get("email") || "",
       creditLimit: formData.get("creditLimit") || 0,
       paymentTerms: formData.get("paymentTerms") || 30,
