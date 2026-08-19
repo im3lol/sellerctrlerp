@@ -19,7 +19,7 @@ export default async function EditSalesOrderPage({ params }: { params: Promise<{
 
     const [custList, itemList, org, soLines] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
-      db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
+      db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice, code: items.code, image: items.image }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ itemId: salesOrderLines.itemId, warehouseId: salesOrderLines.warehouseId, quantity: salesOrderLines.quantity, unitPrice: salesOrderLines.unitPrice, discountAmount: salesOrderLines.discountAmount, isTaxExempt: salesOrderLines.isTaxExempt })
         .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id)),

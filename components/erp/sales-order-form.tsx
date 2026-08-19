@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarcodeScan } from "@/components/erp/barcode-scan";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
@@ -19,7 +21,7 @@ import { lineVat } from "@/lib/erp/vat";
 import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
-type Item = { id: string; nameAr: string | null; sellPrice: string | null };
+type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
 type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; exempt: boolean };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -89,6 +91,19 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       setLine(i, { stock: r.stock, warehouseId: def });
     });
   };
+
+  // Scanning must land the line in the same state a manual pick does — price, warehouse
+  // and per-warehouse stock — so it routes through pickItem rather than inserting a bare id.
+  const addOrBumpItem = (item: ItemSearchResult) => {
+    const idx = lines.findIndex((l) => l.itemId === item.id);
+    if (idx >= 0) { setLine(idx, { quantity: lines[idx].quantity + 1 }); return; }
+    const empty = lines.findIndex((l) => !l.itemId);
+    if (empty >= 0) { pickItem(empty, item); return; }
+    setLines((ls) => [...ls, newLine()]);
+    pickItem(lines.length, item);
+  };
+
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
 
   const totals = useMemo(() => {
     const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -167,13 +182,17 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             </>
           )}
         </div>
-        <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
+          <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        </div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
+                <TableHead className="w-14 text-start">صورة</TableHead>
+                <TableHead className="w-[320px] text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
                 <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
                 <TableHead className="w-40 text-center">الكمية</TableHead>
@@ -191,8 +210,12 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 const onHand = l.stock.find((s) => s.warehouseId === l.warehouseId)?.qty ?? 0;
                 return (
                   <TableRow key={i}>
-                    <TableCell>
-                      <ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => pickItem(i, it)} />
+                    <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <ItemPicker
+                        selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
+                        onSelect={(it) => pickItem(i, it)}
+                      />
                     </TableCell>
                     <TableCell>
                       <WarehousePicker
