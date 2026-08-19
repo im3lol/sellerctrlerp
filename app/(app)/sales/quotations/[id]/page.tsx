@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
-import { QuotationRowActions } from "@/components/erp/quotation-row-actions";
-import { PrintDocLink } from "@/components/erp/print/print-doc-link";
+import { renderRichText } from "@/lib/erp/rich-text";
+import { QuotationDetailActions } from "@/components/erp/quotation-detail-actions";
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
@@ -25,7 +25,8 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [qt] = await db.select({
       id: salesQuotations.id, number: salesQuotations.number, date: salesQuotations.date, validUntil: salesQuotations.validUntil,
-      status: salesQuotations.status, notes: salesQuotations.notes, discountAmount: salesQuotations.discountAmount, customer: customers.nameAr,
+      status: salesQuotations.status, notes: salesQuotations.notes, discountAmount: salesQuotations.discountAmount,
+      customer: customers.nameAr, customerPhone: customers.phone, customerEmail: customers.email,
     }).from(salesQuotations).leftJoin(customers, eq(customers.id, salesQuotations.customerId))
       .where(and(eq(salesQuotations.id, id), eq(salesQuotations.organizationId, orgId))).limit(1);
     if (!qt) notFound();
@@ -44,10 +45,10 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
       <div className="space-y-6">
         <ErpPageHeader icon="FileText" title={`عرض سعر ${qt.number}`} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/sales/quotations"
           action={
-            <div className="flex gap-2">
-              <PrintDocLink href={`/sales/quotations/${qt.id}/print`} />
-              <QuotationRowActions id={qt.id} status={qt.status} canManage={can("sales.create")} />
-            </div>
+            <QuotationDetailActions
+              id={qt.id} number={qt.number} status={qt.status} canManage={can("sales.create")}
+              total={total} customerPhone={qt.customerPhone} customerEmail={qt.customerEmail}
+            />
           } />
         <Card>
           <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود العرض</CardTitle><Badge variant={st.variant}>{st.label}</Badge></CardHeader>
@@ -80,7 +81,12 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
               )}
               <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
             </div>
-            {qt.notes && <p className="mt-3 text-sm text-muted-foreground">ملاحظات: {qt.notes}</p>}
+            {qt.notes && (
+              <div className="mt-3 text-sm text-muted-foreground">
+                <span className="font-medium">ملاحظات:</span>
+                <div className="mt-1">{renderRichText(qt.notes)}</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { ItemThumb } from "@/components/erp/item-thumb";
+import { NotesEditor } from "@/components/erp/notes-editor";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
@@ -171,7 +172,10 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
 
         <div className="flex justify-between gap-4 text-sm">
-          <div className="space-y-2 sm:w-1/2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="شروط العرض، مدة التوريد…" /></div>
+          <div className="space-y-2 sm:w-1/2">
+            <Label htmlFor="qt-notes">ملاحظات</Label>
+            <NotesEditor id="qt-notes" value={notes} onChange={setNotes} placeholder="شروط العرض، مدة التوريد…" />
+          </div>
           <div className="flex flex-col items-end gap-1">
             <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>

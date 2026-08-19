@@ -6,6 +6,7 @@ import { salesQuotations, salesQuotationLines, customers, items } from "@/db/sch
 import { fmt, qty, dt, money } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+import { renderRichText } from "@/lib/erp/rich-text";
 
 const STATUS: Record<string, string> = {
   DRAFT: "مسودة", SENT: "مُرسل", ACCEPTED: "مقبول", REJECTED: "مرفوض",
@@ -112,7 +113,7 @@ export default async function PrintQuotationPage({ params }: Params) {
           ...(headerDiscount > 0 ? [{ label: "خصم على الإجمالي", value: `− ${money(headerDiscount, currency)}`, tone: "danger" as const }] : []),
         ]}
         balance={{ label: "الإجمالي", value: money(total, currency) }}
-        note={q.notes ?? (q.validUntil ? `هذا العرض ساري حتى ${dt(q.validUntil)}.` : null)}
+        note={renderRichText(q.notes) ?? (q.validUntil ? `هذا العرض ساري حتى ${dt(q.validUntil)}.` : null)}
         signatures={["إعداد", "اعتماد"]}
       />
     );
