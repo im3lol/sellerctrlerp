@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, platformCredentials } from "@/db/schema";
@@ -16,6 +16,8 @@ import { platformItemFees, itemCodes, items } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
+import { chunk } from "@/lib/erp/chunk";
+import { normalizeCode as normalizeItemCode } from "@/lib/erp/item-codes";
 import { orderCreateFloor } from "./sync-range";
 import { log } from "@/lib/log";
 
@@ -25,11 +27,12 @@ import { log } from "@/lib/log";
 export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean; settlements: boolean; returns: boolean; removals: boolean };
 export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: Credential; ctx: PlatformCtx; mode: ProductSyncMode; provider: string; flags: SyncFlags; autoPostSettlements: boolean };
 
-export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
+export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; fnskus: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
 export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
+export type FbaCodesSync = { ok: true; total: number; attached: number; unmatched: number } | { ok: false; error: string };
 
 /**
  * Load the connector, decrypted credential, platform ctx and settings — no auth.
@@ -148,6 +151,63 @@ export async function syncProductsCore(p: SyncPrep, since?: Date): Promise<Produ
  * API, no 1000 cap), falling back to `fetchProducts` (inventory+listings merge) if the
  * report path fails, so the import always completes. Slow (minutes) → workers only.
  */
+/**
+ * Backfill Amazon's FNSKU onto the items that already exist.
+ *
+ * The FNSKU rides free on getInventorySummaries, so the live product sync now attaches
+ * it as it goes — but that only covers what a product sync touches. Two gaps need this
+ * separate pass: an established catalog linked long before the code existed, and the
+ * full import, which reads GET_MERCHANT_LISTINGS_ALL_DATA — a report with no FNSKU
+ * column at all.
+ *
+ * Read-only against Amazon and additive against the catalog: it writes item_codes rows
+ * and nothing else, and the upsert makes a second run a no-op. FBM SKUs carry no FNSKU
+ * and are simply absent from the feed.
+ */
+export async function syncFbaCodesCore(p: SyncPrep): Promise<FbaCodesSync> {
+  const fetchDetail = p.connector.fetchInventoryDetail;
+  if (!fetchDetail) return { ok: false, error: "المنصة لا تدعم مخزون FBA" };
+  try {
+    // Fetch outside the org scope — the whole FBA catalog is minutes of SP-API paging
+    // and must not hold a DB connection open.
+    const detail = await fetchDetail(p.cred);
+    const rows = detail.filter((d) => d.fnsku && d.code);
+    if (!rows.length) return { ok: true, total: detail.length, attached: 0, unmatched: detail.length };
+
+    return await withOrgScope(p.orgId, false, async () => {
+      // SKU or ASIN → itemId, the same resolution the inventory audit uses.
+      const norms = [...new Set(rows.flatMap((d) => [normalizeItemCode(d.code), d.asin ? normalizeItemCode(d.asin) : ""]).filter(Boolean))];
+      const byNorm = new Map<string, string>();
+      for (const b of chunk(norms, 800)) {
+        const found = await db.select({ norm: itemCodes.normalizedCode, itemId: itemCodes.itemId }).from(itemCodes)
+          .where(and(eq(itemCodes.organizationId, p.orgId), inArray(itemCodes.normalizedCode, b)));
+        for (const r of found) if (r.norm && !byNorm.has(r.norm)) byNorm.set(r.norm, r.itemId);
+      }
+
+      const values: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
+      const seen = new Set<string>();
+      let unmatched = 0;
+      for (const d of rows) {
+        const itemId = byNorm.get(normalizeItemCode(d.code)) ?? (d.asin ? byNorm.get(normalizeItemCode(d.asin)) : undefined);
+        if (!itemId) { unmatched++; continue; }
+        const code = d.fnsku!.trim();
+        const norm = normalizeItemCode(code);
+        const key = `${itemId}|${code}`;
+        if (!norm || seen.has(key)) continue;
+        seen.add(key);
+        values.push({ itemId, organizationId: p.orgId, codeType: "FNSKU", code, normalizedCode: norm });
+      }
+      for (const slice of chunk(values, 500)) {
+        await db.insert(itemCodes).values(slice)
+          .onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
+      }
+      return { ok: true as const, total: detail.length, attached: values.length, unmatched };
+    });
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب أكواد FBA");
+  }
+}
+
 export async function importProductsCore(p: SyncPrep): Promise<ProductsSync> {
   try {
     let products: MarketplaceProduct[];

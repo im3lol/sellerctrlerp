@@ -9,6 +9,7 @@ export const QUEUES = {
   discovery: "amazon-discovery", // incremental new/changed listings
   details: "amazon-details",     // per-item catalog details (brand/dims/barcodes/family)
   images: "amazon-images",       // per-item image enrichment
+  codes: "amazon-codes",         // FNSKU backfill onto existing items (FBA Inventory API)
   orders: "amazon-orders",       // near-real-time incremental order polling
   settlements: "amazon-settlements", // scheduled settlement report pulls (payments)
   pricing: "amazon-pricing",     // fee estimates (Product Fees API)

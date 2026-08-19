@@ -448,7 +448,7 @@ export async function reconcileInventory(
 // ── Product catalog sync ─────────────────────────────────────
 
 export type ProductSyncMode = "create" | "link";
-export type ProductsResult = { total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number };
+export type ProductsResult = { total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; fnskus: number };
 
 /** Generate `count` unique internal item codes (P-00001…) that don't collide. */
 async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
@@ -474,7 +474,7 @@ async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
  * Idempotent: a matched item already carrying the SKU code counts as alreadyLinked.
  */
 export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode, channel = "AMAZON"): Promise<ProductsResult> {
-  const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0 };
+  const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0, fnskus: 0 };
   if (products.length === 0) return result;
 
   // Linking is keyed on the channel's own code (ASIN for Amazon, variant GID for
@@ -502,7 +502,13 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   };
 
   const plan = classifyProducts(products, itemByAsin, known, mode);
-  for (const l of plan.toLink) pushCode(l.itemId, "SKU", l.sku);
+  for (const l of plan.toLink) {
+    pushCode(l.itemId, "SKU", l.sku);
+    if (l.fnsku) pushCode(l.itemId, "FNSKU", l.fnsku);
+  }
+  // Items already carrying their SKU still get the FNSKU — that is the whole point of
+  // toEnrich; without it an established catalog never picks the code up.
+  for (const e of plan.toEnrich) pushCode(e.itemId, "FNSKU", e.fnsku);
   result.linked = plan.toLink.length;
   result.alreadyLinked = plan.alreadyLinked;
   result.skippedUnmatched = plan.skippedUnmatched;
@@ -520,7 +526,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
         const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
           organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId, sellPrice: String(round2(p.sellPrice || 0)),
         }))).returning({ id: items.id });
-        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); });
+        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); if (p.fnsku) pushCode(it.id, "FNSKU", p.fnsku); });
         created += inserted.length;
       }
       result.created = created;
@@ -530,6 +536,8 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
     }
   });
 
+  // Offered, not necessarily inserted — the upsert ignores ones already on the item.
+  result.fnskus = codeValues.filter((c) => c.codeType === "FNSKU").length;
   return result;
 }
 

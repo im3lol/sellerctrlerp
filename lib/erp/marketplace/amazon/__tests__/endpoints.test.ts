@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { listingToProduct, mergeProducts } from "../listings";
 import { toMarketplaceOrder } from "../orders";
-import { summaryToInventory, summaryToDetail } from "../inventory";
+import { summaryToInventory, summaryToDetail, summaryToProduct } from "../inventory";
 import { parseListingsReport } from "../reports";
 
 // Pin the direct SP-API JSON → DTO mappings (verified against sample responses;
@@ -104,5 +104,17 @@ describe("mergeProducts (full FBA catalog ⊕ priced listings)", () => {
     expect(m.find((p) => p.code === "A")?.sellPrice).toBe(120); // priced from listings
     expect(m.find((p) => p.code === "B")?.sellPrice).toBe(0); // inventory-only, no price
     expect(m.find((p) => p.code === "C")?.name).toBe("C (FBM)"); // listings-only survives
+  });
+});
+
+describe("summaryToProduct (the FNSKU the catalog needs)", () => {
+  it("carries the FNSKU that arrives on the same response as the SKU", () => {
+    expect(summaryToProduct({ sellerSku: "SKU1", asin: "B001", fnSku: "X0ABCD1234", productName: "Widget" }))
+      .toEqual({ code: "SKU1", altCode: "B001", fnsku: "X0ABCD1234", name: "Widget", sellPrice: 0 });
+  });
+
+  it("tolerates a listing with no FNSKU (FBM) and skips a row with no SKU", () => {
+    expect(summaryToProduct({ sellerSku: "SKU2", productName: "W" })?.fnsku).toBeUndefined();
+    expect(summaryToProduct({ asin: "B002" })).toBeNull();
   });
 });

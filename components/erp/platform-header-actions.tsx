@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet, Image as ImageIcon, Boxes, Warehouse } from "lucide-react";
+import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet, Image as ImageIcon, Barcode, Boxes, Warehouse } from "lucide-react";
 import { startInventoryAuditAction } from "@/app/actions/erp/fba-inventory";
-import { refreshAmazonFeesAction, startOrdersSyncAction, startImagesSyncAction } from "@/app/actions/erp/marketplace-sync";
+import { refreshAmazonFeesAction, startOrdersSyncAction, startImagesSyncAction, startFbaCodesSyncAction } from "@/app/actions/erp/marketplace-sync";
 import { updatePlatformAction } from "@/app/actions/erp/platforms";
 import { SyncProgress } from "@/components/erp/sync-progress";
 import { AuditProgress } from "@/components/erp/audit-progress";
@@ -47,6 +47,7 @@ export function PlatformHeaderActions({
   const [feesPending, startFees] = useTransition();
   const [pullPending, startPull] = useTransition();
   const [imagesPending, startImages] = useTransition();
+  const [codesPending, startCodes] = useTransition();
   const [startPending, startSave] = useTransition();
 
   const runAudit = () => startAudit(async () => {
@@ -73,6 +74,15 @@ export function PlatformHeaderActions({
     const r = await startImagesSyncAction(code);
     if (r.ok) toast.success(r.started ? "بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون" : "اكتملت مزامنة الصور — حدّث صفحة المنتجات");
     else toast.error(r.error ?? "تعذّر بدء مزامنة الصور");
+  });
+
+  // FNSKU backfill: Amazon's own barcode for the unit in its warehouse. Rides free on
+  // the live product sync, but an established catalogue — and the report-based full
+  // import, whose report has no FNSKU column — needs this pass.
+  const syncFbaCodes = () => startCodes(async () => {
+    const r = await startFbaCodesSyncAction(code);
+    if (r.ok) toast.success(r.started ? "بدأت مزامنة أكواد FBA في الخلفية — يُضاف FNSKU للأصناف المُشحَنة عبر أمازون" : "اكتملت مزامنة أكواد FBA — افتح الصنف لرؤية الـFNSKU");
+    else toast.error(r.error ?? "تعذّر بدء مزامنة الأكواد");
   });
 
   // Start the chosen sync. If orders are selected with no go-live date yet: save the
@@ -131,6 +141,11 @@ export function PlatformHeaderActions({
             {connected && isAmazon && (
               <DropdownMenuItem onClick={syncImages} disabled={imagesPending}>
                 <ImageIcon className="size-4" />مزامنة الصور
+              </DropdownMenuItem>
+            )}
+            {connected && isAmazon && (
+              <DropdownMenuItem onClick={syncFbaCodes} disabled={codesPending}>
+                <Barcode className="size-4" />مزامنة أكواد FBA
               </DropdownMenuItem>
             )}
             {isAmazon && (

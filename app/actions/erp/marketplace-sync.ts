@@ -201,6 +201,22 @@ export async function startImagesSyncAction(code: string): Promise<{ ok: boolean
   return { ok: true, started: false };
 }
 
+/** On-demand FNSKU backfill: attach Amazon's own barcode to every FBA item already in
+ *  the catalogue. Enqueues the codes job; inline fallback when Redis is absent. */
+export async function startFbaCodesSyncAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {
+  const auth = await authorizeErp("inventory.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchInventoryDetail) return { ok: false, error: "المنصة لا تدعم مخزون FBA" };
+  if (await enqueue(QUEUES.codes, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined })) {
+    return { ok: true, started: true };
+  }
+  const { runFbaCodesJob } = await import("@/lib/queue/handlers"); // inline fallback (no Redis)
+  await runFbaCodesJob({ orgId: p.orgId, provider: p.provider });
+  return { ok: true, started: false };
+}
+
 /** Enqueue an on-demand refresh of estimated Amazon fees for all linked items. */
 export async function refreshAmazonFeesAction(code: string): Promise<{ ok: boolean; error?: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");

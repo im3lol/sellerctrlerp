@@ -71,6 +71,9 @@ export type MarketplaceInventoryUpdate = { code: string; available: number };
 export type MarketplaceProduct = {
   code: string;      // seller SKU
   altCode?: string;  // ASIN
+  // Amazon's own barcode for the unit in its warehouse (FBA only — an FBM listing
+  // has none). Comes free on getInventorySummaries; absent from the listings report.
+  fnsku?: string;
   name: string;
   sellPrice: number;
 };

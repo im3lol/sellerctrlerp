@@ -8,7 +8,7 @@ import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
 import { enrichItems } from "@/lib/erp/marketplace/ingest";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, syncFbaCodesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
 import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
@@ -73,6 +73,19 @@ export function runDetailsJob(_d: SyncJob): Promise<void> { return Promise.resol
  *  imageless forever. Sweep up to 500 imageless ASIN-coded items per run through the
  *  existing fetchCatalog + enrichItems (fill-only guard = idempotent); enqueued after
  *  every product import/discovery. Amazon-only — Noon's API exposes no images. */
+/**
+ * Backfill Amazon's FNSKU onto items that already exist. The live product sync attaches
+ * it as it goes; this covers the catalogue that was linked before that, and the full
+ * import (whose listings report carries no FNSKU column).
+ */
+export async function runFbaCodesJob(d: SyncJob): Promise<void> {
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) return;
+  const r = await syncFbaCodesCore(prep);
+  if (r.ok) log.info("fba_codes.backfill", { orgId: d.orgId, provider: d.provider, total: r.total, attached: r.attached, unmatched: r.unmatched });
+  else log.warn("fba_codes.backfill_failed", { orgId: d.orgId, provider: d.provider, error: r.error });
+}
+
 export async function runImagesJob(d: SyncJob): Promise<void> {
   const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
   if ("error" in prep) return;
