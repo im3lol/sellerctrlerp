@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createStockTransferAction, updateStockTransferAction } from "@/app/actions/erp/stock-transfers";
 import { searchItemsAction } from "@/app/actions/erp/item-search";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +23,11 @@ export type TransferInitial = { id: string; date: string; notes: string; lines: 
 
 export function TransferForm({
   orgName,
-  items,
   warehouses,
   stock,
   initial,
 }: {
   orgName: string;
-  items: Option[];
   warehouses: Option[];
   stock: Stock[];
   initial?: TransferInitial;
@@ -58,7 +57,6 @@ export function TransferForm({
   }, [stock]);
   const available = (l: Line) => stockMap.get(`${l.itemId}|${l.fromWh}`) ?? 0;
 
-  const itemOptions = useMemo(() => items.map((i) => ({ id: i.id, label: `${i.code} — ${i.name}`, hint: i.code })), [items]);
   const whOptions = useMemo(() => warehouses.map((w) => ({ id: w.id, label: w.name, hint: w.code })), [warehouses]);
   const whLabel = (id: string) => warehouses.find((w) => w.id === id)?.name ?? "";
 
@@ -162,8 +160,8 @@ export function TransferForm({
                   return (
                     <tr key={l.key} className="align-top">
                       <td className="px-2 py-2">
-                        <CellCombobox selectedLabel={l.itemLabel} options={itemOptions} placeholder="ابحث بالاسم أو الكود…"
-                          onSelect={(id, label) => updateLine(l.key, { itemId: id, itemLabel: label })} />
+                        <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                          onSelect={(it) => updateLine(l.key, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                       </td>
                       <td className="px-2 py-2">
                         <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder="من…"

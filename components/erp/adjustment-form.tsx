@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 import { searchItemsAction } from "@/app/actions/erp/item-search";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +22,10 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 
 export function AdjustmentForm({
   orgName,
-  items,
   warehouses,
   stock,
 }: {
   orgName: string;
-  items: Option[];
   warehouses: Option[];
   stock: Stock[];
 }) {
@@ -50,7 +49,6 @@ export function AdjustmentForm({
   const currentQty = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.quantity ?? 0;
   const currentCost = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.avgCost ?? 0;
 
-  const itemOptions = useMemo(() => items.map((i) => ({ id: i.id, label: `${i.code} — ${i.name}`, hint: i.code })), [items]);
   const whOptions = useMemo(() => warehouses.map((w) => ({ id: w.id, label: w.name, hint: w.code })), [warehouses]);
   const whLabel = (id: string) => warehouses.find((w) => w.id === id)?.name ?? "";
 
@@ -165,8 +163,8 @@ export function AdjustmentForm({
                   return (
                     <tr key={l.key} className="align-top">
                       <td className="px-2 py-2">
-                        <CellCombobox selectedLabel={l.itemLabel} options={itemOptions} placeholder="ابحث بالاسم أو الكود…"
-                          onSelect={(id, label) => updateLine(l.key, { itemId: id, itemLabel: label })} />
+                        <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                          onSelect={(it) => updateLine(l.key, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                       </td>
                       <td className="px-2 py-2">
                         <CellCombobox selectedLabel={whLabel(l.warehouseId)} options={whOptions} placeholder="المستودع…"

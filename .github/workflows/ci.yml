@@ -111,6 +111,11 @@ jobs:
       - name: Engine checks
         run: npm run test:engine
 
+      # A product must be findable by its barcode / SKU / ASIN / EAN / UPC, not just by
+      # the internal code — the scanner and the supplier's paperwork carry the others.
+      - name: Item search covers every code
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-item-search.ts
+
       # Editing a draft while it is being confirmed must not post unvalidated lines.
       - name: Draft-edit race
         run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-draft-edit-race.ts

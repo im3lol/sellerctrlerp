@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, or, asc, count, eq, ilike, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, or, asc, count, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, itemCodes, itemCategories } from "@/db/schema";
@@ -13,8 +13,8 @@ import { ItemsTable } from "@/components/erp/items-table";
 import { ExportCsvButton } from "@/components/erp/export-csv-button";
 import { exportItemsCsvAction } from "@/app/actions/erp/exports";
 import { selectCls } from "@/lib/utils";
+import { itemMatches } from "@/lib/erp/item-match";
 
-const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const PER_PAGE = 20;
 
 type SP = { [k: string]: string | string[] | undefined };
@@ -34,14 +34,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
 
     const conds = [eq(items.organizationId, orgId)];
     if (q) {
-      const norm = normalizeCode(q);
-      const codeItemIds = norm
-        ? (await db.select({ id: itemCodes.itemId }).from(itemCodes)
-            .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`))).limit(200)).map((r) => r.id)
-        : [];
-      const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`)];
-      if (codeItemIds.length) search.push(inArray(items.id, [...new Set(codeItemIds)]));
-      conds.push(or(...search)!);
+      conds.push(itemMatches(orgId, q)!);
     }
     if (fStatus === "active") conds.push(eq(items.isActive, true));
     if (fStatus === "inactive") conds.push(eq(items.isActive, false));

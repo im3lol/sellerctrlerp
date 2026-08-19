@@ -2,7 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -22,6 +22,7 @@ import { itemCodes } from "@/db/schema";
 import { parseCsv, detectHeaderRow } from "@/lib/erp/csv";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { prepareSync } from "@/lib/erp/marketplace/sync-core";
+import { itemMatches } from "@/lib/erp/item-match";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -615,7 +616,6 @@ export async function searchItemsAction(q: string): Promise<{ id: string; code: 
   if (term.length < 1) return [];
   return withOrgScope(auth.orgId, false, () =>
     db.select({ id: items.id, code: items.code, nameAr: items.nameAr }).from(items)
-      .where(and(eq(items.organizationId, auth.orgId), eq(items.isActive, true),
-        or(ilike(items.code, `%${term}%`), ilike(items.nameAr, `%${term}%`))))
+      .where(and(eq(items.organizationId, auth.orgId), eq(items.isActive, true), itemMatches(auth.orgId, term)))
       .limit(30));
 }

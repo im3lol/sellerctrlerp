@@ -44,7 +44,6 @@ export default async function EditTransferPage({ params }: { params: Promise<{ n
         <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle="مسودة — عدّل الأصناف والمستودعات ثم احفظ" backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
         <TransferForm
           orgName={org[0]?.nameAr ?? ""}
-          items={itemList.map((i) => ({ id: i.id, code: i.code, name: i.name ?? "" }))}
           warehouses={whList.map((w) => ({ id: w.id, code: w.code, name: w.name }))}
           stock={stock}
           initial={initial}

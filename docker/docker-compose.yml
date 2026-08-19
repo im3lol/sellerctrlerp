@@ -11,7 +11,12 @@ services:
       # Host 5433 → container 5432 (5432 is used by another local project). Bound to
       # 127.0.0.1 so it's reachable only from this box (host psql), never the LAN — the
       # app connects internally via postgres:5432 and never needs the host port.
+      # Both loopback families, for the same reason as the app port below: `localhost`
+      # resolves to ::1 first, and a host script (npm run db:migrate, scripts/checks/*)
+      # that only found the v4 socket sat through the Happy-Eyeballs fallback — or, with
+      # nothing listening on ::1 at all, failed outright with ECONNREFUSED.
       - "127.0.0.1:5433:5432"
+      - "[::1]:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     # Cap RAM so a heavy report/pg_dump can't OOM-cascade the whole single-box fleet;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Boxes, Hammer } from "lucide-react";
@@ -12,11 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CellCombobox } from "@/components/erp/cell-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";
 import { selectCls } from "@/lib/utils";
 
-type ItemOpt = { id: string; code: string | null; name: string | null };
 type Wh = { id: string; name: string };
 type Comp = { id: string; name: string | null; code: string | null; quantity: number };
 export type Bundle = { parentItemId: string; name: string; code: string | null; components: Comp[] };
@@ -24,19 +23,22 @@ type Assembly = { number: string; date: string; quantity: number; totalCost: num
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function BomDialog({ bundle, items, onClose }: { bundle: Bundle | null; items: ItemOpt[]; onClose: () => void }) {
+type BomRow = { componentItemId: string; componentLabel: string; quantity: string };
+const label = (code: string | null, name: string | null) => `${code ?? ""} — ${name ?? ""}`;
+
+function BomDialog({ bundle, onClose }: { bundle: Bundle | null; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [parentItemId, setParentItemId] = useState(bundle?.parentItemId ?? "");
-  const [rows, setRows] = useState<{ componentItemId: string; quantity: string }[]>(
-    bundle ? bundle.components.map((c) => ({ componentItemId: c.id, quantity: String(c.quantity) })) : [{ componentItemId: "", quantity: "1" }],
+  const [parentLabel, setParentLabel] = useState(bundle ? label(bundle.code, bundle.name) : "");
+  const [rows, setRows] = useState<BomRow[]>(
+    bundle
+      ? bundle.components.map((c) => ({ componentItemId: c.id, componentLabel: label(c.code, c.name), quantity: String(c.quantity) }))
+      : [{ componentItemId: "", componentLabel: "", quantity: "1" }],
   );
 
-  const opts = useMemo(() => items.map((i) => ({ id: i.id, label: `${i.code ?? ""} — ${i.name ?? ""}` })), [items]);
-  const labelById = useMemo(() => new Map(opts.map((o) => [o.id, o.label])), [opts]);
-
-  const setRow = (i: number, patch: Partial<{ componentItemId: string; quantity: string }>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const addRow = () => setRows((rs) => [...rs, { componentItemId: "", quantity: "1" }]);
+  const setRow = (i: number, patch: Partial<BomRow>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRow = () => setRows((rs) => [...rs, { componentItemId: "", componentLabel: "", quantity: "1" }]);
   const removeRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, idx) => idx !== i) : rs));
 
   const save = () => start(async () => {
@@ -57,14 +59,26 @@ function BomDialog({ bundle, items, onClose }: { bundle: Bundle | null; items: I
           {bundle ? (
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{bundle.code} — {bundle.name}</div>
           ) : (
-            <CellCombobox selectedLabel={labelById.get(parentItemId) ?? ""} options={opts} onSelect={setParentItemId} placeholder="ابحث عن الصنف…" />
+            <ItemPicker selectedLabel={parentLabel} placeholder="ابحث بالاسم أو أي كود…"
+              onSelect={(it) => { setParentItemId(it.id); setParentLabel(label(it.code, it.name)); }} />
           )}
         </div>
         <div className="space-y-2">
           <Label>المكوّنات</Label>
           {rows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="flex-1"><CellCombobox selectedLabel={labelById.get(r.componentItemId) ?? ""} options={opts.filter((o) => o.id !== parentItemId)} onSelect={(id) => setRow(i, { componentItemId: id })} placeholder="ابحث عن المكوّن…" /></div>
+              <div className="flex-1">
+                <ItemPicker
+                  selectedLabel={r.componentLabel}
+                  placeholder="ابحث بالاسم أو أي كود…"
+                  onSelect={(it) => {
+                    // A kit cannot contain itself; the picker searches every item, so the
+                    // rule is enforced here rather than by filtering the list.
+                    if (it.id === parentItemId) { toast.error("لا يمكن أن تكون الحزمة مكوّناً في نفسها"); return; }
+                    setRow(i, { componentItemId: it.id, componentLabel: label(it.code, it.name) });
+                  }}
+                />
+              </div>
               <Input type="number" step="1" min="1" value={r.quantity} onChange={(e) => setRow(i, { quantity: e.target.value.replace(/[^\d]/g, "") })} className="w-24" placeholder="كمية" />
               <Button variant="ghost" size="icon" onClick={() => removeRow(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
             </div>
@@ -123,7 +137,7 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
   );
 }
 
-export function BundlesManager({ bundles, items, warehouses, assemblies, canManage }: { bundles: Bundle[]; items: ItemOpt[]; warehouses: Wh[]; assemblies: Assembly[]; canManage: boolean }) {
+export function BundlesManager({ bundles, warehouses, assemblies, canManage }: { bundles: Bundle[]; warehouses: Wh[]; assemblies: Assembly[]; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [bom, setBom] = useState<{ open: boolean; bundle: Bundle | null }>({ open: false, bundle: null });
@@ -202,7 +216,7 @@ export function BundlesManager({ bundles, items, warehouses, assemblies, canMana
       </Card>
 
       <Dialog open={bom.open} onOpenChange={(o) => !o && setBom({ open: false, bundle: null })}>
-        {bom.open && <BomDialog bundle={bom.bundle} items={items} onClose={() => setBom({ open: false, bundle: null })} />}
+        {bom.open && <BomDialog bundle={bom.bundle} onClose={() => setBom({ open: false, bundle: null })} />}
       </Dialog>
       <Dialog open={!!assemble} onOpenChange={(o) => !o && setAssemble(null)}>
         {assemble && <AssembleDialog bundle={assemble} warehouses={warehouses} onClose={() => setAssemble(null)} />}

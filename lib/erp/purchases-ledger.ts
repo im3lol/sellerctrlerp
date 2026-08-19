@@ -1,11 +1,12 @@
 import "server-only";
-import { and, asc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
   purchaseOrders, purchaseOrderLines, purchaseReceipts, purchaseReceiptLines,
   purchaseInvoices, purchaseInvoiceLines, purchaseReturns, purchaseReturnLines, suppliers, items,
 } from "@/db/schema";
+import { itemMatches } from "@/lib/erp/item-match";
 
 export type LedgerDocType = "ORDER" | "RECEIPT" | "INVOICE" | "RETURN";
 
@@ -80,13 +81,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     const its = await db
       .select({ id: items.id })
       .from(items)
-      .where(and(
-        eq(items.organizationId, orgId),
-        or(
-          ilike(items.code, `%${fProduct}%`),
-          ilike(items.nameAr, `%${fProduct}%`),
-        ),
-      ));
+      .where(and(eq(items.organizationId, orgId), itemMatches(orgId, fProduct)));
     matchedItemIds = its.map((i) => i.id);
   }
 
