@@ -195,11 +195,11 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
                 <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-40 text-center">الكمية</TableHead>
-                <TableHead className="w-56 text-center">السعر</TableHead>
-                <TableHead className="w-52 text-center">خصم</TableHead>
-                <TableHead className="w-52 text-center">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
-                <TableHead className="w-40 text-start">الإجمالي</TableHead>
+                <TableHead className="w-24 text-center">الكمية</TableHead>
+                <TableHead className="w-32 text-center">السعر</TableHead>
+                <TableHead className="w-32 text-center">خصم</TableHead>
+                <TableHead className="w-44 text-center">{vatRate > 0 ? `ضريبة (${qtyf(vatRate)}%)` : "ضريبة"}</TableHead>
+                <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -227,9 +227,9 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                       />
                     </TableCell>
                     <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
-                    <TableCell><Input type="number" step="1" min="1" className="min-w-[6rem] text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="min-w-[9rem] text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="min-w-[8rem] text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="min-w-[4rem] tabular-nums">{fmt(lineVat(l.quantity, l.unitPrice, l.discountAmount, vatRate, l.exempt))}</span>
