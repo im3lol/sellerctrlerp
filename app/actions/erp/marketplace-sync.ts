@@ -201,6 +201,19 @@ export async function startImagesSyncAction(code: string): Promise<{ ok: boolean
   return { ok: true, started: false };
 }
 
+/** Refresh the marketplace's own reported balance — one request, so it runs inline. */
+export async function refreshPlatformBalanceAction(code: string): Promise<{ ok: boolean; error?: string }> {
+  const auth = await authorizeErp("accounting.view", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  const { syncBalanceCore } = await import("@/lib/erp/marketplace/sync-core");
+  const r = await syncBalanceCore(p);
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath(`/platforms/${code}/payouts`);
+  return { ok: true };
+}
+
 /** On-demand FNSKU backfill: attach Amazon's own barcode to every FBA item already in
  *  the catalogue. Enqueues the codes job; inline fallback when Redis is absent. */
 export async function startFbaCodesSyncAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {

@@ -9,6 +9,7 @@ import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
 import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
 import { fetchSettlements } from "./settlement-report";
+import { fetchBalance } from "./finances";
 import { fetchFbaReturns } from "./returns-report";
 import { fetchReimbursements, fetchLedgerEvents, fetchRemovals } from "./finance-reports";
 import { fetchFeesEstimates } from "./fees";
@@ -81,6 +82,9 @@ export const amazonConnector: MarketplaceConnector = {
   },
   fetchSettlements(cred, range) {
     return fetchSettlements(cred, range);
+  },
+  fetchBalance(cred) {
+    return fetchBalance(cred);
   },
   fetchReturns(cred, range) {
     return fetchFbaReturns(cred, range);

@@ -1,4 +1,4 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, MarketplaceInventoryUpdate, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, MarketplaceInventoryUpdate, MarketplaceBalance, DateRange } from "./dto";
 import type { OAuthState } from "./oauth-state";
 import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
@@ -98,6 +98,9 @@ export interface MarketplaceConnector {
   /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
    *  the Inventory Auditor's data source. */
   fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
+  /** The balance the marketplace is currently holding, per open settlement group.
+   *  Optional: a channel with no API for it (Noon) simply has nothing to compare. */
+  fetchBalance?(cred: Credential): Promise<MarketplaceBalance[]>;
   /** Amazon settlement rows (ASIN-bucketed) pulled from the scheduled Settlement
    *  Report. Amazon-specific for now; feeds the settlement poster directly. */
   fetchSettlements?(cred: Credential, range: DateRange): Promise<SettlementTxn[]>;

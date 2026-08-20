@@ -27,7 +27,7 @@ DECLARE
     'item_codes','item_components','items','journal_entries','leave_requests',
     'marketplace_settlement_txns','material_requests','opening_balances','org_subscriptions',
     'organization_members','payment_vouchers','payroll_lines','payroll_runs','pick_lists',
-    'platform_credentials','profit_distributions','purchase_invoices','purchase_orders',
+    'platform_balances','platform_credentials','profit_distributions','purchase_invoices','purchase_orders',
     'purchase_receipts','purchase_returns','receipt_vouchers','recurring_expenses',
     'recurring_journals','recurring_sales_invoices','sales_invoices','sales_orders',
     'platform_removals','sales_platforms','sales_quotations','sales_returns','stock_adjustments','stock_assemblies',

@@ -78,6 +78,22 @@ export type MarketplaceProduct = {
   sellPrice: number;
 };
 
+/** What the marketplace says it is holding right now — the counterparty for the wallet
+ *  GL, so the ledger has an external number to be reconciled against. */
+export type MarketplaceBalance = {
+  groupId: string;
+  currency: string;
+  /** The balance itself. */
+  balance: number;
+  /** What the settlement period opened with — carried over from the last payout. */
+  openingBalance: number;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  fundTransferStatus: string | null;
+  /** Last digits of the payout instrument, as the marketplace reports them. */
+  accountTail: string | null;
+};
+
 // Neutral settlement row. v1 Amazon settlement stays report-fed via the existing
 // action; this type exists for the connector contract + future generalization.
 export type MarketplaceSettlement = {

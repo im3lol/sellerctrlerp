@@ -1738,6 +1738,39 @@ export const platformCredentials = pgTable(
 // One row per line of the marketplace transaction/settlement report. Kept for
 // per-order financial detail; released rows are aggregated into a summary GL
 // entry (deferred rows are held until a later import shows them released).
+/**
+ * The balance the marketplace itself reports holding — one row per open settlement
+ * group, refreshed on each payments sync.
+ *
+ * The wallet GL already says what the marketplace OWES us, derived from our own orders
+ * and settlements. This is the same figure as the marketplace states it, so the two can
+ * be put side by side; the gap between them is the audit. Kept as the latest snapshot
+ * per currency rather than a history — the ledger already holds the history, and what a
+ * reconciliation needs is today's number.
+ */
+export const platformBalances = pgTable(
+  "platform_balances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    currency: text("currency").notNull(),
+    /** What the marketplace holds right now (Amazon: the open group's OriginalTotal). */
+    balance: money("balance").notNull().default("0"),
+    /** What the period opened with — carried over from the previous payout. */
+    openingBalance: money("opening_balance").notNull().default("0"),
+    groupId: text("group_id"),
+    periodStart: ts("period_start"),
+    periodEnd: ts("period_end"),
+    fundTransferStatus: text("fund_transfer_status"),
+    accountTail: text("account_tail"),
+    fetchedAt: ts("fetched_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("platform_balances_org_channel_currency_idx").on(t.organizationId, t.channel, t.currency)],
+);
+
 export const marketplaceSettlementTxns = pgTable(
   "marketplace_settlement_txns",
   {

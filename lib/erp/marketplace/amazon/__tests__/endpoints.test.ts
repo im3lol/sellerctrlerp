@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { listingToProduct, mergeProducts } from "../listings";
 import { toMarketplaceOrder } from "../orders";
 import { summaryToInventory, summaryToDetail, summaryToProduct } from "../inventory";
+import { groupToBalance } from "../finances";
 import { parseListingsReport } from "../reports";
 
 // Pin the direct SP-API JSON → DTO mappings (verified against sample responses;
@@ -116,5 +117,42 @@ describe("summaryToProduct (the FNSKU the catalog needs)", () => {
   it("tolerates a listing with no FNSKU (FBM) and skips a row with no SKU", () => {
     expect(summaryToProduct({ sellerSku: "SKU2", productName: "W" })?.fnsku).toBeUndefined();
     expect(summaryToProduct({ asin: "B002" })).toBeNull();
+  });
+});
+
+describe("groupToBalance (what Amazon says it is holding)", () => {
+  const open = {
+    FinancialEventGroupId: "grp-1",
+    ProcessingStatus: "Open",
+    OriginalTotal: { CurrencyCode: "EGP", CurrencyAmount: 1618.46 },
+    BeginningBalance: { CurrencyCode: "EGP", CurrencyAmount: 0 },
+    FinancialEventGroupStart: "2026-05-05T00:00:00Z",
+    AccountTail: "1234",
+  };
+
+  it("reads an OPEN group's OriginalTotal as the current balance", () => {
+    // Per Amazon's own model: "For an open financial event group, this is the current
+    // balance." That is the figure on the seller's Payments Dashboard.
+    const b = groupToBalance(open)!;
+    expect(b.balance).toBe(1618.46);
+    expect(b.openingBalance).toBe(0);
+    expect(b.currency).toBe("EGP");
+    expect(b.accountTail).toBe("1234");
+    expect(b.periodStart?.toISOString()).toBe("2026-05-05T00:00:00.000Z");
+  });
+
+  it("REJECTS a closed group — its OriginalTotal is a payout, not a balance", () => {
+    // Counting a disbursement as money still on the account would inflate the wallet by
+    // the size of every past payout.
+    expect(groupToBalance({ ...open, ProcessingStatus: "Closed" })).toBeNull();
+    expect(groupToBalance({ ...open, ProcessingStatus: undefined })).toBeNull();
+  });
+
+  it("defaults a missing amount to 0 rather than NaN", () => {
+    const b = groupToBalance({ ProcessingStatus: "Open", BeginningBalance: { CurrencyCode: "AED" } })!;
+    expect(b.balance).toBe(0);
+    expect(b.openingBalance).toBe(0);
+    expect(b.currency).toBe("AED");
+    expect(b.periodStart).toBeNull();
   });
 });

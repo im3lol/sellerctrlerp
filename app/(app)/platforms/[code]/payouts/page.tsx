@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
-import { marketplaceSettlementTxns, salesPlatforms, bankAccounts, journalEntries, journalEntryLines } from "@/db/schema";
+import { marketplaceSettlementTxns, salesPlatforms, bankAccounts, journalEntries, journalEntryLines, platformBalances } from "@/db/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { NoonTransferForm } from "@/components/erp/noon-transfer-form";
+import { PlatformBalanceRefresh } from "@/components/erp/platform-balance-refresh";
 
 const money = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dtt = (d: Date) => d.toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -75,6 +77,29 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
     const disbursements = transfers.map((t) => ({ ...t, amount: -Number(t.total) }));
     const totalDisbursed = disbursements.reduce((s, d) => s + d.amount, 0);
 
+    // What the marketplace itself says it holds — the external number the wallet GL is
+    // reconciled against. One row per open settlement group (a multi-currency account
+    // can have several); absent until the first payments sync, and never present on a
+    // channel with no balance API at all.
+    const reported = await db.select({
+      currency: platformBalances.currency, balance: platformBalances.balance,
+      openingBalance: platformBalances.openingBalance, fetchedAt: platformBalances.fetchedAt,
+      accountTail: platformBalances.accountTail,
+    }).from(platformBalances)
+      .where(and(eq(platformBalances.organizationId, orgId), eq(platformBalances.channel, channel)))
+      .orderBy(desc(platformBalances.balance));
+
+    const canCompare = !!getConnector(channel)?.fetchBalance;
+    const reportedTotal = reported.reduce((acc, r) => acc + Number(r.balance), 0);
+    // Only meaningful against a single currency: summing two currencies into one figure
+    // and subtracting the ledger balance from it would be a made-up number.
+    const gap = reported.length === 1 ? walletBalance - Number(reported[0].balance) : null;
+    const matched = gap !== null && Math.abs(gap) < 0.01;
+    const lastFetched = reported.reduce<Date | null>((acc, r) => {
+      const d = r.fetchedAt ? new Date(r.fetchedAt) : null;
+      return d && (!acc || d > acc) ? d : acc;
+    }, null);
+
     return (
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
@@ -101,6 +126,81 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
             </form>
           </CardContent>
         </Card>
+
+        {canCompare && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-base font-semibold">مطابقة الرصيد مع {platform.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {lastFetched ? `آخر قراءة: ${dtt(lastFetched)}` : `لم يُقرأ الرصيد بعد — شغّل مزامنة المدفوعات أو حدّث الآن`}
+                  </div>
+                </div>
+                <PlatformBalanceRefresh code={code} />
+              </div>
+
+              {reported.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
+                  لا توجد قراءة رصيد بعد.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border p-4">
+                      <div className="text-sm text-muted-foreground">في النظام (دفتر المحفظة)</div>
+                      <div className="mt-1 text-2xl font-bold tabular-nums">{money(walletBalance)}</div>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                      <div className="text-sm text-muted-foreground">حسب {platform.name}</div>
+                      <div className="mt-1 text-2xl font-bold tabular-nums">{money(reportedTotal)}</div>
+                      <div className="text-xs text-muted-foreground" dir="ltr">
+                        {reported.map((r) => `${r.currency}${r.accountTail ? ` ****${r.accountTail}` : ""}`).join(" · ")}
+                      </div>
+                    </div>
+                    <div className={`rounded-xl border p-4 ${gap !== null && !matched ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
+                      <div className="text-sm text-muted-foreground">الفرق</div>
+                      <div className={`mt-1 text-2xl font-bold tabular-nums ${gap === null ? "" : matched ? "text-emerald-600" : "text-amber-600"}`}>
+                        {gap === null ? "—" : money(gap)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {gap === null ? "عملات متعددة — قارن كل عملة على حدة" : matched ? "مطابق" : "يحتاج مراجعة"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {reported.length > 1 && (
+                    <div className="mt-3 overflow-x-auto">
+                      <Table>
+                        <TableHeader><TableRow>
+                          <TableHead className="text-start">العملة</TableHead>
+                          <TableHead className="text-start">رصيد أول المدة</TableHead>
+                          <TableHead className="text-start">الرصيد الحالي</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {reported.map((r) => (
+                            <TableRow key={r.currency}>
+                              <TableCell dir="ltr" className="font-mono text-xs">{r.currency}</TableCell>
+                              <TableCell className="tabular-nums">{money(Number(r.openingBalance))}</TableCell>
+                              <TableCell className="tabular-nums font-semibold">{money(Number(r.balance))}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {gap !== null && !matched && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      فرق موجب = النظام يتوقّع من {platform.name} أكثر مما تقوله المنصّة. الأسباب المعتادة: تسويات مسحوبة ولم تُرحَّل بعد،
+                      طلبات لم تُزامَن، رسوم لم تُسجَّل، أو تحويل بنكي قيّدته المنصّة ولم يُقيَّد عندك.
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">رصيد المحفظة الآن (لم يُحوَّل بعد)</div><div className="text-2xl font-bold tabular-nums">{money(walletBalance)}</div><div className="text-xs text-muted-foreground">رصيد حالي — لا يتأثر بفلتر التاريخ</div></CardContent></Card>

@@ -12,7 +12,7 @@ import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core
 import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { upsertPlatformRemovals } from "@/lib/erp/removals-core";
-import { platformItemFees, itemCodes, items } from "@/db/schema";
+import { platformItemFees, itemCodes, items, platformBalances } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
@@ -33,6 +33,7 @@ export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; 
 export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 export type FbaCodesSync = { ok: true; total: number; attached: number; unmatched: number } | { ok: false; error: string };
+export type BalanceSync = { ok: true; groups: number } | { ok: false; error: string };
 
 /**
  * Load the connector, decrypted credential, platform ctx and settings — no auth.
@@ -300,9 +301,48 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
       if ("error" in res) return { ok: false, error: res.error };
       posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
     }
+    // One extra request, and it is what makes the wallet auditable. Never let it break
+    // the settlement sync — the money rows are the part that matters.
+    if (p.connector.fetchBalance) await syncBalanceCore(p).catch(() => undefined);
     return { ok: true, imported: up.imported, updated: up.updated, posted, deferredHeld, returnsCreated };
   } catch (e) {
     return coreFail(p, e, "فشل سحب التسويات");
+  }
+}
+
+/**
+ * Store what the marketplace says it is holding, so the wallet GL has something to be
+ * reconciled against instead of only ever agreeing with itself.
+ *
+ * Best-effort and read-only: the balance is a reconciliation aid, not an accounting
+ * input — nothing is posted from it, and a failure here must never fail the payments
+ * sync it rides along with.
+ */
+export async function syncBalanceCore(p: SyncPrep): Promise<BalanceSync> {
+  const fetch = p.connector.fetchBalance;
+  if (!fetch) return { ok: false, error: "المنصة لا توفر رصيد الحساب" };
+  try {
+    const rows = await fetch(p.cred); // slow fetch, unscoped
+    if (!rows.length) return { ok: true, groups: 0 };
+    await withOrgScope(p.orgId, false, async () => {
+      for (const b of rows) {
+        if (!b.currency) continue;
+        const values = {
+          organizationId: p.orgId, channel: p.connector.code, currency: b.currency,
+          balance: String(b.balance), openingBalance: String(b.openingBalance),
+          groupId: b.groupId || null, periodStart: b.periodStart, periodEnd: b.periodEnd,
+          fundTransferStatus: b.fundTransferStatus, accountTail: b.accountTail,
+          fetchedAt: new Date(), updatedAt: new Date(),
+        };
+        await db.insert(platformBalances).values(values).onConflictDoUpdate({
+          target: [platformBalances.organizationId, platformBalances.channel, platformBalances.currency],
+          set: values,
+        });
+      }
+    });
+    return { ok: true, groups: rows.length };
+  } catch (e) {
+    return coreFail(p, e, "فشل قراءة رصيد الحساب");
   }
 }
 
