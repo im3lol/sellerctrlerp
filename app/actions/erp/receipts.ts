@@ -14,7 +14,7 @@ import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveVoucherState = ActionState & { id?: string };
+export type SaveVoucherState = ActionState & { id?: string; number?: string };
 
 const schema = z.object({
   customerId: z.string().min(1, "اختر العميل"),
@@ -65,7 +65,7 @@ export async function createReceiptVoucherAction(input: unknown): Promise<SaveVo
       }).returning({ id: receiptVouchers.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "RECEIPT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند قبض ${number} (مسودة)`, metadata: { amount } });
       revalidatePath("/sales/receipts");
-      return { ok: true, id: v.id };
+      return { ok: true, id: v.id, number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ سند القبض" };
     }

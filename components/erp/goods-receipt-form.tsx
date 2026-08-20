@@ -83,7 +83,7 @@ export function GoodsReceiptForm({
       const r = await createReceiptFromOrderAction(orderId, picks, date);
       if (r.ok) {
         toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
-        router.push(r.id ? `/purchases/receipts/${r.id}` : "/purchases/receipts");
+        router.push(r.number ? `/purchases/receipts/${encodeURIComponent(r.number)}` : "/purchases/receipts");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });

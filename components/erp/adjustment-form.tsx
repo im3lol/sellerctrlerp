@@ -96,7 +96,7 @@ export function AdjustmentForm({
         })),
       };
       const r = await createStockAdjustmentAction(payload);
-      if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — أكّدها للترحيل"); router.push("/inventory/adjustments"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — راجِعها ثم أكّدها للترحيل"); router.push(r.number ? `/inventory/adjustments/${encodeURIComponent(r.number)}` : "/inventory/adjustments"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 

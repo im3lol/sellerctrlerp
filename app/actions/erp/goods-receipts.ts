@@ -91,7 +91,7 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
  * (recorded only — never enters stock and stays open as backorder). `date` is
  * the receipt date (defaults to the order date). Confirm it later to post.
  */
-export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string }> {
+export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
@@ -135,7 +135,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const headerWh = toReceive.find((t) => t.qty > EPS)?.warehouseId || po.warehouseId;
     const number = await nextNumber("GRN", auth.orgId, receiptDate.getFullYear());
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [grn] = await tx.insert(purchaseReceipts).values({
           organizationId: auth.orgId, number, date: receiptDate, status: "DRAFT",
           purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
@@ -145,10 +145,10 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
           quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate,
         })));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
-        return grn.id;
+        return { id: grn.id, number };
       });
       revalidatePath("/purchases/receipts");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" };
     }
