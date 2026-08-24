@@ -44,7 +44,7 @@ export async function startInventoryAuditAction(code: string): Promise<{ ok: boo
  * Temporary states (RECEIVING/RESEARCHING) and DAMAGED (qty matches — a
  * sellability issue, not a count issue) are deliberately skipped.
  */
-export async function createAdjustmentFromAuditAction(): Promise<{ ok: boolean; id?: string; count?: number; error?: string }> {
+export async function createAdjustmentFromAuditAction(): Promise<{ ok: boolean; id?: string; number?: string; count?: number; error?: string }> {
   const auth = await authorizeErp("inventory.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
   return withOrgScope(auth.orgId, false, async () => {
@@ -68,7 +68,7 @@ export async function createAdjustmentFromAuditAction(): Promise<{ ok: boolean; 
       lines: clean.map((l) => ({ itemId: l.itemId, warehouseId: audit.warehouseId!, mode: "set", value: l.amazonTotal })),
     });
     if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء التسوية" };
-    return { ok: true, id: r.id, count: clean.length };
+    return { ok: true, id: r.id, number: r.number, count: clean.length };
   });
 }
 

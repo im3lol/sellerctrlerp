@@ -84,7 +84,7 @@ export async function runInventoryAudit(p: SyncPrep): Promise<AuditOutcome> {
         auditId: audit.id, organizationId: p.orgId, code: r.code, asin: r.asin ?? null,
         itemId: r.itemId, itemName: r.title || null,
         erpQty: String(r.erpQty), amazonTotal: r.amazonTotal, available: r.available, reserved: r.reserved,
-        inbound: r.inbound, damaged: r.damaged, researching: r.researching, diff: String(r.diff), status: r.status,
+        inbound: r.inbound, damaged: r.damaged, expired: r.expired, researching: r.researching, diff: String(r.diff), status: r.status,
       })));
     }
 

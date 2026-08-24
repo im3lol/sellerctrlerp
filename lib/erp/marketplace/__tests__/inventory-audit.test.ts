@@ -26,6 +26,18 @@ describe("classifyAudit — matches the user's reconciliation examples", () => {
     expect(row.status).toBe("LOST");
     expect(row.diff).toBe(1);
   });
+  it("BUG: ERP 100, Amazon total 90 (80 avail + 10 damaged) → LOST, not DAMAGED (10 units missing on top of damage)", () => {
+    const row = classifyAudit(det({ total: 90, fulfillable: 80, unfulfillableTotal: 10, warehouseDamaged: 10 }), "i6", 100);
+    expect(row.status).toBe("LOST"); // the 10-unit shortfall must drive an adjustment, not be masked by the damaged flag
+    expect(row.diff).toBe(10);
+    expect(row.damaged).toBe(10);    // damage still surfaced in its column
+  });
+  it("untracked SKU (erpQty 0) with only damaged units → still DAMAGED (no shortfall)", () => {
+    expect(classifyAudit(det({ total: 5, unfulfillableTotal: 5, warehouseDamaged: 5 }), "i7", 0).status).toBe("DAMAGED");
+  });
+  it("shortfall while Amazon is researching → RESEARCHING wins (don't write off yet)", () => {
+    expect(classifyAudit(det({ total: 90, fulfillable: 90, researching: 10 }), "i8", 100).status).toBe("RESEARCHING");
+  });
   it("Amazon holds more than ERP with inbound → RECEIVING", () => {
     expect(classifyAudit(det({ total: 100, fulfillable: 98, inboundReceiving: 2 }), "i4", 98).status).toBe("RECEIVING");
   });

@@ -6,11 +6,15 @@ import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
 import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
 import { enqueue, QUEUES } from "@/lib/queue/queues";
+import { redisEnabled } from "@/lib/queue/redis";
 import { sendEmail } from "@/lib/erp/email";
 import { withPlatformScope } from "@/lib/db-scope";
+import { secretEquals } from "@/lib/crypto";
+import { log } from "@/lib/log";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
-import { pruneReportDownloads } from "@/app/actions/erp/report-downloads";
+import { pruneReportDownloads } from "@/lib/erp/report-downloads-core";
+import { getControlDivergences } from "@/lib/erp/control-reconciliation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,13 +25,14 @@ const row = (label: string, count: number, href: string) =>
   `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0"><a href="${href}" style="color:#1e3a8a;text-decoration:none">${label}</a></td><td style="padding:10px 0;text-align:left;font-weight:bold">${fmt(count)}</td></tr>`;
 
 /**
- * Daily reminder digest (Vercel Cron, guarded by CRON_SECRET). Emails each org's
+ * Daily reminder digest (driven by the compose cron sidecar, guarded by CRON_SECRET). Emails each org's
  * pending drafts + overdue invoices + inventory alerts to REMINDER_EMAIL_TO.
  * No-op when email isn't configured.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!secret || !secretEquals(provided, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -41,9 +46,9 @@ export async function GET(req: Request) {
   // 1) Materialise due recurring expenses + journals as DRAFTs (regardless of email config).
   let generated = 0;
   for (const org of orgs) {
-    try { generated += await generateDueRecurringExpenses(org.id, now); } catch { /* skip org on error */ }
-    try { generated += await generateDueRecurringJournals(org.id, now); } catch { /* skip org on error */ }
-    try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch { /* skip org on error */ }
+    try { generated += await generateDueRecurringExpenses(org.id, now); } catch (e) { log.warn("cron.recurring_expenses_failed", { orgId: org.id, err: e }); }
+    try { generated += await generateDueRecurringJournals(org.id, now); } catch (e) { log.warn("cron.recurring_journals_failed", { orgId: org.id, err: e }); }
+    try { generated += await generateDueRecurringSalesInvoices(org.id, now); } catch (e) { log.warn("cron.recurring_sales_failed", { orgId: org.id, err: e }); }
   }
 
   // 1b) Daily marketplace discovery — ENQUEUE one incremental discovery job per
@@ -59,48 +64,83 @@ export async function GET(req: Request) {
         ? incrementalFrom(new Date(c.productsSyncedAt), c.connectedAt ? new Date(c.connectedAt) : null, now.getTime()).toISOString()
         : undefined;
       if (await enqueue(QUEUES.discovery, { orgId: c.orgId, provider: c.provider, since })) productsRun++;
-    } catch { /* skip a connection on error */ }
+    } catch (e) { log.warn("cron.discovery_enqueue_failed", { orgId: c.orgId, provider: c.provider, err: e }); }
   }
 
   // 1c) Platform SaaS metrics: mark any lapsed subscriptions as EXPIRED events, then
   // snapshot today's MRR — the only source of trend/churn history.
   let expired = 0;
-  try { expired = await sweepExpirations(now); } catch { /* non-fatal */ }
-  try { await writeDailySnapshot(now); } catch { /* non-fatal */ }
-  try { await pruneReportDownloads(7); } catch { /* non-fatal */ }
+  try { expired = await sweepExpirations(now); } catch (e) { log.warn("cron.sweep_expirations_failed", { err: e }); }
+  try { await writeDailySnapshot(now); } catch (e) { log.warn("cron.mrr_snapshot_failed", { err: e }); }
+  try { await pruneReportDownloads(7); } catch (e) { log.warn("cron.prune_reports_failed", { err: e }); }
 
-  // 1e) Subscription expiry reminders (dunning): email each org whose ACTIVE
-  // subscription is 7 / 3 / 1 days from expiry. Assumes a DAILY cron, so each
-  // threshold day fires exactly once — no per-org marker needed. Goes to the org's
-  // email; no-ops when email isn't configured or the org has none.
+  // 1e) Subscription expiry reminders (dunning) WITH missed-run catch-up. Each threshold
+  // (7 / 3 / 1 days) fires exactly once per cycle via the per-org `dunning_stage` marker,
+  // so a skipped 06:00 run (laptop asleep) still fires the threshold on the next run
+  // instead of losing it — no more silent churn. Current bucket = smallest threshold that
+  // is ≥ daysLeft (5→7, 2→3, 1→1); we send when it's nearer than the last sent.
   let reminders = 0;
   try {
     const soon = new Date(now.getTime() + 8 * 86400000);
     const expiring = await db.select({
+      orgId: orgSubscriptions.organizationId, stage: orgSubscriptions.dunningStage,
       email: organizations.email, name: organizations.nameAr,
       planName: orgSubscriptions.planName, expiresAt: orgSubscriptions.expiresAt,
     }).from(orgSubscriptions)
       .innerJoin(organizations, eq(organizations.id, orgSubscriptions.organizationId))
       .where(and(eq(orgSubscriptions.status, "ACTIVE"), gte(orgSubscriptions.expiresAt, now), lte(orgSubscriptions.expiresAt, soon)));
     for (const s of expiring) {
-      if (!s.email || !s.expiresAt) continue;
+      if (!s.expiresAt) continue;
       const daysLeft = Math.ceil((new Date(s.expiresAt).getTime() - now.getTime()) / 86400000);
-      if (![1, 3, 7].includes(daysLeft)) continue;
-      const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin });
-      if (await sendEmail({ to: s.email, subject: mail.subject, html: mail.html, text: mail.text })) reminders++;
+      const bucket = [7, 3, 1].filter((t) => daysLeft <= t).sort((a, b) => a - b)[0];
+      if (bucket == null) continue;             // >7 days out — not in the dunning window yet
+      if ((s.stage ?? 999) <= bucket) continue; // this bucket (or a nearer one) already sent
+      if (s.email) {
+        const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin });
+        if (await sendEmail({ to: s.email, subject: mail.subject, html: mail.html, text: mail.text })) reminders++;
+      }
+      // Mark the threshold consumed (even if email is unconfigured/failed) so it doesn't reprocess daily.
+      await db.update(orgSubscriptions).set({ dunningStage: bucket }).where(eq(orgSubscriptions.organizationId, s.orgId));
     }
-  } catch (e) { console.error("[expiry-reminders]", e); }
+    // Reset the marker once an org renews out of the window, so the next cycle re-duns.
+    await db.update(orgSubscriptions).set({ dunningStage: 999 })
+      .where(and(eq(orgSubscriptions.status, "ACTIVE"), gte(orgSubscriptions.expiresAt, soon)));
+  } catch (e) { log.error("cron.expiry_reminders_failed", { err: e }); }
 
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
-  // ponytail: sequential over orgs — fine at current scale; a large fleet needs a queue.
-  let backedUp = 0;
-  for (const org of orgs) {
-    try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch { /* skip org (e.g. storage unconfigured) */ }
+  // Fan out one job per tenant when Redis is available so the heavy full-DB export runs
+  // concurrently in the worker instead of this 60s function looping serially over the
+  // whole fleet (which timed out mid-loop at scale, silently skipping later tenants).
+  // No Redis → fall back to the in-line loop (unchanged behavior).
+  let backedUp = 0, backupQueued = 0;
+  if (redisEnabled()) {
+    for (const org of orgs) {
+      if (await enqueue(QUEUES.maintenance, { orgId: org.id, provider: "" })) backupQueued++;
+    }
+  } else {
+    for (const org of orgs) {
+      try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch (e) { log.warn("cron.backup_failed", { orgId: org.id, err: e }); }
+    }
   }
+
+  // 1f) Control-account reconciliation: alert (once, aggregated → Telegram via log.error)
+  // if any org's AR/AP control account (GL 1103/2101) diverged from its customer/supplier
+  // subledger — the signature of a manual JV that moved the balance sheet without the
+  // aging. Only flag when the GL side is material (skips orgs that never posted to the
+  // control account — incomplete setup, not a broken tie).
+  try {
+    const diverged: string[] = [];
+    for (const org of orgs) {
+      for (const x of await getControlDivergences(org.id)) {
+        if (Math.abs(x.gl) > 1) diverged.push(`${org.name}: ${x.label} — دفتر ${x.gl} ≠ فرعي ${x.subledger} (فرق ${x.diff})`);
+      }
+    }
+    if (diverged.length) log.error("cron.control_divergence", { count: diverged.length, details: diverged.slice(0, 20) });
+  } catch (e) { log.warn("cron.control_reconciliation_failed", { err: e }); }
 
   // 2) Daily reminder digest — only when email is configured.
   const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, skipped: "REMINDER_EMAIL_TO not set" });
+  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, skipped: "REMINDER_EMAIL_TO not set" });
 
   let sent = 0;
   for (const org of orgs) {
@@ -122,6 +162,6 @@ export async function GET(req: Request) {
     if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, reminders, sent });
+  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });
   });
 }

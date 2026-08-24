@@ -3,8 +3,9 @@ import { requireErpModule } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines, platformItemFees } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
 import { buildProfitability } from "@/lib/erp/profitability";
+import { getSettlementFeesByItem } from "@/lib/erp/item-pnl";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 
 export const runtime = "nodejs";
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
   return withOrgScope(orgId, false, async () => {
-  const [revRows, cogsRows, returnRows, feeRows] = await Promise.all([
+  const [revRows, cogsRows, returnRows, feesByItem] = await Promise.all([
     db.select({ itemId: salesInvoiceLines.itemId, code: items.code, name: items.nameAr, qty: sql<string>`sum(${salesInvoiceLines.quantity})`, revenue: sql<string>`sum(${salesInvoiceLines.totalAmount} - ${salesInvoiceLines.taxAmount})` })
       .from(salesInvoiceLines)
       .innerJoin(salesInvoices, eq(salesInvoices.id, salesInvoiceLines.salesInvoiceId))
@@ -37,13 +38,11 @@ export async function GET(req: Request) {
       .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
       .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
       .groupBy(salesReturnLines.itemId),
-    db.select({ itemId: platformItemFees.itemId, totalFees: platformItemFees.totalFees })
-      .from(platformItemFees).where(eq(platformItemFees.organizationId, orgId)),
+    getSettlementFeesByItem(orgId, fromD, toD),
   ]);
 
   const cogsByItem = new Map(cogsRows.map((r) => [r.itemId, Number(r.cogs ?? 0)]));
   const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
-  const feesByItem = new Map(feeRows.map((r) => [r.itemId, Number(r.totalFees ?? 0)]));
   const list = buildProfitability(
     revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
     returnsByItem, cogsByItem, feesByItem,
@@ -56,7 +55,7 @@ export async function GET(req: Request) {
   return xlsxResponse({
     sheet: "ربحية المنتجات",
     filename: `profitability-${from}_${to}`,
-    headers: ["الكود", "الصنف", "الكمية", "الإيراد", "التكلفة", "الربح", "الهامش %", "رسوم أمازون المقدرة", "الصافي بعد الرسوم"],
+    headers: ["الكود", "الصنف", "الكمية", "الإيراد", "التكلفة", "الربح", "الهامش %", "رسوم أمازون الفعلية", "الصافي بعد الرسوم"],
     rows: list.map((r) => [r.code, r.name, r.qty, r.revenue, r.cogs, r.profit, r.revenue > 0 ? Number(r.margin.toFixed(1)) : "", r.fees, r.netProfit]),
     totalRow: ["", "الإجمالي", "", tRev, tCogs, tRev - tCogs, "", tFees, tRev - tCogs - tFees],
     colWidths: [12, 28, 12, 16, 16, 16, 10, 16, 16],

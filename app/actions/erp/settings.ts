@@ -2,11 +2,12 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { organizations, accountingConfigurations } from "@/db/schema";
+import { organizations, accountingConfigurations, fiscalPeriods, journalEntries, stockMovements } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { fiscalYearBoundsFor } from "@/lib/erp/fiscal";
 import { putObject, publicUrl } from "@/lib/storage";
 
 
@@ -22,8 +23,12 @@ const profileSchema = z.object({
   logo: z.string().optional(),
   vatRate: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة"),
   poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
-  fiscalYearStart: z.string().optional(),
+  fiscalYearStart: z.string().optional()
+    .refine((s) => !s || !Number.isNaN(new Date(s).getTime()), "تاريخ بداية السنة المالية غير صالح"),
 });
+
+/** Only the month/day of fiscalYearStart matter (the year recurs); "" ⇒ Jan 1. */
+const fyMonthDay = (s: string | null | undefined) => { const p = (s || "").split("-"); return `${p[1] || "01"}-${p[2] || "01"}`; };
 
 export async function saveOrgProfileAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const auth = await authorizeErp("settings.edit");
@@ -46,6 +51,21 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const d = parsed.data;
 
+    // The fiscal-year start is the accounting foundation — it drives every period
+    // boundary. It's free to set/change BEFORE the first posting, but LOCKED once any
+    // journal entry or stock movement exists (changing it then would orphan the periods
+    // those documents posted into). To change a locked year, open a new fiscal year.
+    const [current] = await db.select({ f: organizations.fiscalYearStart })
+      .from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+    const fyChanged = fyMonthDay(current?.f) !== fyMonthDay(d.fiscalYearStart);
+    if (fyChanged) {
+      const [je] = await db.select({ n: sql<number>`count(*)` }).from(journalEntries).where(eq(journalEntries.organizationId, auth.orgId));
+      const [sm] = await db.select({ n: sql<number>`count(*)` }).from(stockMovements).where(eq(stockMovements.organizationId, auth.orgId));
+      if (Number(je?.n ?? 0) + Number(sm?.n ?? 0) > 0) {
+        return { error: "لا يمكن تغيير بداية السنة المالية بعد أول عملية محاسبية — أنشئ سنة مالية جديدة بدلًا من ذلك" };
+      }
+    }
+
     try {
       await db.update(organizations).set({
         nameAr: d.nameAr,
@@ -63,6 +83,17 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       }).where(eq(organizations.id, auth.orgId));
     } catch {
       return { error: "تعذّر حفظ بيانات المنشأة" };
+    }
+
+    // No postings yet (guarded above), so realign the auto-seeded, still-empty period(s)
+    // to the new fiscal-year boundaries — deleting them is safe (nothing references them).
+    if (fyChanged) {
+      const b = fiscalYearBoundsFor(d.fiscalYearStart || null);
+      await db.delete(fiscalPeriods).where(eq(fiscalPeriods.organizationId, auth.orgId));
+      await db.insert(fiscalPeriods).values({
+        organizationId: auth.orgId, name: b.name, startDate: b.startDate, endDate: b.endDate, status: "OPEN",
+      });
+      revalidatePath("/accounting/periods");
     }
     revalidatePath("/settings");
     revalidatePath("/settings/organization");
@@ -177,7 +208,7 @@ export async function saveAccountingConfigAction(_prev: ActionState, formData: F
   });
 }
 
-const SETUP_KEYS = new Set(["company", "chart", "units", "warehouses", "items", "customers", "suppliers", "opening", "numbering", "platform"]);
+const SETUP_KEYS = new Set(["basis", "company", "chart", "units", "warehouses", "items", "customers", "suppliers", "opening", "numbering", "platform"]);
 
 /** Mark a setup-checklist step as done manually (form action from /setup). */
 export async function markSetupStepDoneAction(formData: FormData): Promise<void> {

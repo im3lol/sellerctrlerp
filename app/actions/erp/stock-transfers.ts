@@ -12,7 +12,7 @@ import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveTransferState = ActionState & { id?: string };
+export type SaveTransferState = ActionState & { id?: string; number?: string };
 
 const lineSchema = z.object({
   itemId: z.string().min(1, "اختر الصنف"),
@@ -53,7 +53,7 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
     const number = await nextDocumentNumber(db, auth.orgId, "TR", d.getFullYear());
 
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [tr] = await tx.insert(stockTransfers).values({
           organizationId: auth.orgId, number, date: d, status: "DRAFT", notes: notes || null,
         }).returning({ id: stockTransfers.id });
@@ -61,14 +61,64 @@ export async function createStockTransferAction(input: unknown): Promise<SaveTra
           stockTransferId: tr.id, itemId: l.itemId,
           fromWarehouseId: l.fromWarehouseId, toWarehouseId: l.toWarehouseId, quantity: String(l.quantity),
         })));
-        return tr.id;
+        return { id: tr.id, number };
       });
 
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (${lines.length} صنف، مسودة)`, metadata: { lines: lines.length } });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "STOCK_TRANSFER", entityId: created.id, entityNumber: number, summary: `إنشاء تحويل مخزني ${number} (${lines.length} صنف، مسودة)`, metadata: { lines: lines.length } });
       revalidatePath("/inventory/transfers");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ التحويل" };
+    }
+  });
+}
+
+/** Edit a DRAFT transfer in place: replace its lines + header, keep the number.
+ *  Only DRAFT is editable (no stock moved yet). */
+export async function updateStockTransferAction(id: string, input: unknown): Promise<SaveTransferState> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { date, notes, lines } = parsed.data;
+
+    const [existing] = await db.select({ status: stockTransfers.status, number: stockTransfers.number }).from(stockTransfers)
+      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "التحويل غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل تحويل مُرحّل" };
+
+    const whIds = [...new Set(lines.flatMap((l) => [l.fromWarehouseId, l.toWarehouseId]))];
+    const whs = await db.select({ id: warehouses.id }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, auth.orgId), inArray(warehouses.id, whIds)));
+    const valid = new Set(whs.map((w) => w.id));
+    for (const l of lines) {
+      if (!valid.has(l.fromWarehouseId) || !valid.has(l.toWarehouseId)) return { error: "مستودع غير صالح" };
+      if (l.fromWarehouseId === l.toWarehouseId) return { error: "المستودع المصدر والوجهة متماثلان في أحد الأصناف" };
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: confirm claims the same row, so whoever
+        // gets here second sees POSTED and aborts instead of rewriting the lines behind
+        // stock movements that were already posted from them.
+        const [live] = await tx.select({ status: stockTransfers.status }).from(stockTransfers)
+          .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل تحويل مُرحّل");
+        await tx.update(stockTransfers).set({ date: new Date(date), notes: notes || null, updatedAt: new Date() })
+          .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
+        await tx.delete(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
+        await tx.insert(stockTransferLines).values(lines.map((l) => ({
+          stockTransferId: id, itemId: l.itemId, fromWarehouseId: l.fromWarehouseId, toWarehouseId: l.toWarehouseId, quantity: String(l.quantity),
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "STOCK_TRANSFER", entityId: id, entityNumber: existing.number, summary: `تعديل تحويل مخزني ${existing.number} (مسودة)`, metadata: { lines: lines.length } });
+      revalidatePath("/inventory/transfers");
+      revalidatePath(`/inventory/transfers/${existing.number}`);
+      return { ok: true, id, number: existing.number };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
   });
 }
@@ -88,11 +138,7 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
     if (!tr) return { error: "التحويل غير موجود" };
     if (tr.status !== "DRAFT") return { error: "التحويل مُرحّل بالفعل" };
 
-    const ls = await db.select().from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
-    if (ls.length === 0) return { error: "لا توجد بنود في التحويل" };
-
-    const d = tr.date instanceof Date ? tr.date : new Date(tr.date);
-
+    let lineCount = 0;
     try {
       await db.transaction(async (tx) => {
         // Claim the transfer before moving any stock. The status check above runs
@@ -103,19 +149,28 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
         // run both legs twice and conjure stock (source −10, destination +20).
         // This conditional UPDATE takes the row lock: the loser matches 0 rows and
         // rolls back.
-        const claimed = await tx.update(stockTransfers).set({ status: "POSTED" })
+        const [claimed] = await tx.update(stockTransfers).set({ status: "POSTED" })
           .where(and(eq(stockTransfers.id, tr.id), eq(stockTransfers.status, "DRAFT")))
-          .returning({ id: stockTransfers.id });
-        if (claimed.length === 0) throw new Error("ALREADY_POSTED");
+          .returning({ id: stockTransfers.id, number: stockTransfers.number, date: stockTransfers.date,
+            fromWarehouseId: stockTransfers.fromWarehouseId, toWarehouseId: stockTransfers.toWarehouseId });
+        if (!claimed) throw new Error("ALREADY_POSTED");
+
+        // Header AND lines are read only after the claim holds the row lock, so a
+        // concurrent draft edit either finished before it (we post the new lines) or
+        // is still blocked on it (and will then find the transfer POSTED and abort).
+        const ls = await tx.select().from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, id));
+        if (ls.length === 0) throw new Error("لا توجد بنود في التحويل");
+        lineCount = ls.length;
+        const d = claimed.date instanceof Date ? claimed.date : new Date(claimed.date);
 
         for (const l of ls) {
-          const from = l.fromWarehouseId ?? tr.fromWarehouseId;
-          const to = l.toWarehouseId ?? tr.toWarehouseId;
+          const from = l.fromWarehouseId ?? claimed.fromWarehouseId;
+          const to = l.toWarehouseId ?? claimed.toWarehouseId;
           if (!from || !to) throw new Error("مستودع غير محدد لأحد الأصناف");
           const qty = Number(l.quantity);
           const out = await postStockMovement(tx, {
             orgId: auth.orgId, itemId: l.itemId, warehouseId: from, type: "OUT",
-            quantity: qty, date: d, referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
+            quantity: qty, date: d, referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${claimed.number}`,
           });
           // Carry each consumed lot's batch/expiry to the destination warehouse
           // (one IN per source allocation) — value-neutral (same unit cost).
@@ -124,14 +179,15 @@ export async function confirmStockTransferAction(id: string): Promise<ActionStat
               orgId: auth.orgId, itemId: l.itemId, warehouseId: to, type: "IN",
               quantity: Math.abs(a.quantity), unitCost: a.unitCost, date: d,
               batchNo: a.batchNo, expiryDate: a.expiryDate,
-              referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${tr.number}`,
+              referenceType: "TRANSFER", referenceId: tr.id, reason: `تحويل ${claimed.number}`,
             });
           }
         }
-        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: tr.number, summary: `تأكيد وترحيل تحويل مخزني ${tr.number}`, metadata: { lines: ls.length } });
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_TRANSFER", entityId: tr.id, entityNumber: claimed.number, summary: `تأكيد وترحيل تحويل مخزني ${claimed.number}`, metadata: { lines: lineCount } });
       });
 
       revalidatePath("/inventory/transfers");
+      revalidatePath(`/inventory/transfers/${tr.number}`);
       revalidatePath("/inventory/stock");
       revalidatePath("/inventory/ledger");
       return { ok: true };
@@ -154,7 +210,10 @@ export async function deleteStockTransferAction(id: string): Promise<ActionState
     if (!tr) return { error: "التحويل غير موجود" };
     if (tr.status !== "DRAFT") return { error: "لا يمكن حذف تحويل مُرحّل" };
 
-    await db.delete(stockTransfers).where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId)));
+    const gone = await db.delete(stockTransfers)
+      .where(and(eq(stockTransfers.id, id), eq(stockTransfers.organizationId, auth.orgId), eq(stockTransfers.status, "DRAFT")))
+      .returning({ id: stockTransfers.id });
+    if (!gone.length) return { error: "لا يمكن حذف تحويل مُرحّل" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "STOCK_TRANSFER", entityId: id, summary: "حذف تحويل مخزني (مسودة)" });
     revalidatePath("/inventory/transfers");
     return { ok: true };

@@ -144,16 +144,75 @@ export async function createManualEntryAction(input: unknown): Promise<SaveEntry
   });
 }
 
+/** Edit a DRAFT journal entry in place: re-validate balance + accounts, replace lines +
+ *  header, keep the number. Only DRAFT is editable (posted entries are immutable). */
+export async function updateManualEntryAction(id: string, input: unknown): Promise<SaveEntryState> {
+  const auth = await authorizeErp("accounting.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { date, description, reference, lines } = parsed.data;
+
+    const [existing] = await db.select({ status: journalEntries.status, sourceType: journalEntries.sourceType, number: journalEntries.number }).from(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "القيد غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل قيد مُرحّل" };
+    if (existing.sourceType !== "MANUAL") return { error: "لا يمكن تعديل قيد آلي — عدّل المستند المصدر" };
+
+    const active = lines.filter((l) => cents(l.debit) !== 0 || cents(l.credit) !== 0);
+    if (active.length < 2) return { error: "أضف بندين على الأقل بقيمة" };
+    if (active.some((l) => cents(l.debit) !== 0 && cents(l.credit) !== 0)) return { error: "كل بند يكون مديناً أو دائناً وليس الاثنين معاً" };
+    const totalDebit = active.reduce((s, l) => s + cents(l.debit), 0);
+    const totalCredit = active.reduce((s, l) => s + cents(l.credit), 0);
+    if (totalDebit === 0) return { error: "لا يمكن حفظ قيد بقيمة صفر" };
+    if (totalDebit !== totalCredit) return { error: `القيد غير متوازن (مدين ${(totalDebit / 100).toFixed(2)} ≠ دائن ${(totalCredit / 100).toFixed(2)})` };
+
+    const accIds = [...new Set(active.map((l) => l.accountId))];
+    const accs = await db.select({ id: accounts.id, isLeaf: accounts.isLeaf, allowManualEntries: accounts.allowManualEntries }).from(accounts)
+      .where(and(eq(accounts.organizationId, auth.orgId), inArray(accounts.id, accIds)));
+    if (accs.length !== accIds.length) return { error: "حساب غير موجود في هذه المؤسسة" };
+    if (accs.some((a) => !a.isLeaf)) return { error: "لا يمكن الترحيل على حساب رئيسي — اختر حساباً فرعياً" };
+    if (accs.some((a) => !a.allowManualEntries)) return { error: "أحد الحسابات لا يسمح بالقيود اليدوية" };
+
+    try {
+      await db.transaction(async (tx) => {
+        // Re-check under a row lock — postDraft takes the same lock, so posting and
+        // editing can no longer interleave and write a ledger that disagrees with the
+        // entry's own lines.
+        const [live] = await tx.select({ status: journalEntries.status, sourceType: journalEntries.sourceType }).from(journalEntries)
+          .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل قيد مُرحّل");
+        if (live.sourceType !== "MANUAL") throw new Error("لا يمكن تعديل قيد آلي — عدّل المستند المصدر");
+        await tx.update(journalEntries).set({ date: new Date(date), reference: reference || null, description, updatedAt: new Date() })
+          .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId)));
+        await tx.delete(journalEntryLines).where(eq(journalEntryLines.journalEntryId, id));
+        await tx.insert(journalEntryLines).values(active.map((l) => ({
+          journalEntryId: id, accountId: l.accountId, costCenterId: l.costCenterId || null,
+          debit: l.debit.toFixed(2), credit: l.credit.toFixed(2), description: l.description || null,
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "JOURNAL_ENTRY", entityId: id, summary: `تعديل قيد يدوي (مسودة): ${description}`, metadata: { debit: totalDebit / 100 } });
+      revalidatePath("/accounting/journal");
+      revalidatePath(`/accounting/journal/${encodeURIComponent(existing.number)}`);
+      return { ok: true, id };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
+    }
+  });
+}
+
 /** Post a DRAFT entry to the ledger. */
 export async function postDraftEntryAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("accounting.post");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     try {
-      await db.transaction((tx) => postDraft(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId }));
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, summary: "ترحيل قيد يومية" });
+      const { number } = await db.transaction((tx) => postDraft(tx, { orgId: auth.orgId, entryId: id, userId: auth.userId }));
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "JOURNAL_ENTRY", entityId: id, entityNumber: number, summary: `ترحيل قيد يومية ${number}` });
       revalidatePath("/accounting/journal");
-      revalidatePath(`/accounting/journal/${id}`);
+      revalidatePath(`/accounting/journal/${encodeURIComponent(number)}`);
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر الترحيل" };
@@ -173,7 +232,7 @@ export async function reverseEntryAction(id: string, reason?: string): Promise<A
   const auth = await authorizeErp("accounting.reverse");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [entry] = await db.select({ sourceType: journalEntries.sourceType }).from(journalEntries)
+    const [entry] = await db.select({ sourceType: journalEntries.sourceType, number: journalEntries.number }).from(journalEntries)
       .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId))).limit(1);
     if (!entry) return { error: "القيد غير موجود" };
     if (!REVERSIBLE_SOURCES.has(entry.sourceType ?? "MANUAL")) {
@@ -185,7 +244,7 @@ export async function reverseEntryAction(id: string, reason?: string): Promise<A
       );
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "عكس قيد يومية", metadata: { reversalId, reason: reason || null } });
       revalidatePath("/accounting/journal");
-      revalidatePath(`/accounting/journal/${id}`);
+      revalidatePath(`/accounting/journal/${encodeURIComponent(entry.number)}`);
       return { ok: true, reversalId };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "تعذّر عكس القيد";
@@ -207,7 +266,10 @@ export async function deleteDraftEntryAction(id: string): Promise<ActionState> {
         .limit(1);
       if (!entry) return { error: "القيد غير موجود" };
       if (entry.status !== "DRAFT") return { error: "لا يمكن حذف قيد مُرحّل — استخدم العكس" };
-      await db.delete(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId)));
+      const gone = await db.delete(journalEntries)
+        .where(and(eq(journalEntries.id, id), eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.status, "DRAFT")))
+        .returning({ id: journalEntries.id });
+      if (!gone.length) return { error: "لا يمكن حذف قيد مُرحّل — استخدم العكس" };
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "JOURNAL_ENTRY", entityId: id, summary: "حذف قيد يومية (مسودة)" });
       revalidatePath("/accounting/journal");
       return { ok: true };

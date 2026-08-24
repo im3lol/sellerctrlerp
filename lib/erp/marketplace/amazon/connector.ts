@@ -2,14 +2,16 @@ import "server-only";
 import type { MarketplaceConnector, ConnectorMarketplace, OAuthExchange } from "../connector";
 import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
+import { getAmazonConfig } from "@/lib/saas/amazon-config";
 import { fetchCatalog } from "./catalog";
 import { fetchListings, mergeProducts } from "./listings";
 import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
 import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
 import { fetchSettlements } from "./settlement-report";
+import { fetchBalance } from "./finances";
 import { fetchFbaReturns } from "./returns-report";
-import { fetchReimbursements, fetchLedgerEvents } from "./finance-reports";
+import { fetchReimbursements, fetchLedgerEvents, fetchRemovals } from "./finance-reports";
 import { fetchFeesEstimates } from "./fees";
 import type { MarketplaceProduct } from "../dto";
 
@@ -20,12 +22,19 @@ const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
 /** Amazon SP-API connector (first real MarketplaceConnector). */
 export const amazonConnector: MarketplaceConnector = {
   code: "AMAZON",
+  // Customer-facing label — keep it plain "أمازون": technical jargon (SP-API) never
+  // reaches the seller UI.
   label: "أمازون",
   capabilities: { products: true, catalog: true, orders: true, inventory: true, settlements: true },
+  configFields: [
+    { key: "clientId", label: "LWA Client ID", placeholder: "amzn1.application-oa2-client.…" },
+    { key: "clientSecret", label: "LWA Client Secret", secret: true, placeholder: "amzn1.oa2-cs.…" },
+    { key: "appId", label: "Application ID (للموافقة)", placeholder: "amzn1.sp.solution.…" },
+  ],
   oauth: {
     marketplaces,
-    authorizeUrl(state, marketplaceCode) {
-      const appId = process.env.SPAPI_APP_ID;
+    async authorizeUrl(state, marketplaceCode) {
+      const appId = (await getAmazonConfig())?.appId;
       const mp = marketplaceByCode(marketplaceCode);
       if (!appId || !mp) return null;
       const url = new URL(`${mp.sellerCentral}/apps/authorize/consent`);
@@ -74,8 +83,14 @@ export const amazonConnector: MarketplaceConnector = {
   fetchSettlements(cred, range) {
     return fetchSettlements(cred, range);
   },
+  fetchBalance(cred) {
+    return fetchBalance(cred);
+  },
   fetchReturns(cred, range) {
     return fetchFbaReturns(cred, range);
+  },
+  fetchRemovals(cred, range) {
+    return fetchRemovals(cred, range);
   },
   fetchReimbursements(cred, range) {
     return fetchReimbursements(cred, range);

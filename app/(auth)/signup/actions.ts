@@ -1,18 +1,17 @@
 "use server";
 
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
-import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
+import { validatePassword } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
+import { log } from "@/lib/log";
 import { eq as _eq } from "drizzle-orm";
-import { users, organizations, organizationMembers, orgSubscriptions, plans, subscriptionRequests } from "@/db/schema";
-import { ALL_MODULES } from "@/lib/erp/module-list";
-import { TRIAL_DAYS } from "@/lib/erp/subscription";
+import { users, plans, subscriptionRequests } from "@/db/schema";
 import { PAYMENT_METHODS } from "@/lib/erp/payment-info";
+import { createOrgWithOwner } from "@/lib/erp/org-bootstrap";
 import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
 
 export type SignupInput = {
@@ -56,6 +55,11 @@ const schema = z.object({
 export async function signupAction(input: SignupInput): Promise<{ error: string }> {
   // Self-serve signup is closed (see signup/page.tsx). Reopen with SIGNUP_OPEN=1.
   if (process.env.SIGNUP_OPEN !== "1") return { error: "التسجيل الذاتي مغلق حاليًا — اطلب ديمو وسنتواصل معك عبر واتساب." };
+  // Throttle abuse: at most 5 signup attempts per IP per hour (Cloudflare sets x-forwarded-for).
+  const { headers } = await import("next/headers");
+  const ip = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  const { rateLimit } = await import("@/lib/rate-limit");
+  if (!rateLimit(`signup:${ip}`, 5, 3_600_000)) return { error: "محاولات كثيرة — انتظر قليلاً ثم حاول مجددًا." };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -63,51 +67,32 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, d.email)).limit(1);
   if (existing) return { error: "البريد الإلكتروني مستخدم بالفعل — سجّل الدخول بدلاً من ذلك" };
 
-  const modules = d.modules.filter((m) => (ALL_MODULES as readonly string[]).includes(m));
-  const enabled = modules.length ? modules : [...ALL_MODULES]; // never lock a fresh trial out of everything
-
   let orgId: string;
   try {
     // Provisioning a brand-new tenant writes RLS-policied rows (members,
     // subscription) for an org that has no session/scope yet → platform scope.
     orgId = await withPlatformScope(async () => {
-    const [org] = await db.insert(organizations).values({
-      nameAr: d.companyName, nameEn: d.companyName,
-      email: d.email, phone: d.phone || null, address: d.address || null, taxNumber: d.taxNumber || null,
-      signupSource: d.source || null,
-    }).returning({ id: organizations.id });
-    const orgId = org.id;
+      const { orgId, userId } = await createOrgWithOwner({
+        companyName: d.companyName, ownerName: d.personName, email: d.email, password: d.password,
+        phone: d.phone, address: d.address, taxNumber: d.taxNumber, modules: d.modules, source: d.source,
+      });
 
-    const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
-    const [user] = await db.insert(users).values({
-      name: d.personName, email: d.email, passwordHash, passwordChangedAt: new Date(), role: "org_admin", title: "مدير المؤسسة",
-    }).returning({ id: users.id });
-
-    await db.insert(organizationMembers).values({ organizationId: orgId, userId: user.id, role: "admin" });
-
-    const now = new Date();
-    await db.insert(orgSubscriptions).values({
-      organizationId: orgId, status: "TRIAL", planName: "تجربة مجانية",
-      enabledModules: enabled, startedAt: now,
-      expiresAt: new Date(now.getTime() + TRIAL_DAYS * 86_400_000),
-    });
-
-    // Optional: file a PENDING subscription request for the chosen plan. The trial
-    // above still grants immediate access while the owner confirms the payment.
-    if (d.subscribe) {
-      const method = PAYMENT_METHODS.find((m) => m.key === d.subscribe!.paymentMethod);
-      const [plan] = await db.select().from(plans).where(_eq(plans.id, d.subscribe.planId)).limit(1);
-      if (plan && plan.isActive && method?.enabled) {
-        const price = d.subscribe.interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
-        await db.insert(subscriptionRequests).values({
-          organizationId: orgId, planId: plan.id, planName: plan.name,
-          interval: d.subscribe.interval, price: String(price),
-          paymentMethod: d.subscribe.paymentMethod, paymentReference: d.subscribe.paymentReference?.trim() || null,
-          requestedBy: user.id,
-        });
+      // Optional: file a PENDING subscription request for the chosen plan. The trial
+      // above still grants immediate access while the owner confirms the payment.
+      if (d.subscribe) {
+        const method = PAYMENT_METHODS.find((m) => m.key === d.subscribe!.paymentMethod);
+        const [plan] = await db.select().from(plans).where(_eq(plans.id, d.subscribe.planId)).limit(1);
+        if (plan && plan.isActive && method?.enabled) {
+          const price = d.subscribe.interval === "ANNUAL" ? plan.priceAnnual : plan.priceMonthly;
+          await db.insert(subscriptionRequests).values({
+            organizationId: orgId, planId: plan.id, planName: plan.name,
+            interval: d.subscribe.interval, price: String(price),
+            paymentMethod: d.subscribe.paymentMethod, paymentReference: d.subscribe.paymentReference?.trim() || null,
+            requestedBy: userId,
+          });
+        }
       }
-    }
-    return orgId;
+      return orgId;
     });
   } catch {
     return { error: "تعذّر إنشاء الحساب — حاول مرة أخرى" };
@@ -115,7 +100,11 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
 
   // Best-effort chart-of-accounts bootstrap (writes policied tables → platform scope);
   // the tenant can re-run it from settings if it fails.
-  try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); } catch { /* non-fatal */ }
+  // Non-fatal to signup, but NOT silent: if the chart-of-accounts bootstrap fails the
+  // org lands with an incomplete chart and every posting dead-ends until it's re-run
+  // from settings — so log it loudly (hits the error sink) instead of swallowing.
+  try { await withPlatformScope(() => initializeAccountingForOrg(orgId)); }
+  catch (e) { log.error("signup.accounting_bootstrap_failed", { orgId, err: e }); }
 
   // Best-effort welcome email (no-op if email isn't configured; never blocks signup).
   try {

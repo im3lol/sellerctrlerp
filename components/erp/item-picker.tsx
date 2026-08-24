@@ -3,26 +3,27 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { Input } from "@/components/ui/input";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
-/**
- * In-cell searchable item picker for document line tables. Shows the selected
- * item's label; on focus it clears for a typeahead search (name / internal code
- * / any external code / barcode). The results panel renders in a portal with
- * fixed positioning so it is never clipped by the table's overflow.
- */
 export function ItemPicker({
   selectedLabel,
+  selected,
   onSelect,
   placeholder,
 }: {
   selectedLabel?: string;
+  /** Detail for the RESTING cell (thumbnail + code under the name). Optional: callers that
+   *  only have a label keep the plain single-line display they always had. */
+  selected?: { name: string; code?: string | null; image?: string | null } | null;
   onSelect: (item: ItemSearchResult) => void;
   placeholder?: string;
 }) {
   const [q, setQ] = useState(selectedLabel ?? "");
+  // The picked row carries image + code; the parent only knows an id, so keep it here.
+  const [picked, setPicked] = useState<{ name: string; code?: string | null; image?: string | null } | null>(null);
   const [results, setResults] = useState<ItemSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -67,6 +68,7 @@ export function ItemPicker({
   }, []);
 
   const pick = (it: ItemSearchResult) => {
+    setPicked({ name: it.name, code: it.code, image: it.image });
     onSelect(it);
     setEditing(false); setOpen(false); setResults([]);
     setQ(`${it.code} — ${it.name}`);
@@ -85,6 +87,7 @@ export function ItemPicker({
             ) : (
               results.map((it) => (
                 <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
+                  <ItemThumb src={it.image} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{it.name}</div>
                     <div className="truncate text-xs text-muted-foreground">
@@ -104,14 +107,44 @@ export function ItemPicker({
         )
       : null;
 
+  // What the cell shows when it is NOT being searched.
+  //
+  // A caller that passes `selected` at all — even as null for an empty line — wins over the
+  // internally remembered pick, and that ordering is load-bearing: line tables key their rows
+  // by index, so deleting a row hands this component instance to the NEXT line. Preferring
+  // `picked` there would keep showing the deleted line's item. The parent derives `selected`
+  // from the line's own itemId, so it is always the truth. `picked` is the fallback for
+  // callers that only pass a label, which is how they get the thumbnail without changing.
+  const resting = selected !== undefined ? selected : picked;
+
   return (
-    <div ref={wrapRef} className="min-w-48">
-      <Input
-        value={q}
-        placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
-        onFocus={() => { setEditing(true); setQ(""); }}
-        onChange={(e) => setQ(e.target.value)}
-      />
+    <div ref={wrapRef} className="w-full min-w-0">
+      {resting && !editing ? (
+        <button
+          type="button"
+          onClick={() => { setEditing(true); setQ(""); }}
+          className="flex h-auto min-h-9 w-full items-center gap-2 rounded-md border bg-background px-2 py-1 text-start transition-colors hover:bg-accent"
+        >
+          <span className="min-w-0 flex-1">
+            {/* dir="auto" per line: an English name reads from its start (left), an Arabic
+                one from its start (right) — never truncated from the middle. */}
+            <span className="block truncate text-sm font-medium" dir="auto">{resting.name}</span>
+            {resting.code && <span className="block truncate font-mono text-xs text-muted-foreground" dir="ltr">{resting.code}</span>}
+          </span>
+        </button>
+      ) : (
+        <Input
+          value={q}
+          autoFocus={editing}
+          // dir="auto" → each name takes its own direction, so a long English name shows
+          // from its START (left) and an Arabic one from its start (right), never the middle.
+          dir="auto"
+          className="text-start"
+          placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
+          onFocus={() => { setEditing(true); setQ(""); }}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      )}
       {panel}
     </div>
   );

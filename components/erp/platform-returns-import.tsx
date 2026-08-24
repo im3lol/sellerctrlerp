@@ -1,15 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformReturnsAction, type PlatformReturnsResult } from "@/app/actions/erp/platform-returns";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ColumnMapSelect } from "@/components/erp/column-map-select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { selectCls } from "@/lib/utils";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => keys.some((k) => x.toLowerCase().includes(k))); return i >= 0 ? String(i) : ""; };
@@ -66,26 +66,24 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     start(async () => {
       const r = await importPlatformReturnsAction(platformId, returns);
       setResult(r);
-      if (r.ok) { toast.success(`تم تسجيل ${int(r.created)} مرتجع`); router.refresh(); }
+      if (r.ok) { toast.success(`تم إنشاء ${int(r.created)} مسودّة مرتجع`); router.refresh(); }
       else toast.error(r.error);
     });
   };
 
   const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
-  const MapSelect = ({ label, k, optional }: { label: string; k: keyof Mapping; optional?: boolean }) => (
-    <div className="space-y-1.5">
-      <Label>{label}{optional && <span className="text-muted-foreground"> (اختياري)</span>}</Label>
-      <select className={selectCls} value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: e.target.value }))}>
-        <option value="">— اختر العمود —</option>{colOptions}
-      </select>
-    </div>
-  );
+  // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
+  const mapProps = (k: keyof Mapping) => ({
+    value: map[k],
+    colOptions,
+    onChange: (v: string) => setMap((m) => ({ ...m, [k]: v })),
+  });
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>استيراد المرتجعات — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ إشعار خصم + نُعيد الصنف للمخزون. المكرر يُتخطّى.</CardDescription>
+        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ <b>مسودّة</b> مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
@@ -97,10 +95,10 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-4">
-              <MapSelect label="رقم الطلب" k="order" />
-              <MapSelect label="كود الصنف / SKU" k="sku" />
-              <MapSelect label="الكمية المرتجعة" k="qty" />
-              <MapSelect label="التاريخ" k="date" optional />
+              <ColumnMapSelect label="رقم الطلب" {...mapProps("order")} />
+              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
+              <ColumnMapSelect label="الكمية المرتجعة" {...mapProps("qty")} />
+              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{ready ? <>جاهز: <b>{int(returns.length)}</b> مرتجع</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
@@ -111,9 +109,8 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم تسجيل <b>{int(result.created)}</b> مرتجع (إشعار خصم + إعادة للمخزون).</div>
+            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <Link href="/sales/returns" className="underline">سجل المرتجعات</Link>.</div>
             {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{int(result.skippedDuplicate)}</b> مرتجع مكرر.</div>}
-            {result.restockFailed > 0 && <div className="text-destructive">⚠ <b>{int(result.restockFailed)}</b> مرتجع: تم الإشعار المالي لكن تعذّرت إعادة المخزون — أعِدها يدويًا.</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">
                 لم تُعالَج: {result.noOrder > 0 && <span>{int(result.noOrder)} بلا أمر مطابق · </span>}

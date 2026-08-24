@@ -76,7 +76,8 @@ export type DocumentSheetProps = {
   totals?: PrintTotal[];
   /** The highlighted chip — the one number the reader is looking for. */
   balance?: { label: string; value: string };
-  note?: string | null;
+  /** Plain text, or formatted nodes from `renderRichText` for a note the user styled. */
+  note?: ReactNode;
   signatures?: string[];
   /** Diagonal faded stamp across the sheet — pass "مسودة" for unposted documents. */
   watermark?: string;

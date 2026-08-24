@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export type ComboOption = { id: string; label: string; hint?: string };
@@ -19,6 +20,8 @@ export function ComboboxBase({
   placeholder,
   disabled,
   minWidthClass = "min-w-40",
+  onCreate,
+  createLabel = "إنشاء جديد",
 }: {
   displayValue: string;
   options: ComboOption[];
@@ -26,6 +29,10 @@ export function ComboboxBase({
   placeholder?: string;
   disabled?: boolean;
   minWidthClass?: string;
+  /** Offer a "create it" row at the bottom of the list, handed whatever was typed.
+   *  Without it the panel behaves exactly as before. */
+  onCreate?: (typed: string) => void;
+  createLabel?: string;
 }) {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState(false);
@@ -68,11 +75,11 @@ export function ComboboxBase({
 
   const pick = (o: ComboOption) => { onPick(o); setEditing(false); setOpen(false); setQ(""); };
 
-  const panel = mounted && open && rect && filtered.length > 0
+  const panel = mounted && open && rect && (filtered.length > 0 || !!onCreate)
     ? createPortal(
         <div
           ref={ddRef}
-          style={{ position: "fixed", top: rect.top, left: rect.left, width: Math.max(rect.width, 240), zIndex: 9999 }}
+          style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width, minWidth: rect.width, zIndex: 9999 }}
           className="max-h-72 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg"
         >
           {filtered.map((o) => (
@@ -86,6 +93,19 @@ export function ComboboxBase({
               {o.hint && <span className="font-mono text-xs text-muted-foreground">{o.hint}</span>}
             </button>
           ))}
+          {onCreate && (
+            <>
+              {filtered.length > 0 && <div className="my-1 h-px bg-border" />}
+              <button
+                type="button"
+                onClick={() => { const typed = q.trim(); setEditing(false); setOpen(false); setQ(""); onCreate(typed); }}
+                className="flex w-full items-center gap-2 rounded-sm px-3 py-1.5 text-start text-sm font-medium text-primary hover:bg-accent"
+              >
+                <Plus className="size-4" />
+                {q.trim() ? `${createLabel}: «${q.trim()}»` : createLabel}
+              </button>
+            </>
+          )}
         </div>,
         document.body,
       )

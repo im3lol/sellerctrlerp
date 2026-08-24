@@ -8,9 +8,8 @@ import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformRemovalsAction, type PlatformRemovalsResult } from "@/app/actions/erp/platform-removals";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ColumnMapSelect } from "@/components/erp/column-map-select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { selectCls } from "@/lib/utils";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => keys.some((k) => x.toLowerCase().includes(k))); return i >= 0 ? String(i) : ""; };
@@ -73,14 +72,12 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
   };
 
   const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
-  const MapSelect = ({ label, k, optional }: { label: string; k: keyof Mapping; optional?: boolean }) => (
-    <div className="space-y-1.5">
-      <Label>{label}{optional && <span className="text-muted-foreground"> (اختياري)</span>}</Label>
-      <select className={selectCls} value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: e.target.value }))}>
-        <option value="">— اختر العمود —</option>{colOptions}
-      </select>
-    </div>
-  );
+  // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
+  const mapProps = (k: keyof Mapping) => ({
+    value: map[k],
+    colOptions,
+    onChange: (v: string) => setMap((m) => ({ ...m, [k]: v })),
+  });
 
   return (
     <Card>
@@ -101,9 +98,9 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3">
-              <MapSelect label="كود الصنف / SKU" k="sku" />
-              <MapSelect label="كمية الإتلاف (Disposed)" k="disposed" optional />
-              <MapSelect label="كمية الإرجاع للبائع (Shipped)" k="returned" optional />
+              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
+              <ColumnMapSelect label="كمية الإتلاف (Disposed)" {...mapProps("disposed")} optional />
+              <ColumnMapSelect label="كمية الإرجاع للبائع (Shipped)" {...mapProps("returned")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{ready ? <>جاهز: <b>{int(removals.length)}</b> سطر</> : "اربط الصنف وعمود إتلاف أو إرجاع."}</span>
@@ -117,7 +114,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
             <div>إجمالي المُتلَف: <b>{int(result.totalDisposed)}</b> · المُرتجَع للبائع: <b>{int(result.totalReturned)}</b> وحدة.</div>
             <div>طوبق <b>{int(result.matchedItems)}</b> صنف · تم إتلاف <b>{int(result.matchedDisposedUnits)}</b> وحدة (خسارة).</div>
             {result.adjustmentId && (
-              <div>📝 <Link href={`/inventory/adjustments/${result.adjustmentId}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
+              <div>📝 <Link href={`/inventory/adjustments/${encodeURIComponent(result.adjustmentNumber ?? result.adjustmentId!)}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
             )}
             {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} SKU غير مربوط: <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
           </div>

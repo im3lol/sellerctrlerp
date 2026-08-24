@@ -185,6 +185,51 @@ export async function syncInventoryAction(code: string): Promise<InventorySync> 
   return r;
 }
 
+/** On-demand image sync: backfill images (Catalog Items API — not a report) for items
+ *  still missing one. Enqueues the images job; inline fallback when Redis is absent. */
+export async function startImagesSyncAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {
+  const auth = await authorizeErp("sales.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchCatalog) return { ok: false, error: "المنصة لا تدعم كتالوج الصور" };
+  if (await enqueue(QUEUES.images, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined })) {
+    return { ok: true, started: true };
+  }
+  const { runImagesJob } = await import("@/lib/queue/handlers"); // inline fallback (no Redis)
+  await runImagesJob({ orgId: p.orgId, provider: p.provider });
+  return { ok: true, started: false };
+}
+
+/** Refresh the marketplace's own reported balance — one request, so it runs inline. */
+export async function refreshPlatformBalanceAction(code: string): Promise<{ ok: boolean; error?: string }> {
+  const auth = await authorizeErp("accounting.view", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  const { syncBalanceCore } = await import("@/lib/erp/marketplace/sync-core");
+  const r = await syncBalanceCore(p);
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath(`/platforms/${code}/payouts`);
+  return { ok: true };
+}
+
+/** On-demand FNSKU backfill: attach Amazon's own barcode to every FBA item already in
+ *  the catalogue. Enqueues the codes job; inline fallback when Redis is absent. */
+export async function startFbaCodesSyncAction(code: string): Promise<{ ok: boolean; error?: string; started?: boolean }> {
+  const auth = await authorizeErp("inventory.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchInventoryDetail) return { ok: false, error: "المنصة لا تدعم مخزون FBA" };
+  if (await enqueue(QUEUES.codes, { orgId: p.orgId, provider: p.provider, marketplaceId: p.cred.marketplaceId ?? undefined })) {
+    return { ok: true, started: true };
+  }
+  const { runFbaCodesJob } = await import("@/lib/queue/handlers"); // inline fallback (no Redis)
+  await runFbaCodesJob({ orgId: p.orgId, provider: p.provider });
+  return { ok: true, started: false };
+}
+
 /** Enqueue an on-demand refresh of estimated Amazon fees for all linked items. */
 export async function refreshAmazonFeesAction(code: string): Promise<{ ok: boolean; error?: string }> {
   const auth = await authorizeErp("sales.create", "marketplace");

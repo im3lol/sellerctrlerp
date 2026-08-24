@@ -15,6 +15,7 @@ import { getItemPnl, getItemLinkedDocs } from "@/lib/erp/item-pnl";
 import Link from "next/link";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
 import { ItemFamilyManager } from "@/components/erp/item-family-manager";
+import { BarcodePrintButton, type PrintCode } from "@/components/erp/barcode-print";
 
 const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -50,6 +51,20 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
       : [null, []];
     const ldt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
+    // Printable codes: the item code + every linked platform/identifier code (SKU,
+    // ASIN, FNSKU, UPC/EAN, …), deduped by value — the label the seller picks from.
+    const CODE_LABEL: Record<string, string> = { SKU: "SKU (كود المنصة)", ASIN: "ASIN", FNSKU: "FNSKU", UPC: "UPC", EAN: "EAN", NOON: "كود نون" };
+    const printCodes: PrintCode[] = [];
+    const seenCode = new Set<string>();
+    const pushCode = (label: string, value: string | null | undefined) => {
+      const v = (value ?? "").trim();
+      if (!v || seenCode.has(v)) return;
+      seenCode.add(v);
+      printCodes.push({ label, value: v });
+    };
+    pushCode("كود الصنف", item.code);
+    for (const c of codes) pushCode(CODE_LABEL[c.codeType] ?? c.codeType, c.code);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
@@ -57,7 +72,12 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
           title={item.nameAr ?? item.code}
           subtitle={`الكود: ${item.code}`}
           backHref="/inventory/items"
-          action={<ItemDetailActions itemId={item.id} canEdit={can("inventory.edit")} canDelete={can("inventory.delete")} />}
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <BarcodePrintButton itemName={item.nameAr ?? item.code} codes={printCodes} />
+              <ItemDetailActions itemId={item.id} canEdit={can("inventory.edit")} canDelete={can("inventory.delete")} />
+            </div>
+          }
         />
 
         <div className="grid gap-6 lg:grid-cols-3">

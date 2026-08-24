@@ -2,15 +2,16 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { and, eq, or, ilike, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { validateParentLink } from "@/lib/erp/item-family-core";
-import { prepareCodes, normalizeCode } from "@/lib/erp/item-codes";
+import { prepareCodes, } from "@/lib/erp/item-codes";
 import { putObject, publicUrl } from "@/lib/storage";
+import { itemMatches } from "@/lib/erp/item-match";
 
 const codeSchema = z.object({
   codeType: z.string().min(1),
@@ -172,14 +173,7 @@ async function matchingItemIds(orgId: string, f: ItemsFilter): Promise<string[]>
   const conds = [eq(items.organizationId, orgId)];
   const q = (f.q ?? "").trim();
   if (q) {
-    const norm = normalizeCode(q);
-    const codeItemIds = norm
-      ? (await db.select({ id: itemCodes.itemId }).from(itemCodes)
-          .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`)))).map((r) => r.id)
-      : [];
-    const search = [ilike(items.code, `%${q}%`), ilike(items.nameAr, `%${q}%`)];
-    if (codeItemIds.length) search.push(inArray(items.id, [...new Set(codeItemIds)]));
-    conds.push(or(...search)!);
+    conds.push(itemMatches(orgId, q)!);
   }
   if (f.status === "active") conds.push(eq(items.isActive, true));
   if (f.status === "inactive") conds.push(eq(items.isActive, false));

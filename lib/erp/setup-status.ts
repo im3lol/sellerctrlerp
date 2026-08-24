@@ -1,6 +1,7 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import {
   organizations, accounts, unitsOfMeasure, warehouses, items, customers, suppliers,
   stockMovements, documentPrefixes, salesPlatforms, journalEntries,
@@ -8,17 +9,18 @@ import {
 
 /**
  * Derived onboarding state — computed live from the org's real data, never stored.
- * Essential steps (7) drive the progress bar; optional ones are informative.
+ * Essential steps (9) drive the progress bar; optional ones are informative.
  */
 export type SetupStatus = {
-  company: boolean;      // org profile touched (tax number / logo / fiscal-year start)
+  basis: boolean;        // accounting basis confirmed — the fiscal-year start is set (drives every period)
+  company: boolean;      // tax number set — the thing that actually matters on a tax invoice
   chart: boolean;        // chart of accounts exists (auto-seeded at signup)
   units: boolean;        // at least one unit of measure
   warehouses: boolean;   // at least one warehouse (WH-01 auto-seeded)
   items: boolean;
   customers: boolean;
   suppliers: boolean;
-  opening: boolean;      // opening balances posted (optional)
+  opening: boolean;      // opening balances posted (essential — new companies mark it done)
   numbering: boolean;    // document prefixes customized (optional)
   platform: boolean;     // a sales platform exists (optional)
   essentialDone: number;
@@ -26,6 +28,7 @@ export type SetupStatus = {
 };
 
 export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
+ return withOrgScope(orgId, false, async () => {
   const cnt = (p: Promise<{ n: number }[]>) => p.then((r) => Number(r[0]?.n ?? 0));
   const [org, nAccounts, nUnits, nWarehouses, nItems, nCustomers, nSuppliers, nOpeningStock, nOpeningJournal, nPrefixes, nPlatforms] = await Promise.all([
     db.select({ taxNumber: organizations.taxNumber, logo: organizations.logo, fiscalYearStart: organizations.fiscalYearStart, setupSkipped: organizations.setupSkipped })
@@ -37,7 +40,9 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     cnt(db.select({ n: sql<number>`count(*)` }).from(customers).where(eq(customers.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(stockMovements)
-      .where(and(eq(stockMovements.organizationId, orgId), eq(stockMovements.referenceType, "OPENING_STOCK")))),
+      // The real opening-balance post writes referenceType "OPENING_BALANCE"
+      // (opening-balance.ts); "OPENING_STOCK" is only the demo seed. Count both.
+      .where(and(eq(stockMovements.organizationId, orgId), inArray(stockMovements.referenceType, ["OPENING_BALANCE", "OPENING_STOCK"])))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(journalEntries)
       .where(and(eq(journalEntries.organizationId, orgId), eq(journalEntries.sourceType, "OPENING_BALANCE")))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(documentPrefixes).where(eq(documentPrefixes.organizationId, orgId))),
@@ -45,7 +50,10 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
   ]);
 
   const s: SetupStatus = {
-    company: !!(org?.taxNumber || org?.logo || org?.fiscalYearStart),
+    basis: !!org?.fiscalYearStart,
+    // The tax number is what a compliant invoice needs; a logo alone shouldn't tick
+    // "company set". Non-VAT sellers can mark this step done manually.
+    company: !!org?.taxNumber,
     chart: nAccounts > 0,
     units: nUnits > 0,
     warehouses: nWarehouses > 0,
@@ -56,12 +64,13 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     numbering: nPrefixes > 0,
     platform: nPlatforms > 0,
     essentialDone: 0,
-    essentialTotal: 7,
+    essentialTotal: 9,
   };
   // Steps the admin marked done manually override the derived state.
   for (const k of org?.setupSkipped ?? []) {
     if (k in s && typeof s[k as keyof SetupStatus] === "boolean") (s as Record<string, unknown>)[k] = true;
   }
-  s.essentialDone = [s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers].filter(Boolean).length;
+  s.essentialDone = [s.basis, s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
   return s;
+ });
 }

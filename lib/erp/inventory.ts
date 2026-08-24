@@ -1,8 +1,26 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { round4 } from "@/lib/erp/money";
 import { db } from "@/lib/db";
-import { stockMovements, stockBatches, stockMovementBatches, items } from "@/db/schema";
+import { stockMovements, stockBatches, stockMovementBatches, items, fiscalPeriods } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
+import { log } from "@/lib/log";
+
+/**
+ * A stock move dated into a locked fiscal period must be rejected — the quantity
+ * ledger is as immutable as the GL. Value-bearing moves are already covered
+ * transitively (their paired postEntry throws on a closed period), but zero-value
+ * moves and pure adjustments skip the GL, so they need their own guard here. Unlike
+ * ensurePeriod this never CREATES a period — no covering period = allow (nothing to
+ * corrupt, and the GL leg, if any, auto-creates one).
+ */
+async function assertPeriodOpenForStock(tx: Tx, orgId: string, date: Date): Promise<void> {
+  const [p] = await tx.select({ status: fiscalPeriods.status }).from(fiscalPeriods)
+    .where(and(eq(fiscalPeriods.organizationId, orgId), lte(fiscalPeriods.startDate, date), gte(fiscalPeriods.endDate, date)))
+    .limit(1);
+  if (p && (p.status === "CLOSED" || p.status === "SOFT_CLOSED")) {
+    throw new Error("الفترة المالية مقفلة أو مجمّدة — لا يمكن تسجيل حركة مخزون بتاريخها");
+  }
+}
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -120,7 +138,7 @@ type PlanLine = { batchId: string; qty: number; unitCost: number };
 /** FEFO depletion plan with per-lot cost: earliest expiry first (NULLs last), then received date. */
 async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: string, need: number): Promise<PlanLine[]> {
   const lots = await tx
-    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost })
+    .select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost, exp: stockBatches.expiryDate })
     .from(stockBatches)
     .where(and(
       eq(stockBatches.organizationId, orgId),
@@ -132,13 +150,20 @@ async function fefoPlan(tx: Tx, orgId: string, itemId: string, warehouseId: stri
 
   let left = round4(need);
   const plan: PlanLine[] = [];
+  const now = new Date();
+  let expiredIssued = 0;
   for (const lot of lots) {
     if (left <= 1e-9) break;
     const take = Math.min(left, Number(lot.rem));
     if (take <= 1e-9) continue;
+    if (lot.exp && new Date(lot.exp) < now) expiredIssued = round4(expiredIssued + take);
     plan.push({ batchId: lot.id, qty: round4(take), unitCost: Number(lot.cost) });
     left = round4(left - take);
   }
+  // Shipping EXPIRED stock: surface it (log→Telegram) rather than hard-block the sale —
+  // blocking an issue could halt legitimate clearance; the trader decides. FEFO already
+  // consumes earliest-expiry first, so this only fires when nothing fresher was available.
+  if (expiredIssued > 1e-9) log.warn("inventory.expired_issue", { orgId, itemId, warehouseId, qty: expiredIssued });
   if (left > 1e-9) {
     const syn = await ensureSynthetic(tx, orgId, itemId, warehouseId);
     plan.push({ batchId: syn.id, qty: round4(left), unitCost: syn.unitCost }); // overflow may drive synthetic negative
@@ -167,6 +192,13 @@ async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanL
  * depletes lots FEFO (or pinned via `allocations`).
  */
 export async function postStockMovement(tx: Tx, input: StockInput): Promise<StockResult> {
+  // Serialize concurrent movements on the same (org,item,warehouse). The running balance
+  // is read (priorBalance) then written; without this lock two documents shipping the same
+  // item can both read the same prior balance and oversell / corrupt the quantity & WAC.
+  // Transaction-scoped advisory lock → auto-released on commit/rollback; a hash collision
+  // only ever over-serializes two unrelated lots (correctness-safe).
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${input.orgId}:${input.itemId}:${input.warehouseId}`}))`);
+  await assertPeriodOpenForStock(tx, input.orgId, input.date);
   const { qty: priorQty, value: priorValue } = await priorBalance(tx, input.orgId, input.itemId, input.warehouseId);
   const wac = priorQty > 0 ? priorValue / priorQty : 0;
 

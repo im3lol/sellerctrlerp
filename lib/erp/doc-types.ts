@@ -32,6 +32,7 @@ export const DOC_TYPES = [
   { key: "ASM", label: "أمر تجميع" },
   { key: "PY", label: "مسيّر رواتب" },
   { key: "LV", label: "طلب إجازة" },
+  { key: "PD", label: "توزيع أرباح" },
 ] as const;
 
 export type DocTypeKey = (typeof DOC_TYPES)[number]["key"];

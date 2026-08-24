@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, salesReturns, salesReturnLines } from "@/db/schema";
@@ -18,6 +18,7 @@ const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_DELIVERED", "تسليم جزئي"],
   ["DELIVERED", "تم التسليم"], ["INVOICED", "مفوتر"], ["CANCELLED", "ملغى"],
 ];
+const CHANNEL_OPTIONS: [string, string][] = [["AMAZON", "أمازون"], ["NOON", "نون"], ["SHOPIFY", "شوبيفاي"], ["MANUAL", "يدوي"]];
 
 type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -29,6 +30,8 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const sp = await searchParams;
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
+    const fChannel = one(sp.channel);
+    const fFulfillment = one(sp.fulfillment); // FBA | FBM
     const fCustomer = one(sp.customer);
     const from = one(sp.from);
     const to = one(sp.to);
@@ -37,6 +40,9 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const conds = [eq(salesOrders.organizationId, orgId)];
     if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesOrders.status, fStatus));
+    if (fChannel === "MANUAL") conds.push(isNull(salesOrders.channel));
+    else if (fChannel) conds.push(eq(salesOrders.channel, fChannel));
+    if (fFulfillment) conds.push(eq(salesOrders.fulfillmentType, fFulfillment));
     if (fCustomer) conds.push(eq(salesOrders.customerId, fCustomer));
     if (from) conds.push(gte(salesOrders.date, new Date(from)));
     if (to) conds.push(lte(salesOrders.date, new Date(to + "T23:59:59")));
@@ -59,7 +65,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const safePage = Math.min(page, pages);
 
     const rows = await db
-      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus })
+      .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus, fulfillmentType: salesOrders.fulfillmentType })
       .from(salesOrders)
       .leftJoin(customers, eq(customers.id, salesOrders.customerId))
       .where(where)
@@ -105,11 +111,13 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       returns: retsBySo.get(r.id) ?? [],
     }));
 
-    const hasFilters = Boolean(q || fStatus || fCustomer || from || to);
+    const hasFilters = Boolean(q || fStatus || fChannel || fFulfillment || fCustomer || from || to);
     const qs = (p: number) => {
       const u = new URLSearchParams();
       if (q) u.set("q", q);
       if (fStatus) u.set("status", fStatus);
+      if (fChannel) u.set("channel", fChannel);
+      if (fFulfillment) u.set("fulfillment", fFulfillment);
       if (fCustomer) u.set("customer", fCustomer);
       if (from) u.set("from", from);
       if (to) u.set("to", to);
@@ -143,13 +151,30 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
-              <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+              <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
                 <div className="space-y-1"><Label htmlFor="q">رقم الأمر / أمازون</Label><Input id="q" name="q" defaultValue={q} placeholder="SO-2026-... أو 407-..." /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">الحالة</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                     <option value="">الكل</option>
                     {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="channel">القناة</Label>
+                  <select id="channel" name="channel" defaultValue={fChannel} className={selectCls}>
+                    <option value="">الكل</option>
+                    {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="fulfillment">التنفيذ</Label>
+                  <select id="fulfillment" name="fulfillment" defaultValue={fFulfillment} className={selectCls}>
+                    <option value="">الكل</option>
+                    <option value="FBA">FBA (أمازون)</option>
+                    <option value="FBM">FBM (التاجر)</option>
+                    <option value="FBN">FBN (نون)</option>
+                    <option value="FBP">FBP (الشريك)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -161,7 +186,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
                 </div>
                 <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
                 <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
-                <div className="flex gap-2 sm:col-span-5">
+                <div className="flex gap-2 sm:col-span-6">
                   <Button type="submit">تطبيق</Button>
                   {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/orders">مسح</Link></Button>}
                 </div>

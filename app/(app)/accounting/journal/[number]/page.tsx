@@ -95,6 +95,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
                 canPost={can("accounting.post")}
                 canReverse={can("accounting.reverse")}
                 canDelete={can("accounting.create")}
+                editHref={entry.status === "DRAFT" && entry.sourceType === "MANUAL" ? `/accounting/journal/${encodeURIComponent(entry.number)}/edit` : undefined}
               />
             </div>
           }

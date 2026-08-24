@@ -16,7 +16,7 @@ export default async function DistributionsPage() {
   return loadErpPage("investors.view", async ({ orgId, can }) => {
     const [rows, balances] = await Promise.all([
       db.select({
-        id: profitDistributions.id, periodName: profitDistributions.periodName,
+        id: profitDistributions.id, number: profitDistributions.number, periodName: profitDistributions.periodName,
         periodStart: profitDistributions.periodStart, periodEnd: profitDistributions.periodEnd,
         distributionDate: profitDistributions.distributionDate,
         totalProfit: profitDistributions.totalProfit, status: profitDistributions.status,
@@ -57,7 +57,7 @@ export default async function DistributionsPage() {
                   {rows.map((r) => (
                     <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="p-3">
-                        <Link href={`/investors/distributions/${r.id}`} className="font-medium text-primary hover:underline">
+                        <Link href={`/investors/distributions/${encodeURIComponent(r.number)}`} className="font-medium text-primary hover:underline">
                           {r.periodName}
                         </Link>
                         <div className="text-xs text-muted-foreground">{dt(r.periodStart)} → {dt(r.periodEnd)}</div>

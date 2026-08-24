@@ -31,8 +31,10 @@ Notes:
 - Use the **owner/superuser** connection (`postgres`), not `appuser` — a dump must read
   every row; under RLS a non-BYPASSRLS role would dump nothing.
 - Connect **direct** (`:5432`), not the transaction pooler (`:6543`).
-- Set `OFFSITE_BUCKET` to also copy each dump to S3/MinIO (offsite is what saves you when
-  the whole box dies). Restic/rclone to a second provider is even better.
+- Set `OFFSITE_S3_BUCKET` (+ `OFFSITE_S3_ENDPOINT` for Cloudflare R2/MinIO, `AWS_*` creds) to
+  also copy each dump offsite — the **same** vars the docker compose `backup` sidecar uses, so
+  one `.env` drives both. Offsite is what saves you when the whole box dies; Restic/rclone to a
+  second provider is even better.
 
 ### Restore (full DB)
 
@@ -44,8 +46,14 @@ pg_restore --no-owner --no-privileges --dbname="postgres://postgres:***@localhos
 # or overwrite in place (DESTRUCTIVE — drops+recreates objects)
 pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" backup.dump
 ```
-After a restore, re-run the RLS bootstrap if roles were lost: `db/rls/00-appuser.sql`
-then `01-policies.sql` + `02-line-policies.sql` (see `db/rls/CUTOVER.md`).
+Or use the wrapper (same flags): `DATABASE_URL=… ./scripts/backup/pg-restore.sh <dump>`.
+
+After a restore, re-apply RLS: **`npm run db:rls`** (recreates the appuser role +
+policies; see `db/rls/CUTOVER.md`).
+
+> **Restore is tested.** A dump from the compose `backup` service was restored into a
+> scratch DB and verified (orgs / customers / GL lines all present) — the restore path
+> works, not just the backup path.
 
 ### Point-in-time recovery (PITR) — optional, sub-day granularity
 

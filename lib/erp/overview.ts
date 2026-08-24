@@ -1,5 +1,6 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { salesInvoices, purchaseInvoices, customers, suppliers } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
@@ -38,6 +39,7 @@ export type PendingWork = { jeDraft: number; siDraft: number; piDraft: number; s
 /** All open document-workflow counts in one round-trip (kept out of getErpOverview
  *  to avoid widening its parallel fan-out on the session pooler). */
 export async function getPendingWork(orgId: string): Promise<PendingWork> {
+ return withOrgScope(orgId, false, async () => {
   const [row] = (await db.execute<Record<keyof PendingWork, number>>(sql`
     SELECT
       (SELECT count(*) FROM journal_entries  WHERE organization_id = ${orgId} AND status = 'DRAFT')::int AS "jeDraft",
@@ -47,6 +49,7 @@ export async function getPendingWork(orgId: string): Promise<PendingWork> {
       (SELECT count(*) FROM purchase_orders  WHERE organization_id = ${orgId} AND status IN ('CONFIRMED','PARTIALLY_RECEIVED'))::int AS "poAwaiting"
   `)).rows as Record<keyof PendingWork, number>[];
   return { jeDraft: row?.jeDraft ?? 0, siDraft: row?.siDraft ?? 0, piDraft: row?.piDraft ?? 0, soAwaiting: row?.soAwaiting ?? 0, poAwaiting: row?.poAwaiting ?? 0 };
+ });
 }
 
 function monthStart(): Date {
@@ -87,6 +90,7 @@ async function pnlTrend(orgId: string): Promise<{ label: string; revenue: number
  * the same numbers. All queries are org-scoped.
  */
 export async function getErpOverview(orgId: string): Promise<ErpOverview> {
+ return withOrgScope(orgId, false, async () => {
   const since = monthStart();
   const today = new Date();
 
@@ -173,10 +177,12 @@ export async function getErpOverview(orgId: string): Promise<ErpOverview> {
     recentSales: recentSales.map((r) => ({ number: r.number, customer: r.customer ?? "—", amount: Number(r.amount), date: r.date })),
     recentPurchases: recentPurchases.map((r) => ({ number: r.number, supplier: r.supplier ?? "—", amount: Number(r.amount), date: r.date })),
   };
+ });
 }
 
 /** Daily POSTED sales-invoice totals for the last `days` days (continuous 0-filled series). */
 export async function getSalesTrend(orgId: string, days = 30): Promise<{ label: string; value: number }[]> {
+ return withOrgScope(orgId, false, async () => {
   const since = new Date(Date.now() - days * 864e5);
   const rows = await db
     .select({ d: sql<string>`to_char(${salesInvoices.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesInvoices.totalAmount}),0)` })
@@ -188,4 +194,5 @@ export async function getSalesTrend(orgId: string, days = 30): Promise<{ label: 
     const day = new Date(Date.now() - (days - 1 - i) * 864e5);
     return { label: day.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }), value: byDay.get(day.toISOString().slice(0, 10)) ?? 0 };
   });
+ });
 }

@@ -14,7 +14,7 @@ import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveOrderState = ActionState & { id?: string; warning?: string };
+export type SaveOrderState = ActionState & { id?: string; number?: string; warning?: string };
 
 const qf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
@@ -25,6 +25,7 @@ const lineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
+  exempt: z.coerce.boolean().default(false),
 });
 const schema = z.object({
   customerId: z.string().min(1, "اختر العميل"),
@@ -91,7 +92,7 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
     const number = await nextNumber(auth.orgId, d.getFullYear());
 
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [so] = await tx.insert(salesOrders).values({
           organizationId: auth.orgId, number, customerId, date: d, dueDate: dueDate ? new Date(dueDate) : null,
           status: "DRAFT", subtotal: String(subtotal), discountAmount: String(discountAmount),
@@ -100,15 +101,73 @@ export async function createSalesOrderAction(input: unknown): Promise<SaveOrderS
         }).returning({ id: salesOrders.id });
         await tx.insert(salesOrderLines).values(computed.map((l) => ({
           salesOrderId: so.id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
-          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), totalAmount: String(l.totalAmount),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
         })));
-        return so.id;
+        return { id: so.id, number };
       });
-      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "SALES_ORDER", entityId: created.id, entityNumber: number, summary: `إنشاء أمر بيع ${number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/sales/orders");
-      return { ok: true, id, warning };
+      return { ok: true, id: created.id, number: created.number, warning };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "رقم الأمر مستخدم — أعد المحاولة" : "تعذّر حفظ الأمر" };
+    }
+  });
+}
+
+/** Edit a DRAFT sales order in place: replace its lines + header, keep the number and
+ *  the marketplace linkage (channel + externalOrderId). Only DRAFT is editable. */
+export async function updateSalesOrderAction(id: string, input: unknown): Promise<SaveOrderState> {
+  const auth = await authorizeErp("sales.create");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0].message };
+    const { customerId, date, dueDate, notes, lines } = parsed.data;
+    const shippingAmount = round2(parsed.data.shippingAmount);
+
+    const [existing] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
+    if (!existing) return { error: "الأمر غير موجود" };
+    if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً" };
+
+    const [cust] = await db.select({ id: customers.id }).from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId))).limit(1);
+    if (!cust) return { error: "العميل غير موجود في هذه المؤسسة" };
+
+    const computed = lines.map((l) => ({ ...l, totalAmount: round2(l.quantity * l.unitPrice - l.discountAmount + l.taxAmount) }));
+    const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
+    const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
+    const totalAmount = round2(subtotal - discountAmount + taxAmount + shippingAmount);
+
+    try {
+      await db.transaction(async (tx) => {
+        // Re-check the status under a row lock: «تأكيد» can land between the read above
+        // and here, and rewriting a confirmed order's lines would leave the delivery /
+        // invoice built from it describing quantities nobody ever approved.
+        const [live] = await tx.select({ status: salesOrders.status }).from(salesOrders)
+          .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1).for("update");
+        if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً");
+        // channel + externalOrderId intentionally left untouched — editing must not alter
+        // a marketplace order's identity.
+        await tx.update(salesOrders).set({
+          customerId, date: new Date(date), dueDate: dueDate ? new Date(dueDate) : null,
+          subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
+          shippingAmount: String(shippingAmount), totalAmount: String(totalAmount), notes: notes || null, updatedAt: new Date(),
+        }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+        await tx.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+        await tx.insert(salesOrderLines).values(computed.map((l) => ({
+          salesOrderId: id, itemId: l.itemId, warehouseId: l.warehouseId || null, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
+          discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
+        })));
+      });
+      await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "SALES_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر بيع ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/orders/${encodeURIComponent(existing.number)}`);
+      return { ok: true, id, number: existing.number };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر حفظ التعديل" };
     }
   });
 }
@@ -122,10 +181,14 @@ export async function confirmSalesOrderAction(id: string): Promise<ActionState> 
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
     if (!so) return { error: "الأمر غير موجود" };
     if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
-    await db.update(salesOrders).set({ status: "CONFIRMED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    // Compare-and-swap on the status just read, so a concurrent edit/cancel can't slip in.
+    const done = await db.update(salesOrders).set({ status: "CONFIRMED" })
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, "DRAFT")))
+      .returning({ id: salesOrders.id });
+    if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
-    revalidatePath(`/sales/orders/${id}`);
+    revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
   });
 }
@@ -144,7 +207,10 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
         .where(and(eq(deliveryNotes.salesOrderId, id), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
       if (dn) return { error: "لا يمكن حذف أمر مرتبط بإذون صرف" };
     }
-    await db.delete(salesOrders).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    const gone = await db.delete(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, so.status)))
+      .returning({ id: salesOrders.id });
+    if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
     return { ok: true };
@@ -314,7 +380,10 @@ export async function cancelSalesOrderAction(id: string): Promise<ActionState> {
     if (moved.some((l) => Number(l.d) > 0 || Number(l.inv) > 0)) {
       return { error: "الأمر مصروف/مفوتر جزئيًا — اعكس الصرف أو أنشئ مرتجعًا بدل الإلغاء" };
     }
-    await db.update(salesOrders).set({ status: "CANCELLED" }).where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId)));
+    const cancelled = await db.update(salesOrders).set({ status: "CANCELLED" })
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, so.status)))
+      .returning({ id: salesOrders.id });
+    if (!cancelled.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إلغاء أمر بيع ${so.number}` });
     revalidatePath("/sales/orders");
     return { ok: true };
@@ -336,7 +405,7 @@ export async function revertSalesOrderToDraftAction(id: string): Promise<ActionS
     await db.update(salesOrders).set({ status: "DRAFT" }).where(eq(salesOrders.id, id));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `إعادة فتح أمر بيع ${so.number} كمسودة` });
     revalidatePath("/sales/orders");
-    revalidatePath(`/sales/orders/${id}`);
+    revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
   });
 }

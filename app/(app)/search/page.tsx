@@ -7,6 +7,7 @@ import { items, customers, suppliers } from "@/db/schema";
 import { getActiveOrg } from "@/lib/erp/org";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Boxes, Users, Truck, Search as SearchIcon, type LucideIcon } from "lucide-react";
+import { itemMatches } from "@/lib/erp/item-match";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         const like = `%${query}%`;
         const [it, cu, su] = await Promise.all([
           db.select({ id: items.id, code: items.code, name: items.nameAr }).from(items)
-            .where(and(eq(items.organizationId, org.id), or(ilike(items.nameAr, like), ilike(items.code, like)))).limit(25),
+            .where(and(eq(items.organizationId, org.id), itemMatches(org.id, query))).limit(25),
           db.select({ id: customers.id, code: customers.code, name: customers.nameAr }).from(customers)
             .where(and(eq(customers.organizationId, org.id), or(ilike(customers.nameAr, like), ilike(customers.code, like)))).limit(25),
           db.select({ id: suppliers.id, code: suppliers.code, name: suppliers.nameAr }).from(suppliers)

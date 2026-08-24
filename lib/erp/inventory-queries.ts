@@ -1,6 +1,7 @@
-import { and, or, eq, ilike, inArray, asc, sql } from "drizzle-orm";
+import { and, eq, inArray, asc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, itemCodes, warehouses } from "@/db/schema";
+import { itemMatches } from "@/lib/erp/item-match";
 import { getAvailability } from "@/lib/erp/availability";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
@@ -27,25 +28,11 @@ export function normalizeCode(s: string): string {
 export async function searchItems(orgId: string, query: string): Promise<ItemSearchResult[]> {
   const q = query.trim();
   if (q.length < 1) return [];
-  const norm = normalizeCode(q);
-
-  const codeMatches = norm
-    ? await db.select({ itemId: itemCodes.itemId }).from(itemCodes)
-        .where(and(eq(itemCodes.organizationId, orgId), ilike(itemCodes.normalizedCode, `%${norm}%`)))
-        .limit(50)
-    : [];
-  const codeItemIds = [...new Set(codeMatches.map((c) => c.itemId))];
-
-  const conds = [
-    ilike(items.code, `%${q}%`),
-    ilike(items.nameAr, `%${q}%`),
-  ];
-  if (codeItemIds.length) conds.push(inArray(items.id, codeItemIds));
 
   const rows = await db
     .select({ id: items.id, code: items.code, nameAr: items.nameAr, sellPrice: items.sellPrice, image: items.image })
     .from(items)
-    .where(and(eq(items.organizationId, orgId), eq(items.isActive, true), or(...conds)))
+    .where(and(eq(items.organizationId, orgId), eq(items.isActive, true), itemMatches(orgId, q)))
     .limit(15);
   if (rows.length === 0) return [];
 

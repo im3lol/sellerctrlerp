@@ -3,9 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createStockTransferAction } from "@/app/actions/erp/stock-transfers";
+import { createStockTransferAction, updateStockTransferAction } from "@/app/actions/erp/stock-transfers";
 import { searchItemsAction } from "@/app/actions/erp/item-search";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { ItemPicker } from "@/components/erp/item-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,28 +19,35 @@ type Line = { key: number; itemId: string; itemLabel: string; fromWh: string; to
 
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
+export type TransferInitial = { id: string; date: string; notes: string; lines: { itemId: string; itemLabel: string; fromWh: string; toWh: string; quantity: string }[] };
+
 export function TransferForm({
   orgName,
-  items,
   warehouses,
   stock,
+  initial,
 }: {
   orgName: string;
-  items: Option[];
   warehouses: Option[];
   stock: Stock[];
+  initial?: TransferInitial;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
+  const isEdit = !!initial?.id;
 
-  const [date, setDate] = useState(today);
-  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [barcode, setBarcode] = useState("");
   const [scanning, setScanning] = useState(false);
   const defFrom = warehouses[0]?.id ?? "";
   const defTo = warehouses[1]?.id ?? warehouses[0]?.id ?? "";
-  const [lines, setLines] = useState<Line[]>([{ key: 1, itemId: "", itemLabel: "", fromWh: defFrom, toWh: defTo, quantity: "" }]);
+  const [lines, setLines] = useState<Line[]>(
+    initial?.lines?.length
+      ? initial.lines.map((l, i) => ({ key: i + 1, ...l }))
+      : [{ key: 1, itemId: "", itemLabel: "", fromWh: defFrom, toWh: defTo, quantity: "" }],
+  );
   const nextKey = (ls: Line[]) => ls.reduce((m, l) => Math.max(m, l.key), 0) + 1;
 
   const stockMap = useMemo(() => {
@@ -49,7 +57,6 @@ export function TransferForm({
   }, [stock]);
   const available = (l: Line) => stockMap.get(`${l.itemId}|${l.fromWh}`) ?? 0;
 
-  const itemOptions = useMemo(() => items.map((i) => ({ id: i.id, label: `${i.code} — ${i.name}`, hint: i.code })), [items]);
   const whOptions = useMemo(() => warehouses.map((w) => ({ id: w.id, label: w.name, hint: w.code })), [warehouses]);
   const whLabel = (id: string) => warehouses.find((w) => w.id === id)?.name ?? "";
 
@@ -86,11 +93,12 @@ export function TransferForm({
         if (l.fromWh === l.toWh) { toast.error("المستودع المصدر والوجهة متماثلان في أحد الأصناف"); return; }
         if (Number(l.quantity) > available(l) + 1e-9) { toast.error(`الكمية أكبر من المتاح للصنف ${l.itemLabel}`); return; }
       }
-      const r = await createStockTransferAction({
+      const body = {
         date, notes,
         lines: ready.map((l) => ({ itemId: l.itemId, fromWarehouseId: l.fromWh, toWarehouseId: l.toWh, quantity: Number(l.quantity) })),
-      });
-      if (r.ok) { toast.success("تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push("/inventory/transfers"); router.refresh(); }
+      };
+      const r = isEdit ? await updateStockTransferAction(initial!.id, body) : await createStockTransferAction(body);
+      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push(r.number ? `/inventory/transfers/${encodeURIComponent(r.number)}` : "/inventory/transfers"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
 
@@ -152,8 +160,8 @@ export function TransferForm({
                   return (
                     <tr key={l.key} className="align-top">
                       <td className="px-2 py-2">
-                        <CellCombobox selectedLabel={l.itemLabel} options={itemOptions} placeholder="ابحث بالاسم أو الكود…"
-                          onSelect={(id, label) => updateLine(l.key, { itemId: id, itemLabel: label })} />
+                        <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                          onSelect={(it) => updateLine(l.key, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                       </td>
                       <td className="px-2 py-2">
                         <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder="من…"
@@ -176,7 +184,7 @@ export function TransferForm({
           </div>
 
           <div className="flex justify-end">
-            <Button disabled={pending} onClick={submit}>حفظ التحويل (مسودة)</Button>
+            <Button disabled={pending} onClick={submit}>{isEdit ? "حفظ التعديلات" : "حفظ التحويل (مسودة)"}</Button>
           </div>
         </CardContent>
       </Card>

@@ -1,24 +1,21 @@
 import "server-only";
 import { LWA_TOKEN_URL } from "./constants";
+import { getAmazonConfig } from "@/lib/saas/amazon-config";
 
 // Login-with-Amazon (LWA) token exchange. The app-level client id/secret serve
 // every tenant ("Public Solution Provider"); each tenant stores only its own
-// refresh token (encrypted).
-function lwaCreds(): { id: string; secret: string } | null {
-  const id = process.env.SPAPI_LWA_CLIENT_ID;
-  const s = process.env.SPAPI_LWA_CLIENT_SECRET;
-  return id && s ? { id, secret: s } : null;
-}
+// refresh token (encrypted). Creds come from the DB singleton (owner sets them in
+// /admin/integrations), env as fallback — see getAmazonConfig.
 
 type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number };
 
 async function lwaToken(params: Record<string, string>): Promise<TokenResponse | { error: string; code?: string }> {
-  const creds = lwaCreds();
-  if (!creds) return { error: "لم تُضبط بيانات تطبيق أمازون (SPAPI_LWA_CLIENT_ID/SECRET)" };
+  const cfg = await getAmazonConfig();
+  if (!cfg) return { error: "لم تُضبط بيانات تطبيق أمازون — اضبط المفاتيح من لوحة الأدمن (التكاملات)" };
   const res = await fetch(LWA_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ ...params, client_id: creds.id, client_secret: creds.secret }),
+    body: new URLSearchParams({ ...params, client_id: cfg.lwaClientId, client_secret: cfg.lwaClientSecret }),
     cache: "no-store",
     signal: AbortSignal.timeout(15_000),
   });

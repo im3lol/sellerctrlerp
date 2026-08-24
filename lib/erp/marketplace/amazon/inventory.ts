@@ -29,6 +29,14 @@ export function summaryToInventory(s: Summary): MarketplaceInventory | null {
   return { code: s.sellerSku, title: s.productName ?? "", onHand: n(s.totalQuantity) };
 }
 
+/** Pure: an inventory summary → a catalog product (skips rows without a SKU).
+ *  `fnSku` is Amazon's own barcode for the unit in its warehouse — it rides free on
+ *  this response and is absent for FBM listings. */
+export function summaryToProduct(s: Summary): MarketplaceProduct | null {
+  if (!s.sellerSku) return null;
+  return { code: s.sellerSku, altCode: s.asin, fnsku: s.fnSku, name: s.productName || s.sellerSku, sellPrice: 0 };
+}
+
 /** Pure: an inventory summary → the full breakdown (skips rows without a SKU). */
 export function summaryToDetail(s: Summary): MarketplaceInventoryDetail | null {
   if (!s.sellerSku) return null;
@@ -99,7 +107,5 @@ export function fetchInventoryDetail(cred: Credential): Promise<MarketplaceInven
  * enriched from the catalog by the caller).
  */
 export function fetchInventoryProducts(cred: Credential): Promise<MarketplaceProduct[]> {
-  return eachSummary(cred, (s) =>
-    s.sellerSku ? { code: s.sellerSku, altCode: s.asin, name: s.productName || s.sellerSku, sellPrice: 0 } : null,
-  );
+  return eachSummary(cred, summaryToProduct);
 }

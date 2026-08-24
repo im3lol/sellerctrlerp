@@ -5,9 +5,11 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { nextCodes } from "@/lib/erp/next-code";
 import { items, itemCodes } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { parseAmazonWorkbook, normalizeCode } from "@/lib/erp/amazon-import";
+import { prepareSync } from "@/lib/erp/marketplace/sync-core";
 
 export type SkuLinkRow = { sku: string; asin: string; productName: string; sellPrice: number; autoItemId: string | null };
 export type SkuLinkPreview =
@@ -38,20 +40,16 @@ async function readSkus(formData: FormData): Promise<SkuInfo[] | { error: string
   }
 }
 
-/** Preview: which report SKUs are still unlinked, with an auto-match suggestion. */
-export async function previewAmazonCodeLinkAction(formData: FormData): Promise<SkuLinkPreview> {
-  const auth = await authorizeErp("inventory.create");
-  if ("error" in auth) return { ok: false, error: auth.error };
-
-  return withOrgScope(auth.orgId, false, async () => {
-    const skus = await readSkus(formData);
-    if ("error" in skus) return { ok: false, error: skus.error };
-
+/** Shared: given a distinct SKU list, split into already-linked vs needs-linking
+ *  (with an auto-match suggestion). Same output whether the SKUs came from an
+ *  uploaded report or a live Amazon listings fetch. */
+async function buildSkuLinkPreview(orgId: string, skus: SkuInfo[]): Promise<SkuLinkPreview> {
+  return withOrgScope(orgId, false, async () => {
     // Existing links (normalized) and all active items for options + code auto-match.
     const [codeRows, itemRows] = await Promise.all([
-      db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, auth.orgId)),
+      db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
       db.select({ id: items.id, code: items.code, nameAr: items.nameAr }).from(items)
-        .where(and(eq(items.organizationId, auth.orgId), eq(items.isActive, true))),
+        .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
     ]);
     const linked = new Set(codeRows.map((r) => r.norm).filter((x): x is string => !!x));
     const itemByCode = new Map<string, string>();
@@ -71,6 +69,46 @@ export async function previewAmazonCodeLinkAction(formData: FormData): Promise<S
 
     return { ok: true, rows, items: options, alreadyLinked, totalSkus: skus.length };
   });
+}
+
+/** Preview: which report SKUs are still unlinked, with an auto-match suggestion. */
+export async function previewAmazonCodeLinkAction(formData: FormData): Promise<SkuLinkPreview> {
+  const auth = await authorizeErp("inventory.create");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const skus = await readSkus(formData);
+  if ("error" in skus) return { ok: false, error: skus.error };
+  return buildSkuLinkPreview(auth.orgId, skus);
+}
+
+/**
+ * Live "verify links" for a connected platform: fetch the seller's Amazon listings
+ * and split them into already-linked vs needs-linking — WITHOUT writing anything.
+ * Lets a merchant who added items via Excel confirm every listing is linked, and
+ * surfaces Amazon products missing from the catalog for one-click add before syncing.
+ * ponytail: inline fetch — fine for a first-time / small catalog; the full 11k pull
+ * already has a background path (syncProductsAction) if a big seller ever times out.
+ */
+export async function previewMarketplaceListingsAction(code: string): Promise<SkuLinkPreview> {
+  const auth = await authorizeErp("inventory.create", "marketplace");
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const p = await prepareSync(auth.orgId, code);
+  if ("error" in p) return { ok: false, error: p.error };
+  if (!p.connector.fetchProducts) return { ok: false, error: "المنصة لا تدعم قراءة المنتجات" };
+  let products;
+  try {
+    products = await p.connector.fetchProducts(p.cred); // slow, unscoped — no DB held
+  } catch {
+    return { ok: false, error: "تعذّر جلب منتجات أمازون — تأكد من الربط وحاول مجددًا" };
+  }
+  // MarketplaceProduct → SkuInfo (drop listings without a SKU: nothing to link).
+  const seen = new Set<string>();
+  const skus: SkuInfo[] = [];
+  for (const pr of products) {
+    if (!pr.code || seen.has(pr.code)) continue;
+    seen.add(pr.code);
+    skus.push({ sku: pr.code, asin: pr.altCode ?? "", productName: pr.name, sellPrice: pr.sellPrice });
+  }
+  return buildSkuLinkPreview(auth.orgId, skus);
 }
 
 /** Create SKU (+ ASIN) item_codes for each chosen mapping. Idempotent. */
@@ -114,21 +152,12 @@ export async function saveAmazonCodeLinksAction(
   });
 }
 
-/** Generate `count` unique internal item codes (P-00001…) that don't collide. */
-async function generateItemCodes(orgId: string, count: number): Promise<string[]> {
-  const existing = await db.select({ code: items.code }).from(items).where(eq(items.organizationId, orgId));
-  const taken = new Set(existing.map((r) => r.code));
-  let max = 0;
-  for (const c of taken) { const m = /^P-(\d+)$/.exec(c); if (m) max = Math.max(max, parseInt(m[1], 10)); }
-  const out: string[] = [];
-  let n = max;
-  while (out.length < count) {
-    n++;
-    const code = `P-${String(n).padStart(5, "0")}`;
-    if (!taken.has(code)) { out.push(code); taken.add(code); }
-  }
-  return out;
-}
+/** Generate `count` unique internal item codes (P-00001…) that don't collide.
+ *  Used to read every item code for the org — 4,705 rows on this database — to work out
+ *  one number; the max now comes back from Postgres as a single integer. Codes are
+ *  strictly above it, so the old `taken` collision set had nothing left to catch. */
+const generateItemCodes = (orgId: string, count: number) =>
+  nextCodes({ table: items, orgCol: items.organizationId, codeCol: items.code, orgId, prefix: "P", pad: 5, count });
 
 /**
  * First-time onboarding: create a brand-new item for each SKU (auto internal

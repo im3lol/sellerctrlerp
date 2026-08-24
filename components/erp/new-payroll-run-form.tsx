@@ -33,7 +33,7 @@ export function NewPayrollRunForm() {
         notes: notes || undefined,
       });
       if (res.error) { setError(res.error); return; }
-      router.push(`/hr/payroll/${res.id}`);
+      router.push(`/hr/payroll/${encodeURIComponent(res.number!)}`);
     });
   }
 

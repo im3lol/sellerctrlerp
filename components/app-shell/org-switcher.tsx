@@ -48,13 +48,15 @@ export function OrgSwitcher({ orgs = [], activeId }: { orgs?: Org[]; activeId: s
       <DropdownMenuTrigger
         disabled={pending}
         className={cn(
-          "flex items-center gap-2 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent",
+          "flex min-w-0 items-center gap-2 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent",
           pending && "opacity-60",
         )}
       >
-        <Building2 className="size-4 text-primary" />
-        <span className="max-w-[160px] truncate">{active.nameAr}</span>
-        <ChevronsUpDown className="size-3.5 text-muted-foreground" />
+        <Building2 className="size-4 shrink-0 text-primary" />
+        {/* The org name is the widest thing in the topbar. Below sm it is dropped to the
+            icon alone — with it, a long tenant name pushed the user menu off the edge. */}
+        <span className="hidden max-w-[160px] truncate sm:inline">{active.nameAr}</span>
+        <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel>المؤسسة النشطة</DropdownMenuLabel>

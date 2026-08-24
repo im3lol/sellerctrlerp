@@ -20,7 +20,7 @@ export const AUDIT_STATUS: Record<string, { label: string; cls: string }> = {
 export type AuditLine = {
   id: string; code: string; asin: string | null; itemName: string | null;
   erpQty: string; amazonTotal: number; available: number; reserved: number; inbound: number;
-  damaged: number; researching: number; diff: string; status: string;
+  damaged: number; expired?: number; researching: number; diff: string; status: string;
 };
 export type AuditHeader = { totalSkus: number; matched: number; unmatched: number; withDiff: number; lost: number; damaged: number };
 
@@ -62,6 +62,7 @@ export function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; r
           <TableHead className="text-start">محجوز</TableHead>
           <TableHead className="text-start">استلام</TableHead>
           <TableHead className="text-start">تالف</TableHead>
+          <TableHead className="text-start">منتهي</TableHead>
           <TableHead className="text-start">الفرق</TableHead>
           <TableHead className="text-start">الحالة</TableHead>
         </TableRow>
@@ -83,6 +84,7 @@ export function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; r
               <TableCell className="tabular-nums">{int(l.reserved)}</TableCell>
               <TableCell className="tabular-nums">{int(l.inbound)}</TableCell>
               <TableCell className={`tabular-nums ${l.damaged > 0 ? "text-destructive" : ""}`}>{int(l.damaged)}</TableCell>
+              <TableCell className={`tabular-nums ${(l.expired ?? 0) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>{int(l.expired ?? 0)}</TableCell>
               <TableCell className={`tabular-nums font-medium ${diff !== 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{qty(diff)}</TableCell>
               <TableCell>
                 <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>

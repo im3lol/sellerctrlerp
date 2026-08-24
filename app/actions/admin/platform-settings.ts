@@ -1,14 +1,79 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
-import { platformSettings } from "@/db/schema";
+import { platformSettings, platformIntegrations, platformCredentials } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
+import { connectorConfigured } from "@/lib/saas/connector-configured";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
+
+// ─────────────── Generic per-connector integration config (platform_integrations) ───────────────
+// One save/read path for ANY marketplace connector; the fields shown come from the
+// connector's configFields. Secrets encrypted; a blank secret keeps the stored value.
+const TEXT_KEYS = ["clientId", "appId", "scopes", "apiVersion", "region", "redirectUri"] as const;
+type TextKey = (typeof TEXT_KEYS)[number];
+
+type IntegrationAdmin = {
+  text: Record<TextKey, string>;
+  has: { clientSecret: boolean; webhookSecret: boolean };
+  enabled: boolean;
+  configured: boolean;
+};
+
+/** Owner reads a connector's stored config — secrets never returned, only `has*`. */
+export async function getIntegrationSettingsAdmin(code: string): Promise<IntegrationAdmin> {
+  await requireCapability("employee.manage");
+  const c = code.toUpperCase();
+  const [row] = await withPlatformScope(() => db.select().from(platformIntegrations).where(eq(platformIntegrations.code, c)).limit(1));
+  const dflt = c === "AMAZON" ? true : process.env[`${c}_ENABLED`] === "1";
+  // "Set up" if app creds resolve (DB row OR env) OR a tenant is actually connected. Amazon's
+  // LWA creds live in env and the connection lives in platform_credentials, so reading only the
+  // platform_integrations row wrongly showed a live, connected Amazon as "غير مُعدّة / موقوفة".
+  const [conn] = await withPlatformScope(() => db.select({ id: platformCredentials.id })
+    .from(platformCredentials).where(eq(platformCredentials.provider, c.toLowerCase())).limit(1));
+  const connected = !!conn;
+  const configured = !!row?.clientSecret || !!row?.clientId || connected || (await connectorConfigured(c));
+  return {
+    text: {
+      clientId: row?.clientId ?? "", appId: row?.appId ?? "", scopes: row?.scopes ?? "",
+      apiVersion: row?.apiVersion ?? "", region: row?.region ?? "", redirectUri: row?.redirectUri ?? "",
+    },
+    has: { clientSecret: !!row?.clientSecret, webhookSecret: !!row?.webhookSecret },
+    // A connected connector isn't "موقوفة" unless the owner explicitly turned it off (false).
+    enabled: row?.enabled ?? (connected || dflt),
+    configured,
+  };
+}
+
+/** Save a connector's config. Text fields set as-is; secret fields (clientSecret,
+ *  webhookSecret) encrypted, a BLANK secret keeps the stored value. Upsert on code. */
+export async function saveIntegrationSettingsAction(
+  code: string,
+  input: { text?: Partial<Record<TextKey, string>>; clientSecret?: string; webhookSecret?: string; enabled?: boolean },
+): Promise<Res> {
+  await requireCapability("employee.manage");
+  const c = code.toUpperCase();
+  try {
+    const set: Record<string, unknown> = { code: c, updatedAt: new Date() };
+    for (const k of TEXT_KEYS) if (input.text && k in input.text) set[k] = input.text[k]?.trim() || null;
+    if (input.clientSecret?.trim()) set.clientSecret = encryptSecret(input.clientSecret.trim());
+    if (input.webhookSecret?.trim()) set.webhookSecret = encryptSecret(input.webhookSecret.trim());
+    if (input.enabled !== undefined) set.enabled = input.enabled;
+    await withPlatformScope(() => db.insert(platformIntegrations).values(set as typeof platformIntegrations.$inferInsert).onConflictDoUpdate({ target: platformIntegrations.code, set }));
+    const { bustIntegrationConfig } = await import("@/lib/saas/integration-config");
+    bustIntegrationConfig(c); // this process picks up the new config immediately
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[integration-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
 
 /** Owner reads the xpay config — secrets are never returned, only whether they're set. */
 export async function getXpaySettingsAdmin() {
@@ -44,40 +109,6 @@ export async function saveXpaySettingsAction(input: { secretKey?: string; publis
     return { ok: true };
   } catch (e) {
     console.error("[xpay-settings] save failed:", e);
-    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
-  }
-}
-
-/** Owner reads the Shopify app config — the secret is never returned, only whether it's set. */
-export async function getShopifySettingsAdmin() {
-  await requireCapability("employee.manage");
-  const [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
-  return {
-    clientId: row?.shopifyClientId ?? "", // public — safe to prefill
-    apiVersion: row?.shopifyApiVersion ?? "",
-    hasClientSecret: !!row?.shopifyClientSecret,
-  };
-}
-
-/**
- * Save the Shopify Partner app config. The client secret is encrypted; a BLANK secret
- * keeps the stored value. Client id + api version are public so they're always set.
- */
-export async function saveShopifySettingsAction(input: { clientId?: string; clientSecret?: string; apiVersion?: string }): Promise<Res> {
-  await requireCapability("employee.manage");
-  try {
-    const set: Record<string, unknown> = {
-      id: SINGLETON,
-      shopifyClientId: input.clientId?.trim() || null,
-      shopifyApiVersion: input.apiVersion?.trim() || null,
-      updatedAt: new Date(),
-    };
-    if (input.clientSecret?.trim()) set.shopifyClientSecret = encryptSecret(input.clientSecret.trim());
-    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
-    revalidatePath("/admin/integrations");
-    return { ok: true };
-  } catch (e) {
-    console.error("[shopify-settings] save failed:", e);
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }

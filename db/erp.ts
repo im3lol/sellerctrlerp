@@ -65,6 +65,9 @@ export const organizations = pgTable(
     email: text("email"),
     taxNumber: text("tax_number"),
     logo: text("logo"),
+    // DEPRECATED / unused: the base currency is derived from the currencies.isBase flag
+    // (see lib/erp/currency.ts::getBaseCurrencyCode), NOT this column. Kept only to avoid
+    // a drop migration; do not read or write it.
     baseCurrencyId: text("base_currency_id"),
     fiscalYearStart: text("fiscal_year_start"),
     vatRate: money("vat_rate").notNull().default("14"),
@@ -956,7 +959,10 @@ export const documentAttachments = pgTable(
     fileName: text("file_name").notNull(),
     fileSize: integer("file_size").notNull(), // bytes
     mimeType: text("mime_type").notNull(),
-    content: text("content").notNull(), // base64-encoded
+    // The binary lives in object storage under `storageKey`; `content` (base64) is the
+    // legacy path kept for rows created before the storage migration. Exactly one is set.
+    storageKey: text("storage_key"),
+    content: text("content"), // base64-encoded (legacy — new uploads use storageKey)
     uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
@@ -1356,6 +1362,10 @@ export const salesQuotations = pgTable(
     date: ts("date").notNull(),
     validUntil: ts("valid_until"),
     status: text("status").notNull().default("DRAFT"), // DRAFT, SENT, ACCEPTED, REJECTED
+    // A discount on the WHOLE quote, on top of any per-line discounts. The rest of the
+    // header carries no totals — subtotal/tax/total are derived from the lines — but this
+    // one is an input, not a derivation, so it has to be stored.
+    discountAmount: money("discount_amount").notNull().default("0"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1372,6 +1382,9 @@ export const salesQuotationLines = pgTable("sales_quotation_lines", {
   unitPrice: money("unit_price").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
+  // VAT-exempt line: tax stays 0 on this line even under the org VAT rate. Persisted so the
+  // exemption survives quotation→order conversion + re-derivation instead of silently re-taxing.
+  isTaxExempt: boolean("is_tax_exempt").notNull().default(false),
 }, (t) => [
   index("sales_quotation_lines_qt_idx").on(t.quotationId),
 ]);
@@ -1506,6 +1519,12 @@ export const purchaseOrders = pgTable(
     taxAmount: money("tax_amount").notNull().default("0"),
     taxPercent: money("tax_percent").notNull().default("0"),
     totalAmount: money("total_amount").notNull().default("0"),
+    // Multi-currency: amount columns above are ALWAYS base currency (EGP). These
+    // preserve the foreign figure the buyer entered (e.g. AED) for display; the
+    // conversion base = foreign × exchangeRate happens once, at PO create.
+    currencyCode: text("currency_code").notNull().default("EGP"),
+    exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    foreignAmount: money("foreign_amount"), // totalAmount in the document currency
     notes: text("notes"),
     // Approval control: POs above the org's poApprovalThreshold must be approved
     // before they can be confirmed.
@@ -1529,6 +1548,7 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
   discountAmount: money("discount_amount").notNull().default("0"),
   taxAmount: money("tax_amount").notNull().default("0"),
+  isTaxExempt: boolean("is_tax_exempt").notNull().default(false), // VAT-exempt line (persists exemption from the form)
   totalAmount: money("total_amount").notNull().default("0"),
   notes: text("notes"),
 }, (t) => [
@@ -1563,6 +1583,10 @@ export const salesOrders = pgTable(
     // Raw marketplace order status (Pending/Shipped/Canceled/…) for display, kept in
     // sync on every pull. Distinct from `status` (our internal document lifecycle).
     channelStatus: text("channel_status"),
+    // Per-order fulfillment: FBA (Amazon-fulfilled) vs FBM (merchant-fulfilled). From the
+    // marketplace order (Amazon AFN/MFN) when available, else the platform's default. Null
+    // for manual orders. Drives fee/fulfillment segmentation the platform-level flag can't.
+    fulfillmentType: text("fulfillment_type"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1590,6 +1614,7 @@ export const salesOrderLines = pgTable(
     unitPrice: money("unit_price").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
+    isTaxExempt: boolean("is_tax_exempt").notNull().default(false), // VAT-exempt line (persists exemption from the quotation/form)
     totalAmount: money("total_amount").notNull().default("0"),
     notes: text("notes"),
   },
@@ -1628,6 +1653,7 @@ export const salesPlatforms = pgTable(
     syncInventory: boolean("sync_inventory").notNull().default(true),
     syncSettlements: boolean("sync_settlements").notNull().default(true),
     syncReturns: boolean("sync_returns").notNull().default(true),
+    syncRemovals: boolean("sync_removals").notNull().default(true),
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
@@ -1649,6 +1675,26 @@ export const salesPlatforms = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("sales_platforms_org_code_idx").on(t.organizationId, t.code)],
+);
+
+// A marketplace order that couldn't be recorded because one of its line SKUs isn't linked
+// to any product (no matching item_code). We do NOT auto-create the product/order (that
+// pollutes the catalog); instead we park the full order here + notify, and the seller
+// creates the product + order manually. Idempotent per (org, channel, external_id); cleared
+// (RESOLVED) once handled or once the code exists on a later sync.
+export const unmatchedOrders = pgTable(
+  "unmatched_orders",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull(),          // AMAZON | NOON | …
+    externalId: text("external_id").notNull(),   // marketplace order id
+    payload: jsonb("payload").notNull(),         // the full order (lines + which codes are unmatched)
+    status: text("status").notNull().default("PENDING"), // PENDING | RESOLVED
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("unmatched_orders_org_channel_ext_idx").on(t.organizationId, t.channel, t.externalId)],
 );
 
 // Per-tenant SP-API (or other provider) connection. The refresh token is stored
@@ -1674,6 +1720,7 @@ export const platformCredentials = pgTable(
     ordersSyncedAt: ts("orders_synced_at"),                // watermark for incremental order polling
     settlementsSyncedAt: ts("settlements_synced_at"),       // watermark for settlement report pulls
     returnsSyncedAt: ts("returns_synced_at"),               // cadence timer for FBA returns pulls
+    removalsSyncedAt: ts("removals_synced_at"),             // cadence timer for FBA removal-order pulls
     reimbursementsSyncedAt: ts("reimbursements_synced_at"), // cadence timer for reimbursement pulls
     ledgerSyncedAt: ts("ledger_synced_at"),                 // cadence timer for FBA ledger pulls
     feesSyncedAt: ts("fees_synced_at"),                     // cadence timer for fee-estimate refreshes
@@ -1691,6 +1738,39 @@ export const platformCredentials = pgTable(
 // One row per line of the marketplace transaction/settlement report. Kept for
 // per-order financial detail; released rows are aggregated into a summary GL
 // entry (deferred rows are held until a later import shows them released).
+/**
+ * The balance the marketplace itself reports holding — one row per open settlement
+ * group, refreshed on each payments sync.
+ *
+ * The wallet GL already says what the marketplace OWES us, derived from our own orders
+ * and settlements. This is the same figure as the marketplace states it, so the two can
+ * be put side by side; the gap between them is the audit. Kept as the latest snapshot
+ * per currency rather than a history — the ledger already holds the history, and what a
+ * reconciliation needs is today's number.
+ */
+export const platformBalances = pgTable(
+  "platform_balances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    currency: text("currency").notNull(),
+    /** What the marketplace holds right now (Amazon: the open group's OriginalTotal). */
+    balance: money("balance").notNull().default("0"),
+    /** What the period opened with — carried over from the previous payout. */
+    openingBalance: money("opening_balance").notNull().default("0"),
+    groupId: text("group_id"),
+    periodStart: ts("period_start"),
+    periodEnd: ts("period_end"),
+    fundTransferStatus: text("fund_transfer_status"),
+    accountTail: text("account_tail"),
+    fetchedAt: ts("fetched_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("platform_balances_org_channel_currency_idx").on(t.organizationId, t.channel, t.currency)],
+);
+
 export const marketplaceSettlementTxns = pgTable(
   "marketplace_settlement_txns",
   {
@@ -1706,6 +1786,7 @@ export const marketplaceSettlementTxns = pgTable(
     postedAt: ts("posted_at"),
     status: text("status").notNull().default("Released"), // Released | Deferred
     releaseDate: ts("release_date"),
+    currency: text("currency"), // settlement currency (e.g. AED/SAR/EGP) — for display on multi-marketplace payouts
     productSales: money("product_sales").notNull().default("0"),
     shippingCredits: money("shipping_credits").notNull().default("0"),
     promotionalRebates: money("promotional_rebates").notNull().default("0"),
@@ -1776,12 +1857,47 @@ export const fbaReimbursements = pgTable(
     amountTotal: money("amount_total").notNull().default("0"),
     quantityReimbursedCash: money("quantity_reimbursed_cash").notNull().default("0"),
     quantityReimbursedInventory: money("quantity_reimbursed_inventory").notNull().default("0"),
+    status: text("status").notNull().default("PENDING"), // PENDING | PROCESSED
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
     raw: jsonb("raw"),
     createdAt: createdAt(),
+    updatedAt: ts("updated_at"),
   },
   (t) => [
     uniqueIndex("fba_reimbursements_dedup_idx").on(t.organizationId, t.reimbursementId, t.sku),
     index("fba_reimbursements_sku_idx").on(t.organizationId, t.sku),
+  ],
+);
+
+// FBA removal orders — stock taken OUT of the platform warehouse (dead stock / defective /
+// on the seller's request): Return type ships units back to the seller (restock on receipt),
+// Disposal type destroys them (write-off). NOT a customer return — never reverses revenue.
+export const platformRemovals = pgTable(
+  "platform_removals",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    removalOrderId: text("removal_order_id").notNull(),
+    orderType: text("order_type"),   // Return | Disposal
+    orderStatus: text("order_status"),
+    sku: text("sku").notNull(),
+    fnsku: text("fnsku"),
+    disposition: text("disposition"),
+    requestedQty: money("requested_qty").notNull().default("0"),
+    disposedQty: money("disposed_qty").notNull().default("0"),
+    shippedQty: money("shipped_qty").notNull().default("0"),
+    requestDate: ts("request_date"),
+    status: text("status").notNull().default("PENDING"), // PENDING | RESTOCKED | DISPOSED | IGNORED
+    stockAdjustmentId: text("stock_adjustment_id").references(() => stockAdjustments.id, { onDelete: "set null" }),
+    dedupKey: text("dedup_key").notNull(),
+    raw: jsonb("raw"),
+    createdAt: createdAt(),
+    updatedAt: ts("updated_at"),
+  },
+  (t) => [
+    uniqueIndex("platform_removals_dedup_idx").on(t.organizationId, t.dedupKey),
+    index("platform_removals_order_idx").on(t.organizationId, t.removalOrderId),
   ],
 );
 
@@ -1869,6 +1985,9 @@ export const investments = pgTable("investments", {
 export const profitDistributions = pgTable("profit_distributions", {
   id: pk(),
   organizationId: orgId(),
+  // Every document carries a system-generated number — it is the document's URL and the
+  // identity printed on it. PD-YYYY-NNNN, from nextDocumentNumber like all the others.
+  number: text("number").notNull(),
   periodName: text("period_name").notNull(),
   periodStart: ts("period_start").notNull(),
   periodEnd: ts("period_end").notNull(),
@@ -1877,7 +1996,7 @@ export const profitDistributions = pgTable("profit_distributions", {
   status: text("status").notNull().default("DRAFT"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [uniqueIndex("profit_distributions_org_number_idx").on(t.organizationId, t.number)]);
 
 export const investorShares = pgTable("investor_shares", {
   id: pk(),
@@ -1961,11 +2080,21 @@ export const salesReturns = pgTable(
     deliveryNoteId: text("delivery_note_id"),
     totalAmount: money("total_amount").notNull().default("0"),
     notes: text("notes"),
+    // Marketplace return metadata (null for hand-keyed returns). `disposition` drives the
+    // stock side at confirm: SELLABLE → restock; UNSELLABLE/DAMAGED/DEFECTIVE → damaged
+    // warehouse or write-off (5301). `channel` marks the origin (AMAZON/NOON…) so the
+    // register can badge marketplace vs manual; `externalReturnId` is the platform's id.
+    reason: text("reason"),
+    disposition: text("disposition"),
+    channel: text("channel"),
+    externalReturnId: text("external_return_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("sales_returns_org_number_idx").on(t.organizationId, t.number),
+    // The register lists/filters returns by org + date, and marketplace returns by channel.
+    index("sales_returns_org_date_idx").on(t.organizationId, t.date),
     // createSalesReturnAction sums prior POSTED returns for the invoice/delivery to
     // work out what is still returnable — one lookup per credit note.
     index("sales_returns_invoice_idx").on(t.salesInvoiceId),
@@ -2018,12 +2147,43 @@ export const platformSettings = pgTable("platform_settings", {
   shopifyClientId: text("shopify_client_id"),         // Shopify Partner app client id (public)
   shopifyClientSecret: text("shopify_client_secret"), // Shopify app secret — encryptSecret() ciphertext
   shopifyApiVersion: text("shopify_api_version"),     // null = SHOPIFY_API_VERSION default
+  shopifyEnabled: boolean("shopify_enabled"),         // null ⇒ env SHOPIFY_ENABLED fallback
+  // Amazon SP-API app (LWA) — one app serves every tenant. Secret = encryptSecret() ciphertext.
+  amazonLwaClientId: text("amazon_lwa_client_id"),
+  amazonLwaClientSecret: text("amazon_lwa_client_secret"),
+  amazonAppId: text("amazon_app_id"),                 // SP-API application_id for the consent URL
+  amazonEnabled: boolean("amazon_enabled"),           // null ⇒ default on (Amazon is the first-class connector)
+  // Noon integrator OAuth. client secret + webhook secret = encryptSecret() ciphertext.
+  noonClientId: text("noon_client_id"),
+  noonClientSecret: text("noon_client_secret"),
+  noonWebhookSecret: text("noon_webhook_secret"),
+  noonEnabled: boolean("noon_enabled"),               // null ⇒ env NOON_ENABLED fallback
   smtpHost: text("smtp_host"),                        // transactional email (SMTP) — welcome / receipt / dunning
   smtpPort: integer("smtp_port"),                     // 587 (STARTTLS) or 465 (SSL)
   smtpUser: text("smtp_user"),
   smtpPass: text("smtp_pass"),                        // encryptSecret() ciphertext
   smtpFrom: text("smtp_from"),                        // From address, e.g. info@sellerctrl.com
   smtpFromName: text("smtp_from_name"),               // display name, e.g. SellerCtrl
+  updatedAt: updatedAt(),
+});
+
+// Generic per-connector integration config — one row per marketplace connector (AMAZON,
+// NOON, SHOPIFY, …). Replaces the fixed per-platform columns on platform_settings so a NEW
+// connector is code-only: its credentials/redirect/scopes/webhook all live here and render
+// in /admin/integrations from the connector's declared configFields. Platform-wide (not
+// RLS-policied), like platform_settings. Secrets stored as encryptSecret() ciphertext.
+export const platformIntegrations = pgTable("platform_integrations", {
+  code: text("code").primaryKey(),                    // uppercase connector code
+  clientId: text("client_id"),                        // public OAuth/app client id
+  clientSecret: text("client_secret"),                // encryptSecret() ciphertext
+  webhookSecret: text("webhook_secret"),              // encryptSecret() ciphertext (optional)
+  redirectUri: text("redirect_uri"),                  // null ⇒ derived from APP_URL
+  scopes: text("scopes"),                             // null ⇒ connector default
+  region: text("region"),
+  apiVersion: text("api_version"),
+  appId: text("app_id"),                              // e.g. Amazon SP-API application_id for consent
+  enabled: boolean("enabled"),                        // null ⇒ env/default fallback
+  extra: jsonb("extra").$type<Record<string, unknown>>().notNull().default({}), // connector-specific overflow
   updatedAt: updatedAt(),
 });
 
@@ -2046,6 +2206,10 @@ export const orgSubscriptions = pgTable(
     storageGb: integer("storage_gb"), // snapshot; null = unlimited
     startedAt: ts("started_at"),
     expiresAt: ts("expires_at"),
+    // Dunning catch-up marker: the last expiry-reminder threshold (7/3/1 days) sent this
+    // cycle. Lets the daily cron fire each threshold exactly once AND catch up a threshold
+    // it skipped (laptop asleep at 06:00) instead of losing it. 999 = none sent yet.
+    dunningStage: integer("dunning_stage").default(999),
     activatedByCodeId: text("activated_by_code_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -2246,6 +2410,7 @@ export const inventoryAuditLines = pgTable(
     reserved: integer("reserved").notNull().default(0),
     inbound: integer("inbound").notNull().default(0),
     damaged: integer("damaged").notNull().default(0),
+    expired: integer("expired").notNull().default(0), // subset of `damaged` — surfaced separately (removal candidate)
     researching: integer("researching").notNull().default(0),
     diff: numeric("diff", { precision: 18, scale: 3 }).notNull().default("0"),
     status: text("status").notNull(),      // MATCHED | RECEIVING | FOUND | RESEARCHING | DAMAGED | LOST | UNMATCHED

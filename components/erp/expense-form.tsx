@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createExpenseAction } from "@/app/actions/erp/expenses";
+import { createExpenseAction, updateExpenseAction } from "@/app/actions/erp/expenses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +12,22 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { selectCls } from "@/lib/utils";
 
 type Account = { id: string; code: string; name: string };
+export type ExpenseInitial = { id: string; expenseAccountId: string; cashAccountId: string; amount: string; date: string; method: string; payee: string; reference: string; notes: string };
 
-export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts: Account[]; cashAccounts: Account[] }) {
+export function ExpenseForm({ expenseAccounts, cashAccounts, initial }: { expenseAccounts: Account[]; cashAccounts: Account[]; initial?: ExpenseInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
+  const isEdit = !!initial?.id;
 
-  const [expenseAccountId, setExpenseAccountId] = useState("");
-  const [cashAccountId, setCashAccountId] = useState(cashAccounts[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(today);
-  const [method, setMethod] = useState("CASH");
-  const [payee, setPayee] = useState("");
-  const [reference, setReference] = useState("");
-  const [notes, setNotes] = useState("");
+  const [expenseAccountId, setExpenseAccountId] = useState(initial?.expenseAccountId ?? "");
+  const [cashAccountId, setCashAccountId] = useState(initial?.cashAccountId ?? cashAccounts[0]?.id ?? "");
+  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [date, setDate] = useState(initial?.date ?? today);
+  const [method, setMethod] = useState(initial?.method ?? "CASH");
+  const [payee, setPayee] = useState(initial?.payee ?? "");
+  const [reference, setReference] = useState(initial?.reference ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
 
   const expOptions = useMemo(() => expenseAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` })), [expenseAccounts]);
   const expLabelById = useMemo(() => new Map(expOptions.map((o) => [o.id, o.label])), [expOptions]);
@@ -37,9 +39,10 @@ export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts
       if (!expenseAccountId) { toast.error("اختر بند المصروف"); return; }
       if (!cashAccountId) { toast.error("اختر حساب النقدية/البنك"); return; }
       if (!(Number(amount) > 0)) { toast.error("أدخل مبلغاً صحيحاً"); return; }
-      const r = await createExpenseAction({ expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes });
+      const body = { expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes };
+      const r = isEdit ? await updateExpenseAction(initial!.id, body) : await createExpenseAction(body);
       if (r.ok) {
-        toast.success("تم حفظ المصروف (مسودة) — أكّده للترحيل");
+        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ المصروف (مسودة) — أكّده للترحيل");
         router.push("/accounting/expenses");
         router.refresh();
       } else {
@@ -106,7 +109,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts }: { expenseAccounts
         </div>
 
         <div className="flex justify-end sm:col-span-2">
-          <Button disabled={pending} onClick={submit}>تسجيل المصروف</Button>
+          <Button disabled={pending} onClick={submit}>{isEdit ? "حفظ التعديلات" : "تسجيل المصروف"}</Button>
         </div>
       </CardContent>
     </Card>

@@ -2,6 +2,7 @@ import "server-only";
 import type { OAuthExchange } from "../connector";
 import type { OAuthState } from "../oauth-state";
 import { getShopifyConfig } from "@/lib/saas/shopify-config";
+import { getIntegrationConfig } from "@/lib/saas/integration-config";
 import { authorizeUrlFor, tokenUrl, validateShop, shopifyHmacValid, SHOPIFY_SCOPES, SHOPIFY_REGION } from "./constants";
 
 // Shopify OAuth (public app). Shop-domain-first: the merchant's shop is the `target`
@@ -16,8 +17,11 @@ export async function authorizeUrl(state: string, shop: string): Promise<string 
   if (!clean || !appUrl) return null;
   const cfg = await getShopifyConfig();
   if (!cfg) return null;
-  const redirectUri = `${appUrl.replace(/\/$/, "")}/api/erp/marketplace/shopify/callback`;
-  return authorizeUrlFor(clean, { clientId: cfg.clientId, scope: SHOPIFY_SCOPES, redirectUri, state });
+  // Admin-configurable redirect + scopes (platform_integrations); fall back to defaults.
+  const ic = await getIntegrationConfig("SHOPIFY");
+  const redirectUri = ic.redirectUri || `${appUrl.replace(/\/$/, "")}/api/erp/marketplace/shopify/callback`;
+  const scope = ic.scopes || SHOPIFY_SCOPES;
+  return authorizeUrlFor(clean, { clientId: cfg.clientId, scope, redirectUri, state });
 }
 
 /** Exchange the auth code for a permanent Admin API access token (per-shop endpoint). */

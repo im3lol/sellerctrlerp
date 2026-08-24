@@ -7,11 +7,19 @@ import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceActio
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
+import { type BulkRow } from "@/components/erp/barcode-print";
 
-export function ReceiptDetailActions({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
+/** إذن استلام header: the workflow's next step stays a button, everything else folds into
+ *  the shared «إجراءات» menu (components/erp/document-actions.tsx). */
+export function ReceiptDetailActions({
+  id, number, status, canManage, printHref, barcodeRows = [],
+}: {
+  id: string; number: string; status: string; canManage: boolean;
+  printHref: string; barcodeRows?: BulkRow[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  if (!canManage) return null;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
     void (async () => {
@@ -24,40 +32,37 @@ export function ReceiptDetailActions({ id, number, status, canManage }: { id: st
     })();
   };
 
-  // DRAFT: confirm (post) or delete the draft.
-  if (status === "DRAFT") {
-    return (
-      <div className="flex flex-wrap gap-2">
+  const bill = () =>
+    void (async () => {
+      if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة شراء من هذا الإذن؟" }))) return;
+      start(async () => {
+        const r = await convertReceiptToInvoiceAction(id);
+        if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices"); router.refresh(); }
+        else toast.error(r.error ?? "تعذّر التحويل");
+      });
+    })();
+
+  const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
+  if (canManage) {
+    if (status === "DRAFT") {
+      items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts") });
+    } else if (status === "RECEIVED" || status === "INVOICED") {
+      if (status === "RECEIVED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
+      items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending,
+        onSelect: () => router.push(`/purchases/receipts/${encodeURIComponent(number)}/return`) });
+    }
+  }
+
+  return (
+    <DocumentActions
+      primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد الاستلام
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts")}>
-          <Icon name="Trash2" className="size-4 text-destructive" />حذف
-        </Button>
-      </div>
-    );
-  }
-
-  // RECEIVED / INVOICED: bill it (if not yet) and/or return the stock to the warehouse.
-  if (status === "RECEIVED" || status === "INVOICED") {
-    const bill = () =>
-      void (async () => {
-        if (!(await confirm({ title: "تحويل لفاتورة", description: "إنشاء مسودة فاتورة شراء من هذا الإذن؟" }))) return;
-        start(async () => {
-          const r = await convertReceiptToInvoiceAction(id);
-          if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices"); router.refresh(); }
-          else toast.error(r.error ?? "تعذّر التحويل");
-        });
-      })();
-    return (
-      <div className="flex flex-wrap gap-2">
-        {status === "RECEIVED" && <Button size="sm" variant="outline" disabled={pending} onClick={bill}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => router.push(`/purchases/receipts/${encodeURIComponent(number)}/return`)}>
-          <Icon name="Undo2" className="size-4 text-destructive" />مرتجع (إرجاع للمخزن)
-        </Button>
-      </div>
-    );
-  }
-
-  return null; // REVERSED — nothing to do
+      ) : undefined}
+      items={items}
+      barcode={barcodeRows.length ? { docTitle: `إذن استلام ${number}`, rows: barcodeRows } : undefined}
+    />
+  );
 }

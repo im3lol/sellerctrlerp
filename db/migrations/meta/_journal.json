@@ -365,6 +365,363 @@
       "when": 1784326176527,
       "tag": "0051_employee_user_setnull",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1784326177527,
+      "tag": "0052_login_lockout",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1784326178527,
+      "tag": "0053_api_key_scope_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1784326179527,
+      "tag": "0054_invoice_order_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1784326180527,
+      "tag": "0055_platform_saas",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1784326181527,
+      "tag": "0056_subscription_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1784326182527,
+      "tag": "0057_backup_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1784326183527,
+      "tag": "0058_report_downloads",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1784326184527,
+      "tag": "0059_sync_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1784326185527,
+      "tag": "0060_fba_opening_balance",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1784326186527,
+      "tag": "0061_inventory_audits",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1784326187527,
+      "tag": "0062_orders_synced_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1784326188527,
+      "tag": "0063_tour_dismissed",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1784326189527,
+      "tag": "0064_item_needs_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1784326190527,
+      "tag": "0065_order_channel_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1784326191527,
+      "tag": "0066_backfill_channel_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1784326192527,
+      "tag": "0067_opening_balance_invoices",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1784326193527,
+      "tag": "0068_settlement_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1784326194527,
+      "tag": "0069_drop_business_name_en",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1784326195527,
+      "tag": "0070_accounting_config_more_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1784326196527,
+      "tag": "0071_accounting_config_ensure_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1784326197527,
+      "tag": "0072_document_prefixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1784326198527,
+      "tag": "0073_platform_auto_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1784326199527,
+      "tag": "0074_sales_invoice_shipping",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1784326200527,
+      "tag": "0075_setup_skipped",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1784326201527,
+      "tag": "0076_needs_reauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1784326202527,
+      "tag": "0077_platform_returns",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1784326203527,
+      "tag": "0078_fba_reimbursements_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1784326204527,
+      "tag": "0079_platform_item_fees",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1784326205527,
+      "tag": "0080_spapi_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1784326206527,
+      "tag": "0081_print_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1784326207527,
+      "tag": "0082_platform_accounting_start",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1784326208527,
+      "tag": "0083_platform_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1784326209527,
+      "tag": "0084_xpay_publishable_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1784326210527,
+      "tag": "0085_shopify_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1784326211527,
+      "tag": "0086_smtp_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1784326212527,
+      "tag": "0087_signup_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1784326213527,
+      "tag": "0088_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1784326214527,
+      "tag": "0089_sales_return_disposition",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1784326215527,
+      "tag": "0090_sales_order_fulfillment",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1784326216527,
+      "tag": "0091_audit_line_expired",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1784326217527,
+      "tag": "0092_settlement_currency",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1784326218527,
+      "tag": "0093_platform_integrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1784326219527,
+      "tag": "0094_attachment_storage_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1784326220527,
+      "tag": "0095_unmatched_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1784326221527,
+      "tag": "0096_platform_removals",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1784326222527,
+      "tag": "0097_reimbursement_posting",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1784326223527,
+      "tag": "0098_push_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1786657826589,
+      "tag": "0099_schema_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1787140863992,
+      "tag": "0100_quotation_header_discount",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1787148516401,
+      "tag": "0101_profit_distribution_number",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1787205718194,
+      "tag": "0102_platform_balances",
+      "breakpoints": true
     }
   ]
 }

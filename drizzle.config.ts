@@ -1,5 +1,4 @@
 import { defineConfig } from "drizzle-kit";
-import { SUPABASE_CA } from "./lib/supabase-ca";
 
 // Migrations/DDL run as the table OWNER, never as the RLS-enforced app role.
 // At the prod cutover DATABASE_URL points at `appuser` (NOBYPASSRLS) — which can't
@@ -15,12 +14,9 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: migrateUrl,
-    // Supabase requires SSL; verify against the pinned CA. Local Docker has none.
-    ssl: isLocal
-      ? false
-      : process.env.DB_SSL_INSECURE === "1"
-        ? { rejectUnauthorized: false }
-        : { ca: SUPABASE_CA, rejectUnauthorized: true },
+    // Remote requires TLS, verified against the system CA store; local Docker has none.
+    // DB_SSL_INSECURE=1 is the escape hatch for a self-signed certificate.
+    ssl: isLocal ? false : process.env.DB_SSL_INSECURE === "1" ? { rejectUnauthorized: false } : true,
   },
   verbose: true,
   strict: true,

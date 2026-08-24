@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -46,7 +47,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       po.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr })
+      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
         .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
       db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, invoiceId: purchaseReceipts.purchaseInvoiceId })
         .from(purchaseReceipts).where(eq(purchaseReceipts.purchaseOrderId, po.id)),
@@ -73,6 +74,13 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
     const threshold = Number(orgRow?.threshold ?? 0);
     const poNeedsApproval = threshold > 0 && Number(po.totalAmount) > threshold;
 
+    // The order is shown in the currency it was entered in; the ledger stores base (EGP),
+    // so divide the stored base amounts by the rate for display.
+    const docRate = Number(po.exchangeRate) || 1;
+    const cur = po.currencyCode ?? "EGP";
+    const isForeignDoc = docRate !== 1;
+    const dfmt = (v: string | number | null) => fmt(Number(v ?? 0) / docRate);
+
     return (
       <div className="space-y-6">
         <ErpPageHeader
@@ -91,9 +99,14 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
           <Field label="التاريخ">{dt(po.date)}</Field>
-          <Field label="الشحن">{fmt(po.shippingAmount)}</Field>
-          <Field label="الضريبة">{fmt(po.taxAmount)}</Field>
-          <Field label="الإجمالي">{fmt(po.totalAmount)}</Field>
+          <Field label="الشحن">{dfmt(po.shippingAmount)}</Field>
+          <Field label="الضريبة">{dfmt(po.taxAmount)}</Field>
+          <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
+          {isForeignDoc && (
+            <Field label="الإجمالي بالحسابات (EGP)">
+              {fmt(po.totalAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
+            </Field>
+          )}
         </div>
 
         <Card>
@@ -102,6 +115,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14 text-start">صورة</TableHead>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">الكمية</TableHead>
                   <TableHead className="text-start">السعر</TableHead>
@@ -114,20 +128,24 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal">
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
+                    </TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
-                    <TableCell>{fmt(l.unitPrice)}</TableCell>
-                    <TableCell>{fmt(l.discount)}</TableCell>
-                    <TableCell>{fmt(l.tax)}</TableCell>
-                    <TableCell>{fmt(l.shipping)}</TableCell>
-                    <TableCell>{fmt(l.total)}</TableCell>
+                    <TableCell>{dfmt(l.unitPrice)}</TableCell>
+                    <TableCell>{dfmt(l.discount)}</TableCell>
+                    <TableCell>{dfmt(l.tax)}</TableCell>
+                    <TableCell>{dfmt(l.shipping)}</TableCell>
+                    <TableCell>{dfmt(l.total)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={6}>الإجمالي</TableCell>
-                  <TableCell>{fmt(po.totalAmount)}</TableCell>
+                  <TableCell colSpan={6}>الإجمالي ({cur})</TableCell>
+                  <TableCell>{dfmt(po.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>

@@ -4,9 +4,15 @@
  * loadErpPage / withOrgScope / withPlatformScope / runAsErp / withErpAction, else
  * at the appuser cutover it silently returns 0 rows (reads) or is blocked (writes).
  *
- * Heuristic: an app/ file that imports `db`, imports a non-global table from
- * @/db/schema, and contains none of the scope wrappers is flagged. Global tables
- * (no org, no policy) are exempt. Run in CI: `npx tsx scripts/rls-unscoped-check.ts`.
+ * Heuristic: an ENTRY-POINT file (app/ routes+pages+actions, and lib/queue/ worker
+ * handlers — the two places that must OPEN a scope) that imports `db`, imports a
+ * non-global table from @/db/schema, and contains none of the scope wrappers is
+ * flagged. Global tables (no org, no policy) are exempt. Run in CI.
+ *
+ * Limitation (known): this is file-level — a file that opens a scope for ONE function
+ * passes even if another function in it reads unscoped (that's how the workerErpContext
+ * regression hid behind withPlatformScope). lib/erp/ helpers are intentionally NOT
+ * scanned (they run inside a caller's scope); a per-function/AST guard is the real fix.
  */
 import fs from "fs";
 import path from "path";
@@ -24,7 +30,9 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const offenders: string[] = [];
-for (const f of walk("app")) {
+// app/ = pages+routes+actions; lib/queue/ = the BullMQ worker handlers (entry points
+// with no request scope). Both must open their own scope. lib/erp helpers are excluded.
+for (const f of [...walk("app"), ...walk(path.join("lib", "queue"))]) {
   const src = fs.readFileSync(f, "utf8");
   if (!/from "@\/lib\/db"/.test(src)) continue;
   if (WRAPPERS.test(src)) continue;

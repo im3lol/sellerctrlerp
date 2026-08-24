@@ -44,7 +44,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
     if (lines.some((l) => !l.expenseAccountId || !(l.amount > 0))) return toast.error("أكمل بنود المصروف");
     start(async () => {
       const r = await createExpenseClaimAction({ employeeName, cashAccountId, date, notes, lines });
-      if (r.ok) { toast.success("تم حفظ المطالبة (مسودة)"); router.push(r.id ? `/hr/expense-claims/${r.id}` : "/hr/expense-claims"); router.refresh(); }
+      if (r.ok) { toast.success("تم حفظ المطالبة (مسودة)"); router.push(r.number ? `/hr/expense-claims/${encodeURIComponent(r.number)}` : "/hr/expense-claims"); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
     });
   };

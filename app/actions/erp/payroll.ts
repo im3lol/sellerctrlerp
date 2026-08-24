@@ -109,7 +109,6 @@ export async function upsertEmployeeAction(input: EmployeeInput): Promise<Action
 
     revalidatePath("/hr/employees");
     revalidatePath("/hr"); // headcount + payroll cost on the module overview
-    revalidatePath("/admin/users");
     return { ok: true };
   });
 }
@@ -143,7 +142,7 @@ export type PayrollRunInput = {
   notes?: string;
 };
 
-export async function createPayrollRunAction(input: PayrollRunInput): Promise<ActionState & { id?: string }> {
+export async function createPayrollRunAction(input: PayrollRunInput): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("hr.create");
   if ("error" in auth) return auth;
 
@@ -257,7 +256,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
     const totalDeductions = lines.reduce((s, l) => s + n(l.deductions) + n(l.taxAmount), 0);
     const totalNet        = lines.reduce((s, l) => s + n(l.netPay), 0);
 
-    const runId = await db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       // "PY" not "PR" — "PR" is مرتجع شراء; sharing the counter interleaved the
       // two series and could reset payroll numbers below existing ones. See lib/erp/doc-types.ts.
       const number = await nextDocumentNumber(tx, auth.orgId, "PY", periodStart.getFullYear());
@@ -282,11 +281,11 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
       await tx.insert(payrollLines).values(
         lines.map((l) => ({ ...l, payrollRunId: run.id })),
       );
-      return run.id;
+      return { id: run.id, number };
     });
 
     revalidatePath("/hr/payroll");
-    return { ok: true, id: runId };
+    return { ok: true, id: created.id, number: created.number };
   });
 }
 
@@ -347,7 +346,7 @@ export async function confirmPayrollRunAction(id: string): Promise<ActionState> 
     });
 
     revalidatePath("/hr/payroll");
-    revalidatePath(`/hr/payroll/${id}`);
+    revalidatePath(`/hr/payroll/${run.number}`);
     return { ok: true };
   });
 }
@@ -405,7 +404,7 @@ export async function reversePayrollRunAction(id: string, reason: string): Promi
     });
 
     revalidatePath("/hr/payroll");
-    revalidatePath(`/hr/payroll/${id}`);
+    revalidatePath(`/hr/payroll/${run.number}`);
     return { ok: true };
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -78,6 +79,10 @@ export function OrderRowActions({
             <Icon name="Check" className="size-4" />تأكيد
           </Button>
         )}
+        {/* Drafts are freely editable (no stock/GL yet). */}
+        <Button asChild size="sm" variant="outline" disabled={pending}>
+          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+        </Button>
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
           <Icon name="X" className="size-4 text-destructive" />إلغاء

@@ -3,8 +3,11 @@ import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { salesPlatforms, salesOrders, salesOrderLines, salesReturns, receiptVouchers, customers, warehouses, bankAccounts, items, itemCodes, inventoryAudits, inventoryAuditLines } from "@/db/schema";
+import { CHANNEL_CODE_TYPE } from "@/lib/erp/marketplace-code";
 import { AuditStats } from "@/components/erp/audit-summary";
+import { AuditAdjustmentButton } from "@/components/erp/audit-adjustment-button";
+import { Button } from "@/components/ui/button";
 import { getPlatformPnl } from "@/lib/erp/platform-pnl";
 import { Field } from "@/components/erp/document-detail";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -17,9 +20,10 @@ import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { getConnection } from "@/lib/erp/marketplace/connection";
+import { oauthConfigured } from "@/lib/saas/connector-enabled";
 
 // Marketplace sync (server actions on this route) polls Amazon's async reports —
-// allow a longer function budget on Vercel (needs a Pro/Fluid plan for >60s).
+// a self-hosted Node server has no function timeout, so this is only a ceiling.
 export const maxDuration = 300;
 
 const fmt = (n: number | string | null) => Number(n ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,7 +60,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code,
         integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive,
         syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders, syncInventory: salesPlatforms.syncInventory,
-        defaultWarehouseId: salesPlatforms.defaultWarehouseId,
+        defaultWarehouseId: salesPlatforms.defaultWarehouseId, accountingStartDate: salesPlatforms.accountingStartDate,
         customerId: salesPlatforms.customerId, customerName: customers.nameAr, customerBalance: customers.balance,
         warehouseName: warehouses.nameAr, bankName: bankAccounts.nameAr,
       })
@@ -72,7 +76,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     const match = or(eq(salesOrders.platformId, platform.id), eq(salesOrders.channel, platform.code));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const custId = platform.customerId;
-    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, custId) : null;
+    const pnl = can("reports.view") ? await getPlatformPnl(orgId, platform.code, platform.id) : null;
 
     // Analytics are best-effort: a slow/failed query (e.g. DB connection pressure on
     // serverless) degrades this section instead of crashing the whole page. Split
@@ -100,9 +104,8 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           .where(and(eq(salesOrders.organizationId, orgId), match)).groupBy(items.id).orderBy(desc(sql`sum(${salesOrderLines.totalAmount})`)).limit(5),
         db.select({ number: salesOrders.number, date: salesOrders.date, status: salesOrders.status, ext: salesOrders.externalOrderId, total: salesOrders.totalAmount })
           .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match)).orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(8),
-        custId
-          ? db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.customerId, custId)))
-          : Promise.resolve([{ n: 0, total: "0" }]),
+        // Returns scoped to THIS platform by channel (not by the shared auto-customer).
+        db.select({ n: sql<number>`count(*)`, total: sql<string>`coalesce(sum(${salesReturns.totalAmount}),0)` }).from(salesReturns).where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.channel, platform.code))),
         custId
           ? db.select({ total: sql<string>`coalesce(sum(${receiptVouchers.amount}),0)` }).from(receiptVouchers).where(and(eq(receiptVouchers.organizationId, orgId), eq(receiptVouchers.customerId, custId), eq(receiptVouchers.status, "POSTED")))
           : Promise.resolve([{ total: "0" }]),
@@ -113,13 +116,23 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
       // Catalog size, on-hand for the platform's warehouse, and a 30-day sales trend.
       const whId = platform.defaultWarehouseId;
       const since = new Date(Date.now() - 30 * 864e5);
+      // Catalog count scoped to THIS platform: items carrying the channel's own code
+      // (NOON/ASIN/…). Without a code type (manual platforms) fall back to the org catalog.
+      const codeType = CHANNEL_CODE_TYPE[platform.code];
       const [[pc], invRes, trendR] = await Promise.all([
-        db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
+        codeType
+          ? db.select({ n: sql<number>`count(distinct ${itemCodes.itemId})` }).from(itemCodes)
+              .innerJoin(items, eq(items.id, itemCodes.itemId))
+              .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, codeType), eq(items.isActive, true)))
+          : db.select({ n: sql<number>`count(*)` }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))),
+        // On-hand for THIS platform: its own items (carrying the channel's code) in its
+        // warehouse. Without a code type (manual platform) fall back to the warehouse total.
         db.execute<{ q: string }>(sql`
           SELECT COALESCE(SUM(bq), 0) AS q FROM (
             SELECT DISTINCT ON (item_id, warehouse_id) balance_quantity AS bq
             FROM stock_movements
             WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
+            ${codeType ? sql`AND item_id IN (SELECT item_id FROM item_codes WHERE organization_id = ${orgId} AND code_type = ${codeType})` : sql``}
             ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
           ) t`),
         db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
@@ -146,7 +159,11 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
     // card; others stay manual-import only.
     const connector = getConnector(platform.code);
     const connectable = connector?.oauth;
-    const conn = connectable ? await getConnection(orgId, connector.code) : null;
+    // OAuth is "ready" only when its client creds are configured (DB/env). Noon without
+    // creds falls back to the paste-.json card; Amazon/Shopify without creds show a
+    // "set the keys in the admin panel" note (handled in MarketplaceConnect).
+    const oauthReady = connectable ? await oauthConfigured(connector!.code) : false;
+    const conn = connector ? await getConnection(orgId, connector.code) : null;
 
     // Latest FBA inventory audit (read-only) — a compact summary here; the full
     // report is its own page (/inventory/reconciliation).
@@ -176,23 +193,29 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
           action={
             <PlatformHeaderActions
               code={platform.code.toLowerCase()}
+              label={platform.name}
+              platformId={platform.id}
               isAmazon={isAmazon}
               connected={!!conn?.connected}
               syncFlags={{ products: platform.syncProducts, orders: platform.syncOrders, inventory: platform.syncInventory }}
+              hasOrderHistory={!!conn?.ordersSyncedAt}
+              hasStartDate={!!platform.accountingStartDate}
               canManage={can("sales.create")}
             />
           }
         />
 
-        {connectable && conn && (
+        {connector && conn && (
           <MarketplaceConnect
-            provider={connector!.code.toLowerCase()}
-            label={connector!.label}
-            marketplaces={connectable.marketplaces.map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
+            provider={connector.code.toLowerCase()}
+            label={connector.label}
+            marketplaces={(connectable?.marketplaces ?? []).map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
             justConnected={connected === "1"}
             error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
-            needsShop={connectable.needsTarget}
+            needsShop={connectable?.needsTarget}
+            credentialKind={connector.code === "WOO" ? "woo" : connector.code === "JUMIA" ? "jumia" : (connector.code === "NOON" && !oauthReady) ? "noon" : undefined}
+            oauthReady={oauthReady}
           />
         )}
 
@@ -219,6 +242,21 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               ) : (
                 <>
                   <AuditStats audit={audit} />
+                  {/* Fix-it: the audit is read-only — this is where the trader turns it into
+                      books. Empty system + Amazon holds stock → a COSTED opening balance
+                      (the zero-cost FOUND adjustment would poison COGS); otherwise real
+                      quantity diffs → one DRAFT adjustment to review then post. */}
+                  {amazonFbaQty > 0 && invQty === 0 ? (
+                    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
+                      <p className="flex-1 text-sm text-muted-foreground">مخزون النظام صفر بينما أمازون لديها {int(amazonFbaQty)} وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.</p>
+                      <Button asChild variant="outline"><Link href="/settings/opening-balance">إنشاء رصيد افتتاحي</Link></Button>
+                    </div>
+                  ) : audit.withDiff > 0 ? (
+                    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
+                      <p className="flex-1 text-sm text-muted-foreground">توجد فروقات كمية بين أمازون والنظام — أنشئ مسودة تسوية من التدقيق وراجعها قبل الترحيل.</p>
+                      <AuditAdjustmentButton />
+                    </div>
+                  ) : null}
                   <div className="text-xs text-muted-foreground">آخر تدقيق: {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} · يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل</Link>.</div>
                 </>
               )}
@@ -228,7 +266,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Kpi label="عدد المنتجات" value={int(productCount)} hint="أصناف الكتالوج النشطة" />
+          <Kpi label="عدد المنتجات" value={int(productCount)} hint={`أصناف ${platform.name} النشطة`} />
           {isAmazon && <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />}
           <Kpi label={isAmazon ? "مخزون النظام (FBA)" : "مخزون النظام"} value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
           <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />

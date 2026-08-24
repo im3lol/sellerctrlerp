@@ -18,9 +18,12 @@ export type MarketplaceOrder = {
   externalId: string;
   date: string; // ISO
   status: string; // "Shipped" → fulfill now; anything else → stays DRAFT
+  fulfillment?: string; // "FBA" | "FBM" — the platform-fulfilled vs merchant-fulfilled channel, when the source reports it
+  currency?: string; // ISO code the amounts are in (e.g. "AED"); absent = base currency (domestic). Foreign amounts are converted to base at ingest.
   lines: MarketplaceOrderLine[];
   subtotal: number;
   shippingTotal: number;
+  discount?: number; // order-level promotions (item + shipping), subtracted from total
   total: number;
 };
 
@@ -59,12 +62,36 @@ export type MarketplaceInventoryDetail = {
   researching: number;         // Amazon investigating a discrepancy
 };
 
+/** One inventory write-back: set the channel's available quantity for a seller SKU.
+ *  Produced by computePushUpdates (the ERP→channel diff) and consumed by a connector's
+ *  optional pushInventory — the multi-channel oversell-prevention seam. */
+export type MarketplaceInventoryUpdate = { code: string; available: number };
+
 /** A marketplace listing — matched to an item by `code` (SKU) or `altCode` (ASIN). */
 export type MarketplaceProduct = {
   code: string;      // seller SKU
   altCode?: string;  // ASIN
+  // Amazon's own barcode for the unit in its warehouse (FBA only — an FBM listing
+  // has none). Comes free on getInventorySummaries; absent from the listings report.
+  fnsku?: string;
   name: string;
   sellPrice: number;
+};
+
+/** What the marketplace says it is holding right now — the counterparty for the wallet
+ *  GL, so the ledger has an external number to be reconciled against. */
+export type MarketplaceBalance = {
+  groupId: string;
+  currency: string;
+  /** The balance itself. */
+  balance: number;
+  /** What the settlement period opened with — carried over from the last payout. */
+  openingBalance: number;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  fundTransferStatus: string | null;
+  /** Last digits of the payout instrument, as the marketplace reports them. */
+  accountTail: string | null;
 };
 
 // Neutral settlement row. v1 Amazon settlement stays report-fed via the existing

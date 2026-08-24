@@ -33,6 +33,13 @@ const BRANDS: { code: string; label: string; logo: string }[] = [
   { code: "NOON", label: "نون", logo: "/brand/logos/noon.svg" },
   { code: "SHOPIFY", label: "شوبيفاي", logo: "/brand/logos/shopify.svg" },
 ];
+// Ready-made presets for the MANUAL flow: pick one to prefill name+code+parser
+// (still fully editable), instead of typing a known marketplace from scratch.
+const MANUAL_PRESETS: { code: string; label: string; type: string; logo?: string }[] = [
+  { code: "AMAZON", label: "أمازون", type: "amazon", logo: "/brand/logos/amazon.svg" },
+  { code: "NOON", label: "نون", type: "generic", logo: "/brand/logos/noon.svg" },
+  { code: "SHOPIFY", label: "شوبيفاي", type: "generic", logo: "/brand/logos/shopify.svg" },
+];
 const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean }[] = [
   { code: "FBA", label: "FBA", hint: "أمازون يخزّن ويشحن", active: true },
   { code: "FBM", label: "FBM", hint: "أنت تشحن — قريبًا", active: false },
@@ -84,7 +91,9 @@ function CreatePlatformDialog({
         name, code, integrationType, productSyncMode: "create",
         syncProducts: true, syncOrders: true, syncInventory: true, syncSettlements: true,
         autoPostSettlements: false, autoMode: "invoice",
-        defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
+        createWarehouse: warehouseId === "__new__", createBank: bankAccountId === "__new__",
+        defaultWarehouseId: warehouseId === "__new__" ? null : (warehouseId || null),
+        bankAccountId: bankAccountId === "__new__" ? null : (bankAccountId || null),
       });
       if (r.ok) { toast.success("تم إنشاء المنصة وعميلها"); onClose(); router.refresh(); }
       else toast.error(r.error ?? "تعذّر الحفظ");
@@ -166,6 +175,26 @@ function CreatePlatformDialog({
 
       {mode === "manual" && (<>
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>منصة جاهزة (اختياري)</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {MANUAL_PRESETS.map((p) => {
+                const active = code === p.code;
+                return (
+                  <button key={p.code} type="button"
+                    onClick={() => { setName(p.label); setCode(p.code); setIntegrationType(p.type); setWarehouseId("__new__"); setBankAccountId("__new__"); }}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs transition-colors ${active ? "border-primary bg-primary/5" : "hover:border-primary"}`}>
+                    {p.logo
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={p.logo} alt={p.label} className="h-6 w-16 object-contain dark:invert" />
+                      : <span className="text-sm font-bold">{p.label}</span>}
+                    <span className="text-muted-foreground">{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">اختر منصة لملء الاسم والكود تلقائيًا، أو أدخلهما يدويًا بالأسفل.</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2"><Label>اسم المنصة</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أمازون" /></div>
             <div className="space-y-2">
@@ -185,6 +214,7 @@ function CreatePlatformDialog({
               <Label>المخزن الافتراضي</Label>
               <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
                 <option value="">— بدون —</option>
+                <option value="__new__">➕ إنشاء مخزن جديد لهذه المنصة</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
               </select>
             </div>
@@ -192,6 +222,7 @@ function CreatePlatformDialog({
               <Label>الحساب البنكي للتسويات</Label>
               <select className={selectCls} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
                 <option value="">— بدون —</option>
+                <option value="__new__">➕ إنشاء حساب تسويات جديد</option>
                 {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
               </select>
             </div>

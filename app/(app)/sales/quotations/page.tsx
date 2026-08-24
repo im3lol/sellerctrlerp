@@ -18,7 +18,8 @@ export default async function QuotationsPage() {
     const rows = await db.select({
       id: salesQuotations.id, number: salesQuotations.number, date: salesQuotations.date, validUntil: salesQuotations.validUntil,
       status: salesQuotations.status, customer: customers.nameAr,
-      total: sql<string>`(select coalesce(sum(quantity*unit_price - discount_amount + tax_amount),0) from ${salesQuotationLines} where ${salesQuotationLines.quotationId} = ${salesQuotations.id})`,
+      // The lines' net, minus the whole-quote discount stored on the header. Floored at 0.
+      total: sql<string>`greatest((select coalesce(sum(quantity*unit_price - discount_amount + tax_amount),0) from ${salesQuotationLines} where ${salesQuotationLines.quotationId} = ${salesQuotations.id}) - ${salesQuotations.discountAmount}, 0)`,
     })
       .from(salesQuotations)
       .leftJoin(customers, eq(customers.id, salesQuotations.customerId))

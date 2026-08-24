@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -42,7 +43,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
       inv.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, inv.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-      db.select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, shipping: purchaseInvoiceLines.shippingPerUnit, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr })
+      db.select({ id: purchaseInvoiceLines.id, qty: purchaseInvoiceLines.quantity, unitPrice: purchaseInvoiceLines.unitPrice, shipping: purchaseInvoiceLines.shippingPerUnit, discount: purchaseInvoiceLines.discountAmount, tax: purchaseInvoiceLines.taxAmount, total: purchaseInvoiceLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
         .from(purchaseInvoiceLines).leftJoin(items, eq(items.id, purchaseInvoiceLines.itemId)).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id)),
       inv.goodsReceiptId
         ? db.select({ number: purchaseReceipts.number }).from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId)).limit(1)
@@ -86,6 +87,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14 text-start">صورة</TableHead>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">الكمية</TableHead>
                   <TableHead className="text-start">السعر</TableHead>
@@ -98,7 +100,11 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal">
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
+                    </TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     {anyShipping && <TableCell>{fmt(l.shipping)}</TableCell>}

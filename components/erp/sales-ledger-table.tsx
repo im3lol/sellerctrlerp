@@ -2,12 +2,9 @@
 
 import Link from "next/link";
 import type { SalesLedgerRow, SalesLedgerTotals } from "@/lib/erp/sales-ledger";
+import { fmtMoney, fmtQty } from "@/lib/format";
 
 const LOC = "ar-EG-u-nu-latn";
-const fmtMoney = (n: number) =>
-  n.toLocaleString(LOC, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtQty = (n: number) =>
-  n.toLocaleString(LOC, { maximumFractionDigits: 2 });
 const fmtDate = (d: Date) =>
   new Date(d).toLocaleDateString(LOC, { year: "numeric", month: "2-digit", day: "2-digit" });
 

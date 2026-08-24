@@ -78,8 +78,10 @@ export function VoucherForm({
         ? await createReceiptVoucherAction({ ...base, customerId: partyId, salesInvoiceId: invoiceId || undefined })
         : await createPaymentVoucherAction({ ...base, supplierId: partyId, purchaseInvoiceId: invoiceId || undefined });
       if (r.ok) {
-        toast.success((isReceipt ? "تم حفظ سند القبض" : "تم حفظ سند الصرف") + " (مسودة) — أكّده للترحيل");
-        router.push(dest);
+        toast.success((isReceipt ? "تم حفظ سند القبض" : "تم حفظ سند الصرف") + " (مسودة) — راجِعه ثم أكّده للترحيل");
+        // Land ON the voucher, not on the list: «تأكيد» is the next step and it lives
+        // on the document. Dropping the user in a list leaves the draft unposted.
+        router.push(r.number ? `${dest}/${encodeURIComponent(r.number)}` : dest);
         router.refresh();
       } else {
         toast.error(r.error ?? "تعذّر الحفظ");

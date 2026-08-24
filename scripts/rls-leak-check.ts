@@ -159,6 +159,23 @@ async function main() {
       const rows = (await c.query("select organization_id from organization_members where user_id=$1", [usr.id])).rows;
       check("bootstrap: getUserOrganizations under withPlatformScope lists BOTH orgs", rows.length === 2);
     });
+
+    // 12. authorizeErp now runs getMemberAccess inside the SAME platform scope as
+    // getUserOrganizations (one transaction instead of two), so RLS is bypassed for that
+    // read and the explicit (organization_id, user_id) filter is the only control left.
+    // These two pin that control down.
+    await inScope(null, true, async (c) => {
+      const rows = (await c.query(
+        "select organization_id, role from organization_members where organization_id=$1 and user_id=$2",
+        [orgB.id, usr.id])).rows;
+      check("bootstrap: getMemberAccess under withPlatformScope returns ONLY the queried org",
+        rows.length === 1 && rows[0].organization_id === orgB.id, JSON.stringify(rows));
+
+      const stranger = (await c.query(
+        "select 1 from organization_members where organization_id=$1 and user_id=$2",
+        [orgA.id, "00000000-0000-0000-0000-000000000000"])).rowCount;
+      check("bootstrap: a non-member gets no row even with RLS bypassed", stranger === 0, String(stranger));
+    });
   } finally {
     await app.end();
     await db.delete(customers).where(eq(customers.organizationId, orgA.id));

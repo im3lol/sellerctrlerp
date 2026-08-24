@@ -4,10 +4,12 @@ import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, platformCredentials } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformsManager } from "@/components/erp/platforms-manager";
-import { connectableConnectors } from "@/lib/erp/marketplace/registry";
+import { registeredConnectors } from "@/lib/erp/marketplace/registry";
+import { enabledConnectorCodes } from "@/lib/saas/connector-enabled";
 
 export default async function PlatformsPage() {
   return loadErpPage("sales.view", async ({ orgId, can }) => {
+    const enabled = await enabledConnectorCodes();
     const [rows, whRows, bankRows] = await Promise.all([
       db.select({
         id: salesPlatforms.id,
@@ -55,7 +57,7 @@ export default async function PlatformsPage() {
           warehouses={whRows}
           bankAccounts={bankRows}
           canManage={can("sales.create")}
-          connectors={connectableConnectors().map((c) => ({ code: c.code, label: c.label }))}
+          connectors={registeredConnectors().filter((c) => enabled.has(c.code)).map((c) => ({ code: c.code, label: c.label }))}
         />
       </div>
     );

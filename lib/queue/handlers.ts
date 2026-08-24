@@ -1,10 +1,14 @@
 import "server-only";
-import { and, asc, eq, sql } from "drizzle-orm";
-import type { SyncJob } from "./queues";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { enqueue, QUEUES, type SyncJob } from "./queues";
 import { db } from "@/lib/db";
-import { organizationMembers } from "@/db/schema";
+import { organizationMembers, organizations, items, itemCodes } from "@/db/schema";
+import { withPlatformScope, withOrgScope } from "@/lib/db-scope";
+import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
+import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { enrichItems } from "@/lib/erp/marketplace/ingest";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, syncFbaCodesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
 import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
@@ -18,12 +22,15 @@ import { allErpPermissions } from "@/lib/erp/permissions";
  * as the org's admin (falls back to the oldest active member).
  */
 async function workerErpContext(orgId: string): Promise<ErpContext | null> {
-  const [m] = await db
+  // organization_members is RLS-policied — this MUST run inside a tenant scope or the
+  // app's appuser role sees zero rows (fail-closed) and every sync job aborts with "no
+  // active member". withOrgScope is re-entrant, matching the startRun/prepareSync callers.
+  const [m] = await withOrgScope(orgId, false, () => db
     .select({ userId: organizationMembers.userId, role: organizationMembers.role })
     .from(organizationMembers)
     .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.isActive, true)))
     .orderBy(sql`case when ${organizationMembers.role} = 'admin' then 0 else 1 end`, asc(organizationMembers.joinedAt))
-    .limit(1);
+    .limit(1));
   if (!m) return null;
   return { userId: m.userId, orgId, role: "admin", permissions: new Set(allErpPermissions) };
 }
@@ -39,6 +46,10 @@ async function runProducts(d: SyncJob, kind: "IMPORT" | "DISCOVERY", run: (p: Sy
   if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
   await markSync(d.orgId, d.provider, { lastSyncStatus: kind === "IMPORT" ? "ok" : "auto", needsReauth: false, productsSyncedAt: new Date() });
   await finishRun(d.orgId, runId, "OK", { productsProcessed: r.total, newProducts: r.created, updatedProducts: r.linked, apiRequests });
+  // Chase the stragglers: batch enrichment only covers THIS sync's fetch batch and a
+  // failed catalog batch is swallowed — so after every successful import/discovery,
+  // sweep items still missing an image (also gives a ~daily cadence via DISCOVERY).
+  await enqueue(QUEUES.images, { orgId: d.orgId, provider: d.provider, marketplaceId: d.marketplaceId }).catch(() => {});
 }
 
 /** One-time full catalog import via the Reports API (complete, no 1000 cap). */
@@ -56,8 +67,55 @@ export function runDiscoveryJob(d: SyncJob): Promise<void> {
 /** Per-item catalog detail enrichment — Phase 3. */
 export function runDetailsJob(_d: SyncJob): Promise<void> { return Promise.resolve(); }
 
-/** Per-item image enrichment — Phase 3. */
-export function runImagesJob(_d: SyncJob): Promise<void> { return Promise.resolve(); }
+/** Image (+catalog-field) BACKFILL for items still missing an image. The per-sync
+ *  enrichment only covers that sync's fetch batch and swallows failed catalog batches,
+ *  so an item whose batch 429'd — or whose listing never changes again — stayed
+ *  imageless forever. Sweep up to 500 imageless ASIN-coded items per run through the
+ *  existing fetchCatalog + enrichItems (fill-only guard = idempotent); enqueued after
+ *  every product import/discovery. Amazon-only — Noon's API exposes no images. */
+/**
+ * Backfill Amazon's FNSKU onto items that already exist. The live product sync attaches
+ * it as it goes; this covers the catalogue that was linked before that, and the full
+ * import (whose listings report carries no FNSKU column).
+ */
+export async function runFbaCodesJob(d: SyncJob): Promise<void> {
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) return;
+  const r = await syncFbaCodesCore(prep);
+  if (r.ok) log.info("fba_codes.backfill", { orgId: d.orgId, provider: d.provider, total: r.total, attached: r.attached, unmatched: r.unmatched });
+  else log.warn("fba_codes.backfill_failed", { orgId: d.orgId, provider: d.provider, error: r.error });
+}
+
+export async function runImagesJob(d: SyncJob): Promise<void> {
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) return;
+  const fetchCatalog = prep.connector.fetchCatalog;
+  if (!fetchCatalog) return;
+
+  const rows = await withOrgScope(d.orgId, false, () =>
+    db.select({ asin: itemCodes.code })
+      .from(itemCodes)
+      .innerJoin(items, eq(items.id, itemCodes.itemId))
+      .where(and(
+        eq(itemCodes.organizationId, d.orgId),
+        eq(itemCodes.codeType, "ASIN"),
+        eq(items.isActive, true),
+        or(isNull(items.image), eq(items.image, "")),
+      )).limit(500));
+  const asins = [...new Set(rows.map((r) => r.asin).filter(Boolean))];
+  if (!asins.length) return;
+
+  try {
+    const [records, apiRequests] = await withRequestCount(() => fetchCatalog(prep.cred, asins));
+    const e = await withOrgScope(d.orgId, false, () => enrichItems(d.orgId, records));
+    // Surface the outcome instead of swallowing: "requested vs got vs filled" is the
+    // signal when Amazon has no image for an ASIN (normal) vs batches failing (not).
+    log.info("images.backfill", { orgId: d.orgId, provider: d.provider, requested: asins.length, records: records.length, filled: e.images, apiRequests });
+    if (records.length === 0) log.warn("images.backfill_empty", { orgId: d.orgId, provider: d.provider, requested: asins.length });
+  } catch (err) {
+    log.warn("images.backfill_failed", { orgId: d.orgId, provider: d.provider, requested: asins.length, error: err instanceof Error ? err.message : String(err) });
+  }
+}
 
 /** Incremental Amazon order poll (near-real-time). `since` from the cron watermark;
  *  absent → last 24h. Drives the DRAFT→fulfil sales cycle + records new-order events. */
@@ -169,6 +227,25 @@ export async function runReimbursementsJob(d: SyncJob): Promise<void> {
   }
 }
 
+/** FBA removal orders: upsert the window's rows (idempotent). No documents → no ErpContext;
+ *  the trader confirms each removal (restock/write-off) from the removals workspace. */
+export async function runRemovalsJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "REMOVALS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  if (!prep.flags.removals) { await finishRun(d.orgId, runId, "OK", {}); return; } // source toggled off
+  await markSync(d.orgId, d.provider, { removalsSyncedAt: new Date() });
+  try {
+    const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [r, apiRequests] = await withRequestCount(() => syncRemovalsCore(prep, { from, to: new Date() }));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported, newProducts: r.imported, apiRequests });
+  } catch (e) {
+    console.error("[queue] removals sync failed:", e);
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة أوامر السحب");
+  }
+}
+
 /** Read-only FBA ledger detail feed. */
 export async function runLedgerJob(d: SyncJob): Promise<void> {
   const runId = await startRun(d.orgId, d.provider, "LEDGER", d.marketplaceId);
@@ -200,4 +277,21 @@ export async function runPricingJob(d: SyncJob): Promise<void> {
     console.error("[queue] fees sync failed:", e);
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تقدير الرسوم");
   }
+}
+
+/** Per-tenant daily maintenance: the safety backup to object storage + prune to the
+ *  last 14. Fanning this out of the cron's serial per-org loop (which timed out on a
+ *  large fleet) into one job per org — the heavy full-DB export now runs concurrently
+ *  under the worker's fairness limits instead of blocking a 60s serverless function. */
+export async function runMaintenanceJob(d: SyncJob): Promise<void> {
+  await withPlatformScope(async () => {
+    const [org] = await db.select({ name: organizations.nameAr }).from(organizations).where(eq(organizations.id, d.orgId)).limit(1);
+    if (!org) return;
+    try {
+      await backupOrgToStorage(d.orgId, org.name);
+      await pruneBackups(d.orgId, 14);
+    } catch (e) {
+      log.warn("maintenance.backup_failed", { orgId: d.orgId, err: e });
+    }
+  });
 }

@@ -1,0 +1,45 @@
+import { notFound, redirect } from "next/navigation";
+import { and, asc, eq } from "drizzle-orm";
+import { loadErpPage } from "@/lib/erp/org";
+import { db } from "@/lib/db";
+import { salesQuotations, salesQuotationLines, customers, items, organizations } from "@/db/schema";
+import { ErpPageHeader } from "@/components/erp/page-header";
+import { QuotationForm, type QuotationInitial } from "@/components/erp/quotation-form";
+import { docNumberParam } from "@/lib/erp/doc-route";
+
+const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+
+export default async function EditQuotationPage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
+  return loadErpPage("sales.create", async ({ orgId }) => {
+    const number = await docNumberParam(raw, orgId, salesQuotations,
+      { id: salesQuotations.id, number: salesQuotations.number, organizationId: salesQuotations.organizationId }, "/sales/quotations");
+    const [qt] = await db.select().from(salesQuotations)
+      .where(and(eq(salesQuotations.number, number), eq(salesQuotations.organizationId, orgId))).limit(1);
+    if (!qt) notFound();
+    if (qt.status !== "DRAFT") redirect(`/sales/quotations/${encodeURIComponent(qt.number)}`);
+
+    const [custList, itemList, org, qLines] = await Promise.all([
+      db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code)),
+      db.select({ id: items.id, nameAr: items.nameAr, sellPrice: items.sellPrice, code: items.code, image: items.image }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
+      db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
+      db.select({ itemId: salesQuotationLines.itemId, quantity: salesQuotationLines.quantity, unitPrice: salesQuotationLines.unitPrice, discountAmount: salesQuotationLines.discountAmount, taxAmount: salesQuotationLines.taxAmount })
+        .from(salesQuotationLines).where(eq(salesQuotationLines.quotationId, qt.id)),
+    ]);
+
+    const initial: QuotationInitial = {
+      id: qt.id, number: qt.number, customerId: qt.customerId, date: iso(qt.date), validUntil: iso(qt.validUntil), notes: qt.notes ?? "",
+      // The toggle is derived, not stored: any line carrying tax means VAT was applied.
+      applyVat: qLines.some((l) => Number(l.taxAmount) > 0),
+      discountAmount: Number(qt.discountAmount) || 0,
+      lines: qLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0, discountAmount: Number(l.discountAmount) || 0 })),
+    };
+
+    return (
+      <div className="space-y-6">
+        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle="مسودة — عدّل الأصناف والأسعار ثم احفظ" backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
+        <QuotationForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
+      </div>
+    );
+  });
+}

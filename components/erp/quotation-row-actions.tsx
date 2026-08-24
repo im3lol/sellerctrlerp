@@ -8,7 +8,7 @@ import { setQuotationStatusAction, deleteQuotationAction } from "@/app/actions/e
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
-export function QuotationRowActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
+export function QuotationRowActions({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
@@ -19,7 +19,10 @@ export function QuotationRowActions({ id, status, canManage }: { id: string; sta
   return (
     <div className="flex flex-wrap gap-1">
       {status === "DRAFT" && (
-        <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setQuotationStatusAction(id, "SENT"), "تم وضع علامة مُرسل")}><Icon name="Send" className="size-4" />إرسال</Button>
+        <>
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setQuotationStatusAction(id, "SENT"), "تم تأكيد عرض السعر")}><Icon name="Check" className="size-4" />تأكيد</Button>
+          <Button size="sm" variant="outline" asChild><Link href={`/sales/quotations/${encodeURIComponent(number)}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></Button>
+        </>
       )}
       {status === "SENT" && (
         <>

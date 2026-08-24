@@ -2,8 +2,9 @@ import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
-import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines, platformItemFees } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, items, stockMovements, salesReturns, salesReturnLines } from "@/db/schema";
 import { buildProfitability } from "@/lib/erp/profitability";
+import { getSettlementFeesByItem } from "@/lib/erp/item-pnl";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,7 +33,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
-    const [revRows, cogsRows, returnRows, feeRows] = await Promise.all([
+    const [revRows, cogsRows, returnRows, feesByItem] = await Promise.all([
       db.select({
         itemId: salesInvoiceLines.itemId, code: items.code, name: items.nameAr,
         qty: sql<string>`sum(${salesInvoiceLines.quantity})`,
@@ -61,14 +62,13 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
         .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
         .groupBy(salesReturnLines.itemId),
-      // Estimated per-unit marketplace fees (referral + FBA) — optional overlay.
-      db.select({ itemId: platformItemFees.itemId, totalFees: platformItemFees.totalFees })
-        .from(platformItemFees).where(eq(platformItemFees.organizationId, orgId)),
+      // ACTUAL Amazon fees deducted in settlements over the period, mapped to items by
+      // normalized SKU → item_codes — real charges, not the pre-sale estimate.
+      getSettlementFeesByItem(orgId, fromD, toD),
     ]);
 
     const cogsByItem = new Map(cogsRows.map((r) => [r.itemId, Number(r.cogs ?? 0)]));
     const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
-    const feesByItem = new Map(feeRows.map((r) => [r.itemId, Number(r.totalFees ?? 0)]));
     let list = buildProfitability(
       revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
       returnsByItem, cogsByItem, feesByItem,
@@ -97,7 +97,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">تكلفة البضاعة المباعة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tCogs)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الربح الإجمالي</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tProfit)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">هامش الربح</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{pct(tMargin)}</p></CardContent></Card>
-          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رسوم أمازون المقدرة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tFees)}</p></CardContent></Card>}
+          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رسوم أمازون الفعلية</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tFees)}</p></CardContent></Card>}
           {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح بعد الرسوم</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>}
         </div>
 
@@ -132,7 +132,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                     <TableHead className="text-end">التكلفة</TableHead>
                     <TableHead className="text-end">الربح</TableHead>
                     <TableHead className="text-end">الهامش</TableHead>
-                    {hasFees && <TableHead className="text-end">رسوم أمازون</TableHead>}
+                    {hasFees && <TableHead className="text-end">رسوم أمازون الفعلية</TableHead>}
                     {hasFees && <TableHead className="text-end">الصافي بعد الرسوم</TableHead>}
                   </TableRow>
                 </TableHeader>

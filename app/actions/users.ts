@@ -45,8 +45,6 @@ export async function createUserAction(_prev: ActionState, formData: FormData): 
     .values({ name: d.name, email: d.email, passwordHash, passwordChangedAt: new Date(), role: d.role, title: d.title })
     .returning();
 
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/clients");
   return { ok: true };
 }
 
@@ -54,8 +52,6 @@ export async function setUserActiveAction(userId: string, isActive: boolean) {
   const actor = await requireCapability("employee.manage");
   if (userId === actor.id) throw new Error("لا يمكنك تعطيل حسابك");
   await db.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, userId));
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/clients");
 }
 
 const updateSchema = z.object({
@@ -107,9 +103,6 @@ export async function updateUserAction(_prev: ActionState, formData: FormData): 
     update.passwordChangedAt = new Date();
   }
   await db.update(users).set(update).where(eq(users.id, d.userId));
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/clients");
-  revalidatePath(`/admin/users/${d.userId}`);
   return { ok: true };
 }
 
@@ -123,8 +116,6 @@ export async function deleteUserAction(userId: string): Promise<ActionState> {
     return { error: "لا تملك صلاحية حذف هذا الحساب" };
   }
   await db.delete(users).where(eq(users.id, userId));
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/clients");
   return { ok: true };
 }
 

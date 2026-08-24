@@ -7,19 +7,22 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
- * Object storage with two backends:
- *  - Supabase Storage REST (when SUPABASE_URL + SUPABASE_SERVICE_KEY are set) — used on Vercel.
- *  - MinIO / S3-compatible (via AWS SDK) — used for local Docker.
+ * Object storage: MinIO / any S3-compatible service, via the AWS SDK.
+ *
+ * A second backend (Supabase Storage over REST) used to sit in front of this for the
+ * Vercel deployment. That deployment is being retired in favour of the self-hosted Docker
+ * stack, and a storage layer with one implementation is one less thing to keep in sync —
+ * notably the private bucket, which Supabase never supported (its branch returned public
+ * URLs for objects the S3 path serves only through short-lived presigned links).
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET ?? "sellerctrl";
-const useSupabase = !!(SUPABASE_URL && SUPABASE_SERVICE_KEY);
-
-// ── S3 / MinIO (local) ──
+// ── S3 / MinIO ──
 const endpoint = process.env.S3_ENDPOINT ?? "http://localhost:9000";
+// Public bucket: display assets only (item images, org logos, academy images) served via
+// publicUrl(). Private bucket: sensitive data (per-tenant backups, document attachments)
+// served ONLY through short-lived presigned URLs behind guarded routes — never anonymous.
 const bucket = process.env.S3_BUCKET ?? "sellerctrl";
+const privateBucket = process.env.S3_PRIVATE_BUCKET ?? "sellerctrl-private";
 
 export const s3 = new S3Client({
   endpoint,
@@ -38,53 +41,37 @@ export function buildStorageKey(workspaceId: string, filename: string) {
   return `workspaces/${workspaceId}/${Date.now()}-${safe}`;
 }
 
-/** Server-side upload. */
-export async function putObject(key: string, body: Buffer | Uint8Array, contentType: string) {
-  if (useSupabase) {
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${key}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-        apikey: SUPABASE_SERVICE_KEY!,
-        "Content-Type": contentType,
-        "x-upsert": "true",
-        "cache-control": "3600",
-      },
-      body: new Uint8Array(body),
-    });
-    if (!res.ok) throw new Error(`Supabase upload failed: ${res.status} ${await res.text()}`);
-    return key;
-  }
-  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+type BucketOpts = { private?: boolean };
+
+/** Server-side upload. `private: true` targets the presigned-only private bucket
+ *  (backups, attachments); default is the public display-asset bucket. */
+export async function putObject(key: string, body: Buffer | Uint8Array, contentType: string, opts?: BucketOpts) {
+  await s3.send(new PutObjectCommand({ Bucket: opts?.private ? privateBucket : bucket, Key: key, Body: body, ContentType: contentType }));
   return key;
 }
 
-export async function deleteObject(key: string) {
-  if (useSupabase) {
-    await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${key}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, apikey: SUPABASE_SERVICE_KEY! },
-    });
-    return;
-  }
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+export async function deleteObject(key: string, opts?: BucketOpts) {
+  await s3.send(new DeleteObjectCommand({ Bucket: opts?.private ? privateBucket : bucket, Key: key }));
 }
 
 /** Browser-reachable URL for an object (buckets are public). */
 export function publicUrl(key: string) {
-  if (useSupabase) return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${key}`;
   const base = process.env.S3_PUBLIC_URL ?? `${endpoint}/${bucket}`;
   return `${base}/${key}`;
 }
 
-/** Presigned URLs (S3/MinIO only — Supabase uses public URLs). */
+/** Presigned URLs for the PRIVATE bucket.
+ *  This is how backups + attachments are read/written; the bucket has no anonymous
+ *  access, so a valid short-lived signature (issued only by a guarded route) is required. */
 export async function presignUpload(key: string, contentType: string, expiresIn = 600) {
-  const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+  const cmd = new PutObjectCommand({ Bucket: privateBucket, Key: key, ContentType: contentType });
   return getSignedUrl(s3, cmd, { expiresIn });
 }
 
 export async function presignDownload(key: string, expiresIn = 600) {
-  if (useSupabase) return publicUrl(key);
-  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  // The removed Supabase branch answered this with publicUrl(key) — an anonymous, permanent
+  // link to an object in the PRIVATE bucket (per-tenant backups, document attachments).
+  // There is now one path, and it is the signed, expiring one.
+  const cmd = new GetObjectCommand({ Bucket: privateBucket, Key: key });
   return getSignedUrl(s3, cmd, { expiresIn });
 }

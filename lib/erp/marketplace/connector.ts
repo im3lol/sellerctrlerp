@@ -1,9 +1,10 @@
-import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, DateRange } from "./dto";
+import type { MarketplaceOrder, MarketplaceInventory, MarketplaceInventoryDetail, MarketplaceProduct, MarketplaceInventoryUpdate, MarketplaceBalance, DateRange } from "./dto";
 import type { OAuthState } from "./oauth-state";
 import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
 import type { FbaReimbursementRow } from "@/lib/erp/amazon-reimbursements";
 import type { FbaLedgerRow } from "@/lib/erp/amazon-ledger";
+import type { RemovalRow } from "@/lib/erp/amazon-removals";
 import type { FeeEstimate } from "@/lib/erp/marketplace/amazon/fees";
 
 // A decrypted connection for one tenant+provider (refresh token already decrypted).
@@ -32,7 +33,20 @@ export type CatalogRecord = {
   category?: string;     // browse-node leaf display name → item category
 };
 
-export type OAuthExchange = { refreshToken: string } | { error: string };
+// Some providers only learn the seller's identity (Noon's project_code) from the token
+// exchange itself, so exchangeCode may return it — the callback prefers these over the
+// (possibly null) values from verifyCallback.
+export type OAuthExchange =
+  | { refreshToken: string; sellerId?: string | null; marketplaceId?: string | null; region?: string }
+  | { error: string };
+
+// Admin-editable integration config field. `key` maps to a platform_integrations column.
+// `secret` fields are stored encrypted and never sent back to the browser (a blank input
+// keeps the stored value). This lets /admin/integrations render a connector's whole config
+// form generically — a new connector declares its fields and needs no new column/form.
+export type IntegrationFieldKey =
+  | "clientId" | "clientSecret" | "webhookSecret" | "redirectUri" | "scopes" | "region" | "apiVersion" | "appId";
+export type IntegrationField = { key: IntegrationFieldKey; label: string; secret?: boolean; placeholder?: string; help?: string };
 
 /**
  * One integration provider. A connector with an `oauth` block supports official
@@ -43,6 +57,10 @@ export interface MarketplaceConnector {
   code: string; // uppercase, matches sales_platforms.code + platform_credentials.provider
   label: string;
   capabilities: { products: boolean; catalog: boolean; orders: boolean; inventory: boolean; settlements: boolean };
+  /** The credential/config fields the owner sets in /admin/integrations. Present ⇒ the
+   *  generic integration form renders for this connector. An `oauth` block also adds a
+   *  Redirect-URI section automatically. */
+  configFields?: IntegrationField[];
   /** True → this provider's own token-invalid/auth error. Omitted → the sync core
    *  falls back to the Amazon isAuthError. Lets coreFail flag needsReauth per provider. */
   isAuthError?(e: unknown): boolean;
@@ -72,14 +90,25 @@ export interface MarketplaceConnector {
   fetchCatalog?(cred: Credential, asins: string[]): Promise<CatalogRecord[]>;
   fetchOrders?(cred: Credential, range: DateRange): Promise<MarketplaceOrder[]>;
   fetchInventory?(cred: Credential): Promise<MarketplaceInventory[]>;
+  /** OPTIONAL write-back (P2.1): set the channel's available quantity for these SKUs, to stop
+   *  the same SKU overselling across channels. Only connectors that support inventory WRITES
+   *  implement it; the push is gated per-platform and OFF by default, and must be verified on
+   *  a sandbox channel before any live account. Returns how many were pushed + per-SKU errors. */
+  pushInventory?(cred: Credential, updates: MarketplaceInventoryUpdate[]): Promise<{ pushed: number; errors: { code: string; error: string }[] }>;
   /** Full FBA inventory breakdown per SKU (available/reserved/inbound/damaged/…) —
    *  the Inventory Auditor's data source. */
   fetchInventoryDetail?(cred: Credential): Promise<MarketplaceInventoryDetail[]>;
+  /** The balance the marketplace is currently holding, per open settlement group.
+   *  Optional: a channel with no API for it (Noon) simply has nothing to compare. */
+  fetchBalance?(cred: Credential): Promise<MarketplaceBalance[]>;
   /** Amazon settlement rows (ASIN-bucketed) pulled from the scheduled Settlement
    *  Report. Amazon-specific for now; feeds the settlement poster directly. */
   fetchSettlements?(cred: Credential, range: DateRange): Promise<SettlementTxn[]>;
   /** FBA customer returns in the window (returns report) — feeds the DRAFT-return sync. */
   fetchReturns?(cred: Credential, range: DateRange): Promise<FbaReturnRow[]>;
+  /** FBA removal orders in the window (removal-order detail report) — stock out of the
+   *  platform warehouse (Return → restock on receipt / Disposal → write-off). */
+  fetchRemovals?(cred: Credential, range: DateRange): Promise<RemovalRow[]>;
   /** FBA reimbursements in the window (read-only feed). */
   fetchReimbursements?(cred: Credential, range: DateRange): Promise<FbaReimbursementRow[]>;
   /** FBA ledger detail events in the window (read-only feed). */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmStockTransferAction, deleteStockTransferAction } from "@/app/actions/erp/stock-transfers";
@@ -11,12 +12,15 @@ import { Icon } from "@/components/icon";
 
 export function StockRowActions({
   docId,
+  docNumber,
   type,
   status,
   canManage,
   dest,
 }: {
   docId: string;
+  /** The document number — its URL. Actions still take the id. */
+  docNumber: string;
   type: "transfer" | "adjustment";
   status: string;
   canManage: boolean;
@@ -45,6 +49,11 @@ export function StockRowActions({
           () => isTransfer ? confirmStockTransferAction(docId) : confirmStockAdjustmentAction(docId), "تم التأكيد والترحيل")}>
         <Icon name="Check" className="size-4" />تأكيد
       </Button>
+      {isTransfer && (
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/inventory/transfers/${encodeURIComponent(docNumber)}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+        </Button>
+      )}
       <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
         onClick={() => run(
           { title: "حذف المسودة", description: `سيتم حذف مسودة ${label} نهائياً.`, confirmText: "حذف", danger: true },

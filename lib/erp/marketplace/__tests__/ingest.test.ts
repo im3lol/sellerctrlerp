@@ -77,7 +77,7 @@ describe("classifyOrders routing", () => {
   });
 });
 
-const product = (sku: string, asin?: string): MarketplaceProduct => ({ code: sku, altCode: asin, name: sku, sellPrice: 10 });
+const product = (sku: string, asin?: string, fnsku?: string): MarketplaceProduct => ({ code: sku, altCode: asin, fnsku, name: sku, sellPrice: 10 });
 
 describe("classifyProducts — ASIN-required linking", () => {
   // Item "it_1" carries ASIN "B001" (normalized). "SKU-OLD" is an already-known code.
@@ -121,5 +121,27 @@ describe("classifyProducts — ASIN-required linking", () => {
     const p = classifyProducts([product("SKU-OLD", "B001")], byAsin, known, "create");
     expect(p.alreadyLinked).toBe(1);
     expect(p.toLink).toHaveLength(0);
+  });
+
+  // The FNSKU is Amazon's own barcode for the unit in its warehouse. It arrives on the
+  // same feed as the SKU, and these three cases are the whole contract.
+  it("attaches the FNSKU alongside a newly linked SKU", () => {
+    const p = classifyProducts([product("SKU-NEW", "B001", "X0ABCD1234")], byAsin, known, "link");
+    expect(p.toLink).toEqual([{ itemId: "it_1", sku: "SKU-NEW", fnsku: "X0ABCD1234" }]);
+  });
+
+  it("still offers the FNSKU for a listing whose SKU is ALREADY linked", () => {
+    // The regression that made FNSKUs never appear: an established catalogue has every
+    // SKU linked, so this branch is the ONLY one it ever takes. Returning nothing here
+    // means no amount of re-syncing can ever attach the code.
+    const p = classifyProducts([product("SKU-OLD", "B001", "X0ABCD1234")], byAsin, known, "create");
+    expect(p.alreadyLinked).toBe(1);
+    expect(p.toEnrich).toEqual([{ itemId: "it_1", fnsku: "X0ABCD1234" }]);
+  });
+
+  it("offers nothing when the FNSKU is already on the item, or absent (FBM)", () => {
+    const held = new Set([...known, "X0ABCD1234"]);
+    expect(classifyProducts([product("SKU-OLD", "B001", "X0ABCD1234")], byAsin, held, "create").toEnrich).toHaveLength(0);
+    expect(classifyProducts([product("SKU-OLD", "B001")], byAsin, known, "create").toEnrich).toHaveLength(0);
   });
 });

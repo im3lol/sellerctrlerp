@@ -15,6 +15,7 @@ import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
+import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 
 export type SaveInvoiceState = ActionState & { id?: string };
 
@@ -30,6 +31,10 @@ const schema = z.object({
   warehouseId: z.string().min(1, "اختر المستودع"),
   date: z.string().min(1, "التاريخ مطلوب"),
   notes: z.string().optional(),
+  // Line amounts are ALREADY base currency; these only record the original foreign
+  // document (carried from the PO) for display on the invoice. GL stays base.
+  currencyCode: z.string().optional(),
+  exchangeRate: z.coerce.number().optional(),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 async function nextNumber(orgId: string, year: number): Promise<string> {
@@ -63,12 +68,18 @@ export async function createPurchaseInvoiceAction(input: unknown): Promise<SaveI
     const invoiceDate = new Date(date);
     const number = await nextNumber(auth.orgId, invoiceDate.getFullYear());
 
+    // Record the document currency (base amounts already computed above). foreignAmount
+    // = base total ÷ rate, so the invoice shows the figure the buyer originally entered.
+    const baseCode = await getBaseCurrencyCode(auth.orgId);
+    const fx = resolveCurrency(baseCode, parsed.data.currencyCode, parsed.data.exchangeRate, totalAmount);
+
     try {
       const id = await db.transaction(async (tx) => {
         const [inv] = await tx.insert(purchaseInvoices).values({
           organizationId: auth.orgId, number, supplierId, warehouseId, date: invoiceDate, status: "DRAFT",
           subtotal: String(subtotal), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), paidAmount: "0", balanceDue: String(totalAmount), notes: notes || null,
+          currencyCode: fx.code, exchangeRate: String(fx.rate), foreignAmount: fx.foreignAmount != null ? String(fx.foreignAmount) : null,
         }).returning({ id: purchaseInvoices.id });
 
         await tx.insert(purchaseInvoiceLines).values(computed.map((l) => ({

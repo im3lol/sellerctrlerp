@@ -14,11 +14,16 @@ export function CellCombobox({
   options,
   onSelect,
   placeholder,
+  onCreate,
+  createLabel,
 }: {
   selectedLabel: string;
   options: CellOption[];
   onSelect: (id: string, label: string) => void;
   placeholder?: string;
+  /** Show a "create it" row at the bottom of the list, handed whatever was typed. */
+  onCreate?: (typed: string) => void;
+  createLabel?: string;
 }) {
   return (
     <ComboboxBase
@@ -26,6 +31,8 @@ export function CellCombobox({
       options={options}
       onPick={(o) => onSelect(o.id, o.label)}
       placeholder={placeholder}
+      onCreate={onCreate}
+      createLabel={createLabel}
     />
   );
 }

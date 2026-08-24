@@ -15,7 +15,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type Row = { id: string; code: string; nameAr: string | null; image: string | null; sellPrice: string | null; isActive: boolean; parentItemId: string | null; codeCount: number; childCount: number };
+type Row = { id: string; code: string; nameAr: string | null; image: string | null; sellPrice: string | null; isActive: boolean; parentItemId: string | null; codeCount: number; childCount: number; onHand: number; minStock: number };
 const money = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const int = (n: number) => Number(n).toLocaleString("ar-EG-u-nu-latn");
 
@@ -90,6 +90,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
             <TableHead className="text-start">الكود</TableHead>
             <TableHead className="text-start">الاسم</TableHead>
             <TableHead className="text-start">الأكواد</TableHead>
+            <TableHead className="text-start">المخزون</TableHead>
             <TableHead className="text-start">سعر البيع</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
           </TableRow>
@@ -122,6 +123,13 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                   </div>
                 </TableCell>
                 <TableCell>{Number(r.codeCount) > 0 ? <Badge variant="secondary">{int(r.codeCount)}</Badge> : "—"}</TableCell>
+                <TableCell>
+                  {r.onHand <= 0
+                    ? <span className="font-semibold text-destructive">نفد</span>
+                    : r.minStock > 0 && r.onHand <= r.minStock
+                      ? <span className="font-semibold text-amber-600" title={`حد إعادة الطلب ${int(r.minStock)}`}>{int(r.onHand)} · منخفض</span>
+                      : <span className="tabular-nums">{int(r.onHand)}</span>}
+                </TableCell>
                 <TableCell>{money(r.sellPrice)}</TableCell>
                 <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "نشط" : "متوقف"}</Badge></TableCell>
               </TableRow>

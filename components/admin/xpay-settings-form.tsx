@@ -3,12 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Copy, CheckCircle2 } from "lucide-react";
+import { Loader2, Copy } from "lucide-react";
 import { saveXpaySettingsAction } from "@/app/actions/admin/platform-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Initial = { baseUrl: string; publishableKey: string; hasSecretKey: boolean; hasWebhookSecret: boolean };
 
@@ -45,15 +44,8 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
   const base = (appUrl || "").replace(/\/$/, "");
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          بوابة الدفع xpay
-          {initial.hasSecretKey && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600"><CheckCircle2 className="size-3.5" />مُعدّة</span>}
-        </CardTitle>
-        <CardDescription>مفاتيح حساب xpay لتحصيل اشتراكات المؤسسات أونلاين. تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <div className="space-y-5">
+      <p className="text-xs text-muted-foreground">مفاتيح حساب xpay لتحصيل اشتراكات المؤسسات أونلاين. تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</p>
         <div className="space-y-2">
           <Label htmlFor="sk">المفتاح السري (Secret key)</Label>
           <Input id="sk" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={initial.hasSecretKey ? "••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)" : "sk_test_…  أو  sk_live_…"} dir="ltr" autoComplete="off" />
@@ -83,7 +75,6 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
             {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

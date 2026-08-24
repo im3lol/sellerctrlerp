@@ -45,6 +45,8 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         .where(eq(salesOrderLines.salesOrderId, so.id)),
     ]);
 
+    const subtotal = Number(so.subtotal ?? 0);
+    const shipping = Number(so.shippingAmount ?? 0);
     const discount = Number(so.discountAmount ?? 0);
     const tax = Number(so.taxAmount ?? 0);
 
@@ -89,6 +91,10 @@ export default async function PrintSalesOrderPage({ params }: Params) {
           <b key="t">{fmt(l.total)}</b>,
         ])}
         totals={[
+          // Same shape as the purchase order: the subtotal always, then only the lines
+          // that actually carry a figure.
+          { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
           ...(tax > 0 ? [{ label: `الضريبة (${so.taxPercent}%)`, value: money(tax, currency) }] : []),
         ]}

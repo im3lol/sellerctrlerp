@@ -3,12 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { saveEmailSettingsAction } from "@/app/actions/admin/platform-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Initial = { host: string; port: number; user: string; from: string; fromName: string; hasPass: boolean };
 
@@ -33,15 +32,8 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          البريد الإلكتروني (SMTP)
-          {initial.hasPass && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600"><CheckCircle2 className="size-3.5" />مُعدّة</span>}
-        </CardTitle>
-        <CardDescription>خادم SMTP لإرسال رسائل الترحيب وإيصالات الدفع وتذكيرات انتهاء الاشتراك. تُخزَّن كلمة المرور مشفّرة. اترك حقل كلمة المرور فارغًا للإبقاء على المحفوظة.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <div className="space-y-5">
+      <p className="text-xs text-muted-foreground">خادم SMTP لإرسال رسائل الترحيب وإيصالات الدفع وتذكيرات انتهاء الاشتراك. تُخزَّن كلمة المرور مشفّرة. اترك حقل كلمة المرور فارغًا للإبقاء على المحفوظة.</p>
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2 space-y-2">
             <Label htmlFor="host">خادم SMTP</Label>
@@ -77,7 +69,6 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
             {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

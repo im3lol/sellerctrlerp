@@ -119,10 +119,15 @@ export async function startXpaySubscriptionAction(input: XpayStartInput): Promis
   });
 }
 
-/** The tenant's latest subscription request (for status display). */
-export async function getMyLatestRequest(orgId: string) {
-  const [r] = await db.select().from(subscriptionRequests)
-    .where(eq(subscriptionRequests.organizationId, orgId))
-    .orderBy(desc(subscriptionRequests.createdAt)).limit(1);
-  return r ?? null;
+/** The current tenant's latest subscription request (for status display). Resolves the
+ *  org from the session — never trust a caller-supplied orgId (was an IDOR endpoint). */
+export async function getMyLatestRequest() {
+  const { org } = await getActiveOrg();
+  if (!org) return null;
+  return withOrgScope(org.id, false, async () => {
+    const [r] = await db.select().from(subscriptionRequests)
+      .where(eq(subscriptionRequests.organizationId, org.id))
+      .orderBy(desc(subscriptionRequests.createdAt)).limit(1);
+    return r ?? null;
+  });
 }

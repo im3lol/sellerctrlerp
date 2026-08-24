@@ -17,7 +17,11 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { key: "company", icon: "Building2", title: "بيانات الشركة", desc: "الاسم القانوني والرقم الضريبي وبداية السنة المالية والشعار — تظهر على فواتيرك المطبوعة.", ctas: [{ label: "فتح الإعدادات", href: "/settings/organization" }] },
+  { key: "basis", icon: "CalendarRange", title: "الأساس المحاسبي", desc: "أول وأهم خطوة: بداية السنة المالية (افتراضيًا 1 يناير — غيّرها لو سنتك المالية مختلفة) والعملة الأساسية (الجنيه المصري افتراضيًا). تحكم كل فتراتك المحاسبية وتقاريرك — تُقفل بعد أول عملية، فاضبطها الآن.", ctas: [
+    { label: "ضبط الأساس المحاسبي", href: "/settings/organization" },
+    { label: "العملة الأساسية", href: "/settings/currencies" },
+  ] },
+  { key: "company", icon: "Building2", title: "بيانات الشركة", desc: "أدخل الرقم الضريبي (يظهر على فواتيرك الضريبية) مع الاسم القانوني والشعار. لست مسجّلاً ضريبيًا؟ اضغط الدائرة لتمييز الخطوة كمكتملة.", ctas: [{ label: "فتح الإعدادات", href: "/settings/organization" }] },
   { key: "chart", icon: "BookOpen", title: "دليل الحسابات", desc: "أُنشئ لك دليل قياسي كامل تلقائيًا — راجعه وعدّل ما يلزم ليطابق نشاطك.", ctas: [{ label: "مراجعة الدليل", href: "/accounting/chart" }] },
   { key: "units", icon: "Ruler", title: "وحدات القياس", desc: "قطعة، كرتونة، كيلو… تحتاج وحدة واحدة على الأقل قبل إضافة الأصناف.", ctas: [{ label: "إدارة الوحدات", href: "/inventory/items" }] },
   { key: "warehouses", icon: "Warehouse", title: "المخازن", desc: "أُنشئ «المستودع الرئيسي» تلقائيًا — أضف مخازن أخرى لو عندك أكثر من موقع.", ctas: [{ label: "المخازن", href: "/inventory/warehouses" }] },
@@ -28,7 +32,7 @@ const STEPS: Step[] = [
   ] },
   { key: "customers", icon: "Users", title: "العملاء", desc: "أضف عملاءك (منصات البيع تُنشئ عميلها تلقائيًا عند ربطها).", ctas: [{ label: "العملاء", href: "/sales/customers" }] },
   { key: "suppliers", icon: "Truck", title: "الموردون", desc: "أضف مورّديك لتسجيل المشتريات وأذون الاستلام والفواتير.", ctas: [{ label: "الموردون", href: "/purchases/suppliers" }] },
-  { key: "opening", icon: "Scale", title: "الأرصدة الافتتاحية", desc: "منتقل من نظام آخر؟ أدخل أرصدة المخزون والعملاء والموردين والبنوك كما هي اليوم. شركة جديدة؟ تخطَّ هذه الخطوة.", ctas: [{ label: "الأرصدة الافتتاحية", href: "/settings/opening-balance" }], optional: true },
+  { key: "opening", icon: "Scale", title: "الأرصدة الافتتاحية", desc: "الأهم قبل أول عملية: أدخل أرصدة المخزون والعملاء والموردين والبنوك كما هي اليوم — تقدر تسحب كميات مخزونك مباشرة من أمازون. شركة جديدة بلا أرصدة؟ اضغط الدائرة لتمييزها كمكتملة.", ctas: [{ label: "الأرصدة الافتتاحية", href: "/settings/opening-balance" }] },
   { key: "numbering", icon: "Hash", title: "ترقيم المستندات", desc: "غيّر بادئات أرقام الفواتير والأوامر (SI، SO…) لو أردت ترقيمًا خاصًا — الافتراضي جاهز.", ctas: [{ label: "الترقيم", href: "/settings/numbering" }], optional: true },
   { key: "platform", icon: "Store", title: "ربط منصة بيع", desc: "اربط أمازون أو أضف منصة يدوية — مبيعاتها ومدفوعاتها تتزامن أو تُستورد لعميلها ومخزنها.", ctas: [{ label: "المنصات", href: "/platforms" }], optional: true },
 ];

@@ -1,7 +1,7 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines } from "@/db/schema";
+import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines, currencies, exchangeRates } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrderForm } from "@/components/erp/purchase-order-form";
 
@@ -11,15 +11,24 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     const reorder = sp.reorder === "1";
     const fromRequisition = sp.fromRequisition;
 
-    const [supList, whList, itemList, org] = await Promise.all([
+    const [supList, whList, itemList, org, currRows, rateRows] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers)
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr }).from(warehouses)
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
-      db.select({ id: items.id, nameAr: items.nameAr }).from(items)
+      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image }).from(items)
         .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
-      db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
+      db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
+      db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
+        .where(and(eq(currencies.organizationId, orgId), eq(currencies.isActive, true))).orderBy(currencies.isBase, currencies.code),
+      db.select({ currencyCode: exchangeRates.currencyCode, rate: exchangeRates.rate }).from(exchangeRates)
+        .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(20),
     ]);
+
+    // Latest rate per currency: historical exchange_rates row wins over the snapshot.
+    const latestRates: Record<string, number> = {};
+    for (const r of rateRows) if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
+    for (const c of currRows) if (!(c.code in latestRates)) latestRates[c.code] = Number(c.exchangeRate) || 1;
 
     // Last unit price paid per item (any supplier) — suggested on the PO line.
     // ponytail: last price across all suppliers; make it per-supplier if negotiated price lists are needed.
@@ -69,7 +78,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} initialLines={initialLines} lastPrices={lastPrices} />
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
       </div>
     );
   });

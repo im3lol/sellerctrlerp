@@ -1,4 +1,5 @@
 import { round2 as r2 } from "@/lib/erp/money";
+import { nonOrderFeeCategory, type FeeCatKey } from "@/lib/erp/settlement-fees";
 
 /**
  * Pure GL math for Amazon settlement posting (no DB / server imports, so it stays
@@ -52,6 +53,29 @@ export function perOrderGL(rows: SettleAmounts[]): { receivable: number; fees: n
   let receivable = 0, fees = 0, clearing = 0;
   for (const t of rows) { receivable += orderReceivable(t); fees += orderFees(t); clearing += t.total; }
   return { receivable: r2(receivable), fees: r2(fees), clearing: r2(clearing) };
+}
+
+/** Per-category EXPENSE split for one order's rows (positive magnitudes): the order fee
+ *  buckets map directly — sellingFees→referral, fbaFees→fba, otherTransactionFees→other_txn.
+ *  Sums to orderFees(); the settlement posting routes each to its GL sub-account and lets
+ *  a residual line absorb any rounding so the entry still balances. */
+export function perOrderFeesByCat(rows: SettleAmounts[]): Partial<Record<FeeCatKey, number>> {
+  let referral = 0, fba = 0, otherTxn = 0;
+  for (const t of rows) { referral -= t.sellingFees; fba -= t.fbaFees; otherTxn -= t.otherTransactionFees; }
+  return { referral: r2(referral), fba: r2(fba), other_txn: r2(otherTxn) };
+}
+
+/** Per-category split for non-order rows (needs type+description to classify — ads, storage,
+ *  subscription, reimbursement, other). Expense categories are positive; a reimbursement row
+ *  nets negative (income offset). Transfer rows excluded (they're bank movement, not a fee). */
+export function nonOrderFeesByCat(rows: { type: string; description?: string | null; total: number }[]): Partial<Record<FeeCatKey, number>> {
+  const acc: Partial<Record<FeeCatKey, number>> = {};
+  for (const r of rows) {
+    if (r.type === "Transfer") continue;
+    const k = nonOrderFeeCategory(r.type, r.description ?? "");
+    acc[k] = r2((acc[k] ?? 0) - r.total);
+  }
+  return acc;
 }
 
 /** Aggregated GL for non-order rows (service/ads/FBA-inventory/SAFE-T + transfers). */

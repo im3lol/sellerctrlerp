@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { ItemThumb } from "@/components/erp/item-thumb";
 import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
@@ -82,7 +83,7 @@ export function GoodsReceiptForm({
       const r = await createReceiptFromOrderAction(orderId, picks, date);
       if (r.ok) {
         toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
-        router.push(r.id ? `/purchases/receipts/${r.id}` : "/purchases/receipts");
+        router.push(r.number ? `/purchases/receipts/${encodeURIComponent(r.number)}` : "/purchases/receipts");
         router.refresh();
       } else toast.error(r.error ?? "تعذّر الحفظ");
     });
@@ -139,6 +140,7 @@ export function GoodsReceiptForm({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-14 text-start">صورة</TableHead>
                 <TableHead className="text-start">المنتج</TableHead>
                 <TableHead className="w-44 text-start">مخزن الاستلام</TableHead>
                 <TableHead className="w-24 text-start">الكمية</TableHead>
@@ -151,9 +153,10 @@ export function GoodsReceiptForm({
             </TableHeader>
             <TableBody>
               {lines.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
               ) : lines.map((l) => (
                 <TableRow key={l.itemId}>
+                  <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
                   <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                   <TableCell>
                     <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>

@@ -27,6 +27,7 @@ export type AuditRow = {
   reserved: number;
   inbound: number;         // working + shipped + receiving
   damaged: number;         // unfulfillable total
+  expired: number;         // subset of damaged — expiry-dated units, surfaced separately
   researching: number;
   diff: number;            // erpQty − amazonTotal  (+ = missing from Amazon, − = extra at Amazon)
   status: AuditStatus;
@@ -38,19 +39,23 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000;
 export function classifyAudit(d: MarketplaceInventoryDetail, itemId: string | null, erpQty: number): AuditRow {
   const inbound = d.inboundWorking + d.inboundShipped + d.inboundReceiving;
   const diff = r3(erpQty - d.total);
-  // Amazon-side problems (damaged/researching) are flagged first — they matter even
-  // when the ERP isn't tracking this SKU's FBA stock. Then the ERP-vs-Amazon diff.
+  // Order matters. RESEARCHING first — Amazon is actively investigating, so don't write
+  // off the shortfall yet. Then a genuine shortfall (LOST) must win over DAMAGED: `total`
+  // already includes unfulfillable units, so diff>0 means units are missing ON TOP of any
+  // damage — a real count loss that must drive the stock adjustment. DAMAGED means totals
+  // match but some owned units are unsellable (no count fix, a reimbursement issue); it
+  // therefore only applies when diff≈0 — including untracked SKUs (erpQty=0 → diff≤0).
   let status: AuditStatus;
   if (!itemId) status = "UNMATCHED";
-  else if (d.unfulfillableTotal > 0.001) status = "DAMAGED";           // unsellable units at Amazon
-  else if (d.researching > 0.001) status = "RESEARCHING";              // Amazon investigating
-  else if (diff > 0.001) status = "LOST";                             // ERP > Amazon → units gone
+  else if (d.researching > 0.001) status = "RESEARCHING";              // Amazon investigating — don't write off yet
+  else if (diff > 0.001) status = "LOST";                             // ERP > Amazon owned total → units gone
+  else if (d.unfulfillableTotal > 0.001) status = "DAMAGED";           // totals match, some units unsellable
   else if (diff < -0.001) status = inbound > 0 ? "RECEIVING" : "FOUND"; // Amazon > ERP
   else status = "MATCHED";
   return {
     code: d.code, asin: d.asin, title: d.title, itemId,
     erpQty: r3(erpQty), amazonTotal: d.total, available: d.fulfillable,
-    reserved: d.reservedTotal, inbound, damaged: d.unfulfillableTotal, researching: d.researching,
+    reserved: d.reservedTotal, inbound, damaged: d.unfulfillableTotal, expired: d.expired, researching: d.researching,
     diff, status,
   };
 }

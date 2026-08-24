@@ -13,7 +13,7 @@
  *                            at the OWNER/direct connection — an RLS-scoped
  *                            appuser role only sees its own org's rows.
  *   GARBAGE_REPLACEMENT      placeholder written by --fix (default "غير محدّد")
- *   DB_SSL_INSECURE=1        no-verify TLS for a non-Supabase managed host
+ *   DB_SSL_INSECURE=1        no-verify TLS for a self-signed certificate
  *
  * ponytail: one neutral placeholder for every column — the cell was meaningless
  * anyway; a per-column label map isn't worth it for a rare manual cleanup.
@@ -30,7 +30,7 @@ const apply = process.argv.includes("--fix");
 // (citext, domains) can't break the regex operator.
 const GARBAGE = (col: string) => `(${col})::text ~ '\\?' AND (${col})::text ~ '^[[:space:][:punct:]?]+$'`;
 
-// Mirror lib/db's TLS decision so this connects the same way against Supabase.
+// Mirror lib/db's TLS decision so this connects the same way as the app.
 const isLocal = /@(localhost|127\.0\.0\.1|postgres)[:/]/.test(connectionString);
 const ssl = isLocal ? undefined : process.env.DB_SSL_INSECURE === "1" ? { rejectUnauthorized: false } : { rejectUnauthorized: true };
 

@@ -1,8 +1,8 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals, accounts } from "@/db/schema";
+import { journalEntries, journalEntryLines, fiscalPeriods, accountingJournals, accounts, organizations } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { fiscalYearBounds } from "@/lib/erp/default-chart";
+import { fiscalYearBoundsFor } from "@/lib/erp/fiscal";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -65,9 +65,12 @@ async function ensurePeriod(tx: Tx, orgId: string, date: Date, allowSoftClosed =
     return existing.id;
   }
 
-  const year = date.getUTCFullYear();
+  // Fill the "no period" gap on the org's fiscal-year boundaries (calendar when unset).
+  const [org] = await tx.select({ f: organizations.fiscalYearStart })
+    .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const b = fiscalYearBoundsFor(org?.f, date);
   const [created] = await tx.insert(fiscalPeriods)
-    .values({ organizationId: orgId, name: `السنة المالية ${year}`, ...fiscalYearBounds(year), status: "OPEN" })
+    .values({ organizationId: orgId, name: b.name, startDate: b.startDate, endDate: b.endDate, status: "OPEN" })
     .onConflictDoNothing({ target: [fiscalPeriods.organizationId, fiscalPeriods.startDate, fiscalPeriods.endDate] })
     .returning({ id: fiscalPeriods.id });
   if (created) return created.id;
@@ -96,6 +99,21 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
   if (debit === 0) throw new Error("لا يمكن ترحيل قيد بقيمة صفر");
   if (debit !== credit) {
     throw new Error(`القيد غير متوازن (مدين ${(debit / 100).toFixed(2)} ≠ دائن ${(credit / 100).toFixed(2)})`);
+  }
+
+  // Never post to a non-leaf/header account — it corrupts every parent-rollup report.
+  // This is the single GL choke point, so guard it here rather than trusting callers
+  // (postDraft guards the manual path; engine callers land here). allowManualEntries is
+  // NOT checked — the engine legitimately posts to system accounts; this only bars
+  // header accounts and cross-org account ids.
+  const accIds = [...new Set(lines.map((l) => l.accountId))];
+  const accRows = await tx.select({ id: accounts.id, isLeaf: accounts.isLeaf })
+    .from(accounts).where(and(eq(accounts.organizationId, input.orgId), inArray(accounts.id, accIds)));
+  const leafById = new Map(accRows.map((a) => [a.id, a.isLeaf]));
+  for (const id of accIds) {
+    const leaf = leafById.get(id);
+    if (leaf === undefined) throw new Error("حساب غير موجود في هذه المؤسسة");
+    if (!leaf) throw new Error("لا يمكن الترحيل على حساب رئيسي — اختر حساباً فرعياً");
   }
 
   // Assign to the open fiscal period covering the date (auto-creates the year if
@@ -163,12 +181,19 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
 export async function postDraft(
   tx: Tx,
   input: { orgId: string; entryId: string; userId?: string | null },
-): Promise<void> {
+): Promise<{ number: string }> {
+  // FOR UPDATE: the choke point for every draft source, so it is also where the
+  // draft-edit race is closed. Editing a draft replaces its lines wholesale; without
+  // this lock a posting that had already read the old lines would write them to the
+  // ledger and then stamp the entry POSTED, leaving the GL disagreeing with the
+  // entry the user is looking at. Whoever locks first wins; the loser re-reads and
+  // sees POSTED (posting side) or aborts (edit side).
   const [entry] = await tx
     .select()
     .from(journalEntries)
     .where(and(eq(journalEntries.id, input.entryId), eq(journalEntries.organizationId, input.orgId)))
-    .limit(1);
+    .limit(1)
+    .for("update");
   if (!entry) throw new Error("القيد غير موجود");
   if (entry.status !== "DRAFT") throw new Error("القيد ليس مسودة قابلة للترحيل");
 
@@ -212,6 +237,10 @@ export async function postDraft(
       postedById: input.userId ?? null,
     })
     .where(eq(journalEntries.id, entry.id));
+
+  // Posting REPLACES the draft's number, so the entry moves to a new URL — callers
+  // need this to revalidate the page it actually lives on.
+  return { number };
 }
 
 /**

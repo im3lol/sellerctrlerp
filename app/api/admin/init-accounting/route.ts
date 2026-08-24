@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { initializeAccountingForOrg } from "@/lib/erp/default-chart";
 import { withPlatformScope } from "@/lib/db-scope";
+import { secretEquals } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? url.searchParams.get("token") ?? "";
-  if (provided !== token) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!secretEquals(provided, token)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   // Cross-org: reads every organization and writes into each one's tables. Platform
   // scope so the per-org bootstrap writes bypass RLS (there's no single active tenant).

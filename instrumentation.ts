@@ -7,8 +7,15 @@ export async function register() {
     // Worker container only (WORKER=1): boot the BullMQ sync workers. The web
     // container leaves this unset and never processes jobs (only enqueues them).
     if (process.env.WORKER === "1" && process.env.REDIS_URL) {
-      const { startWorkers } = await import("@/lib/queue/worker");
+      const { startWorkers, stopWorkers } = await import("@/lib/queue/worker");
       startWorkers();
+      // Drain in-flight jobs on deploy/restart instead of losing them to SIGKILL.
+      const shutdown = (sig: string) => {
+        console.log(`[worker] ${sig} → draining in-flight jobs`);
+        void stopWorkers().finally(() => process.exit(0));
+      };
+      process.once("SIGTERM", () => shutdown("SIGTERM"));
+      process.once("SIGINT", () => shutdown("SIGINT"));
     }
   }
 }

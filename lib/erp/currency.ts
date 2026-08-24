@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { currencies } from "@/db/schema";
+import { currencies, exchangeRates } from "@/db/schema";
 
 /**
  * Multi-currency helpers. The GL and all stored monetary amounts are always in
@@ -8,6 +8,24 @@ import { currencies } from "@/db/schema";
  * only preserve the original foreign figure for display and reconciliation.
  * `exchangeRate` means: 1 unit of the foreign currency = `rate` units of base.
  */
+
+/**
+ * Rate to convert 1 unit of `code` into the org's base currency, as of `date`:
+ * the newest exchange_rates row on/before that date, else the currency's snapshot
+ * rate, else 0 — the caller treats 0 as "no rate on file" and refuses to post.
+ * The base currency (or a blank code) always returns 1.
+ */
+export async function getExchangeRate(orgId: string, code: string, baseCode: string, date: Date): Promise<number> {
+  const c = (code ?? "").toUpperCase();
+  if (!c || c === baseCode.toUpperCase()) return 1;
+  const [r] = await db.select({ rate: exchangeRates.rate }).from(exchangeRates)
+    .where(and(eq(exchangeRates.organizationId, orgId), eq(exchangeRates.currencyCode, c), lte(exchangeRates.date, date)))
+    .orderBy(desc(exchangeRates.date)).limit(1);
+  if (r && Number(r.rate) > 0) return Number(r.rate);
+  const [snap] = await db.select({ rate: currencies.exchangeRate }).from(currencies)
+    .where(and(eq(currencies.organizationId, orgId), eq(currencies.code, c))).limit(1);
+  return snap && Number(snap.rate) > 0 ? Number(snap.rate) : 0;
+}
 
 /** The org's base-currency code (falls back to "EGP" when none is flagged). */
 export async function getBaseCurrencyCode(orgId: string): Promise<string> {

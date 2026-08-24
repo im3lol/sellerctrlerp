@@ -29,4 +29,11 @@ describe("OAuth state signing", () => {
     expect(verifyState("")).toBeNull();
     expect(verifyState("nodot")).toBeNull();
   });
+
+  it("round-trips a no-target state (empty marketplace — Noon)", () => {
+    // Noon has one consent screen and no marketplace/shop, so its state carries an
+    // empty marketplace. verifyState must accept it (requiring it broke Noon OAuth).
+    const got = verifyState(signState({ orgId: "org_1", provider: "NOON", marketplace: "", ts: Date.now() }));
+    expect(got).toMatchObject({ orgId: "org_1", provider: "NOON", marketplace: "" });
+  });
 });

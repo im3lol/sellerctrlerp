@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-16 items-center gap-2 px-6">
           <Logo className="text-2xl text-sidebar-foreground" />
           <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-semibold">إدارة</span>
@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/dashboard" className="text-sm text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground">← الرجوع للنظام</Link>
         </div>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
           <span className="font-semibold">لوحة الإدارة</span>
           <div className="ms-auto flex items-center gap-2">

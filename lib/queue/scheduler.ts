@@ -5,6 +5,7 @@ import { platformCredentials, syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { enqueue, QUEUES } from "./queues";
 import { incrementalFrom } from "@/lib/erp/marketplace/sync-core";
+import { getConnector } from "@/lib/erp/marketplace/registry";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A RUNNING order/settlement sync older than this is treated as dead. Generous on
@@ -28,7 +29,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
     // Reap dead RUNNING order/settlement syncs (a crashed job never wrote its finish
     // row) so the dedup checks below don't block forever on a stuck run.
     await db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف غير متوقّع" })
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"),
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"),
         sql`${syncRuns.startedAt} < now() - interval '${sql.raw(String(STALE_MIN))} minutes'`));
 
     const creds = await db.select({
@@ -39,6 +40,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       ordersSyncedAt: platformCredentials.ordersSyncedAt,
       settlementsSyncedAt: platformCredentials.settlementsSyncedAt,
       returnsSyncedAt: platformCredentials.returnsSyncedAt,
+      removalsSyncedAt: platformCredentials.removalsSyncedAt,
       reimbursementsSyncedAt: platformCredentials.reimbursementsSyncedAt,
       ledgerSyncedAt: platformCredentials.ledgerSyncedAt,
       feesSyncedAt: platformCredentials.feesSyncedAt,
@@ -59,6 +61,18 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
     let orders = 0, discovery = 0, settlements = 0, feeds = 0;
     for (const c of creds) {
       const connectedAt = c.connectedAt ? new Date(c.connectedAt) : null;
+      // The finance feeds below are Amazon-shaped. A connector that doesn't implement a
+      // feed (Woo/Jumia/Noon have no settlements/returns/reimbursements/…) must NOT be
+      // enqueued for it — the *Core would just early-return and fill sync_runs with noise.
+      const conn = getConnector(c.provider);
+      const can = {
+        settlements: !!conn?.fetchSettlements,
+        returns: !!conn?.fetchReturns,
+        removals: !!conn?.fetchRemovals,
+        reimbursements: !!conn?.fetchReimbursements,
+        ledger: !!conn?.fetchLedgerEvents,
+        fees: !!conn?.fetchFees,
+      };
       // Don't stack order jobs: skip if one is already running for this org (else a
       // slow/rate-limited sync piles up dozens of concurrent jobs that jam Amazon).
       if (!(await isRunning(c.orgId, "ORDERS"))) {
@@ -73,7 +87,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       }
 
       // Settlements: slow cadence (~biweekly settlement periods), same dedup as orders.
-      const settleDue = !c.settlementsSyncedAt || now - new Date(c.settlementsSyncedAt).getTime() > SETTLE_MS;
+      const settleDue = can.settlements && (!c.settlementsSyncedAt || now - new Date(c.settlementsSyncedAt).getTime() > SETTLE_MS);
       if (settleDue && !(await isRunning(c.orgId, "SETTLEMENTS"))) {
         const sSince = c.settlementsSyncedAt ? incrementalFrom(new Date(c.settlementsSyncedAt), connectedAt, now).toISOString() : undefined;
         if (await enqueue(QUEUES.settlements, { orgId: c.orgId, provider: c.provider, marketplaceId: c.marketplaceId ?? undefined, since: sSince })) settlements++;
@@ -83,16 +97,19 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       // handler advances its watermark up-front (reports-quota back-off).
       const base = { orgId: c.orgId, provider: c.provider, marketplaceId: c.marketplaceId ?? undefined };
       const due = (at: Date | null, ms: number) => !at || now - new Date(at).getTime() > ms;
-      if (due(c.returnsSyncedAt, RETURNS_MS) && !(await isRunning(c.orgId, "RETURNS"))) {
+      if (can.returns && due(c.returnsSyncedAt, RETURNS_MS) && !(await isRunning(c.orgId, "RETURNS"))) {
         if (await enqueue(QUEUES.returns, base)) feeds++;
       }
-      if (due(c.reimbursementsSyncedAt, FINANCE_MS) && !(await isRunning(c.orgId, "REIMBURSEMENTS"))) {
+      if (can.removals && due(c.removalsSyncedAt, RETURNS_MS) && !(await isRunning(c.orgId, "REMOVALS"))) {
+        if (await enqueue(QUEUES.removals, base)) feeds++;
+      }
+      if (can.reimbursements && due(c.reimbursementsSyncedAt, FINANCE_MS) && !(await isRunning(c.orgId, "REIMBURSEMENTS"))) {
         if (await enqueue(QUEUES.reimbursements, base)) feeds++;
       }
-      if (due(c.ledgerSyncedAt, FINANCE_MS) && !(await isRunning(c.orgId, "LEDGER"))) {
+      if (can.ledger && due(c.ledgerSyncedAt, FINANCE_MS) && !(await isRunning(c.orgId, "LEDGER"))) {
         if (await enqueue(QUEUES.ledger, base)) feeds++;
       }
-      if (due(c.feesSyncedAt, FEES_MS) && !(await isRunning(c.orgId, "PRICING"))) {
+      if (can.fees && due(c.feesSyncedAt, FEES_MS) && !(await isRunning(c.orgId, "PRICING"))) {
         if (await enqueue(QUEUES.pricing, base)) feeds++;
       }
     }

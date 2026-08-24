@@ -1,11 +1,12 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
+import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { salesPlatforms, items, itemCodes } from "@/db/schema";
-import { authorizeErp } from "@/lib/erp/action-auth";
+import { salesPlatforms, items, itemCodes, platformRemovals } from "@/db/schema";
+import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 
@@ -20,7 +21,7 @@ export type PlatformRemovalsResult =
       ok: true;
       totalDisposed: number; totalReturned: number;
       matchedItems: number; matchedDisposedUnits: number; unmatched: number;
-      unmatchedSkus: string[]; adjustmentId?: string;
+      unmatchedSkus: string[]; adjustmentId?: string; adjustmentNumber?: string;
     }
   | { ok: false; error: string };
 
@@ -85,6 +86,7 @@ export async function importPlatformRemovalsAction(platformId: string, rowsInput
     }
 
     let adjustmentId: string | undefined;
+    let adjustmentNumber: string | undefined;
     if (lines.length > 0) {
       const r = await createStockAdjustmentAction({
         date: new Date().toISOString().slice(0, 10),
@@ -93,11 +95,78 @@ export async function importPlatformRemovalsAction(platformId: string, rowsInput
       });
       if (!r.ok) return { ok: false, error: r.error ?? "تعذّر إنشاء تسوية الإتلاف" };
       adjustmentId = r.id;
+      adjustmentNumber = r.number;
     }
 
     return {
       ok: true, totalDisposed, totalReturned, matchedItems, matchedDisposedUnits, unmatched,
-      unmatchedSkus: [...unmatchedSkus].slice(0, 30), adjustmentId,
+      unmatchedSkus: [...unmatchedSkus].slice(0, 30), adjustmentId, adjustmentNumber,
     };
+  });
+}
+
+// ── R2: confirm a synced removal order with the trader's outcome ─────────────
+// A removal takes stock OUT of the platform warehouse; the trader decides what happened:
+//   RECEIVED → the units shipped back arrived → restock them (delta +shipped).
+//   DISPOSED → Amazon destroyed them → write off the loss (delta −disposed).
+//   IGNORE   → nothing to book (e.g. cancelled).
+// Both post via a DRAFT تسوية مخزون the accountant reviews + posts (surplus 4201 / loss 5301),
+// so a returned removal isn't silently booked as income before review.
+export const REMOVAL_OUTCOMES = ["RECEIVED", "DISPOSED", "IGNORE"] as const;
+export type RemovalOutcome = (typeof REMOVAL_OUTCOMES)[number];
+
+export async function confirmRemovalAction(removalId: string, outcome: RemovalOutcome): Promise<ActionState> {
+  const auth = await authorizeErp("inventory.create", "marketplace");
+  if ("error" in auth) return auth;
+  if (!REMOVAL_OUTCOMES.includes(outcome)) return { error: "قرار غير صالح" };
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [rm] = await db.select().from(platformRemovals)
+      .where(and(eq(platformRemovals.id, removalId), eq(platformRemovals.organizationId, auth.orgId))).limit(1);
+    if (!rm) return { error: "أمر السحب غير موجود" };
+    if (rm.status !== "PENDING") return { error: "تمّت معالجته بالفعل" };
+
+    if (outcome === "IGNORE") {
+      await db.update(platformRemovals).set({ status: "IGNORED", updatedAt: new Date() }).where(eq(platformRemovals.id, removalId));
+      revalidatePath("/sales/marketplace-removals");
+      return { ok: true };
+    }
+
+    const qty = outcome === "RECEIVED" ? Number(rm.shippedQty) : Number(rm.disposedQty);
+    if (qty <= 0) return { error: outcome === "RECEIVED" ? "لا توجد وحدات راجعة في أمر السحب" : "لا توجد وحدات متلَفة في أمر السحب" };
+
+    // Resolve the SKU → item (unique code, then item.code fallback).
+    const norm = normalizeCode(rm.sku);
+    let itemId: string | null = null;
+    if (norm) {
+      const [c] = await db.select({ itemId: itemCodes.itemId }).from(itemCodes)
+        .where(and(eq(itemCodes.organizationId, auth.orgId), eq(itemCodes.normalizedCode, norm))).limit(1);
+      itemId = c?.itemId ?? null;
+    }
+    if (!itemId) {
+      const [it] = await db.select({ id: items.id }).from(items)
+        .where(and(eq(items.organizationId, auth.orgId), eq(items.code, rm.sku))).limit(1);
+      itemId = it?.id ?? null;
+    }
+    if (!itemId) return { error: `صنف غير معروف (${rm.sku}) — اربط الكود بصنف أولًا` };
+
+    const [plat] = await db.select({ wh: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.code, rm.channel))).limit(1);
+    if (!plat?.wh) return { error: "لا يوجد مخزن افتراضي للمنصة" };
+
+    const date = new Date().toISOString().slice(0, 10);
+    const delta = outcome === "RECEIVED" ? qty : -qty;
+    const reason = outcome === "RECEIVED"
+      ? `أمر سحب ${rm.removalOrderId} — استلام مرتجع للمخزن`
+      : `أمر سحب ${rm.removalOrderId} — إتلاف مخزون`;
+    const adj = await createStockAdjustmentAction({ date, reason, lines: [{ itemId, warehouseId: plat.wh, mode: "delta", value: delta }] });
+    if ("error" in adj) return { error: adj.error };
+
+    await db.update(platformRemovals).set({
+      status: outcome === "RECEIVED" ? "RESTOCKED" : "DISPOSED",
+      stockAdjustmentId: adj.id ?? null, updatedAt: new Date(),
+    }).where(eq(platformRemovals.id, removalId));
+    revalidatePath("/sales/marketplace-removals");
+    return { ok: true };
   });
 }

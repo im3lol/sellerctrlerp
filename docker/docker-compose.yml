@@ -8,12 +8,21 @@ services:
       POSTGRES_PASSWORD: sellerctrl
       POSTGRES_DB: sellerctrl
     ports:
-      # Host 5433 → container 5432 (5432 is used by another local project).
-      # The app connects internally via postgres:5432, so this only affects
-      # external tools (psql/adminer from the host).
-      - "5433:5432"
+      # Host 5433 → container 5432 (5432 is used by another local project). Bound to
+      # 127.0.0.1 so it's reachable only from this box (host psql), never the LAN — the
+      # app connects internally via postgres:5432 and never needs the host port.
+      # Both loopback families, for the same reason as the app port below: `localhost`
+      # resolves to ::1 first, and a host script (npm run db:migrate, scripts/checks/*)
+      # that only found the v4 socket sat through the Happy-Eyeballs fallback — or, with
+      # nothing listening on ::1 at all, failed outright with ECONNREFUSED.
+      - "127.0.0.1:5433:5432"
+      - "[::1]:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Cap RAM so a heavy report/pg_dump can't OOM-cascade the whole single-box fleet;
+    # a contained Postgres restart beats taking every co-located service down with it.
+    mem_limit: 2g
+    cpus: 2.0
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sellerctrl"]
       interval: 5s
@@ -28,9 +37,13 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+    # Bound to 127.0.0.1: the app reaches MinIO internally via minio:9000; the host
+    # ports are for local tooling/console only, never the LAN.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    mem_limit: 512m
+    cpus: 1.0
     volumes:
       - miniodata:/data
     healthcheck:
@@ -39,7 +52,12 @@ services:
       timeout: 5s
       retries: 10
 
-  # Creates the bucket on first boot.
+  # Creates the buckets on first boot. Two buckets by sensitivity:
+  #   sellerctrl          — PUBLIC (anonymous download): display assets only (item images,
+  #                         org logos, academy images) served via publicUrl().
+  #   sellerctrl-private  — PRIVATE (no anonymous): per-tenant backups + document
+  #                         attachments; reachable ONLY via short-lived presigned URLs
+  #                         issued by guarded routes. Never expose this bucket.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -50,15 +68,21 @@ services:
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/sellerctrl &&
       mc anonymous set download local/sellerctrl &&
-      echo 'bucket ready';
+      mc mb --ignore-existing local/sellerctrl-private &&
+      mc anonymous set none local/sellerctrl-private &&
+      echo 'buckets ready';
       "
 
+  # DB web console — a full unauthenticated-to-the-network admin surface, so it is NOT
+  # part of the default prod stack. Start it deliberately only when needed:
+  #   docker compose --profile tools up -d adminer   (reachable at 127.0.0.1:8080)
   adminer:
     image: adminer:latest
     container_name: sellerctrl-adminer
+    profiles: ["tools"]
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - postgres
 
@@ -66,9 +90,14 @@ services:
     image: redis:7-alpine
     container_name: sellerctrl-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    # noeviction (not the default) so a full Redis REJECTS new writes instead of silently
+    # evicting queued BullMQ jobs — never lose a job. maxmemory caps growth; appendonly
+    # keeps jobs across restarts.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     ports:
-      - "6380:6379" # host 6380 → container 6379 (6379 may be used by another project)
+      - "127.0.0.1:6380:6379" # bound to localhost; app reaches redis:6379 internally
+    mem_limit: 384m
+    cpus: 0.5
     volumes:
       - redisdata:/data
     healthcheck:
@@ -83,19 +112,52 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.prebuilt
+    # Stable image name so scripts/deploy.sh can tag the current build as :rollback and
+    # restore it with `up --no-build` on a failed health gate.
+    image: sellerctrl-app:latest
     container_name: sellerctrl-app
     restart: unless-stopped
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgres://sellerctrl:sellerctrl@postgres:5432/sellerctrl
+      # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
+      # enforced — the owner role would bypass every policy. Migrations still run as the
+      # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
+      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
+      # Open public self-serve signup (/signup). Unset = closed (landing → request a demo).
+      SIGNUP_OPEN: "1"
+    # PID-1 init so SIGTERM reaches node (graceful shutdown) instead of being swallowed.
+    init: true
     ports:
-      # Host 3001 → container 3000 (3000 is used by another local project).
-      - "3001:3000"
+      # Host 3001 → container 3000. Loopback only — the co-located Cloudflare tunnel is
+      # the sole intended client; never expose it to the LAN. The tunnel maps all three
+      # public hostnames (apex, www, app) here; this one container serves the landing page
+      # at / and the ERP behind /login.
+      #
+      # BOTH loopback families, and that is a performance fix, not tidiness: `localhost`
+      # resolves to ::1 first on Windows and modern Linux. With only the v4 socket bound,
+      # every client (browser AND cloudflared) tried ::1, got nothing, and sat through the
+      # Happy-Eyeballs fallback delay before retrying 127.0.0.1. Measured in Chrome against
+      # this container: localhost → 312 ms TCP connect, 785 ms to responseEnd; 127.0.0.1 →
+      # 0.4 ms connect, 71 ms. Same page, same container.
+      - "127.0.0.1:3001:3000"
+      - "[::1]:3001:3000"
+    # Resource caps so one runaway request/report can't OOM the box and take the
+    # co-located Postgres/Redis down with it (whole-fleet outage on a single VPS).
+    mem_limit: 2g
+    cpus: 1.5
+    healthcheck:
+      # 127.0.0.1 not localhost — busybox wget resolves localhost to IPv6 (::1) but the
+      # Next server binds IPv4 0.0.0.0, so localhost gives "connection refused".
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,18 +178,94 @@ services:
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgres://sellerctrl:sellerctrl@postgres:5432/sellerctrl
+      # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
+      # enforced — the owner role would bypass every policy. Migrations still run as the
+      # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
+      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       WORKER: "1"
       NODE_ENV: production
+    mem_limit: 1500m
+    cpus: 1.0
+    # PID-1 init + a longer grace so SIGTERM drains in-flight BullMQ jobs (worker.close())
+    # before Docker SIGKILLs on deploy/restart, instead of hard-killing mid-job.
+    init: true
+    stop_grace_period: 45s
+    # The worker also serves /api/health (same image runs server.js); with WORKER=1 that
+    # probe requires DB + Redis + a fresh liveness heartbeat, so a wedged/dead processor
+    # goes unhealthy and Docker restarts it (a background worker has no other liveness signal).
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+  # Scheduled-jobs trigger for the VPS. Self-hosted has no platform scheduler, so there
+  # is no trigger, so per-tenant backups / recurring docs / dunning would silently never
+  # run. This busybox sidecar fires the daily /api/cron (06:00) via crond — no image
+  # deps (busybox has wget + crond). CRON_SECRET comes from ../.env.
+  cron:
+    profiles: ["app"]
+    image: alpine:3
+    container_name: sellerctrl-cron
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    depends_on:
+      - app
+    # $$ so Compose passes a literal $ through; the container shell expands CRON_SECRET
+    # from env_file at runtime (single-$ would be interpolated empty at parse time).
+    command: >
+      sh -c 'printf "0 6 * * * wget -q -O /dev/null --header=\"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron\n" > /etc/crontabs/root && crond -f -l 8'
+
+  # Physical DB backup (full pg_dump, custom format) — the DBA-level DR layer beneath
+  # the app's per-tenant logical export. Daily loop + 14-day on-box retention, AND an
+  # OFFSITE copy to Cloudflare R2 (or any S3-compatible bucket) when configured — so a
+  # laptop/SSD loss doesn't take every backup with it. Runs as the owner (reads every row).
+  #
+  # Offsite activates automatically once these are set in ../.env (no-op until then):
+  #   OFFSITE_S3_BUCKET, OFFSITE_S3_ENDPOINT (R2: https://<account>.r2.cloudflarestorage.com),
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  backup:
+    profiles: ["app"]
+    image: postgres:16-alpine
+    container_name: sellerctrl-backup
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      PGPASSWORD: sellerctrl
+    volumes:
+      - dbbackups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # $$ → literal $ for the container shell (compose would interpolate a single $).
+    # mc is a single static binary (no package install) that speaks S3/R2.
+    command: >
+      sh -c '[ -x /usr/local/bin/mc ] || (wget -qO /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x /usr/local/bin/mc) || true;
+      alert() { [ -n "$$TELEGRAM_BOT_TOKEN" ] && [ -n "$$TELEGRAM_CHAT_ID" ] && wget -qO- --post-data="chat_id=$$TELEGRAM_CHAT_ID&text=$$1" "https://api.telegram.org/bot$$TELEGRAM_BOT_TOKEN/sendMessage" >/dev/null 2>&1 || true; };
+      while true; do
+        f=/backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump;
+        if pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f "$$f"; then
+          echo "[backup] ok";
+          if [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ]; then
+            mc alias set offsite "$$OFFSITE_S3_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" >/dev/null 2>&1 && mc cp "$$f" "offsite/$$OFFSITE_S3_BUCKET/pg/" >/dev/null 2>&1 && echo "[backup] offsite ok" || { echo "[backup] offsite FAILED"; alert "SellerCtrl_backup_offsite_upload_FAILED"; };
+          fi;
+        else echo "[backup] FAILED"; alert "SellerCtrl_nightly_pg_dump_FAILED"; fi;
+        find /backups -name "sellerctrl-*.dump" -mtime +14 -delete;
+        sleep 86400;
+      done'
+
 volumes:
   pgdata:
   miniodata:
   redisdata:
+  dbbackups:

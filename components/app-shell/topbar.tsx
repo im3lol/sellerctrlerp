@@ -59,8 +59,10 @@ export function Topbar({
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن صنف أو عميل أو مورّد…" className="bg-muted/50 pr-9" aria-label="بحث" />
       </form>
 
-      {/* Actions (pushed to the end / left in RTL) */}
-      <div className="ms-auto flex items-center gap-2">
+      {/* Actions (pushed to the end / left in RTL). min-w-0 so the cluster can shrink:
+          the column clips its overflow, so anything that doesn't fit is cut off the edge
+          rather than wrapping — which is what happened at heavy browser zoom. */}
+      <div className="ms-auto flex min-w-0 items-center gap-2">
         <ThemeToggle />
         <div data-tour="notification-bell"><NotificationBell /></div>
         <div data-tour="org-switcher"><OrgSwitcher orgs={orgs} activeId={activeOrgId} /></div>

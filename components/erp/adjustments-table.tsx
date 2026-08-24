@@ -72,7 +72,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
                   </TableCell>
                 )}
                 <TableCell>
-                  <Link href={`/inventory/adjustments/${r.id}`} className="font-mono hover:text-primary">{r.number}</Link>
+                  <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell><Badge variant="secondary">{r.reason ?? "—"}</Badge></TableCell>
@@ -81,7 +81,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
                 <TableCell>{fmt(r.totalValue)}</TableCell>
                 <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
                 <TableCell>
-                  <Link href={`/inventory/adjustments/${r.id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+                  <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
                     {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
                   </Link>
                 </TableCell>

@@ -1,12 +1,16 @@
 name: CI
 
+# `develop` is what actually deploys to prod (docker), so it MUST be gated too —
+# not just main. Otherwise a broken migration / failing engine check / RLS leak
+# ships with zero automated checks.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
+  # Static + build checks (no DB needed).
   check:
     runs-on: ubuntu-latest
     steps:
@@ -14,14 +18,30 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Tenant-isolation guard (RLS scope static check)
+        run: npm run rls:check
+
+      # A revalidatePath() that matches no route is a silent no-op, so stale pages
+      # never announce themselves. Cheap static check, no DB.
+      - name: revalidatePath targets resolve
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-revalidate-paths.ts
+
+      # A document's URL is its number, not its UUID. Fails on any new [id] route that
+      # is not master data.
+      - name: Document routes are keyed by number
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-doc-routes.ts
 
       - name: Unit tests
         run: npm test
@@ -34,3 +54,72 @@ jobs:
           DATABASE_URL: postgres://user:pass@localhost:5432/db
           AUTH_SECRET: ci-placeholder-secret-not-used-at-build
           NEXT_PUBLIC_REALTIME: poll
+
+  # DB-backed checks: prove migrations apply on a fresh DB, RLS covers every org table,
+  # tenant isolation holds, and the financial engine (GL == inventory ledger, balanced
+  # postings, COGS) is intact. This is the regression net the money paths were missing.
+  db-checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sellerctrl
+          POSTGRES_PASSWORD: sellerctrl
+          POSTGRES_DB: sellerctrl
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sellerctrl"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DATABASE_URL: postgres://sellerctrl:sellerctrl@localhost:5432/sellerctrl
+      APPUSER_DATABASE_URL: postgres://appuser:appuser@localhost:5432/sellerctrl
+      AUTH_SECRET: ci-placeholder-secret-not-used
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # A .sql file that isn't in meta/_journal.json is invisible to drizzle — that is how
+      # the chain silently drifted 46 migrations out of date. Fail loudly instead.
+      - name: Every migration is journaled
+        run: >-
+          node -e "const j=require('./db/migrations/meta/_journal.json');const
+          f=require('fs').readdirSync('db/migrations').filter(x=>x.endsWith('.sql')).map(x=>x.slice(0,-4)).sort();const
+          t=j.entries.map(e=>e.tag);if(f.join()!==t.join()){console.error('journal
+          != files:',f.filter(x=>!t.includes(x)).join(', ')||'order mismatch');process.exit(1)}"
+
+      # Build the schema the way a real deploy does — the migration chain, not push.
+      - name: Apply schema (migration chain)
+        run: npm run db:migrate
+
+      # appuser role + FORCE RLS + org_isolation policies + integrity triggers.
+      - name: Apply RLS + triggers
+        run: npm run db:rls
+
+      # Every org-scoped table must have enforced RLS (fails if a new table slips through).
+      - name: RLS coverage guard
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-rls-coverage.ts
+
+      - name: Seed demo data
+        run: npm run db:seed
+
+      # Financial-engine invariants (balanced postings, GL == inventory ledger, COGS).
+      - name: Engine checks
+        run: npm run test:engine
+
+      # A product must be findable by its barcode / SKU / ASIN / EAN / UPC, not just by
+      # the internal code — the scanner and the supplier's paperwork carry the others.
+      - name: Item search covers every code
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-item-search.ts
+
+      # Editing a draft while it is being confirmed must not post unvalidated lines.
+      - name: Draft-edit race
+        run: npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-draft-edit-race.ts
+
+      # Tenant isolation go/no-go: scope A never sees B, WITH CHECK blocks cross-writes.
+      - name: RLS leak test
+        run: npm run rls:leak

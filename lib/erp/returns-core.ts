@@ -9,21 +9,51 @@ import { createSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { returnDedupKey, type FbaReturnRow } from "@/lib/erp/amazon-returns";
 
-// Session-less FBA-returns engine (mirrors settlement-core): upsert the report
-// rows idempotently, then turn each unclaimed row into a DRAFT مرتجع فاتورة —
-// or link it to the return the settlement-refund cycle already created. The
-// caller establishes the org RLS scope; document creation needs an ErpContext.
+// Session-less platform-returns engine (mirrors settlement-core): upsert the return
+// rows idempotently, then turn each unclaimed row into a DRAFT مرتجع فاتورة — or link
+// it to the return the settlement-refund cycle already created. Channel-generic: rows
+// carry their own dedupKey and the process pass matches each row against an order on
+// ITS OWN channel (Amazon FBA report, Noon return webhook, …). The caller establishes
+// the org RLS scope; document creation needs an ErpContext.
 
-const CHANNEL = "AMAZON";
+// A neutral return row — any channel maps its source shape to this.
+export type PlatformReturnRow = {
+  orderId: string; sku: string; asin?: string | null;
+  returnDate: Date | null; quantity: number;
+  disposition?: string | null; reason?: string | null; status?: string | null;
+  fulfillmentCenter?: string | null; licensePlateNumber?: string | null;
+  dedupKey: string; raw?: unknown;
+};
 
-/** Idempotent upsert of returns-report rows (no documents). */
-export async function upsertPlatformReturns(orgId: string, rows: FbaReturnRow[]): Promise<{ imported: number; skipped: number }> {
+/** Amazon FBA report row → neutral platform-return row. */
+export function fromFbaReturn(r: FbaReturnRow): PlatformReturnRow {
+  return {
+    orderId: r.orderId, sku: r.sku, asin: r.asin || null, returnDate: r.returnDate,
+    quantity: r.quantity, disposition: r.disposition || null, reason: r.reason || null,
+    status: r.status || null, fulfillmentCenter: r.fulfillmentCenter || null,
+    licensePlateNumber: r.licensePlateNumber || null, dedupKey: returnDedupKey(r), raw: r,
+  };
+}
+
+/** Map a marketplace return disposition onto the ERP's condition enum. Anything that
+ *  isn't explicitly sellable is unsellable — so it never silently restocks as sellable. */
+function mapDisposition(d: string | null | undefined): "SELLABLE" | "DAMAGED" | "DEFECTIVE" | "UNSELLABLE" | undefined {
+  if (!d) return undefined;
+  const u = d.toUpperCase();
+  if (u === "SELLABLE") return "SELLABLE";
+  if (u.includes("DEFECT")) return "DEFECTIVE";
+  if (u.includes("DAMAGED")) return "DAMAGED";
+  return "UNSELLABLE";
+}
+
+/** Idempotent upsert of platform-return rows (no documents). */
+export async function upsertPlatformReturns(orgId: string, rows: PlatformReturnRow[], channel: string): Promise<{ imported: number; skipped: number }> {
   if (rows.length === 0) return { imported: 0, skipped: 0 };
   const values = rows.map((r) => ({
-    organizationId: orgId, channel: CHANNEL, orderId: r.orderId, sku: r.sku, asin: r.asin || null,
+    organizationId: orgId, channel, orderId: r.orderId, sku: r.sku, asin: r.asin || null,
     returnDate: r.returnDate, quantity: String(r.quantity), disposition: r.disposition || null,
     reason: r.reason || null, status: r.status || null, fulfillmentCenter: r.fulfillmentCenter || null,
-    licensePlateNumber: r.licensePlateNumber || null, dedupKey: returnDedupKey(r), raw: r as unknown,
+    licensePlateNumber: r.licensePlateNumber || null, dedupKey: r.dedupKey, raw: r.raw ?? r,
   }));
   // Same-report duplicates would trip ON CONFLICT twice in one statement.
   const byKey = new Map(values.map((v) => [v.dedupKey, v]));
@@ -47,8 +77,9 @@ export type ProcessReturnsResult = { created: number; linkedToSettlement: number
  */
 export async function processPlatformReturns(orgId: string): Promise<ProcessReturnsResult> {
   const pending = await db.select({
-    id: platformReturns.id, orderId: platformReturns.orderId, sku: platformReturns.sku,
+    id: platformReturns.id, channel: platformReturns.channel, orderId: platformReturns.orderId, sku: platformReturns.sku,
     quantity: platformReturns.quantity, returnDate: platformReturns.returnDate,
+    disposition: platformReturns.disposition, reason: platformReturns.reason,
   }).from(platformReturns)
     .where(and(eq(platformReturns.organizationId, orgId), isNull(platformReturns.salesReturnId)));
   if (pending.length === 0) return { created: 0, linkedToSettlement: 0, unmatched: 0 };
@@ -71,6 +102,8 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
   let created = 0, linkedToSettlement = 0, unmatched = 0;
   for (const p of pending) {
     const norm = normalizeCode(p.sku);
+    const channel = p.channel ?? "AMAZON";
+    const label = channel === "AMAZON" ? "أمازون FBA" : channel === "NOON" ? "نون" : channel;
 
     // 1) The settlement-refund cycle already created this return → just link.
     const existing = refundByKey.get(`${p.orderId}|${norm}`);
@@ -81,10 +114,11 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
     }
 
     // 2) Resolve order → delivery → POSTED invoice → invoice line (same chain as
-    //    the settlement refund cycle). Unmatched rows stay unclaimed and retry on
-    //    the next run (the order may simply not be invoiced yet).
+    //    the settlement refund cycle), on the return's OWN channel. Unmatched rows
+    //    stay unclaimed and retry on the next run (the order may simply not be
+    //    invoiced yet — common for Noon where the seller invoices manually).
     const [order] = await db.select({ id: salesOrders.id }).from(salesOrders)
-      .where(and(eq(salesOrders.organizationId, orgId), eq(salesOrders.channel, CHANNEL), eq(salesOrders.externalOrderId, p.orderId))).limit(1);
+      .where(and(eq(salesOrders.organizationId, orgId), eq(salesOrders.channel, channel), eq(salesOrders.externalOrderId, p.orderId))).limit(1);
     if (!order) { unmatched++; continue; }
     const [dn] = await db.select({ id: deliveryNotes.id }).from(deliveryNotes)
       .where(and(eq(deliveryNotes.organizationId, orgId), eq(deliveryNotes.salesOrderId, order.id))).orderBy(desc(deliveryNotes.createdAt)).limit(1);
@@ -116,7 +150,11 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
     const date = (p.returnDate ?? new Date()).toISOString().slice(0, 10);
     const ret = await createSalesReturnAction({
       salesInvoiceId: inv.id, date,
-      notes: `مرتجع أمازون FBA — طلب ${p.orderId}`,
+      notes: `مرتجع ${label} — طلب ${p.orderId}`,
+      // Carry the marketplace metadata so the register can badge origin and the confirm
+      // step routes the stock by condition (a damaged unit won't restock as sellable).
+      reason: p.reason || undefined, disposition: mapDisposition(p.disposition),
+      channel, externalReturnId: p.orderId,
       lines: [{ itemId, quantity: qty, unitPrice: Number(invLine.unitPrice) }],
     });
     if (!ret.ok || !ret.id) { unmatched++; continue; }

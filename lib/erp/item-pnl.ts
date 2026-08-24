@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   salesInvoiceLines, salesInvoices, salesOrderLines, salesOrders,
@@ -58,7 +58,9 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
       .from(marketplaceSettlementTxns)
       .where(and(
         eq(marketplaceSettlementTxns.organizationId, orgId),
-        sql`regexp_replace(upper(coalesce(${marketplaceSettlementTxns.sku}, '')), '[^A-Z0-9]', '', 'g') = ANY(${norms})`,
+        // inArray → valid `… in ($2,$3,…)`. Interpolating the JS array straight into
+        // `= ANY(${norms})` renders a row/tuple, which Postgres rejects.
+        inArray(sql`regexp_replace(upper(coalesce(${marketplaceSettlementTxns.sku}, '')), '[^A-Z0-9]', '', 'g')`, norms),
       ))
     : [{ referral: "0", fba: "0", other: "0", n: "0" }];
 
@@ -74,6 +76,34 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
     net, margin: revenue > 0 ? (net / revenue) * 100 : 0,
     hasSettlement: Number(fees?.n ?? 0) > 0,
   };
+}
+
+/**
+ * ACTUAL Amazon fees per item from settlements in a date window (by settlement
+ * postedAt), matched by normalized SKU → item_codes. Returns positive expense per
+ * itemId. Set-based counterpart to getItemPnl's fee query — used by the profitability
+ * report + its export/print so all three show the same real (not estimated) fees.
+ */
+export async function getSettlementFeesByItem(orgId: string, from: Date, to: Date): Promise<Map<string, number>> {
+  const norm = sql<string>`regexp_replace(upper(coalesce(${marketplaceSettlementTxns.sku}, '')), '[^A-Z0-9]', '', 'g')`;
+  const feeRows = await db.select({
+    sku: norm,
+    fees: sql<string>`coalesce(-sum(${marketplaceSettlementTxns.sellingFees} + ${marketplaceSettlementTxns.fbaFees} + ${marketplaceSettlementTxns.otherTransactionFees}), 0)`,
+  })
+    .from(marketplaceSettlementTxns)
+    .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), gte(marketplaceSettlementTxns.postedAt, from), lte(marketplaceSettlementTxns.postedAt, to)))
+    .groupBy(norm);
+
+  const codeRows = await db.select({ itemId: itemCodes.itemId, n: itemCodes.normalizedCode })
+    .from(itemCodes).where(eq(itemCodes.organizationId, orgId));
+  const itemByNorm = new Map(codeRows.filter((r) => r.n).map((r) => [r.n as string, r.itemId]));
+
+  const out = new Map<string, number>();
+  for (const r of feeRows) {
+    const itemId = r.sku ? itemByNorm.get(r.sku) : undefined;
+    if (itemId) out.set(itemId, (out.get(itemId) ?? 0) + Number(r.fees ?? 0));
+  }
+  return out;
 }
 
 export type ItemDoc = { kind: string; number: string; date: Date; qty: number; href: string };

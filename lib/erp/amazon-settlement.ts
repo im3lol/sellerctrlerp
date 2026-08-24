@@ -16,6 +16,7 @@ export type SettlementTxn = {
   quantity: number;
   status: string; // Released | Deferred
   releaseDate: Date | null;
+  currency: string | null;
   productSales: number;
   shippingCredits: number;
   promotionalRebates: number;
@@ -64,6 +65,7 @@ export function parseSettlementWorkbook(buf: ArrayBuffer | Buffer): SettlementTx
     ps: col("product sales"), sc: col("shipping credits"), pr: col("promotional rebates"),
     sf: col("selling fees"), fba: col("fba fees"), otf: col("other transaction fees"), other: col("other"),
     total: col("total"), status: col("Transaction Status"), release: col("Transaction Release Date"),
+    currency: col("currency"),
   };
 
   const out: SettlementTxn[] = [];
@@ -81,6 +83,7 @@ export function parseSettlementWorkbook(buf: ArrayBuffer | Buffer): SettlementTx
       quantity: num(r[c.qty]),
       status: str(r[c.status]) || "Released",
       releaseDate: c.release >= 0 ? parseAmazonDate(str(r[c.release])) : null,
+      currency: c.currency >= 0 ? (str(r[c.currency]) || null) : null,
       productSales: num(r[c.ps]),
       shippingCredits: num(r[c.sc]),
       promotionalRebates: num(r[c.pr]),
@@ -108,10 +111,10 @@ export function settlementDedupKey(t: SettlementTxn): string {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-function emptyTxn(settlementId: string, type: string): SettlementTxn {
+export function emptyTxn(settlementId: string, type: string): SettlementTxn {
   return {
     postedAt: null, settlementId, type, orderId: "", sku: "", description: "", quantity: 0,
-    status: "Released", releaseDate: null, productSales: 0, shippingCredits: 0, promotionalRebates: 0,
+    status: "Released", releaseDate: null, currency: null, productSales: 0, shippingCredits: 0, promotionalRebates: 0,
     sellingFees: 0, fbaFees: 0, otherTransactionFees: 0, other: 0, total: 0,
   };
 }
@@ -168,6 +171,7 @@ export function parseSettlementFlatFile(tsv: string): SettlementTxn[] {
     shipmentId: idx("shipment-id"), amountType: idx("amount-type"), amountDesc: idx("amount-description"),
     amount: idx("amount"), sku: idx("sku"), qty: idx("quantity-purchased"),
     posted: idx("posted-date-time") >= 0 ? idx("posted-date-time") : idx("posted-date"),
+    currency: idx("currency"),
   };
   if (c.txnType < 0 || c.amount < 0 || c.totalAmount < 0) throw new Error("تقرير التسويات غير متوقّع (أعمدة مفقودة)");
 
@@ -205,12 +209,18 @@ export function parseSettlementFlatFile(tsv: string): SettlementTxn[] {
       g.postedAt = parseFlatDate(postedRaw);
       g.releaseDate = g.postedAt;
       g.quantity = c.qty >= 0 ? num(f[c.qty]) : 0;
+      g.currency = c.currency >= 0 ? (str(f[c.currency]) || null) : null;
       groups.set(key, g);
     }
     const amt = num(f[c.amount]);
-    const b = bucketOf(str(f[c.amountType]), str(f[c.amountDesc]), type);
+    const amountDesc = str(f[c.amountDesc]);
+    const b = bucketOf(str(f[c.amountType]), amountDesc, type);
     g[b] = r2(g[b] + amt);
     g.total = r2(g.total + amt);
+    // Keep the fee description for non-order rows — it's how ads/storage/subscription
+    // are told apart later (the fee categorizer reads type + description). Order rows
+    // keep it empty; their split lives in the buckets above.
+    if (!g.description && type !== "Order" && type !== "Refund" && amountDesc) g.description = amountDesc;
   }
 
   const out = [...groups.values()];

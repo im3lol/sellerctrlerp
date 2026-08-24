@@ -17,7 +17,7 @@ purchase document cycle — with a fully **Arabic, right-to-left** UI.
 | Styling      | TailwindCSS · shadcn/ui (Radix) · Thmanyah (ثمانية) font |
 | Database     | PostgreSQL · [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit |
 | Auth         | Auth.js v5 — credentials (username **or** email), JWT sessions, role-based |
-| Object store | MinIO (local) / Supabase Storage (on Vercel) — item images |
+| Object store | MinIO / any S3-compatible service — item images, attachments, backups |
 | Charts       | Recharts |
 | Tests        | Vitest |
 
@@ -41,7 +41,8 @@ npx auth secret          # writes AUTH_SECRET; DATABASE_URL default points at lo
 docker compose -f docker/docker-compose.yml up -d postgres minio minio-init adminer
 
 # 4. Create the schema + demo data
-npm run db:migrate
+npm run db:migrate       # appuser role + the full migration chain
+npm run db:rls           # tenant-isolation policies + integrity triggers
 npm run db:seed
 
 # 5. Run
@@ -68,7 +69,7 @@ docker compose -f docker/docker-compose.yml --profile app up -d --build app   # 
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment) for the Docker rebuild
-flow and the Vercel + Supabase deployment model.
+flow and the self-hosted deployment model.
 
 ---
 
@@ -98,7 +99,7 @@ lib/
   db.ts             Drizzle client (pooled pg)
   session.ts        requireUser / requireCapability (OS auth)
   rbac.ts           Global role → capability matrix
-  storage.ts        S3/MinIO or Supabase-Storage object storage
+  storage.ts        S3/MinIO object storage (public + presigned private bucket)
   env.ts            Boot-time env validation
 
 db/
@@ -137,7 +138,9 @@ npm run lint         # eslint
 npm run test         # vitest
 
 npm run db:generate  # generate a migration from schema changes
-npm run db:migrate   # apply migrations
+npm run db:migrate   # appuser role + apply the migration chain
+npm run db:rls       # (re)apply RLS policies + integrity triggers — after every migrate
+npm run db:baseline  # once, on a DB built by the old `push` flow (see ARCHITECTURE)
 npm run db:studio    # drizzle studio
 npm run db:seed      # reseed demo data
 ```

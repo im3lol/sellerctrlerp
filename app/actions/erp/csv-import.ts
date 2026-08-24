@@ -3,13 +3,34 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { customers, items, suppliers } from "@/db/schema";
+import { customers, items, itemCodes, suppliers } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
+import { normalizeCode } from "@/lib/erp/amazon-import";
+
+// Platform-code columns → item_codes.codeType. One master product carries many codes; the
+// order matcher resolves an incoming line by ANY of these, so a single product covers every
+// marketplace. Aligned with CHANNEL_CODE_TYPE (ASIN/NOON/SHOPIFY/WOO/JUMIA) + a universal
+// barcode (EAN/UPC/GTIN) + the seller's own SKU.
+// `unique` = the code identifies exactly one product (seller SKU / FNSKU / partner SKU), so it
+// must not repeat across products and is the primary order-match key. Shared codes (ASIN,
+// barcode) may map to several products, so a row that only carries a shared code can't be
+// matched unambiguously — it needs a unique code too.
+const CODE_COLUMNS: { names: string[]; codeType: string; unique: boolean }[] = [
+  { names: ["barcode", "الباركود", "باركود", "ean", "upc", "gtin"], codeType: "BARCODE", unique: false },
+  { names: ["asin", "amazon_asin", "amazonasin", "أمازون"], codeType: "ASIN", unique: false },
+  { names: ["amazon_sku", "amazonsku", "sku_amazon", "sellersku"], codeType: "SKU", unique: true },
+  { names: ["fnsku", "fn_sku", "amazon_fnsku"], codeType: "FNSKU", unique: true },
+  { names: ["noon_sku", "noonsku", "partner_sku", "partnersku", "psku", "نون"], codeType: "NOON", unique: true },
+  { names: ["shopify_sku", "shopifysku", "shopify"], codeType: "SHOPIFY", unique: true },
+  { names: ["woo_sku", "woosku", "woocommerce", "woo"], codeType: "WOO", unique: true },
+  { names: ["jumia_sku", "jumiasku", "jumia"], codeType: "JUMIA", unique: true },
+];
 
 export type ImportResult = {
   inserted: number;
   updated: number;
   errors: { row: number; message: string }[];
+  warnings?: { row: number; message: string }[];
   total: number;
 };
 
@@ -160,7 +181,10 @@ export async function importItemsCSV(csvText: string): Promise<ImportResult | { 
       return "";
     };
 
-    const result: ImportResult = { inserted: 0, updated: 0, errors: [], total: dataRows.length };
+    const result: ImportResult = { inserted: 0, updated: 0, errors: [], warnings: [], total: dataRows.length };
+    // Tracks each unique platform code → the item that owns it, to catch the same unique code
+    // (SKU/FNSKU/partner SKU) accidentally assigned to two different products across rows.
+    const seenUnique = new Map<string, string>();
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -173,6 +197,7 @@ export async function importItemsCSV(csvText: string): Promise<ImportResult | { 
       const sellPrice = parseFloat(col(row, ["sellprice", "sell_price", "سعرالبيع"])) || 0;
       const minStock  = parseFloat(col(row, ["minstock", "min_stock", "حدأدنى"])) || 0;
       const desc      = col(row, ["description", "وصف", "الوصف"]).trim() || null;
+      const brand     = col(row, ["brand", "البراند", "الماركة", "العلامة"]).trim() || null;
       const activeStr = col(row, ["isactive", "is_active", "نشط"]).trim().toLowerCase();
       const isActive  = activeStr === "" ? true : !["0", "false", "no", "لا"].includes(activeStr);
 
@@ -180,13 +205,44 @@ export async function importItemsCSV(csvText: string): Promise<ImportResult | { 
         const existing = await db.select({ id: items.id }).from(items)
           .where(and(eq(items.organizationId, orgId), eq(items.code, code))).limit(1);
 
+        let itemId: string;
         if (existing.length > 0) {
-          await db.update(items).set({ nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive, updatedAt: new Date() })
+          itemId = existing[0].id;
+          await db.update(items).set({ nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, brand, isActive, updatedAt: new Date() })
             .where(and(eq(items.organizationId, orgId), eq(items.code, code)));
           result.updated++;
         } else {
-          await db.insert(items).values({ organizationId: orgId, code, nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, isActive });
+          const [ins] = await db.insert(items).values({ organizationId: orgId, code, nameAr, sellPrice: String(sellPrice), minStock: String(minStock), description: desc, brand, isActive }).returning({ id: items.id });
+          itemId = ins.id;
           result.inserted++;
+        }
+
+        // Link the platform codes present on the row → item_codes (idempotent). This is
+        // what makes ONE product cover Amazon/Noon/… — the order matcher resolves by any code.
+        let hasUnique = false, hasShared = false;
+        const codeRows = CODE_COLUMNS.flatMap(({ names, codeType, unique }) => {
+          const v = col(row, names).trim();
+          const norm = normalizeCode(v);
+          if (!v || !norm) return [];
+          if (unique) {
+            hasUnique = true;
+            const key = `${codeType}:${norm}`;
+            const owner = seenUnique.get(key);
+            if (owner && owner !== itemId) {
+              result.errors.push({ row: rowNum, message: `الكود ${codeType} «${v}» مكرّر على منتج آخر — الكود الفريد لازم يخصّ منتجًا واحدًا` });
+              return []; // skip the conflicting code; the item itself still imports
+            }
+            seenUnique.set(key, itemId);
+          } else { hasShared = true; }
+          return [{ itemId, organizationId: orgId, codeType, code: v, normalizedCode: norm }];
+        });
+        // A row with only a shared code (ASIN/barcode) and no unique SKU can't be matched
+        // unambiguously if that code is on several products — warn (import still proceeds).
+        if (hasShared && !hasUnique) {
+          result.warnings?.push({ row: rowNum, message: "كود مشترك (ASIN/باركود) بدون كود فريد — قد لا تُطابَق الطلبات؛ أضِف SKU/FNSKU/PSKU" });
+        }
+        if (codeRows.length) {
+          await db.insert(itemCodes).values(codeRows).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
         }
       } catch (e: unknown) {
         result.errors.push({ row: rowNum, message: e instanceof Error ? e.message : "خطأ في الاستيراد" });

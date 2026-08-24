@@ -1,5 +1,15 @@
 # RLS Production Cutover — Runbook
 
+> **Historical.** This was written for the Supabase-hosted deployment, which is being
+> retired in favour of the self-hosted Docker stack. The cutover it describes is **already
+> done** there: `docker/docker-compose.yml` runs the app and worker as `appuser`, and
+> `npm run db:rls` (re)applies the role, the policies and the integrity triggers on every
+> deploy. `scripts/rls-leak-check.ts` is the go/no-go.
+>
+> Kept because the *reasoning* — why the app must not connect as the table owner, and what
+> order the flip has to happen in — applies to any host. Read the Supabase/Vercel specifics
+> below as "the managed platform's env store", not as instructions to follow verbatim.
+
 Flipping the running app from the table **owner** (bypasses RLS) to the non-owner
 **`appuser`** (RLS enforced). Order matters; do the steps exactly as numbered.
 
@@ -7,7 +17,7 @@ Everything the app needs is already built and green locally: the scope wrappers 
 every handler, the policies, migration 0050, and the leak test. This runbook is only
 the infra flip — no code changes.
 
-> **Reversible:** the whole thing is undone by flipping one Vercel env var back
+> **Reversible:** the whole thing is undone by flipping one env var back
 > (step 6). The policies can stay in place; they simply don't filter the owner.
 
 ---
@@ -44,8 +54,12 @@ migrations' tables are auto-granted to `appuser` only if the migration owner ran
 It must run before step 3: the backfill is a data UPDATE, and once FORCE RLS is on it
 would be row-filtered for a non-BYPASSRLS owner (see caveat). Order = backfill first.
 
-**3. Enable the policies.** Run `db/rls/01-policies.sql` (67 org tables) then
-`db/rls/02-line-policies.sql` (23 line tables). Idempotent.
+**3. Enable the policies.** Run **`npm run db:rls`** (applies `00-appuser.sql` +
+`01-policies.sql` + `02-line-policies.sql` as the owner, idempotent) — one command,
+reproducible on every deploy and after a restore. Prove it with **`npm run rls:leak`**
+(connects as appuser and asserts cross-tenant isolation; must print "PASSED").
+For prod, point it at the owner role: `MIGRATE_DATABASE_URL=… npm run db:rls`.
+The individual `.sql` files can still be run by hand if preferred.
 
 **4. Wire the migration URL in Vercel.** Add `MIGRATE_DATABASE_URL` = the **owner** on a
 **direct** connection (`…pooler.supabase.com:5432`, NOT the `:6543` transaction pooler —

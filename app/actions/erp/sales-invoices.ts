@@ -16,6 +16,7 @@ import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputeSalesOrderStatus } from "@/lib/erp/sales-order";
+import { log } from "@/lib/log";
 
 export type SaveInvoiceState = ActionState & { id?: string };
 
@@ -204,6 +205,15 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
             .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
           const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
             .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
+          // Prefer each line's originating sales-order-line warehouse (an order→invoice
+          // that skipped the delivery step still knows where to issue from); only fall
+          // back to "first active" for a truly standalone invoice with no order.
+          const whByItem = new Map<string, string>();
+          if (inv.salesOrderId) {
+            const ols = await tx.select({ itemId: salesOrderLines.itemId, warehouseId: salesOrderLines.warehouseId })
+              .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, inv.salesOrderId));
+            for (const o of ols) if (o.warehouseId) whByItem.set(o.itemId, o.warehouseId);
+          }
           // Never book revenue+AR with no COGS/stock movement (mirrors the delivery
           // path, deliveries.ts): if there are goods to issue but no warehouse or the
           // inventory/COGS accounts are missing, refuse instead of posting revenue-only.
@@ -217,9 +227,13 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
               const qty = Number(l.quantity);
               if (qty <= 0) continue;
               const r = await postStockMovement(tx, {
-                orgId: auth.orgId, itemId: l.itemId, warehouseId: wh.id, type: "OUT",
+                orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? wh.id, type: "OUT",
                 quantity: qty, date: new Date(inv.date), referenceType: "SALES_INVOICE", referenceId: inv.id, reason: `صرف بيع ${inv.number}`,
               });
+              // Zero-cost issue on a positive qty means the item has quantity but no
+              // inventory value (miscosted / opening-qty-without-value) — it books as
+              // pure margin. Surface it for review instead of silently hiding it.
+              if (r.totalCost === 0) log.warn("sales_invoice.zero_cost_issue", { orgId: auth.orgId, invoice: inv.number, itemId: l.itemId, qty });
               cogs += r.totalCost;
             }
             if (cogs > 0) {

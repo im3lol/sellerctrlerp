@@ -8,11 +8,14 @@ import { db } from "@/lib/db";
 import { customers, users } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import { bulkRun, type BulkResult } from "@/lib/erp/bulk-delete";
+import { nextCode } from "@/lib/erp/next-code";
+import { str } from "@/lib/erp/form-value";
 
 export type ActionState = { error?: string; ok?: boolean };
+export type SaveCustomerState = ActionState & { created?: { id: string; nameAr: string } };
 
 const schema = z.object({
-  code: z.string().min(1, "الكود مطلوب"),
+  code: z.string().optional(),
   nameAr: z.string().min(2, "الاسم قصير جداً"),
   phone: z.string().optional(),
   email: z.string().email("بريد غير صحيح").optional().or(z.literal("")),
@@ -20,24 +23,35 @@ const schema = z.object({
   paymentTerms: z.coerce.number().int().min(0).default(30),
 });
 
-export async function saveCustomerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+// Next auto code CUST-#### — max computed in the database (see lib/erp/next-code.ts).
+const nextCustomerCode = (orgId: string) =>
+  nextCode({ table: customers, orgCol: customers.organizationId, codeCol: customers.code, orgId, prefix: "CUST", pad: 4 });
+
+export async function saveCustomerAction(_prev: SaveCustomerState, formData: FormData): Promise<SaveCustomerState> {
   const id = (formData.get("id") as string) || "";
   const auth = await authorizeErp(id ? "sales.edit" : "sales.create");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse({
-      code: formData.get("code"),
-      nameAr: formData.get("nameAr"),
-      phone: formData.get("phone") || undefined,
+      code: str(formData.get("code")),
+      nameAr: str(formData.get("nameAr")),
+      phone: str(formData.get("phone")) || undefined,
       email: formData.get("email") || "",
       creditLimit: formData.get("creditLimit") || 0,
       paymentTerms: formData.get("paymentTerms") || 30,
     });
     if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+    let code = (parsed.data.code ?? "").trim();
+    const autoGen = !code;
+    if (autoGen) {
+      if (id) return { error: "الكود مطلوب" }; // only new customers auto-generate
+      code = await nextCustomerCode(auth.orgId);
+    }
+
     const data = {
-      code: parsed.data.code,
+      code,
       nameAr: parsed.data.nameAr,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
@@ -45,20 +59,29 @@ export async function saveCustomerAction(_prev: ActionState, formData: FormData)
       paymentTerms: parsed.data.paymentTerms,
     };
 
+    const isUnique = (e: unknown) => e instanceof Error && e.message.includes("unique");
+    // Returned on create so the quick-create popover can select the new customer without
+    // a round trip through the page's server-rendered list.
+    let created: { id: string; nameAr: string } | undefined;
     try {
       if (id) {
         await db.update(customers).set(data).where(and(eq(customers.id, id), eq(customers.organizationId, auth.orgId)));
       } else {
-        await db.insert(customers).values({ ...data, organizationId: auth.orgId });
+        try {
+          [created] = await db.insert(customers).values({ ...data, organizationId: auth.orgId }).returning({ id: customers.id, nameAr: customers.nameAr });
+        } catch (e) {
+          // Auto-generated code collided with a concurrent insert — regenerate once.
+          if (autoGen && isUnique(e)) [created] = await db.insert(customers).values({ ...data, code: await nextCustomerCode(auth.orgId), organizationId: auth.orgId }).returning({ id: customers.id, nameAr: customers.nameAr });
+          else throw e;
+        }
       }
     } catch (e) {
-      const msg = e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ";
-      return { error: msg };
+      return { error: isUnique(e) ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }
 
     revalidatePath("/sales/customers");
     revalidatePath("/sales");
-    return { ok: true };
+    return { ok: true, created };
   });
 }
 

@@ -14,7 +14,9 @@ import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 
-export type SaveVoucherState = ActionState & { id?: string };
+// `number` so the form can land on the voucher it just created — that is where the
+// «تأكيد» button lives, and a draft nobody confirms is a draft that never posts.
+export type SaveVoucherState = ActionState & { id?: string; number?: string };
 
 const schema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
@@ -65,7 +67,7 @@ export async function createPaymentVoucherAction(input: unknown): Promise<SaveVo
       }).returning({ id: paymentVouchers.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PAYMENT_VOUCHER", entityId: v.id, entityNumber: number, summary: `إنشاء سند صرف ${number} (مسودة)`, metadata: { amount } });
       revalidatePath("/purchases/payments");
-      return { ok: true, id: v.id };
+      return { ok: true, id: v.id, number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ سند الصرف" };
     }

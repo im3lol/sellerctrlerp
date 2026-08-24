@@ -1,6 +1,10 @@
-import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates, organizations } from "@/db/schema";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
+import { orderToBase, isForeign } from "./order-fx";
+import { splitInclusiveOrderVat } from "@/lib/erp/vat";
+import { log } from "@/lib/log";
 import { round2 } from "@/lib/erp/money";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode } from "@/lib/erp/amazon-import";
@@ -60,6 +64,8 @@ async function categoryIdByName(orgId: string, name: string, cache: Map<string, 
  */
 export type PlatformCtx = {
   platformId: string | null; customerId: string; warehouseId: string | null; channel: string; label: string; autoMode?: AutoMode;
+  /** The platform's default fulfillment (FBA/FBM) — used when the order itself doesn't report one. */
+  fulfillmentType?: string | null;
   /** The platform's go-live accounting start date, if set. syncOrdersCore derives
    *  `createFloor` from it per sync mode. */
   accountingStartDate?: Date | null;
@@ -92,29 +98,37 @@ export async function buildMatcher(orgId: string, orders: MarketplaceOrder[]) {
     if (l.altCode) norms.add(normalizeCode(l.altCode));
   }
   const normList = [...norms].filter(Boolean);
-  const byNorm = new Map<string, string>();
+  // norm → the SET of items carrying it. A shared code (ASIN, barcode) can belong to several
+  // products, so we keep all of them and only match when exactly ONE owns the code — never
+  // guess an arbitrary product from an ambiguous shared code.
+  const byNorm = new Map<string, Set<string>>();
   for (let i = 0; i < normList.length; i += 800) {
     const rows = await db.select({ norm: itemCodes.normalizedCode, itemId: itemCodes.itemId })
       .from(itemCodes)
       .where(and(eq(itemCodes.organizationId, orgId), inArray(itemCodes.normalizedCode, normList.slice(i, i + 800))));
-    for (const r of rows) if (r.norm) byNorm.set(r.norm, r.itemId);
+    for (const r of rows) if (r.norm) { let s = byNorm.get(r.norm); if (!s) byNorm.set(r.norm, (s = new Set())); s.add(r.itemId); }
   }
 
   const itemRows = await db.select({ id: items.id, code: items.code, nameAr: items.nameAr })
     .from(items).where(eq(items.organizationId, orgId));
   const nameById = new Map<string, string>();
-  const byItemCode = new Map<string, string>();
+  const byItemCode = new Map<string, string>(); // items.code is unique per org → single owner
   for (const it of itemRows) {
     nameById.set(it.id, it.nameAr || it.code);
     byItemCode.set(normalizeCode(it.code), it.id);
   }
 
+  const hit = (id: string) => ({ itemId: id, itemName: nameById.get(id) ?? null });
   return (code: string, altCode?: string): { itemId: string | null; itemName: string | null } => {
+    // Try the line's own code first (the seller SKU — unique), then altCode (ASIN — shared).
     for (const c of [code, altCode]) {
       const n = normalizeCode(c || "");
       if (!n) continue;
-      const id = byNorm.get(n) ?? byItemCode.get(n);
-      if (id) return { itemId: id, itemName: nameById.get(id) ?? null };
+      const direct = byItemCode.get(n);
+      if (direct) return hit(direct);                       // internal item.code — unambiguous
+      const owners = byNorm.get(n);
+      if (owners && owners.size === 1) return hit([...owners][0]); // exactly one product owns it
+      // owners.size > 1 → ambiguous shared code → don't guess; fall through to the next code.
     }
     return { itemId: null, itemName: null };
   };
@@ -126,48 +140,6 @@ async function existingOrders(orgId: string, channel: string): Promise<Map<strin
   const m = new Map<string, { id: string; status: string }>();
   for (const r of rows) if (r.ext) m.set(r.ext, { id: r.id, status: r.status });
   return m;
-}
-
-/**
- * Auto-create a stub catalog item for every order-line SKU not yet in the catalog,
- * so the order imports instead of being skipped. The stub carries the order's name
- * + sell price but no cost and needs_review=true — callers keep such orders DRAFT
- * (never auto-post) until a human sets the cost. Returns the count created.
- */
-async function ensureItemsForOrders(orgId: string, orders: MarketplaceOrder[], resolve: ItemResolver): Promise<number> {
-  const missing = new Map<string, { code: string; altCode?: string; name?: string; price: number }>();
-  for (const o of orders) {
-    if (o.status === "Canceled") continue; // a cancellation tears down; no item needed
-    for (const l of o.lines) {
-      if (!l.code || resolve(l.code, l.altCode).itemId) continue;
-      const key = normalizeCode(l.code);
-      if (!key || missing.has(key)) continue;
-      missing.set(key, { code: l.code, altCode: l.altCode, name: l.name, price: l.unitPrice });
-    }
-  }
-  if (missing.size === 0) return 0;
-
-  const list = [...missing.values()];
-  const codes = await nextItemCodes(orgId, list.length);
-  const uomId = await pieceUomId(orgId);
-  const codeValues: { itemId: string; organizationId: string; codeType: string; code: string; normalizedCode: string }[] = [];
-  const pushCode = (itemId: string, codeType: string, code: string) => {
-    const c = (code || "").trim(); const norm = normalizeCode(c);
-    if (c && norm) codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
-  };
-  await db.transaction(async (tx) => {
-    for (const slice of chunk(list.map((p, i) => ({ p, code: codes[i] })), 500)) {
-      const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
-        organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId,
-        sellPrice: String(round2(p.price || 0)), needsReview: true,
-      }))).returning({ id: items.id });
-      inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, "ASIN", p.altCode); });
-    }
-    for (const slice of chunk(codeValues, 500)) {
-      await tx.insert(itemCodes).values(slice).onConflictDoNothing({ target: [itemCodes.itemId, itemCodes.codeType, itemCodes.code] });
-    }
-  });
-  return list.length;
 }
 
 /** Parse+match preview (no writes). */
@@ -184,11 +156,12 @@ export async function previewOrders(orgId: string, ctx: Pick<PlatformCtx, "chann
  * movement. Idempotent via (org, channel, externalId).
  */
 export async function ingestOrders(orgId: string, userId: string | null, ctx: PlatformCtx, orders: MarketplaceOrder[]): Promise<IngestResult> {
-  let resolve = await buildMatcher(orgId, orders);
-  // Unknown SKUs → auto-create review stubs so the order imports; re-resolve so
-  // those lines now match. Orders touching a review item are forced DRAFT below.
-  const autoCreated = await ensureItemsForOrders(orgId, orders, resolve);
-  if (autoCreated) resolve = await buildMatcher(orgId, orders);
+  const resolve = await buildMatcher(orgId, orders);
+  // We NEVER auto-create products from a marketplace order — that duplicates items across
+  // platforms and pollutes the catalog. An order whose SKU isn't linked to a product is
+  // parked in unmatched_orders + surfaced as a notification; the seller creates the product
+  // (with its platform codes) and the order manually. See recordUnmatched below.
+  const autoCreated = 0;
   const reviewIds = new Set(
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
@@ -198,8 +171,59 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // (runOrdersJob passes the acting user's id). userId=null → import DRAFT only.
   const canFulfill = userId != null;
 
+  // Multi-currency: the ERP stores documents/GL in base currency. Convert any foreign-currency
+  // order (e.g. amazon.ae in AED) to base at the latest exchange rate on file BEFORE classify —
+  // otherwise its raw magnitude posts as if it were base (EGP). An order in a foreign currency
+  // with NO rate on file is left unconverted; the loops below keep it DRAFT (never auto-invoice a
+  // wrong-currency order) and we alert once per currency.
+  const base = await getBaseCurrencyCode(orgId);
+  // Marketplace prices are VAT-INCLUSIVE — carve the VAT component out at ingest so the
+  // order/invoice recognises output VAT (2102) instead of booking 100% of channel revenue
+  // as tax-free. The gross total is preserved (settlement still reconciles).
+  const [orgRow] = await db.select({ vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const vatRate = Number(orgRow?.vatRate ?? 0);
+  const foreignCodes = [...new Set(orders.filter((o) => isForeign(o, base)).map((o) => o.currency!))];
+  const rateBy = new Map<string, number>();
+  if (foreignCodes.length) {
+    const rows = await db.select({ code: exchangeRates.currencyCode, rate: exchangeRates.rate, date: exchangeRates.date })
+      .from(exchangeRates)
+      .where(and(eq(exchangeRates.organizationId, orgId), inArray(exchangeRates.currencyCode, foreignCodes)))
+      .orderBy(exchangeRates.currencyCode, desc(exchangeRates.date));
+    for (const r of rows) if (!rateBy.has(r.code)) rateBy.set(r.code, Number(r.rate)); // first per code = latest
+  }
+  const fxAlerted = new Set<string>();
+  const prepped = orders.map((o) => {
+    if (!isForeign(o, base)) return o;
+    const rate = rateBy.get(o.currency!);
+    if (rate && rate > 0) return orderToBase(o, rate, base);
+    if (!fxAlerted.has(o.currency!)) { fxAlerted.add(o.currency!); log.error("marketplace.fx_rate_missing", { orgId, channel: ctx.channel, currency: o.currency }); }
+    return o; // unconverted → stays DRAFT below
+  });
+
   const existing = await existingOrders(orgId, ctx.channel);
-  const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(orders, resolve, existing);
+  const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(prepped, resolve, existing);
+
+  // Park each unmatched order (unknown product) for manual handling, and clear any parked
+  // order that now resolves (its product was created since). Best-effort: a parking hiccup
+  // must never block the matched orders from importing.
+  try {
+    if (blocked.length) {
+      await db.insert(unmatchedOrders).values(blocked.map((o) => ({
+        organizationId: orgId, channel: ctx.channel, externalId: o.externalId, payload: o, status: "PENDING", updatedAt: new Date(),
+      }))).onConflictDoUpdate({
+        target: [unmatchedOrders.organizationId, unmatchedOrders.channel, unmatchedOrders.externalId],
+        set: { payload: sql`excluded.payload`, status: "PENDING", updatedAt: new Date() },
+      });
+    }
+    const nowMatched = [...toCreate, ...transitions].map((o) => o.externalId);
+    if (nowMatched.length) {
+      await db.update(unmatchedOrders).set({ status: "RESOLVED", updatedAt: new Date() })
+        .where(and(eq(unmatchedOrders.organizationId, orgId), eq(unmatchedOrders.channel, ctx.channel),
+          inArray(unmatchedOrders.externalId, nowMatched), eq(unmatchedOrders.status, "PENDING")));
+    }
+  } catch (e) {
+    console.error("[ingest] unmatched-orders parking failed:", e instanceof Error ? e.message : e);
+  }
 
   let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0, skippedPreGoLive = 0;
   const stockBlocked: { externalId: string; reason: string }[] = [];
@@ -209,17 +233,22 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
     try {
+      // Carve VAT out of the inclusive marketplace prices: net subtotal + per-line/order tax,
+      // gross line/order totals preserved (settlement still reconciles).
+      const vat = splitInclusiveOrderVat(o.lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal })), vatRate);
       return await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, orgId, "SO", d.getFullYear());
         const [so] = await tx.insert(salesOrders).values({
           organizationId: orgId, number, customerId: ctx.customerId, date: d, status,
-          subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
-          totalAmount: String(round2(o.subtotal + o.shippingTotal)),
-          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status, notes: `${ctx.label} ${o.externalId}`,
+          subtotal: String(vat.subtotalNet), taxAmount: String(vat.taxTotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
+          totalAmount: String(round2(o.subtotal + o.shippingTotal - (o.discount ?? 0))),
+          channel: ctx.channel, platformId: ctx.platformId, externalOrderId: o.externalId, channelStatus: o.status,
+          fulfillmentType: o.fulfillment ?? ctx.fulfillmentType ?? null,
+          notes: `${ctx.label} ${o.externalId}`,
         }).returning({ id: salesOrders.id, number: salesOrders.number });
-        await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
+        await tx.insert(salesOrderLines).values(o.lines.map((l, i) => ({
           salesOrderId: so.id, itemId: l.itemId!, warehouseId: ctx.warehouseId,
-          quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
+          quantity: String(l.qty), unitPrice: String(vat.lines[i].unitPriceNet), taxAmount: String(vat.lines[i].taxAmount), totalAmount: String(l.lineTotal),
         })));
         // Always log — userId is null for the automatic (cron/worker) sync, which the
         // audit card shows as "تلقائي (النظام)". A manual sync carries the actor.
@@ -254,17 +283,18 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // Re-write a still-editable DRAFT order's lines + totals + channel status from the
   // latest fetch. Backfills prices Amazon only reveals once an order leaves Pending.
   const refreshDraft = async (existingId: string, o: PreviewOrder) => {
-    const newTotal = round2(o.subtotal + o.shippingTotal);
+    const newTotal = round2(o.subtotal + o.shippingTotal - (o.discount ?? 0));
+    const vat = splitInclusiveOrderVat(o.lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal })), vatRate);
     const [prev] = await db.select({ total: salesOrders.totalAmount }).from(salesOrders).where(eq(salesOrders.id, existingId));
     const changed = prev != null && Math.abs(Number(prev.total) - newTotal) > 0.001;
     await db.transaction(async (tx) => {
       await tx.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, existingId));
-      if (o.lines.length) await tx.insert(salesOrderLines).values(o.lines.map((l) => ({
+      if (o.lines.length) await tx.insert(salesOrderLines).values(o.lines.map((l, i) => ({
         salesOrderId: existingId, itemId: l.itemId!, warehouseId: ctx.warehouseId,
-        quantity: String(l.qty), unitPrice: String(l.unitPrice), totalAmount: String(l.lineTotal),
+        quantity: String(l.qty), unitPrice: String(vat.lines[i].unitPriceNet), taxAmount: String(vat.lines[i].taxAmount), totalAmount: String(l.lineTotal),
       })));
       await tx.update(salesOrders).set({
-        subtotal: String(o.subtotal), shippingAmount: String(o.shippingTotal),
+        subtotal: String(vat.subtotalNet), taxAmount: String(vat.taxTotal), shippingAmount: String(o.shippingTotal), discountAmount: String(o.discount ?? 0),
         totalAmount: String(newTotal), channelStatus: o.status, updatedAt: new Date(),
       }).where(eq(salesOrders.id, existingId));
     });
@@ -283,7 +313,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     // A review-stub line has no cost — never auto-confirm/post it. Keep DRAFT.
     // No identity (userId null) → keep DRAFT for a later authenticated sync.
     // autoMode "draft" = the user chose import-as-draft-only: never auto-confirm.
-    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft";
+    // A foreign order with no exchange rate on file was left unconverted — never auto-invoice it
+    // in the wrong currency; import as DRAFT so a human sets the rate / handles it.
+    const shipped = o.status === "Shipped" && !hasReviewItem(o) && canFulfill && autoMode !== "draft" && !isForeign(o, base);
     const id = await insertOrder(o, shipped ? "CONFIRMED" : "DRAFT");
     if (!id) { failed++; continue; }
     created++;
@@ -292,6 +324,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   for (const o of transitions) {
     if (!o.existingId) continue;
+    if (isForeign(o, base)) continue; // unconverted foreign (no rate) → don't refresh/advance in the wrong currency
     if (!o.lines.every((l) => l.itemId)) continue; // a line without an item → leave as-is
     // Backfill price/status onto the DRAFT first (Amazon reveals prices post-Pending).
     if (o.existingStatus === "DRAFT") await refreshDraft(o.existingId, o);
@@ -415,7 +448,7 @@ export async function reconcileInventory(
 // ── Product catalog sync ─────────────────────────────────────
 
 export type ProductSyncMode = "create" | "link";
-export type ProductsResult = { total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number };
+export type ProductsResult = { total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; fnskus: number };
 
 /** Generate `count` unique internal item codes (P-00001…) that don't collide. */
 async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
@@ -441,7 +474,7 @@ async function nextItemCodes(orgId: string, count: number): Promise<string[]> {
  * Idempotent: a matched item already carrying the SKU code counts as alreadyLinked.
  */
 export async function ingestProducts(orgId: string, products: MarketplaceProduct[], mode: ProductSyncMode, channel = "AMAZON"): Promise<ProductsResult> {
-  const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0 };
+  const result: ProductsResult = { total: products.length, linked: 0, created: 0, alreadyLinked: 0, skippedUnmatched: 0, fnskus: 0 };
   if (products.length === 0) return result;
 
   // Linking is keyed on the channel's own code (ASIN for Amazon, variant GID for
@@ -469,7 +502,13 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   };
 
   const plan = classifyProducts(products, itemByAsin, known, mode);
-  for (const l of plan.toLink) pushCode(l.itemId, "SKU", l.sku);
+  for (const l of plan.toLink) {
+    pushCode(l.itemId, "SKU", l.sku);
+    if (l.fnsku) pushCode(l.itemId, "FNSKU", l.fnsku);
+  }
+  // Items already carrying their SKU still get the FNSKU — that is the whole point of
+  // toEnrich; without it an established catalog never picks the code up.
+  for (const e of plan.toEnrich) pushCode(e.itemId, "FNSKU", e.fnsku);
   result.linked = plan.toLink.length;
   result.alreadyLinked = plan.alreadyLinked;
   result.skippedUnmatched = plan.skippedUnmatched;
@@ -487,7 +526,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
         const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
           organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId, sellPrice: String(round2(p.sellPrice || 0)),
         }))).returning({ id: items.id });
-        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); });
+        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); if (p.fnsku) pushCode(it.id, "FNSKU", p.fnsku); });
         created += inserted.length;
       }
       result.created = created;
@@ -497,6 +536,8 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
     }
   });
 
+  // Offered, not necessarily inserted — the upsert ignores ones already on the item.
+  result.fnskus = codeValues.filter((c) => c.codeType === "FNSKU").length;
   return result;
 }
 

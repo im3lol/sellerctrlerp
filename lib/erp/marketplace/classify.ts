@@ -7,8 +7,8 @@ import type { MarketplaceOrder, MarketplaceProduct } from "./dto";
 
 export type MatchedLine = MarketplaceOrder["lines"][number] & { itemId: string | null; itemName: string | null };
 export type PreviewOrder = {
-  externalId: string; date: string; status: string;
-  subtotal: number; shippingTotal: number; total: number;
+  externalId: string; date: string; status: string; fulfillment?: string; currency?: string;
+  subtotal: number; shippingTotal: number; discount?: number; total: number;
   lines: MatchedLine[];
   existingId?: string; existingStatus?: string;
 };
@@ -41,7 +41,7 @@ export function classifyOrders(
       const m = resolve(l.code, l.altCode);
       return { ...l, itemId: m.itemId, itemName: m.itemName };
     });
-    const po: PreviewOrder = { externalId: o.externalId, date: o.date, status: o.status, subtotal: o.subtotal, shippingTotal: o.shippingTotal, total: o.total, lines };
+    const po: PreviewOrder = { externalId: o.externalId, date: o.date, status: o.status, fulfillment: o.fulfillment, currency: o.currency, subtotal: o.subtotal, shippingTotal: o.shippingTotal, discount: o.discount, total: o.total, lines };
     const fullyMatched = lines.every((l) => l.itemId);
     const ex = existing.get(o.externalId);
 
@@ -79,8 +79,13 @@ export function classifyOrders(
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 export type ProductPlan = {
-  toLink: { itemId: string; sku: string }[]; // matched item — attach its SKU code
+  toLink: { itemId: string; sku: string; fnsku?: string }[]; // matched item — attach its SKU code
   toCreate: MarketplaceProduct[];
+  /** Matched items whose SKU is ALREADY attached but that carry a code we may not hold
+   *  yet (today: the FNSKU). Without this an established catalog — every SKU linked
+   *  long ago — could never pick up a code added to the feed later, no matter how many
+   *  times it re-synced. Attaching is idempotent, so re-listing them here is free. */
+  toEnrich: { itemId: string; fnsku: string }[];
   alreadyLinked: number;
   skippedUnmatched: number;
 };
@@ -97,13 +102,17 @@ export function classifyProducts(
   known: Set<string>,
   mode: "create" | "link",
 ): ProductPlan {
-  const plan: ProductPlan = { toLink: [], toCreate: [], alreadyLinked: 0, skippedUnmatched: 0 };
+  const plan: ProductPlan = { toLink: [], toCreate: [], toEnrich: [], alreadyLinked: 0, skippedUnmatched: 0 };
   for (const p of products) {
     const nSku = norm(p.code), nAsin = norm(p.altCode || "");
     const matchId = nAsin ? itemByAsin.get(nAsin) : undefined;
     if (matchId) {
-      if (nSku && !known.has(nSku)) plan.toLink.push({ itemId: matchId, sku: p.code });
-      else plan.alreadyLinked++;
+      if (nSku && !known.has(nSku)) plan.toLink.push({ itemId: matchId, sku: p.code, fnsku: p.fnsku });
+      else {
+        plan.alreadyLinked++;
+        // Still hand back the FNSKU: the item is known, the code may not be.
+        if (p.fnsku && !known.has(norm(p.fnsku))) plan.toEnrich.push({ itemId: matchId, fnsku: p.fnsku });
+      }
     } else if (mode === "create") {
       plan.toCreate.push(p);
     } else {

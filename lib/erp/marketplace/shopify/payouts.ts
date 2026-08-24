@@ -62,6 +62,7 @@ export function balanceTxnToSettlement(t: BalanceTxnNode): SettlementTxn {
   const base = {
     postedAt: date, settlementId: t.id, orderId: isCharge ? orderName : "", sku: "",
     description: t.type || "", quantity: 0, status: "Released", releaseDate: date,
+    currency: (t.amount as { currencyCode?: string })?.currencyCode ?? null,
     shippingCredits: 0, promotionalRebates: 0, fbaFees: 0, otherTransactionFees: 0, total: net,
   };
   if (isCharge) return { ...base, type, productSales: gross, sellingFees: -fee, other: 0 };

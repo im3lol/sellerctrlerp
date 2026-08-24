@@ -9,13 +9,16 @@ export const QUEUES = {
   discovery: "amazon-discovery", // incremental new/changed listings
   details: "amazon-details",     // per-item catalog details (brand/dims/barcodes/family)
   images: "amazon-images",       // per-item image enrichment
+  codes: "amazon-codes",         // FNSKU backfill onto existing items (FBA Inventory API)
   orders: "amazon-orders",       // near-real-time incremental order polling
   settlements: "amazon-settlements", // scheduled settlement report pulls (payments)
   pricing: "amazon-pricing",     // fee estimates (Product Fees API)
   inventory: "amazon-inventory", // read-only Inventory Auditor
   returns: "amazon-returns",     // FBA customer returns -> DRAFT مرتجعات
+  removals: "amazon-removals",   // FBA removal orders -> DRAFT تسويات مخزون (on trader confirm)
   reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
   ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
+  maintenance: "maintenance",    // per-tenant daily backup (fans the cron out of one serial loop)
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

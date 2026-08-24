@@ -59,7 +59,7 @@ function CustomerDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="c-code">الكود</Label>
-              <Input id="c-code" name="code" defaultValue={editing?.code} required />
+              <Input id="c-code" name="code" defaultValue={editing?.code} placeholder="تلقائي إن تُرك فارغاً" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="c-name">الاسم</Label>

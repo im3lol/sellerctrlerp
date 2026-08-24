@@ -78,7 +78,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
               </td>
               <td>
                 <Link
-                  href={`/hr/payroll/${r.id}`}
+                  href={`/hr/payroll/${encodeURIComponent(r.number)}`}
                   className="text-xs text-primary hover:underline"
                 >
                   عرض

@@ -27,7 +27,7 @@ async function nextNumber(prefix: string, orgId: string, year: number): Promise<
 export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string; batchNo?: string | null; expiryDate?: string | null };
 
 export type ReceivableLine = {
-  itemId: string; code: string; name: string; ordered: number; received: number; remaining: number;
+  itemId: string; code: string; name: string; image: string | null; ordered: number; received: number; remaining: number;
   stockByWarehouse: Record<string, number>;
   isPerishable: boolean; shelfLifeDays: number | null;
 };
@@ -48,14 +48,14 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
     if (!po) return { error: "الأمر غير موجود" };
 
     const ols = await db
-      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
+      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, image: items.image, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
       .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
       .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     const lines = ols
       .map((l) => {
         const ordered = Number(l.quantity), received = Number(l.receivedQty);
-        return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
+        return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
       })
       .filter((l) => l.remaining > EPS);
 
@@ -91,7 +91,7 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
  * (recorded only — never enters stock and stays open as backorder). `date` is
  * the receipt date (defaults to the order date). Confirm it later to post.
  */
-export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string }> {
+export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
@@ -101,8 +101,8 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty })
-      .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
+      .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     // Per-line pick warehouses flow into stock movements — verify they belong to the org.
     const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
@@ -120,6 +120,13 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
       if (want < -EPS) return { error: "كمية غير صالحة" };
       if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
+      // Enforce expiry capture for perishables at the source (data-entry time): a
+      // perishable item must arrive with an expiry date, or an item shelf-life to derive
+      // one — otherwise its stock lands in the untracked NULL-expiry lot and FEFO/alerts
+      // can't see it. (Safe: recoverable — enter the expiry and retry.)
+      if (want > EPS && l.isPerishable && !(p?.expiryDate) && !(l.shelfLifeDays && l.shelfLifeDays > 0)) {
+        return { error: `الصنف «${l.name || l.code}» قابل للتلف — حدِّد تاريخ صلاحية للاستلام (أو اضبط «مدة الصلاحية» للصنف).` };
+      }
       if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null });
     }
     if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
@@ -128,7 +135,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const headerWh = toReceive.find((t) => t.qty > EPS)?.warehouseId || po.warehouseId;
     const number = await nextNumber("GRN", auth.orgId, receiptDate.getFullYear());
     try {
-      const id = await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [grn] = await tx.insert(purchaseReceipts).values({
           organizationId: auth.orgId, number, date: receiptDate, status: "DRAFT",
           purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
@@ -138,10 +145,10 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
           quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate,
         })));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
-        return grn.id;
+        return { id: grn.id, number };
       });
       revalidatePath("/purchases/receipts");
-      return { ok: true, id };
+      return { ok: true, id: created.id, number: created.number };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" };
     }

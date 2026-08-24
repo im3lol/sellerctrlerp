@@ -92,8 +92,11 @@ Double-entry, and **the general ledger is only ever written by one function**:
 
 - **Balanced or it throws.** Debits must equal credits, validated in integer cents to avoid
   float drift.
-- **Idempotent.** A unique index on `(organization_id, source_type, source_id)` means posting
-  the same source document twice is a no-op — safe to retry.
+- **Double-post-proof.** A unique index on `(organization_id, source_type, source_id)` means a
+  second post of the same source document raises a unique violation that **rolls the whole
+  transaction back** — the double-post is impossible. Note it is *not* a silent no-op: a retry
+  surfaces an error, so callers that expect idempotent retries must catch it (or the source
+  action re-checks status first).
 - **Numbered** `JV-YYYY-NNNN` via the atomic `nextDocumentNumber` sequence.
 - **Reversible.** `reverseEntry` writes a mirror entry (swaps Dr/Cr); originals are never
   deleted or mutated.
@@ -198,8 +201,22 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 - **Schema is code.** `db/schema.ts` (OS tables: `users`, `attendance`) re-exports
   `db/erp.ts` (all ERP tables). Money is `numeric`, PKs are `text`/uuid.
-- **Migrations.** `db/migrations/` is the canonical drizzle-kit history. Workflow:
-  edit the schema → `npm run db:generate` → review the SQL → `npm run db:migrate`.
+- **Migrations.** `db/migrations/` is the canonical history, and `meta/_journal.json` is
+  what drizzle actually reads — **a `.sql` file that isn't in the journal does not exist**.
+  Workflow: edit the schema → `npm run db:generate` → review the SQL → `npm run db:migrate`
+  → `npm run db:rls`. Hand-written SQL is fine (most of 0052+ is) as long as it's
+  idempotent and gets its own journal entry.
+- **Never `drizzle-kit push` against a database with real data.** Push mutates the schema
+  without leaving a migration behind; that is how the chain silently drifted 46 files out
+  of date (reconciled in `0098_push_drift.sql`). `db:migrate` is the only write path.
+- **Order matters on a fresh database:** `db:migrate` applies `db/rls/00-appuser.sql`
+  first, because migrations from 0055 on `GRANT` to the `appuser` role; policies and
+  triggers come after in `db:rls` since they reference the finished tables.
+- **Adopting a database built by the old push flow** (complete schema, empty
+  `drizzle.__drizzle_migrations`): run `npm run db:baseline` **once** before the first
+  `db:migrate`, or migrate replays from 0000 and fails on `CREATE TABLE` — the early
+  drizzle-generated files have no `IF NOT EXISTS`. Baseline only writes drizzle's
+  bookkeeping rows; it never touches the schema, and it refuses to double-stamp.
 - `db/seed.ts` builds a demo tenant: users, chart of accounts, warehouses, and a set of
   sample documents that leave the books balanced.
 - `scripts/migrations/` holds *historical* one-off patches applied before the schema
@@ -223,13 +240,31 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
 
 ## Deployment
 
-Two supported targets:
+### Topology
 
-- **Vercel + Supabase (managed).** The live stack. `DATABASE_URL` points at the Supabase
-  transaction pooler (port 6543). Item images use Supabase Storage (`SUPABASE_URL` +
-  `SUPABASE_SERVICE_KEY` + `SUPABASE_BUCKET`); `CRON_SECRET` guards `/api/cron`.
-- **Docker (self-hosted).** `docker/docker-compose.yml` runs Postgres + MinIO + the app.
-  The app image ships the **host-built** `.next/standalone` bundle. Rebuild flow:
+Everything is one self-hosted stack. Cutover from Vercel + Supabase completed 2026-08-18;
+verified from the public internet with no `x-vercel-*` header on any hostname:
+
+| Host | Serves |
+|------|--------|
+| `sellerctrl.com`, `www.sellerctrl.com` | landing / marketing, and `/login` into the app |
+| `app.sellerctrl.com` | the same app |
+
+All three are the **same container**. A Cloudflare tunnel (`~/.cloudflared/config.yml`,
+three ingress rules → `http://127.0.0.1:3001`) fronts it; the DNS records are CNAMEs to the
+tunnel. The app image serves the landing page at `/` and the ERP behind `/login`, so no
+split origin is needed.
+
+TTFB through the tunnel is ~250ms, of which the container accounts for ~17ms — the rest is
+the Cloudflare edge round trip, because the origin is a workstation behind a quick tunnel.
+Moving the stack onto a real host removes it; nothing in the app is responsible for it.
+
+The one target:
+
+- **Docker (self-hosted).** The only supported target.
+  `docker/docker-compose.yml` runs Postgres + MinIO + the app. The app image ships the
+  **host-built** `.next/standalone` bundle. `scripts/deploy.sh` is the one-shot flow
+  (build → migrate → RLS → swap → health gate with auto-rollback); the manual equivalent:
 
   ```bash
   NODE_OPTIONS=--max-old-space-size=6144 npx next build          # host build (in-Docker OOMs)

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Plug, PlugZap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { disconnectMarketplaceAction } from "@/app/actions/erp/marketplace-connect";
+import { disconnectMarketplaceAction, connectNoonAction, connectWooAction, connectJumiaAction } from "@/app/actions/erp/marketplace-connect";
 import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
@@ -21,18 +21,47 @@ export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean
  * page-header «أدوات» dropdown; the auto-sync toggle lives in الإعدادات.
  */
 export function MarketplaceConnect({
-  provider, label, marketplaces, conn, justConnected, error, needsShop,
+  provider, label, marketplaces, conn, justConnected, error, needsShop, credentialKind, oauthReady = true,
 }: {
   provider: string; label: string; marketplaces: ConnectMarketplace[];
   conn: MarketplaceConnection; justConnected?: boolean; error?: string;
   /** Shop-domain-first connectors (Shopify): show a store-domain input instead of a
    *  marketplace picker; connect via ?shop= instead of ?marketplace=. */
   needsShop?: boolean;
+  /** Credential-paste connectors: which paste form to show (Noon .json, Woo store+keys,
+   *  Jumia UserID+key+host) instead of an OAuth redirect. */
+  credentialKind?: "noon" | "woo" | "jumia";
+  /** OAuth client creds are configured (DB/env). False ⇒ show a "set the keys in the
+   *  admin panel" note instead of a broken connect button (Amazon/Shopify). */
+  oauthReady?: boolean;
 }) {
+  const needsCredential = !!credentialKind;
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
+  const [cred, setCred] = useState("");
+  // Woo: store URL + consumer key/secret. Jumia: UserID + API key + host.
+  const [f, setF] = useState({ storeUrl: "", consumerKey: "", consumerSecret: "", userId: "", apiKey: "", apiHost: "" });
+  const setFld = (k: keyof typeof f) => (e: ChangeEvent<HTMLInputElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   const [pending, start] = useTransition();
   const shopValid = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop.trim().toLowerCase());
+
+  const connectNoon = () => start(async () => {
+    const r = await connectNoonAction(cred);
+    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setCred(""); }
+    else toast.error(r.error);
+  });
+
+  const connectWoo = () => start(async () => {
+    const r = await connectWooAction({ storeUrl: f.storeUrl, consumerKey: f.consumerKey, consumerSecret: f.consumerSecret });
+    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, consumerSecret: "" })); }
+    else toast.error(r.error);
+  });
+
+  const connectJumia = () => start(async () => {
+    const r = await connectJumiaAction({ userId: f.userId, apiKey: f.apiKey, apiHost: f.apiHost });
+    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, apiKey: "" })); }
+    else toast.error(r.error);
+  });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
@@ -68,9 +97,15 @@ export function MarketplaceConnect({
               <div className="text-sm font-medium text-destructive">
                 انتهت صلاحية ربط {label} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب.
               </div>
-              <Button asChild size="sm" variant="destructive">
-                <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
-              </Button>
+              {needsCredential ? (
+                <Button size="sm" variant="destructive" onClick={disconnect} disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}افصل ثم أعد لصق ملف الاعتماد
+                </Button>
+              ) : (
+                <Button asChild size="sm" variant="destructive">
+                  <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -84,7 +119,57 @@ export function MarketplaceConnect({
         <CardTitle className="flex items-center gap-2"><Plug className="size-5" />ربط {label}</CardTitle>
         <CardDescription>{error ? <span className="text-destructive">تعذّر الربط: {error}</span> : `اربط حساب ${label} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا.`}</CardDescription>
       </CardHeader>
-      {needsShop ? (
+      {credentialKind === "noon" ? (
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">ملف اعتماد نون (JSON)</label>
+            <p className="text-xs text-muted-foreground">
+              من <span dir="ltr">access.noon.partners</span> ← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.
+            </p>
+            <textarea
+              value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={6} spellCheck={false}
+              placeholder='{ "key_id": "...", "private_key": "-----BEGIN PRIVATE KEY-----...", "channel_identifier": "...", "project_code": "PRJ..." }'
+              className="block w-full rounded-md border bg-background p-3 font-mono text-xs"
+            />
+          </div>
+          <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+          </Button>
+        </CardContent>
+      ) : credentialKind === "woo" ? (
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">من متجرك: WooCommerce ← الإعدادات ← متقدّم ← REST API ← «إضافة مفتاح» (صلاحية قراءة)، ثم الصق الرابط والمفاتيح هنا.</p>
+          <div className="space-y-1.5"><label className="text-sm font-medium">رابط المتجر</label>
+            <input value={f.storeUrl} onChange={setFld("storeUrl")} dir="ltr" placeholder="https://mystore.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Key</label>
+            <input value={f.consumerKey} onChange={setFld("consumerKey")} dir="ltr" placeholder="ck_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Secret</label>
+            <input value={f.consumerSecret} onChange={setFld("consumerSecret")} dir="ltr" type="password" placeholder="cs_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <Button onClick={connectWoo} disabled={pending || !f.storeUrl.trim() || !f.consumerKey.trim() || !f.consumerSecret.trim()}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+          </Button>
+        </CardContent>
+      ) : credentialKind === "jumia" ? (
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">من Vendor Center ← Settings ← Integration: انسخ الـUserID والـAPI Key وعنوان الواجهة (API Host) لدولتك، ثم الصقها هنا.</p>
+          <div className="space-y-1.5"><label className="text-sm font-medium">UserID</label>
+            <input value={f.userId} onChange={setFld("userId")} dir="ltr" placeholder="seller@email.com" autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">API Key</label>
+            <input value={f.apiKey} onChange={setFld("apiKey")} dir="ltr" type="password" placeholder="••••••••" autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">API Host</label>
+            <input value={f.apiHost} onChange={setFld("apiHost")} dir="ltr" placeholder="https://vendor-api.jumia.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
+          <Button onClick={connectJumia} disabled={pending || !f.userId.trim() || !f.apiKey.trim() || !f.apiHost.trim()}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+          </Button>
+        </CardContent>
+      ) : !oauthReady ? (
+        // OAuth-capable connector whose client keys aren't set yet (Amazon/Shopify).
+        <CardContent>
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
+            لم تُضبط مفاتيح ربط {label} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات.
+          </div>
+        </CardContent>
+      ) : needsShop ? (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">دومين المتجر</label>
@@ -97,6 +182,15 @@ export function MarketplaceConnect({
             <a href={shopValid ? `/api/erp/marketplace/${provider}/connect?shop=${encodeURIComponent(shop.trim().toLowerCase())}` : undefined}>
               <Plug className="size-4" />ربط {label}
             </a>
+          </Button>
+        </CardContent>
+      ) : marketplaces.length === 0 ? (
+        // No-target OAuth (Noon): a single consent screen — one button, nothing technical.
+        // The seller just authorizes on the marketplace; the owner handles all config
+        // (app keys + webhook) from the admin panel.
+        <CardContent>
+          <Button asChild>
+            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />ربط {label} (تفويض بنقرة واحدة)</a>
           </Button>
         </CardContent>
       ) : (

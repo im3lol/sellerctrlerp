@@ -35,7 +35,7 @@ export default async function SystemPage() {
   ];
 
   const server = [
-    { k: "بيئة التشغيل", v: process.env.VERCEL ? `Vercel${process.env.VERCEL_REGION ? ` — ${process.env.VERCEL_REGION}` : ""}` : "خادم ذاتي / Docker" },
+    { k: "بيئة التشغيل", v: "خادم ذاتي / Docker" },
     { k: "إصدار Node", v: process.version },
     { k: "المنصة", v: `${process.platform} / ${process.arch}` },
     { k: "البيئة", v: process.env.NODE_ENV ?? "—" },

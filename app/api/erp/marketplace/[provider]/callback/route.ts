@@ -53,8 +53,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   if ("error" in v) return back(false, v.error);
 
   const appUrl = process.env.APP_URL || url.origin;
-  const ex = await connector.oauth.exchangeCode(v.code, `${appUrl}/api/erp/marketplace/${provider.toLowerCase()}/callback`, state.marketplace);
+  // Redirect URI: the admin-configured override (platform_integrations.redirect_uri) wins,
+  // else derive from APP_URL. Must match what the provider's app console has registered.
+  const { getIntegrationConfig } = await import("@/lib/saas/integration-config");
+  const redirectUri = (await getIntegrationConfig(connector.code)).redirectUri || `${appUrl}/api/erp/marketplace/${provider.toLowerCase()}/callback`;
+  const ex = await connector.oauth.exchangeCode(v.code, redirectUri, state.marketplace);
   if ("error" in ex) return back(false, ex.error);
+  // A provider whose seller identity is only known post-exchange (Noon: project_code)
+  // returns it here — prefer it over verifyCallback's (possibly null) values.
+  const sellerId = ex.sellerId ?? v.sellerId;
+  const marketplaceId = ex.marketplaceId ?? v.marketplaceId;
+  const region = ex.region ?? v.region;
 
   // Resolve/provision the platform + store the token, RLS-scoped to the signed
   // state.orgId. The token exchange above ran unscoped (network I/O); the redirect
@@ -68,12 +77,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
     await db.insert(platformCredentials).values({
       organizationId: state.orgId, platformId, provider: connector.code.toLowerCase(),
       refreshToken: encryptSecret(ex.refreshToken),
-      sellerId: v.sellerId, marketplaceId: v.marketplaceId, region: v.region, updatedAt: new Date(),
+      sellerId, marketplaceId, region, updatedAt: new Date(),
     }).onConflictDoUpdate({
       target: [platformCredentials.organizationId, platformCredentials.provider],
       set: {
-        refreshToken: encryptSecret(ex.refreshToken), sellerId: v.sellerId,
-        marketplaceId: v.marketplaceId, region: v.region, platformId, updatedAt: new Date(),
+        refreshToken: encryptSecret(ex.refreshToken), sellerId,
+        marketplaceId, region, platformId, updatedAt: new Date(),
         // Fresh token — clear any revoked-token flag so the scheduler resumes.
         needsReauth: false, lastSyncStatus: null,
       },
@@ -94,5 +103,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
       }
     }
   } catch { /* notifications are optional */ }
+
+  // Best-effort: register our order/return webhook as a Noon destination so the seller
+  // never has to do it by hand on the Noon portal. Mirrors the paste-.json path
+  // (connectNoonAction); no-op unless the webhook secret + APP_URL are configured.
+  try {
+    if (connector.code === "NOON") {
+      const { ensureNoonWebhook } = await import("@/lib/erp/marketplace/noon/webhook");
+      await ensureNoonWebhook(ex.refreshToken);
+    }
+  } catch { /* webhook auto-registration is best-effort — the manual portal form is the fallback */ }
   return back(true);
 }
