@@ -55,14 +55,16 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
 
   // Products run in the BACKGROUND server-side (a full 11k pull takes minutes,
   // longer than the browser holds the request). ATTACH to a job that's already
-  // running instead of starting a duplicate; only enqueue a fresh import when idle.
-  // Then poll until done — closing the popup doesn't stop the server job.
+  // running instead of starting a duplicate. productsSyncStatusAction reads the
+  // LATEST sync_runs row regardless of age, so "done"/"error" here just means
+  // "nothing in flight right now" — a leftover row from a PAST click, not proof
+  // this click's request was ever sent. Only "running" means attach-don't-enqueue;
+  // every other phase starts a fresh import. Then poll until done — closing the
+  // popup doesn't stop the server job.
   async function runProducts() {
     set("products", "running", "جاري التحقق…");
     const cur = await productsSyncStatusAction(code).catch(() => null);
-    if (cur?.phase === "done") { set("products", "done", productsDetail(cur)); return; }
-    if (cur?.phase === "error") { set("products", "error", cur.error ?? "فشل السحب"); return; }
-    if (cur?.phase !== "running") { // idle or unreachable → start a fresh import
+    if (cur?.phase !== "running") { // done/error/idle/unreachable → start a fresh import
       const s = await syncProductsAction(code);
       if (!s.ok) { set("products", "error", s.error ?? "فشل"); return; }
     }
