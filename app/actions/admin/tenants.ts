@@ -1,10 +1,10 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
-import { organizations, users, orgSubscriptions } from "@/db/schema";
+import { organizations, users, orgSubscriptions, platformCredentials } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { ACTIVE_ORG_COOKIE } from "@/lib/erp/org";
 import { revalidatePath } from "@/lib/safe-revalidate";
@@ -154,5 +154,23 @@ export async function setTenantStatusAction(input: { orgId: string; status: stri
   });
   if ("error" in r) return { ok: false, error: r.error };
   revalidatePath("/admin/licensing");
+  return { ok: true };
+}
+
+/** Owner-only: Noon Express (FBPI) eligibility for one org — deliberately not a tenant
+ *  self-service toggle (see the column comment on platformCredentials.noonExpressEnabled).
+ *  Requires the org to have already connected a Noon account (the normal read-only flow). */
+export async function setNoonExpressAction(input: { orgId: string; enabled: boolean }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "system_admin") return { ok: false, error: "غير مصرّح" };
+
+  const updated = await withPlatformScope(() =>
+    db.update(platformCredentials).set({ noonExpressEnabled: input.enabled })
+      .where(and(eq(platformCredentials.organizationId, input.orgId), eq(platformCredentials.provider, "noon")))
+      .returning({ id: platformCredentials.id }));
+  if (!updated.length) return { ok: false, error: "المؤسسة لسه مربوطاش حساب نون" };
+
+  log.warn("admin.noon_express_toggled", { by: user.id, orgId: input.orgId, enabled: input.enabled });
+  revalidatePath(`/admin/tenants/${input.orgId}`);
   return { ok: true };
 }

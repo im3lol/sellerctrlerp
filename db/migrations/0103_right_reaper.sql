@@ -1,0 +1,1 @@
+ALTER TABLE "platform_credentials" ADD COLUMN "noon_express_enabled" boolean DEFAULT false NOT NULL;

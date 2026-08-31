@@ -1728,6 +1728,11 @@ export const platformCredentials = pgTable(
     notifDestinationId: text("notif_destination_id"),
     notifSubscriptionId: text("notif_subscription_id"),
     openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
+    // Noon Express (FBPI) eligibility — owner-only opt-in per org, NOT a tenant
+    // self-service toggle. Gates app/api/erp/marketplace/noon/webhook/route.ts: the
+    // shared platform webhook secret alone would let ANY org with a matching
+    // project_code auto-ingest FBPI orders, so this is the per-org allowlist.
+    noonExpressEnabled: boolean("noon_express_enabled").notNull().default(false),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],

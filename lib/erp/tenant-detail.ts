@@ -1,7 +1,7 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
-import { organizations, orgSubscriptions, subscriptionEvents, subscriptionPayments, auditLogs } from "@/db/schema";
+import { organizations, orgSubscriptions, subscriptionEvents, subscriptionPayments, auditLogs, platformCredentials } from "@/db/schema";
 import { normalizeMrr, isLiveRevenue } from "@/lib/erp/platform-metrics";
 import { orgActiveMemberCount, orgStorageBytes, orgLimits } from "@/lib/erp/plans";
 import { listBackups } from "@/lib/erp/backup";
@@ -10,18 +10,24 @@ const DAY = 86_400_000;
 
 export type TenantDetail = Awaited<ReturnType<typeof getTenantDetail>>;
 
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
 /**
  * Full owner-facing profile for one tenant: subscription state + MRR contribution,
  * the subscription-event timeline, the collections history, usage vs. caps, last
  * activity, and a health flag. Self-scoped in withPlatformScope (admin surface).
- * Returns null if the org doesn't exist.
+ * Accepts either the org's UUID or its short slug (admin URLs use the slug when set —
+ * old bookmarked UUID links keep working). Returns null if the org doesn't exist.
  */
-export async function getTenantDetail(orgId: string, now = new Date()) {
+export async function getTenantDetail(idOrSlug: string, now = new Date()) {
   return withPlatformScope(async () => {
     const [org] = await db
       .select({ id: organizations.id, name: organizations.nameAr, email: organizations.email, phone: organizations.phone, createdAt: organizations.createdAt, status: organizations.status, signupSource: organizations.signupSource })
-      .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      .from(organizations)
+      .where(isUuid(idOrSlug) ? or(eq(organizations.id, idOrSlug), eq(organizations.slug, idOrSlug)) : eq(organizations.slug, idOrSlug))
+      .limit(1);
     if (!org) return null;
+    const orgId = org.id;
 
     const [sub] = await db
       .select({ status: orgSubscriptions.status, planName: orgSubscriptions.planName, interval: orgSubscriptions.interval, price: orgSubscriptions.price, startedAt: orgSubscriptions.startedAt, expiresAt: orgSubscriptions.expiresAt, enabledModules: orgSubscriptions.enabledModules })
@@ -42,6 +48,13 @@ export async function getTenantDetail(orgId: string, now = new Date()) {
     const [lastAudit] = await db
       .select({ at: auditLogs.createdAt })
       .from(auditLogs).where(eq(auditLogs.organizationId, orgId)).orderBy(desc(auditLogs.createdAt)).limit(1);
+
+    // Noon Express (FBPI) eligibility — null when the org has no Noon connection at all.
+    const [noon] = await db
+      .select({ expressEnabled: platformCredentials.noonExpressEnabled })
+      .from(platformCredentials)
+      .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, "noon")))
+      .limit(1);
 
     // Sequential — all these share the one scoped transaction connection; Promise.all
     // would issue concurrent queries on it (pg warns + serializes anyway).
@@ -66,6 +79,7 @@ export async function getTenantDetail(orgId: string, now = new Date()) {
       lastActivityAt: lastAudit?.at ? new Date(lastAudit.at) : null,
       usage: { members, storageBytes, maxUsers: limits.maxUsers, storageGb: limits.storageGb },
       backups,
+      noon: noon ? { connected: true, expressEnabled: noon.expressEnabled } : { connected: false, expressEnabled: false },
       mrr, live, daysLeft, health,
     };
   });
