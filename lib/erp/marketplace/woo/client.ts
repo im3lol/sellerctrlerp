@@ -1,6 +1,7 @@
 import "server-only";
 import type { Credential } from "../connector";
 import { validateStoreUrl, wcApiUrl } from "./constants";
+import { assertPublicUrl } from "../safe-url";
 
 // WooCommerce REST client. Per-store: the store origin is cred.sellerId, the consumer key
 // is cred.marketplaceId and the consumer secret is cred.refreshToken (HTTPS Basic auth — no
@@ -34,6 +35,9 @@ async function wcGet<T>(cred: Credential, path: string, params: Record<string, s
   if (!origin) throw new WooError("رابط متجر ووكومرس غير صالح", 400, "invalid_store");
   const url = new URL(wcApiUrl(origin, path));
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  // Re-checked per call, not just at connect time: a public name repointed at an
+  // internal address (DNS rebinding) must fail here.
+  await assertPublicUrl(url);
 
   const res = await fetch(url, {
     headers: { authorization: authHeader(cred), accept: "application/json" },

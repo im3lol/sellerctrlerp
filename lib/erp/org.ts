@@ -58,7 +58,7 @@ export const getActiveOrg = cache(async (): Promise<{
 export async function requireErpModule(
   permission: ErpPermission,
   moduleOverride?: string,
-): Promise<{ orgId: string; role: string; can: (p: ErpPermission) => boolean }> {
+): Promise<{ orgId: string; userId: string; role: string; can: (p: ErpPermission) => boolean }> {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
   if (!org) redirect("/dashboard");
@@ -75,7 +75,7 @@ export async function requireErpModule(
     // the in-app subscription page to pick a plan.
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/settings/subscription?locked=${mod}`);
   }
-  return { orgId: org.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
+  return { orgId: org.id, userId: user.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
 }
 
 /**

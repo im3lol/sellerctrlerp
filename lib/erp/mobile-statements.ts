@@ -1,10 +1,22 @@
 import { and, asc, eq, gte, lt, lte, sql } from "drizzle-orm";
+import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import {
   accounts, journalEntries, journalEntryLines,
   customers, salesInvoices, salesReturns, receiptVouchers,
   suppliers, purchaseInvoices, purchaseReturns, paymentVouchers,
 } from "@/db/schema";
+
+/**
+ * The /api/v1 routes call these directly after authorizeApi with NO surrounding wrapper,
+ * so every export is wrapped in the tenant DB scope here — same pattern as
+ * lib/erp/mobile-lists.ts. Without it they run on the bare pool and, once RLS is enforced,
+ * silently return zero rows. withOrgScope reuses an already-open scope, so a caller that
+ * is already scoped (a page via loadErpPage) pays nothing.
+ */
+const scoped = <A extends unknown[], R>(fn: (orgId: string, ...args: A) => Promise<R>) =>
+  (orgId: string, ...args: A): Promise<R> => withOrgScope(orgId, false, () => fn(orgId, ...args));
+
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const iso = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
@@ -51,7 +63,7 @@ function withRunningBalance(
 }
 
 /** دفتر الأستاذ — posted journal lines for one leaf account, with an opening balance. */
-export async function accountLedger(orgId: string, accountId: string, from?: string, to?: string): Promise<Statement | null> {
+async function accountLedgerImpl(orgId: string, accountId: string, from?: string, to?: string): Promise<Statement | null> {
   const f = from || monthStart();
   const t = to || today();
   const [acc] = await db.select({ code: accounts.code, name: accounts.nameAr })
@@ -83,7 +95,7 @@ export async function accountLedger(orgId: string, accountId: string, from?: str
 }
 
 /** كشف حساب العميل — invoices (debit) vs receipts + returns (credit). Same rules as the web page. */
-export async function customerStatement(orgId: string, customerId: string, from?: string, to?: string): Promise<Statement | null> {
+async function customerStatementImpl(orgId: string, customerId: string, from?: string, to?: string): Promise<Statement | null> {
   const f = from || monthStart();
   const t = to || today();
   const fd = new Date(f), td = new Date(`${t}T23:59:59`);
@@ -117,7 +129,7 @@ export async function customerStatement(orgId: string, customerId: string, from?
 }
 
 /** كشف حساب المورّد — invoices (credit = we owe) vs payments + returns (debit). */
-export async function supplierStatement(orgId: string, supplierId: string, from?: string, to?: string): Promise<Statement | null> {
+async function supplierStatementImpl(orgId: string, supplierId: string, from?: string, to?: string): Promise<Statement | null> {
   const f = from || monthStart();
   const t = to || today();
   const fd = new Date(f), td = new Date(`${t}T23:59:59`);
@@ -149,3 +161,7 @@ export async function supplierStatement(orgId: string, supplierId: string, from?
     ...rets.map((r) => ({ date: r.date, number: r.number, description: `مرتجع شراء ${r.number}`, debit: Number(r.amount), credit: 0 })),
   ], openInv - openPay - openRet, s.name, f, t, "credit");
 }
+
+export const accountLedger = scoped(accountLedgerImpl);
+export const customerStatement = scoped(customerStatementImpl);
+export const supplierStatement = scoped(supplierStatementImpl);

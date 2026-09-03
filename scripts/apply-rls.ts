@@ -34,7 +34,12 @@ async function main() {
   const pool = new Pool({ connectionString: OWNER_URL });
   try {
     for (const f of FILES) {
-      const sql = readFileSync(join(process.cwd(), "db", "rls", f), "utf8");
+      // The committed SQL carries the dev password 'appuser'. A real deployment sets
+      // APPUSER_PASSWORD and the role is created with that instead — nothing secret is
+      // ever committed, and the local stack keeps working with no env at all.
+      const raw = readFileSync(join(process.cwd(), "db", "rls", f), "utf8");
+      const pw = process.env.APPUSER_PASSWORD;
+      const sql = pw ? raw.replace("LOGIN PASSWORD 'appuser'", `LOGIN PASSWORD '${pw.replace(/'/g, "''")}'`) : raw;
       process.stdout.write(`applying db/rls/${f} … `);
       await pool.query(sql);
       console.log("ok");

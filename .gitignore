@@ -52,3 +52,7 @@ next-env.d.ts
 # stray local build logs
 build-log.txt
 *.log
+
+# Build output that got committed once by accident. Never track a build: a future
+# NEXT_PUBLIC_* value baked into a client chunk would land in git history for good.
+docker/.next/

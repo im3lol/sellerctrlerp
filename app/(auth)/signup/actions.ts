@@ -55,10 +55,10 @@ const schema = z.object({
 export async function signupAction(input: SignupInput): Promise<{ error: string }> {
   // Self-serve signup is closed (see signup/page.tsx). Reopen with SIGNUP_OPEN=1.
   if (process.env.SIGNUP_OPEN !== "1") return { error: "التسجيل الذاتي مغلق حاليًا — اطلب ديمو وسنتواصل معك عبر واتساب." };
-  // Throttle abuse: at most 5 signup attempts per IP per hour (Cloudflare sets x-forwarded-for).
+  // Throttle abuse: at most 5 signup attempts per IP per hour.
   const { headers } = await import("next/headers");
-  const ip = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
-  const { rateLimit } = await import("@/lib/rate-limit");
+  const { rateLimit, clientIp } = await import("@/lib/rate-limit");
+  const ip = clientIp(await headers());
   if (!rateLimit(`signup:${ip}`, 5, 3_600_000)) return { error: "محاولات كثيرة — انتظر قليلاً ثم حاول مجددًا." };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv, detectHeaderRow, parseCsvWithHeader, toCsv } from "@/lib/erp/csv";
+import { parseCsv, detectHeaderRow, parseCsvWithHeader, toCsv, csvField } from "@/lib/erp/csv";
 
 describe("parseCsv", () => {
   it("parses a simple header + rows", () => {
@@ -71,5 +71,22 @@ describe("toCsv (export)", () => {
   it("round-trips back through parseCsv", () => {
     const csv = toCsv(["a", "b"], [["1", "x,y"], ["2", 'q"q']]);
     expect(parseCsv(csv)).toEqual([["a", "b"], ["1", "x,y"], ["2", 'q"q']]);
+  });
+
+  // CSV/formula injection: a cell starting with = + - @ executes as a formula in Excel,
+  // so an item named `=HYPERLINK(...)` would fire inside whoever opens the export.
+  it("prefixes formula-leading text so Excel keeps it as text", () => {
+    expect(csvField('=HYPERLINK("http://evil","x")')).toBe(`"'=HYPERLINK(""http://evil"",""x"")"`);
+    expect(csvField("+41")).toBe("'+41");
+    expect(csvField("-cmd")).toBe("'-cmd");
+    expect(csvField("@SUM(A1)")).toBe("'@SUM(A1)");
+    expect(csvField("	start")).toBe("'	start");
+  });
+
+  it("leaves ordinary values and real numbers alone", () => {
+    expect(csvField("Widget")).toBe("Widget");
+    expect(csvField(-5)).toBe("-5"); // a number is never a formula
+    expect(csvField(0)).toBe("0");
+    expect(csvField(null)).toBe("");
   });
 });

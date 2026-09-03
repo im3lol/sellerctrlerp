@@ -37,14 +37,21 @@ function layout(opts: { heading: string; bodyHtml: string; cta?: { label: string
 
 const row = (html: string) => `<tr><td style="padding:4px 0">${html}</td></tr>`;
 
+/** Escape anything the tenant typed (company name, plan name, their own name) before it
+ *  goes into the HTML body — otherwise a company called `<a href="http://evil">…` mails
+ *  its own members a link dressed as an official SellerCtrl notice. */
+const esc = (v: string) =>
+  String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 export function welcomeEmail(d: { name?: string; orgName: string; appUrl: string }): Email {
   const hi = d.name ? `أهلاً ${d.name}` : "أهلاً بك";
+  const hiHtml = d.name ? `أهلاً ${esc(d.name)}` : "أهلاً بك";
   return {
     subject: "أهلاً بك في SellerCtrl 🎉",
     html: layout({
-      heading: `${hi} 👋`,
+      heading: `${hiHtml} 👋`,
       bodyHtml:
-        row(`تم إنشاء حساب مؤسسة «<b>${d.orgName}</b>» بنجاح. دلوقتي تقدر تدير محاسبتك ومخزونك ومبيعاتك وتربط حساب أمازون — كله من مكان واحد.`) +
+        row(`تم إنشاء حساب مؤسسة «<b>${esc(d.orgName)}</b>» بنجاح. دلوقتي تقدر تدير محاسبتك ومخزونك ومبيعاتك وتربط حساب أمازون — كله من مكان واحد.`) +
         row(`ابدأ بإكمال إعداد حسابك (الأصناف، المخازن، ربط أمازون) من لوحة التحكم.`),
       cta: { label: "افتح لوحة التحكم", href: `${d.appUrl}/dashboard` },
     }),
@@ -59,8 +66,8 @@ export function receiptEmail(d: { orgName: string; planName: string; interval: s
     html: layout({
       heading: "تم استلام دفعتك ✅",
       bodyHtml:
-        row(`شكرًا لك — تم تفعيل اشتراك مؤسسة «<b>${d.orgName}</b>».`) +
-        row(`<b>الباقة:</b> ${d.planName} (${intervalLabel(d.interval)})`) +
+        row(`شكرًا لك — تم تفعيل اشتراك مؤسسة «<b>${esc(d.orgName)}</b>».`) +
+        row(`<b>الباقة:</b> ${esc(d.planName)} (${intervalLabel(d.interval)})`) +
         row(`<b>المبلغ:</b> ${egp(d.amount)}`) +
         row(`<b>سارٍ حتى:</b> ${until}`),
       cta: { label: "إدارة الاشتراك", href: `${d.appUrl}/settings/subscription` },
@@ -77,7 +84,7 @@ export function expiryReminderEmail(d: { orgName: string; planName: string; days
     html: layout({
       heading: "تذكير بتجديد الاشتراك ⏰",
       bodyHtml:
-        row(`اشتراك مؤسسة «<b>${d.orgName}</b>» (باقة ${d.planName}) ينتهي <b>${until}</b>.`) +
+        row(`اشتراك مؤسسة «<b>${esc(d.orgName)}</b>» (باقة ${esc(d.planName)}) ينتهي <b>${until}</b>.`) +
         row(`جدّد الآن لتفادي انقطاع الوصول إلى بياناتك ومزامنة أمازون.`),
       cta: { label: "جدّد الاشتراك", href: `${d.appUrl}/settings/subscription` },
     }),

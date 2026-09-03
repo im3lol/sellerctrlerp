@@ -1,4 +1,4 @@
-import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
+import { authorizeApi, isApiError, runAsErp } from "@/lib/erp/api-auth";
 import { createAdjustment, confirmAdjustment, deleteAdjustmentDraft } from "@/lib/erp/inventory-writes";
 import { stockAdjustmentList } from "@/lib/erp/mobile-lists";
 
@@ -39,14 +39,18 @@ export async function POST(req: Request) {
     lines: lines.map((l) => ({ itemId: String(l.itemId ?? ""), warehouseId, mode: "set" as const, value: Number(l.countedQty ?? 0) })),
   };
 
-  const created = await createAdjustment(auth.orgId, auth.userId, input);
-  if ("error" in created) return Response.json({ error: created.error }, { status: 400 });
+  // runAsErp opens the tenant DB scope the inventory writes need — without it they run
+  // on the bare pool and RLS blocks the write (every sibling /api/v1 write does this).
+  return runAsErp(auth, async () => {
+    const created = await createAdjustment(auth.orgId, auth.userId, input);
+    if ("error" in created) return Response.json({ error: created.error }, { status: 400 });
 
-  const posted = await confirmAdjustment(auth.orgId, auth.userId, created.id);
-  if ("error" in posted) {
-    await deleteAdjustmentDraft(auth.orgId, created.id); // roll back the unposted draft
-    return Response.json({ error: posted.error }, { status: 400 });
-  }
+    const posted = await confirmAdjustment(auth.orgId, auth.userId, created.id);
+    if ("error" in posted) {
+      await deleteAdjustmentDraft(auth.orgId, created.id); // roll back the unposted draft
+      return Response.json({ error: posted.error }, { status: 400 });
+    }
 
-  return Response.json({ ok: true, id: created.id });
+    return Response.json({ ok: true, id: created.id });
+  });
 }

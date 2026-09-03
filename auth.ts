@@ -14,6 +14,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token: { label: "رمز المصادقة الثنائية", type: "text" },
       },
       async authorize(creds) {
+        // Per-IP throttle. The per-account lockout (password-policy) stops brute force
+        // against ONE account but does nothing against credential stuffing, where each
+        // guess targets a different account and no counter ever fills.
+        const { headers } = await import("next/headers");
+        const { rateLimit, clientIp } = await import("@/lib/rate-limit");
+        const ip = clientIp(await headers());
+        if (!rateLimit(`login:${ip}`, 30, 10 * 60_000)) return null;
+
         const user = await verifyCredentials(
           String(creds?.email ?? ""),
           String(creds?.password ?? ""),
