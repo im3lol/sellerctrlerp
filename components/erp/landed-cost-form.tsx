@@ -16,6 +16,7 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { selectCls } from "@/lib/utils";
 
+type Supplier = { id: string; nameAr: string };
 type Receipt = { id: string; number: string; date: string; supplierId: string; supplierName: string };
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,7 +27,7 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
  * covers, enter the charges in EGP, choose how to split them, and the preview shows what
  * each line will carry before anything is saved.
  */
-export function LandedCostForm({ receipts }: { receipts: Receipt[] }) {
+export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[]; receipts: Receipt[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
@@ -41,12 +42,16 @@ export function LandedCostForm({ receipts }: { receipts: Receipt[] }) {
   const [method, setMethod] = useState<"value" | "qty" | "weight">("value");
   const [pricePerKg, setPricePerKg] = useState("");
 
-  // Only suppliers that actually have a confirmed receipt — anything else has nothing to load onto.
+  // Every supplier is listed — picking one with no confirmed receipt is a legitimate
+  // mistake to make, and the receipts box says so. Those that DO have receipts come
+  // first, with the count, so the usual choice is the top of the list.
   const supplierOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const r of receipts) if (r.supplierId && !seen.has(r.supplierId)) seen.set(r.supplierId, r.supplierName);
-    return [...seen].map(([id, label]) => ({ id, label }));
-  }, [receipts]);
+    const counts = new Map<string, number>();
+    for (const r of receipts) if (r.supplierId) counts.set(r.supplierId, (counts.get(r.supplierId) ?? 0) + 1);
+    return suppliers
+      .map((s) => ({ id: s.id, label: counts.get(s.id) ? `${s.nameAr} — ${counts.get(s.id)} إذن` : s.nameAr, n: counts.get(s.id) ?? 0 }))
+      .sort((a, b) => b.n - a.n);
+  }, [suppliers, receipts]);
   const openReceipts = useMemo(
     () => receipts.filter((r) => r.supplierId === supplierId && !picked.includes(r.id)),
     [receipts, supplierId, picked],
@@ -121,7 +126,7 @@ export function LandedCostForm({ receipts }: { receipts: Receipt[] }) {
           <div className="space-y-2">
             <Label>المورّد</Label>
             <CellCombobox
-              selectedLabel={supplierOptions.find((o) => o.id === supplierId)?.label ?? ""}
+              selectedLabel={suppliers.find((s) => s.id === supplierId)?.nameAr ?? ""}
               options={supplierOptions}
               onSelect={pickSupplier}
               placeholder="ابحث باسم المورّد…"
@@ -133,10 +138,10 @@ export function LandedCostForm({ receipts }: { receipts: Receipt[] }) {
 
         <div className="space-y-2 rounded-xl border bg-muted/30 p-4">
           <Label className="text-sm font-semibold">إذون الاستلام المشمولة</Label>
-          {!supplierOptions.length ? (
-            <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة.</p>
-          ) : !supplierId ? (
+          {!supplierId ? (
             <p className="text-sm text-muted-foreground">اختر المورّد أولاً لعرض إذون استلامه المؤكّدة.</p>
+          ) : !openReceipts.length && !picked.length ? (
+            <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة لهذا المورّد — التكاليف تُحمَّل على بضاعة مستلَمة فقط.</p>
           ) : (
             <div className="space-y-2">
               <div className="max-w-md">
