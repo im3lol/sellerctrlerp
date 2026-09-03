@@ -17,7 +17,7 @@ import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
-type Receipt = { id: string; number: string; date: string; supplierName: string };
+type Receipt = { id: string; number: string; date: string; supplierId: string; supplierName: string };
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -34,6 +34,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
   const today = new Date().toISOString().slice(0, 10);
 
   const [supplierId, setSupplierId] = useState("");
+  const [goodsSupplierId, setGoodsSupplierId] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -44,6 +45,18 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
 
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
+
+  // Only suppliers that actually have a confirmed receipt — anything else has nothing to load onto.
+  const goodsSupplierOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of receipts) if (r.supplierId && !seen.has(r.supplierId)) seen.set(r.supplierId, r.supplierName);
+    return [...seen].map(([id, label]) => ({ id, label }));
+  }, [receipts]);
+  const openReceipts = useMemo(
+    () => receipts.filter((r) => r.supplierId === goodsSupplierId && !picked.includes(r.id)),
+    [receipts, goodsSupplierId, picked],
+  );
+  const pickedReceipts = useMemo(() => receipts.filter((r) => picked.includes(r.id)), [receipts, picked]);
 
   const total = round2((Number(charges.shipping) || 0) + (Number(charges.customs) || 0) + (Number(charges.insurance) || 0) + (Number(charges.other) || 0));
 
@@ -60,6 +73,12 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     [lines, total, method],
   );
 
+  const pickGoodsSupplier = (id: string) => {
+    setGoodsSupplierId(id);
+    setPicked([]);
+    setLines([]);
+  };
+
   const toggle = (id: string) => {
     const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id];
     setPicked(next);
@@ -73,6 +92,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
 
   const submit = () => {
     if (!supplierId) return toast.error("اختر مورّد الشحن");
+    if (!goodsSupplierId) return toast.error("اختر مورّد البضاعة");
     if (!picked.length) return toast.error("اختر إذن استلام واحد على الأقل");
     if (total <= 0) return toast.error("أدخل قيمة التكاليف");
     start(async () => {
@@ -104,7 +124,16 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="space-y-2">
+            <Label>المورّد (صاحب البضاعة)</Label>
+            <CellCombobox
+              selectedLabel={goodsSupplierOptions.find((o) => o.id === goodsSupplierId)?.label ?? ""}
+              options={goodsSupplierOptions}
+              onSelect={pickGoodsSupplier}
+              placeholder="اختر المورّد…"
+            />
+          </div>
           <div className="space-y-2">
             <Label>مورّد الشحن</Label>
             <CellCombobox
@@ -120,17 +149,31 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
 
         <div className="space-y-2 rounded-xl border bg-muted/30 p-4">
           <Label className="text-sm font-semibold">إذون الاستلام المشمولة</Label>
-          {receipts.length === 0 ? (
+          {!goodsSupplierOptions.length ? (
             <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة.</p>
+          ) : !goodsSupplierId ? (
+            <p className="text-sm text-muted-foreground">اختر المورّد أولاً لعرض إذون استلامه المؤكّدة.</p>
           ) : (
-            <div className="grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2">
-              {receipts.map((r) => (
-                <label key={r.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-background">
-                  <input type="checkbox" className="size-4 rounded border-input" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
-                  <span className="font-medium">{r.number}</span>
-                  <span className="text-muted-foreground">— {r.supplierName} — {r.date}</span>
-                </label>
-              ))}
+            <div className="space-y-2">
+              <div className="max-w-md">
+                <CellCombobox
+                  selectedLabel=""
+                  options={openReceipts.map((r) => ({ id: r.id, label: `${r.number} — ${r.date}` }))}
+                  onSelect={toggle}
+                  placeholder={openReceipts.length ? "ابحث برقم الإذن…" : "لا توجد إذون أخرى لهذا المورّد"}
+                />
+              </div>
+              {pickedReceipts.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {pickedReceipts.map((r) => (
+                    <span key={r.id} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-sm">
+                      <span className="font-medium">{r.number}</span>
+                      <span className="text-muted-foreground">— {r.date}</span>
+                      <button type="button" aria-label={`إزالة ${r.number}`} className="text-muted-foreground hover:text-destructive" onClick={() => toggle(r.id)}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {loading && <span className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />جارٍ تحميل البنود…</span>}

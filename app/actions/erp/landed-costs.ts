@@ -33,14 +33,14 @@ export type LcBasisLine = {
 
 /** Confirmed receipts that can still carry landed cost (for the voucher's picker). */
 export async function getLandedCostReceiptsAction(): Promise<
-  ActionState & { receipts?: { id: string; number: string; date: string; supplierName: string }[] }
+  ActionState & { receipts?: { id: string; number: string; date: string; supplierId: string; supplierName: string }[] }
 > {
   const auth = await authorizeErp("purchases.view");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
     const rows = await db
-      .select({ id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, supplierName: suppliers.nameAr })
+      .select({ id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, supplierId: purchaseReceipts.supplierId, supplierName: suppliers.nameAr })
       .from(purchaseReceipts)
       .leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
       .where(and(eq(purchaseReceipts.organizationId, auth.orgId), inArray(purchaseReceipts.status, ["RECEIVED", "INVOICED"])))
@@ -48,7 +48,7 @@ export async function getLandedCostReceiptsAction(): Promise<
       .limit(200);
     return {
       ok: true,
-      receipts: rows.map((r) => ({ id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), supplierName: r.supplierName ?? "—" })),
+      receipts: rows.map((r) => ({ id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), supplierId: r.supplierId ?? "", supplierName: r.supplierName ?? "—" })),
     };
   });
 }
