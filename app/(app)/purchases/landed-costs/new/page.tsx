@@ -1,18 +1,11 @@
-import { asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
-import { db } from "@/lib/db";
-import { suppliers } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { LandedCostForm } from "@/components/erp/landed-cost-form";
 import { getLandedCostReceiptsAction } from "@/app/actions/erp/landed-costs";
 
 export default async function NewLandedCostPage() {
-  return loadErpPage("purchases.create", async ({ orgId }) => {
-    const [supList, receipts] = await Promise.all([
-      db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers)
-        .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
-      getLandedCostReceiptsAction(),
-    ]);
+  return loadErpPage("purchases.create", async () => {
+    const receipts = await getLandedCostReceiptsAction();
 
     return (
       <div className="space-y-6">
@@ -22,7 +15,7 @@ export default async function NewLandedCostPage() {
           subtitle="فاتورة شحن/جمارك تصل بعد الاستلام — تُوزَّع على الإذون وتُرفع تكلفة المخزون"
           backHref="/purchases/landed-costs"
         />
-        <LandedCostForm suppliers={supList} receipts={receipts.ok ? (receipts.receipts ?? []) : []} />
+        <LandedCostForm receipts={receipts.ok ? (receipts.receipts ?? []) : []} />
       </div>
     );
   });

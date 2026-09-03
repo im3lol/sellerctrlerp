@@ -60,7 +60,7 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
           <CardHeader>
             <CardTitle>مستندات تكاليف الاستيراد</CardTitle>
             <CardDescription>
-              فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق لمورّد الشحن.
+              فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق للمورّد.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -75,7 +75,7 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
                     <TableRow>
                       <TableHead className="text-start">الرقم</TableHead>
                       <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">مورّد الشحن</TableHead>
+                      <TableHead className="text-start">المورّد</TableHead>
                       <TableHead className="text-start">طريقة التوزيع</TableHead>
                       <TableHead className="text-start">الإجمالي</TableHead>
                       <TableHead className="text-start">الحالة</TableHead>

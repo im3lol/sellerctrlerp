@@ -16,7 +16,6 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { selectCls } from "@/lib/utils";
 
-type Supplier = { id: string; nameAr: string };
 type Receipt = { id: string; number: string; date: string; supplierId: string; supplierName: string };
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,14 +26,13 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
  * covers, enter the charges in EGP, choose how to split them, and the preview shows what
  * each line will carry before anything is saved.
  */
-export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[]; receipts: Receipt[] }) {
+export function LandedCostForm({ receipts }: { receipts: Receipt[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
 
   const [supplierId, setSupplierId] = useState("");
-  const [goodsSupplierId, setGoodsSupplierId] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -43,18 +41,15 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
   const [method, setMethod] = useState<"value" | "qty" | "weight">("value");
   const [pricePerKg, setPricePerKg] = useState("");
 
-  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
-  const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
-
   // Only suppliers that actually have a confirmed receipt — anything else has nothing to load onto.
-  const goodsSupplierOptions = useMemo(() => {
+  const supplierOptions = useMemo(() => {
     const seen = new Map<string, string>();
     for (const r of receipts) if (r.supplierId && !seen.has(r.supplierId)) seen.set(r.supplierId, r.supplierName);
     return [...seen].map(([id, label]) => ({ id, label }));
   }, [receipts]);
   const openReceipts = useMemo(
-    () => receipts.filter((r) => r.supplierId === goodsSupplierId && !picked.includes(r.id)),
-    [receipts, goodsSupplierId, picked],
+    () => receipts.filter((r) => r.supplierId === supplierId && !picked.includes(r.id)),
+    [receipts, supplierId, picked],
   );
   const pickedReceipts = useMemo(() => receipts.filter((r) => picked.includes(r.id)), [receipts, picked]);
 
@@ -64,7 +59,6 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
   useEffect(() => {
     if (method !== "weight" || !pricePerKg) return;
     setCharges((c) => ({ ...c, shipping: String(round2(Number(pricePerKg) * totalWeightKg)) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [method, pricePerKg, totalWeightKg]);
 
   // Same allocator the server re-runs on save, so the preview can't drift from the result.
@@ -73,8 +67,8 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     [lines, total, method],
   );
 
-  const pickGoodsSupplier = (id: string) => {
-    setGoodsSupplierId(id);
+  const pickSupplier = (id: string) => {
+    setSupplierId(id);
     setPicked([]);
     setLines([]);
   };
@@ -91,8 +85,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
   };
 
   const submit = () => {
-    if (!supplierId) return toast.error("اختر مورّد الشحن");
-    if (!goodsSupplierId) return toast.error("اختر مورّد البضاعة");
+    if (!supplierId) return toast.error("اختر المورّد");
     if (!picked.length) return toast.error("اختر إذن استلام واحد على الأقل");
     if (total <= 0) return toast.error("أدخل قيمة التكاليف");
     start(async () => {
@@ -124,23 +117,14 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>المورّد (صاحب البضاعة)</Label>
+            <Label>المورّد</Label>
             <CellCombobox
-              selectedLabel={goodsSupplierOptions.find((o) => o.id === goodsSupplierId)?.label ?? ""}
-              options={goodsSupplierOptions}
-              onSelect={pickGoodsSupplier}
-              placeholder="اختر المورّد…"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>مورّد الشحن</Label>
-            <CellCombobox
-              selectedLabel={supplierLabelById.get(supplierId) ?? ""}
+              selectedLabel={supplierOptions.find((o) => o.id === supplierId)?.label ?? ""}
               options={supplierOptions}
-              onSelect={setSupplierId}
-              placeholder="شركة الشحن / التخليص…"
+              onSelect={pickSupplier}
+              placeholder="ابحث باسم المورّد…"
             />
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
@@ -149,9 +133,9 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
 
         <div className="space-y-2 rounded-xl border bg-muted/30 p-4">
           <Label className="text-sm font-semibold">إذون الاستلام المشمولة</Label>
-          {!goodsSupplierOptions.length ? (
+          {!supplierOptions.length ? (
             <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة.</p>
-          ) : !goodsSupplierId ? (
+          ) : !supplierId ? (
             <p className="text-sm text-muted-foreground">اختر المورّد أولاً لعرض إذون استلامه المؤكّدة.</p>
           ) : (
             <div className="space-y-2">

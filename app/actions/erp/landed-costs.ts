@@ -123,7 +123,7 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
 }
 
 const schema = z.object({
-  supplierId: z.string().min(1, "اختر مورّد الشحن"),
+  supplierId: z.string().min(1, "اختر المورّد"),
   date: z.string().min(1, "التاريخ مطلوب"),
   method: z.enum(["value", "qty", "weight"]).default("value"),
   shipping: z.coerce.number().min(0).default(0),
@@ -240,7 +240,7 @@ export async function postLandedCostVoucherAction(voucherId: string): Promise<Ac
           const glLines = [
             ...(toInventory > 0 ? [{ accountId: A["1104"], debit: toInventory, credit: 0, description: `تكاليف استيراد على المخزون ${v.number}` }] : []),
             ...(toCogs > 0 ? [{ accountId: A["5101"], debit: toCogs, credit: 0, description: `تكاليف استيراد على بضاعة مُباعة ${v.number}` }] : []),
-            { accountId: A["2101"], debit: 0, credit: total, description: `مستحق لمورّد الشحن ${v.number}` },
+            { accountId: A["2101"], debit: 0, credit: total, description: `مستحق للمورّد — تكاليف استيراد ${v.number}` },
           ];
           await postEntry(tx, {
             orgId: auth.orgId, date, sourceType: "LANDED_COST", sourceId: v.id,
