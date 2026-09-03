@@ -1,4 +1,5 @@
 import { requireErpModule } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { getCashFlow } from "@/lib/erp/cashflow";
 import { xlsxResponse } from "@/lib/erp/xlsx";
@@ -10,10 +11,12 @@ export async function GET(req: Request) {
   const { orgId } = await requireErpModule("reports.view");
   const p = new URL(req.url).searchParams;
   const now = new Date();
-  const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));
-  const to = p.get("to") || now.toISOString().slice(0, 10);
 
-  const cf = await getCashFlow(orgId, new Date(from), new Date(`${to}T23:59:59`));
+  const { from, to, cf } = await withOrgScope(orgId, false, async () => {
+    const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));
+    const to = p.get("to") || now.toISOString().slice(0, 10);
+    return { from, to, cf: await getCashFlow(orgId, new Date(from), new Date(`${to}T23:59:59`)) };
+  });
 
   const rows: (string | number)[][] = [];
   rows.push(["تشغيلي", "", "صافي الربح / (الخسارة)", cf.netIncome]);

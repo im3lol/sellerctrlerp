@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { SalesOrderRowMenu } from "@/components/erp/sales-order-row-menu";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -95,6 +96,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
             <TableHead className="text-start">العميل</TableHead>
             <TableHead className="text-start">الإجمالي</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -138,6 +140,9 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                       )}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <SalesOrderRowMenu orderId={r.id} number={r.number} status={r.status} canManage={canCreate} />
+                  </TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
@@ -150,6 +155,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </Fragment>

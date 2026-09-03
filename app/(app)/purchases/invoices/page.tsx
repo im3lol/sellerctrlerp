@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers, purchaseReturns } from "@/db/schema";
@@ -35,7 +35,9 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
 
     const conds = [eq(purchaseInvoices.organizationId, orgId)];
     if (q) conds.push(ilike(purchaseInvoices.number, `%${q}%`));
+    // Cancelled invoices stay for the audit trail but out of the day-to-day list.
     if (fStatus) conds.push(eq(purchaseInvoices.status, fStatus));
+    else conds.push(ne(purchaseInvoices.status, "CANCELLED"));
     if (fSupplier) conds.push(eq(purchaseInvoices.supplierId, fSupplier));
     if (from) conds.push(gte(purchaseInvoices.date, new Date(from)));
     if (to) conds.push(lte(purchaseInvoices.date, new Date(to + "T23:59:59")));

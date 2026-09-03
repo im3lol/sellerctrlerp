@@ -8,11 +8,13 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches, warehouses,
+  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches,
+  journalEntries, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { deliveryDependents, dependentsList } from "@/lib/erp/doc-dependents";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { marketplaceCodesFor } from "@/lib/erp/marketplace-code";
 import { recordAudit } from "@/lib/erp/audit";
@@ -256,6 +258,81 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
   });
 }
 
+/**
+ * Cancel a DELIVERED delivery note — the "wrong entry" undo, as opposed to مرتجع بيع
+ * (goods actually coming back from the customer). Reverses the COGS entry, puts the
+ * stock back into the exact lots it left, rolls back the order's deliveredQty, and marks
+ * it CANCELLED. Refuses — naming the documents — once it's been invoiced or returned.
+ */
+export async function cancelDeliveryAction(deliveryId: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.confirm");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [dn] = await db.select().from(deliveryNotes)
+      .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+    if (!dn) return { error: "التسليم غير موجود" };
+    if (dn.status === "DRAFT") return { error: "المسودة تُحذف مباشرة — لا تحتاج إلغاء" };
+    if (dn.status !== "DELIVERED") return { error: "يمكن إلغاء إذن صرف مؤكّد فقط" };
+
+    const deps = await deliveryDependents(auth.orgId, dn.id);
+    if (deps.length) {
+      return { error: `لا يمكن إلغاء إذن الصرف — مرتبط بمستندات أخرى: ${dependentsList(deps)}. ألغِ/عالِج هذه المستندات أولاً، أو استخدم «مرتجع بيع» إذا كانت البضاعة رجعت من العميل.` };
+    }
+
+    const d = new Date();
+    try {
+      await db.transaction(async (tx) => {
+        const [locked] = await tx.select({ status: deliveryNotes.status, invId: deliveryNotes.salesInvoiceId })
+          .from(deliveryNotes).where(eq(deliveryNotes.id, dn.id)).for("update").limit(1);
+        if (locked?.status !== "DELIVERED") throw new Error("تم إلغاء إذن الصرف بالفعل");
+        if (locked.invId) throw new Error("إذن الصرف مفوتر — ألغِ الفاتورة أولاً");
+
+        // Put the goods back into the exact lots they were taken from, at their own cost.
+        const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, warehouseId: stockMovements.warehouseId })
+          .from(stockMovements)
+          .where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
+        for (const m of moves) {
+          const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity })
+            .from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+          await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "IN",
+            quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d,
+            allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })),
+            referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `إلغاء إذن صرف ${dn.number}`,
+          });
+        }
+
+        const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "DELIVERY_COGS"), eq(journalEntries.sourceId, dn.id), eq(journalEntries.status, "POSTED")));
+        for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء إذن صرف ${dn.number}` });
+
+        if (dn.salesOrderId) {
+          const dLines = await tx.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
+            .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+          const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId })
+            .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId));
+          const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+          for (const l of dLines) {
+            const sol = soByItem.get(l.itemId);
+            if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${Number(l.quantity)})` }).where(eq(salesOrderLines.id, sol.id));
+          }
+          await recomputeSalesOrderStatus(tx, dn.salesOrderId);
+        }
+
+        await tx.update(deliveryNotes).set({ status: "CANCELLED" }).where(eq(deliveryNotes.id, dn.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `إلغاء إذن صرف ${dn.number} وعكس أثره على المخزون والحسابات` });
+      });
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/deliveries/${dn.number}`);
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر إلغاء إذن الصرف" };
+    }
+  });
+}
+
 /** Delete a DRAFT delivery (nothing posted yet). Confirmed deliveries are immutable. */
 export async function deleteDeliveryAction(deliveryId: string): Promise<ActionState> {
   const auth = await authorizeErp("sales.create");
@@ -392,6 +469,7 @@ export async function convertDeliveryToInvoiceAction(
       .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
     if (!dn) return { error: "التسليم غير موجود" };
     if (dn.status === "DRAFT") return { error: "أكّد إذن الصرف أولاً قبل تحويله إلى فاتورة" };
+    if (dn.status === "CANCELLED") return { error: "إذن الصرف ملغي — لا يمكن فوترته" };
     if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
     const customerId = dn.customerId;
     if (!customerId) return { error: "التسليم غير مرتبط بعميل" };

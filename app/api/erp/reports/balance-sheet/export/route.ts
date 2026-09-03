@@ -1,4 +1,5 @@
 import { requireErpModule } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const { orgId } = await requireErpModule("reports.view");
   const to = new URL(req.url).searchParams.get("to") || new Date().toISOString().slice(0, 10);
-  const balances = await accountBalances({ orgId, to: new Date(`${to}T23:59:59`) });
+  const balances = await withOrgScope(orgId, false, () => accountBalances({ orgId, to: new Date(`${to}T23:59:59`) }));
 
   const pick = (type: string) => balances.filter((b) => b.type === type).map((b) => ({ ...b, amount: naturalAmount(b) })).filter((b) => b.amount !== 0);
   const assets = pick("ASSET");

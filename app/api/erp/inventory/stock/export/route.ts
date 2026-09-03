@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { requireErpModule } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 
 export const runtime = "nodejs";
@@ -15,11 +16,11 @@ const today = () => {
 export async function GET(req: Request) {
   const { orgId } = await requireErpModule("inventory.view");
   const url = new URL(req.url);
-  const { lines, totals } = await getStockBalances(orgId, {
+  const { lines, totals } = await withOrgScope(orgId, false, () => getStockBalances(orgId, {
     product: url.searchParams.get("product") ?? "",
     warehouse: url.searchParams.get("warehouse") ?? "",
     status: url.searchParams.get("status") ?? "",
-  });
+  }));
 
   const expFmt = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
   const headers = ["الكود", "الصنف", "المستودع", "الكمية", "متوسط التكلفة", "القيمة", "أقرب انتهاء", "الحالة"];

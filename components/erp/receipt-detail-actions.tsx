@@ -3,7 +3,9 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
+import { confirmReceiptAction, deleteReceiptAction, cancelReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
+import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
@@ -13,9 +15,13 @@ import { type BulkRow } from "@/components/erp/barcode-print";
 /** إذن استلام header: the workflow's next step stays a button, everything else folds into
  *  the shared «إجراءات» menu (components/erp/document-actions.tsx). */
 export function ReceiptDetailActions({
-  id, number, status, canManage, printHref, barcodeRows = [],
+  id, number, status, canManage, canReceive, printHref, barcodeRows = [],
 }: {
-  id: string; number: string; status: string; canManage: boolean;
+  id: string; number: string; status: string;
+  /** Purchasing/finance: bill, return, cancel. */
+  canManage: boolean;
+  /** Stores: confirm the receipt, delete its draft — nothing that touches money. */
+  canReceive: boolean;
   printHref: string; barcodeRows?: BulkRow[];
 }) {
   const router = useRouter();
@@ -43,20 +49,35 @@ export function ReceiptDetailActions({
     })();
 
   const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
+  if (status === "DRAFT" && canReceive) {
+    items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts") });
+  }
   if (canManage) {
-    if (status === "DRAFT") {
-      items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
-        onSelect: () => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts") });
-    } else if (status === "RECEIVED" || status === "INVOICED") {
+    if (status === "RECEIVED" || status === "INVOICED") {
       if (status === "RECEIVED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
       items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending,
         onSelect: () => router.push(`/purchases/receipts/${encodeURIComponent(number)}/return`) });
+      // Data-entry undo (only while nothing was billed or consumed) — as opposed to مرتجع,
+      // which is goods physically going back to the supplier.
+      if (status === "RECEIVED") items.push({ label: "إلغاء الاستلام", icon: "Ban", danger: true, disabled: pending,
+        onSelect: () => run(() => cancelReceiptAction(id), "تم إلغاء الاستلام وعكس أثره") });
+    } else if (status === "CANCELLED") {
+      items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => void (async () => {
+          if (!(await confirmPurge("إذن الاستلام"))) return;
+          start(async () => {
+            const r = await deleteCancelledDocumentAction("receipt", id);
+            if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/purchases/receipts"); router.refresh(); }
+            else toast.error(r.error ?? "تعذّر الحذف");
+          });
+        })() });
     }
   }
 
   return (
     <DocumentActions
-      primary={canManage && status === "DRAFT" ? (
+      primary={canReceive && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
           <Icon name="Check" className="size-4" />تأكيد الاستلام
         </Button>

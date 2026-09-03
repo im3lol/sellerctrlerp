@@ -10,6 +10,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { RequisitionRowActions } from "@/components/erp/requisition-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { docNumberParam } from "@/lib/erp/doc-route";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -37,15 +38,17 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>البنود المطلوبة</CardTitle>
-            <Badge variant={mr.status === "APPROVED" ? "default" : "secondary"}>{mr.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge>
+            <Badge variant={mr.status === "DRAFT" ? "secondary" : "default"}>
+              {mr.status === "ORDERED" ? "تم التحويل لأمر شراء" : mr.status === "APPROVED" ? "معتمد" : "مسودة"}
+            </Badge>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-end">الكمية</TableHead></TableRow></TableHeader>
               <TableBody>
-                {lines.map((l, i) => (
+                <PaginatedTableRows rows={lines.map((l, i) => (
                   <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>
-                ))}
+                ))} />
               </TableBody>
             </Table>
             {mr.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {mr.notes}</p>}

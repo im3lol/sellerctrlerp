@@ -12,12 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { ItemThumb } from "@/components/erp/item-thumb";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type OpenOrder = { id: string; number: string; supplierId: string | null; dateLabel: string };
-type Line = Omit<ReceivableLine, "received"> & { warehouseId: string; received: string; rejected: string; batchNo: string; expiryDate: string };
+type Line = Omit<ReceivableLine, "received"> & { warehouseId: string; received: string; rejected: string; batchNo: string; expiryDate: string; shippingPerUnit: number };
 
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const addDays = (iso: string, days: number) => { const d = new Date(iso); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
@@ -58,6 +59,7 @@ export function GoodsReceiptForm({
       setLines(r.lines.map((l) => ({
         ...l, warehouseId: def, received: String(l.remaining), rejected: "0",
         batchNo: "", expiryDate: l.isPerishable && l.shelfLifeDays ? addDays(date, l.shelfLifeDays) : "",
+        shippingPerUnit: l.poShippingPerUnit,
       })));
     });
   };
@@ -68,6 +70,7 @@ export function GoodsReceiptForm({
   const totalReceived = useMemo(() => lines.reduce((s, l) => s + (Number(l.received) || 0), 0), [lines]);
   const totalRejected = useMemo(() => lines.reduce((s, l) => s + (Number(l.rejected) || 0), 0), [lines]);
 
+
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!orderId) return toast.error("استدعِ أمر شراء أولاً");
@@ -76,7 +79,7 @@ export function GoodsReceiptForm({
     if (lines.some((l) => !l.warehouseId && (Number(l.received) || 0) > 0)) return toast.error("اختر مخزن الاستلام لكل بند مستلم");
     if (lines.some((l) => l.isPerishable && (Number(l.received) || 0) > 0 && !l.expiryDate)) return toast.error("أدخل تاريخ الصلاحية للأصناف القابلة للانتهاء");
     const picks = lines
-      .map((l) => ({ itemId: l.itemId, quantity: Number(l.received) || 0, rejectedQty: Number(l.rejected) || 0, warehouseId: l.warehouseId, batchNo: l.batchNo || null, expiryDate: l.expiryDate || null }))
+      .map((l) => ({ itemId: l.itemId, quantity: Number(l.received) || 0, rejectedQty: Number(l.rejected) || 0, warehouseId: l.warehouseId, batchNo: l.batchNo || null, expiryDate: l.expiryDate || null, shippingPerUnit: l.shippingPerUnit }))
       .filter((p) => p.quantity > 0 || p.rejectedQty > 0);
     if (picks.length === 0) return toast.error("حدّد كمية مستلمة أو مرفوضة لبند واحد على الأقل");
     start(async () => {
@@ -154,32 +157,39 @@ export function GoodsReceiptForm({
             <TableBody>
               {lines.length === 0 ? (
                 <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
-              ) : lines.map((l) => (
-                <TableRow key={l.itemId}>
-                  <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
-                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
-                  <TableCell>
-                    <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
-                      {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
-                    </select>
-                  </TableCell>
-                  <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{qtyf(l.stockByWarehouse[l.warehouseId] ?? 0)}</TableCell>
-                  <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                  <TableCell><Input type="number" step="1" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                  <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder="اختياري" /> : <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell>{l.isPerishable ? <Input type="date" value={l.expiryDate} onChange={(e) => setLine(l.itemId, { expiryDate: e.target.value })} /> : <span className="text-muted-foreground">—</span>}</TableCell>
-                </TableRow>
-              ))}
+              ) : (
+                <PaginatedTableRows rows={lines.map((l) => (
+                  <TableRow key={l.itemId}>
+                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
+                    <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
+                    <TableCell>
+                      <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
+                        {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                      </select>
+                    </TableCell>
+                    <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">{qtyf(l.stockByWarehouse[l.warehouseId] ?? 0)}</TableCell>
+                    <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                    <TableCell><Input type="number" step="1" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                    <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder="اختياري" /> : <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>{l.isPerishable ? <Input type="date" value={l.expiryDate} onChange={(e) => setLine(l.itemId, { expiryDate: e.target.value })} /> : <span className="text-muted-foreground">—</span>}</TableCell>
+                  </TableRow>
+                ))} />
+              )}
             </TableBody>
           </Table>
         </div>
 
         {lines.length > 0 && (
-          <div className="flex justify-end gap-6 text-sm">
-            <div>إجمالي المستلم: <span className="font-medium">{qtyf(totalReceived)}</span></div>
-            <div>إجمالي المرفوض: <span className="font-medium">{qtyf(totalRejected)}</span></div>
-          </div>
+          <>
+            <p className="text-xs text-muted-foreground">
+              تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على هذا الإذن.
+            </p>
+            <div className="flex justify-end gap-6 text-sm">
+              <div>إجمالي المستلم: <span className="font-medium">{qtyf(totalReceived)}</span></div>
+              <div>إجمالي المرفوض: <span className="font-medium">{qtyf(totalRejected)}</span></div>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -8,28 +8,35 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, warehouses,
+  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, stockBatches,
+  journalEntries, warehouses,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
+import { goodsReceiptDependents, dependentsList } from "@/lib/erp/doc-dependents";
 const EPS = 1e-6;
 
 async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {
   return nextDocumentNumber(db, orgId, prefix, year);
 }
 
-export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string; batchNo?: string | null; expiryDate?: string | null };
+export type Pick = { itemId: string; quantity: number; rejectedQty?: number; warehouseId?: string; batchNo?: string | null; expiryDate?: string | null; shippingPerUnit?: number };
 
 export type ReceivableLine = {
   itemId: string; code: string; name: string; image: string | null; ordered: number; received: number; remaining: number;
   stockByWarehouse: Record<string, number>;
   isPerishable: boolean; shelfLifeDays: number | null;
+  // For this delivery's OWN landed-cost distribution (value/qty/weight) — see the
+  // memory on per-receipt landed cost. unitPrice/weightKg are read-only inputs to
+  // that math, not what's billed (billing still prices from the PO line).
+  unitPrice: number; weightKg: number;
+  poShippingPerUnit: number; // the PO's own rate — this line's default until overridden
 };
 
 /**
@@ -48,14 +55,17 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
     if (!po) return { error: "الأمر غير موجود" };
 
     const ols = await db
-      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, code: items.code, name: items.nameAr, image: items.image, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
+      .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, shippingPerUnit: purchaseOrderLines.shippingPerUnit, code: items.code, name: items.nameAr, image: items.image, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, weightKg: items.weightKg })
       .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
       .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     const lines = ols
       .map((l) => {
         const ordered = Number(l.quantity), received = Number(l.receivedQty);
-        return { itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null };
+        return {
+          itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null,
+          unitPrice: Number(l.unitPrice), weightKg: l.weightKg != null ? Number(l.weightKg) : 0, poShippingPerUnit: Number(l.shippingPerUnit),
+        };
       })
       .filter((l) => l.remaining > EPS);
 
@@ -92,7 +102,7 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
  * the receipt date (defaults to the order date). Confirm it later to post.
  */
 export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string; number?: string }> {
-  const auth = await authorizeErp("purchases.create");
+  const auth = await authorizeErp("purchases.receive");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -101,7 +111,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
+    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, shippingPerUnit: purchaseOrderLines.shippingPerUnit, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
       .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
     // Per-line pick warehouses flow into stock movements — verify they belong to the org.
@@ -112,7 +122,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       if (okWh.length !== pickWhIds.length) return { error: "مستودع غير صالح في أحد البنود" };
     }
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
-    const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null }[] = [];
+    const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null; shippingPerUnit: number }[] = [];
     for (const l of orderLines) {
       const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
       const p = picks ? pickBy.get(l.itemId) : undefined;
@@ -127,7 +137,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       if (want > EPS && l.isPerishable && !(p?.expiryDate) && !(l.shelfLifeDays && l.shelfLifeDays > 0)) {
         return { error: `الصنف «${l.name || l.code}» قابل للتلف — حدِّد تاريخ صلاحية للاستلام (أو اضبط «مدة الصلاحية» للصنف).` };
       }
-      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null });
+      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null, shippingPerUnit: p?.shippingPerUnit ?? Number(l.shippingPerUnit) });
     }
     if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
 
@@ -142,7 +152,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
         }).returning({ id: purchaseReceipts.id });
         await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
           purchaseReceiptId: grn.id, itemId: t.itemId, warehouseId: t.warehouseId,
-          quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate,
+          quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate, shippingPerUnit: String(t.shippingPerUnit),
         })));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
         return { id: grn.id, number };
@@ -162,7 +172,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
  * RECEIVED. Re-validates accepted ≤ remaining at confirm time. Idempotent.
  */
 export async function confirmReceiptAction(receiptId: string): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("purchases.confirm");
+  const auth = await authorizeErp("purchases.receive");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
@@ -185,7 +195,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     // second time (doubled inventory + a GRNI credit nothing will ever clear).
     if (po.status === "INVOICED") return { error: "أمر الشراء مفوتر مباشرة — المخزون مستلم عبر الفاتورة، احذف مسودة الاستلام" };
 
-    const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate })
+    const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate, shippingPerUnit: purchaseReceiptLines.shippingPerUnit })
       .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
     const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
@@ -224,8 +234,10 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
           const qty = Number(gl.quantity);
           if (qty <= EPS) continue; // rejected-only line: recorded, no stock/GL
           const pol = poByItem.get(gl.itemId)!;
-          // Capitalise the per-unit shipping into the inventory cost (plan §10.5).
-          const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(pol.shippingPerUnit);
+          // Capitalise the per-unit shipping into the inventory cost. Price/discount
+          // still come from the PO line, but shipping is THIS receipt's own real
+          // freight cost — each delivery batch can carry a different rate.
+          const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(gl.shippingPerUnit);
           received += round2(qty * unitNet);
           await postStockMovement(tx, {
             orgId: auth.orgId, itemId: gl.itemId, warehouseId: gl.warehouseId || grn.warehouseId, type: "IN",
@@ -263,7 +275,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
 
 /** Delete a DRAFT goods receipt (nothing posted yet). Confirmed receipts are immutable. */
 export async function deleteReceiptAction(receiptId: string): Promise<ActionState> {
-  const auth = await authorizeErp("purchases.create");
+  const auth = await authorizeErp("purchases.receive");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const [grn] = await db.select().from(purchaseReceipts)
@@ -284,9 +296,97 @@ export async function deleteReceiptAction(receiptId: string): Promise<ActionStat
   });
 }
 
+/**
+ * Cancel a RECEIVED goods receipt — the "I entered this by mistake" path, as opposed
+ * to مرتجع (goods physically going back to the supplier). Reverses its GL entry, takes
+ * the stock back OUT of the exact batches it came into, rolls back the order's
+ * receivedQty, and marks it CANCELLED. The document is KEPT (never hard-deleted) so the
+ * posting/reversal pair stays auditable — mirrors reversePurchaseReturnAction.
+ */
+export async function cancelReceiptAction(receiptId: string): Promise<ActionState> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [grn] = await db.select().from(purchaseReceipts)
+      .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+    if (!grn) return { error: "الاستلام غير موجود" };
+    if (grn.status === "DRAFT") return { error: "المسودة تُحذف مباشرة — لا تحتاج إلغاء" };
+    if (grn.status !== "RECEIVED") return { error: "يمكن إلغاء إذن استلام مؤكّد فقط" };
+
+    // Name what's blocking instead of a vague refusal: the invoice it was billed on, its
+    // returns, a landed-cost voucher that costed it, or whatever consumed the stock.
+    const deps = await goodsReceiptDependents(auth.orgId, grn.id);
+    if (deps.length) {
+      return { error: `لا يمكن إلغاء الاستلام — البضاعة مرتبطة بمستندات أخرى: ${dependentsList(deps)}. ألغِ/عالِج هذه المستندات أولاً، أو استخدم «مرتجع» إذا كانت البضاعة رجعت للمورد.` };
+    }
+
+    const d = new Date();
+    try {
+      await db.transaction(async (tx) => {
+        // Re-read under lock: a concurrent bill/cancel would otherwise double-reverse.
+        const [locked] = await tx.select({ status: purchaseReceipts.status, invId: purchaseReceipts.purchaseInvoiceId })
+          .from(purchaseReceipts).where(eq(purchaseReceipts.id, grn.id)).for("update").limit(1);
+        if (locked?.status !== "RECEIVED") throw new Error("تم إلغاء إذن الاستلام بالفعل");
+        if (locked.invId) throw new Error("الاستلام مفوتر — احذف/ألغِ الفاتورة أولاً ثم ألغِ الاستلام");
+
+        const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, type: stockMovements.type, warehouseId: stockMovements.warehouseId })
+          .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
+
+        // The received goods must still be on hand in the same lots: once they're sold or
+        // moved the cost is already in COGS, and pulling them back out here would post a
+        // negative lot. That case is a real مرتجع, not a data-entry cancel.
+        for (const m of moves) {
+          const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity })
+            .from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+          for (const s of smb) {
+            const [b] = await tx.select({ rem: stockBatches.remainingQuantity }).from(stockBatches).where(eq(stockBatches.id, s.batchId)).limit(1);
+            if (!b || Number(b.rem) + EPS < Math.abs(Number(s.quantity))) {
+              throw new Error("تم صرف/بيع جزء من البضاعة المستلمة — استخدم «مرتجع» بدلاً من الإلغاء");
+            }
+          }
+          await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "OUT",
+            quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d,
+            allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })),
+            referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `إلغاء إذن استلام ${grn.number}`,
+          });
+        }
+
+        const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "GOODS_RECEIPT"), eq(journalEntries.sourceId, grn.id), eq(journalEntries.status, "POSTED")));
+        for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء إذن استلام ${grn.number}` });
+
+        // Give the quantities back to the order so the remaining balance reopens.
+        if (grn.purchaseOrderId) {
+          const gLines = await tx.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
+            .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+          const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId })
+            .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId));
+          const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+          for (const l of gLines) {
+            const pol = poByItem.get(l.itemId);
+            if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${Number(l.quantity)})` }).where(eq(purchaseOrderLines.id, pol.id));
+          }
+          await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
+        }
+
+        await tx.update(purchaseReceipts).set({ status: "CANCELLED" }).where(eq(purchaseReceipts.id, grn.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `إلغاء إذن استلام ${grn.number} وعكس أثره على المخزون والحسابات` });
+      });
+      revalidatePath("/purchases/receipts");
+      revalidatePath("/purchases/orders");
+      revalidatePath(`/purchases/receipts/${grn.number}`);
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر إلغاء الاستلام" };
+    }
+  });
+}
+
 /** Bulk confirm / bill / delete goods receipts. Skips rows ineligible for the op. */
 export async function bulkReceiptsAction(op: "confirm" | "bill" | "delete", ids: string[]): Promise<ActionState & { count?: number }> {
-  const auth = await authorizeErp(op === "delete" ? "purchases.create" : "purchases.confirm");
+  const auth = await authorizeErp(op === "bill" ? "purchases.create" : "purchases.receive");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     if (!ids.length) return { error: "لم تُحدّد أي إذون" };
@@ -319,7 +419,7 @@ async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$
   if (!po) return { error: "أمر الشراء غير موجود" };
   const poLines = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
   const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, code: items.code, name: items.nameAr })
+  const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, shippingPerUnit: purchaseReceiptLines.shippingPerUnit, code: items.code, name: items.nameAr })
     .from(purchaseReceiptLines).leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
     .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
 
@@ -333,7 +433,7 @@ async function buildReceiptInvoice(orgId: string, grn: typeof purchaseReceipts.$
     const oq = Number(po2.quantity) || gq;
     const f = oq > 0 ? gq / oq : 0;
     const price = Number(po2.unitPrice);
-    const shipPerUnit = Number(po2.shippingPerUnit); // recalled from the order, per unit
+    const shipPerUnit = Number(gl.shippingPerUnit); // this receipt's own rate, not the PO's estimate
     const lineShip = round2(shipPerUnit * gq);
     const lineDisc = round2(Number(po2.discountAmount) * f);
     const lineTax = round2(Number(po2.taxAmount) * f);
@@ -380,6 +480,7 @@ export async function convertReceiptToInvoiceAction(
       .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
     if (!grn) return { error: "الاستلام غير موجود" };
     if (grn.status === "DRAFT") return { error: "أكّد إذن الاستلام أولاً قبل تحويله إلى فاتورة" };
+    if (grn.status === "CANCELLED") return { error: "إذن الاستلام ملغي — لا يمكن فوترته" };
     if (grn.purchaseInvoiceId) return { error: "الاستلام مفوتر بالفعل" };
     const supplierId = grn.supplierId;
     if (!supplierId) return { error: "الاستلام غير مرتبط بمورد" };

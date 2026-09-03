@@ -66,7 +66,9 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
       .where(eq(journalEntryLines.journalEntryId, entry.id));
 
     let reversalNumber: string | null = null;
-    if (entry.status === "REVERSED" && entry.reversedById) {
+    // A reversed entry keeps its POSTED status (see reverseEntry) — `reversedById` is
+    // what marks it, so key off that, not the status.
+    if (entry.reversedById) {
       const [rev] = await db.select({ number: journalEntries.number }).from(journalEntries).where(and(eq(journalEntries.id, entry.reversedById), eq(journalEntries.organizationId, orgId))).limit(1);
       reversalNumber = rev?.number ?? null;
     }
@@ -108,7 +110,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
           <Field label="البيان">{entry.description || "—"}</Field>
         </div>
 
-        {entry.status === "REVERSED" && reversalNumber && (
+        {reversalNumber && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
             هذا القيد معكوس.{" "}
             <Link href={`/accounting/journal/${encodeURIComponent(reversalNumber)}`} className="font-medium text-primary underline">

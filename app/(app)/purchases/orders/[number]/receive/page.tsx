@@ -11,7 +11,7 @@ const r3 = (n: number) => Math.max(0, Math.round(n * 1000) / 1000);
 
 export default async function ReceivePage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("purchases.confirm", async ({ orgId }) => {
+  return loadErpPage("purchases.receive", async ({ orgId }) => {
     const [po] = UUID_RE.test(raw)
       ? await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.id, raw), eq(purchaseOrders.organizationId, orgId))).limit(1)
       : await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.number, raw), eq(purchaseOrders.organizationId, orgId))).limit(1);

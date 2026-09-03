@@ -7,12 +7,14 @@ import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesOrders, salesOrderLines, customers, items, deliveryNotes, salesInvoices } from "@/db/schema";
+import { salesOrders, salesOrderLines, customers, items, salesInvoices } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { cancelledDocReferences } from "@/lib/erp/doc-delete";
+import { dependentsList } from "@/lib/erp/doc-dependents";
 
 export type SaveOrderState = ActionState & { id?: string; number?: string; warning?: string };
 
@@ -203,9 +205,9 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
     if (!so) return { error: "الأمر غير موجود" };
     if (so.status !== "DRAFT" && so.status !== "CANCELLED") return { error: "يمكن حذف مسودة أو أمر ملغى فقط — أكّد الإلغاء أولاً" };
     if (so.status === "CANCELLED") {
-      const [dn] = await db.select({ id: deliveryNotes.id }).from(deliveryNotes)
-        .where(and(eq(deliveryNotes.salesOrderId, id), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
-      if (dn) return { error: "لا يمكن حذف أمر مرتبط بإذون صرف" };
+      // Name what is holding it, rather than a vague "it's linked to something".
+      const refs = await cancelledDocReferences(auth.orgId, "salesOrder", id);
+      if (refs.length) return { error: `لا يمكن حذف أمر البيع — لا يزال مرتبطاً بـ: ${dependentsList(refs)}. عالِج هذه المستندات أولاً.` };
     }
     const gone = await db.delete(salesOrders)
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, so.status)))

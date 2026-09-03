@@ -29,6 +29,7 @@ const schema = z.object({
   image: z.string().optional(),
   brand: z.string().optional(),
   weight: z.string().optional(),
+  weightKg: z.coerce.number().min(0).optional(),
   dimensions: z.string().optional(),
   parentItemId: z.string().optional(), // variation family: link this item under a parent
   variationValue: z.string().optional(), // the child's variation label (e.g. "أحمر - L")
@@ -82,6 +83,7 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
       image: d.image?.trim() || null,
       brand: d.brand?.trim() || null,
       weight: d.weight?.trim() || null,
+      weightKg: d.weightKg != null ? String(d.weightKg) : null,
       dimensions: d.dimensions?.trim() || null,
       parentItemId,
       variationValue,

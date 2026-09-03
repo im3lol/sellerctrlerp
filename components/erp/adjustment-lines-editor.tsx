@@ -7,6 +7,7 @@ import { Loader2, Save } from "lucide-react";
 import { updateStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 
 // Editable جرد table for a DRAFT adjustment: the operator sees the live system
 // balance per warehouse, enters the physically-counted quantity (and optionally
@@ -34,8 +35,11 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
   const [edits, setEdits] = useState<Record<string, { actual: string; unitCost: string }>>(
     () => Object.fromEntries(lines.map((l) => [l.lineId, { actual: String(l.actual), unitCost: l.unitCost != null ? String(l.unitCost) : l.defaultCost > 0 ? String(l.defaultCost) : "" }])),
   );
+  // Display order only — save is keyed by lineId, so reordering here never touches
+  // what gets sent to the server, just the order the operator sees while counting.
+  const [orderedLines, setOrderedLines] = useState(() => lines.map((l) => ({ ...l, id: l.lineId })));
 
-  const rows = useMemo(() => lines.map((l) => {
+  const rows = useMemo(() => orderedLines.map((l) => {
     const e = edits[l.lineId];
     const actual = Number(e?.actual);
     const valid = Number.isFinite(actual) && actual >= 0;
@@ -63,6 +67,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8" />
             <TableHead className="text-start">الصنف</TableHead>
             <TableHead className="text-start">المخزن</TableHead>
             <TableHead className="text-start" title="الرصيد الحالي بالنظام في هذا المخزن">الكمية بالنظام</TableHead>
@@ -70,37 +75,42 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
             <TableHead className="text-start">الفرق</TableHead>
             <TableHead className="text-start" title="تُملأ تلقائيًا: متوسط تكلفة المخزن، وإن كان صفرًا فمتوسط كل المخازن، ثم آخر تكلفة شراء">التكلفة</TableHead>
             <TableHead className="text-start">القيمة التقديرية</TableHead>
+            <TableHead className="w-8" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.lineId}>
-              <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
-              <TableCell>{r.warehouse ?? "—"}</TableCell>
-              <TableCell className="tabular-nums text-muted-foreground">{qf(r.onHand)}</TableCell>
-              <TableCell>
-                <input
-                  type="number" min="0" step="any" dir="ltr"
-                  className={`${inputCls} ${!r.valid ? "border-destructive" : ""}`}
-                  value={edits[r.lineId]?.actual ?? ""}
-                  onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], actual: e.target.value } }))}
-                />
-              </TableCell>
-              <TableCell className={`tabular-nums font-medium ${r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
-                {r.valid ? `${r.delta > 0 ? "+" : ""}${qf(r.delta)}` : "—"}
-              </TableCell>
-              <TableCell>
-                <input
-                  type="number" min="0" step="any" dir="ltr"
-                  className={inputCls}
-                  placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : "أدخل التكلفة"}
-                  value={edits[r.lineId]?.unitCost ?? ""}
-                  onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], unitCost: e.target.value } }))}
-                />
-              </TableCell>
-              <TableCell className="tabular-nums">{fmt(r.value)}</TableCell>
-            </TableRow>
-          ))}
+          <SortableLineRows
+            items={rows}
+            onReorder={(next) => setOrderedLines(next.map(({ valid: _valid, delta: _delta, value: _value, ...l }) => l))}
+            renderCells={(r) => (
+              <>
+                <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
+                <TableCell>{r.warehouse ?? "—"}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{qf(r.onHand)}</TableCell>
+                <TableCell>
+                  <input
+                    type="number" min="0" step="any" dir="ltr"
+                    className={`${inputCls} ${!r.valid ? "border-destructive" : ""}`}
+                    value={edits[r.lineId]?.actual ?? ""}
+                    onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], actual: e.target.value } }))}
+                  />
+                </TableCell>
+                <TableCell className={`tabular-nums font-medium ${r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                  {r.valid ? `${r.delta > 0 ? "+" : ""}${qf(r.delta)}` : "—"}
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="number" min="0" step="any" dir="ltr"
+                    className={inputCls}
+                    placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : "أدخل التكلفة"}
+                    value={edits[r.lineId]?.unitCost ?? ""}
+                    onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], unitCost: e.target.value } }))}
+                  />
+                </TableCell>
+                <TableCell className="tabular-nums">{fmt(r.value)}</TableCell>
+              </>
+            )}
+          />
         </TableBody>
         <TableFooter>
           <TableRow className="font-bold">

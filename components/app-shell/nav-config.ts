@@ -94,7 +94,9 @@ export const NAV: NavSection[] = [
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "تكاليف الاستيراد", href: "/purchases/landed-costs", icon: "Ship", capability: "erp.purchases.create", group: "دورة الشراء" },
 
+      { label: "مطابقة بضاعة لم تُفوتر", href: "/purchases/grni", icon: "Scale", capability: "erp.purchases.view", group: "التقارير" },
       { label: "تقرير الدفتر", href: "/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view", group: "التقارير" },
       { label: "ترتيب الموردين", href: "/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view", group: "التقارير" },
     ],

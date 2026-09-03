@@ -5,7 +5,7 @@ import { documentLinks } from "@/db/schema";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
 
-export type DocRelation = "FULFILLS" | "INVOICES" | "RETURNS" | "SETTLES";
+export type DocRelation = "FULFILLS" | "INVOICES" | "RETURNS" | "SETTLES" | "COSTS";
 
 /** Record a directed link between two documents (idempotent-ish; callers link once per event). */
 export async function linkDocuments(

@@ -1,12 +1,13 @@
 import "server-only";
 import { and, asc, count, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, warehouses, stockMovements, deliveryNotes, purchaseReceipts, purchaseInvoices, salesInvoices, purchaseReturns, salesReturns, stockAdjustments, stockTransfers } from "@/db/schema";
+import { items, warehouses, stockMovements, deliveryNotes, purchaseReceipts, purchaseInvoices, salesInvoices, purchaseReturns, salesReturns, stockAdjustments, stockTransfers, landedCostVouchers } from "@/db/schema";
 
 export const MOVE_TYPE: Record<string, { label: string; tone: "in" | "out" | "adj" }> = {
   IN: { label: "وارد", tone: "in" },
   OUT: { label: "منصرف", tone: "out" },
   ADJ: { label: "تسوية", tone: "adj" },
+  REVALUE: { label: "إعادة تقييم", tone: "adj" }, // value-only: quantity never moves
 };
 
 export const MOVE_REF: Record<string, string> = {
@@ -26,6 +27,10 @@ export const MOVE_REF: Record<string, string> = {
   SALES_RETURN_CANCEL: "إلغاء مرتجع بيع",
   ADJUSTMENT: "تسوية مخزون",
   TRANSFER: "تحويل مخزني",
+  LANDED_COST: "تكاليف استيراد",
+  LANDED_COST_CANCEL: "إلغاء تكاليف استيراد",
+  PURCHASE_INVOICE_VARIANCE: "فرق سعر فاتورة شراء",
+  PURCHASE_INVOICE_VARIANCE_CANCEL: "إلغاء فرق سعر فاتورة",
 };
 
 export type StockLedgerRow = {
@@ -168,7 +173,8 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
   const DOC_SOURCES = [
     { types: ["DELIVERY", "DELIVERY_REVERSE"], table: deliveryNotes, href: (r: { id: string; number: string }) => `/sales/deliveries/${encodeURIComponent(r.number)}` },
     { types: ["GOODS_RECEIPT", "GOODS_RECEIPT_REVERSE"], table: purchaseReceipts, href: (r: { id: string; number: string }) => `/purchases/receipts/${encodeURIComponent(r.number)}` },
-    { types: ["PURCHASE_INVOICE"], table: purchaseInvoices, href: (r: { id: string; number: string }) => `/purchases/invoices/${encodeURIComponent(r.number)}` },
+    { types: ["PURCHASE_INVOICE", "PURCHASE_INVOICE_VARIANCE", "PURCHASE_INVOICE_VARIANCE_CANCEL"], table: purchaseInvoices, href: (r: { id: string; number: string }) => `/purchases/invoices/${encodeURIComponent(r.number)}` },
+    { types: ["LANDED_COST", "LANDED_COST_CANCEL"], table: landedCostVouchers, href: (r: { id: string; number: string }) => `/purchases/landed-costs/${encodeURIComponent(r.number)}` },
     { types: ["SALES_INVOICE"], table: salesInvoices, href: (r: { id: string; number: string }) => `/sales/invoices/${encodeURIComponent(r.number)}` },
     { types: ["PURCHASE_RETURN", "PURCHASE_RETURN_CANCEL"], table: purchaseReturns, href: (r: { id: string; number: string }) => `/purchases/returns/${encodeURIComponent(r.number)}` },
     { types: ["SALES_RETURN", "SALES_RETURN_CANCEL"], table: salesReturns, href: (r: { id: string; number: string }) => `/sales/returns/${encodeURIComponent(r.number)}` },

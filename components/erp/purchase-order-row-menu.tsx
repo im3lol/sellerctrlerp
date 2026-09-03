@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
+  confirmPurchaseOrderAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
 } from "@/app/actions/erp/purchase-orders";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { confirm } from "@/components/erp/confirm";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 
 /** Per-row "⋮" quick actions for the purchase orders list — same status-driven
  *  actions as OrderRowActions (the detail-page header version), just compacted
@@ -24,9 +25,9 @@ export function PurchaseOrderRowMenu({
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string, purgeLabel?: string) => {
     void (async () => {
-      if (!(await confirm({ danger: /حذف|إلغاء/.test(ok) }))) return;
+      if (!(await (purgeLabel ? confirmPurge(purgeLabel) : confirm({ danger: /حذف|إلغاء/.test(ok) })))) return;
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
@@ -48,6 +49,7 @@ export function PurchaseOrderRowMenu({
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}`}><Icon name="Eye" className="size-4" />فتح</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}/print`} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />طباعة</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><a href={`/api/erp/purchases/orders/export?numbers=${encoded}`}><Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel</a></DropdownMenuItem>
 
         {canManage && status === "DRAFT" && (
           <>
@@ -71,7 +73,7 @@ export function PurchaseOrderRowMenu({
         {canManage && status === "CANCELLED" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deletePurchaseOrderAction(orderId), "تم حذف الأمر", "/purchases/orders")}>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deletePurchaseOrderAction(orderId), "تم حذف الأمر", "/purchases/orders", "أمر الشراء")}>
               <Icon name="Trash2" className="size-4" />حذف
             </DropdownMenuItem>
           </>
@@ -88,9 +90,6 @@ export function PurchaseOrderRowMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />إنشاء إذن استلام</Link></DropdownMenuItem>
-            <DropdownMenuItem onClick={() => run(() => convertPurchaseOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", "/purchases/invoices")}>
-              <Icon name="FileText" className="size-4" />إنشاء فاتورة شراء
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => run(() => revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
               <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
             </DropdownMenuItem>

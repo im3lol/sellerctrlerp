@@ -12,6 +12,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
+import { receiptLineCosts } from "@/lib/erp/receipt-cost";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
 import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
 
@@ -285,6 +286,21 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
         await tx.update(purchaseInvoices)
           .set({ balanceDue: sql`${purchaseInvoices.balanceDue} - ${total}` })
           .where(eq(purchaseInvoices.id, inv.id));
+
+        // Give the billed quantity back to the order — without this the PO stays flagged
+        // "مفوتر" forever and can never be re-invoiced for the credited goods.
+        if (ret.purchaseOrderId) {
+          const rLines = await tx.select({ itemId: purchaseReturnLines.itemId, quantity: purchaseReturnLines.quantity })
+            .from(purchaseReturnLines).where(eq(purchaseReturnLines.purchaseReturnId, ret.id));
+          const poLines = await tx.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId })
+            .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, ret.purchaseOrderId));
+          const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
+          for (const l of rLines) {
+            const pol = poByItem.get(l.itemId);
+            if (pol) await tx.update(purchaseOrderLines).set({ invoicedQty: sql`GREATEST(0, ${purchaseOrderLines.invoicedQty} - ${Number(l.quantity)})` }).where(eq(purchaseOrderLines.id, pol.id));
+          }
+          await recomputePurchaseOrderStatus(tx, ret.purchaseOrderId);
+        }
         await tx.update(purchaseReturns).set({ status: "POSTED" }).where(eq(purchaseReturns.id, ret.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_RETURN", entityId: ret.id, entityNumber: ret.number, summary: `تأكيد وترحيل مرتجع مشتريات ${ret.number}`, metadata: { total, invoice: inv.number } });
       });
@@ -429,6 +445,17 @@ export async function createReceiptReturnAction(input: unknown): Promise<SaveRet
     for (const l of lines) {
       const remaining = (receivedByItem.get(l.itemId) ?? 0) - (returnedByItem.get(l.itemId) ?? 0);
       if (l.quantity > remaining + 1e-9) return { error: "الكمية المرتجعة أكبر من المتبقّي للصنف" };
+    }
+
+    // Cap the return price at what the goods actually came in at — this figure is
+    // debited straight to GRNI (2103), and an inflated one would leave that account
+    // permanently out of balance. Mirrors the invoice-return guard above.
+    const costByItem = new Map((await receiptLineCosts(db, grn)).map((l) => [l.itemId, l.unitNet]));
+    for (const l of lines) {
+      const cap = costByItem.get(l.itemId);
+      if (cap != null && l.unitPrice > cap + 0.004) {
+        return { error: `سعر الإرجاع أعلى من تكلفة الاستلام للصنف (الحد ${cap.toFixed(2)})` };
+      }
     }
 
     const net = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));

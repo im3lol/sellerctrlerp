@@ -30,6 +30,7 @@ const MODULES: { key: string; label: string }[] = [
 const ACTION_LABEL: Record<string, string> = {
   view: "عرض", create: "إنشاء", edit: "تعديل", delete: "حذف", confirm: "تأكيد",
   post: "ترحيل", reverse: "عكس القيود", collect: "تحصيل", pay: "سداد", manage: "إدارة كاملة",
+  receive: "استلام البضاعة",
 };
 
 export default async function PermissionsPage() {

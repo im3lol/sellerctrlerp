@@ -12,6 +12,7 @@ import { QuotationDetailActions } from "@/components/erp/quotation-detail-action
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { docNumberParam } from "@/lib/erp/doc-route";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,7 +64,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
                 <TableHead className="text-end">ضريبة</TableHead><TableHead className="text-end">الإجمالي</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {lines.map((l, i) => (
+                <PaginatedTableRows rows={lines.map((l, i) => (
                   <TableRow key={i}>
                     <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell>
@@ -72,7 +73,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
                     <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(Number(l.taxAmount))}</TableCell>
                     <TableCell className="text-end tabular-nums font-medium">{fmt(Number(l.quantity) * Number(l.unitPrice) - Number(l.discountAmount) + Number(l.taxAmount))}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
             </Table>
             <div className="mt-4 flex flex-col items-end gap-1 text-sm">

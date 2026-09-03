@@ -30,7 +30,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
           id: item.id, code: item.code, nameAr: item.nameAr ?? "",
           description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",
           isPerishable: item.isPerishable, shelfLifeDays: item.shelfLifeDays,
-          image: item.image ?? "", brand: item.brand, weight: item.weight, dimensions: item.dimensions, codes,
+          image: item.image ?? "", brand: item.brand, weight: item.weight, weightKg: item.weightKg, dimensions: item.dimensions, codes,
           parentItemId: item.parentItemId, parentLabel, variationValue: item.variationValue,
         }} />
       </div>

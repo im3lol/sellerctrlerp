@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { requireErpModule } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
 
 export const runtime = "nodejs";
@@ -18,13 +19,13 @@ export async function GET(req: Request) {
   const { orgId } = await requireErpModule("inventory.view");
   const url = new URL(req.url);
   const itemId = url.searchParams.get("item") ?? "";
-  const { rows, totals } = await getStockLedger(orgId, {
+  const { rows, totals } = await withOrgScope(orgId, false, () => getStockLedger(orgId, {
     itemId,
     warehouse: url.searchParams.get("warehouse") ?? "",
     type: url.searchParams.get("type") ?? "",
     from: url.searchParams.get("from") ?? "",
     to: url.searchParams.get("to") ?? "",
-  });
+  }));
 
   const headers = ["التاريخ", "الصنف", "الحركة", "المستند", "المستودع", "وارد", "منصرف", "التكلفة", "رصيد الكمية", "قيمة الرصيد"];
   const body = rows.map((r) => {

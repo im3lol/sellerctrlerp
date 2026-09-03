@@ -8,7 +8,7 @@ import {
   confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction, revertSalesOrderToDraftAction,
 } from "@/app/actions/erp/sales-orders";
 import {
-  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
+  confirmPurchaseOrderAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
 } from "@/app/actions/erp/purchase-orders";
 import { fulfillOrderAction } from "@/app/actions/erp/fulfillment";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { confirm } from "@/components/erp/confirm";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 
 export function OrderRowActions({
   orderId,
@@ -41,9 +42,9 @@ export function OrderRowActions({
   const invoiceDest = isSales ? "/sales/invoices" : "/purchases/invoices";
   const fulfillPath = isSales ? `/sales/orders/${orderId}/deliver` : `/purchases/orders/${orderId}/receive`;
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string, purgeLabel?: string) => {
     void (async () => {
-      if (!(await confirm({ danger: /حذف|إلغاء/.test(ok) }))) return;
+      if (!(await (purgeLabel ? confirmPurge(purgeLabel) : confirm({ danger: /حذف|إلغاء/.test(ok) })))) return;
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
@@ -56,7 +57,7 @@ export function OrderRowActions({
   if (status === "CANCELLED") {
     return (
       <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders")}>
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? "أمر البيع" : "أمر الشراء")}>
         <Icon name="Trash2" className="size-4 text-destructive" />حذف
       </Button>
     );
@@ -125,14 +126,14 @@ export function OrderRowActions({
           <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
           {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => run(
-            () => isSales ? convertSalesOrderToInvoiceAction(orderId) : convertPurchaseOrderToInvoiceAction(orderId),
-            "تم التحويل إلى فاتورة (مسودة)", invoiceDest,
-          )}>
-          <Icon name="FileText" className="size-4" />
-          {isSales ? "إنشاء فاتورة بيع" : "إنشاء فاتورة شراء"}
-        </DropdownMenuItem>
+        {/* Purchases have ONE cycle (أمر ← إذن استلام ← فاتورة) — the direct-to-invoice
+            shortcut is sales-only, where no goods-receipt step exists. */}
+        {isSales && (
+          <DropdownMenuItem
+            onClick={() => run(() => convertSalesOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", invoiceDest)}>
+            <Icon name="FileText" className="size-4" />إنشاء فاتورة بيع
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onClick={() => run(() => isSales ? revertSalesOrderToDraftAction(orderId) : revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
           <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة

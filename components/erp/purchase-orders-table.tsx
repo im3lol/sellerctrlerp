@@ -60,6 +60,11 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/api/erp/purchases/orders/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
+                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+              </a>
+            </Button>
             {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>}
             {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>}
             {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}

@@ -3,7 +3,9 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
+import { confirmDeliveryAction, deleteDeliveryAction, cancelDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
+import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
@@ -51,6 +53,19 @@ export function DeliveryDetailActions({
       if (status === "DELIVERED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
       items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending,
         onSelect: () => router.push(`/sales/deliveries/${encodeURIComponent(number)}/return`) });
+      // Data-entry undo — refuses (naming them) once the goods are invoiced or returned.
+      if (status === "DELIVERED") items.push({ label: "إلغاء إذن الصرف", icon: "Ban", danger: true, disabled: pending,
+        onSelect: () => run(() => cancelDeliveryAction(id), "تم إلغاء إذن الصرف وعكس أثره") });
+    } else if (status === "CANCELLED") {
+      items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => void (async () => {
+          if (!(await confirmPurge("إذن الصرف"))) return;
+          start(async () => {
+            const r = await deleteCancelledDocumentAction("delivery", id);
+            if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/sales/deliveries"); router.refresh(); }
+            else toast.error(r.error ?? "تعذّر الحذف");
+          });
+        })() });
     }
   }
 

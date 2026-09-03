@@ -11,6 +11,7 @@ import { SalesInvoiceDetailActions } from "@/components/erp/sales-invoice-detail
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { AttachmentsCard } from "@/components/erp/attachments-card";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -94,7 +95,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
+                <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
@@ -103,7 +104,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
                     <TableCell>{fmt(l.tax)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
             </Table>
 

@@ -10,6 +10,7 @@ import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -126,7 +127,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
+                <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
                     <TableCell className="max-w-[320px] whitespace-normal">
@@ -140,7 +141,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                     <TableCell>{dfmt(l.shipping)}</TableCell>
                     <TableCell>{dfmt(l.total)}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">

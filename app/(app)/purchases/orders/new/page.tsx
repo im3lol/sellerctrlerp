@@ -16,7 +16,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr }).from(warehouses)
         .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
-      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image }).from(items)
+      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image, weightKg: items.weightKg }).from(items)
         .where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
@@ -43,15 +43,20 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     for (const r of lastPriceRows) lastPrices[r.item_id] = Number(r.unit_price);
 
     let initialLines: { itemId: string; quantity: number }[] | undefined;
+    let requisitionId: string | undefined;
 
-    // Prefill from an approved purchase requisition's lines.
+    // Prefill from an APPROVED requisition that hasn't been ordered yet — a draft isn't
+    // an authorisation, and an already-converted one would raise a second order.
     if (fromRequisition) {
-      const [mr] = await db.select({ id: materialRequests.id }).from(materialRequests)
+      const [mr] = await db.select({ id: materialRequests.id, status: materialRequests.status }).from(materialRequests)
         .where(and(eq(materialRequests.id, fromRequisition), eq(materialRequests.organizationId, orgId))).limit(1);
-      if (mr) {
+      if (mr?.status === "APPROVED") {
         const mrl = await db.select({ itemId: materialRequestLines.itemId, quantity: materialRequestLines.quantity })
           .from(materialRequestLines).where(eq(materialRequestLines.materialRequestId, mr.id));
-        if (mrl.length) initialLines = mrl.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) }));
+        if (mrl.length) {
+          initialLines = mrl.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity) }));
+          requisitionId = mr.id;
+        }
       }
     }
 
@@ -78,7 +83,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
       </div>
     );
   });

@@ -222,8 +222,11 @@ export const items = pgTable(
     description: text("description"),
     // Catalog enrichment (display strings; filled from a marketplace catalog if empty).
     brand: text("brand"),
-    weight: text("weight"),      // e.g. "0.5 kg"
+    weight: text("weight"),      // e.g. "0.5 kg" — free-text display string (Amazon catalog sync writes this)
     dimensions: text("dimensions"), // e.g. "10 × 5 × 3 cm"
+    // Numeric per-unit weight in kg — separate from the free-text `weight` above,
+    // used only for weight-based landed-cost (shipping) allocation.
+    weightKg: numeric("weight_kg", { precision: 10, scale: 3 }),
     image: text("image"),
     // Auto-created from a marketplace order whose SKU wasn't in the catalog. Has a
     // name+price from the order but no cost — its orders stay DRAFT until reviewed.
@@ -575,6 +578,11 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   warehouseId: text("warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(), // accepted into stock
   rejectedQty: money("rejected_qty").notNull().default("0"), // inspected & rejected (no stock)
+  // This receipt's OWN per-unit landed shipping cost — each delivery/shipment can have
+  // a different real freight cost, so this is independent of purchase_order_lines'
+  // shippingPerUnit (which it defaults from at creation, see createReceiptFromOrderAction).
+  // Capitalised into stock cost at confirm; NOT the PO-wide estimate.
+  shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
   batchNo: text("batch_no"), // lot/batch (perishables)
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
@@ -2027,6 +2035,51 @@ export const withdrawals = pgTable("withdrawals", {
   notes: text("notes"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+/* ═════════════════ LANDED COSTS (تكاليف الاستيراد) ═════════════════ */
+
+/**
+ * A freight/customs/insurance bill that arrives AFTER the goods were received, from a
+ * vendor of its own (the forwarder — not the goods supplier), covering one or more
+ * confirmed goods receipts. Posting it spreads the charges over those receipts' lines
+ * and revalues the stock still on hand; the already-sold share goes to COGS instead.
+ * Amounts are base currency (EGP) — freight is billed locally whatever the PO currency.
+ */
+export const landedCostVouchers = pgTable(
+  "landed_cost_vouchers",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | POSTED | CANCELLED
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id), // the forwarder
+    method: text("method").notNull().default("value"), // value | qty | weight
+    shipping: money("shipping").notNull().default("0"),
+    customs: money("customs").notNull().default("0"),
+    insurance: money("insurance").notNull().default("0"),
+    other: money("other").notNull().default("0"),
+    totalAmount: money("total_amount").notNull().default("0"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("landed_cost_vouchers_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/** One row per receipt line the voucher's charges were spread over (the audit of the split). */
+export const landedCostVoucherLines = pgTable("landed_cost_voucher_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  voucherId: text("voucher_id").notNull().references(() => landedCostVouchers.id, { onDelete: "cascade" }),
+  purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id),
+  itemId: text("item_id").notNull().references(() => items.id),
+  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+  quantity: money("quantity").notNull(), // the received qty this share was computed on
+  basis: money("basis").notNull().default("0"), // qty×(price|weight|1) — what drove the split
+  allocatedAmount: money("allocated_amount").notNull().default("0"),
+  perUnit: money("per_unit").notNull().default("0"),
 });
 
 /* ════════════════════════ RETURNS ═════════════════════════ */

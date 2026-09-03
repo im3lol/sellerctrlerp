@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { deliveryNotes, customers, salesOrders, salesInvoices, salesReturns, salesReturnLines } from "@/db/schema";
@@ -15,7 +15,7 @@ import { computeDeliveryShortages } from "@/lib/erp/delivery-shortages";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
-const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["DELIVERED", "تم التسليم"], ["INVOICED", "مفوتر"]];
+const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["DELIVERED", "تم التسليم"], ["INVOICED", "مفوتر"], ["CANCELLED", "ملغي"]];
 
 type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -34,7 +34,9 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
 
     const conds = [eq(deliveryNotes.organizationId, orgId)];
     if (q) conds.push(ilike(deliveryNotes.number, `%${q}%`));
+    // Cancelled notes are kept for the audit trail but stay out of the day-to-day list.
     if (fStatus) conds.push(eq(deliveryNotes.status, fStatus));
+    else conds.push(ne(deliveryNotes.status, "CANCELLED"));
     if (fCustomer) conds.push(eq(deliveryNotes.customerId, fCustomer));
     if (from) conds.push(gte(deliveryNotes.date, new Date(from)));
     if (to) conds.push(lte(deliveryNotes.date, new Date(to + "T23:59:59")));
@@ -47,7 +49,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     ]);
     const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
     // amber = delivered but not yet invoiced → still owed a bill.
-    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DELIVERED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
+    const statCards = STATUS_OPTIONS.filter(([k]) => k !== "CANCELLED").map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "DELIVERED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
 
     // Stock coverage of the DRAFT deliveries (fail-safe — degrades to no card).
     let shortages: Awaited<ReturnType<typeof computeDeliveryShortages>> = { shortages: [], shortDeliveryIds: [] };

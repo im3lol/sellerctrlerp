@@ -16,17 +16,22 @@ import { NotesEditor } from "@/components/erp/notes-editor";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
+import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
 type Line = { itemId: string; quantity: number; unitPrice: number; discountAmount: number };
+// The line's row-editor id: purely client-side (React key + drag identity for
+// SortableLineRows), regenerated on every load, never sent in the save payload.
+type LineRow = Line & { id: string };
+const newId = () => crypto.randomUUID();
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const newLine = (): Line => ({ itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0 });
+const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, discountAmount: 0 });
 // VAT is a single document-level choice (not per line), same as the purchase order.
 // `applyVat=false` → tax 0. It stays computed PER LINE internally because VAT is linear,
 // so the stored line tax — and anything derived from it downstream — is unchanged.
@@ -50,7 +55,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const [notes, setNotes] = useState(initial?.notes ?? "");
   // Discount on the whole quote, applied after tax — on top of the per-line discounts.
   const [headerDiscount, setHeaderDiscount] = useState(initial?.discountAmount ?? 0);
-  const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [newLine()]);
+  const [lines, setLines] = useState<LineRow[]>(initial?.lines?.length ? initial.lines.map((l) => ({ ...l, id: newId() })) : [newLine()]);
 
   const [newCustomers, setNewCustomers] = useState<Customer[]>([]);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -141,6 +146,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow>
+              <TableHead className="w-8" />
               <TableHead className="w-14 text-start">صورة</TableHead>
               <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
               <TableHead className="w-24 text-start">الكمية</TableHead>
@@ -148,24 +154,29 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               <TableHead className="w-32 text-start">خصم</TableHead>
               <TableHead className="w-28 text-start">الإجمالي</TableHead>
               <TableHead className="w-10" />
+              <TableHead className="w-8" />
             </TableRow></TableHeader>
             <TableBody>
-              {lines.map((l, i) => (
-                <TableRow key={i}>
-                  <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
-                  <TableCell className="min-w-64 max-w-72">
-                    <ItemPicker
-                      selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
-                      onSelect={(it) => pickItem(i, it)}
-                    />
-                  </TableCell>
-                  <TableCell><Input type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                  <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
-                </TableRow>
-              ))}
+              <SortableLineRows
+                items={lines}
+                onReorder={setLines}
+                renderCells={(l, i) => (
+                  <>
+                    <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
+                    <TableCell className="min-w-64 max-w-72">
+                      <ItemPicker
+                        selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
+                        onSelect={(it) => pickItem(i, it)}
+                      />
+                    </TableCell>
+                    <TableCell><Input type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
+                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                  </>
+                )}
+              />
             </TableBody>
           </Table>
         </div>

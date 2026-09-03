@@ -17,7 +17,10 @@ export type ErpPermission =
   // Sales
   | "sales.view" | "sales.create" | "sales.edit" | "sales.confirm" | "sales.collect"
   // Purchases
-  | "purchases.view" | "purchases.create" | "purchases.edit" | "purchases.confirm" | "purchases.pay"
+  // `purchases.receive` is the warehouse's slice of the purchase cycle: book and confirm
+  // a goods receipt, nothing else. Separating it from `create`/`confirm` is what lets
+  // stores receive without also being able to bill, cancel, or load import costs.
+  | "purchases.view" | "purchases.create" | "purchases.edit" | "purchases.confirm" | "purchases.pay" | "purchases.receive"
   // Reports
   | "reports.view"
   // Investors
@@ -34,7 +37,7 @@ export const allErpPermissions: ErpPermission[] = [
   "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.confirm",
   "accounting.view", "accounting.create", "accounting.post", "accounting.reverse",
   "sales.view", "sales.create", "sales.edit", "sales.confirm", "sales.collect",
-  "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay",
+  "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay", "purchases.receive",
   "reports.view",
   "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
   "hr.view", "hr.create", "hr.post",
@@ -68,13 +71,16 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
   purchase: [
     "settings.view",
     "inventory.view",
-    "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay",
+    "purchases.view", "purchases.create", "purchases.edit", "purchases.confirm", "purchases.pay", "purchases.receive",
     "reports.view",
   ],
 
+  // Stores: receives goods against a purchase order, and that is the whole of its reach
+  // into purchasing — no billing, no cancelling, no import costs, no prices on screen.
   inventory: [
     "settings.view",
     "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.confirm",
+    "purchases.view", "purchases.receive",
     "reports.view",
   ],
 

@@ -11,7 +11,7 @@ DECLARE
   t text;
   line_tables text[] := ARRAY[
     'delivery_note_lines','expense_claim_lines','fifo_layers','investor_shares',
-    'item_balances','journal_entry_lines','material_request_lines','opening_balance_lines',
+    'item_balances','journal_entry_lines','landed_cost_voucher_lines','material_request_lines','opening_balance_lines',
     'payment_lines','pick_list_lines','purchase_invoice_lines','purchase_order_lines',
     'purchase_receipt_lines','purchase_return_lines','receipt_lines','recurring_journal_lines',
     'recurring_sales_invoice_lines','sales_invoice_lines','sales_order_lines',

@@ -23,4 +23,42 @@ describe("erpRoleHasPermission", () => {
   it("unknown roles have no permissions", () => {
     expect(erpRoleHasPermission("nope", "sales.view")).toBe(false);
   });
+
+  /**
+   * Separation of duties on the purchase cycle: stores book and confirm the goods
+   * receipt; purchasing bills it and loads the import costs. `purchases.receive` is
+   * what keeps those two apart — before it existed, stores could not receive at all
+   * and purchasing did everything.
+   */
+  describe("goods receipt vs. the money side", () => {
+    it("stores can receive, and can do nothing else in purchasing", () => {
+      expect(erpRoleHasPermission("inventory", "purchases.receive")).toBe(true);
+      expect(erpRoleHasPermission("inventory", "purchases.view")).toBe(true);
+      // No billing, no cancelling a posted receipt, no import costs, no paying.
+      expect(erpRoleHasPermission("inventory", "purchases.create")).toBe(false);
+      expect(erpRoleHasPermission("inventory", "purchases.confirm")).toBe(false);
+      expect(erpRoleHasPermission("inventory", "purchases.pay")).toBe(false);
+      expect(erpRoleHasPermission("inventory", "accounting.view")).toBe(false);
+    });
+
+    it("purchasing can both receive and carry the money side", () => {
+      expect(erpRoleHasPermission("purchase", "purchases.receive")).toBe(true);
+      expect(erpRoleHasPermission("purchase", "purchases.create")).toBe(true);
+      expect(erpRoleHasPermission("purchase", "purchases.confirm")).toBe(true);
+    });
+
+    it("accounting sees purchases but never receives stock", () => {
+      expect(erpRoleHasPermission("accountant", "purchases.view")).toBe(true);
+      expect(erpRoleHasPermission("accountant", "purchases.receive")).toBe(false);
+    });
+
+    it("stores cannot see costs on a receipt (purchases.create OR accounting.view)", () => {
+      const canSeeCost = (role: string) =>
+        erpRoleHasPermission(role, "purchases.create") || erpRoleHasPermission(role, "accounting.view");
+      expect(canSeeCost("inventory")).toBe(false);
+      expect(canSeeCost("purchase")).toBe(true);
+      expect(canSeeCost("accountant")).toBe(true);
+      expect(canSeeCost("admin")).toBe(true);
+    });
+  });
 });

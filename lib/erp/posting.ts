@@ -259,6 +259,9 @@ export async function reverseEntry(
     .limit(1);
   if (!entry) throw new Error("القيد غير موجود");
   if (entry.status !== "POSTED") throw new Error("لا يمكن عكس قيد غير مُرحّل");
+  // The reversal is a CONTRA entry, so the original must not be reversed twice —
+  // `reversedById` is the guard now that the original keeps its POSTED status.
+  if (entry.reversedById) throw new Error("القيد معكوس بالفعل");
 
   const srcLines = await tx
     .select()
@@ -300,9 +303,14 @@ export async function reverseEntry(
     })),
   );
 
+  // The original STAYS "POSTED" on purpose. A reversed entry is still a real entry in
+  // the books — the contra entry above is what neutralises it. Flipping the original out
+  // of POSTED would drop it from every balance query (they all filter on POSTED), so the
+  // reversal would land twice: once by removing the original, once by adding the mirror.
+  // `reversedById` is the marker that it has been reversed.
   await tx
     .update(journalEntries)
-    .set({ status: "REVERSED", reversedById: rev.id, reversalReason: input.reason ?? null })
+    .set({ reversedById: rev.id, reversalReason: input.reason ?? null })
     .where(eq(journalEntries.id, entry.id));
 
   return rev.id;

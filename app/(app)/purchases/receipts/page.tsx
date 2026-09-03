@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReceipts, suppliers, purchaseOrders, purchaseInvoices, purchaseReturns, purchaseReturnLines } from "@/db/schema";
@@ -13,7 +13,7 @@ import { GoodsReceiptsTable } from "@/components/erp/goods-receipts-table";
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
-const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"]];
+const STATUS_OPTIONS: [string, string][] = [["DRAFT", "مسودة"], ["RECEIVED", "تم الاستلام"], ["INVOICED", "مفوتر"], ["CANCELLED", "ملغي"]];
 
 type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -22,6 +22,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     const canManage = can("purchases.create");
     const canConfirm = can("purchases.confirm");
+    const canReceive = can("purchases.receive");
     const sp = await searchParams;
     const q = one(sp.q).trim();
     const fStatus = one(sp.status);
@@ -32,7 +33,10 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
 
     const conds = [eq(purchaseReceipts.organizationId, orgId)];
     if (q) conds.push(ilike(purchaseReceipts.number, `%${q}%`));
+    // Cancelled receipts are kept for the audit trail but stay out of the day-to-day
+    // list — pick «ملغي» in the filter to see them.
     if (fStatus) conds.push(eq(purchaseReceipts.status, fStatus));
+    else conds.push(ne(purchaseReceipts.status, "CANCELLED"));
     if (fSupplier) conds.push(eq(purchaseReceipts.supplierId, fSupplier));
     if (from) conds.push(gte(purchaseReceipts.date, new Date(from)));
     if (to) conds.push(lte(purchaseReceipts.date, new Date(to + "T23:59:59")));
@@ -45,7 +49,9 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     ]);
     const byStatus = new Map(statusRows.map((r) => [r.status, Number(r.c)]));
     // amber = received but not yet invoiced → an unbilled goods-received liability.
-    const statCards = STATUS_OPTIONS.map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "RECEIVED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
+    // CANCELLED is filter-only (hidden by default), so it gets no stat card.
+    const statCards = STATUS_OPTIONS.filter(([k]) => k !== "CANCELLED")
+      .map(([k, label]) => ({ label, count: byStatus.get(k) ?? 0, tone: k === "RECEIVED" ? "text-amber-600" : k === "INVOICED" ? "text-emerald-600" : "" }));
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
@@ -109,7 +115,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
           icon="PackageCheck"
           title="إذون الاستلام"
           subtitle={`${total} إذن`}
-          action={canManage ? (
+          action={canReceive ? (
             <Button asChild><Link href="/purchases/receipts/new"><Icon name="Plus" className="size-4" />إذن استلام</Link></Button>
           ) : undefined}
         />

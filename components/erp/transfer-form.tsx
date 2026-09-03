@@ -12,10 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 
 type Option = { id: string; code: string; name: string };
 type Stock = { itemId: string; warehouseId: string; quantity: number };
-type Line = { key: number; itemId: string; itemLabel: string; fromWh: string; toWh: string; quantity: string };
+type Line = { id: string; itemId: string; itemLabel: string; fromWh: string; toWh: string; quantity: string };
+const newId = () => crypto.randomUUID();
 
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
@@ -45,10 +48,9 @@ export function TransferForm({
   const defTo = warehouses[1]?.id ?? warehouses[0]?.id ?? "";
   const [lines, setLines] = useState<Line[]>(
     initial?.lines?.length
-      ? initial.lines.map((l, i) => ({ key: i + 1, ...l }))
-      : [{ key: 1, itemId: "", itemLabel: "", fromWh: defFrom, toWh: defTo, quantity: "" }],
+      ? initial.lines.map((l) => ({ id: newId(), ...l }))
+      : [{ id: newId(), itemId: "", itemLabel: "", fromWh: defFrom, toWh: defTo, quantity: "" }],
   );
-  const nextKey = (ls: Line[]) => ls.reduce((m, l) => Math.max(m, l.key), 0) + 1;
 
   const stockMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -61,9 +63,9 @@ export function TransferForm({
   const whLabel = (id: string) => warehouses.find((w) => w.id === id)?.name ?? "";
 
   const addLine = (itemId = "", itemLabel = "") =>
-    setLines((ls) => [...ls, { key: nextKey(ls), itemId, itemLabel, fromWh: defFrom, toWh: defTo, quantity: "" }]);
-  const updateLine = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
-  const removeLine = (key: number) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l.key !== key) : ls));
+    setLines((ls) => [...ls, { id: newId(), itemId, itemLabel, fromWh: defFrom, toWh: defTo, quantity: "" }]);
+  const updateLine = (id: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const removeLine = (id: string) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l.id !== id) : ls));
 
   const onScan = async (raw: string) => {
     const term = raw.trim();
@@ -76,8 +78,8 @@ export function TransferForm({
       const label = `${it.code} — ${it.name}`;
       setLines((ls) => {
         const empty = ls.find((l) => !l.itemId);
-        if (empty) return ls.map((l) => (l.key === empty.key ? { ...l, itemId: it.id, itemLabel: label } : l));
-        return [...ls, { key: nextKey(ls), itemId: it.id, itemLabel: label, fromWh: defFrom, toWh: defTo, quantity: "" }];
+        if (empty) return ls.map((l) => (l.id === empty.id ? { ...l, itemId: it.id, itemLabel: label } : l));
+        return [...ls, { id: newId(), itemId: it.id, itemLabel: label, fromWh: defFrom, toWh: defTo, quantity: "" }];
       });
       setBarcode("");
     } finally {
@@ -142,45 +144,51 @@ export function TransferForm({
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm" dir="rtl">
-              <thead className="bg-muted/50 text-muted-foreground text-xs">
-                <tr>
-                  <th className="px-3 py-2 text-right font-medium min-w-56">اسم الصنف</th>
-                  <th className="px-3 py-2 text-right font-medium">من مستودع</th>
-                  <th className="px-3 py-2 text-right font-medium">إلى مستودع</th>
-                  <th className="px-3 py-2 text-right font-medium">المتاح</th>
-                  <th className="px-3 py-2 text-right font-medium">الكمية</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {lines.map((l) => {
-                  const avail = available(l);
-                  const over = l.itemId && Number(l.quantity) > avail + 1e-9;
-                  return (
-                    <tr key={l.key} className="align-top">
-                      <td className="px-2 py-2">
-                        <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
-                          onSelect={(it) => updateLine(l.key, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
-                      </td>
-                      <td className="px-2 py-2">
-                        <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder="من…"
-                          onSelect={(id) => updateLine(l.key, { fromWh: id })} />
-                      </td>
-                      <td className="px-2 py-2">
-                        <CellCombobox selectedLabel={whLabel(l.toWh)} options={whOptions} placeholder="إلى…"
-                          onSelect={(id) => updateLine(l.key, { toWh: id })} />
-                      </td>
-                      <td className="px-2 py-2"><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? q(avail) : "—"}</div></td>
-                      <td className="px-2 py-2"><Input type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></td>
-                      <td className="px-2 py-2 text-center">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.key)} aria-label="حذف"><Icon name="Trash2" className="size-4 text-destructive" /></Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead className="min-w-56 text-start">اسم الصنف</TableHead>
+                  <TableHead className="text-start">من مستودع</TableHead>
+                  <TableHead className="text-start">إلى مستودع</TableHead>
+                  <TableHead className="text-start">المتاح</TableHead>
+                  <TableHead className="text-start">الكمية</TableHead>
+                  <TableHead className="w-10" />
+                  <TableHead className="w-8" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <SortableLineRows
+                  items={lines}
+                  onReorder={setLines}
+                  renderCells={(l) => {
+                    const avail = available(l);
+                    const over = l.itemId && Number(l.quantity) > avail + 1e-9;
+                    return (
+                      <>
+                        <TableCell>
+                          <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                            onSelect={(it) => updateLine(l.id, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
+                        </TableCell>
+                        <TableCell>
+                          <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder="من…"
+                            onSelect={(id) => updateLine(l.id, { fromWh: id })} />
+                        </TableCell>
+                        <TableCell>
+                          <CellCombobox selectedLabel={whLabel(l.toWh)} options={whOptions} placeholder="إلى…"
+                            onSelect={(id) => updateLine(l.id, { toWh: id })} />
+                        </TableCell>
+                        <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? q(avail) : "—"}</div></TableCell>
+                        <TableCell><Input type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.id, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                        <TableCell>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label="حذف"><Icon name="Trash2" className="size-4 text-destructive" /></Button>
+                        </TableCell>
+                      </>
+                    );
+                  }}
+                />
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex justify-end">

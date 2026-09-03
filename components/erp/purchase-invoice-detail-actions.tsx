@@ -4,7 +4,9 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
+import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction, cancelPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
+import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 import { Button } from "@/components/ui/button";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { Icon } from "@/components/icon";
@@ -30,10 +32,26 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
   const items: DocAction[] = [{ label: "طباعة", icon: "Printer", href: printHref, newTab: true }];
 
   if (status === "DRAFT") {
-    if (canManage) items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
-      onSelect: () => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/purchases/invoices") });
+    if (canManage) {
+      items.push({ label: "تعديل المسودة", icon: "Edit", href: `/purchases/invoices/${encodeURIComponent(number)}/edit` });
+      items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,
+        onSelect: () => run(() => deletePurchaseInvoiceAction(id), "تم حذف المسودة", "/purchases/invoices") });
+    }
   } else if (status !== "CANCELLED" && canManage) {
     items.push({ label: "مرتجع", icon: "Undo2", href: `/purchases/invoices/${encodeURIComponent(number)}/return` });
+    // Data-entry undo — refuses (naming them) once a credit note or payment exists.
+    if (canPost) items.push({ label: "إلغاء الفاتورة", icon: "Ban", danger: true, disabled: pending,
+      onSelect: () => run(() => cancelPurchaseInvoiceAction(id), "تم إلغاء الفاتورة وعكس أثرها") });
+  } else if (status === "CANCELLED" && canPost) {
+    items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => void (async () => {
+          if (!(await confirmPurge("فاتورة الشراء"))) return;
+          start(async () => {
+            const r = await deleteCancelledDocumentAction("invoice", id);
+            if (r.ok) { toast.success("تم حذف الفاتورة نهائياً"); router.push("/purchases/invoices"); router.refresh(); }
+            else toast.error(r.error ?? "تعذّر الحذف");
+          });
+        })() });
   }
 
   return (
