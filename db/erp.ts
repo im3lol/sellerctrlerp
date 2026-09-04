@@ -283,6 +283,78 @@ export const stockSerials = pgTable(
   ],
 );
 
+/**
+ * Money handed to an employee to spend on the company's behalf — a petty-cash float, a
+ * travel advance, cash for a parts run. The mirror image of an expense claim: there the
+ * employee pays first and is reimbursed, here the company pays first and is accounted to.
+ *
+ * The cycle is: issue (Dr employee custody / Cr cash) → the employee spends → settle
+ * with real expenses and hand back what is left (Dr expenses + Dr cash / Cr custody).
+ * The account's balance is therefore always "cash this person still holds and has not
+ * accounted for", which is the number anyone actually wants.
+ */
+export const custodyAdvances = pgTable(
+  "custody_advances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    employeeId: text("employee_id").notNull().references(() => employees.id),
+    employeeName: text("employee_name").notNull(), // snapshot, so a deleted employee still reads
+    /** Where the cash came from (a cash box or bank account's GL). */
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),
+    date: ts("date").notNull(),
+    amount: money("amount").notNull().default("0"),
+    /** Settled + returned so far — the outstanding balance is amount minus this. */
+    settledAmount: money("settled_amount").notNull().default("0"),
+    /** DRAFT · OPEN (issued, money out) · SETTLED (fully accounted) · CANCELLED. */
+    status: text("status").notNull().default("DRAFT"),
+    purpose: text("purpose"),
+    notes: text("notes"),
+    journalEntryId: text("journal_entry_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("custody_advances_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/**
+ * One accounting of a custody advance: what was spent, on which expense accounts, and
+ * how much cash came back. Several settlements can sit against one advance — a float is
+ * topped up and accounted for repeatedly.
+ */
+export const custodySettlements = pgTable(
+  "custody_settlements",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    advanceId: text("advance_id").notNull().references(() => custodyAdvances.id, { onDelete: "cascade" }),
+    date: ts("date").notNull(),
+    /** Cash physically handed back, if any. */
+    returnedAmount: money("returned_amount").notNull().default("0"),
+    /** Sum of the expense lines. */
+    spentAmount: money("spent_amount").notNull().default("0"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT · POSTED
+    notes: text("notes"),
+    journalEntryId: text("journal_entry_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("custody_settlements_org_number_idx").on(t.organizationId, t.number)],
+);
+
+export const custodySettlementLines = pgTable("custody_settlement_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  settlementId: text("settlement_id").notNull().references(() => custodySettlements.id, { onDelete: "cascade" }),
+  expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
+  amount: money("amount").notNull(),
+  description: text("description"),
+}, (t) => [
+  index("custody_settlement_lines_settlement_idx").on(t.settlementId),
+]);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
