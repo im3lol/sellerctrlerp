@@ -114,6 +114,7 @@ export const NAV: NavSection[] = [
       { label: "المخازن", href: "/inventory/warehouses", icon: "Warehouse", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "أرصدة المخزون", href: "/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "دفتر حركة المخزون", href: "/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "الأرقام التسلسلية", href: "/inventory/serials", icon: "ScanBarcode", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "مطابقة قيمة المخزون", href: "/inventory/valuation", icon: "Scale", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
 
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "العمليات" },

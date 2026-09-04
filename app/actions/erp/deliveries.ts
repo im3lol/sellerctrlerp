@@ -9,13 +9,14 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
   salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches,
-  journalEntries, warehouses,
-} from "@/db/schema";
+  journalEntries, warehouses, stockSerials} from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { deliveryDependents, dependentsList } from "@/lib/erp/doc-dependents";
 import { postStockMovement } from "@/lib/erp/inventory";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 import { marketplaceCodesFor } from "@/lib/erp/marketplace-code";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
@@ -164,6 +165,60 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
  * Cr Inventory (1104), advance the order's deliveredQty, recompute the order
  * status, link + audit, flip DRAFT → DELIVERED. Re-validates ≤ remaining.
  */
+/**
+ * Mark the serials leaving on this delivery as SOLD. Oldest received first — the same
+ * order the costing engine depletes stock in, so the serial ledger tells the same story
+ * as the value ledger.
+ *
+ * Refuses when there are not enough serials in stock: that means the two ledgers already
+ * disagree, and shipping anyway would bury the discrepancy instead of surfacing it.
+ *
+ * ponytail: FIFO, not hand-picked. A trader who needs to ship one SPECIFIC unit (a
+ * repaired return, a demo piece) has no way to say so yet — add a picker on the delivery
+ * form when that comes up.
+ */
+async function consumeSerialsForDelivery(
+  tx: Tx,
+  orgId: string,
+  dn: { id: string; number: string; date: Date | string },
+  customerId: string | null,
+  lines: { itemId: string; quantity: string | number; warehouseId: string | null }[],
+): Promise<void> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  if (!itemIds.length) return;
+
+  const tracked = await tx.select({ id: items.id, code: items.code, tracking: items.tracking })
+    .from(items).where(and(eq(items.organizationId, orgId), inArray(items.id, itemIds)));
+  const serialItems = new Map(tracked.filter((i) => i.tracking === "SERIAL").map((i) => [i.id, i.code]));
+  if (!serialItems.size) return;
+
+  for (const itemId of serialItems.keys()) {
+    const want = Math.round(lines.filter((l) => l.itemId === itemId).reduce((s, l) => s + Number(l.quantity), 0));
+    if (want <= 0) continue;
+
+    // FOR UPDATE SKIP LOCKED is wrong here: two concurrent deliveries must not silently
+    // ship different units of the same allocation — one waits, then re-counts.
+    const available = await tx.select({ id: stockSerials.id })
+      .from(stockSerials)
+      .where(and(
+        eq(stockSerials.organizationId, orgId),
+        eq(stockSerials.itemId, itemId),
+        inArray(stockSerials.status, ["IN_STOCK", "RETURNED"]),
+      ))
+      .orderBy(asc(stockSerials.receivedAt))
+      .limit(want)
+      .for("update");
+
+    if (available.length < want) {
+      throw new Error(`${serialItems.get(itemId)}: المتاح ${available.length} رقم تسلسلي والمطلوب ${want} — راجع الأرقام المسجّلة`);
+    }
+
+    await tx.update(stockSerials)
+      .set({ status: "SOLD", deliveryId: dn.id, customerId, soldAt: new Date(dn.date), updatedAt: new Date() })
+      .where(inArray(stockSerials.id, available.map((a) => a.id)));
+  }
+}
+
 export async function confirmDeliveryAction(deliveryId: string): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
@@ -243,6 +298,7 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
             ],
           });
         }
+        await consumeSerialsForDelivery(tx, auth.orgId, dn, so.customerId, dnLines);
         await tx.update(deliveryNotes).set({ status: "DELIVERED" }).where(eq(deliveryNotes.id, dn.id));
         const newStatus = await recomputeSalesOrderStatus(tx, so.id);
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: dn.number, relation: "FULFILLS" });

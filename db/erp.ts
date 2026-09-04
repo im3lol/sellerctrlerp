@@ -243,6 +243,46 @@ export const priceListItems = pgTable(
   ],
 );
 
+/**
+ * One physical unit of a serial-tracked item, followed from the receipt that brought it
+ * in to the delivery that sent it out. Answers the only question anyone asks about a
+ * serial: where is it, and who has it.
+ *
+ * It does NOT hold quantity or value — `stock_movements` remains the single source of
+ * both. A serial-tracked receipt simply has to hand over exactly as many serials as the
+ * quantity it books, which is the invariant that keeps the two ledgers agreeing.
+ */
+export const stockSerials = pgTable(
+  "stock_serials",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    serial: text("serial").notNull(),
+    /** Upper + alphanumeric only, so a scan matches however it was typed. */
+    normalizedSerial: text("normalized_serial").notNull(),
+    status: text("status").notNull().default("IN_STOCK"), // IN_STOCK | SOLD | RETURNED | SCRAPPED
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    /** The receipt that brought it in, and the delivery that took it out. */
+    receiptId: text("receipt_id"),
+    deliveryId: text("delivery_id"),
+    customerId: text("customer_id"),
+    batchNo: text("batch_no"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    soldAt: timestamp("sold_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // A serial identifies one unit of one item — the same string may legitimately
+    // recur across different items (manufacturer numbering is not global).
+    uniqueIndex("stock_serials_item_serial_idx").on(t.organizationId, t.itemId, t.normalizedSerial),
+    index("stock_serials_org_norm_idx").on(t.organizationId, t.normalizedSerial),
+    index("stock_serials_status_idx").on(t.organizationId, t.itemId, t.status),
+  ],
+);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
@@ -298,6 +338,11 @@ export const items = pgTable(
     // On parent delete, children are unlinked (not deleted).
     parentItemId: text("parent_item_id").references((): AnyPgColumn => items.id, { onDelete: "set null" }),
     variationValue: text("variation_value"), // e.g. "أحمر - L" — the child's variation label
+    // How individual units are traced. NONE = quantities only; BATCH = lot/expiry (what
+    // isPerishable already switched on); SERIAL = one row per physical unit in
+    // stock_serials. Serial tracking is a PARALLEL ledger — stock balances and costing
+    // still come from stock_movements, and the two are reconciled by count.
+    tracking: text("tracking").notNull().default("NONE"), // NONE | BATCH | SERIAL
     isPerishable: boolean("is_perishable").notNull().default(false),
     shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),

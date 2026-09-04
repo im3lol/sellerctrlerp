@@ -10,6 +10,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
+import { ReceiptSerialsPanel } from "@/components/erp/receipt-serials-panel";
 import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
@@ -48,7 +49,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
       db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1),
-      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, shipping: purchaseReceiptLines.shippingPerUnit, code: items.code, name: items.nameAr, image: items.image, wh: warehouses.nameAr })
+      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, shipping: purchaseReceiptLines.shippingPerUnit, code: items.code, name: items.nameAr, image: items.image, tracking: items.tracking, wh: warehouses.nameAr })
         .from(purchaseReceiptLines)
         .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
         .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
@@ -211,6 +212,18 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
             {grn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {grn.notes}</p>}
           </CardContent>
         </Card>
+
+        {/* Serials are scanned on the draft, before confirming — that is the moment the
+            boxes are actually open. The confirm action refuses if a count doesn't match. */}
+        {grn.status === "DRAFT" && (
+          <ReceiptSerialsPanel
+            receiptId={grn.id}
+            canEdit={can("purchases.receive")}
+            lines={lines
+              .filter((l) => l.tracking === "SERIAL" && Number(l.qty) > 0)
+              .map((l) => ({ itemId: l.itemId, code: l.code ?? "—", name: l.name ?? "—", quantity: Math.round(Number(l.qty)) }))}
+          />
+        )}
 
         <LinkedDocsCard links={linked} />
         <DocAuditCard rows={audit} />

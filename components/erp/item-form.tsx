@@ -19,7 +19,7 @@ export type ItemFormInitial = {
   id?: string; code?: string; nameAr?: string; description?: string;
   sellPrice?: string | number; minStock?: string | number; image?: string; codes?: CodeRow[];
   brand?: string | null; weight?: string | null; weightKg?: string | number | null; dimensions?: string | null;
-  isPerishable?: boolean; shelfLifeDays?: string | number | null;
+  isPerishable?: boolean; shelfLifeDays?: string | number | null; tracking?: string | null;
   parentItemId?: string | null; parentLabel?: string | null; variationValue?: string | null;
 };
 
@@ -35,6 +35,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
   const [sellPrice, setSellPrice] = useState(String(initial?.sellPrice ?? "0"));
   const [minStock, setMinStock] = useState(String(initial?.minStock ?? "0"));
   const [isPerishable, setIsPerishable] = useState(Boolean(initial?.isPerishable));
+  const [tracking, setTracking] = useState(initial?.tracking ?? "NONE");
   const [shelfLifeDays, setShelfLifeDays] = useState(initial?.shelfLifeDays != null ? String(initial.shelfLifeDays) : "");
   const [image, setImage] = useState(initial?.image ?? "");
   const [brand, setBrand] = useState(initial?.brand ?? "");
@@ -72,6 +73,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         sellPrice: Number(sellPrice) || 0, minStock: Number(minStock) || 0, image,
         brand, weight, weightKg: weightKg ? Number(weightKg) : undefined, dimensions,
         isPerishable, shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : undefined,
+        tracking,
         parentItemId: parentItemId || undefined, variationValue: variationValue || undefined,
         codes: codes.filter((c) => c.code.trim()),
       });
@@ -102,6 +104,17 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           </div>
           <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
             <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصنف…" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="tracking">تتبّع الوحدات</Label>
+            <select id="tracking" className={selectCls} value={tracking} onChange={(e) => setTracking(e.target.value)}>
+              <option value="NONE">بالكمية فقط</option>
+              <option value="SERIAL">برقم تسلسلي لكل قطعة</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              التتبّع بالرقم التسلسلي بيطلب رقم لكل قطعة عند الاستلام، ويجاوب على «القطعة دي راحت فين ومين اشتراها».
+              مناسب للأجهزة والإلكترونيات، مش للأصناف اللي بتتباع بالكيلو أو الكرتونة.
+            </p>
           </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <input id="perishable" type="checkbox" className="size-4 rounded border-input" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} />

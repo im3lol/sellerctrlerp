@@ -9,7 +9,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
   purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, stockBatches,
-  journalEntries, warehouses,
+  journalEntries, warehouses, stockSerials,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
@@ -171,6 +171,41 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
  * stays backorder), recompute the order status, link + audit, flip DRAFT →
  * RECEIVED. Re-validates accepted ≤ remaining at confirm time. Idempotent.
  */
+/**
+ * Verify every serial-tracked line on a receipt carries a serial per unit. Returns an
+ * Arabic error naming the item, or null when the receipt is consistent.
+ */
+async function serialCountsMatch(
+  orgId: string,
+  receiptId: string,
+  lines: { itemId: string; quantity: string | number }[],
+): Promise<string | null> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  if (!itemIds.length) return null;
+
+  const tracked = await db.select({ id: items.id, code: items.code, tracking: items.tracking })
+    .from(items).where(and(eq(items.organizationId, orgId), inArray(items.id, itemIds)));
+  const serialItems = tracked.filter((i) => i.tracking === "SERIAL");
+  if (!serialItems.length) return null;
+
+  const counts = await db
+    .select({ itemId: stockSerials.itemId, n: sql<string>`count(*)` })
+    .from(stockSerials)
+    .where(and(eq(stockSerials.organizationId, orgId), eq(stockSerials.receiptId, receiptId)))
+    .groupBy(stockSerials.itemId);
+  const byItem = new Map(counts.map((c) => [c.itemId, Number(c.n)]));
+
+  for (const item of serialItems) {
+    const want = lines.filter((l) => l.itemId === item.id).reduce((s, l) => s + Number(l.quantity), 0);
+    if (want <= EPS) continue; // rejected-only line books no stock, so it needs no serials
+    const got = byItem.get(item.id) ?? 0;
+    if (got !== Math.round(want)) {
+      return `${item.code}: سجّل ${Math.round(want)} رقم تسلسلي (المسجّل حالياً ${got}) قبل تأكيد الاستلام`;
+    }
+  }
+  return null;
+}
+
 export async function confirmReceiptAction(receiptId: string): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("purchases.receive");
   if ("error" in auth) return auth;
@@ -199,6 +234,12 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
       .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
     const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
+
+    // Serial-tracked lines must hand over exactly as many serials as they book. This is
+    // the one invariant holding the serial ledger and the stock ledger together — let it
+    // slip and the two disagree silently, which is worse than refusing the confirmation.
+    const serialCheck = await serialCountsMatch(auth.orgId, grn.id, grnLines);
+    if (serialCheck) return { error: serialCheck };
 
     const receiptDate = new Date(grn.date);
     try {
