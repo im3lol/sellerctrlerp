@@ -89,6 +89,7 @@ export const NAV: NavSection[] = [
       // The supplier master. It used to have no entry at all — /erp/purchases *was*
       // the supplier list, so the only way in was clicking the module heading.
       { label: "الموردون", href: "/purchases/suppliers", icon: "Truck", capability: "erp.purchases.view", group: "البيانات الأساسية" },
+      { label: "تقييم الموردين", href: "/purchases/suppliers/rating", icon: "Star", capability: "erp.purchases.view", group: "البيانات الأساسية" },
 
       { label: "طلبات المواد", href: "/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },

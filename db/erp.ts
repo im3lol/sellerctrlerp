@@ -1617,6 +1617,10 @@ export const purchaseOrders = pgTable(
     supplierId: text("supplier_id").notNull().references(() => suppliers.id),
     warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
     date: ts("date").notNull(),
+    // Delivery date promised by the supplier. Optional, and the only baseline the
+    // supplier scorecard can measure punctuality against — without it a receipt has no
+    // "late", and that supplier simply carries no delivery score rather than a made-up one.
+    expectedDate: ts("expected_date"),
     status: text("status").notNull().default("DRAFT"),
     subtotal: money("subtotal").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0"),

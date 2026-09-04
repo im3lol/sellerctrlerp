@@ -37,7 +37,7 @@ const newId = () => crypto.randomUUID();
 // Editing an existing DRAFT: line amounts are already in the document currency (the edit
 // page converts the stored base amounts back to foreign), so they seed Line directly.
 export type PurchaseOrderInitial = {
-  id: string; number: string; supplierId: string; warehouseId: string; date: string; notes: string;
+  id: string; number: string; supplierId: string; warehouseId: string; date: string; expectedDate?: string; notes: string;
   currencyCode: string; exchangeRate: number; applyVat: boolean; lines: Line[];
 };
 
@@ -58,6 +58,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const [supplierId, setSupplierId] = useState(initial?.supplierId ?? "");
   const [warehouseId, setWarehouseId] = useState(initial?.warehouseId ?? warehouses[0]?.id ?? "");
   const [date, setDate] = useState(initial?.date ?? today);
+  const [expectedDate, setExpectedDate] = useState(initial?.expectedDate ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   // Document currency. Amounts are entered in this currency; the server converts to the
   // base (EGP) at the exchange rate before posting. `rate` = 1 unit currency → base units.
@@ -117,7 +118,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         taxAmount: lineTax(l, vatRate, applyVat), discountAmount: round2(l.quantity * l.discountPerUnit),
         uomId: l.uomId || undefined, uomFactor: l.uomFactor,
       }));
-      const body = { supplierId, warehouseId, date, notes, currencyCode: currency, materialRequestId: requisitionId, lines: payload };
+      const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, materialRequestId: requisitionId, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
         toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
@@ -163,6 +164,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          {/* The promised delivery date — the only thing the supplier scorecard can
+              measure punctuality against, so it is worth the one extra field. */}
+          <div className="space-y-2"><Label>التسليم المتوقّع</Label><Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></div>
           <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
         </div>
 

@@ -42,7 +42,9 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     const toForeign = (n: string | number | null) => round2(Number(n ?? 0) / rate);
     const initial: PurchaseOrderInitial = {
       id: po.id, number: po.number, supplierId: po.supplierId, warehouseId: po.warehouseId,
-      date: new Date(po.date).toISOString().slice(0, 10), notes: po.notes ?? "",
+      date: new Date(po.date).toISOString().slice(0, 10),
+      expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().slice(0, 10) : "",
+      notes: po.notes ?? "",
       currencyCode: po.currencyCode, exchangeRate: rate, applyVat: Number(po.taxAmount) > 0,
       lines: poLines.map((l) => {
         const qty = Number(l.quantity) || 0;

@@ -35,6 +35,8 @@ const schema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
   warehouseId: z.string().min(1, "اختر المستودع"),
   date: z.string().min(1, "التاريخ مطلوب"),
+  /** Promised delivery date — optional, and what the supplier scorecard measures against. */
+  expectedDate: z.string().optional().nullable(),
   notes: z.string().optional(),
   // Document currency: line amounts arrive in THIS currency and are converted to base
   // (× exchange rate) before storing, so the GL/inventory stay base-only. Omitted = base.
@@ -115,6 +117,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
       const id = await db.transaction(async (tx) => {
         const [po] = await tx.insert(purchaseOrders).values({
           organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "DRAFT",
+          expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null,
@@ -175,6 +178,7 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
         if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً");
         await tx.update(purchaseOrders).set({
           supplierId, warehouseId, date: d,
+          expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
