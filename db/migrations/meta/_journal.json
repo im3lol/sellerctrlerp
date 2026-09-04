@@ -771,6 +771,13 @@
       "when": 1788508140572,
       "tag": "0109_red_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1788510856238,
+      "tag": "0110_lonely_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

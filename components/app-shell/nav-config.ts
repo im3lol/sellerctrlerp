@@ -182,6 +182,7 @@ export const NAV: NavSection[] = [
       { label: "الموظفون",     href: "/hr/employees", icon: "UsersRound",  capability: "erp.hr.view", group: "البيانات الأساسية" },
 
       { label: "الإجازات",     href: "/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view", group: "الحضور والإجازات" },
+      { label: "الحضور والانصراف", href: "/hr/attendance", icon: "Clock", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقرير الإجازات", href: "/hr/leaves/report", icon: "BarChart3", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقويم العطلات", href: "/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
 

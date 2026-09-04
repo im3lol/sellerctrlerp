@@ -17,7 +17,7 @@
 import fs from "fs";
 import path from "path";
 
-const GLOBALS = new Set(["organizations", "users", "plans", "discountCoupons", "academyLessons", "changelogEntries", "passwordHistory", "attendance"]);
+const GLOBALS = new Set(["organizations", "users", "plans", "discountCoupons", "academyLessons", "changelogEntries", "passwordHistory"]);
 const WRAPPERS = /(loadErpPage|withOrgScope|withPlatformScope|runAsErp|withErpAction)\s*\(/;
 
 /** Comments are stripped before the wrapper test — a file that only MENTIONS withOrgScope

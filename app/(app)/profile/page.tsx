@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProfileForm } from "@/components/profile/profile-form";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
+import { ClockButton } from "@/components/erp/clock-button";
 
 export default async function ProfilePage() {
   const user = await requireUser();
@@ -27,6 +28,8 @@ export default async function ProfilePage() {
           </div>
           <Badge variant="secondary">{ROLE_LABELS_AR[user.role as Role]}</Badge>
           {user.title && <p className="text-sm text-muted-foreground">{user.title}</p>}
+
+          <ClockButton />
 
           {/* The employee's own HR corner. Shown to everyone: the page itself decides
               whether this user has an employee record, and says so if not. */}

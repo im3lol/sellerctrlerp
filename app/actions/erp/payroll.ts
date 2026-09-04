@@ -183,6 +183,7 @@ export async function createPayrollRunAction(input: PayrollRunInput): Promise<Ac
         .from(attendance)
         .where(
           and(
+            eq(attendance.organizationId, auth.orgId),
             inArray(attendance.userId, hourlyIds),
             gte(attendance.workDate, startStr),
             lte(attendance.workDate, endStr),

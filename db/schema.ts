@@ -77,12 +77,25 @@ export const passwordHistory = pgTable(
 
 /* ───────── Attendance (ERP HR — feeds hourly payroll) ───────── */
 
+/**
+ * One employee's working day. Keyed by (organization, user, date): a person who works
+ * for two companies on this platform has two separate clock streams, and each payroll
+ * counts only its own — one global stream would let both runs pay for the same hours.
+ *
+ * `organizationId` is nullable only so the column could be added to databases that
+ * already held rows; every write path sets it, and a row without one is invisible to
+ * RLS (fail-closed), which is the right fate for an orphan.
+ */
 export const attendance = pgTable(
   "attendance",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: text("organization_id"),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     workDate: date("work_date").notNull(),
+    /** MANUAL (typed by HR) · CLOCK (the employee's own check-in) · IMPORT (device file). */
+    source: text("source").notNull().default("MANUAL"),
+    notes: text("notes"),
     clockIn: timestamp("clock_in", { withTimezone: true }).notNull().defaultNow(),
     clockOut: timestamp("clock_out", { withTimezone: true }),
     breaks: jsonb("breaks").$type<{ start: string; end: string | null }[]>().default([]),
@@ -93,6 +106,9 @@ export const attendance = pgTable(
   },
   (t) => [
     index("attendance_user_date_idx").on(t.userId, t.workDate),
+    // One row per person per day per company — a second clock-in edits the same day
+    // rather than creating a parallel one payroll would then double-count.
+    uniqueIndex("attendance_org_user_date_idx").on(t.organizationId, t.userId, t.workDate),
   ],
 );
 
