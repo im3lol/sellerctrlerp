@@ -62,6 +62,7 @@ export const NAV: NavSection[] = [
       { label: "كشف حساب العميل", href: "/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم المدينة" },
 
       { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الذمم الدائنة" },
+      { label: "خطة السداد", href: "/purchases/payment-plan", icon: "CalendarClock", capability: "erp.purchases.view", group: "الذمم الدائنة" },
       { label: "كشف حساب المورّد", href: "/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم الدائنة" },
 
       { label: "المصروفات", href: "/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view", group: "المصروفات والأصول" },
