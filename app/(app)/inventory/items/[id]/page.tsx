@@ -15,6 +15,7 @@ import { getItemPnl, getItemLinkedDocs } from "@/lib/erp/item-pnl";
 import Link from "next/link";
 import { ItemDetailActions } from "@/components/erp/item-detail-actions";
 import { ItemFamilyManager } from "@/components/erp/item-family-manager";
+import { ItemUnitsManager } from "@/components/erp/item-units-manager";
 import { BarcodePrintButton, type PrintCode } from "@/components/erp/barcode-print";
 
 const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -134,6 +135,8 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             variations={family?.children ?? []}
           />
         )}
+
+        <ItemUnitsManager itemId={item.id} canEdit={can("inventory.edit")} />
 
         {item.description && (
           <Card>

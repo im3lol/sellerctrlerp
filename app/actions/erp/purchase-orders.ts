@@ -25,6 +25,11 @@ const lineSchema = z.object({
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
   exempt: z.coerce.boolean().default(false),
+  // Which unit the line was typed in. `quantity`/`unitPrice` above already arrive in the
+  // item's BASE unit (the form converts), so these two are display metadata only —
+  // nothing downstream reads them to compute a number.
+  uomId: z.string().optional(),
+  uomFactor: z.coerce.number().positive().default(1),
 });
 const schema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
@@ -72,6 +77,7 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
     const discountAmount = toBase(l.discountAmount);
     const taxAmount = toBase(l.taxAmount);
     return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
+      uomId: l.uomId, uomFactor: l.uomFactor,
       totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
   });
   const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -82,11 +88,12 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
   return { values: { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
 }
 
-type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number };
+type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number; uomId?: string; uomFactor?: number };
 const poLineRows = (parentId: string, computed: POComputedLine[]) =>
   computed.map((l) => ({
     purchaseOrderId: parentId, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
     shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
+    uomId: l.uomId || null, uomFactor: l.uomFactor != null ? String(l.uomFactor) : null,
   }));
 
 /** Create a purchase order as DRAFT (no effect until confirmed). */

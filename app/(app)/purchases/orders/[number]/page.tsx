@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, organizations } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, organizations, unitsOfMeasure } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { displayQuantity } from "@/lib/erp/item-units";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -48,8 +49,10 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       po.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, code: items.code, name: items.nameAr, image: items.image })
-        .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
+      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, uomFactor: purchaseOrderLines.uomFactor, uomLabel: unitsOfMeasure.nameAr, code: items.code, name: items.nameAr, image: items.image })
+        .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
+        .leftJoin(unitsOfMeasure, eq(unitsOfMeasure.id, purchaseOrderLines.uomId))
+        .where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
       db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, invoiceId: purchaseReceipts.purchaseInvoiceId })
         .from(purchaseReceipts).where(eq(purchaseReceipts.purchaseOrderId, po.id)),
       getDocumentAudit(orgId, po.id),
@@ -134,7 +137,16 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                       <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
                       <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                     </TableCell>
-                    <TableCell>{qty(l.qty)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        // A line entered in cartons reads "5 كرتونة" with the base
+                        // quantity underneath — the stored number is always base.
+                        const d = displayQuantity(Number(l.qty), l.uomFactor ? Number(l.uomFactor) : null, l.uomLabel, null);
+                        return d.secondary
+                          ? (<><span>{qty(d.primary)} {d.primaryLabel}</span><span className="block text-xs text-muted-foreground">{d.secondary}</span></>)
+                          : qty(l.qty);
+                      })()}
+                    </TableCell>
                     <TableCell>{dfmt(l.unitPrice)}</TableCell>
                     <TableCell>{dfmt(l.discount)}</TableCell>
                     <TableCell>{dfmt(l.tax)}</TableCell>

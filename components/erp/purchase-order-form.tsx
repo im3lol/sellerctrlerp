@@ -19,12 +19,17 @@ import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import { lineVat } from "@/lib/erp/vat";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { selectCls } from "@/lib/utils";
+import { UnitCell, type FormUnit } from "@/components/erp/unit-cell";
+import { fromBaseQuantity, toBaseQuantity, toBasePrice } from "@/lib/erp/item-units";
 
 type Supplier = { id: string; nameAr: string };
 type Warehouse = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; code?: string | null; image?: string | null; weightKg?: string | number | null };
 type Currency = { code: string; nameAr: string; isBase: boolean };
-type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number };
+// quantity / unitPrice / discountPerUnit are ALWAYS in the item's base unit, exactly as
+// before multi-unit entry existed — so every total, VAT and payload line below is
+// untouched. `uomFactor` only changes what the two inputs show and write.
+type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountPerUnit: number; uomId: string; uomFactor: number };
 // The line's row-editor id: purely client-side (React key + drag identity for
 // SortableLineRows), regenerated on every load, never sent in the save payload.
 type LineRow = Line & { id: string };
@@ -43,9 +48,9 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
 // (freight excluded), same convention as the sales side. `applyVat=false` → tax 0.
 const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, false) : 0);
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
-const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0 });
+const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRate, initialLines, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; initial?: PurchaseOrderInitial }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -86,7 +91,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0 };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? { ...line, id: l.id } : l));
       return [...ls, { ...line, id: newId() }];
@@ -110,6 +115,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
         taxAmount: lineTax(l, vatRate, applyVat), discountAmount: round2(l.quantity * l.discountPerUnit),
+        uomId: l.uomId || undefined, uomFactor: l.uomFactor,
       }));
       const body = { supplierId, warehouseId, date, notes, currencyCode: currency, materialRequestId: requisitionId, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
@@ -197,6 +203,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                 <TableHead className="w-8" />
                 <TableHead className="w-14 text-start">صورة</TableHead>
                 <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
+                <TableHead className="w-28 text-start">الوحدة</TableHead>
                 <TableHead className="w-28 text-start">الكمية</TableHead>
                 <TableHead className="w-36 text-start">السعر</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
@@ -220,8 +227,16 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, orgName, vatRa
                         onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })}
                       />
                     </TableCell>
-                    <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
-                    <TableCell><Input type="number" step="0.01" inputMode="decimal" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell>
+                      <UnitCell
+                        units={unitsByItem[l.itemId] ?? []}
+                        factor={l.uomFactor}
+                        onPick={(uomId, factor) => setLine(i, { uomId, uomFactor: factor })}
+                      />
+                    </TableCell>
+                    {/* Shown in the chosen unit, stored in base: 5 cartons writes 60 pieces. */}
+                    <TableCell><Input type="number" step="any" min="0" value={fromBaseQuantity(l.quantity, l.uomFactor)} onChange={(e) => setLine(i, { quantity: toBaseQuantity(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input type="number" step="0.01" inputMode="decimal" value={round2(l.unitPrice * l.uomFactor)} onChange={(e) => setLine(i, { unitPrice: toBasePrice(Number(e.target.value) || 0, l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>

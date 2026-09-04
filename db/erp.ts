@@ -162,6 +162,38 @@ export const unitsOfMeasure = pgTable(
   (t) => [uniqueIndex("uom_org_code_idx").on(t.organizationId, t.code)],
 );
 
+/**
+ * Units a single item can be transacted in, on top of its base unit (`items.uomId`).
+ * `factor` is how many BASE units one of this unit holds — a carton of 12 pieces is
+ * factor 12. The base unit itself is a row with factor 1 and isBase = true.
+ *
+ * Nothing here changes how stock is stored: quantities and unit prices are ALWAYS
+ * persisted in the base unit. A document line only records which unit the user typed
+ * in (`uomId` + a `uomFactor` snapshot) so the screen and the printout can say
+ * "٥ كرتونة (٦٠ قطعة)" — the inventory and costing engines never see anything but base.
+ */
+export const itemUnits = pgTable(
+  "item_units",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    uomId: text("uom_id").notNull().references(() => unitsOfMeasure.id),
+    /** BASE units in one of this unit. Must be > 0; the base row is exactly 1. */
+    factor: numeric("factor", { precision: 18, scale: 6 }).notNull().default("1"),
+    isBase: boolean("is_base").notNull().default(false),
+    /** Scanning a carton barcode should pick the carton unit, not the piece. */
+    barcode: text("barcode"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("item_units_item_uom_idx").on(t.itemId, t.uomId),
+    index("item_units_org_barcode_idx").on(t.organizationId, t.barcode),
+  ],
+);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
@@ -539,6 +571,11 @@ export const deliveryNoteLines = pgTable("delivery_note_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   deliveryNoteId: text("delivery_note_id").notNull().references(() => deliveryNotes.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line issuing warehouse (falls back to the note's warehouse when null).
   warehouseId: text("warehouse_id").references(() => warehouses.id),
@@ -573,6 +610,11 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line receiving warehouse (falls back to the receipt's warehouse when null).
   warehouseId: text("warehouse_id").references(() => warehouses.id),
@@ -1100,6 +1142,11 @@ export const salesInvoiceLines = pgTable(
     id: pk(),
     organizationId: lineOrgId(),
     salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+    // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+    // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+    // and `unitPrice` stay in BASE units — see itemUnits.
+    uomId: text("uom_id").references(() => unitsOfMeasure.id),
+    uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
     itemId: text("item_id").notNull().references(() => items.id),
     quantity: money("quantity").notNull(),
     unitPrice: money("unit_price").notNull(),
@@ -1548,6 +1595,11 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   purchaseOrderId: text("purchase_order_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   receivedQty: money("received_qty").notNull().default("0"),
@@ -1613,6 +1665,11 @@ export const salesOrderLines = pgTable(
     id: pk(),
     organizationId: lineOrgId(),
     salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
+    // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+    // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+    // and `unitPrice` stay in BASE units — see itemUnits.
+    uomId: text("uom_id").references(() => unitsOfMeasure.id),
+    uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
     itemId: text("item_id").notNull().references(() => items.id),
     // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
     warehouseId: text("warehouse_id").references(() => warehouses.id),

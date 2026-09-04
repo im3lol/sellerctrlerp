@@ -743,6 +743,13 @@
       "when": 1788345316075,
       "tag": "0105_same_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1788478975438,
+      "tag": "0106_mean_morph",
+      "breakpoints": true
     }
   ]
 }

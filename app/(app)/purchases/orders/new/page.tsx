@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines, currencies, exchangeRates } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrderForm } from "@/components/erp/purchase-order-form";
+import { getUnitsByItem } from "@/lib/erp/item-units-data";
 
 export default async function NewPurchaseOrderPage({ searchParams }: { searchParams: Promise<{ reorder?: string; fromRequisition?: string }> }) {
   return loadErpPage("purchases.view", async ({ orgId }) => {
@@ -24,6 +25,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
       db.select({ currencyCode: exchangeRates.currencyCode, rate: exchangeRates.rate }).from(exchangeRates)
         .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(20),
     ]);
+    const unitsByItem = await getUnitsByItem(orgId);
 
     // Latest rate per currency: historical exchange_rates row wins over the snapshot.
     const latestRates: Record<string, number> = {};
@@ -83,7 +85,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
       </div>
     );
   });
