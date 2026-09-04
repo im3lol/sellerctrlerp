@@ -3,7 +3,7 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -12,6 +12,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { createSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
+import { creditVerdict, creditError } from "@/lib/erp/credit";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
@@ -175,20 +176,66 @@ export async function updateSalesOrderAction(id: string, input: unknown): Promis
 }
 
 /** Confirm a DRAFT sales order (approval/reservation — no stock/GL). */
-export async function confirmSalesOrderAction(id: string): Promise<ActionState> {
+/**
+ * Credit exposure for one order at confirmation time: the customer's posted receivable
+ * plus every OTHER confirmed order of theirs that hasn't been invoiced yet. Returns null
+ * when the customer is inside their limit (or has none).
+ */
+async function creditCheckForOrder(
+  orgId: string, orderId: string, customerId: string, orderTotal: number,
+): Promise<{ message: string } | null> {
+  const [cust] = await db.select({ name: customers.nameAr, balance: customers.balance, creditLimit: customers.creditLimit })
+    .from(customers).where(and(eq(customers.id, customerId), eq(customers.organizationId, orgId))).limit(1);
+  if (!cust || !(Number(cust.creditLimit) > 0)) return null;
+
+  const [open] = await db.select({ total: sql<string>`COALESCE(SUM(${salesOrders.totalAmount}), 0)` })
+    .from(salesOrders)
+    .where(and(
+      eq(salesOrders.organizationId, orgId),
+      eq(salesOrders.customerId, customerId),
+      eq(salesOrders.status, "CONFIRMED"),
+      ne(salesOrders.id, orderId),
+    ));
+
+  const v = creditVerdict({
+    balance: Number(cust.balance) || 0,
+    creditLimit: Number(cust.creditLimit) || 0,
+    openOrders: Number(open?.total) || 0,
+    orderTotal,
+  });
+  return v.ok ? null : { message: creditError(cust.name ?? "العميل", v) };
+}
+
+export async function confirmSalesOrderAction(id: string, opts?: { overrideCredit?: boolean }): Promise<ActionState & { creditBlocked?: boolean }> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+    const [so] = await db.select({
+      status: salesOrders.status, number: salesOrders.number,
+      customerId: salesOrders.customerId, totalAmount: salesOrders.totalAmount,
+    }).from(salesOrders)
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
     if (!so) return { error: "الأمر غير موجود" };
     if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
+
+    // Credit gate. The invoice-posting check catches this too, but by then the goods
+    // have usually shipped — refusing here is the cheap moment. Finance can override.
+    const credit = await creditCheckForOrder(auth.orgId, id, so.customerId, Number(so.totalAmount) || 0);
+    if (credit && !opts?.overrideCredit) {
+      // Finance can wave it through; sales cannot. authorizeErp doubles as the probe.
+      const finance = await authorizeErp("accounting.post");
+      const canOverride = !("error" in finance);
+      return {
+        error: canOverride ? `${credit.message} — تحتاج اعتماد مالي للمتابعة.` : credit.message,
+        creditBlocked: canOverride,
+      };
+    }
     // Compare-and-swap on the status just read, so a concurrent edit/cancel can't slip in.
     const done = await db.update(salesOrders).set({ status: "CONFIRMED" })
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId), eq(salesOrders.status, "DRAFT")))
       .returning({ id: salesOrders.id });
     if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
+    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}${credit ? " (تجاوز حد ائتمان باعتماد مالي)" : ""}` });
     revalidatePath("/sales/orders");
     revalidatePath(`/sales/orders/${encodeURIComponent(so.number)}`);
     return { ok: true };
@@ -330,11 +377,19 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete" 
     }
 
     let count = 0;
+    const skippedCredit: string[] = [];
     for (const id of ids) {
-      const [so] = await db.select({ status: salesOrders.status, number: salesOrders.number }).from(salesOrders)
+      const [so] = await db.select({
+        status: salesOrders.status, number: salesOrders.number,
+        customerId: salesOrders.customerId, totalAmount: salesOrders.totalAmount,
+      }).from(salesOrders)
         .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
       if (!so) continue;
       if (op === "confirm" && so.status === "DRAFT") {
+        // Bulk confirm honours the credit gate too — otherwise selecting every draft is
+        // the way around it. An over-limit order is skipped, never silently confirmed.
+        const blocked = await creditCheckForOrder(auth.orgId, id, so.customerId, Number(so.totalAmount) || 0);
+        if (blocked) { skippedCredit.push(so.number); continue; }
         await db.update(salesOrders).set({ status: "CONFIRMED" }).where(eq(salesOrders.id, id));
         await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `تأكيد أمر بيع ${so.number}` });
         count++;
@@ -359,7 +414,10 @@ export async function bulkSalesOrdersAction(op: "confirm" | "cancel" | "delete" 
     }
     revalidatePath("/sales/orders");
     revalidatePath("/sales/deliveries");
-    return { ok: true, count };
+    // Say which orders were left behind — a silently smaller count reads as a bug.
+    return skippedCredit.length
+      ? { ok: true, count, warning: `تم تخطّي ${skippedCredit.length} أمر لتجاوز حد ائتمان العميل: ${skippedCredit.join("، ")}` }
+      : { ok: true, count };
   });
 }
 

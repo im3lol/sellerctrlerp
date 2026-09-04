@@ -31,6 +31,36 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
     })();
   };
 
+  /**
+   * Confirming a sales order can bounce off the customer's credit limit. When the caller
+   * is finance the action says so (creditBlocked) and a second, explicit confirmation
+   * puts it through — the override is a deliberate act, and the audit trail records it.
+   */
+  const confirmSales = () =>
+    void (async () => {
+      if (!(await confirm({}))) return;
+      start(async () => {
+        const r = await confirmSalesOrderAction(orderId);
+        if (r.ok) { toast.success("تم تأكيد الأمر"); router.refresh(); return; }
+        if (!r.creditBlocked) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+        const go = await confirm({
+          danger: true,
+          title: "تجاوز حد الائتمان",
+          description: `${r.error ?? ""}
+
+التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.`,
+          confirmText: "أكّد رغم التجاوز",
+          cancelText: "رجوع",
+        });
+        if (!go) return;
+        start(async () => {
+          const r2 = await confirmSalesOrderAction(orderId, { overrideCredit: true });
+          if (r2.ok) { toast.success("تم تأكيد الأمر باعتماد مالي"); router.refresh(); }
+          else toast.error(r2.error ?? "تعذّر التنفيذ");
+        });
+      });
+    })();
+
   const encoded = encodeURIComponent(number);
 
   return (
@@ -47,7 +77,7 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
         {canManage && status === "DRAFT" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => run(() => confirmSalesOrderAction(orderId), "تم تأكيد الأمر")}>
+            <DropdownMenuItem onClick={confirmSales}>
               <Icon name="Check" className="size-4" />تأكيد
             </DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={`/sales/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></DropdownMenuItem>
