@@ -355,6 +355,83 @@ export const custodySettlementLines = pgTable("custody_settlement_lines", {
   index("custody_settlement_lines_settlement_idx").on(t.settlementId),
 ]);
 
+/**
+ * طلب عروض أسعار — ask several suppliers what they'd charge for the same basket, then
+ * compare the answers side by side instead of in a WhatsApp thread.
+ *
+ * The RFQ carries the basket; each invited supplier gets a row for their terms and a
+ * price per line. Nothing here posts to the ledger — an RFQ is a question, and the
+ * accepted answer becomes a purchase order through the normal cycle.
+ */
+export const rfqs = pgTable(
+  "rfqs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    /** When answers are due — the deadline written on the request, not a system rule. */
+    dueDate: ts("due_date"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT · SENT · AWARDED · CANCELLED
+    /** The requisition that prompted it, when there was one. */
+    materialRequestId: text("material_request_id"),
+    /** Which supplier won, once the buyer decides. */
+    awardedSupplierId: text("awarded_supplier_id").references(() => suppliers.id),
+    awardedOrderId: text("awarded_order_id"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("rfqs_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/** One item in the basket every invited supplier is quoting on. */
+export const rfqLines = pgTable("rfq_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqId: text("rfq_id").notNull().references(() => rfqs.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  quantity: money("quantity").notNull(),
+  notes: text("notes"),
+}, (t) => [index("rfq_lines_rfq_idx").on(t.rfqId)]);
+
+/**
+ * One supplier's answer: their terms, and (through rfq_quote_lines) their price per
+ * item. A supplier who never replies keeps status INVITED, which is itself a fact worth
+ * seeing in the comparison.
+ */
+export const rfqSuppliers = pgTable("rfq_suppliers", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqId: text("rfq_id").notNull().references(() => rfqs.id, { onDelete: "cascade" }),
+  supplierId: text("supplier_id").notNull().references(() => suppliers.id),
+  status: text("status").notNull().default("INVITED"), // INVITED · QUOTED · DECLINED
+  /** Days from order to delivery, as promised in the quote. */
+  leadDays: integer("lead_days"),
+  /** Days of credit offered, as promised in the quote. */
+  paymentTermDays: integer("payment_term_days"),
+  validUntil: ts("valid_until"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  uniqueIndex("rfq_suppliers_unique").on(t.rfqId, t.supplierId),
+  index("rfq_suppliers_rfq_idx").on(t.rfqId),
+]);
+
+/** A price for one item from one supplier. A missing row means they didn't quote it. */
+export const rfqQuoteLines = pgTable("rfq_quote_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqSupplierId: text("rfq_supplier_id").notNull().references(() => rfqSuppliers.id, { onDelete: "cascade" }),
+  rfqLineId: text("rfq_line_id").notNull().references(() => rfqLines.id, { onDelete: "cascade" }),
+  unitPrice: money("unit_price").notNull().default("0"),
+  notes: text("notes"),
+}, (t) => [
+  uniqueIndex("rfq_quote_lines_unique").on(t.rfqSupplierId, t.rfqLineId),
+  index("rfq_quote_lines_supplier_idx").on(t.rfqSupplierId),
+]);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(

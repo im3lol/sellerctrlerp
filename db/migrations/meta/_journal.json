@@ -785,6 +785,13 @@
       "when": 1788512637635,
       "tag": "0111_hot_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1788514685355,
+      "tag": "0112_zippy_mulholland_black",
+      "breakpoints": true
     }
   ]
 }

@@ -94,6 +94,7 @@ export const NAV: NavSection[] = [
       { label: "تقييم الموردين", href: "/purchases/suppliers/rating", icon: "Star", capability: "erp.purchases.view", group: "البيانات الأساسية" },
 
       { label: "طلبات المواد", href: "/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "طلبات عروض الأسعار", href: "/purchases/rfqs", icon: "GitCompare", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
