@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
-import { loadErpPage } from "@/lib/erp/org";
+import { loadErpPage, getActiveOrg } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
 import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
@@ -14,7 +15,22 @@ type Params = { params: Promise<{ number: string; employeeId: string }> };
 
 export default async function PrintPayslipPage({ params }: Params) {
   const { number: raw, employeeId } = await params;
-  return loadErpPage("hr.view", async ({ orgId }) => {
+
+  // An employee printing their OWN payslip needs no HR rights — requiring hr.view would
+  // mean granting everyone the right to read everyone else's. Ownership is decided from
+  // the session, never from the URL, so the id in the path cannot be swapped for someone
+  // else's. Anyone printing a colleague's payslip still needs hr.view.
+  const { user, org } = await getActiveOrg();
+  let isOwnPayslip = false;
+  if (user && org) {
+    isOwnPayslip = await withOrgScope(org.id, false, async () => {
+      const [mine] = await db.select({ id: employees.id }).from(employees)
+        .where(and(eq(employees.organizationId, org.id), eq(employees.userId, user.id))).limit(1);
+      return !!mine && mine.id === employeeId;
+    });
+  }
+
+  const render = async ({ orgId }: { orgId: string }) => {
     const number = await docNumberParam(raw, orgId, payrollRuns,
       { id: payrollRuns.id, number: payrollRuns.number, organizationId: payrollRuns.organizationId },
       "/erp/hr/payroll", `/payslip/${employeeId}/print`);
@@ -81,5 +97,9 @@ export default async function PrintPayslipPage({ params }: Params) {
         signatures={["الموظف", "الموارد البشرية"]}
       />
     );
-  });
+  };
+
+  return isOwnPayslip && org
+    ? withOrgScope(org.id, false, () => render({ orgId: org.id }))
+    : loadErpPage("hr.view", render);
 }
