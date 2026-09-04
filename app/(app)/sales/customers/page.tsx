@@ -1,7 +1,7 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { customers } from "@/db/schema";
+import { customers, priceLists } from "@/db/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomersManager } from "@/components/erp/customers-manager";
 
@@ -24,7 +24,12 @@ export default async function CustomersPage() {
       creditLimit: customers.creditLimit,
       paymentTerms: customers.paymentTerms,
       portalUserId: customers.portalUserId,
+      priceListId: customers.priceListId,
     }).from(customers).where(eq(customers.organizationId, orgId)).orderBy(asc(customers.code));
+
+    const lists = await db.select({ id: priceLists.id, nameAr: priceLists.nameAr })
+      .from(priceLists).where(and(eq(priceLists.organizationId, orgId), eq(priceLists.isActive, true)))
+      .orderBy(asc(priceLists.code));
 
     const totalAr = rows.reduce((s, c) => s + Number(c.balance), 0);
     const withBalance = rows.filter((c) => Number(c.balance) > 0).length;
@@ -39,6 +44,6 @@ export default async function CustomersPage() {
       </div>
     );
 
-    return <CustomersManager customers={rows} canManage={can("sales.edit")} title="العملاء" kpis={kpis} />;
+    return <CustomersManager customers={rows} canManage={can("sales.edit")} title="العملاء" kpis={kpis} priceLists={lists} />;
   });
 }

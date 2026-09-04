@@ -21,6 +21,8 @@ const schema = z.object({
   email: z.string().email("بريد غير صحيح").optional().or(z.literal("")),
   creditLimit: z.coerce.number().min(0).default(0),
   paymentTerms: z.coerce.number().int().min(0).default(30),
+  /** Empty = the org's default price list. */
+  priceListId: z.string().optional(),
 });
 
 // Next auto code CUST-#### — max computed in the database (see lib/erp/next-code.ts).
@@ -40,6 +42,7 @@ export async function saveCustomerAction(_prev: SaveCustomerState, formData: For
       email: formData.get("email") || "",
       creditLimit: formData.get("creditLimit") || 0,
       paymentTerms: formData.get("paymentTerms") || 30,
+      priceListId: str(formData.get("priceListId")) || undefined,
     });
     if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -57,6 +60,7 @@ export async function saveCustomerAction(_prev: SaveCustomerState, formData: For
       email: parsed.data.email || null,
       creditLimit: String(parsed.data.creditLimit),
       paymentTerms: parsed.data.paymentTerms,
+      priceListId: parsed.data.priceListId || null,
     };
 
     const isUnique = (e: unknown) => e instanceof Error && e.message.includes("unique");

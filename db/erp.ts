@@ -194,6 +194,55 @@ export const itemUnits = pgTable(
   ],
 );
 
+/**
+ * A named set of selling prices — wholesale, retail, a seasonal sheet. A customer is
+ * linked to one list, and the sales forms resolve the line price from it instead of the
+ * item's single sellPrice. Nothing here posts: it only decides the number that lands in
+ * a quotation or an order line, where the user can still override it.
+ */
+export const priceLists = pgTable(
+  "price_lists",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    /** The list used when a customer has none of their own. Exactly one per org. */
+    isDefault: boolean("is_default").notNull().default(false),
+    /** Optional window — a seasonal sheet that stops applying on its own. */
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("price_lists_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/**
+ * One item's price on one list. `minQuantity` lets a list carry a break ("10+ at 9.50");
+ * the resolver takes the best applicable break for the quantity being sold.
+ */
+export const priceListItems = pgTable(
+  "price_list_items",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    priceListId: text("price_list_id").notNull().references(() => priceLists.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    price: money("price").notNull().default("0"),
+    /** Quantity break: this price applies from this quantity up. 0 = always. */
+    minQuantity: money("min_quantity").notNull().default("0"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("price_list_items_unique").on(t.priceListId, t.itemId, t.minQuantity),
+    index("price_list_items_list_idx").on(t.priceListId),
+  ],
+);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
@@ -1076,6 +1125,8 @@ export const customers = pgTable(
     address: text("address"),
     balance: money("balance").notNull().default("0"),
     creditLimit: money("credit_limit").notNull().default("0"),
+    /** Which price list this customer buys on. Null = the org's default list. */
+    priceListId: text("price_list_id"),
     paymentTerms: integer("payment_terms").notNull().default(30),
     isActive: boolean("is_active").notNull().default(true),
     portalUserId: uuid("portal_user_id").references(() => users.id, { onDelete: "set null" }),
