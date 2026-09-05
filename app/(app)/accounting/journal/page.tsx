@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntries, journalEntryLines } from "@/db/schema";
@@ -46,7 +46,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
     const conds = [eq(journalEntries.organizationId, orgId)];
-    if (status) conds.push(eq(journalEntries.status, status));
+    // "معكوس" is not a status any more — a reversed entry stays POSTED and is marked by
+    // `reversedById` (see reverseEntry), so filter on that instead.
+    if (status === "REVERSED") conds.push(isNotNull(journalEntries.reversedById));
+    else if (status) conds.push(eq(journalEntries.status, status));
     if (source) conds.push(eq(journalEntries.sourceType, source));
     if (from) conds.push(gte(journalEntries.date, new Date(from)));
     if (to) conds.push(lte(journalEntries.date, new Date(`${to}T23:59:59`)));

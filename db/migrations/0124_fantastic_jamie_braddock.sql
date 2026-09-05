@@ -1,0 +1,1 @@
+ALTER TABLE "items" ADD COLUMN "is_service" boolean DEFAULT false NOT NULL;

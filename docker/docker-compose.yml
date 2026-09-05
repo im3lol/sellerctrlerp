@@ -5,7 +5,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: sellerctrl
-      POSTGRES_PASSWORD: sellerctrl
+      # Defaults keep the local stack working with no .env; an on-prem install sets
+      # real secrets in docker/../.env (POSTGRES_PASSWORD, MINIO_ROOT_*, APPUSER_PASSWORD).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sellerctrl}
       POSTGRES_DB: sellerctrl
     ports:
       # Host 5433 → container 5432 (5432 is used by another local project). Bound to
@@ -35,8 +37,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     # Bound to 127.0.0.1: the app reaches MinIO internally via minio:9000; the host
     # ports are for local tooling/console only, never the LAN.
     ports:
@@ -65,7 +67,7 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin} &&
       mc mb --ignore-existing local/sellerctrl &&
       mc anonymous set download local/sellerctrl &&
       mc mb --ignore-existing local/sellerctrl-private &&
@@ -123,7 +125,7 @@ services:
       # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
       # enforced — the owner role would bypass every policy. Migrations still run as the
       # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
-      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
+      DATABASE_URL: postgres://appuser:${APPUSER_PASSWORD:-appuser}@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       AUTH_TRUST_HOST: "true"
@@ -181,7 +183,7 @@ services:
       # App connects as appuser (NOBYPASSRLS) so RLS tenant isolation is actually
       # enforced — the owner role would bypass every policy. Migrations still run as the
       # owner from the host (npm run db:migrate / db:rls). This is the RLS cutover.
-      DATABASE_URL: postgres://appuser:appuser@postgres:5432/sellerctrl
+      DATABASE_URL: postgres://appuser:${APPUSER_PASSWORD:-appuser}@postgres:5432/sellerctrl
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379
       WORKER: "1"
@@ -241,7 +243,7 @@ services:
     env_file:
       - ../.env
     environment:
-      PGPASSWORD: sellerctrl
+      PGPASSWORD: ${POSTGRES_PASSWORD:-sellerctrl}
     volumes:
       - dbbackups:/backups
     depends_on:

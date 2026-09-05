@@ -23,9 +23,41 @@ const nextConfig: NextConfig = {
   // object store), so next/image server-side re-encoding would only add VPS load.
   // ponytail: headers() only. Skipped next/image — no sharp, and it'd re-optimize
   // already-CDN'd remote images per request. Add if we ever self-host uncached images.
+  // The stack version is nobody's business.
+  poweredByHeader: false,
   async headers() {
     return [
       { source: "/_next/static/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      // Baseline security headers — the app is reachable from the internet, so without
+      // X-Frame-Options any site can iframe it and click-jack a logged-in trader.
+      // CSP starts in report-only: the app inlines styles/scripts (Next.js) and talks to
+      // qz-tray over ws://localhost for printing, so enforcing it blind would break
+      // printing. Flip Report-Only → Content-Security-Policy once the reports are clean.
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' ws://localhost:* wss://localhost:* https:",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "object-src 'none'",
+            ].join("; "),
+          },
+        ],
+      },
     ];
   },
   // The ERP moved off the /erp prefix (sellerctrl.com/inventory, not /erp/inventory).

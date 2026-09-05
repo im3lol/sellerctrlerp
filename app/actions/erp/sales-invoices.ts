@@ -7,7 +7,7 @@ import { and, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations, items } from "@/db/schema";
 import { createReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
@@ -26,6 +26,8 @@ const lineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
+  /** Ship this line from a specific warehouse. Omitted = the fallback below. */
+  warehouseId: z.string().optional(),
 });
 
 const schema = z.object({
@@ -48,9 +50,11 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const { customerId, date, notes, lines } = parsed.data;
 
-    // Verify the customer belongs to the active org.
+    // Verify the customer belongs to the active org, and pick up the rep who owns the
+    // account — the commission follows them and is frozen on the invoice, so reassigning
+    // the customer later cannot restate what somebody already earned.
     const [cust] = await db
-      .select({ id: customers.id })
+      .select({ id: customers.id, salesRepId: customers.salesRepId })
       .from(customers)
       .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId)))
       .limit(1);
@@ -68,6 +72,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
     const invoiceDate = new Date(date);
     const number = await nextNumber(auth.orgId, invoiceDate.getFullYear());
 
+
     try {
       const id = await db.transaction(async (tx) => {
         const [inv] = await tx
@@ -76,6 +81,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
             organizationId: auth.orgId,
             number,
             customerId,
+            salesRepId: cust?.salesRepId ?? null,
             date: invoiceDate,
             status: "DRAFT",
             subtotal: String(subtotal),
@@ -92,6 +98,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
           computed.map((l) => ({
             salesInvoiceId: inv.id,
             itemId: l.itemId,
+            warehouseId: l.warehouseId ?? null,
             quantity: String(l.quantity),
             unitPrice: String(l.unitPrice),
             discountAmount: String(l.discountAmount),
@@ -201,8 +208,16 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
           }
         } else {
           // Standalone invoice: issue stock OUT at WAC + COGS.
-          const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
-            .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
+          // Service lines bill revenue and move nothing — an hour of work was never on a
+          // shelf, so issuing stock for it would leave the store short of a fiction.
+          const invLines = (await tx.select({
+            itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity,
+            warehouseId: salesInvoiceLines.warehouseId, isService: items.isService,
+          })
+            .from(salesInvoiceLines)
+            .leftJoin(items, eq(items.id, salesInvoiceLines.itemId))
+            .where(eq(salesInvoiceLines.salesInvoiceId, inv.id)))
+            .filter((l) => !l.isService);
           const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
             .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
           // Prefer each line's originating sales-order-line warehouse (an order→invoice
@@ -227,7 +242,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
               const qty = Number(l.quantity);
               if (qty <= 0) continue;
               const r = await postStockMovement(tx, {
-                orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? wh.id, type: "OUT",
+                orgId: auth.orgId, itemId: l.itemId, warehouseId: l.warehouseId ?? whByItem.get(l.itemId) ?? wh.id, type: "OUT",
                 quantity: qty, date: new Date(inv.date), referenceType: "SALES_INVOICE", referenceId: inv.id, reason: `صرف بيع ${inv.number}`,
               });
               // Zero-cost issue on a positive qty means the item has quantity but no

@@ -41,22 +41,27 @@ export function DocumentActions({
   items = [],
   barcode,
   extra,
+  compact,
 }: {
   primary?: ReactNode;
   items?: DocAction[];
   barcode?: { docTitle: string; rows: BulkRow[] };
   /** Anything that must stay outside the menu (a second dialog-owning component). */
   extra?: ReactNode;
+  /** Icon-only trigger, no label/chevron — for a dense table row instead of a page header. */
+  compact?: boolean;
 }) {
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const visible = items.filter(Boolean);
   const hasBarcode = !!barcode?.rows.length;
   if (!visible.length && !hasBarcode && !primary && !extra) return null;
 
-  // Printing needs no write permission — a viewer may still take a document to paper —
-  // so print/barcode sit above the separator and the mutating actions below it.
-  const printish = visible.filter((a) => a.icon === "Printer");
-  const rest = visible.filter((a) => a.icon !== "Printer");
+  // Viewing/printing/exporting need no write permission — a viewer may still open,
+  // print, or download a document — so they sit above the separator and mutating
+  // actions below it.
+  const SAFE_ICONS = new Set(["Printer", "Eye", "FileSpreadsheet"]);
+  const printish = visible.filter((a) => SAFE_ICONS.has(a.icon));
+  const rest = visible.filter((a) => !SAFE_ICONS.has(a.icon));
 
   const item = (a: DocAction, i: number) =>
     a.href ? (
@@ -77,10 +82,16 @@ export function DocumentActions({
       {(visible.length > 0 || hasBarcode) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Icon name="Ellipsis" className="size-4" />إجراءات
-              <Icon name="ChevronDown" className="size-3.5 text-muted-foreground" />
-            </Button>
+            {compact ? (
+              <Button size="icon" variant="ghost" aria-label="إجراءات">
+                <Icon name="MoreVertical" className="size-4" />
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline">
+                <Icon name="Ellipsis" className="size-4" />إجراءات
+                <Icon name="ChevronDown" className="size-3.5 text-muted-foreground" />
+              </Button>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {printish.map(item)}

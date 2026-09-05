@@ -13,6 +13,12 @@ const ALIASES: Record<string, string> = {
   BarChart2: "ChartColumn",
   LineChart: "ChartLine",
   PieChart: "ChartPie",
+  MoreVertical: "EllipsisVertical",
+  Edit: "SquarePen",
+  Filter: "Funnel",
+  Loader2: "LoaderCircle",
+  PlayCircle: "CirclePlay",
+  FileWarning: "FileExclamationPoint",
 };
 
 /** Render a lucide icon by its name (e.g. "LayoutDashboard"). */

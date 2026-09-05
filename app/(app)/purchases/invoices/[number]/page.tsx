@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -98,7 +99,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
+                <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
                     <TableCell className="max-w-[320px] whitespace-normal">
@@ -112,7 +113,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                     <TableCell>{fmt(l.tax)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
             </Table>
 

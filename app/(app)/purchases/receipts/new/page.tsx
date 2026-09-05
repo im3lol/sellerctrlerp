@@ -8,7 +8,7 @@ import { GoodsReceiptForm } from "@/components/erp/goods-receipt-form";
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function NewReceiptPage() {
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.receive", async ({ orgId }) => {
     const [supList, whList, org, openOrders] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers)
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),

@@ -5,6 +5,7 @@ import { users, organizations, organizationMembers, orgSubscriptions } from "@/d
 import { BCRYPT_COST } from "@/lib/auth/password-policy";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 import { TRIAL_DAYS } from "@/lib/erp/subscription";
+import { generateOrgSlug } from "@/lib/erp/org-slug";
 
 export type NewOrgInput = {
   companyName: string;
@@ -33,8 +34,9 @@ export async function createOrgWithOwner(input: NewOrgInput): Promise<{ orgId: s
   const modules = (input.modules ?? []).filter((m) => (ALL_MODULES as readonly string[]).includes(m));
   const enabled = modules.length ? modules : [...ALL_MODULES]; // never lock a fresh trial out of everything
 
+  const slug = await generateOrgSlug(input.companyName);
   const [org] = await db.insert(organizations).values({
-    nameAr: input.companyName, nameEn: input.companyName,
+    nameAr: input.companyName, nameEn: input.companyName, slug,
     email: input.email, phone: input.phone || null, address: input.address || null, taxNumber: input.taxNumber || null,
     signupSource: input.source || null,
   }).returning({ id: organizations.id });

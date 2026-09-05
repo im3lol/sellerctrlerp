@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, warehouses, items, organizations, currencies, exchangeRates } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrderForm, type PurchaseOrderInitial } from "@/components/erp/purchase-order-form";
+import { getUnitsByItem } from "@/lib/erp/item-units-data";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -21,15 +22,16 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     const [supList, whList, itemList, org, poLines, currRows, rateRows] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers).where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr }).from(warehouses).where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true))).orderBy(asc(warehouses.code)),
-      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
+      db.select({ id: items.id, nameAr: items.nameAr, code: items.code, image: items.image, weightKg: items.weightKg }).from(items).where(and(eq(items.organizationId, orgId), eq(items.isActive, true))).orderBy(asc(items.code)),
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
-      db.select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shippingPerUnit: purchaseOrderLines.shippingPerUnit, discountAmount: purchaseOrderLines.discountAmount, isTaxExempt: purchaseOrderLines.isTaxExempt })
+      db.select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shippingPerUnit: purchaseOrderLines.shippingPerUnit, discountAmount: purchaseOrderLines.discountAmount, isTaxExempt: purchaseOrderLines.isTaxExempt, uomId: purchaseOrderLines.uomId, uomFactor: purchaseOrderLines.uomFactor })
         .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
       db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
         .where(and(eq(currencies.organizationId, orgId), eq(currencies.isActive, true))).orderBy(currencies.isBase, currencies.code),
       db.select({ currencyCode: exchangeRates.currencyCode, rate: exchangeRates.rate }).from(exchangeRates)
         .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(20),
     ]);
+    const unitsByItem = await getUnitsByItem(orgId);
 
     const latestRates: Record<string, number> = {};
     for (const r of rateRows) if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
@@ -40,13 +42,16 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     const toForeign = (n: string | number | null) => round2(Number(n ?? 0) / rate);
     const initial: PurchaseOrderInitial = {
       id: po.id, number: po.number, supplierId: po.supplierId, warehouseId: po.warehouseId,
-      date: new Date(po.date).toISOString().slice(0, 10), notes: po.notes ?? "",
+      date: new Date(po.date).toISOString().slice(0, 10),
+      expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().slice(0, 10) : "",
+      notes: po.notes ?? "",
       currencyCode: po.currencyCode, exchangeRate: rate, applyVat: Number(po.taxAmount) > 0,
       lines: poLines.map((l) => {
         const qty = Number(l.quantity) || 0;
         return {
           itemId: l.itemId, quantity: qty, unitPrice: toForeign(l.unitPrice), shippingPerUnit: toForeign(l.shippingPerUnit),
           discountPerUnit: qty > 0 ? round2(toForeign(l.discountAmount) / qty) : 0,
+          uomId: l.uomId ?? "", uomFactor: Number(l.uomFactor) || 1,
         };
       }),
     };
@@ -54,7 +59,7 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title={`تعديل أمر شراء ${po.number}`} subtitle="مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ" backHref={`/purchases/orders/${encodeURIComponent(po.number)}`} />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} currencies={currRows} latestRates={latestRates} initial={initial} />
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} currencies={currRows} latestRates={latestRates} initial={initial} />
       </div>
     );
   });

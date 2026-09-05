@@ -107,6 +107,13 @@ export function FulfillmentForm({
             ))}
           </TableBody>
         </Table>
+
+        {!isDelivery && (
+          <p className="text-xs text-muted-foreground">
+            تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على هذا الإذن.
+          </p>
+        )}
+
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => router.push(dest)}>إلغاء</Button>
           <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن الصرف" : "حفظ إذن الاستلام"}</Button>

@@ -22,8 +22,8 @@ import {
  * is honored but never allowed to go earlier than the accounting start date.
  */
 async function resolveOrdersFrom(orgId: string, code: string, since?: string): Promise<Date> {
-  const [plat] = await db.select({ start: salesPlatforms.accountingStartDate }).from(salesPlatforms)
-    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase()))).limit(1);
+  const [plat] = await withOrgScope(orgId, false, () => db.select({ start: salesPlatforms.accountingStartDate }).from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase()))).limit(1));
   const startDate = plat?.start ? new Date(plat.start) : null;
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const parsed = since ? new Date(since) : null;

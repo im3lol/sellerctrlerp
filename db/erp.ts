@@ -73,6 +73,11 @@ export const organizations = pgTable(
     vatRate: money("vat_rate").notNull().default("14"),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
+    // Loyalty: points earned per pound (0 = programme off), pounds a point redeems for,
+    // and the balance a customer must reach before redeeming anything.
+    loyaltyEarnRate: money("loyalty_earn_rate").notNull().default("0"),
+    loyaltyRedeemRate: money("loyalty_redeem_rate").notNull().default("0"),
+    loyaltyMinRedeem: integer("loyalty_min_redeem").notNull().default(0),
     // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
     setupSkipped: jsonb("setup_skipped").$type<string[]>(),
     // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
@@ -162,6 +167,303 @@ export const unitsOfMeasure = pgTable(
   (t) => [uniqueIndex("uom_org_code_idx").on(t.organizationId, t.code)],
 );
 
+/**
+ * Units a single item can be transacted in, on top of its base unit (`items.uomId`).
+ * `factor` is how many BASE units one of this unit holds — a carton of 12 pieces is
+ * factor 12. The base unit itself is a row with factor 1 and isBase = true.
+ *
+ * Nothing here changes how stock is stored: quantities and unit prices are ALWAYS
+ * persisted in the base unit. A document line only records which unit the user typed
+ * in (`uomId` + a `uomFactor` snapshot) so the screen and the printout can say
+ * "٥ كرتونة (٦٠ قطعة)" — the inventory and costing engines never see anything but base.
+ */
+export const itemUnits = pgTable(
+  "item_units",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    uomId: text("uom_id").notNull().references(() => unitsOfMeasure.id),
+    /** BASE units in one of this unit. Must be > 0; the base row is exactly 1. */
+    factor: numeric("factor", { precision: 18, scale: 6 }).notNull().default("1"),
+    isBase: boolean("is_base").notNull().default(false),
+    /** Scanning a carton barcode should pick the carton unit, not the piece. */
+    barcode: text("barcode"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("item_units_item_uom_idx").on(t.itemId, t.uomId),
+    index("item_units_org_barcode_idx").on(t.organizationId, t.barcode),
+  ],
+);
+
+/**
+ * A named set of selling prices — wholesale, retail, a seasonal sheet. A customer is
+ * linked to one list, and the sales forms resolve the line price from it instead of the
+ * item's single sellPrice. Nothing here posts: it only decides the number that lands in
+ * a quotation or an order line, where the user can still override it.
+ */
+export const priceLists = pgTable(
+  "price_lists",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    /** The list used when a customer has none of their own. Exactly one per org. */
+    isDefault: boolean("is_default").notNull().default(false),
+    /** Optional window — a seasonal sheet that stops applying on its own. */
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("price_lists_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/**
+ * One item's price on one list. `minQuantity` lets a list carry a break ("10+ at 9.50");
+ * the resolver takes the best applicable break for the quantity being sold.
+ */
+export const priceListItems = pgTable(
+  "price_list_items",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    priceListId: text("price_list_id").notNull().references(() => priceLists.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    price: money("price").notNull().default("0"),
+    /** Quantity break: this price applies from this quantity up. 0 = always. */
+    minQuantity: money("min_quantity").notNull().default("0"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("price_list_items_unique").on(t.priceListId, t.itemId, t.minQuantity),
+    index("price_list_items_list_idx").on(t.priceListId),
+  ],
+);
+
+/**
+ * One physical unit of a serial-tracked item, followed from the receipt that brought it
+ * in to the delivery that sent it out. Answers the only question anyone asks about a
+ * serial: where is it, and who has it.
+ *
+ * It does NOT hold quantity or value — `stock_movements` remains the single source of
+ * both. A serial-tracked receipt simply has to hand over exactly as many serials as the
+ * quantity it books, which is the invariant that keeps the two ledgers agreeing.
+ */
+export const stockSerials = pgTable(
+  "stock_serials",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    serial: text("serial").notNull(),
+    /** Upper + alphanumeric only, so a scan matches however it was typed. */
+    normalizedSerial: text("normalized_serial").notNull(),
+    status: text("status").notNull().default("IN_STOCK"), // IN_STOCK | SOLD | RETURNED | SCRAPPED
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    /** The receipt that brought it in, and the delivery that took it out. */
+    receiptId: text("receipt_id"),
+    deliveryId: text("delivery_id"),
+    customerId: text("customer_id"),
+    batchNo: text("batch_no"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    soldAt: timestamp("sold_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // A serial identifies one unit of one item — the same string may legitimately
+    // recur across different items (manufacturer numbering is not global).
+    uniqueIndex("stock_serials_item_serial_idx").on(t.organizationId, t.itemId, t.normalizedSerial),
+    index("stock_serials_org_norm_idx").on(t.organizationId, t.normalizedSerial),
+    index("stock_serials_status_idx").on(t.organizationId, t.itemId, t.status),
+  ],
+);
+
+/**
+ * Money handed to an employee to spend on the company's behalf — a petty-cash float, a
+ * travel advance, cash for a parts run. The mirror image of an expense claim: there the
+ * employee pays first and is reimbursed, here the company pays first and is accounted to.
+ *
+ * The cycle is: issue (Dr employee custody / Cr cash) → the employee spends → settle
+ * with real expenses and hand back what is left (Dr expenses + Dr cash / Cr custody).
+ * The account's balance is therefore always "cash this person still holds and has not
+ * accounted for", which is the number anyone actually wants.
+ */
+export const custodyAdvances = pgTable(
+  "custody_advances",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    employeeId: text("employee_id").notNull().references(() => employees.id),
+    employeeName: text("employee_name").notNull(), // snapshot, so a deleted employee still reads
+    /** Where the cash came from (a cash box or bank account's GL). */
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),
+    date: ts("date").notNull(),
+    amount: money("amount").notNull().default("0"),
+    /** Settled + returned so far — the outstanding balance is amount minus this. */
+    settledAmount: money("settled_amount").notNull().default("0"),
+    /** DRAFT · OPEN (issued, money out) · SETTLED (fully accounted) · CANCELLED. */
+    status: text("status").notNull().default("DRAFT"),
+    purpose: text("purpose"),
+    notes: text("notes"),
+    journalEntryId: text("journal_entry_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("custody_advances_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/**
+ * One accounting of a custody advance: what was spent, on which expense accounts, and
+ * how much cash came back. Several settlements can sit against one advance — a float is
+ * topped up and accounted for repeatedly.
+ */
+export const custodySettlements = pgTable(
+  "custody_settlements",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    advanceId: text("advance_id").notNull().references(() => custodyAdvances.id, { onDelete: "cascade" }),
+    date: ts("date").notNull(),
+    /** Cash physically handed back, if any. */
+    returnedAmount: money("returned_amount").notNull().default("0"),
+    /** Sum of the expense lines. */
+    spentAmount: money("spent_amount").notNull().default("0"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT · POSTED
+    notes: text("notes"),
+    journalEntryId: text("journal_entry_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("custody_settlements_org_number_idx").on(t.organizationId, t.number)],
+);
+
+export const custodySettlementLines = pgTable("custody_settlement_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  settlementId: text("settlement_id").notNull().references(() => custodySettlements.id, { onDelete: "cascade" }),
+  expenseAccountId: text("expense_account_id").notNull().references(() => accounts.id),
+  amount: money("amount").notNull(),
+  description: text("description"),
+}, (t) => [
+  index("custody_settlement_lines_settlement_idx").on(t.settlementId),
+]);
+
+/**
+ * طلب عروض أسعار — ask several suppliers what they'd charge for the same basket, then
+ * compare the answers side by side instead of in a WhatsApp thread.
+ *
+ * The RFQ carries the basket; each invited supplier gets a row for their terms and a
+ * price per line. Nothing here posts to the ledger — an RFQ is a question, and the
+ * accepted answer becomes a purchase order through the normal cycle.
+ */
+export const rfqs = pgTable(
+  "rfqs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    /** When answers are due — the deadline written on the request, not a system rule. */
+    dueDate: ts("due_date"),
+    status: text("status").notNull().default("DRAFT"), // DRAFT · SENT · AWARDED · CANCELLED
+    /** The requisition that prompted it, when there was one. */
+    materialRequestId: text("material_request_id"),
+    /** Which supplier won, once the buyer decides. */
+    awardedSupplierId: text("awarded_supplier_id").references(() => suppliers.id),
+    awardedOrderId: text("awarded_order_id"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("rfqs_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/** One item in the basket every invited supplier is quoting on. */
+export const rfqLines = pgTable("rfq_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqId: text("rfq_id").notNull().references(() => rfqs.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  quantity: money("quantity").notNull(),
+  notes: text("notes"),
+}, (t) => [index("rfq_lines_rfq_idx").on(t.rfqId)]);
+
+/**
+ * One supplier's answer: their terms, and (through rfq_quote_lines) their price per
+ * item. A supplier who never replies keeps status INVITED, which is itself a fact worth
+ * seeing in the comparison.
+ */
+export const rfqSuppliers = pgTable("rfq_suppliers", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqId: text("rfq_id").notNull().references(() => rfqs.id, { onDelete: "cascade" }),
+  supplierId: text("supplier_id").notNull().references(() => suppliers.id),
+  status: text("status").notNull().default("INVITED"), // INVITED · QUOTED · DECLINED
+  /** Days from order to delivery, as promised in the quote. */
+  leadDays: integer("lead_days"),
+  /** Days of credit offered, as promised in the quote. */
+  paymentTermDays: integer("payment_term_days"),
+  validUntil: ts("valid_until"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  uniqueIndex("rfq_suppliers_unique").on(t.rfqId, t.supplierId),
+  index("rfq_suppliers_rfq_idx").on(t.rfqId),
+]);
+
+/** A price for one item from one supplier. A missing row means they didn't quote it. */
+export const rfqQuoteLines = pgTable("rfq_quote_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  rfqSupplierId: text("rfq_supplier_id").notNull().references(() => rfqSuppliers.id, { onDelete: "cascade" }),
+  rfqLineId: text("rfq_line_id").notNull().references(() => rfqLines.id, { onDelete: "cascade" }),
+  unitPrice: money("unit_price").notNull().default("0"),
+  notes: text("notes"),
+}, (t) => [
+  uniqueIndex("rfq_quote_lines_unique").on(t.rfqSupplierId, t.rfqLineId),
+  index("rfq_quote_lines_supplier_idx").on(t.rfqSupplierId),
+]);
+
+/**
+ * How much a sales rep earns, and on what. `basis` is the argument worth having:
+ * INVOICED pays on the invoice date, COLLECTED pays only once the customer actually
+ * paid. COLLECTED is the commercially sane default — a commission paid on an invoice
+ * that is never collected is money out for a sale that never happened.
+ *
+ * One active rule per rep at a time; a rule with no employee is the org's default.
+ */
+export const commissionRules = pgTable(
+  "commission_rules",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    /** Null = the default rule for anyone without their own. */
+    employeeId: text("employee_id").references(() => employees.id, { onDelete: "cascade" }),
+    basis: text("basis").notNull().default("COLLECTED"), // COLLECTED | INVOICED
+    percent: numeric("percent", { precision: 6, scale: 3 }).notNull().default("0"),
+    validFrom: ts("valid_from"),
+    validTo: ts("valid_to"),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("commission_rules_org_emp_idx").on(t.organizationId, t.employeeId)],
+);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
@@ -176,6 +478,8 @@ export const warehouses = pgTable(
     parentId: text("parent_id").references((): AnyPgColumn => warehouses.id),
     location: text("location"),
     manager: text("manager"),
+    /** The holding area for goods awaiting inspection. One per org; created on demand. */
+    isQuarantine: boolean("is_quarantine").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -217,13 +521,29 @@ export const items = pgTable(
     // On parent delete, children are unlinked (not deleted).
     parentItemId: text("parent_item_id").references((): AnyPgColumn => items.id, { onDelete: "set null" }),
     variationValue: text("variation_value"), // e.g. "أحمر - L" — the child's variation label
+    // How individual units are traced. NONE = quantities only; BATCH = lot/expiry (what
+    // isPerishable already switched on); SERIAL = one row per physical unit in
+    // stock_serials. Serial tracking is a PARALLEL ledger — stock balances and costing
+    // still come from stock_movements, and the two are reconciled by count.
+    tracking: text("tracking").notNull().default("NONE"), // NONE | BATCH | SERIAL
+    /**
+     * Sells hours or work, not goods. A service line bills revenue and moves no stock —
+     * without it a project milestone or a delivery charge has to be faked as an item with
+     * a balance, and the store ends up short of something that was never on a shelf.
+     */
+    isService: boolean("is_service").notNull().default(false),
+    /** Goods land in quarantine on receipt and only reach available stock once passed. */
+    requiresInspection: boolean("requires_inspection").notNull().default(false),
     isPerishable: boolean("is_perishable").notNull().default(false),
     shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),
     // Catalog enrichment (display strings; filled from a marketplace catalog if empty).
     brand: text("brand"),
-    weight: text("weight"),      // e.g. "0.5 kg"
+    weight: text("weight"),      // e.g. "0.5 kg" — free-text display string (Amazon catalog sync writes this)
     dimensions: text("dimensions"), // e.g. "10 × 5 × 3 cm"
+    // Numeric per-unit weight in kg — separate from the free-text `weight` above,
+    // used only for weight-based landed-cost (shipping) allocation.
+    weightKg: numeric("weight_kg", { precision: 10, scale: 3 }),
     image: text("image"),
     // Auto-created from a marketplace order whose SKU wasn't in the catalog. Has a
     // name+price from the order but no cost — its orders stay DRAFT until reviewed.
@@ -536,6 +856,11 @@ export const deliveryNoteLines = pgTable("delivery_note_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   deliveryNoteId: text("delivery_note_id").notNull().references(() => deliveryNotes.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line issuing warehouse (falls back to the note's warehouse when null).
   warehouseId: text("warehouse_id").references(() => warehouses.id),
@@ -570,11 +895,21 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   // Per-line receiving warehouse (falls back to the receipt's warehouse when null).
   warehouseId: text("warehouse_id").references(() => warehouses.id),
   quantity: money("quantity").notNull(), // accepted into stock
   rejectedQty: money("rejected_qty").notNull().default("0"), // inspected & rejected (no stock)
+  // This receipt's OWN per-unit landed shipping cost — each delivery/shipment can have
+  // a different real freight cost, so this is independent of purchase_order_lines'
+  // shippingPerUnit (which it defaults from at creation, see createReceiptFromOrderAction).
+  // Capitalised into stock cost at confirm; NOT the PO-wide estimate.
+  shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
   batchNo: text("batch_no"), // lot/batch (perishables)
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
@@ -611,6 +946,272 @@ export const pickListLines = pgTable("pick_list_lines", {
   notes: text("notes"),
 }, (t) => [
   index("pick_list_lines_list_idx").on(t.pickListId),
+]);
+
+/**
+ * A place inside a warehouse — an aisle, a rack, a shelf. Deliberately a PICKING
+ * dimension, not a balance one: stock quantities and value stay at warehouse level, and
+ * `stock_batches` keeps its identity untouched. Bins answer "where do I walk to find
+ * this", which is the question a storekeeper actually has.
+ *
+ * Making a bin a balance dimension means changing the lot identity key and revaluing
+ * every balance — a separate project, and one nobody has asked for yet.
+ */
+export const binLocations = pgTable(
+  "bin_locations",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id, { onDelete: "cascade" }),
+    /** Sorts the walking route, so pick in code order = one pass through the aisles. */
+    code: text("code").notNull(),
+    nameAr: text("name_ar"),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("bin_locations_wh_code_idx").on(t.warehouseId, t.code),
+    index("bin_locations_org_idx").on(t.organizationId, t.warehouseId),
+  ],
+);
+
+/**
+ * Where one item lives in one warehouse. An item can sit in more than one bin (bulk on a
+ * pallet, pieces on a pick face), so `isPrimary` marks the one to walk to first.
+ */
+export const itemBins = pgTable(
+  "item_bins",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id, { onDelete: "cascade" }),
+    binId: text("bin_id").notNull().references(() => binLocations.id, { onDelete: "cascade" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("item_bins_unique").on(t.itemId, t.binId),
+    index("item_bins_item_wh_idx").on(t.itemId, t.warehouseId),
+  ],
+);
+
+/**
+ * Cycle counting — count a slice of the warehouse every week instead of shutting the
+ * whole place down once a year. A session is a count sheet; the differences it finds
+ * become an ordinary stock adjustment, which is what posts. Nothing here writes a
+ * balance: the existing adjustment engine does that, exactly as it does for a manual one.
+ */
+export const countSessions = pgTable(
+  "count_sessions",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    date: ts("date").notNull(),
+    /** How the slice was chosen — kept so a later reader knows what this covered. */
+    method: text("method").notNull().default("VALUE"), // VALUE | MOVEMENT | MANUAL
+    status: text("status").notNull().default("DRAFT"), // DRAFT · COUNTED · POSTED · CANCELLED
+    /** The adjustment the differences were posted through. */
+    adjustmentId: text("adjustment_id"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("count_sessions_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/**
+ * One item on the sheet. `systemQty` is frozen when the sheet is generated — comparing a
+ * count taken this morning against a balance that moved this afternoon would invent
+ * differences that were never there.
+ */
+export const countSessionLines = pgTable("count_session_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  sessionId: text("session_id").notNull().references(() => countSessions.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  /** Book quantity at the moment the sheet was produced. */
+  systemQty: money("system_qty").notNull().default("0"),
+  /** What the counter found. Null until they write it down. */
+  countedQty: money("counted_qty"),
+  unitCost: money("unit_cost").notNull().default("0"),
+  /** Where to walk, snapshotted so a later bin change doesn't rewrite the sheet. */
+  binCode: text("bin_code"),
+  notes: text("notes"),
+}, (t) => [
+  uniqueIndex("count_session_lines_unique").on(t.sessionId, t.itemId),
+  index("count_session_lines_session_idx").on(t.sessionId),
+]);
+
+/**
+ * A quality decision on goods that arrived. Inspection is a STAGE, not a flag: goods for
+ * an inspected item are received into a quarantine warehouse, so they are on the books at
+ * their real cost but cannot be sold, and only a pass moves them into available stock.
+ *
+ * The movement itself goes through the ordinary transfer document — this table records
+ * who decided what, and holds the pending queue.
+ */
+export const qcInspections = pgTable(
+  "qc_inspections",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    /** The receipt that brought the goods in. */
+    receiptId: text("receipt_id").notNull(),
+    receiptNumber: text("receipt_number").notNull(),
+    itemId: text("item_id").notNull().references(() => items.id),
+    /** Where the goods are being held, and where they are meant to end up. */
+    quarantineWarehouseId: text("quarantine_warehouse_id").notNull().references(() => warehouses.id),
+    targetWarehouseId: text("target_warehouse_id").notNull().references(() => warehouses.id),
+    quantity: money("quantity").notNull().default("0"),
+    passedQty: money("passed_qty").notNull().default("0"),
+    failedQty: money("failed_qty").notNull().default("0"),
+    status: text("status").notNull().default("PENDING"), // PENDING · DECIDED · CANCELLED
+    /** The transfer that released the passed goods into available stock. */
+    releaseTransferId: text("release_transfer_id"),
+    decidedAt: ts("decided_at"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("qc_inspections_org_number_idx").on(t.organizationId, t.number),
+    index("qc_inspections_status_idx").on(t.organizationId, t.status),
+  ],
+);
+
+/**
+ * A cashier's shift at a till. Opening records the float in the drawer; closing records
+ * what was actually counted, against what the sales say should be there. The difference
+ * is the number the shift exists to produce.
+ *
+ * A POS sale is an ordinary sales invoice — posted immediately, with a receipt voucher
+ * for the money — so revenue, COGS, stock and cash all come from the engines that
+ * already produce them. These tables only add what retail needs on top: whose shift, and
+ * how the customer paid.
+ */
+export const posShifts = pgTable(
+  "pos_shifts",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    /** Where cash sales land — the till's own cash account. */
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userName: text("user_name"),
+    openedAt: ts("opened_at").notNull(),
+    closedAt: ts("closed_at"),
+    openingFloat: money("opening_float").notNull().default("0"),
+    /** What the cashier counted in the drawer at close. */
+    countedCash: money("counted_cash"),
+    /** Float + cash sales − cash refunds, as the system computed it. */
+    expectedCash: money("expected_cash"),
+    difference: money("difference"),
+    status: text("status").notNull().default("OPEN"), // OPEN · CLOSED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("pos_shifts_org_number_idx").on(t.organizationId, t.number),
+    index("pos_shifts_open_idx").on(t.organizationId, t.status),
+  ],
+);
+
+/**
+ * How one sale was paid. A single sale can be split across methods — part cash, part
+ * card — which is why this is a table and not a column on the invoice.
+ */
+/**
+ * Automatic retail discounts. A rule with no item is a basket rule; one with an item is a
+ * line rule. The engine in lib/erp/promotions.ts decides which one wins — never both.
+ */
+export const promotions = pgTable(
+  "promotions",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    type: text("type").notNull().default("PERCENT"), // PERCENT | AMOUNT | BUY_X_GET_Y
+    value: money("value").notNull().default("0"),
+    /** Null = applies to the whole basket. */
+    itemId: text("item_id").references(() => items.id, { onDelete: "cascade" }),
+    minQuantity: money("min_quantity").notNull().default("0"),
+    minAmount: money("min_amount").notNull().default("0"),
+    buyQty: integer("buy_qty").notNull().default(0),
+    getQty: integer("get_qty").notNull().default(0),
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
+    priority: integer("priority").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("promotions_code_unique").on(t.organizationId, t.code)],
+);
+
+/**
+ * The points ledger. A balance is a SUM over this table and nothing else, so points can
+ * always be explained: earned on which invoice, spent on which one.
+ */
+export const loyaltyEntries = pgTable("loyalty_entries", {
+  id: pk(),
+  organizationId: orgId(),
+  customerId: text("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+  /** Positive earns, negative redeems. */
+  points: integer("points").notNull(),
+  kind: text("kind").notNull(), // EARN | REDEEM | ADJUST
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  /** What the redeemed points took off the sale, in pounds. */
+  amount: money("amount").notNull().default("0"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+});
+
+/**
+ * The idempotency key an offline sale carries. Generated on the device BEFORE the sale
+ * is stored locally, so a sync that is interrupted — or retried, or double-clicked —
+ * always resolves to the same one invoice. See docs/POS-OFFLINE.md.
+ */
+export const posSaleRefs = pgTable(
+  "pos_sale_refs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    clientRef: text("client_ref").notNull(),
+    /** Null while the claim is held and the sale is still posting. */
+    salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "cascade" }),
+    shiftId: text("shift_id").notNull().references(() => posShifts.id, { onDelete: "cascade" }),
+    /** When the sale actually happened at the till, which may be well before it synced. */
+    soldAt: ts("sold_at").notNull(),
+    syncedAt: createdAt(),
+  },
+  (t) => [uniqueIndex("pos_sale_refs_unique").on(t.organizationId, t.clientRef)],
+);
+
+export const posPayments = pgTable("pos_payments", {
+  id: pk(),
+  organizationId: orgId(),
+  shiftId: text("shift_id").notNull().references(() => posShifts.id, { onDelete: "cascade" }),
+  salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+  method: text("method").notNull(), // CASH | CARD | WALLET | VOUCHER
+  amount: money("amount").notNull(),
+  reference: text("reference"),
+  createdAt: createdAt(),
+}, (t) => [
+  index("pos_payments_shift_idx").on(t.shiftId),
+  index("pos_payments_invoice_idx").on(t.salesInvoiceId),
 ]);
 
 /* ════════════════════════ ACCOUNTING ══════════════════════ */
@@ -857,6 +1458,8 @@ export const journalEntryLines = pgTable(
     journalEntryId: text("journal_entry_id").notNull().references(() => journalEntries.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull().references(() => accounts.id),
     costCenterId: text("cost_center_id").references(() => costCenters.id),
+    /** The other analytical dimension. Same mechanism, different question. */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     debit: money("debit").notNull().default("0"),
     credit: money("credit").notNull().default("0"),
     description: text("description"),
@@ -873,10 +1476,258 @@ export const journalEntryLines = pgTable(
     index("journal_entry_lines_entry_idx").on(t.journalEntryId),
     index("journal_entry_lines_account_idx").on(t.accountId),
     index("journal_entry_lines_cost_center_idx").on(t.costCenterId),
+    index("journal_entry_lines_project_idx").on(t.projectId),
   ],
 );
 
 /* ══════════════════════════ FIXED ASSETS ══════════════════ */
+
+// ── recruitment, performance, training ──────────────────────────────────
+// Three registers on the same shape as employees and leaves. Deliberately plain: hiring
+// and appraisal are conversations, and the system's job is to remember what was decided,
+// not to have an opinion about it.
+
+/** A role being hired for. Closing it is a decision worth keeping, so it is a status. */
+export const jobOpenings = pgTable(
+  "job_openings",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    titleAr: text("title_ar").notNull(),
+    department: text("department"),
+    /** How many people this opening is meant to hire. */
+    headcount: integer("headcount").notNull().default(1),
+    status: text("status").notNull().default("OPEN"), // OPEN | ON_HOLD | FILLED | CANCELLED
+    openedAt: ts("opened_at").notNull(),
+    closedAt: ts("closed_at"),
+    hiringManagerId: text("hiring_manager_id").references(() => employees.id, { onDelete: "set null" }),
+    salaryFrom: money("salary_from").notNull().default("0"),
+    salaryTo: money("salary_to").notNull().default("0"),
+    description: text("description"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("job_openings_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/**
+ * Someone who applied. `stage` is the pipeline; `employeeId` is filled in on hire, which
+ * is what ties a name in the funnel to a person on the payroll.
+ */
+export const jobApplicants = pgTable("job_applicants", {
+  id: pk(),
+  organizationId: orgId(),
+  openingId: text("opening_id").notNull().references(() => jobOpenings.id, { onDelete: "cascade" }),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  source: text("source"), // referral, LinkedIn, walk-in…
+  stage: text("stage").notNull().default("APPLIED"), // APPLIED | SCREENING | INTERVIEW | OFFER | HIRED | REJECTED
+  appliedAt: ts("applied_at").notNull(),
+  /** Set when the applicant becomes an employee — the funnel's only write into HR. */
+  employeeId: text("employee_id").references(() => employees.id, { onDelete: "set null" }),
+  rating: integer("rating"),
+  expectedSalary: money("expected_salary").notNull().default("0"),
+  cvAttachmentId: text("cv_attachment_id"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/** One interview or screening call, and what the interviewer concluded. */
+export const applicantInterviews = pgTable("applicant_interviews", {
+  id: pk(),
+  organizationId: orgId(),
+  applicantId: text("applicant_id").notNull().references(() => jobApplicants.id, { onDelete: "cascade" }),
+  interviewerId: text("interviewer_id").references(() => employees.id, { onDelete: "set null" }),
+  scheduledAt: ts("scheduled_at").notNull(),
+  stage: text("stage").notNull().default("INTERVIEW"),
+  outcome: text("outcome"), // PENDING | PASS | FAIL
+  rating: integer("rating"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * An appraisal covering a period. Scores live on their own rows so a review can carry as
+ * many criteria as the manager wants without a column per criterion.
+ */
+export const performanceReviews = pgTable("performance_reviews", {
+  id: pk(),
+  organizationId: orgId(),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").references(() => employees.id, { onDelete: "set null" }),
+  periodFrom: text("period_from").notNull(),
+  periodTo: text("period_to").notNull(),
+  status: text("status").notNull().default("DRAFT"), // DRAFT | SUBMITTED | ACKNOWLEDGED
+  /** 0–5, weighted from the criteria below. Stored so a past review never re-scores. */
+  overallScore: money("overall_score").notNull().default("0"),
+  strengths: text("strengths"),
+  improvements: text("improvements"),
+  goals: text("goals"),
+  acknowledgedAt: ts("acknowledged_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const reviewScores = pgTable("review_scores", {
+  id: pk(),
+  organizationId: orgId(),
+  reviewId: text("review_id").notNull().references(() => performanceReviews.id, { onDelete: "cascade" }),
+  criterion: text("criterion").notNull(),
+  weight: money("weight").notNull().default("1"),
+  score: money("score").notNull().default("0"), // 0–5
+  comment: text("comment"),
+  createdAt: createdAt(),
+});
+
+/** A course, and who sat it. */
+export const trainingCourses = pgTable(
+  "training_courses",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    provider: text("provider"),
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
+    hours: money("hours").notNull().default("0"),
+    costPerSeat: money("cost_per_seat").notNull().default("0"),
+    seats: integer("seats").notNull().default(0),
+    status: text("status").notNull().default("PLANNED"), // PLANNED | RUNNING | DONE | CANCELLED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("training_courses_org_code_idx").on(t.organizationId, t.code)],
+);
+
+export const trainingEnrollments = pgTable("training_enrollments", {
+  id: pk(),
+  organizationId: orgId(),
+  courseId: text("course_id").notNull().references(() => trainingCourses.id, { onDelete: "cascade" }),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("ENROLLED"), // ENROLLED | ATTENDED | COMPLETED | NO_SHOW
+  score: money("score"),
+  completedAt: ts("completed_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * A report someone built and wants back tomorrow. The spec is stored, not the rows — the
+ * numbers are re-read every time, so a saved report is a question, never a stale answer.
+ */
+export const savedReports = pgTable(
+  "saved_reports",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    nameAr: text("name_ar").notNull(),
+    dataset: text("dataset").notNull(),
+    spec: jsonb("spec").$type<import("../lib/erp/report-builder").ReportSpec>().notNull(),
+    /** Private to whoever built it unless they share it with the org. */
+    isShared: boolean("is_shared").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("saved_reports_org_idx").on(t.organizationId, t.dataset)],
+);
+
+/**
+ * A project is a COST DIMENSION, like a cost centre. Money reaches it the ordinary way —
+ * an expense, a bill, an invoice, each stamped with the project — so there is no second
+ * costing engine here, only a place to compare that against what was promised.
+ */
+export const projects = pgTable(
+  "projects",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    managerEmployeeId: text("manager_employee_id").references(() => employees.id, { onDelete: "set null" }),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | ACTIVE | ON_HOLD | DONE | CANCELLED
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    budget: money("budget").notNull().default("0"),
+    /** Charged when hours are billed by time and materials. */
+    defaultBillRate: money("default_bill_rate").notNull().default("0"),
+    costCenterId: text("cost_center_id").references(() => costCenters.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("projects_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/** A stage of the project, and — when it carries an amount — a milestone to bill on. */
+export const projectPhases = pgTable("project_phases", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  nameAr: text("name_ar").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  status: text("status").notNull().default("PENDING"), // PENDING | IN_PROGRESS | DONE
+  budget: money("budget").notNull().default("0"),
+  billAmount: money("bill_amount").notNull().default("0"),
+  plannedStart: text("planned_start"),
+  plannedEnd: text("planned_end"),
+  actualEnd: ts("actual_end"),
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  invoicedAt: ts("invoiced_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const projectTasks = pgTable("project_tasks", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  phaseId: text("phase_id").references(() => projectPhases.id, { onDelete: "set null" }),
+  nameAr: text("name_ar").notNull(),
+  assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("PENDING"), // PENDING | IN_PROGRESS | DONE
+  plannedHours: money("planned_hours").notNull().default("0"),
+  dueDate: text("due_date"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * An hour someone worked. Cost rate is what the hour cost the company; bill rate is what
+ * the customer pays for it — the two are different numbers and conflating them is how a
+ * project reports a margin it never had.
+ */
+export const timesheets = pgTable("timesheets", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  taskId: text("task_id").references(() => projectTasks.id, { onDelete: "set null" }),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  workDate: text("work_date").notNull(),
+  hours: money("hours").notNull(),
+  costRate: money("cost_rate").notNull().default("0"),
+  billRate: money("bill_rate").notNull().default("0"),
+  billable: boolean("billable").notNull().default(true),
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  invoicedAt: ts("invoiced_at"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
 
 export const fixedAssets = pgTable(
   "fixed_assets",
@@ -899,6 +1750,17 @@ export const fixedAssets = pgTable(
     glAssetAccountId: text("gl_asset_account_id").references(() => accounts.id),
     glAccumDeprecAccountId: text("gl_accum_deprec_account_id").references(() => accounts.id),
     glDeprecExpenseAccountId: text("gl_deprec_expense_account_id").references(() => accounts.id),
+    // ── the operational side: what maintenance and the fleet need from the same asset ──
+    // A second asset master would be a second place to disagree with, so the machine on
+    // the floor and the machine in the ledger stay one row.
+    meterType: text("meter_type").notNull().default("NONE"), // NONE | HOURS | KM
+    currentMeter: money("current_meter"),
+    /** Down for repair, whatever the ledger thinks of its book value. */
+    isDown: boolean("is_down").notNull().default(false),
+    plateNumber: text("plate_number"),
+    licenseExpiry: text("license_expiry"),
+    insuranceExpiry: text("insurance_expiry"),
+    driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -908,6 +1770,123 @@ export const fixedAssets = pgTable(
     index("fixed_assets_org_status_idx").on(t.organizationId, t.status),
   ],
 );
+
+/** Every meter reading ever taken, so a reading that looks wrong can be traced. */
+export const assetMeterReadings = pgTable("asset_meter_readings", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  readAt: ts("read_at").notNull(),
+  value: money("value").notNull(),
+  source: text("source").notNull().default("MANUAL"), // MANUAL | FUEL | TRIP | WORK_ORDER
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+});
+
+/**
+ * Preventive maintenance: do this every N days, or every N hours/kilometres, or both —
+ * whichever arrives first. lib/erp/maintenance.ts decides when that is.
+ */
+export const maintenancePlans = pgTable("maintenance_plans", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  nameAr: text("name_ar").notNull(),
+  everyDays: integer("every_days").notNull().default(0),
+  everyMeter: money("every_meter").notNull().default("0"),
+  lastDoneAt: ts("last_done_at"),
+  lastDoneMeter: money("last_done_meter"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * A job on an asset: a service that came due, or a fault someone reported. Parts leave the
+ * store through postStockMovement like any other issue; labour hours are recorded for cost
+ * reporting but never posted, because payroll already booked that wage.
+ */
+export const workOrders = pgTable(
+  "work_orders",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+    planId: text("plan_id").references(() => maintenancePlans.id, { onDelete: "set null" }),
+    type: text("type").notNull().default("CORRECTIVE"), // PREVENTIVE | CORRECTIVE
+    status: text("status").notNull().default("DRAFT"), // DRAFT | IN_PROGRESS | DONE | CANCELLED
+    reportedAt: ts("reported_at").notNull(),
+    startedAt: ts("started_at"),
+    completedAt: ts("completed_at"),
+    description: text("description").notNull(),
+    assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    meterAtWork: money("meter_at_work"),
+    laborHours: money("labor_hours").notNull().default("0"),
+    laborRate: money("labor_rate").notNull().default("0"),
+    downtimeHours: money("downtime_hours").notNull().default("0"),
+    partsCost: money("parts_cost").notNull().default("0"),
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id),
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("work_orders_org_number_idx").on(t.organizationId, t.number),
+    index("work_orders_org_asset_idx").on(t.organizationId, t.assetId),
+  ],
+);
+
+export const workOrderParts = pgTable("work_order_parts", {
+  id: pk(),
+  organizationId: orgId(),
+  workOrderId: text("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+  quantity: money("quantity").notNull(),
+  /** Filled in on completion from what the store actually released. */
+  unitCost: money("unit_cost").notNull().default("0"),
+  movementId: text("movement_id"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+});
+
+/** A tank of fuel, with the odometer at the pump — that reading is the whole point. */
+export const fuelLogs = pgTable("fuel_logs", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  filledAt: ts("filled_at").notNull(),
+  liters: money("liters").notNull(),
+  cost: money("cost").notNull(),
+  meterValue: money("meter_value"),
+  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
+  station: text("station"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+});
+
+/** Who took the vehicle, where, and how far it went. */
+export const trips = pgTable("trips", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
+  startedAt: ts("started_at").notNull(),
+  endedAt: ts("ended_at"),
+  startMeter: money("start_meter").notNull(),
+  endMeter: money("end_meter"),
+  purpose: text("purpose"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
 
 export const assetDepreciationLines = pgTable(
   "asset_depreciation_lines",
@@ -1026,6 +2005,10 @@ export const customers = pgTable(
     address: text("address"),
     balance: money("balance").notNull().default("0"),
     creditLimit: money("credit_limit").notNull().default("0"),
+    /** Which price list this customer buys on. Null = the org's default list. */
+    priceListId: text("price_list_id"),
+    /** The rep who owns this account. An invoice inherits it unless one is set on the invoice. */
+    salesRepId: text("sales_rep_id"),
     paymentTerms: integer("payment_terms").notNull().default(30),
     isActive: boolean("is_active").notNull().default(true),
     portalUserId: uuid("portal_user_id").references(() => users.id, { onDelete: "set null" }),
@@ -1045,6 +2028,11 @@ export const salesInvoices = pgTable(
     organizationId: orgId(),
     number: text("number").notNull(),
     customerId: text("customer_id").notNull().references(() => customers.id),
+    /** Who gets the commission. Copied from the customer when the invoice is created and
+     *  frozen here — reassigning an account later must not restate commissions earned. */
+    salesRepId: text("sales_rep_id"),
+    /** The project this invoice earns for — the revenue half of the project dimension. */
+    projectId: text("project_id"),
     // Set when the invoice is billed from a delivery note (stock + COGS already
     // posted at delivery, so this invoice bills revenue/AR only).
     deliveryNoteId: text("delivery_note_id"),
@@ -1092,7 +2080,16 @@ export const salesInvoiceLines = pgTable(
     id: pk(),
     organizationId: lineOrgId(),
     salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+    // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+    // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+    // and `unitPrice` stay in BASE units — see itemUnits.
+    uomId: text("uom_id").references(() => unitsOfMeasure.id),
+    uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
     itemId: text("item_id").notNull().references(() => items.id),
+    /** Which warehouse this line ships from. Null = the invoice engine's fallback (the
+     *  originating order line, else the first active warehouse). A till sets it so a
+     *  shop's sale depletes that shop's stock, not whichever warehouse sorts first. */
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
     quantity: money("quantity").notNull(),
     unitPrice: money("unit_price").notNull(),
     discountAmount: money("discount_amount").notNull().default("0"),
@@ -1278,6 +2275,8 @@ export const expenses = pgTable(
     cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),        // paid from (ASSET leaf)
     amount: money("amount").notNull(),
     paymentMethod: text("payment_method").notNull().default("CASH"),
+    /** The project this spend belongs to, if any — how cost reaches a project. */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     payee: text("payee"),        // who was paid (free text)
     reference: text("reference"),
     notes: text("notes"),
@@ -1511,6 +2510,10 @@ export const purchaseOrders = pgTable(
     supplierId: text("supplier_id").notNull().references(() => suppliers.id),
     warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
     date: ts("date").notNull(),
+    // Delivery date promised by the supplier. Optional, and the only baseline the
+    // supplier scorecard can measure punctuality against — without it a receipt has no
+    // "late", and that supplier simply carries no delivery score rather than a made-up one.
+    expectedDate: ts("expected_date"),
     status: text("status").notNull().default("DRAFT"),
     subtotal: money("subtotal").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0"),
@@ -1540,6 +2543,11 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
   id: pk(),
   organizationId: lineOrgId(),
   purchaseOrderId: text("purchase_order_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+  // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+  // and `unitPrice` stay in BASE units — see itemUnits.
+  uomId: text("uom_id").references(() => unitsOfMeasure.id),
+  uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
   itemId: text("item_id").notNull().references(() => items.id),
   quantity: money("quantity").notNull(),
   receivedQty: money("received_qty").notNull().default("0"),
@@ -1605,6 +2613,11 @@ export const salesOrderLines = pgTable(
     id: pk(),
     organizationId: lineOrgId(),
     salesOrderId: text("sales_order_id").notNull().references(() => salesOrders.id, { onDelete: "cascade" }),
+    // Unit the user typed this line in (null = the item's base unit). `uomFactor` is a
+    // snapshot so an edited item_units row can't silently rewrite history. `quantity`
+    // and `unitPrice` stay in BASE units — see itemUnits.
+    uomId: text("uom_id").references(() => unitsOfMeasure.id),
+    uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
     itemId: text("item_id").notNull().references(() => items.id),
     // Preferred fulfilment warehouse (chosen at order time; defaults the delivery's per-line warehouse).
     warehouseId: text("warehouse_id").references(() => warehouses.id),
@@ -1728,6 +2741,11 @@ export const platformCredentials = pgTable(
     notifDestinationId: text("notif_destination_id"),
     notifSubscriptionId: text("notif_subscription_id"),
     openingBalanceAt: ts("opening_balance_at"),             // FBA opening balance created once; null = not yet
+    // Noon Express (FBPI) eligibility — owner-only opt-in per org, NOT a tenant
+    // self-service toggle. Gates app/api/erp/marketplace/noon/webhook/route.ts: the
+    // shared platform webhook secret alone would let ANY org with a matching
+    // project_code auto-ingest FBPI orders, so this is the per-org allowlist.
+    noonExpressEnabled: boolean("noon_express_enabled").notNull().default(false),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("platform_credentials_org_provider_idx").on(t.organizationId, t.provider)],
@@ -2022,6 +3040,51 @@ export const withdrawals = pgTable("withdrawals", {
   notes: text("notes"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+/* ═════════════════ LANDED COSTS (تكاليف الاستيراد) ═════════════════ */
+
+/**
+ * A freight/customs/insurance bill that arrives AFTER the goods were received, from a
+ * vendor of its own (the forwarder — not the goods supplier), covering one or more
+ * confirmed goods receipts. Posting it spreads the charges over those receipts' lines
+ * and revalues the stock still on hand; the already-sold share goes to COGS instead.
+ * Amounts are base currency (EGP) — freight is billed locally whatever the PO currency.
+ */
+export const landedCostVouchers = pgTable(
+  "landed_cost_vouchers",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    date: ts("date").notNull(),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | POSTED | CANCELLED
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id), // the forwarder
+    method: text("method").notNull().default("value"), // value | qty | weight
+    shipping: money("shipping").notNull().default("0"),
+    customs: money("customs").notNull().default("0"),
+    insurance: money("insurance").notNull().default("0"),
+    other: money("other").notNull().default("0"),
+    totalAmount: money("total_amount").notNull().default("0"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("landed_cost_vouchers_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/** One row per receipt line the voucher's charges were spread over (the audit of the split). */
+export const landedCostVoucherLines = pgTable("landed_cost_voucher_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  voucherId: text("voucher_id").notNull().references(() => landedCostVouchers.id, { onDelete: "cascade" }),
+  purchaseReceiptId: text("purchase_receipt_id").notNull().references(() => purchaseReceipts.id),
+  itemId: text("item_id").notNull().references(() => items.id),
+  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+  quantity: money("quantity").notNull(), // the received qty this share was computed on
+  basis: money("basis").notNull().default("0"), // qty×(price|weight|1) — what drove the split
+  allocatedAmount: money("allocated_amount").notNull().default("0"),
+  perUnit: money("per_unit").notNull().default("0"),
 });
 
 /* ════════════════════════ RETURNS ═════════════════════════ */

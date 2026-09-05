@@ -1,12 +1,24 @@
 import { sql } from "drizzle-orm";
+import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import type { DocRow } from "@/lib/erp/mobile-lists";
 
+/**
+ * The /api/v1 routes call these directly after authorizeApi with NO surrounding wrapper,
+ * so every export is wrapped in the tenant DB scope here — same pattern as
+ * lib/erp/mobile-lists.ts. Without it they run on the bare pool and, once RLS is enforced,
+ * silently return zero rows. withOrgScope reuses an already-open scope, so a caller that
+ * is already scoped (a page via loadErpPage) pays nothing.
+ */
+const scoped = <A extends unknown[], R>(fn: (orgId: string, ...args: A) => Promise<R>) =>
+  (orgId: string, ...args: A): Promise<R> => withOrgScope(orgId, false, () => fn(orgId, ...args));
+
+
 type ReorderRow = { code: string; name: string; min_stock: string; on_hand: string };
 
 /** Items whose on-hand is at/below their reorder level (تنبيهات إعادة الطلب). */
-export async function reorderAlerts(orgId: string): Promise<DocRow[]> {
+async function reorderAlertsImpl(orgId: string): Promise<DocRow[]> {
   const res = await db.execute<ReorderRow>(sql`
     WITH latest AS (
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
@@ -30,7 +42,7 @@ export async function reorderAlerts(orgId: string): Promise<DocRow[]> {
 type DeadRow = { code: string; name: string; qty: string; last: string | null };
 
 /** Items with stock but no sale in the last `days` (المخزون الراكد). */
-export async function deadStockAlerts(orgId: string, days = 90): Promise<DocRow[]> {
+async function deadStockAlertsImpl(orgId: string, days = 90): Promise<DocRow[]> {
   const since = new Date(Date.now() - days * 86400000);
   const res = await db.execute<DeadRow>(sql`
     SELECT i.code, coalesce(i.name_ar, i.code) AS name, coalesce(s.qty, 0) AS qty, v.last
@@ -58,7 +70,7 @@ export async function deadStockAlerts(orgId: string, days = 90): Promise<DocRow[
 }
 
 /** Batches expired or near expiry within `withinDays` (تنبيهات انتهاء الصلاحية). */
-export async function expiryAlerts(orgId: string, withinDays = 30): Promise<DocRow[]> {
+async function expiryAlertsImpl(orgId: string, withinDays = 30): Promise<DocRow[]> {
   const rep = await getExpiryReport(orgId, { withinDays });
   return rep.rows
     .filter((r) => r.status !== "OK")
@@ -69,3 +81,7 @@ export async function expiryAlerts(orgId: string, withinDays = 30): Promise<DocR
       amount: r.remaining, status: r.status === "EXPIRED" ? "منتهٍ" : "قريب",
     }));
 }
+
+export const reorderAlerts = scoped(reorderAlertsImpl);
+export const deadStockAlerts = scoped(deadStockAlertsImpl);
+export const expiryAlerts = scoped(expiryAlertsImpl);

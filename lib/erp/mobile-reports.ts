@@ -1,9 +1,21 @@
 import { and, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, purchaseInvoices, purchaseInvoiceLines, customers, suppliers, items } from "@/db/schema";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { getCashFlow } from "@/lib/erp/cashflow";
 import { buildAging, type OpenDoc } from "@/lib/erp/aging";
+
+/**
+ * The /api/v1 routes call these directly after authorizeApi with NO surrounding wrapper,
+ * so every export is wrapped in the tenant DB scope here — same pattern as
+ * lib/erp/mobile-lists.ts. Without it they run on the bare pool and, once RLS is enforced,
+ * silently return zero rows. withOrgScope reuses an already-open scope, so a caller that
+ * is already scoped (a page via loadErpPage) pays nothing.
+ */
+const scoped = <A extends unknown[], R>(fn: (orgId: string, ...args: A) => Promise<R>) =>
+  (orgId: string, ...args: A): Promise<R> => withOrgScope(orgId, false, () => fn(orgId, ...args));
+
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -35,7 +47,7 @@ const YEAR_START = () => `${new Date().getUTCFullYear()}-01-01`;
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Income statement — same computation as the web reports page. */
-export async function incomeStatement(orgId: string, from?: string, to?: string): Promise<IncomeStatement> {
+async function incomeStatementImpl(orgId: string, from?: string, to?: string): Promise<IncomeStatement> {
   const f = from || YEAR_START();
   const t = to || today();
   const balances = await accountBalances({ orgId, from: new Date(f), to: new Date(`${t}T23:59:59`), excludeClosing: true });
@@ -49,7 +61,7 @@ export async function incomeStatement(orgId: string, from?: string, to?: string)
 }
 
 /** Balance sheet as of a date — equity includes the period's net income (matches web). */
-export async function balanceSheet(orgId: string, asOf?: string): Promise<BalanceSheet> {
+async function balanceSheetImpl(orgId: string, asOf?: string): Promise<BalanceSheet> {
   const t = asOf || today();
   const balances = await accountBalances({ orgId, to: new Date(`${t}T23:59:59`) });
   const pick = (type: string) => balances.filter((b) => b.type === type)
@@ -70,7 +82,7 @@ export async function balanceSheet(orgId: string, asOf?: string): Promise<Balanc
 }
 
 /** Cash-flow statement — reuses the web engine. */
-export async function cashFlowStatement(orgId: string, from?: string, to?: string): Promise<CashFlowStatement> {
+async function cashFlowStatementImpl(orgId: string, from?: string, to?: string): Promise<CashFlowStatement> {
   const f = from || YEAR_START();
   const t = to || today();
   const cf = await getCashFlow(orgId, new Date(f), new Date(`${t}T23:59:59`));
@@ -99,7 +111,7 @@ function shapeAging(open: OpenDoc[], asOf: string): AgingReport {
 }
 
 /** Customer receivables aging (أعمار ذمم العملاء) — posted invoices with a balance. */
-export async function arAging(orgId: string, asOf?: string): Promise<AgingReport> {
+async function arAgingImpl(orgId: string, asOf?: string): Promise<AgingReport> {
   const t = asOf || today();
   const docs = await db.select({ partyId: customers.id, partyCode: customers.code, partyName: customers.nameAr, date: salesInvoices.date, dueDate: salesInvoices.dueDate, balanceDue: salesInvoices.balanceDue })
     .from(salesInvoices).innerJoin(customers, eq(customers.id, salesInvoices.customerId))
@@ -108,7 +120,7 @@ export async function arAging(orgId: string, asOf?: string): Promise<AgingReport
 }
 
 /** Supplier payables aging (أعمار ذمم الموردين). */
-export async function apAging(orgId: string, asOf?: string): Promise<AgingReport> {
+async function apAgingImpl(orgId: string, asOf?: string): Promise<AgingReport> {
   const t = asOf || today();
   const docs = await db.select({ partyId: suppliers.id, partyCode: suppliers.code, partyName: suppliers.nameAr, date: purchaseInvoices.date, dueDate: purchaseInvoices.dueDate, balanceDue: purchaseInvoices.balanceDue })
     .from(purchaseInvoices).innerJoin(suppliers, eq(suppliers.id, purchaseInvoices.supplierId))
@@ -127,7 +139,7 @@ const range = (from?: string, to?: string) => {
 };
 
 /** Sales grouped by customer (revenue net of tax, invoice count), highest first. */
-export async function salesByCustomer(orgId: string, from?: string, to?: string): Promise<RankReport> {
+async function salesByCustomerImpl(orgId: string, from?: string, to?: string): Promise<RankReport> {
   const { f, t, start, end } = range(from, to);
   const rows = await db.select({
     name: customers.nameAr, code: customers.code,
@@ -142,7 +154,7 @@ export async function salesByCustomer(orgId: string, from?: string, to?: string)
 }
 
 /** Purchases grouped by supplier (net of tax, invoice count), highest first. */
-export async function purchasesBySupplier(orgId: string, from?: string, to?: string): Promise<RankReport> {
+async function purchasesBySupplierImpl(orgId: string, from?: string, to?: string): Promise<RankReport> {
   const { f, t, start, end } = range(from, to);
   const rows = await db.select({
     name: suppliers.nameAr, code: suppliers.code,
@@ -157,7 +169,7 @@ export async function purchasesBySupplier(orgId: string, from?: string, to?: str
 }
 
 /** Sales grouped by item (qty sold + revenue), highest revenue first. */
-export async function salesByItem(orgId: string, from?: string, to?: string): Promise<RankReport> {
+async function salesByItemImpl(orgId: string, from?: string, to?: string): Promise<RankReport> {
   const { f, t, start, end } = range(from, to);
   const rows = await db.select({
     name: items.nameAr, code: items.code,
@@ -172,7 +184,7 @@ export async function salesByItem(orgId: string, from?: string, to?: string): Pr
 }
 
 /** Purchases grouped by item (qty + cost), highest first. */
-export async function purchasesByItem(orgId: string, from?: string, to?: string): Promise<RankReport> {
+async function purchasesByItemImpl(orgId: string, from?: string, to?: string): Promise<RankReport> {
   const { f, t, start, end } = range(from, to);
   const rows = await db.select({
     name: items.nameAr, code: items.code,
@@ -185,3 +197,13 @@ export async function purchasesByItem(orgId: string, from?: string, to?: string)
   const list = rows.map((r) => ({ name: r.name ?? r.code ?? "—", code: r.code ?? "", count: 0, qty: round2(Number(r.qty)), amount: round2(Number(r.amount)) })).sort((a, b) => b.amount - a.amount);
   return { from: f, to: t, total: round2(list.reduce((s, r) => s + r.amount, 0)), rows: list };
 }
+
+export const incomeStatement = scoped(incomeStatementImpl);
+export const balanceSheet = scoped(balanceSheetImpl);
+export const cashFlowStatement = scoped(cashFlowStatementImpl);
+export const arAging = scoped(arAgingImpl);
+export const apAging = scoped(apAgingImpl);
+export const salesByCustomer = scoped(salesByCustomerImpl);
+export const purchasesBySupplier = scoped(purchasesBySupplierImpl);
+export const salesByItem = scoped(salesByItemImpl);
+export const purchasesByItem = scoped(purchasesByItemImpl);

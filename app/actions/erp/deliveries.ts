@@ -8,12 +8,15 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines,
-  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches, warehouses,
-} from "@/db/schema";
+  salesInvoices, salesInvoiceLines, salesReturns, items, stockMovements, stockMovementBatches,
+  journalEntries, warehouses, stockSerials} from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
-import { postEntry } from "@/lib/erp/posting";
+import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { deliveryDependents, dependentsList } from "@/lib/erp/doc-dependents";
 import { postStockMovement } from "@/lib/erp/inventory";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 import { marketplaceCodesFor } from "@/lib/erp/marketplace-code";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
@@ -162,6 +165,60 @@ export async function createDeliveryFromOrderAction(salesOrderId: string, picks?
  * Cr Inventory (1104), advance the order's deliveredQty, recompute the order
  * status, link + audit, flip DRAFT → DELIVERED. Re-validates ≤ remaining.
  */
+/**
+ * Mark the serials leaving on this delivery as SOLD. Oldest received first — the same
+ * order the costing engine depletes stock in, so the serial ledger tells the same story
+ * as the value ledger.
+ *
+ * Refuses when there are not enough serials in stock: that means the two ledgers already
+ * disagree, and shipping anyway would bury the discrepancy instead of surfacing it.
+ *
+ * ponytail: FIFO, not hand-picked. A trader who needs to ship one SPECIFIC unit (a
+ * repaired return, a demo piece) has no way to say so yet — add a picker on the delivery
+ * form when that comes up.
+ */
+async function consumeSerialsForDelivery(
+  tx: Tx,
+  orgId: string,
+  dn: { id: string; number: string; date: Date | string },
+  customerId: string | null,
+  lines: { itemId: string; quantity: string | number; warehouseId: string | null }[],
+): Promise<void> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  if (!itemIds.length) return;
+
+  const tracked = await tx.select({ id: items.id, code: items.code, tracking: items.tracking })
+    .from(items).where(and(eq(items.organizationId, orgId), inArray(items.id, itemIds)));
+  const serialItems = new Map(tracked.filter((i) => i.tracking === "SERIAL").map((i) => [i.id, i.code]));
+  if (!serialItems.size) return;
+
+  for (const itemId of serialItems.keys()) {
+    const want = Math.round(lines.filter((l) => l.itemId === itemId).reduce((s, l) => s + Number(l.quantity), 0));
+    if (want <= 0) continue;
+
+    // FOR UPDATE SKIP LOCKED is wrong here: two concurrent deliveries must not silently
+    // ship different units of the same allocation — one waits, then re-counts.
+    const available = await tx.select({ id: stockSerials.id })
+      .from(stockSerials)
+      .where(and(
+        eq(stockSerials.organizationId, orgId),
+        eq(stockSerials.itemId, itemId),
+        inArray(stockSerials.status, ["IN_STOCK", "RETURNED"]),
+      ))
+      .orderBy(asc(stockSerials.receivedAt))
+      .limit(want)
+      .for("update");
+
+    if (available.length < want) {
+      throw new Error(`${serialItems.get(itemId)}: المتاح ${available.length} رقم تسلسلي والمطلوب ${want} — راجع الأرقام المسجّلة`);
+    }
+
+    await tx.update(stockSerials)
+      .set({ status: "SOLD", deliveryId: dn.id, customerId, soldAt: new Date(dn.date), updatedAt: new Date() })
+      .where(inArray(stockSerials.id, available.map((a) => a.id)));
+  }
+}
+
 export async function confirmDeliveryAction(deliveryId: string): Promise<ActionState & { id?: string }> {
   const auth = await authorizeErp("sales.confirm");
   if ("error" in auth) return auth;
@@ -241,6 +298,7 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
             ],
           });
         }
+        await consumeSerialsForDelivery(tx, auth.orgId, dn, so.customerId, dnLines);
         await tx.update(deliveryNotes).set({ status: "DELIVERED" }).where(eq(deliveryNotes.id, dn.id));
         const newStatus = await recomputeSalesOrderStatus(tx, so.id);
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "SALES_ORDER", fromId: so.id, fromNumber: so.number, toType: "DELIVERY_NOTE", toId: dn.id, toNumber: dn.number, relation: "FULFILLS" });
@@ -252,6 +310,81 @@ export async function confirmDeliveryAction(deliveryId: string): Promise<ActionS
       return { ok: true, id: dn.id };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر تأكيد التسليم" };
+    }
+  });
+}
+
+/**
+ * Cancel a DELIVERED delivery note — the "wrong entry" undo, as opposed to مرتجع بيع
+ * (goods actually coming back from the customer). Reverses the COGS entry, puts the
+ * stock back into the exact lots it left, rolls back the order's deliveredQty, and marks
+ * it CANCELLED. Refuses — naming the documents — once it's been invoiced or returned.
+ */
+export async function cancelDeliveryAction(deliveryId: string): Promise<ActionState> {
+  const auth = await authorizeErp("sales.confirm");
+  if ("error" in auth) return auth;
+
+  return withOrgScope(auth.orgId, false, async () => {
+    const [dn] = await db.select().from(deliveryNotes)
+      .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
+    if (!dn) return { error: "التسليم غير موجود" };
+    if (dn.status === "DRAFT") return { error: "المسودة تُحذف مباشرة — لا تحتاج إلغاء" };
+    if (dn.status !== "DELIVERED") return { error: "يمكن إلغاء إذن صرف مؤكّد فقط" };
+
+    const deps = await deliveryDependents(auth.orgId, dn.id);
+    if (deps.length) {
+      return { error: `لا يمكن إلغاء إذن الصرف — مرتبط بمستندات أخرى: ${dependentsList(deps)}. ألغِ/عالِج هذه المستندات أولاً، أو استخدم «مرتجع بيع» إذا كانت البضاعة رجعت من العميل.` };
+    }
+
+    const d = new Date();
+    try {
+      await db.transaction(async (tx) => {
+        const [locked] = await tx.select({ status: deliveryNotes.status, invId: deliveryNotes.salesInvoiceId })
+          .from(deliveryNotes).where(eq(deliveryNotes.id, dn.id)).for("update").limit(1);
+        if (locked?.status !== "DELIVERED") throw new Error("تم إلغاء إذن الصرف بالفعل");
+        if (locked.invId) throw new Error("إذن الصرف مفوتر — ألغِ الفاتورة أولاً");
+
+        // Put the goods back into the exact lots they were taken from, at their own cost.
+        const moves = await tx.select({ id: stockMovements.id, itemId: stockMovements.itemId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost, warehouseId: stockMovements.warehouseId })
+          .from(stockMovements)
+          .where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "DELIVERY"), eq(stockMovements.referenceId, dn.id)));
+        for (const m of moves) {
+          const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity })
+            .from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
+          await postStockMovement(tx, {
+            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "IN",
+            quantity: Number(m.quantity), unitCost: Number(m.unitCost), date: d,
+            allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })),
+            referenceType: "DELIVERY_REVERSE", referenceId: dn.id, reason: `إلغاء إذن صرف ${dn.number}`,
+          });
+        }
+
+        const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
+          .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "DELIVERY_COGS"), eq(journalEntries.sourceId, dn.id), eq(journalEntries.status, "POSTED")));
+        for (const e of entries) await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء إذن صرف ${dn.number}` });
+
+        if (dn.salesOrderId) {
+          const dLines = await tx.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
+            .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
+          const soLines = await tx.select({ id: salesOrderLines.id, itemId: salesOrderLines.itemId })
+            .from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, dn.salesOrderId));
+          const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+          for (const l of dLines) {
+            const sol = soByItem.get(l.itemId);
+            if (sol) await tx.update(salesOrderLines).set({ deliveredQty: sql`GREATEST(0, ${salesOrderLines.deliveredQty} - ${Number(l.quantity)})` }).where(eq(salesOrderLines.id, sol.id));
+          }
+          await recomputeSalesOrderStatus(tx, dn.salesOrderId);
+        }
+
+        await tx.update(deliveryNotes).set({ status: "CANCELLED" }).where(eq(deliveryNotes.id, dn.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "DELIVERY_NOTE", entityId: dn.id, entityNumber: dn.number, summary: `إلغاء إذن صرف ${dn.number} وعكس أثره على المخزون والحسابات` });
+      });
+      revalidatePath("/sales/deliveries");
+      revalidatePath("/sales/orders");
+      revalidatePath(`/sales/deliveries/${dn.number}`);
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "تعذّر إلغاء إذن الصرف" };
     }
   });
 }
@@ -392,6 +525,7 @@ export async function convertDeliveryToInvoiceAction(
       .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
     if (!dn) return { error: "التسليم غير موجود" };
     if (dn.status === "DRAFT") return { error: "أكّد إذن الصرف أولاً قبل تحويله إلى فاتورة" };
+    if (dn.status === "CANCELLED") return { error: "إذن الصرف ملغي — لا يمكن فوترته" };
     if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
     const customerId = dn.customerId;
     if (!customerId) return { error: "التسليم غير مرتبط بعميل" };

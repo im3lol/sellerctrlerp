@@ -1,4 +1,5 @@
 import "server-only";
+import { assertPublicUrl } from "../safe-url";
 import type { Credential } from "../connector";
 import { signedQuery, commonParams } from "./constants";
 
@@ -37,6 +38,9 @@ type ScResponse<T> = {
 export async function jumiaCall<T>(cred: Credential, action: string, extra: Record<string, string> = {}, now = new Date(), attempt = 0): Promise<T> {
   const base = (cred.marketplaceId || "").replace(/\/$/, "");
   if (!base) throw new JumiaError("عنوان واجهة جوميا غير مضبوط", 400, "no_base");
+  // The base host is tenant-supplied — refuse https-less and internal targets (SSRF).
+  try { await assertPublicUrl(base); }
+  catch (e) { throw new JumiaError(e instanceof Error ? e.message : "عنوان غير صالح", 400, "invalid_base"); }
   const params = { ...commonParams(action, cred.sellerId || "", now), ...extra };
   const qs = signedQuery(params, cred.refreshToken || "");
 

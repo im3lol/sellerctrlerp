@@ -17,18 +17,26 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
+import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
 import { selectCls } from "@/lib/utils";
+import { getCustomerPricesAction } from "@/app/actions/erp/price-lists";
 
 type Customer = { id: string; nameAr: string };
 type Item = { id: string; nameAr: string | null; sellPrice: string | null; code?: string | null; image?: string | null };
-type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; };
+// `priceEdited` marks a price the user typed — the customer's price list never
+// overwrites one of those, however the customer or the line changes afterwards.
+type Line = { itemId: string; warehouseId: string; stock: WarehouseStock[]; quantity: number; unitPrice: number; discountAmount: number; priceEdited?: boolean };
+// The line's row-editor id: purely client-side (React key + drag identity for
+// SortableLineRows), regenerated on every load, never sent in the save payload.
+type LineRow = Line & { id: string };
+const newId = () => crypto.randomUUID();
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const newLine = (): Line => ({ itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0 });
+const newLine = (): LineRow => ({ id: newId(), itemId: "", warehouseId: "", stock: [], quantity: 1, unitPrice: 0, discountAmount: 0 });
 // VAT is a single document-level choice, same as the purchase order and the quotation:
 // one switch for the whole order instead of a «معفى» box on every line. It stays computed
 // PER LINE internally because VAT is linear, so the stored line tax — and everything
@@ -61,7 +69,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const [channel, setChannel] = useState(initial?.channel ?? "MANUAL");
   const [externalOrderId, setExternalOrderId] = useState(initial?.externalOrderId ?? "");
   const [shippingAmount, setShippingAmount] = useState(initial?.shippingAmount ?? 0);
-  const [lines, setLines] = useState<Line[]>(
+  const [lines, setLines] = useState<LineRow[]>(
     initial?.lines?.length
       ? initial.lines.map((l) => ({ ...newLine(), itemId: l.itemId, warehouseId: l.warehouseId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount }))
       : initialLines?.length
@@ -96,12 +104,39 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+
+  // Which lines the customer's price list decided, so the screen can say where a price
+  // came from — a number that changes on its own with no explanation is a support call.
+  const [listPriced, setListPriced] = useState<Record<string, boolean>>({});
+
+  /**
+   * Ask the server for this customer's list prices and apply them. Only lines the list
+   * actually covers move; everything else keeps the item's own price, and a price the
+   * user typed by hand is never overwritten (`keepEdited`).
+   */
+  const applyListPrices = (cid: string, current: LineRow[]) => {
+    const wanted = current.filter((l) => l.itemId).map((l) => ({ itemId: l.itemId, quantity: l.quantity }));
+    if (!cid || !wanted.length) { setListPriced({}); return; }
+    void getCustomerPricesAction(cid, wanted).then((r) => {
+      if (!r.ok || !r.prices) return;
+      const prices = r.prices;
+      setListPriced(Object.fromEntries(Object.keys(prices).map((k) => [k, true])));
+      setLines((ls) => ls.map((l) => {
+        const p = prices[l.itemId];
+        return p != null && !l.priceEdited ? { ...l, unitPrice: p } : l;
+      }));
+    });
+  };
+
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
 
   // On item select: set price, then load on-hand per warehouse and default to the most-stocked one.
   const pickItem = (i: number, item: ItemSearchResult) => {
     setLine(i, { itemId: item.id, unitPrice: Number(item.sellPrice) || 0, stock: [], warehouseId: "" });
+    // The item's own price lands first; the customer's list overrides it if it covers
+    // this item, so the line never sits empty while the request is in flight.
+    applyListPrices(customerId, lines.map((l, k) => (k === i ? { ...l, itemId: item.id, unitPrice: Number(item.sellPrice) || 0 } : l)));
     getItemWarehouseStockAction(item.id).then((r) => {
       if (!r.ok || !r.stock) return;
       const stocked = r.stock.filter((s) => s.qty > 0).sort((a, b) => b.qty - a.qty);
@@ -173,7 +208,11 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             <CellCombobox
               selectedLabel={customerLabelById.get(customerId) ?? ""}
               options={customerOptions}
-              onSelect={(id) => setCustomerId(id)}
+              onSelect={(id) => {
+                setCustomerId(id);
+                // Switching customer re-prices every line — that is the point of a list.
+                applyListPrices(id, lines);
+              }}
               placeholder="ابحث عن العميل…"
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
               createLabel="إضافة عميل"
@@ -225,6 +264,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <TableHead className="w-14 text-start">صورة</TableHead>
                 <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
                 <TableHead className="w-48 text-start">المستودع</TableHead>
@@ -234,40 +274,51 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 <TableHead className="w-32 text-center">خصم</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lines.map((l, i) => {
-                const opts = l.stock.filter((s) => s.qty > 0);
-                const whOpts = opts.length ? opts : l.stock;
-                const onHand = l.stock.find((s) => s.warehouseId === l.warehouseId)?.qty ?? 0;
-                return (
-                  <TableRow key={i}>
-                    <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
-                    <TableCell className="min-w-64 max-w-72">
-                      <ItemPicker
-                        selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
-                        onSelect={(it) => pickItem(i, it)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <WarehousePicker
-                        options={whOpts}
-                        value={l.warehouseId}
-                        disabled={!l.itemId}
-                        placeholder={l.itemId ? "ابحث عن مستودع…" : "اختر الصنف أولاً"}
-                        onSelect={(id) => setLine(i, { warehouseId: id })}
-                      />
-                    </TableCell>
-                    <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
-                    <TableCell><Input type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
-                    <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
-                  </TableRow>
-                );
-              })}
+              <SortableLineRows
+                items={lines}
+                onReorder={setLines}
+                renderCells={(l, i) => {
+                  const opts = l.stock.filter((s) => s.qty > 0);
+                  const whOpts = opts.length ? opts : l.stock;
+                  const onHand = l.stock.find((s) => s.warehouseId === l.warehouseId)?.qty ?? 0;
+                  return (
+                    <>
+                      <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
+                      <TableCell className="min-w-64 max-w-72">
+                        <ItemPicker
+                          selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
+                          onSelect={(it) => pickItem(i, it)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <WarehousePicker
+                          options={whOpts}
+                          value={l.warehouseId}
+                          disabled={!l.itemId}
+                          placeholder={l.itemId ? "ابحث عن مستودع…" : "اختر الصنف أولاً"}
+                          onSelect={(id) => setLine(i, { warehouseId: id })}
+                        />
+                      </TableCell>
+                      <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
+                      <TableCell><Input type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                      <TableCell>
+                        <Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value), priceEdited: true })} />
+                        {/* Say where the number came from — a price that changes by itself is a support call. */}
+                        {listPriced[l.itemId] && !l.priceEdited && (
+                          <span className="mt-0.5 block text-[11px] text-muted-foreground">من قائمة أسعار العميل</span>
+                        )}
+                      </TableCell>
+                      <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                      <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
+                      <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                    </>
+                  );
+                }}
+              />
             </TableBody>
           </Table>
         </div>

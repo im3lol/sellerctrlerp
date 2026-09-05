@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { Progress } from "@/components/ui/progress";
 import { TenantActions } from "@/components/admin/tenant-actions";
+import { NoonExpressToggle } from "@/components/admin/noon-express-toggle";
 
 const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`;
 const dt = (d: Date | null) => (d ? new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -62,6 +63,7 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
       </div>
 
       <TenantActions orgId={t.org.id} orgName={t.org.name} />
+      <NoonExpressToggle orgId={t.org.id} noon={t.noon} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Usage */}

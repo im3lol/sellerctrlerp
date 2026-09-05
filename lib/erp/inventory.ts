@@ -24,7 +24,7 @@ async function assertPeriodOpenForStock(tx: Tx, orgId: string, date: Date): Prom
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type StockMovementType = "IN" | "OUT" | "ADJ";
+export type StockMovementType = "IN" | "OUT" | "ADJ" | "REVALUE";
 
 export type BatchAllocationInput = { batchId: string; quantity: number };
 export type BatchAllocation = { batchId: string; batchNo: string | null; expiryDate: Date | null; quantity: number; unitCost: number };
@@ -34,10 +34,13 @@ export type StockInput = {
   itemId: string;
   warehouseId: string;
   type: StockMovementType;
-  /** Movement magnitude (positive). For ADJ, pass the signed delta. */
+  /** Movement magnitude (positive). For ADJ, pass the signed delta. Ignored for REVALUE. */
   quantity: number;
   /** Required for IN; ignored for OUT (uses moving-average cost). */
   unitCost?: number;
+  /** REVALUE only: the signed value to add to (or take off) the stock on hand —
+   *  quantity doesn't move, only what it's worth. Used by landed costs. */
+  valueDelta?: number;
   date: Date;
   referenceType?: string | null;
   referenceId?: string | null;
@@ -220,6 +223,18 @@ export async function postStockMovement(tx: Tx, input: StockInput): Promise<Stoc
       valueDelta = round4(signedQty * intakeCost);
     }
     recordedUnitCost = signedQty > 0 ? round4(valueDelta / signedQty) : 0;
+  } else if (input.type === "REVALUE") {
+    // Value-only movement: the goods don't move, they're just worth more (or less).
+    // Landed costs land here — freight billed after the goods were received has to
+    // reach BOTH the ledger's balance_value and the lots, or the GL == ledger
+    // reconciliation (/inventory/valuation) breaks.
+    const delta = round4(input.valueDelta ?? 0);
+    if (!delta) throw new Error("قيمة إعادة التقييم مطلوبة");
+    if (priorQty <= 1e-9) throw new Error("لا يوجد مخزون متاح لتحميل التكلفة عليه");
+    if (priorValue + delta < -1e-9) throw new Error("إعادة التقييم تجعل قيمة المخزون سالبة");
+    signedQty = 0;
+    valueDelta = delta;
+    recordedUnitCost = round4(delta / priorQty); // the per-unit uplift
   } else if (input.type === "OUT") {
     const out = Math.abs(input.quantity);
     if (!input.allowNegative && out > priorQty + 1e-9) throw new Error("الكمية المطلوبة غير متاحة بالمخزون");
@@ -271,7 +286,25 @@ export async function postStockMovement(tx: Tx, input: StockInput): Promise<Stoc
 
   // ── Batch layer — keeps Σ(remaining)==balanceQuantity AND Σ(remaining×cost)==balanceValue ──
   const batchAllocations: BatchAllocation[] = [];
-  if (signedQty > 0 && inboundPinned) {
+  if (input.type === "REVALUE") {
+    // Spread the value change over the live lots in proportion to what each still
+    // holds, so Σ(remaining × cost) moves by exactly valueDelta and the second
+    // invariant above survives. No quantity changes → no movement-batch rows.
+    const lots = await tx.select({ id: stockBatches.id, rem: stockBatches.remainingQuantity, cost: stockBatches.unitCost })
+      .from(stockBatches)
+      .where(and(eq(stockBatches.organizationId, input.orgId), eq(stockBatches.itemId, input.itemId), eq(stockBatches.warehouseId, input.warehouseId)))
+      .for("update");
+    const sumRem = lots.reduce((s, b) => s + Number(b.rem), 0);
+    if (sumRem > 1e-9) {
+      const perUnit = valueDelta / sumRem;
+      for (const b of lots) {
+        if (Number(b.rem) <= 1e-9) continue;
+        await tx.update(stockBatches)
+          .set({ unitCost: String(round4(Number(b.cost) + perUnit)), updatedAt: new Date() })
+          .where(eq(stockBatches.id, b.id));
+      }
+    }
+  } else if (signedQty > 0 && inboundPinned) {
     for (const p of inboundPinned) {
       const [b] = await tx.update(stockBatches)
         .set({ remainingQuantity: sql`${stockBatches.remainingQuantity} + ${p.qty}`, isActive: true, updatedAt: new Date() })

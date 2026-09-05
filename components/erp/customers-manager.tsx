@@ -19,12 +19,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { selectCls } from "@/lib/utils";
 
 export type Customer = {
   id: string; code: string; nameAr: string; phone: string | null;
   email: string | null; balance: string | null; creditLimit: string | null; paymentTerms: number;
+  priceListId?: string | null;
   portalUserId?: string | null;
 };
+
+export type PriceListOption = { id: string; nameAr: string };
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -39,8 +43,9 @@ function SubmitBtn() {
 }
 
 function CustomerDialog({
+  priceLists,
   open, onOpenChange, editing,
-}: { open: boolean; onOpenChange: (o: boolean) => void; editing: Customer | null }) {
+}: { open: boolean; onOpenChange: (o: boolean) => void; editing: Customer | null; priceLists: PriceListOption[] }) {
   const [state, formAction] = useActionState<ActionState, FormData>(saveCustomerAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -81,6 +86,15 @@ function CustomerDialog({
               <Label htmlFor="c-terms">مدة السداد (يوم)</Label>
               <Input id="c-terms" name="paymentTerms" type="number" defaultValue={editing?.paymentTerms ?? 30} />
             </div>
+            {priceLists.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="c-pricelist">قائمة الأسعار</Label>
+                <select id="c-pricelist" name="priceListId" className={selectCls} defaultValue={editing?.priceListId ?? ""}>
+                  <option value="">الافتراضية للشركة</option>
+                  {priceLists.map((p) => <option key={p.id} value={p.id}>{p.nameAr}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <SubmitBtn />
@@ -139,7 +153,7 @@ function PortalLinkDialog({
   );
 }
 
-export function CustomersManager({ customers, canManage, title, kpis }: { customers: Customer[]; canManage: boolean; title?: string; kpis?: React.ReactNode }) {
+export function CustomersManager({ customers, canManage, title, kpis, priceLists = [] }: { customers: Customer[]; canManage: boolean; title?: string; kpis?: React.ReactNode; priceLists?: PriceListOption[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [portalOpen, setPortalOpen] = useState(false);
@@ -246,7 +260,7 @@ export function CustomersManager({ customers, canManage, title, kpis }: { custom
         )}
       </CardContent>
       {/* key forces fresh form state per create/edit target */}
-      <CustomerDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} />
+      <CustomerDialog key={editing?.id ?? "new"} open={open} onOpenChange={setOpen} editing={editing} priceLists={priceLists} />
       <PortalLinkDialog key={`portal-${portalCustomer?.id}`} open={portalOpen} onOpenChange={setPortalOpen} customer={portalCustomer} />
     </Card>
     </div>

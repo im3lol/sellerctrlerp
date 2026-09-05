@@ -7,11 +7,13 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReceipts, organizations, purchaseInvoices, warehouses } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, organizations, warehouses, materialRequests } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
-import { createPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { cancelledDocReferences } from "@/lib/erp/doc-delete";
+import { dependentsList } from "@/lib/erp/doc-dependents";
+import { linkDocuments } from "@/lib/erp/links";
 
 export type SaveOrderState = ActionState & { id?: string };
 
@@ -23,15 +25,24 @@ const lineSchema = z.object({
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
   exempt: z.coerce.boolean().default(false),
+  // Which unit the line was typed in. `quantity`/`unitPrice` above already arrive in the
+  // item's BASE unit (the form converts), so these two are display metadata only —
+  // nothing downstream reads them to compute a number.
+  uomId: z.string().optional(),
+  uomFactor: z.coerce.number().positive().default(1),
 });
 const schema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
   warehouseId: z.string().min(1, "اختر المستودع"),
   date: z.string().min(1, "التاريخ مطلوب"),
+  /** Promised delivery date — optional, and what the supplier scorecard measures against. */
+  expectedDate: z.string().optional().nullable(),
   notes: z.string().optional(),
   // Document currency: line amounts arrive in THIS currency and are converted to base
   // (× exchange rate) before storing, so the GL/inventory stay base-only. Omitted = base.
   currencyCode: z.string().optional(),
+  /** Set when the order was raised from an approved requisition — links them and closes it. */
+  materialRequestId: z.string().optional(),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 async function nextNumber(orgId: string, year: number): Promise<string> {
@@ -68,6 +79,7 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
     const discountAmount = toBase(l.discountAmount);
     const taxAmount = toBase(l.taxAmount);
     return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
+      uomId: l.uomId, uomFactor: l.uomFactor,
       totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
   });
   const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
@@ -78,11 +90,12 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
   return { values: { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
 }
 
-type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number };
+type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number; uomId?: string; uomFactor?: number };
 const poLineRows = (parentId: string, computed: POComputedLine[]) =>
   computed.map((l) => ({
     purchaseOrderId: parentId, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),
     shippingPerUnit: String(l.shippingPerUnit), discountAmount: String(l.discountAmount), taxAmount: String(l.taxAmount), isTaxExempt: l.exempt, totalAmount: String(l.totalAmount),
+    uomId: l.uomId || null, uomFactor: l.uomFactor != null ? String(l.uomFactor) : null,
   }));
 
 /** Create a purchase order as DRAFT (no effect until confirmed). */
@@ -104,11 +117,27 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
       const id = await db.transaction(async (tx) => {
         const [po] = await tx.insert(purchaseOrders).values({
           organizationId: auth.orgId, number, supplierId, warehouseId, date: d, status: "DRAFT",
+          expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null,
         }).returning({ id: purchaseOrders.id });
         await tx.insert(purchaseOrderLines).values(poLineRows(po.id, computed));
+
+        // Close the requisition and record the link, so it can't raise a second order
+        // and the two documents point at each other from now on.
+        if (parsed.data.materialRequestId) {
+          const closed = await tx.update(materialRequests)
+            .set({ status: "ORDERED", updatedAt: new Date() })
+            .where(and(eq(materialRequests.id, parsed.data.materialRequestId), eq(materialRequests.organizationId, auth.orgId), eq(materialRequests.status, "APPROVED")))
+            .returning({ number: materialRequests.number });
+          if (closed.length) {
+            await linkDocuments(tx, {
+              orgId: auth.orgId, fromType: "MATERIAL_REQUEST", fromId: parsed.data.materialRequestId, fromNumber: closed[0].number,
+              toType: "PURCHASE_ORDER", toId: po.id, toNumber: number, relation: "FULFILLS",
+            });
+          }
+        }
         return po.id;
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: number, summary: `إنشاء أمر شراء ${number} (مسودة)`, metadata: { total: totalAmount } });
@@ -149,6 +178,7 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
         if (live?.status !== "DRAFT") throw new Error("لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً");
         await tx.update(purchaseOrders).set({
           supplierId, warehouseId, date: d,
+          expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
@@ -227,9 +257,9 @@ export async function deletePurchaseOrderAction(id: string): Promise<ActionState
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "DRAFT" && po.status !== "CANCELLED") return { error: "يمكن حذف مسودة أو أمر ملغى فقط — أكّد الإلغاء أولاً" };
     if (po.status === "CANCELLED") {
-      const [grn] = await db.select({ id: purchaseReceipts.id }).from(purchaseReceipts)
-        .where(and(eq(purchaseReceipts.purchaseOrderId, id), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
-      if (grn) return { error: "لا يمكن حذف أمر مرتبط بإذون استلام" };
+      // Name what is holding it, rather than a vague "it's linked to something".
+      const refs = await cancelledDocReferences(auth.orgId, "purchaseOrder", id);
+      if (refs.length) return { error: `لا يمكن حذف أمر الشراء — لا يزال مرتبطاً بـ: ${dependentsList(refs)}. عالِج هذه المستندات أولاً.` };
     }
     const gone = await db.delete(purchaseOrders)
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, po.status)))
@@ -241,41 +271,13 @@ export async function deletePurchaseOrderAction(id: string): Promise<ActionState
   });
 }
 
-/** Convert a CONFIRMED purchase order into a DRAFT purchase invoice; mark it INVOICED. */
-export async function convertPurchaseOrderToInvoiceAction(id: string): Promise<ActionState & { invoiceId?: string }> {
-  const auth = await authorizeErp("purchases.confirm");
-  if ("error" in auth) return auth;
-
-  return withOrgScope(auth.orgId, false, async () => {
-    const [po] = await db.select().from(purchaseOrders)
-      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
-    if (!po) return { error: "الأمر غير موجود" };
-    if (po.status !== "CONFIRMED") return { error: "الفوترة المباشرة للأوامر المؤكّدة فقط — بعد بدء الاستلام استخدم الفوترة من إذن الاستلام" };
-
-    const lines = await db.select({
-      itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice,
-      shippingPerUnit: purchaseOrderLines.shippingPerUnit, discountAmount: purchaseOrderLines.discountAmount, taxAmount: purchaseOrderLines.taxAmount,
-    }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
-
-    const r = await createPurchaseInvoiceAction({
-      supplierId: po.supplierId, warehouseId: po.warehouseId, date: new Date(po.date).toISOString().slice(0, 10),
-      notes: `من أمر شراء ${po.number}`,
-      // Carry the PO's document currency so the invoice shows it (amounts are already base).
-      currencyCode: po.currencyCode, exchangeRate: Number(po.exchangeRate),
-      // Capitalise shipping into the unit cost for the direct (no-receipt) path.
-      lines: lines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) + Number(l.shippingPerUnit), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) })),
-    });
-    if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
-
-    // Link invoice→order so deleting the draft invoice can reopen the order (Audit#7).
-    if (r.id) await db.update(purchaseInvoices).set({ purchaseOrderId: po.id }).where(and(eq(purchaseInvoices.id, r.id), eq(purchaseInvoices.organizationId, auth.orgId)));
-    await db.update(purchaseOrders).set({ status: "INVOICED" }).where(eq(purchaseOrders.id, po.id));
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONVERT", entityType: "PURCHASE_ORDER", entityId: po.id, entityNumber: po.number, summary: `تحويل أمر شراء ${po.number} إلى فاتورة (مسودة)` });
-    revalidatePath("/purchases/orders");
-    revalidatePath("/purchases/invoices");
-    return { ok: true, invoiceId: r.id };
-  });
-}
+/*
+ * The direct order → invoice shortcut was REMOVED on purpose: it skipped إذن الاستلام
+ * and let the invoice post stock itself, so the same goods could take two different
+ * costing paths and landed costs had nothing to attach to. There is now exactly one
+ * purchase cycle: أمر شراء ← إذن استلام ← فاتورة. Billing starts from a confirmed
+ * receipt (convertReceiptToInvoiceAction) — see postPurchaseInvoiceAction's guard.
+ */
 
 /** Cancel a purchase order (only before it is invoiced). */
 export async function cancelPurchaseOrderAction(id: string): Promise<ActionState> {

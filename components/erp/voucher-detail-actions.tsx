@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { confirm } from "@/components/erp/confirm";
+import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 
 /**
  * Header actions for a voucher detail page — mirrors sales-invoice-detail-actions.
@@ -47,6 +49,19 @@ export function VoucherDetailActions({
     // Reversal writes a mirror entry and restores the customer/supplier + invoice balances.
     items.push({ label: "عكس السند", icon: "Undo2", danger: true, disabled: pending,
       onSelect: () => run(() => isReceipt ? reverseReceiptVoucherAction(id) : reversePaymentVoucherAction(id), "تم عكس السند", true) });
+  }
+
+  if (canManage && status === "REVERSED") {
+    items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
+      onSelect: () => void (async () => {
+        const label = isReceipt ? "سند القبض" : "سند الصرف";
+        if (!(await confirmPurge(label))) return;
+        start(async () => {
+          const r = await deleteCancelledDocumentAction(isReceipt ? "receiptVoucher" : "paymentVoucher", id);
+          if (r.ok) { toast.success("تم حذف السند نهائياً"); router.push(listHref); router.refresh(); }
+          else toast.error(r.error ?? "تعذّر الحذف");
+        });
+      })() });
   }
 
   return (

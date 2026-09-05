@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { SalesInvoiceRowMenu } from "@/components/erp/sales-invoice-row-menu";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -80,6 +81,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
             <TableHead className="text-start">الإجمالي</TableHead>
             <TableHead className="text-start">المتبقّي</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -98,6 +100,9 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell>
+                    <SalesInvoiceRowMenu id={r.id} number={r.number} status={r.status} canPost={canPost} canManage={canCreate} />
+                  </TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
@@ -111,6 +116,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </Fragment>

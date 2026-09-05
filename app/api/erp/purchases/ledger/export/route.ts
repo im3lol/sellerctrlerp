@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { requireErpModule } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
 import { getPurchasesLedger, type LedgerDocType } from "@/lib/erp/purchases-ledger";
 
 export const runtime = "nodejs";
@@ -28,13 +29,13 @@ const fmtDate = (d: Date) => {
 export async function GET(req: Request) {
   const { orgId } = await requireErpModule("purchases.view");
   const url = new URL(req.url);
-  const { rows, totals } = await getPurchasesLedger(orgId, {
+  const { rows, totals } = await withOrgScope(orgId, false, () => getPurchasesLedger(orgId, {
     supplier: url.searchParams.get("supplier") ?? "",
     type: url.searchParams.get("type") ?? "",
     from: url.searchParams.get("from") ?? "",
     to: url.searchParams.get("to") ?? "",
     product: url.searchParams.get("product") ?? "",
-  });
+  }));
 
   const headers = [
     "الرقم", "التاريخ", "المورد", "النوع", "الحالة",

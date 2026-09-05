@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { selectCls } from "@/lib/utils";
 
 type Customer = { id: string; nameAr: string };
@@ -142,29 +143,31 @@ export function DeliveryForm({
             <TableBody>
               {lines.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ أمر بيع لعرض الأصناف.</TableCell></TableRow>
-              ) : lines.map((l) => {
-                const stock = l.stockByWarehouse[l.warehouseId] ?? 0;
-                const short = (Number(l.now) || 0) > stock + 1e-6;
-                return (
-                  <TableRow key={l.itemId}>
-                    <TableCell className="w-[22rem] max-w-[22rem] whitespace-normal">
-                      <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
-                        <span>{l.code}</span>
-                        {l.marketplaceCode && <span dir="ltr">{mktLabel}: {l.marketplaceCode}</span>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
-                        {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
-                      </select>
-                    </TableCell>
-                    <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
-                    <TableCell className={`tabular-nums ${short ? "text-destructive" : "text-muted-foreground"}`}>{qtyf(stock)}</TableCell>
-                    <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                  </TableRow>
-                );
-              })}
+              ) : (
+                <PaginatedTableRows rows={lines.map((l) => {
+                  const stock = l.stockByWarehouse[l.warehouseId] ?? 0;
+                  const short = (Number(l.now) || 0) > stock + 1e-6;
+                  return (
+                    <TableRow key={l.itemId}>
+                      <TableCell className="w-[22rem] max-w-[22rem] whitespace-normal">
+                        <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
+                          <span>{l.code}</span>
+                          {l.marketplaceCode && <span dir="ltr">{mktLabel}: {l.marketplaceCode}</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
+                          {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                        </select>
+                      </TableCell>
+                      <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>
+                      <TableCell className={`tabular-nums ${short ? "text-destructive" : "text-muted-foreground"}`}>{qtyf(stock)}</TableCell>
+                      <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.now} onChange={(e) => setLine(l.itemId, { now: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                    </TableRow>
+                  );
+                })} />
+              )}
             </TableBody>
           </Table>
         </div>

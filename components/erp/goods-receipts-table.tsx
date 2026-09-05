@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { ReceiptRowMenu } from "@/components/erp/receipt-row-menu";
 
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const qf = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -20,6 +21,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   RECEIVED: { label: "تم الاستلام", variant: "default" },
   INVOICED: { label: "مفوتر", variant: "default" },
   REVERSED: { label: "مرتجع", variant: "destructive" },
+  CANCELLED: { label: "ملغي", variant: "destructive" },
 };
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
@@ -58,6 +60,11 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/api/erp/purchases/receipts/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
+                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+              </a>
+            </Button>
             {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
             {canConfirm && canCreate && hasReceived && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
             {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
@@ -74,6 +81,7 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
             <TableHead className="text-start">أمر الشراء</TableHead>
             <TableHead className="text-start">الفاتورة</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -91,6 +99,9 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell>
+                    <ReceiptRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
+                  </TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
@@ -104,6 +115,7 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </Fragment>

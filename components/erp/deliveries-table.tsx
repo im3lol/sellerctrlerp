@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { DeliveryRowMenu } from "@/components/erp/delivery-row-menu";
 
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const qf = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -18,6 +19,7 @@ const qf = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { maximumFractionD
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
   DELIVERED: { label: "تم التسليم", variant: "default" },
+  CANCELLED: { label: "ملغي", variant: "destructive" },
   INVOICED: { label: "مفوتر", variant: "default" },
   REVERSED: { label: "مرتجع", variant: "destructive" },
 };
@@ -84,6 +86,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
             <TableHead className="text-start">أمر البيع</TableHead>
             <TableHead className="text-start">الفاتورة</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -101,6 +104,9 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title="المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)">نقص مخزون</Badge>}{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell>
+                    <DeliveryRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
+                  </TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
@@ -114,6 +120,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </Fragment>

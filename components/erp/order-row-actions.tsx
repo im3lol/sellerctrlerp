@@ -8,7 +8,7 @@ import {
   confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction, revertSalesOrderToDraftAction,
 } from "@/app/actions/erp/sales-orders";
 import {
-  confirmPurchaseOrderAction, convertPurchaseOrderToInvoiceAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
+  confirmPurchaseOrderAction, cancelPurchaseOrderAction, deletePurchaseOrderAction, revertPurchaseOrderToDraftAction, approvePurchaseOrderAction,
 } from "@/app/actions/erp/purchase-orders";
 import { fulfillOrderAction } from "@/app/actions/erp/fulfillment";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { confirm } from "@/components/erp/confirm";
+import { confirmPurge } from "@/components/erp/purge-confirm";
 
 export function OrderRowActions({
   orderId,
@@ -41,9 +42,9 @@ export function OrderRowActions({
   const invoiceDest = isSales ? "/sales/invoices" : "/purchases/invoices";
   const fulfillPath = isSales ? `/sales/orders/${orderId}/deliver` : `/purchases/orders/${orderId}/receive`;
 
-  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string) => {
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string, dest?: string, purgeLabel?: string) => {
     void (async () => {
-      if (!(await confirm({ danger: /حذف|إلغاء/.test(ok) }))) return;
+      if (!(await (purgeLabel ? confirmPurge(purgeLabel) : confirm({ danger: /حذف|إلغاء/.test(ok) })))) return;
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
@@ -52,11 +53,41 @@ export function OrderRowActions({
     })();
   };
 
+  /**
+   * Confirming a sales order can bounce off the customer's credit limit. When the caller
+   * is finance the action says so (creditBlocked) and a second, explicit confirmation
+   * puts it through — the override is a deliberate act, and the audit trail records it.
+   */
+  const confirmSales = () =>
+    void (async () => {
+      if (!(await confirm({}))) return;
+      start(async () => {
+        const r = await confirmSalesOrderAction(orderId);
+        if (r.ok) { toast.success("تم تأكيد الأمر"); router.refresh(); return; }
+        if (!r.creditBlocked) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+        const go = await confirm({
+          danger: true,
+          title: "تجاوز حد الائتمان",
+          description: `${r.error ?? ""}
+
+التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.`,
+          confirmText: "أكّد رغم التجاوز",
+          cancelText: "رجوع",
+        });
+        if (!go) return;
+        start(async () => {
+          const r2 = await confirmSalesOrderAction(orderId, { overrideCredit: true });
+          if (r2.ok) { toast.success("تم تأكيد الأمر باعتماد مالي"); router.refresh(); }
+          else toast.error(r2.error ?? "تعذّر التنفيذ");
+        });
+      });
+    })();
+
   // CANCELLED: can be deleted if it isn't linked to any receipt/delivery.
   if (status === "CANCELLED") {
     return (
       <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders")}>
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? "أمر البيع" : "أمر الشراء")}>
         <Icon name="Trash2" className="size-4 text-destructive" />حذف
       </Button>
     );
@@ -75,7 +106,7 @@ export function OrderRowActions({
           </Button>
         ) : (
           <Button size="sm" disabled={pending}
-            onClick={() => run(() => isSales ? confirmSalesOrderAction(orderId) : confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
+            onClick={() => (isSales ? confirmSales() : run(() => confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر"))}>
             <Icon name="Check" className="size-4" />تأكيد
           </Button>
         )}
@@ -125,14 +156,14 @@ export function OrderRowActions({
           <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
           {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => run(
-            () => isSales ? convertSalesOrderToInvoiceAction(orderId) : convertPurchaseOrderToInvoiceAction(orderId),
-            "تم التحويل إلى فاتورة (مسودة)", invoiceDest,
-          )}>
-          <Icon name="FileText" className="size-4" />
-          {isSales ? "إنشاء فاتورة بيع" : "إنشاء فاتورة شراء"}
-        </DropdownMenuItem>
+        {/* Purchases have ONE cycle (أمر ← إذن استلام ← فاتورة) — the direct-to-invoice
+            shortcut is sales-only, where no goods-receipt step exists. */}
+        {isSales && (
+          <DropdownMenuItem
+            onClick={() => run(() => convertSalesOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", invoiceDest)}>
+            <Icon name="FileText" className="size-4" />إنشاء فاتورة بيع
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onClick={() => run(() => isSales ? revertSalesOrderToDraftAction(orderId) : revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
           <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة

@@ -11,7 +11,7 @@ export default async function LicensingPage() {
   return withPlatformScope(async () => {
     const rows = await db
       .select({
-        id: organizations.id, name: organizations.nameAr,
+        id: organizations.id, slug: organizations.slug, name: organizations.nameAr,
         status: orgSubscriptions.status, planId: orgSubscriptions.planId, planName: orgSubscriptions.planName, interval: orgSubscriptions.interval,
         price: orgSubscriptions.price, expiresAt: orgSubscriptions.expiresAt, enabledModules: orgSubscriptions.enabledModules,
         maxUsers: orgSubscriptions.maxUsers, storageGb: orgSubscriptions.storageGb,
@@ -29,7 +29,7 @@ export default async function LicensingPage() {
     const storageMap = new Map(storageRows.map((r) => [r.orgId, Number(r.b)]));
 
     const orgs = rows.map((r) => ({
-      id: r.id, name: r.name, status: r.status ?? "NONE", planId: r.planId ?? "", planName: r.planName ?? "", interval: r.interval ?? "",
+      id: r.id, slug: r.slug, name: r.name, status: r.status ?? "NONE", planId: r.planId ?? "", planName: r.planName ?? "", interval: r.interval ?? "",
       price: Number(r.price ?? 0), enabledModules: r.enabledModules ?? [],
       maxUsers: r.maxUsers, storageGb: r.storageGb,
       members: memberMap.get(r.id) ?? 0, storageBytes: storageMap.get(r.id) ?? 0,

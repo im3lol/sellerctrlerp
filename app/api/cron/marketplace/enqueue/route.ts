@@ -1,4 +1,5 @@
 import { enqueueDueSyncs } from "@/lib/queue/scheduler";
+import { secretEquals } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const maxDuration = 30;
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secretEquals(req.headers.get("authorization"), secret ? `Bearer ${secret}` : null)) {
     return new Response("Unauthorized", { status: 401 });
   }
   const r = await enqueueDueSyncs();

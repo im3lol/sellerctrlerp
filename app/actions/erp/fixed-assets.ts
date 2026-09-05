@@ -32,7 +32,7 @@ export async function createAssetAction(input: {
   fundingAccountId?: string;
   notes?: string;
 }): Promise<ActionState & { id?: string }> {
-  const { orgId, can } = await requireErpModule("accounting.create");
+  const { orgId, userId, can } = await requireErpModule("accounting.create");
 
   return withOrgScope(orgId, false, async () => {
     const cost = input.purchaseCost;
@@ -77,7 +77,7 @@ export async function createAssetAction(input: {
         if (plan.post) {
           await postEntry(tx, {
             orgId,
-            userId: null, // requireErpModule does not surface the user — as elsewhere in this file.
+            userId,
             sourceType: "ASSET_ACQUISITION",
             sourceId: row.id,
             date: purchaseDate,
@@ -106,9 +106,8 @@ export async function postMonthlyDepreciationAction(input: {
   year: number;
   month: number; // 1-12
 }): Promise<ActionState & { count?: number; skipped?: string[] }> {
-  const { orgId } = await requireErpModule("accounting.post");
+  const { orgId, userId } = await requireErpModule("accounting.post");
   return withOrgScope(orgId, false, async () => {
-    const userId = null;
     const { year, month } = input;
 
     // Find all ACTIVE assets for this org with at least one GL account linked
@@ -276,9 +275,8 @@ export async function disposeAssetAction(input: {
   proceedsAccountId?: string;
   notes?: string;
 }): Promise<ActionState> {
-  const { orgId } = await requireErpModule("accounting.post");
-  return withOrgScope(orgId, false, async () => {
-    const userId = null; // requireErpModule does not surface the user — as in postMonthlyDepreciationAction.
+  const { orgId, userId } = await requireErpModule("accounting.post");
+  return withOrgScope(orgId, false, async () => { // requireErpModule does not surface the user — as in postMonthlyDepreciationAction.
 
     const [asset] = await db
       .select()

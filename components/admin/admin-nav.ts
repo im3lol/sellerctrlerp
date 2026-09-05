@@ -14,4 +14,5 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "الاقتراحات والشكاوى", href: "/admin/feedback", icon: "MessageSquarePlus", desc: "صندوق ملاحظات المؤسسات عبر النظام." },
   { label: "التكاملات", href: "/admin/integrations", icon: "Plug", desc: "بوابات الدفع (xpay) ومفاتيح الربط." },
   { label: "أدوات النظام", href: "/admin/system", icon: "Server", desc: "حالة الخادم وقاعدة البيانات والتخزين." },
+  { label: "الحساب والأمان", href: "/admin/account", icon: "ShieldCheck", desc: "تغيير كلمة المرور وتفعيل المصادقة الثنائية." },
 ];

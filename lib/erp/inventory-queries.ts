@@ -1,12 +1,24 @@
 import { and, eq, inArray, asc, sql } from "drizzle-orm";
+import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { items, itemCodes, warehouses } from "@/db/schema";
 import { itemMatches } from "@/lib/erp/item-match";
 import { getAvailability } from "@/lib/erp/availability";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
+/**
+ * The /api/v1 routes call these directly after authorizeApi with NO surrounding wrapper,
+ * so every export is wrapped in the tenant DB scope here — same pattern as
+ * lib/erp/mobile-lists.ts. Without it they run on the bare pool and, once RLS is enforced,
+ * silently return zero rows. withOrgScope reuses an already-open scope, so a caller that
+ * is already scoped (a page via loadErpPage) pays nothing.
+ */
+const scoped = <A extends unknown[], R>(fn: (orgId: string, ...args: A) => Promise<R>) =>
+  (orgId: string, ...args: A): Promise<R> => withOrgScope(orgId, false, () => fn(orgId, ...args));
+
+
 /** Active warehouses for the org (for mobile pickers). */
-export async function listWarehouses(orgId: string): Promise<{ id: string; name: string }[]> {
+async function listWarehousesImpl(orgId: string): Promise<{ id: string; name: string }[]> {
   const rows = await db.select({ id: warehouses.id, name: warehouses.nameAr })
     .from(warehouses)
     .where(and(eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true)))
@@ -25,7 +37,7 @@ export function normalizeCode(s: string): string {
  * API. Searches internal code, Arabic/English name, or any linked external code
  * (SKU/ASIN/UPC/EAN/barcode), returning top matches with on-hand + their codes.
  */
-export async function searchItems(orgId: string, query: string): Promise<ItemSearchResult[]> {
+async function searchItemsImpl(orgId: string, query: string): Promise<ItemSearchResult[]> {
   const q = query.trim();
   if (q.length < 1) return [];
 
@@ -72,7 +84,7 @@ export async function searchItems(orgId: string, query: string): Promise<ItemSea
 }
 
 /** Exact barcode/SKU lookup (scan) — the single matching item or null. */
-export async function scanItem(orgId: string, code: string): Promise<ItemSearchResult | null> {
+async function scanItemImpl(orgId: string, code: string): Promise<ItemSearchResult | null> {
   const norm = normalizeCode(code);
   if (!norm) return null;
 
@@ -87,6 +99,10 @@ export async function scanItem(orgId: string, code: string): Promise<ItemSearchR
   }
   if (!itemId) return null;
 
-  const results = await searchItems(orgId, code);
+  const results = await searchItemsImpl(orgId, code);
   return results.find((r) => r.id === itemId) ?? null;
 }
+
+export const listWarehouses = scoped(listWarehousesImpl);
+export const searchItems = scoped(searchItemsImpl);
+export const scanItem = scoped(scanItemImpl);

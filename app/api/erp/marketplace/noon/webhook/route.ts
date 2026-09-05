@@ -79,11 +79,14 @@ export async function POST(req: Request) {
 
   // Resolve the tenant from project_code (stored plaintext in sellerId at connect).
   const [cred] = await withPlatformScope(() =>
-    db.select({ orgId: platformCredentials.organizationId, token: platformCredentials.refreshToken })
+    db.select({ orgId: platformCredentials.organizationId, token: platformCredentials.refreshToken, expressEnabled: platformCredentials.noonExpressEnabled })
       .from(platformCredentials)
       .where(and(eq(platformCredentials.provider, "noon"), eq(platformCredentials.sellerId, projectCode)))
       .limit(1));
   if (!cred) return ok("ignored: unknown project_code");
+  // Owner opt-in gate — the shared secret alone isn't a per-org allowlist (see the
+  // column comment on platformCredentials.noonExpressEnabled).
+  if (!cred.expressEnabled) return ok("ignored: express not enabled for this org");
 
   const refreshToken = decryptSecret(cred.token);
   if (!refreshToken) return ok("ignored: undecryptable credential");

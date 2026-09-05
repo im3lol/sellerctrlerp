@@ -1,0 +1,1 @@
+ALTER TABLE "sales_invoices" ADD COLUMN "sales_rep_id" text;

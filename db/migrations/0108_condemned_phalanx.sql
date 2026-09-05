@@ -1,0 +1,1 @@
+ALTER TABLE "purchase_orders" ADD COLUMN "expected_date" timestamp with time zone;

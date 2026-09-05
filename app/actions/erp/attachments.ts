@@ -113,11 +113,13 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<{ ok
   const org = await activeOrgId();
   if ("error" in org) return org;
 
-  const [row] = await db
+  // The lookup runs INSIDE the tenant scope too — on the bare pool it returns nothing
+  // once RLS is enforced, so the delete would report "المرفق غير موجود" for every row.
+  const [row] = await withOrgScope(org.orgId, false, () => db
     .select({ id: documentAttachments.id, entityType: documentAttachments.entityType, storageKey: documentAttachments.storageKey })
     .from(documentAttachments)
     .where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, org.orgId)))
-    .limit(1);
+    .limit(1));
   if (!row) return { error: "المرفق غير موجود" };
 
   const auth = await authorizeErp(permsFor(row.entityType).write);
@@ -135,7 +137,7 @@ export async function getAttachmentContentAction(attachmentId: string): Promise<
   const org = await activeOrgId();
   if ("error" in org) return org;
 
-  const [row] = await db
+  const [row] = await withOrgScope(org.orgId, false, () => db
     .select({
       storageKey: documentAttachments.storageKey,
       content: documentAttachments.content,
@@ -145,7 +147,7 @@ export async function getAttachmentContentAction(attachmentId: string): Promise<
     })
     .from(documentAttachments)
     .where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.organizationId, org.orgId)))
-    .limit(1);
+    .limit(1));
   if (!row) return { error: "المرفق غير موجود" };
 
   const auth = await authorizeErp(permsFor(row.entityType).view);

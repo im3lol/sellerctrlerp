@@ -62,9 +62,11 @@ export const NAV: NavSection[] = [
       { label: "كشف حساب العميل", href: "/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم المدينة" },
 
       { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الذمم الدائنة" },
+      { label: "خطة السداد", href: "/purchases/payment-plan", icon: "CalendarClock", capability: "erp.purchases.view", group: "الذمم الدائنة" },
       { label: "كشف حساب المورّد", href: "/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم الدائنة" },
 
       { label: "المصروفات", href: "/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view", group: "المصروفات والأصول" },
+      { label: "العُهد", href: "/accounting/custody", icon: "HandCoins", capability: "erp.accounting.view", group: "المصروفات والأصول" },
       { label: "الأصول الثابتة", href: "/accounting/assets", icon: "Building2", capability: "erp.accounting.view", group: "المصروفات والأصول" },
 
       { label: "الحسابات البنكية", href: "/accounting/banks", icon: "Landmark", capability: "erp.accounting.view", group: "البنوك والخزينة" },
@@ -89,12 +91,16 @@ export const NAV: NavSection[] = [
       // The supplier master. It used to have no entry at all — /erp/purchases *was*
       // the supplier list, so the only way in was clicking the module heading.
       { label: "الموردون", href: "/purchases/suppliers", icon: "Truck", capability: "erp.purchases.view", group: "البيانات الأساسية" },
+      { label: "تقييم الموردين", href: "/purchases/suppliers/rating", icon: "Star", capability: "erp.purchases.view", group: "البيانات الأساسية" },
 
       { label: "طلبات المواد", href: "/purchases/requisitions", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "طلبات عروض الأسعار", href: "/purchases/rfqs", icon: "GitCompare", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "تكاليف الاستيراد", href: "/purchases/landed-costs", icon: "Ship", capability: "erp.purchases.create", group: "دورة الشراء" },
 
+      { label: "مطابقة بضاعة لم تُفوتر", href: "/purchases/grni", icon: "Scale", capability: "erp.purchases.view", group: "التقارير" },
       { label: "تقرير الدفتر", href: "/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view", group: "التقارير" },
       { label: "ترتيب الموردين", href: "/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view", group: "التقارير" },
     ],
@@ -110,11 +116,15 @@ export const NAV: NavSection[] = [
       { label: "المخازن", href: "/inventory/warehouses", icon: "Warehouse", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "أرصدة المخزون", href: "/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "دفتر حركة المخزون", href: "/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "الأرقام التسلسلية", href: "/inventory/serials", icon: "ScanBarcode", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "مواقع التخزين", href: "/inventory/bins", icon: "Grid3x3", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "مطابقة قيمة المخزون", href: "/inventory/valuation", icon: "Scale", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
 
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "العمليات" },
       { label: "إذون الصرف", href: "/sales/deliveries", icon: "Truck", capability: "erp.sales.view", group: "العمليات" },
       { label: "تسويات المخزون", href: "/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "الجرد الدوري", href: "/inventory/cycle-count", icon: "ListChecks", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "فحص الجودة", href: "/inventory/quality", icon: "ShieldCheck", capability: "erp.inventory.view", group: "العمليات" },
       { label: "التحويلات المخزنية", href: "/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view", group: "العمليات" },
       { label: "الحزم والمجموعات", href: "/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view", group: "العمليات" },
 
@@ -134,7 +144,11 @@ export const NAV: NavSection[] = [
     items: [
       // The customer master — same story as الموردون above.
       { label: "العملاء", href: "/sales/customers", icon: "Users", capability: "erp.sales.view", group: "البيانات الأساسية" },
+      { label: "قوائم الأسعار", href: "/sales/price-lists", icon: "Tags", capability: "erp.sales.view", group: "البيانات الأساسية" },
+      { label: "العروض ونقط الولاء", href: "/sales/promotions", icon: "BadgePercent", capability: "erp.sales.view", group: "البيانات الأساسية" },
+      { label: "عمولات المبيعات", href: "/sales/commissions", icon: "Percent", capability: "erp.sales.view", group: "التقارير" },
 
+      { label: "نقطة البيع", href: "/sales/pos", icon: "Store", capability: "erp.sales.create", group: "دورة البيع" },
       { label: "عروض الأسعار", href: "/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر البيع", href: "/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
@@ -176,11 +190,39 @@ export const NAV: NavSection[] = [
       { label: "الموظفون",     href: "/hr/employees", icon: "UsersRound",  capability: "erp.hr.view", group: "البيانات الأساسية" },
 
       { label: "الإجازات",     href: "/hr/leaves",   icon: "CalendarDays",  capability: "erp.hr.view", group: "الحضور والإجازات" },
+      { label: "الحضور والانصراف", href: "/hr/attendance", icon: "Clock", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقرير الإجازات", href: "/hr/leaves/report", icon: "BarChart3", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقويم العطلات", href: "/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
 
+      { label: "التوظيف", href: "/hr/recruitment", icon: "UserPlus", capability: "erp.hr.view", group: "الناس" },
+      { label: "تقييم الأداء", href: "/hr/performance", icon: "Target", capability: "erp.hr.view", group: "الناس" },
+      { label: "التدريب", href: "/hr/training", icon: "GraduationCap", capability: "erp.hr.view", group: "الناس" },
+
       { label: "مسير الرواتب", href: "/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view", group: "المالية" },
       { label: "مطالبات المصروفات", href: "/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view", group: "المالية" },
+    ],
+  },
+  {
+    heading: "المشاريع",
+    href: "/projects",
+    capability: "erp.accounting.view",
+    moduleKey: "accounting",
+    icon: "FolderKanban",
+    items: [
+      { label: "المشاريع", href: "/projects", icon: "FolderKanban", capability: "erp.accounting.view", exact: true },
+    ],
+  },
+  {
+    // One engine, two faces: the workshop cares about what is due and what a repair cost;
+    // the fleet cares about the same machines plus fuel, drivers and papers.
+    heading: "الصيانة والأسطول",
+    href: "/maintenance",
+    capability: "erp.maintenance.view",
+    moduleKey: "maintenance",
+    icon: "Wrench",
+    items: [
+      { label: "الصيانة", href: "/maintenance", icon: "Wrench", capability: "erp.maintenance.view", exact: true },
+      { label: "الأسطول", href: "/fleet", icon: "Truck", capability: "erp.maintenance.view" },
     ],
   },
   {
@@ -192,6 +234,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: "التقارير", href: "/reports/center", icon: "FileText", capability: "erp.reports.view", exact: true },
       { label: "التحليلات", href: "/reports/analytics", icon: "Activity", capability: "erp.reports.view" },
+      { label: "باني التقارير", href: "/reports/builder", icon: "Table2", capability: "erp.reports.view" },
     ],
   },
   {

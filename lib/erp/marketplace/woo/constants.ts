@@ -2,6 +2,7 @@
 // WooCommerce REST API is per-store: every URL is scoped to the merchant's WordPress
 // host under /wp-json/wc/v3, authenticated with a consumer key/secret over HTTPS Basic auth.
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { isBlockedHost } from "../safe-url";
 
 // REST API namespace. WooCommerce has no quarterly version churn like Shopify — v3 is stable.
 export const WOO_API_VERSION = "wc/v3";
@@ -20,6 +21,8 @@ export function validateStoreUrl(input: string): string | null {
   let u: URL;
   try { u = new URL(/^https?:\/\//.test(raw) ? raw : `https://${raw}`); } catch { return null; }
   if (u.protocol !== "https:" || !u.hostname) return null;
+  // SSRF: https://127.0.0.1 parses fine, so the scheme check alone is no guard.
+  if (isBlockedHost(u.hostname)) return null;
   return u.origin;
 }
 

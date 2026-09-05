@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
+import { PurchaseOrderRowMenu } from "@/components/erp/purchase-order-row-menu";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -26,7 +27,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 type ReturnRow = { id: string; number: string; date: Date; qty: number; status: string };
-type Row = { id: string; number: string; date: Date; total: string | null; status: string; supplier: string | null; orderedQty: number; receivedQty: number; returned?: boolean; returns?: ReturnRow[] };
+type Row = { id: string; number: string; date: Date; total: string | null; status: string; supplier: string | null; orderedQty: number; receivedQty: number; returned?: boolean; returns?: ReturnRow[]; poNeedsApproval?: boolean; poApproved?: boolean };
 
 const RECEIVING = new Set(["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED", "INVOICED"]);
 
@@ -59,6 +60,11 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
           <div className="ms-auto flex gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/api/erp/purchases/orders/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
+                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+              </a>
+            </Button>
             {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>}
             {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>}
             {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
@@ -74,6 +80,7 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
             <TableHead className="text-start">المورد</TableHead>
             <TableHead className="text-start">الإجمالي</TableHead>
             <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -105,6 +112,9 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
                       )}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <PurchaseOrderRowMenu orderId={r.id} number={r.number} status={r.status} canManage={canCreate} poNeedsApproval={r.poNeedsApproval} poApproved={r.poApproved} />
+                  </TableCell>
                 </TableRow>
                 {r.returns?.map((rt) => (
                   <TableRow key={rt.id} className="bg-destructive/5">
@@ -117,6 +127,7 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))}
               </Fragment>

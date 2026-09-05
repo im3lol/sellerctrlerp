@@ -14,6 +14,7 @@ import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Icon } from "@/components/icon";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { Copyable } from "@/components/erp/copyable";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -159,7 +160,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
+                <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="max-w-[360px]">
                       <div className="flex items-center gap-2">
@@ -189,7 +190,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                     <TableCell>{fmt(l.tax)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">

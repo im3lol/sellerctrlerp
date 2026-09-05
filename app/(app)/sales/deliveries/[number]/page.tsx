@@ -12,6 +12,7 @@ import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
 import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const qtyf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -19,6 +20,7 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
   DELIVERED: { label: "تم التسليم", variant: "default" },
+  CANCELLED: { label: "ملغي", variant: "destructive" },
   INVOICED: { label: "مفوتر", variant: "default" },
   REVERSED: { label: "مرتجع", variant: "destructive" },
 };
@@ -120,13 +122,13 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
+                <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                     <TableCell>{qtyf(l.qty)}</TableCell>
                   </TableRow>
-                ))}
+                ))} />
               </TableBody>
             </Table>
             {dn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {dn.notes}</p>}

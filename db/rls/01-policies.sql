@@ -24,6 +24,7 @@ DECLARE
     'currencies','customers','delivery_notes','document_attachments','document_links',
     'document_sequences','employees','exchange_rates','expense_claims','expenses','feedback',
     'fiscal_periods','fixed_assets','holidays','investments','investors','item_categories',
+    'landed_cost_vouchers',
     'item_codes','item_components','items','journal_entries','leave_requests',
     'marketplace_settlement_txns','material_requests','opening_balances','org_subscriptions',
     'organization_members','payment_vouchers','payroll_lines','payroll_runs','pick_lists',

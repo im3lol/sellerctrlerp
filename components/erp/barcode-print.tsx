@@ -35,22 +35,52 @@ svg{width:100%;height:12mm}
 </style></head><body><div class="n">${esc(itemName)}</div>${svgMarkup}<div class="c">${esc(value)}</div></body></html>`;
 }
 
-// Connect to the local QZ Tray app + list printers when a dialog opens.
-function useQzPrinters(open: boolean) {
+// Remembered across dialogs/sessions so the user doesn't re-pick their printer every time.
+const PRINTER_KEY = "erp:qz-printer";
+
+type QzTray = typeof import("qz-tray")["default"];
+
+// Sign every QZ Tray request with this org's certificate so the desktop app trusts us
+// automatically — no more "Untrusted website / Allow?" prompt on every connect. The
+// certificate + signing happen server-side (app/api/erp/qz/*); set once per module load.
+let qzSecurityConfigured = false;
+function configureQzSecurity(qz: QzTray) {
+  if (qzSecurityConfigured) return;
+  qzSecurityConfigured = true;
+  qz.security.setSignatureAlgorithm("SHA512");
+  qz.security.setCertificatePromise((resolve, reject) => {
+    fetch("/api/erp/qz/cert").then((r) => (r.ok ? r.text() : Promise.reject(new Error("cert fetch failed")))).then(resolve, reject);
+  });
+  qz.security.setSignaturePromise((toSign) => (resolve, reject) => {
+    fetch("/api/erp/qz/sign", { method: "POST", body: toSign }).then((r) => (r.ok ? r.text() : Promise.reject(new Error("sign failed")))).then(resolve, reject);
+  });
+}
+
+// Connect to the local QZ Tray app + list printers when a dialog opens (or, for an
+// inline/non-dialog caller, whenever `open` is just always true).
+export function useQzPrinters(open: boolean) {
   const [printers, setPrinters] = useState<string[]>([]);
-  const [printer, setPrinter] = useState("");
+  const [printer, setPrinterState] = useState("");
   const [qzOk, setQzOk] = useState<boolean | null>(null); // null = probing
+  const setPrinter = (p: string) => {
+    setPrinterState(p);
+    try { localStorage.setItem(PRINTER_KEY, p); } catch { /* private browsing */ }
+  };
   useEffect(() => {
     if (!open) return;
     setQzOk(null);
     void (async () => {
       try {
         const qz = (await import("qz-tray")).default;
+        configureQzSecurity(qz);
         if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 1, delay: 1 });
         const found = await qz.printers.find();
         const list = (Array.isArray(found) ? found : [found]).map(String);
         setPrinters(list);
-        try { setPrinter(String(await qz.printers.getDefault())); } catch { setPrinter(list[0] ?? ""); }
+        let saved: string | null = null;
+        try { saved = localStorage.getItem(PRINTER_KEY); } catch { /* private browsing */ }
+        if (saved && list.includes(saved)) setPrinterState(saved);
+        else { try { setPrinterState(String(await qz.printers.getDefault())); } catch { setPrinterState(list[0] ?? ""); } }
         setQzOk(true);
       } catch { setPrinters([]); setQzOk(false); }
     })();
@@ -59,20 +89,21 @@ function useQzPrinters(open: boolean) {
 }
 
 // Send one QZ print job per physical label (jobs already expanded by quantity).
-async function qzPrint(printer: string, jobs: { itemName: string; value: string }[]) {
+export async function qzPrint(printer: string, jobs: { itemName: string; value: string }[]) {
   const qz = (await import("qz-tray")).default;
+  configureQzSecurity(qz);
   if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 1, delay: 1 });
   const cfg = qz.configs.create(printer, { units: "mm", size: { width: 50, height: 25 }, margins: 0, copies: 1 });
   const data = jobs.map((j) => ({ type: "pixel", format: "html", flavor: "plain", data: labelDoc(j.itemName, j.value, barcodeSvg(j.value)) }));
   await qz.print(cfg, data);
 }
 
-function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: boolean | null; printers: string[]; printer: string; setPrinter: (p: string) => void }) {
+export function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: boolean | null; printers: string[]; printer: string; setPrinter: (p: string) => void }) {
   return (
     <div className="space-y-1.5">
       <label className="text-sm font-medium">الطابعة</label>
       {qzOk === false ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد فتح النافذة.</p>
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.</p>
       ) : (
         <select className={selectCls} value={printer} onChange={(e) => setPrinter(e.target.value)} disabled={qzOk === null}>
           {qzOk === null && <option>جاري الاتصال بـ QZ Tray…</option>}
