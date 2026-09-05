@@ -432,6 +432,33 @@ export const rfqQuoteLines = pgTable("rfq_quote_lines", {
   index("rfq_quote_lines_supplier_idx").on(t.rfqSupplierId),
 ]);
 
+/**
+ * How much a sales rep earns, and on what. `basis` is the argument worth having:
+ * INVOICED pays on the invoice date, COLLECTED pays only once the customer actually
+ * paid. COLLECTED is the commercially sane default — a commission paid on an invoice
+ * that is never collected is money out for a sale that never happened.
+ *
+ * One active rule per rep at a time; a rule with no employee is the org's default.
+ */
+export const commissionRules = pgTable(
+  "commission_rules",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    /** Null = the default rule for anyone without their own. */
+    employeeId: text("employee_id").references(() => employees.id, { onDelete: "cascade" }),
+    basis: text("basis").notNull().default("COLLECTED"), // COLLECTED | INVOICED
+    percent: numeric("percent", { precision: 6, scale: 3 }).notNull().default("0"),
+    validFrom: ts("valid_from"),
+    validTo: ts("valid_to"),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("commission_rules_org_emp_idx").on(t.organizationId, t.employeeId)],
+);
+
 /* ════════════════════════ INVENTORY ═══════════════════════ */
 
 export const warehouses = pgTable(
@@ -1321,6 +1348,8 @@ export const customers = pgTable(
     creditLimit: money("credit_limit").notNull().default("0"),
     /** Which price list this customer buys on. Null = the org's default list. */
     priceListId: text("price_list_id"),
+    /** The rep who owns this account. An invoice inherits it unless one is set on the invoice. */
+    salesRepId: text("sales_rep_id"),
     paymentTerms: integer("payment_terms").notNull().default(30),
     isActive: boolean("is_active").notNull().default(true),
     portalUserId: uuid("portal_user_id").references(() => users.id, { onDelete: "set null" }),
@@ -1340,6 +1369,9 @@ export const salesInvoices = pgTable(
     organizationId: orgId(),
     number: text("number").notNull(),
     customerId: text("customer_id").notNull().references(() => customers.id),
+    /** Who gets the commission. Copied from the customer when the invoice is created and
+     *  frozen here — reassigning an account later must not restate commissions earned. */
+    salesRepId: text("sales_rep_id"),
     // Set when the invoice is billed from a delivery note (stock + COGS already
     // posted at delivery, so this invoice bills revenue/AR only).
     deliveryNoteId: text("delivery_note_id"),

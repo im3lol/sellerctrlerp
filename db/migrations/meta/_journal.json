@@ -792,6 +792,20 @@
       "when": 1788514685355,
       "tag": "0112_zippy_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1788516360961,
+      "tag": "0113_organic_magdalene",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1788516651596,
+      "tag": "0114_chunky_snowbird",
+      "breakpoints": true
     }
   ]
 }

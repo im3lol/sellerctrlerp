@@ -48,9 +48,11 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const { customerId, date, notes, lines } = parsed.data;
 
-    // Verify the customer belongs to the active org.
+    // Verify the customer belongs to the active org, and pick up the rep who owns the
+    // account — the commission follows them and is frozen on the invoice, so reassigning
+    // the customer later cannot restate what somebody already earned.
     const [cust] = await db
-      .select({ id: customers.id })
+      .select({ id: customers.id, salesRepId: customers.salesRepId })
       .from(customers)
       .where(and(eq(customers.id, customerId), eq(customers.organizationId, auth.orgId)))
       .limit(1);
@@ -68,6 +70,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
     const invoiceDate = new Date(date);
     const number = await nextNumber(auth.orgId, invoiceDate.getFullYear());
 
+
     try {
       const id = await db.transaction(async (tx) => {
         const [inv] = await tx
@@ -76,6 +79,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
             organizationId: auth.orgId,
             number,
             customerId,
+            salesRepId: cust?.salesRepId ?? null,
             date: invoiceDate,
             status: "DRAFT",
             subtotal: String(subtotal),
