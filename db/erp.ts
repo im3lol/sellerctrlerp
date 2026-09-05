@@ -1482,6 +1482,165 @@ export const journalEntryLines = pgTable(
 
 /* ══════════════════════════ FIXED ASSETS ══════════════════ */
 
+// ── recruitment, performance, training ──────────────────────────────────
+// Three registers on the same shape as employees and leaves. Deliberately plain: hiring
+// and appraisal are conversations, and the system's job is to remember what was decided,
+// not to have an opinion about it.
+
+/** A role being hired for. Closing it is a decision worth keeping, so it is a status. */
+export const jobOpenings = pgTable(
+  "job_openings",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    titleAr: text("title_ar").notNull(),
+    department: text("department"),
+    /** How many people this opening is meant to hire. */
+    headcount: integer("headcount").notNull().default(1),
+    status: text("status").notNull().default("OPEN"), // OPEN | ON_HOLD | FILLED | CANCELLED
+    openedAt: ts("opened_at").notNull(),
+    closedAt: ts("closed_at"),
+    hiringManagerId: text("hiring_manager_id").references(() => employees.id, { onDelete: "set null" }),
+    salaryFrom: money("salary_from").notNull().default("0"),
+    salaryTo: money("salary_to").notNull().default("0"),
+    description: text("description"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("job_openings_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/**
+ * Someone who applied. `stage` is the pipeline; `employeeId` is filled in on hire, which
+ * is what ties a name in the funnel to a person on the payroll.
+ */
+export const jobApplicants = pgTable("job_applicants", {
+  id: pk(),
+  organizationId: orgId(),
+  openingId: text("opening_id").notNull().references(() => jobOpenings.id, { onDelete: "cascade" }),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  source: text("source"), // referral, LinkedIn, walk-in…
+  stage: text("stage").notNull().default("APPLIED"), // APPLIED | SCREENING | INTERVIEW | OFFER | HIRED | REJECTED
+  appliedAt: ts("applied_at").notNull(),
+  /** Set when the applicant becomes an employee — the funnel's only write into HR. */
+  employeeId: text("employee_id").references(() => employees.id, { onDelete: "set null" }),
+  rating: integer("rating"),
+  expectedSalary: money("expected_salary").notNull().default("0"),
+  cvAttachmentId: text("cv_attachment_id"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/** One interview or screening call, and what the interviewer concluded. */
+export const applicantInterviews = pgTable("applicant_interviews", {
+  id: pk(),
+  organizationId: orgId(),
+  applicantId: text("applicant_id").notNull().references(() => jobApplicants.id, { onDelete: "cascade" }),
+  interviewerId: text("interviewer_id").references(() => employees.id, { onDelete: "set null" }),
+  scheduledAt: ts("scheduled_at").notNull(),
+  stage: text("stage").notNull().default("INTERVIEW"),
+  outcome: text("outcome"), // PENDING | PASS | FAIL
+  rating: integer("rating"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * An appraisal covering a period. Scores live on their own rows so a review can carry as
+ * many criteria as the manager wants without a column per criterion.
+ */
+export const performanceReviews = pgTable("performance_reviews", {
+  id: pk(),
+  organizationId: orgId(),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").references(() => employees.id, { onDelete: "set null" }),
+  periodFrom: text("period_from").notNull(),
+  periodTo: text("period_to").notNull(),
+  status: text("status").notNull().default("DRAFT"), // DRAFT | SUBMITTED | ACKNOWLEDGED
+  /** 0–5, weighted from the criteria below. Stored so a past review never re-scores. */
+  overallScore: money("overall_score").notNull().default("0"),
+  strengths: text("strengths"),
+  improvements: text("improvements"),
+  goals: text("goals"),
+  acknowledgedAt: ts("acknowledged_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const reviewScores = pgTable("review_scores", {
+  id: pk(),
+  organizationId: orgId(),
+  reviewId: text("review_id").notNull().references(() => performanceReviews.id, { onDelete: "cascade" }),
+  criterion: text("criterion").notNull(),
+  weight: money("weight").notNull().default("1"),
+  score: money("score").notNull().default("0"), // 0–5
+  comment: text("comment"),
+  createdAt: createdAt(),
+});
+
+/** A course, and who sat it. */
+export const trainingCourses = pgTable(
+  "training_courses",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    provider: text("provider"),
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
+    hours: money("hours").notNull().default("0"),
+    costPerSeat: money("cost_per_seat").notNull().default("0"),
+    seats: integer("seats").notNull().default(0),
+    status: text("status").notNull().default("PLANNED"), // PLANNED | RUNNING | DONE | CANCELLED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("training_courses_org_code_idx").on(t.organizationId, t.code)],
+);
+
+export const trainingEnrollments = pgTable("training_enrollments", {
+  id: pk(),
+  organizationId: orgId(),
+  courseId: text("course_id").notNull().references(() => trainingCourses.id, { onDelete: "cascade" }),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("ENROLLED"), // ENROLLED | ATTENDED | COMPLETED | NO_SHOW
+  score: money("score"),
+  completedAt: ts("completed_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * A report someone built and wants back tomorrow. The spec is stored, not the rows — the
+ * numbers are re-read every time, so a saved report is a question, never a stale answer.
+ */
+export const savedReports = pgTable(
+  "saved_reports",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    nameAr: text("name_ar").notNull(),
+    dataset: text("dataset").notNull(),
+    spec: jsonb("spec").$type<import("../lib/erp/report-builder").ReportSpec>().notNull(),
+    /** Private to whoever built it unless they share it with the org. */
+    isShared: boolean("is_shared").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("saved_reports_org_idx").on(t.organizationId, t.dataset)],
+);
+
 /**
  * A project is a COST DIMENSION, like a cost centre. Money reaches it the ordinary way —
  * an expense, a bill, an invoice, each stamped with the project — so there is no second

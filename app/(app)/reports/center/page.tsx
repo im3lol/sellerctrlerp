@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { reportDownloads } from "@/db/schema";
 import { REPORT_MODULES } from "@/lib/erp/report-catalog";
+import Link from "next/link";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportGenerator } from "@/components/erp/report-generator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,20 @@ export default async function ReportsCenterPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <ErpPageHeader icon="ChartColumn" title="مركز التقارير" subtitle="اختر الموديول ثم التقرير والفترة والصيغة — واستخرجه PDF أو Excel" />
         <ReportGenerator />
+
+        <Link href="/reports/builder"
+          className="flex items-center justify-between rounded-2xl border p-4 transition-colors hover:border-primary">
+          <div className="flex items-center gap-3">
+            <Icon name="Table2" className="size-5 text-primary" />
+            <div>
+              <div className="font-medium">باني التقارير</div>
+              <div className="text-sm text-muted-foreground">
+                التقرير اللي مش موجود في القايمة — اختار البيانات وفلتر وجمّع بنفسك.
+              </div>
+            </div>
+          </div>
+          <Icon name="ChevronLeft" className="size-4 text-muted-foreground" />
+        </Link>
 
         <Card>
           <CardHeader>
