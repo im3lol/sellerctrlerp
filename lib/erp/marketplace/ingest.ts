@@ -591,6 +591,9 @@ export async function enrichItems(orgId: string, records: CatalogRecord[]): Prom
     if (r.imageUrl) set.image = r.imageUrl;
     if (r.brand) set.brand = r.brand;
     if (r.weight) set.weight = r.weight;
+    // The numeric weight is the one that does work: landed-cost allocation by weight
+    // reads it, and an item without it silently contributes nothing to the split.
+    if (r.weightKg != null) set.weightKg = String(r.weightKg);
     if (r.dimensions) set.dimensions = r.dimensions;
     // Update each field independently so a non-empty one doesn't block the others.
     for (const [col, val] of Object.entries(set)) {

@@ -24,8 +24,10 @@ export type CatalogRecord = {
   asin: string;
   imageUrl?: string;
   brand?: string;
-  weight?: string;       // display string, e.g. "0.5 kg"
-  dimensions?: string;   // display string, e.g. "10 × 5 × 3 cm"
+  weight?: string;       // display string, ALWAYS metric, e.g. "500 جم"
+  /** Kilograms. The figure freight-by-weight allocation divides by — a label cannot. */
+  weightKg?: number;
+  dimensions?: string;   // display string, ALWAYS metric, e.g. "10 × 5 × 3 سم"
   name?: string;
   identifiers: CatalogIdentifier[];
   parentAsin?: string;   // set on a variation child
