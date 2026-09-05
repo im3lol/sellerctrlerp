@@ -22,8 +22,11 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
         .where(and(eq(currencies.organizationId, orgId), eq(currencies.isActive, true))).orderBy(currencies.isBase, currencies.code),
-      db.select({ currencyCode: exchangeRates.currencyCode, rate: exchangeRates.rate }).from(exchangeRates)
-        .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(20),
+      // Dated history, not just the newest: an order dated last month must default to
+      // last month's rate, and the person raising it should be able to see and pick from
+      // what was actually recorded.
+      db.select({ currencyCode: exchangeRates.currencyCode, date: exchangeRates.date, rate: exchangeRates.rate }).from(exchangeRates)
+        .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(200),
     ]);
     const unitsByItem = await getUnitsByItem(orgId);
 
@@ -31,6 +34,11 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     const latestRates: Record<string, number> = {};
     for (const r of rateRows) if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
     for (const c of currRows) if (!(c.code in latestRates)) latestRates[c.code] = Number(c.exchangeRate) || 1;
+
+    const rateHistory: Record<string, { date: string; rate: number }[]> = {};
+    for (const r of rateRows) {
+      (rateHistory[r.currencyCode] ??= []).push({ date: new Date(r.date).toISOString().slice(0, 10), rate: Number(r.rate) });
+    }
 
     // Last unit price paid per item (any supplier) — suggested on the PO line.
     // ponytail: last price across all suppliers; make it per-supplier if negotiated price lists are needed.
@@ -85,7 +93,8 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates} />
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates}
+        rateHistory={rateHistory} />
       </div>
     );
   });
