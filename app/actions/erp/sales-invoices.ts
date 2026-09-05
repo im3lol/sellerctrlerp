@@ -7,7 +7,7 @@ import { and, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations } from "@/db/schema";
+import { salesInvoices, salesInvoiceLines, customers, warehouses, deliveryNotes, deliveryNoteLines, salesOrders, salesOrderLines, accountingConfigurations, items } from "@/db/schema";
 import { createReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
@@ -208,8 +208,16 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
           }
         } else {
           // Standalone invoice: issue stock OUT at WAC + COGS.
-          const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity, warehouseId: salesInvoiceLines.warehouseId })
-            .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
+          // Service lines bill revenue and move nothing — an hour of work was never on a
+          // shelf, so issuing stock for it would leave the store short of a fiction.
+          const invLines = (await tx.select({
+            itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity,
+            warehouseId: salesInvoiceLines.warehouseId, isService: items.isService,
+          })
+            .from(salesInvoiceLines)
+            .leftJoin(items, eq(items.id, salesInvoiceLines.itemId))
+            .where(eq(salesInvoiceLines.salesInvoiceId, inv.id)))
+            .filter((l) => !l.isService);
           const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
             .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
           // Prefer each line's originating sales-order-line warehouse (an order→invoice

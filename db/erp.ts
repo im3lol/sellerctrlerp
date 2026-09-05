@@ -526,6 +526,12 @@ export const items = pgTable(
     // stock_serials. Serial tracking is a PARALLEL ledger — stock balances and costing
     // still come from stock_movements, and the two are reconciled by count.
     tracking: text("tracking").notNull().default("NONE"), // NONE | BATCH | SERIAL
+    /**
+     * Sells hours or work, not goods. A service line bills revenue and moves no stock —
+     * without it a project milestone or a delivery charge has to be faked as an item with
+     * a balance, and the store ends up short of something that was never on a shelf.
+     */
+    isService: boolean("is_service").notNull().default(false),
     /** Goods land in quarantine on receipt and only reach available stock once passed. */
     requiresInspection: boolean("requires_inspection").notNull().default(false),
     isPerishable: boolean("is_perishable").notNull().default(false),
@@ -1452,6 +1458,8 @@ export const journalEntryLines = pgTable(
     journalEntryId: text("journal_entry_id").notNull().references(() => journalEntries.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull().references(() => accounts.id),
     costCenterId: text("cost_center_id").references(() => costCenters.id),
+    /** The other analytical dimension. Same mechanism, different question. */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     debit: money("debit").notNull().default("0"),
     credit: money("credit").notNull().default("0"),
     description: text("description"),
@@ -1468,10 +1476,99 @@ export const journalEntryLines = pgTable(
     index("journal_entry_lines_entry_idx").on(t.journalEntryId),
     index("journal_entry_lines_account_idx").on(t.accountId),
     index("journal_entry_lines_cost_center_idx").on(t.costCenterId),
+    index("journal_entry_lines_project_idx").on(t.projectId),
   ],
 );
 
 /* ══════════════════════════ FIXED ASSETS ══════════════════ */
+
+/**
+ * A project is a COST DIMENSION, like a cost centre. Money reaches it the ordinary way —
+ * an expense, a bill, an invoice, each stamped with the project — so there is no second
+ * costing engine here, only a place to compare that against what was promised.
+ */
+export const projects = pgTable(
+  "projects",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    managerEmployeeId: text("manager_employee_id").references(() => employees.id, { onDelete: "set null" }),
+    status: text("status").notNull().default("DRAFT"), // DRAFT | ACTIVE | ON_HOLD | DONE | CANCELLED
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    budget: money("budget").notNull().default("0"),
+    /** Charged when hours are billed by time and materials. */
+    defaultBillRate: money("default_bill_rate").notNull().default("0"),
+    costCenterId: text("cost_center_id").references(() => costCenters.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("projects_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/** A stage of the project, and — when it carries an amount — a milestone to bill on. */
+export const projectPhases = pgTable("project_phases", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  nameAr: text("name_ar").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  status: text("status").notNull().default("PENDING"), // PENDING | IN_PROGRESS | DONE
+  budget: money("budget").notNull().default("0"),
+  billAmount: money("bill_amount").notNull().default("0"),
+  plannedStart: text("planned_start"),
+  plannedEnd: text("planned_end"),
+  actualEnd: ts("actual_end"),
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  invoicedAt: ts("invoiced_at"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const projectTasks = pgTable("project_tasks", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  phaseId: text("phase_id").references(() => projectPhases.id, { onDelete: "set null" }),
+  nameAr: text("name_ar").notNull(),
+  assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("PENDING"), // PENDING | IN_PROGRESS | DONE
+  plannedHours: money("planned_hours").notNull().default("0"),
+  dueDate: text("due_date"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * An hour someone worked. Cost rate is what the hour cost the company; bill rate is what
+ * the customer pays for it — the two are different numbers and conflating them is how a
+ * project reports a margin it never had.
+ */
+export const timesheets = pgTable("timesheets", {
+  id: pk(),
+  organizationId: orgId(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  taskId: text("task_id").references(() => projectTasks.id, { onDelete: "set null" }),
+  employeeId: text("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  workDate: text("work_date").notNull(),
+  hours: money("hours").notNull(),
+  costRate: money("cost_rate").notNull().default("0"),
+  billRate: money("bill_rate").notNull().default("0"),
+  billable: boolean("billable").notNull().default(true),
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  invoicedAt: ts("invoiced_at"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
 
 export const fixedAssets = pgTable(
   "fixed_assets",
@@ -1775,6 +1872,8 @@ export const salesInvoices = pgTable(
     /** Who gets the commission. Copied from the customer when the invoice is created and
      *  frozen here — reassigning an account later must not restate commissions earned. */
     salesRepId: text("sales_rep_id"),
+    /** The project this invoice earns for — the revenue half of the project dimension. */
+    projectId: text("project_id"),
     // Set when the invoice is billed from a delivery note (stock + COGS already
     // posted at delivery, so this invoice bills revenue/AR only).
     deliveryNoteId: text("delivery_note_id"),
@@ -2017,6 +2116,8 @@ export const expenses = pgTable(
     cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),        // paid from (ASSET leaf)
     amount: money("amount").notNull(),
     paymentMethod: text("payment_method").notNull().default("CASH"),
+    /** The project this spend belongs to, if any — how cost reaches a project. */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     payee: text("payee"),        // who was paid (free text)
     reference: text("reference"),
     notes: text("notes"),

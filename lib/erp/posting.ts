@@ -12,6 +12,8 @@ export type PostLine = {
   credit: number;
   description?: string | null;
   costCenterId?: string | null;
+  /** The other analytical dimension. Same mechanism as the cost centre, different question. */
+  projectId?: string | null;
 };
 
 export type PostInput = {
@@ -165,6 +167,7 @@ export async function postEntry(tx: Tx, input: PostInput): Promise<string> {
       journalEntryId: entry.id,
       accountId: l.accountId,
       costCenterId: l.costCenterId ?? null,
+      projectId: l.projectId ?? null,
       debit: money(l.debit),
       credit: money(l.credit),
       description: l.description ?? null,
@@ -296,7 +299,10 @@ export async function reverseEntry(
     srcLines.map((l) => ({
       journalEntryId: rev.id,
       accountId: l.accountId,
+      // The reversal carries the same dimensions, or a project's cost would keep a charge
+      // the ledger has already taken back.
       costCenterId: l.costCenterId,
+      projectId: l.projectId,
       debit: l.credit, // swap
       credit: l.debit,
       description: `عكس: ${l.description ?? ""}`.trim(),

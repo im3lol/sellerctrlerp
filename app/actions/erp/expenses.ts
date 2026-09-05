@@ -23,6 +23,8 @@ const schema = z.object({
   payee: z.string().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
+  /** The project this spend belongs to. This is how cost reaches a project at all. */
+  projectId: z.string().optional().nullable(),
 });
 
 /** Create an expense as DRAFT (no GL effect until confirmed). */
@@ -50,6 +52,7 @@ export async function createExpenseAction(input: unknown): Promise<SaveExpenseSt
         organizationId: auth.orgId, number, expenseAccountId, cashAccountId,
         status: "DRAFT", date: d, amount: String(amount), paymentMethod,
         payee: payee || null, reference: reference || null, notes: notes || null,
+        projectId: parsed.data.projectId || null,
       }).returning({ id: expenses.id });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "EXPENSE", entityId: e.id, entityNumber: number, summary: `إنشاء مصروف ${number} (مسودة)`, metadata: { amount } });
       revalidatePath("/accounting/expenses");
@@ -89,7 +92,8 @@ export async function updateExpenseAction(id: string, input: unknown): Promise<S
       // silently changing the amount of an expense already posted to the ledger.
       const saved = await db.update(expenses).set({
         expenseAccountId, cashAccountId, date: new Date(date), amount: String(amount), paymentMethod,
-        payee: payee || null, reference: reference || null, notes: notes || null, updatedAt: new Date(),
+        payee: payee || null, reference: reference || null, notes: notes || null,
+        projectId: parsed.data.projectId || null, updatedAt: new Date(),
       }).where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId), eq(expenses.status, "DRAFT")))
         .returning({ id: expenses.id });
       if (!saved.length) return { error: "لا يمكن تعديل مصروف مُرحّل" };
@@ -122,7 +126,7 @@ export async function confirmExpenseAction(id: string): Promise<ActionState> {
           description: `مصروف ${e.number}${e.payee ? ` — ${e.payee}` : ""}`,
           journalType: "GENERAL", userId: auth.userId,
           lines: [
-            { accountId: e.expenseAccountId, debit: amount, credit: 0, description: e.notes || "مصروف" },
+            { accountId: e.expenseAccountId, debit: amount, credit: 0, description: e.notes || "مصروف", projectId: e.projectId },
             { accountId: e.cashAccountId, debit: 0, credit: amount, description: `صرف ${e.number}` },
           ],
         });

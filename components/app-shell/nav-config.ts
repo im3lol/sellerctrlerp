@@ -199,6 +199,16 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    heading: "المشاريع",
+    href: "/projects",
+    capability: "erp.accounting.view",
+    moduleKey: "accounting",
+    icon: "FolderKanban",
+    items: [
+      { label: "المشاريع", href: "/projects", icon: "FolderKanban", capability: "erp.accounting.view", exact: true },
+    ],
+  },
+  {
     // One engine, two faces: the workshop cares about what is due and what a repair cost;
     // the fleet cares about the same machines plus fuel, drivers and papers.
     heading: "الصيانة والأسطول",

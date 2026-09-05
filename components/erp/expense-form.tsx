@@ -12,9 +12,10 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { selectCls } from "@/lib/utils";
 
 type Account = { id: string; code: string; name: string };
-export type ExpenseInitial = { id: string; expenseAccountId: string; cashAccountId: string; amount: string; date: string; method: string; payee: string; reference: string; notes: string };
+export type ExpenseInitial = { id: string; expenseAccountId: string; cashAccountId: string; amount: string; date: string; method: string; payee: string; reference: string; notes: string; projectId?: string | null };
+export type ProjectOption = { id: string; label: string };
 
-export function ExpenseForm({ expenseAccounts, cashAccounts, initial }: { expenseAccounts: Account[]; cashAccounts: Account[]; initial?: ExpenseInitial }) {
+export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], initial }: { expenseAccounts: Account[]; cashAccounts: Account[]; projects?: ProjectOption[]; initial?: ExpenseInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -27,6 +28,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, initial }: { expens
   const [method, setMethod] = useState(initial?.method ?? "CASH");
   const [payee, setPayee] = useState(initial?.payee ?? "");
   const [reference, setReference] = useState(initial?.reference ?? "");
+  const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
 
   const expOptions = useMemo(() => expenseAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` })), [expenseAccounts]);
@@ -39,7 +41,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, initial }: { expens
       if (!expenseAccountId) { toast.error("اختر بند المصروف"); return; }
       if (!cashAccountId) { toast.error("اختر حساب النقدية/البنك"); return; }
       if (!(Number(amount) > 0)) { toast.error("أدخل مبلغاً صحيحاً"); return; }
-      const body = { expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes };
+      const body = { expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes, projectId: projectId || null };
       const r = isEdit ? await updateExpenseAction(initial!.id, body) : await createExpenseAction(body);
       if (r.ok) {
         toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ المصروف (مسودة) — أكّده للترحيل");
@@ -102,6 +104,24 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, initial }: { expens
           <Label>المرجع (اختياري)</Label>
           <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم شيك / تحويل / فاتورة" />
         </div>
+
+        {projects.length > 0 && (
+          <div className="space-y-2">
+            <Label>المشروع (اختياري)</Label>
+            <CellCombobox
+              selectedLabel={projects.find((p) => p.id === projectId)?.label ?? ""}
+              options={projects}
+              onSelect={setProjectId}
+              placeholder="حمّل المصروف على مشروع"
+            />
+            {projectId && (
+              <button type="button" className="text-xs text-muted-foreground underline"
+                onClick={() => setProjectId("")}>
+                شيل المشروع
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>ملاحظات</Label>
