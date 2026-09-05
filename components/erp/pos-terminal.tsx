@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 import { CellCombobox } from "@/components/erp/cell-combobox";
+import { usePosQueue, cacheItem, cachedItem } from "@/components/erp/pos-offline";
+import { newClientRef, canQueueOffline, drawerAdjustment, failed as failedSales, pending as pendingSales } from "@/lib/erp/pos-sync";
 import { selectCls } from "@/lib/utils";
 
 export type Option = { id: string; label: string };
@@ -48,6 +50,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   const [payments, setPayments] = useState<Payment[]>([{ method: "CASH", amount: 0 }]);
   const [closing, setClosing] = useState(false);
   const [counted, setCounted] = useState("");
+  const q = usePosQueue();
 
   const load = () => {
     void getMyShiftAction().then((r) => {
@@ -75,8 +78,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
     const code = scan.trim();
     if (!code) return;
     setScan("");
-    void scanItemAction(code).then((it) => {
-      if (!it) { toast.error("مفيش صنف بالكود ده"); return; }
+    const add = (it: Awaited<ReturnType<typeof scanItemAction>>) => {
+      if (!it) { toast.error(q.online ? "مفيش صنف بالكود ده" : "الصنف ده مش متخزّن على الجهاز — محتاج نت أول مرة"); return; }
       // Scanning the same barcode again bumps the line rather than adding a second one —
       // three of the same thing is one line with a 3 in it.
       setCart((c) => {
@@ -85,7 +88,19 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         return [...c, { itemId: it.id, code: it.code, name: it.name || it.code, quantity: 1, unitPrice: Number(it.sellPrice) || 0, discount: 0 }];
       });
       scanRef.current?.focus();
-    });
+    };
+
+    if (!q.online) { add(cachedItem(code)); return; }
+    void scanItemAction(code)
+      .then((it) => { if (it) cacheItem(it); add(it); })
+      // The network died between shifts of attention; fall back to what this device knows.
+      .catch(() => add(cachedItem(code)));
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setPayments([{ method: "CASH", amount: 0 }]);
+    scanRef.current?.focus();
   };
 
   const ring = () =>
@@ -93,22 +108,54 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       if (!state?.shift) return;
       if (!cart.length) return toast.error("السلة فاضية");
       if (!customerId) return toast.error("اختر العميل");
-      const err = validatePayments(totals.total, payments.filter((p) => p.amount > 0));
+      const paid = payments.filter((p) => p.amount > 0);
+      const err = validatePayments(totals.total, paid);
       if (err) return toast.error(err);
+
+      const sale = {
+        clientRef: newClientRef(),
+        soldAt: new Date().toISOString(),
+        shiftId: state.shift.id,
+        customerId,
+        lines: cart.map((c) => ({ itemId: c.itemId, label: c.name, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount ?? 0 })),
+        payments: paid.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+        applyVat, vatRate, total: totals.total,
+        status: "PENDING" as const, attempts: 0,
+      };
+
+      // Offline: the sale is real and the money is taken. Queue it and let the customer go.
+      if (!q.online) {
+        const blocked = canQueueOffline(sale);
+        if (blocked) return toast.error(blocked);
+        q.add(sale);
+        toast.success(`اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع${change > 0 ? ` · الفكة ${money(change)}` : ""}`);
+        clearCart();
+        return;
+      }
+
       start(async () => {
-        const r = await ringSaleAction({
-          shiftId: state.shift!.id,
-          customerId,
-          lines: cart.map((c) => ({ itemId: c.itemId, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount ?? 0 })),
-          payments: payments.filter((p) => p.amount > 0).map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
-          applyVat, vatRate,
-        });
-        if (!r.ok) { toast.error(r.error ?? "تعذّر إتمام البيع"); return; }
-        toast.success(`${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`);
-        setCart([]);
-        setPayments([{ method: "CASH", amount: 0 }]);
-        load();
-        scanRef.current?.focus();
+        try {
+          const r = await ringSaleAction({
+            shiftId: sale.shiftId,
+            customerId: sale.customerId,
+            lines: sale.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
+            payments: sale.payments,
+            applyVat, vatRate,
+            clientRef: sale.clientRef, soldAt: sale.soldAt,
+          });
+          if (!r.ok) { toast.error(r.error ?? "تعذّر إتمام البيع"); return; }
+          toast.success(`${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`);
+          clearCart();
+          load();
+        } catch {
+          // The request never landed. We do not know whether it posted — the clientRef
+          // makes the replay safe either way, so the sale goes in the queue rather than
+          // asking the cashier to ring it again.
+          if (canQueueOffline(sale)) { toast.error("الشبكة وقعت والبيعة دي مينفعش تتأجّل — أعِد المحاولة"); return; }
+          q.add(sale);
+          toast.warning("الشبكة وقعت — البيعة اتحفظت وهتترحّل لوحدها");
+          clearCart();
+        }
       });
     })();
 
@@ -176,15 +223,25 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
   // ── till ─────────────────────────────────────────────────────────────
   const r = state.reconciliation;
+  const queued = drawerAdjustment(q.queue);
+  const unsettled = pendingSales(q.queue).length + failedSales(q.queue).length;
+  // The drawer holds the offline takings too, even though the books have not seen them yet.
+  const expectedCash = (r?.expected ?? 0) + queued.cash;
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>وردية {state.shift.number}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                وردية {state.shift.number}
+                {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />بدون نت</Badge>}
+                {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />بيزامن</Badge>}
+              </CardTitle>
               <CardDescription>
-                {state.sales.length} بيعة · إجمالي {money(r?.totalSales ?? 0)} · كاش في الدرج (متوقّع) {money(r?.expected ?? 0)}
+                {state.sales.length + unsettled} بيعة · إجمالي {money((r?.totalSales ?? 0) + queued.sales)} · كاش في الدرج (متوقّع) {money(expectedCash)}
+                {unsettled > 0 && ` · ${unsettled} لسه ما اترحّلتش`}
               </CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => setClosing((v) => !v)}>
@@ -198,13 +255,18 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <div className="space-y-2"><Label>الكاش المعدود في الدرج</Label>
                 <Input type="number" step="0.01" min="0" className="w-40" value={counted} autoFocus
                   onChange={(e) => setCounted(e.target.value)} /></div>
-              <Button onClick={close} disabled={pending || counted === ""}>
+              <Button onClick={close} disabled={pending || counted === "" || unsettled > 0}>
                 <Icon name="Check" className="size-4" />اقفل
               </Button>
               <span className="pb-2 text-sm text-muted-foreground">
-                المتوقّع {money(r?.expected ?? 0)}
-                {counted !== "" && ` · الفرق ${money((Number(counted) || 0) - (r?.expected ?? 0))}`}
+                المتوقّع {money(expectedCash)}
+                {counted !== "" && ` · الفرق ${money((Number(counted) || 0) - expectedCash)}`}
               </span>
+              {unsettled > 0 && (
+                <span className="pb-2 text-sm font-medium text-destructive">
+                  فيه {unsettled} بيعة لسه ما وصلتش للدفاتر — زامنها الأول، الوردية مبتتقفلش على فرق مش حقيقي.
+                </span>
+              )}
             </div>
           </CardContent>
         )}
@@ -348,6 +410,79 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           </CardContent>
         </Card>
       </div>
+
+      {q.queue.some((x) => x.status !== "SYNCED") && (
+        <Card className={failedSales(q.queue).length > 0 ? "border-destructive/50" : undefined}>
+          <CardHeader>
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>بيعات لسه ما اترحّلتش</CardTitle>
+                <CardDescription>
+                  الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="outline" disabled={!q.online || q.syncing}
+                onClick={() => void q.sync().then((res) => {
+                  if (res.failed > 0) toast.error(`${res.failed} بيعة اترفضت — شوف السبب تحت`);
+                  else if (res.done > 0) { toast.success(`اترحّلت ${res.done} بيعة`); load(); }
+                })}>
+                <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />زامن دلوقتي
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-start">وقت البيع</TableHead>
+                    <TableHead className="text-start">الأصناف</TableHead>
+                    <TableHead className="text-start">الإجمالي</TableHead>
+                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="w-40" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {q.queue.filter((x) => x.status !== "SYNCED").map((x) => (
+                    <TableRow key={x.clientRef}>
+                      <TableCell className="whitespace-nowrap text-xs tabular-nums">
+                        {new Date(x.soldAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}
+                      </TableCell>
+                      <TableCell className="text-sm">{x.lines.map((l) => `${l.label} ×${l.quantity}`).join(" · ")}</TableCell>
+                      <TableCell className="font-medium tabular-nums">{money(x.total)}</TableCell>
+                      <TableCell>
+                        {x.status === "FAILED"
+                          ? <span className="text-sm text-destructive">{x.error}</span>
+                          : <Badge variant="outline">في الطابور</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        {x.status === "FAILED" && (
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => { q.retry(x.clientRef); void q.sync().then(() => load()); }}>
+                              أعِد المحاولة
+                            </Button>
+                            <Button size="sm" variant="ghost" aria-label="إلغاء" onClick={() => void (async () => {
+                              const go = await confirm({
+                                danger: true,
+                                title: "تلغي البيعة دي نهائياً؟",
+                                description: `${money(x.total)} اتاخدوا فعلاً من العميل. لو مسحتها من غير ما ترحّلها، الفلوس دي هتفضل في الدرج من غير فاتورة ومحدش هيعرف مصدرها.`,
+                                confirmText: "امسحها", cancelText: "رجوع",
+                              });
+                              if (go) q.discard(x.clientRef);
+                            })()}>
+                              <Icon name="X" className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {state.sales.length > 0 && (
         <Card>

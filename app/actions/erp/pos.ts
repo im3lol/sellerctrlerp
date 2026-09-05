@@ -5,7 +5,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { posShifts, posPayments, salesInvoices, warehouses, accounts, customers } from "@/db/schema";
+import { posShifts, posPayments, posSaleRefs, salesInvoices, warehouses, accounts, customers } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -89,6 +89,10 @@ const saleSchema = z.object({
   })).min(1, "أدخل طريقة دفع"),
   applyVat: z.boolean().default(false),
   vatRate: z.coerce.number().min(0).max(100).default(0),
+  /** Device-generated idempotency key. Required for a sale replayed from the offline queue. */
+  clientRef: z.string().trim().min(8).max(80).optional(),
+  /** When the till took the money, if that is not now. */
+  soldAt: z.string().datetime().optional(),
 });
 
 /**
@@ -96,7 +100,7 @@ const saleSchema = z.object({
  * and a back-office sale produce the same journal entries and the same stock movements.
  */
 export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise<
-  ActionState & { invoiceId?: string; invoiceNumber?: string; change?: number }
+  ActionState & { invoiceId?: string; invoiceNumber?: string; change?: number; duplicate?: boolean }
 > {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
@@ -120,7 +124,35 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
       .where(and(eq(customers.id, d.customerId), eq(customers.organizationId, auth.orgId))).limit(1);
     if (!cust) return { error: "العميل غير موجود" };
 
-    const today = new Date().toISOString().slice(0, 10);
+    const soldAt = d.soldAt ? new Date(d.soldAt) : new Date();
+    const today = soldAt.toISOString().slice(0, 10);
+
+    // Claim the key BEFORE anything is created. A second arrival of the same sale — a
+    // retried sync, a double-tapped button, a reply that never made it back — loses the
+    // race here and gets the first invoice instead of making a second one.
+    if (d.clientRef) {
+      const claimed = await db.insert(posSaleRefs)
+        .values({ organizationId: auth.orgId, clientRef: d.clientRef, shiftId: shift.id, soldAt })
+        .onConflictDoNothing()
+        .returning({ id: posSaleRefs.id });
+
+      if (claimed.length === 0) {
+        const [prior] = await db.select({ invoiceId: posSaleRefs.salesInvoiceId }).from(posSaleRefs)
+          .where(and(eq(posSaleRefs.organizationId, auth.orgId), eq(posSaleRefs.clientRef, d.clientRef))).limit(1);
+        if (!prior?.invoiceId) return { error: "البيعة دي قيد الترحيل دلوقتي — استنى وجرّب تاني" };
+        const [existing] = await db.select({ number: salesInvoices.number, total: salesInvoices.totalAmount })
+          .from(salesInvoices).where(eq(salesInvoices.id, prior.invoiceId)).limit(1);
+        // Already done. Reporting success is the truth: the sale is in the books.
+        return { ok: true, invoiceId: prior.invoiceId, invoiceNumber: existing?.number, change: 0, duplicate: true };
+      }
+    }
+
+    /** A sale that dies mid-flight must not hold its key hostage — the retry needs it. */
+    const releaseClaim = async () => {
+      if (!d.clientRef) return;
+      await db.delete(posSaleRefs)
+        .where(and(eq(posSaleRefs.organizationId, auth.orgId), eq(posSaleRefs.clientRef, d.clientRef)));
+    };
 
     // The invoice carries the discount on the line, which is how the invoice engine
     // already models it — no second discount concept for retail.
@@ -139,11 +171,16 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
         warehouseId: shift.warehouseId,
       })),
     });
-    if (!created.ok || !created.id) return { error: created.error ?? "تعذّر إنشاء الفاتورة" };
+    if (!created.ok || !created.id) { await releaseClaim(); return { error: created.error ?? "تعذّر إنشاء الفاتورة" }; }
 
     // Posting is what moves stock and books the revenue; a POS sale is never a draft.
     const posted = await postSalesInvoiceAction(created.id);
-    if (!posted.ok) return { error: posted.error ?? "تعذّر ترحيل الفاتورة" };
+    if (!posted.ok) { await releaseClaim(); return { error: posted.error ?? "تعذّر ترحيل الفاتورة" }; }
+
+    if (d.clientRef) {
+      await db.update(posSaleRefs).set({ salesInvoiceId: created.id })
+        .where(and(eq(posSaleRefs.organizationId, auth.orgId), eq(posSaleRefs.clientRef, d.clientRef)));
+    }
 
     const [inv] = await db.select({ number: salesInvoices.number, total: salesInvoices.totalAmount })
       .from(salesInvoices).where(eq(salesInvoices.id, created.id)).limit(1);

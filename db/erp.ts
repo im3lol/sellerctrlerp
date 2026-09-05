@@ -1120,6 +1120,27 @@ export const posShifts = pgTable(
  * How one sale was paid. A single sale can be split across methods — part cash, part
  * card — which is why this is a table and not a column on the invoice.
  */
+/**
+ * The idempotency key an offline sale carries. Generated on the device BEFORE the sale
+ * is stored locally, so a sync that is interrupted — or retried, or double-clicked —
+ * always resolves to the same one invoice. See docs/POS-OFFLINE.md.
+ */
+export const posSaleRefs = pgTable(
+  "pos_sale_refs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    clientRef: text("client_ref").notNull(),
+    /** Null while the claim is held and the sale is still posting. */
+    salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "cascade" }),
+    shiftId: text("shift_id").notNull().references(() => posShifts.id, { onDelete: "cascade" }),
+    /** When the sale actually happened at the till, which may be well before it synced. */
+    soldAt: ts("sold_at").notNull(),
+    syncedAt: createdAt(),
+  },
+  (t) => [uniqueIndex("pos_sale_refs_unique").on(t.organizationId, t.clientRef)],
+);
+
 export const posPayments = pgTable("pos_payments", {
   id: pk(),
   organizationId: orgId(),
