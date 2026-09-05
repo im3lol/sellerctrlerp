@@ -194,6 +194,10 @@ export const NAV: NavSection[] = [
       { label: "تقرير الإجازات", href: "/hr/leaves/report", icon: "BarChart3", capability: "erp.hr.view", group: "الحضور والإجازات" },
       { label: "تقويم العطلات", href: "/hr/holidays", icon: "CalendarOff",   capability: "erp.hr.view", group: "الحضور والإجازات" },
 
+      { label: "التوظيف", href: "/hr/recruitment", icon: "UserPlus", capability: "erp.hr.view", group: "الناس" },
+      { label: "تقييم الأداء", href: "/hr/performance", icon: "Target", capability: "erp.hr.view", group: "الناس" },
+      { label: "التدريب", href: "/hr/training", icon: "GraduationCap", capability: "erp.hr.view", group: "الناس" },
+
       { label: "مسير الرواتب", href: "/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view", group: "المالية" },
       { label: "مطالبات المصروفات", href: "/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view", group: "المالية" },
     ],
@@ -230,6 +234,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: "التقارير", href: "/reports/center", icon: "FileText", capability: "erp.reports.view", exact: true },
       { label: "التحليلات", href: "/reports/analytics", icon: "Activity", capability: "erp.reports.view" },
+      { label: "باني التقارير", href: "/reports/builder", icon: "Table2", capability: "erp.reports.view" },
     ],
   },
   {
