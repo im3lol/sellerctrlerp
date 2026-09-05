@@ -21,6 +21,9 @@ import { confirm } from "@/components/erp/confirm";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { usePosQueue, cacheItem, cachedItem } from "@/components/erp/pos-offline";
 import { newClientRef, canQueueOffline, drawerAdjustment, failed as failedSales, pending as pendingSales } from "@/lib/erp/pos-sync";
+import { applyPromotions, spreadDiscount, type Promotion } from "@/lib/erp/promotions";
+import { maxRedeemable, pointsValue, validateRedeem, type LoyaltyProgram } from "@/lib/erp/loyalty";
+import { getLoyaltyBalanceAction } from "@/app/actions/erp/promotions";
 import { selectCls } from "@/lib/utils";
 
 export type Option = { id: string; label: string };
@@ -34,9 +37,10 @@ const METHODS: PaymentMethod[] = ["CASH", "CARD", "WALLET", "VOUCHER"];
  * cashier with a scanner never touches the mouse. Everything the sale produces comes from
  * the ordinary invoice and receipt engines; this screen only decides what goes in them.
  */
-export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustomerId, vatRate }: {
+export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustomerId, vatRate, promotions, loyalty }: {
   warehouses: Option[]; cashAccounts: Option[]; customers: Option[];
   defaultCustomerId: string | null; vatRate: number;
+  promotions: Promotion[]; loyalty: LoyaltyProgram;
 }) {
   const [state, setState] = useState<ShiftState | null>(null);
   const [pending, start] = useTransition();
@@ -50,6 +54,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   const [payments, setPayments] = useState<Payment[]>([{ method: "CASH", amount: 0 }]);
   const [closing, setClosing] = useState(false);
   const [counted, setCounted] = useState("");
+  const [points, setPoints] = useState(0);
+  const [redeem, setRedeem] = useState("");
   const q = usePosQueue();
 
   const load = () => {
@@ -60,9 +66,31 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   };
   useEffect(() => { load(); }, []);
 
-  const totals = useMemo(() => cartTotals(cart, vatRate, applyVat), [cart, vatRate, applyVat]);
+  // What the rules take off. The server runs them again and is the authority; this is so
+  // the cashier can tell the customer the price before they hand over money.
+  const promo = useMemo(
+    () => applyPromotions(cart.map((c) => ({ itemId: c.itemId, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount ?? 0 })), promotions),
+    [cart, promotions],
+  );
+  const redeemPoints = Math.max(0, Math.floor(Number(redeem) || 0));
+  const redeemAmount = redeemPoints > 0 ? pointsValue(redeemPoints, loyalty) : 0;
+  const totals = useMemo(
+    () => cartTotals(redeemAmount > 0 ? spreadDiscount(promo.lines, redeemAmount) : promo.lines, vatRate, applyVat),
+    [promo.lines, redeemAmount, vatRate, applyVat],
+  );
   const paid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const change = changeDue(totals.total, payments);
+  const canRedeem = q.online && loyalty.redeemRate > 0;
+  const beforePoints = useMemo(() => cartTotals(promo.lines, vatRate, applyVat).total, [promo.lines, vatRate, applyVat]);
+
+  // The balance is the customer's, so it is read fresh whenever the customer changes.
+  useEffect(() => {
+    let live = true;
+    const set = (n: number) => { if (live) setPoints(n); };
+    if (!customerId || loyalty.redeemRate <= 0) Promise.resolve().then(() => set(0));
+    else void getLoyaltyBalanceAction(customerId).then((r) => set(r.ok ? (r.points ?? 0) : 0)).catch(() => set(0));
+    return () => { live = false; };
+  }, [customerId, loyalty.redeemRate]);
 
   const openShift = () =>
     start(async () => {
@@ -100,6 +128,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   const clearCart = () => {
     setCart([]);
     setPayments([{ method: "CASH", amount: 0 }]);
+    setRedeem("");
     scanRef.current?.focus();
   };
 
@@ -111,13 +140,19 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       const paid = payments.filter((p) => p.amount > 0);
       const err = validatePayments(totals.total, paid);
       if (err) return toast.error(err);
+      if (redeemPoints > 0) {
+        const redeemErr = validateRedeem(redeemPoints, points, beforePoints, loyalty);
+        if (redeemErr) return toast.error(redeemErr);
+      }
 
       const sale = {
         clientRef: newClientRef(),
         soldAt: new Date().toISOString(),
         shiftId: state.shift.id,
         customerId,
-        lines: cart.map((c) => ({ itemId: c.itemId, label: c.name, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount ?? 0 })),
+        // Promoted lines, not raw ones: an offline sale must post at the price the
+        // customer was quoted, even if the rules changed while the till was dark.
+        lines: promo.lines.map((l, i) => ({ itemId: l.itemId, label: cart[i]?.name ?? "", quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
         payments: paid.map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
         applyVat, vatRate, total: totals.total,
         status: "PENDING" as const, attempts: 0,
@@ -127,6 +162,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       if (!q.online) {
         const blocked = canQueueOffline(sale);
         if (blocked) return toast.error(blocked);
+        if (redeemPoints > 0) return toast.error("النقط محتاجة نت — رصيد العميل مش هيتخمّن");
         q.add(sale);
         toast.success(`اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع${change > 0 ? ` · الفكة ${money(change)}` : ""}`);
         clearCart();
@@ -142,9 +178,13 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             payments: sale.payments,
             applyVat, vatRate,
             clientRef: sale.clientRef, soldAt: sale.soldAt,
+            redeemPoints,
           });
           if (!r.ok) { toast.error(r.error ?? "تعذّر إتمام البيع"); return; }
-          toast.success(`${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`);
+          toast.success(
+            `${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`
+            + (r.earnedPoints ? ` · +${r.earnedPoints} نقطة` : ""),
+          );
           clearCart();
           load();
         } catch {
@@ -322,7 +362,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                             onChange={(e) => setCart((c) => c.map((x, k) => (k === i ? { ...x, discount: Number(e.target.value) || 0 } : x)))} />
                         </TableCell>
                         <TableCell className="font-medium tabular-nums">
-                          {money(l.quantity * l.unitPrice - (l.discount ?? 0))}
+                          {money(l.quantity * l.unitPrice - (promo.lines[i]?.discount ?? l.discount ?? 0))}
                         </TableCell>
                         <TableCell>
                           <Button size="icon" variant="ghost" aria-label="حذف"
@@ -353,9 +393,41 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               />
             </div>
 
+            {canRedeem && customerId && (
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">رصيد النقط</span>
+                  <span className="font-medium tabular-nums">{points} نقطة · {money(pointsValue(points, loyalty))}</span>
+                </div>
+                {maxRedeemable(points, beforePoints, loyalty) > 0 && (
+                  <div className="flex gap-2">
+                    <Input type="number" step="1" min="0" className="tabular-nums" placeholder="استبدل نقط"
+                      value={redeem} onChange={(e) => setRedeem(e.target.value)} />
+                    <Button size="sm" variant="outline"
+                      onClick={() => setRedeem(String(maxRedeemable(points, beforePoints, loyalty)))}>
+                      الأقصى
+                    </Button>
+                  </div>
+                )}
+                {redeemPoints > 0 && validateRedeem(redeemPoints, points, beforePoints, loyalty) && (
+                  <p className="text-xs text-destructive">{validateRedeem(redeemPoints, points, beforePoints, loyalty)}</p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1 rounded-lg border p-3 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="tabular-nums">{money(totals.subtotal)}</span></div>
               {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الخصم</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
+              {promo.applied.map((a) => (
+                <div key={a.promotionId} className="flex justify-between text-emerald-600">
+                  <span>{a.nameAr}</span><span className="tabular-nums">−{money(a.amount)}</span>
+                </div>
+              ))}
+              {redeemAmount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>{redeemPoints} نقطة</span><span className="tabular-nums">−{money(redeemAmount)}</span>
+                </div>
+              )}
               {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">ضريبة {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
               <div className="flex justify-between border-t pt-1 text-base font-bold"><span>المطلوب</span><span className="tabular-nums">{money(totals.total)}</span></div>
             </div>

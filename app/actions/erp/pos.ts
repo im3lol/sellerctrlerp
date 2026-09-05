@@ -5,7 +5,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { posShifts, posPayments, posSaleRefs, salesInvoices, warehouses, accounts, customers } from "@/db/schema";
+import { posShifts, posPayments, posSaleRefs, salesInvoices, warehouses, accounts, customers, promotions, loyaltyEntries, organizations } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
@@ -15,6 +15,8 @@ import {
   cartTotals, validatePayments, appliedPayments, reconcileShift,
   type Payment, type PaymentMethod,
 } from "@/lib/erp/pos";
+import { applyPromotions, spreadDiscount, type Promotion } from "@/lib/erp/promotions";
+import { earnedPoints, pointsValue, validateRedeem, pointsBalance } from "@/lib/erp/loyalty";
 
 /**
  * The till. A POS sale is an ordinary sales invoice, posted immediately, with receipt
@@ -93,6 +95,8 @@ const saleSchema = z.object({
   clientRef: z.string().trim().min(8).max(80).optional(),
   /** When the till took the money, if that is not now. */
   soldAt: z.string().datetime().optional(),
+  /** Loyalty points the customer wants to spend on this sale. Online only. */
+  redeemPoints: z.coerce.number().int().min(0).default(0),
 });
 
 /**
@@ -100,7 +104,10 @@ const saleSchema = z.object({
  * and a back-office sale produce the same journal entries and the same stock movements.
  */
 export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise<
-  ActionState & { invoiceId?: string; invoiceNumber?: string; change?: number; duplicate?: boolean }
+  ActionState & {
+    invoiceId?: string; invoiceNumber?: string; change?: number; duplicate?: boolean;
+    earnedPoints?: number; promotions?: { promotionId: string; nameAr: string; amount: number }[];
+  }
 > {
   const auth = await authorizeErp("sales.create");
   if ("error" in auth) return auth;
@@ -109,10 +116,7 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
 
-  const totals = cartTotals(d.lines, d.vatRate, d.applyVat);
   const payments: Payment[] = d.payments.map((p) => ({ method: p.method as PaymentMethod, amount: p.amount, reference: p.reference ?? null }));
-  const payErr = validatePayments(totals.total, payments);
-  if (payErr) return { error: payErr };
 
   return withOrgScope(auth.orgId, false, async () => {
     const [shift] = await db.select().from(posShifts)
@@ -126,6 +130,49 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
 
     const soldAt = d.soldAt ? new Date(d.soldAt) : new Date();
     const today = soldAt.toISOString().slice(0, 10);
+
+    // Promotions are applied here, not on the till: the screen shows the customer what
+    // they will get, the server decides what they actually get. Re-running the rules over
+    // lines the till already discounted changes nothing — a rule never undercuts a
+    // discount that is already on the line.
+    const promoRows = await db.select().from(promotions)
+      .where(and(eq(promotions.organizationId, auth.orgId), eq(promotions.isActive, true)));
+    const rules: Promotion[] = promoRows.map((r) => ({
+      id: r.id, nameAr: r.nameAr, type: r.type as Promotion["type"], value: Number(r.value),
+      itemId: r.itemId, minQuantity: Number(r.minQuantity), minAmount: Number(r.minAmount),
+      buyQty: r.buyQty, getQty: r.getQty, startsAt: r.startsAt, endsAt: r.endsAt, priority: r.priority,
+    }));
+    const promo = applyPromotions(
+      d.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })),
+      rules,
+      soldAt,
+    );
+    let lines = promo.lines;
+
+    // Points come off as a discount. Redeeming needs a live balance, which is why an
+    // offline sale never carries points — see docs/POS-OFFLINE.md.
+    let redeemAmount = 0;
+    if (d.redeemPoints > 0) {
+      const [org] = await db.select({
+        earn: organizations.loyaltyEarnRate, redeem: organizations.loyaltyRedeemRate, min: organizations.loyaltyMinRedeem,
+      }).from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+      const program = { earnRate: Number(org?.earn ?? 0), redeemRate: Number(org?.redeem ?? 0), minRedeem: Number(org?.min ?? 0) };
+
+      const ledger = await db.select({ points: loyaltyEntries.points }).from(loyaltyEntries)
+        .where(and(eq(loyaltyEntries.organizationId, auth.orgId), eq(loyaltyEntries.customerId, d.customerId)));
+      const balance = pointsBalance(ledger);
+
+      const before = cartTotals(lines, d.vatRate, d.applyVat).total;
+      const redeemErr = validateRedeem(d.redeemPoints, balance, before, program);
+      if (redeemErr) return { error: redeemErr };
+
+      redeemAmount = pointsValue(d.redeemPoints, program);
+      lines = spreadDiscount(lines, redeemAmount);
+    }
+
+    const totals = cartTotals(lines, d.vatRate, d.applyVat);
+    const payErr = validatePayments(totals.total, payments);
+    if (payErr) return { error: payErr };
 
     // Claim the key BEFORE anything is created. A second arrival of the same sale — a
     // retried sync, a double-tapped button, a reply that never made it back — loses the
@@ -160,7 +207,7 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
       customerId: d.customerId,
       date: today,
       notes: `بيع نقطة بيع — وردية ${shift.number}`,
-      lines: d.lines.map((l) => ({
+      lines: lines.map((l) => ({
         itemId: l.itemId,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
@@ -210,9 +257,31 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
       });
     }
 
+    // The points ledger, written only after there is an invoice to point at — so a
+    // balance can always be traced to a sale that really happened.
+    if (d.redeemPoints > 0) {
+      await db.insert(loyaltyEntries).values({
+        organizationId: auth.orgId, customerId: d.customerId, points: -d.redeemPoints,
+        kind: "REDEEM", salesInvoiceId: created.id, amount: String(redeemAmount),
+        notes: `استبدال على فاتورة ${inv?.number ?? ""}`,
+      });
+    }
+    const [orgEarn] = await db.select({ earn: organizations.loyaltyEarnRate })
+      .from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+    const earned = earnedPoints(Number(inv?.total ?? totals.total), { earnRate: Number(orgEarn?.earn ?? 0), redeemRate: 0, minRedeem: 0 });
+    if (earned > 0) {
+      await db.insert(loyaltyEntries).values({
+        organizationId: auth.orgId, customerId: d.customerId, points: earned,
+        kind: "EARN", salesInvoiceId: created.id, amount: "0",
+        notes: `فاتورة ${inv?.number ?? ""}`,
+      });
+    }
+
     revalidatePath("/sales/pos");
     return {
       ok: true,
+      earnedPoints: earned,
+      promotions: promo.applied,
       invoiceId: created.id,
       invoiceNumber: inv?.number,
       change: Math.round((payments.reduce((s, p) => s + p.amount, 0) - Number(inv?.total ?? totals.total)) * 100) / 100,

@@ -73,6 +73,11 @@ export const organizations = pgTable(
     vatRate: money("vat_rate").notNull().default("14"),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
+    // Loyalty: points earned per pound (0 = programme off), pounds a point redeems for,
+    // and the balance a customer must reach before redeeming anything.
+    loyaltyEarnRate: money("loyalty_earn_rate").notNull().default("0"),
+    loyaltyRedeemRate: money("loyalty_redeem_rate").notNull().default("0"),
+    loyaltyMinRedeem: integer("loyalty_min_redeem").notNull().default(0),
     // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
     setupSkipped: jsonb("setup_skipped").$type<string[]>(),
     // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
@@ -1120,6 +1125,54 @@ export const posShifts = pgTable(
  * How one sale was paid. A single sale can be split across methods — part cash, part
  * card — which is why this is a table and not a column on the invoice.
  */
+/**
+ * Automatic retail discounts. A rule with no item is a basket rule; one with an item is a
+ * line rule. The engine in lib/erp/promotions.ts decides which one wins — never both.
+ */
+export const promotions = pgTable(
+  "promotions",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    code: text("code").notNull(),
+    nameAr: text("name_ar").notNull(),
+    type: text("type").notNull().default("PERCENT"), // PERCENT | AMOUNT | BUY_X_GET_Y
+    value: money("value").notNull().default("0"),
+    /** Null = applies to the whole basket. */
+    itemId: text("item_id").references(() => items.id, { onDelete: "cascade" }),
+    minQuantity: money("min_quantity").notNull().default("0"),
+    minAmount: money("min_amount").notNull().default("0"),
+    buyQty: integer("buy_qty").notNull().default(0),
+    getQty: integer("get_qty").notNull().default(0),
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
+    priority: integer("priority").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("promotions_code_unique").on(t.organizationId, t.code)],
+);
+
+/**
+ * The points ledger. A balance is a SUM over this table and nothing else, so points can
+ * always be explained: earned on which invoice, spent on which one.
+ */
+export const loyaltyEntries = pgTable("loyalty_entries", {
+  id: pk(),
+  organizationId: orgId(),
+  customerId: text("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+  /** Positive earns, negative redeems. */
+  points: integer("points").notNull(),
+  kind: text("kind").notNull(), // EARN | REDEEM | ADJUST
+  salesInvoiceId: text("sales_invoice_id").references(() => salesInvoices.id, { onDelete: "set null" }),
+  /** What the redeemed points took off the sale, in pounds. */
+  amount: money("amount").notNull().default("0"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+});
+
 /**
  * The idempotency key an offline sale carries. Generated on the device BEFORE the sale
  * is stored locally, so a sync that is interrupted — or retried, or double-clicked —

@@ -145,6 +145,7 @@ export const NAV: NavSection[] = [
       // The customer master — same story as الموردون above.
       { label: "العملاء", href: "/sales/customers", icon: "Users", capability: "erp.sales.view", group: "البيانات الأساسية" },
       { label: "قوائم الأسعار", href: "/sales/price-lists", icon: "Tags", capability: "erp.sales.view", group: "البيانات الأساسية" },
+      { label: "العروض ونقط الولاء", href: "/sales/promotions", icon: "BadgePercent", capability: "erp.sales.view", group: "البيانات الأساسية" },
       { label: "عمولات المبيعات", href: "/sales/commissions", icon: "Percent", capability: "erp.sales.view", group: "التقارير" },
 
       { label: "نقطة البيع", href: "/sales/pos", icon: "Store", capability: "erp.sales.create", group: "دورة البيع" },
