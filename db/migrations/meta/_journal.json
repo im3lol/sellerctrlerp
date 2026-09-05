@@ -806,6 +806,27 @@
       "when": 1788516651596,
       "tag": "0114_chunky_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1788569600243,
+      "tag": "0115_lyrical_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1788570066026,
+      "tag": "0116_salty_terror",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1788572525490,
+      "tag": "0117_colossal_captain_cross",
+      "breakpoints": true
     }
   ]
 }

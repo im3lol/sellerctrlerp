@@ -117,11 +117,14 @@ export const NAV: NavSection[] = [
       { label: "أرصدة المخزون", href: "/inventory/stock", icon: "Boxes", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "دفتر حركة المخزون", href: "/inventory/ledger", icon: "ScrollText", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "الأرقام التسلسلية", href: "/inventory/serials", icon: "ScanBarcode", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
+      { label: "مواقع التخزين", href: "/inventory/bins", icon: "Grid3x3", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
       { label: "مطابقة قيمة المخزون", href: "/inventory/valuation", icon: "Scale", capability: "erp.inventory.view", group: "الأصناف والأرصدة" },
 
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "العمليات" },
       { label: "إذون الصرف", href: "/sales/deliveries", icon: "Truck", capability: "erp.sales.view", group: "العمليات" },
       { label: "تسويات المخزون", href: "/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "الجرد الدوري", href: "/inventory/cycle-count", icon: "ListChecks", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "فحص الجودة", href: "/inventory/quality", icon: "ShieldCheck", capability: "erp.inventory.view", group: "العمليات" },
       { label: "التحويلات المخزنية", href: "/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view", group: "العمليات" },
       { label: "الحزم والمجموعات", href: "/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view", group: "العمليات" },
 

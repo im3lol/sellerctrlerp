@@ -473,6 +473,8 @@ export const warehouses = pgTable(
     parentId: text("parent_id").references((): AnyPgColumn => warehouses.id),
     location: text("location"),
     manager: text("manager"),
+    /** The holding area for goods awaiting inspection. One per org; created on demand. */
+    isQuarantine: boolean("is_quarantine").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -519,6 +521,8 @@ export const items = pgTable(
     // stock_serials. Serial tracking is a PARALLEL ledger — stock balances and costing
     // still come from stock_movements, and the two are reconciled by count.
     tracking: text("tracking").notNull().default("NONE"), // NONE | BATCH | SERIAL
+    /** Goods land in quarantine on receipt and only reach available stock once passed. */
+    requiresInspection: boolean("requires_inspection").notNull().default(false),
     isPerishable: boolean("is_perishable").notNull().default(false),
     shelfLifeDays: integer("shelf_life_days"),
     description: text("description"),
@@ -932,6 +936,145 @@ export const pickListLines = pgTable("pick_list_lines", {
 }, (t) => [
   index("pick_list_lines_list_idx").on(t.pickListId),
 ]);
+
+/**
+ * A place inside a warehouse — an aisle, a rack, a shelf. Deliberately a PICKING
+ * dimension, not a balance one: stock quantities and value stay at warehouse level, and
+ * `stock_batches` keeps its identity untouched. Bins answer "where do I walk to find
+ * this", which is the question a storekeeper actually has.
+ *
+ * Making a bin a balance dimension means changing the lot identity key and revaluing
+ * every balance — a separate project, and one nobody has asked for yet.
+ */
+export const binLocations = pgTable(
+  "bin_locations",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id, { onDelete: "cascade" }),
+    /** Sorts the walking route, so pick in code order = one pass through the aisles. */
+    code: text("code").notNull(),
+    nameAr: text("name_ar"),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("bin_locations_wh_code_idx").on(t.warehouseId, t.code),
+    index("bin_locations_org_idx").on(t.organizationId, t.warehouseId),
+  ],
+);
+
+/**
+ * Where one item lives in one warehouse. An item can sit in more than one bin (bulk on a
+ * pallet, pieces on a pick face), so `isPrimary` marks the one to walk to first.
+ */
+export const itemBins = pgTable(
+  "item_bins",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id, { onDelete: "cascade" }),
+    binId: text("bin_id").notNull().references(() => binLocations.id, { onDelete: "cascade" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("item_bins_unique").on(t.itemId, t.binId),
+    index("item_bins_item_wh_idx").on(t.itemId, t.warehouseId),
+  ],
+);
+
+/**
+ * Cycle counting — count a slice of the warehouse every week instead of shutting the
+ * whole place down once a year. A session is a count sheet; the differences it finds
+ * become an ordinary stock adjustment, which is what posts. Nothing here writes a
+ * balance: the existing adjustment engine does that, exactly as it does for a manual one.
+ */
+export const countSessions = pgTable(
+  "count_sessions",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    date: ts("date").notNull(),
+    /** How the slice was chosen — kept so a later reader knows what this covered. */
+    method: text("method").notNull().default("VALUE"), // VALUE | MOVEMENT | MANUAL
+    status: text("status").notNull().default("DRAFT"), // DRAFT · COUNTED · POSTED · CANCELLED
+    /** The adjustment the differences were posted through. */
+    adjustmentId: text("adjustment_id"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("count_sessions_org_number_idx").on(t.organizationId, t.number)],
+);
+
+/**
+ * One item on the sheet. `systemQty` is frozen when the sheet is generated — comparing a
+ * count taken this morning against a balance that moved this afternoon would invent
+ * differences that were never there.
+ */
+export const countSessionLines = pgTable("count_session_lines", {
+  id: pk(),
+  organizationId: lineOrgId(),
+  sessionId: text("session_id").notNull().references(() => countSessions.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  /** Book quantity at the moment the sheet was produced. */
+  systemQty: money("system_qty").notNull().default("0"),
+  /** What the counter found. Null until they write it down. */
+  countedQty: money("counted_qty"),
+  unitCost: money("unit_cost").notNull().default("0"),
+  /** Where to walk, snapshotted so a later bin change doesn't rewrite the sheet. */
+  binCode: text("bin_code"),
+  notes: text("notes"),
+}, (t) => [
+  uniqueIndex("count_session_lines_unique").on(t.sessionId, t.itemId),
+  index("count_session_lines_session_idx").on(t.sessionId),
+]);
+
+/**
+ * A quality decision on goods that arrived. Inspection is a STAGE, not a flag: goods for
+ * an inspected item are received into a quarantine warehouse, so they are on the books at
+ * their real cost but cannot be sold, and only a pass moves them into available stock.
+ *
+ * The movement itself goes through the ordinary transfer document — this table records
+ * who decided what, and holds the pending queue.
+ */
+export const qcInspections = pgTable(
+  "qc_inspections",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    /** The receipt that brought the goods in. */
+    receiptId: text("receipt_id").notNull(),
+    receiptNumber: text("receipt_number").notNull(),
+    itemId: text("item_id").notNull().references(() => items.id),
+    /** Where the goods are being held, and where they are meant to end up. */
+    quarantineWarehouseId: text("quarantine_warehouse_id").notNull().references(() => warehouses.id),
+    targetWarehouseId: text("target_warehouse_id").notNull().references(() => warehouses.id),
+    quantity: money("quantity").notNull().default("0"),
+    passedQty: money("passed_qty").notNull().default("0"),
+    failedQty: money("failed_qty").notNull().default("0"),
+    status: text("status").notNull().default("PENDING"), // PENDING · DECIDED · CANCELLED
+    /** The transfer that released the passed goods into available stock. */
+    releaseTransferId: text("release_transfer_id"),
+    decidedAt: ts("decided_at"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("qc_inspections_org_number_idx").on(t.organizationId, t.number),
+    index("qc_inspections_status_idx").on(t.organizationId, t.status),
+  ],
+);
 
 /* ════════════════════════ ACCOUNTING ══════════════════════ */
 

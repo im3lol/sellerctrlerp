@@ -9,9 +9,9 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
   purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, stockBatches,
-  journalEntries, warehouses, stockSerials,
-} from "@/db/schema";
+  journalEntries, warehouses, stockSerials, qcInspections} from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { inspectedItems, ensureQuarantineWarehouse } from "@/app/actions/erp/quality";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
@@ -242,6 +242,13 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     if (serialCheck) return { error: serialCheck };
 
     const receiptDate = new Date(grn.date);
+
+    // Items under inspection are received into quarantine instead of the destination:
+    // on the books at cost, in the valuation, and unsellable because nobody sells from
+    // quarantine. A pass releases them with an ordinary transfer.
+    const needsQc = await inspectedItems(auth.orgId, grnLines.map((l) => l.itemId));
+    const quarantineId = needsQc.size ? await ensureQuarantineWarehouse(auth.orgId) : null;
+
     try {
       await db.transaction(async (tx) => {
         // Re-check the receipt status UNDER LOCK — the outside check races a
@@ -280,13 +287,27 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
           // freight cost — each delivery batch can carry a different rate.
           const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(gl.shippingPerUnit);
           received += round2(qty * unitNet);
+          const destinationId = gl.warehouseId || grn.warehouseId;
+          const holdForQc = needsQc.has(gl.itemId) && quarantineId;
           await postStockMovement(tx, {
-            orgId: auth.orgId, itemId: gl.itemId, warehouseId: gl.warehouseId || grn.warehouseId, type: "IN",
+            orgId: auth.orgId, itemId: gl.itemId, warehouseId: holdForQc ? quarantineId : destinationId, type: "IN",
             quantity: qty, unitCost: unitNet, date: receiptDate,
             batchNo: gl.batchNo ?? null, expiryDate: gl.expiryDate ? new Date(gl.expiryDate) : null, deriveExpiryFromShelfLife: true,
             referenceType: "GOODS_RECEIPT", referenceId: grn.id, reason: `استلام ${grn.number}`,
           });
           await tx.update(purchaseOrderLines).set({ receivedQty: sql`${purchaseOrderLines.receivedQty} + ${qty}` }).where(eq(purchaseOrderLines.id, pol.id));
+
+          if (holdForQc) {
+            const qcNumber = await nextDocumentNumber(tx, auth.orgId, "QC", receiptDate.getFullYear());
+            await tx.insert(qcInspections).values({
+              organizationId: auth.orgId, number: qcNumber,
+              receiptId: grn.id, receiptNumber: grn.number,
+              itemId: gl.itemId,
+              quarantineWarehouseId: quarantineId,
+              targetWarehouseId: destinationId,
+              quantity: String(qty), status: "PENDING",
+            });
+          }
         }
         received = round2(received);
         if (received > 0) {
