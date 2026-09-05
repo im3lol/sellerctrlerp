@@ -1,5 +1,5 @@
 import "server-only";
-import { toKg, toCm, formatWeight, formatDimensionsCm } from "@/lib/erp/units-convert";
+import { toCm, formatDimensionsCm } from "@/lib/erp/units-convert";
 import { spJson, paced, credKey } from "./client";
 import type { Credential, CatalogRecord, CatalogIdentifier } from "../connector";
 
@@ -43,14 +43,10 @@ export function parseCatalog(res: CatalogResponse): CatalogRecord[] {
       if (mapped && id.identifier) identifiers.push({ type: mapped, code: String(id.identifier) });
     }
 
-    // Amazon answers in the marketplace's own units — pounds and inches on the US
-    // catalogue. Keeping that verbatim gives an Egyptian seller a number they cannot use,
-    // and leaves items.weightKg empty, which is the column freight-by-weight allocation
-    // divides by. Convert here, once, and store metric.
+    // Weight is deliberately NOT taken from the catalogue: see CatalogRecord. Dimensions
+    // are display-only and nothing divides by them, so they are still worth having —
+    // converted to centimetres, because Amazon answers in inches.
     const dim = it.dimensions?.[0]?.item;
-    const w = num(dim?.weight);
-    const weightKg = w !== undefined ? toKg(w, dim?.weight?.unit ?? "") ?? undefined : undefined;
-    const weight = formatWeight(weightKg) ?? undefined;
     const dimUnit = dim?.length?.unit ?? dim?.width?.unit ?? dim?.height?.unit ?? "";
     const cm = (v: number | undefined) => (v !== undefined ? toCm(v, dimUnit) : null);
     const dimensions = formatDimensionsCm(cm(num(dim?.length)), cm(num(dim?.width)), cm(num(dim?.height))) ?? undefined;
@@ -59,7 +55,7 @@ export function parseCatalog(res: CatalogResponse): CatalogRecord[] {
     const parentAsin = it.relationships?.[0]?.relationships?.find((r) => r.parentAsins?.length)?.parentAsins?.[0];
     const category = it.classifications?.[0]?.classifications?.find((c) => c.displayName)?.displayName || undefined;
 
-    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, weight, weightKg, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue, category });
+    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue, category });
   }
   return out;
 }

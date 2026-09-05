@@ -24,7 +24,8 @@ const EPS = 1e-6;
 /** A receipt line the voucher can spread charges over, with the numbers the split needs. */
 export type LcBasisLine = {
   purchaseReceiptId: string; receiptNumber: string;
-  itemId: string; code: string; name: string; warehouseId: string; warehouseName: string;
+  itemId: string; code: string; name: string; image: string | null;
+  warehouseId: string; warehouseName: string;
   quantity: number;   // accepted qty on that receipt
   unitPrice: number;  // base (EGP) — from the order line, drives the "value" method
   weightKg: number;   // per unit — drives the "weight" method
@@ -71,7 +72,7 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
       .select({
         purchaseReceiptId: purchaseReceiptLines.purchaseReceiptId, itemId: purchaseReceiptLines.itemId,
         quantity: purchaseReceiptLines.quantity, lineWarehouseId: purchaseReceiptLines.warehouseId,
-        code: items.code, name: items.nameAr, weightKg: items.weightKg,
+        code: items.code, name: items.nameAr, image: items.image, weightKg: items.weightKg,
       })
       .from(purchaseReceiptLines)
       .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
@@ -109,7 +110,7 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
       const wh = r.lineWarehouseId ?? grn.warehouseId;
       return {
         purchaseReceiptId: r.purchaseReceiptId, receiptNumber: grn.number,
-        itemId: r.itemId, code: r.code ?? "", name: r.name ?? "",
+        itemId: r.itemId, code: r.code ?? "", name: r.name ?? "", image: r.image ?? null,
         warehouseId: wh, warehouseName: whName.get(wh) ?? "—",
         quantity: Number(r.quantity),
         unitPrice: grn.purchaseOrderId ? (priceByKey.get(`${grn.purchaseOrderId}|${r.itemId}`) ?? 0) : 0,

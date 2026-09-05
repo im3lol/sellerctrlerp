@@ -24,9 +24,10 @@ export type CatalogRecord = {
   asin: string;
   imageUrl?: string;
   brand?: string;
-  weight?: string;       // display string, ALWAYS metric, e.g. "500 جم"
-  /** Kilograms. The figure freight-by-weight allocation divides by — a label cannot. */
-  weightKg?: number;
+  // No weight. A marketplace catalogue reports the manufacturer's product weight, which
+  // is not the weight the seller actually ships and pays freight on — and freight-by-weight
+  // allocation divides by that number. A confident wrong figure there is worse than an
+  // empty field, because nothing on screen says it was a guess. The seller enters it.
   dimensions?: string;   // display string, ALWAYS metric, e.g. "10 × 5 × 3 سم"
   name?: string;
   identifiers: CatalogIdentifier[];

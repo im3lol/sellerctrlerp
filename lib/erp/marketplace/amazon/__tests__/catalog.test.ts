@@ -19,34 +19,35 @@ describe("Catalog Items → CatalogRecord", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       asin: "ASINCHILD", imageUrl: "https://x/main.jpg", brand: "Acme",
-      // Metric, converted at the source: the catalogue's own units are Amazon's, not the
-      // seller's, and weightKg is what freight-by-weight allocation actually divides by.
-      weight: "500 جم", weightKg: 0.5, dimensions: "10 × 5 × 3 سم",
+      // Dimensions are converted to centimetres; the weight is deliberately not taken.
+      dimensions: "10 × 5 × 3 سم",
       parentAsin: "ASINPARENT", variationValue: "Red / L", name: "Widget Red L",
     });
     expect(out[0].identifiers).toEqual([{ type: "UPC", code: "012345678905" }, { type: "EAN", code: "4006381333931" }]);
   });
 
-  it("converts a US catalogue's pounds and inches, and keeps the number", () => {
+  it("converts a US catalogue's inches to centimetres", () => {
     const out = parseCatalog({
       items: [{
         asin: "USITEM",
         dimensions: [{ item: {
           length: { value: 9.055, unit: "inches" }, width: { value: 2.165, unit: "inches" },
-          height: { value: 0.039, unit: "inches" }, weight: { value: 0.37, unit: "pounds" },
+          height: { value: 0.039, unit: "inches" },
         } }],
       }],
     });
-    expect(out[0]).toMatchObject({ weight: "168 جم", weightKg: 0.168, dimensions: "23 × 5.5 × 0.1 سم" });
+    expect(out[0]).toMatchObject({ dimensions: "23 × 5.5 × 0.1 سم" });
   });
 
-  it("records no weight at all when the catalogue does not know one", () => {
-    // "0 pounds" is Amazon saying it has no figure. Storing 0 would look measured and
-    // still contribute nothing to a freight split.
+  it("never takes a weight from the catalogue, even when one is offered", () => {
+    // The catalogue reports the manufacturer's product weight. Freight-by-weight
+    // allocation divides by items.weightKg, so a figure that is not what actually ships
+    // would quietly misprice every shipment. The seller enters that number.
     const out = parseCatalog({
-      items: [{ asin: "NOWEIGHT", dimensions: [{ item: { weight: { value: 0, unit: "pounds" } } }] }],
+      items: [{ asin: "HASWEIGHT", dimensions: [{ item: { weight: { value: 0.37, unit: "pounds" } } }] }],
     });
-    expect(out[0].weight).toBeUndefined();
+    expect(out[0]).not.toHaveProperty("weight");
+    expect(out[0]).not.toHaveProperty("weightKg");
   });
 
   it("handles a bare item (no enrichment data) and an empty response", () => {
