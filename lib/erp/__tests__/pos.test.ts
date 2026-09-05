@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  cartTotals, paymentsTotal, changeDue, validatePayments, appliedPayments, reconcileShift,
+  cartTotals, paymentsTotal, changeDue, validatePayments, appliedPayments, reconcileShift, shiftAccessError,
   type Payment, type CartLine,
 } from "@/lib/erp/pos";
 
@@ -112,5 +112,35 @@ describe("shift reconciliation", () => {
     });
     expect(r.byMethod.CASH).toBe(125);
     expect(r.byMethod.CARD).toBe(50);
+  });
+});
+
+describe("who may touch a shift", () => {
+  it("lets a cashier work their own drawer", () => {
+    expect(shiftAccessError("ring", "u1", "u1", false)).toBeNull();
+    expect(shiftAccessError("close", "u1", "u1", false)).toBeNull();
+  });
+
+  it("refuses ringing a sale onto someone else's drawer — even for a supervisor", () => {
+    // A sale on another cashier's till makes them short at close. Nobody needs that.
+    expect(shiftAccessError("ring", "u1", "u2", false)).toMatch(/كاشير تاني/);
+    expect(shiftAccessError("ring", "u1", "u2", true)).toMatch(/كاشير تاني/);
+  });
+
+  it("refuses closing someone else's drawer, unless a supervisor does it", () => {
+    expect(shiftAccessError("close", "u1", "u2", false)).toMatch(/مش بتاعتك/);
+    // The cashier went home with the till open; someone has to be able to count it.
+    expect(shiftAccessError("close", "u1", "u2", true)).toBeNull();
+  });
+});
+
+describe("a shift with no owner on record", () => {
+  it("cannot be rung onto — there is nobody to hold to the drawer", () => {
+    expect(shiftAccessError("ring", null, "u1", true)).toMatch(/كاشير تاني/);
+  });
+
+  it("can still be closed by a supervisor, so it does not stay open forever", () => {
+    expect(shiftAccessError("close", null, "u1", true)).toBeNull();
+    expect(shiftAccessError("close", null, "u1", false)).toMatch(/مش بتاعتك/);
   });
 });

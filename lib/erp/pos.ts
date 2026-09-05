@@ -106,6 +106,30 @@ export function reconcileShift(input: {
   };
 }
 
+/**
+ * Who may touch a shift. A drawer is counted against the cashier who opened it, so the
+ * default is: your own shift only.
+ *
+ * The two operations differ on purpose. **Ringing** never has an override — a sale put on
+ * someone else's drawer makes them short at close, and there is no reason to want that.
+ * **Closing** does: a cashier goes home with the till still open, and a supervisor has to
+ * be able to count it. The audit line then records that a supervisor closed it, because a
+ * difference the cashier never agreed to is a different kind of fact.
+ */
+export function shiftAccessError(
+  op: "ring" | "close",
+  /** Null means the shift has no owner on record — nobody can be held to its drawer. */
+  shiftUserId: string | null,
+  actorUserId: string,
+  actorIsSupervisor: boolean,
+): string | null {
+  if (shiftUserId != null && shiftUserId === actorUserId) return null;
+  if (op === "close" && actorIsSupervisor) return null;
+  return op === "ring"
+    ? "الوردية دي بتاعت كاشير تاني"
+    : "الوردية دي مش بتاعتك — الكاشير بيقفل درجه بنفسه";
+}
+
 export const METHOD_LABEL: Record<PaymentMethod, string> = {
   CASH: "كاش",
   CARD: "بطاقة",

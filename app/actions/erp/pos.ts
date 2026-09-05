@@ -12,7 +12,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { createSalesInvoiceAction, postSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { createReceiptVoucherAction, confirmReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import {
-  cartTotals, validatePayments, appliedPayments, reconcileShift,
+  cartTotals, validatePayments, appliedPayments, reconcileShift, shiftAccessError,
   type Payment, type PaymentMethod,
 } from "@/lib/erp/pos";
 import { applyPromotions, spreadDiscount, type Promotion } from "@/lib/erp/promotions";
@@ -123,6 +123,8 @@ export async function ringSaleAction(input: z.input<typeof saleSchema>): Promise
       .where(and(eq(posShifts.id, d.shiftId), eq(posShifts.organizationId, auth.orgId))).limit(1);
     if (!shift) return { error: "الوردية غير موجودة" };
     if (shift.status !== "OPEN") return { error: "الوردية مقفولة" };
+    const denied = shiftAccessError("ring", shift.userId, auth.userId, false);
+    if (denied) return { error: denied };
 
     const [cust] = await db.select({ id: customers.id }).from(customers)
       .where(and(eq(customers.id, d.customerId), eq(customers.organizationId, auth.orgId))).limit(1);
@@ -306,11 +308,18 @@ export async function closeShiftAction(input: z.input<typeof closeSchema>): Prom
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
 
+  // A cashier closes their own drawer. A supervisor can close one that was left open —
+  // the cashier went home — and the audit trail says who did it, because a difference
+  // recorded by someone else is a difference the cashier never agreed to.
+  const supervisor = !("error" in (await authorizeErp("accounting.post")));
+
   return withOrgScope(auth.orgId, false, async () => {
     const [shift] = await db.select().from(posShifts)
       .where(and(eq(posShifts.id, d.shiftId), eq(posShifts.organizationId, auth.orgId))).limit(1);
     if (!shift) return { error: "الوردية غير موجودة" };
     if (shift.status !== "OPEN") return { error: "الوردية مقفولة بالفعل" };
+    const denied = shiftAccessError("close", shift.userId, auth.userId, supervisor);
+    if (denied) return { error: denied };
 
     const payments = await db.select({ method: posPayments.method, amount: posPayments.amount })
       .from(posPayments)
@@ -331,7 +340,8 @@ export async function closeShiftAction(input: z.input<typeof closeSchema>): Prom
     await tryRecordAudit({
       orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "POS_SHIFT",
       entityId: shift.id, entityNumber: shift.number,
-      summary: `قفل وردية ${shift.number} — متوقّع ${r.expected} ومعدود ${r.counted} (فرق ${r.difference})`,
+      summary: `قفل وردية ${shift.number} — متوقّع ${r.expected} ومعدود ${r.counted} (فرق ${r.difference})`
+        + (shift.userId !== auth.userId ? " — قفلها مشرف نيابةً عن الكاشير" : ""),
     });
     revalidatePath("/sales/pos");
     return { ok: true, difference: r.difference, expected: r.expected };
