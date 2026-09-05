@@ -43,7 +43,10 @@ export function PurchaseInvoiceFromReceiptForm({
   const [supplierId, setSupplierId] = useState("");
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
-  const [receiptId, setReceiptId] = useState("");
+  // One invoice per receipt stays the rule — that is what makes GRNI clear exactly. This
+  // is only a shortcut for raising several of them: tick the receipts, get a draft each.
+  const [picked, setPicked] = useState<string[]>([]);
+  const receiptId = picked.length === 1 ? picked[0] : "";
   const [preview, setPreview] = useState<ReceiptInvoicePreview | null>(null);
 
   const baseCurrency = currencies.find((c) => c.isBase);
@@ -67,19 +70,23 @@ export function PurchaseInvoiceFromReceiptForm({
   const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
-  const onSupplier = (id: string) => { setSupplierId(id); setReceiptId(""); setPreview(null); };
+  const onSupplier = (id: string) => { setSupplierId(id); setPicked([]); setPreview(null); };
 
-  const recall = (id: string) => {
-    setReceiptId(id);
+  /** Preview only makes sense for a single receipt — several produce several invoices. */
+  const selectReceipts = (ids: string[]) => {
+    setPicked(ids);
     setPreview(null);
-    if (!id) return;
+    if (ids.length !== 1) return;
     startLoad(async () => {
-      const r = await getReceiptInvoicePreviewAction(id);
+      const r = await getReceiptInvoicePreviewAction(ids[0]);
       if (!r.ok || !r.preview) { toast.error(r.error ?? "تعذّر استدعاء الإذن"); return; }
       if (r.preview.lines.length === 0) { toast.message("لا توجد كميات قابلة للفوترة في هذا الإذن"); return; }
       setPreview(r.preview);
     });
   };
+
+  const toggleReceipt = (id: string) =>
+    selectReceipts(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
 
   // What the chosen receipt was valued at. This is the approved rate: the buyer picked it
   // on the purchase order, the receipt carries it, and this invoice inherits it. It is
@@ -99,7 +106,28 @@ export function PurchaseInvoiceFromReceiptForm({
 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
-    if (!receiptId) return toast.error("استدعِ إذن استلام أولاً");
+    if (!picked.length) return toast.error("اختر إذن استلام واحد على الأقل");
+
+    // Several receipts → several drafts, raised one after another. Each carries its own
+    // receipt's approved rate, so they are independent documents, not one split bill.
+    if (picked.length > 1) {
+      return start(async () => {
+        const done: string[] = [];
+        const failed: string[] = [];
+        for (const id of picked) {
+          const label = receipts.find((r) => r.id === id)?.number ?? id;
+          const r = await convertReceiptToInvoiceAction(id, date, notes || undefined);
+          if (r.ok) done.push(label);
+          else failed.push(`${label}: ${r.error ?? "تعذّر الحفظ"}`);
+        }
+        // Say exactly what happened. A partial run reported as success is how a missing
+        // invoice goes unnoticed until the supplier chases it.
+        if (done.length) toast.success(`اتعملت ${done.length} مسودة فاتورة`);
+        if (failed.length) toast.error(`فشل ${failed.length}: ${failed.join(" · ")}`, { duration: 10000 });
+        if (done.length) { router.push("/purchases/invoices"); router.refresh(); }
+      });
+    }
+
     if (!preview || preview.lines.length === 0) return toast.error("لا توجد بنود للفوترة");
     // Nothing to validate when the rate is inherited — it was already approved upstream.
     if (!inherited && needsOwnRate && isForeign && (!exchangeRate || rate <= 0)) return toast.error("أدخل سعر الصرف");
@@ -123,7 +151,12 @@ export function PurchaseInvoiceFromReceiptForm({
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>بيانات فاتورة الشراء</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الفاتورة</Button>
+            {/* One receipt needs its preview loaded before saving; several are raised
+                without one, so gate on the selection instead of on the preview. */}
+            <Button size="sm" onClick={submit} disabled={pending || (picked.length === 1 ? !preview : picked.length === 0)}>
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              {picked.length > 1 ? `حفظ ${picked.length} فاتورة` : "حفظ الفاتورة"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/purchases/invoices")}>إلغاء</Button>
           </div>
         </div>
@@ -198,20 +231,53 @@ export function PurchaseInvoiceFromReceiptForm({
           </div>
         )}
 
-        {/* Recall a confirmed, un-billed goods receipt for the chosen supplier */}
-        <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>استدعاء إذن استلام</Label>
-            <select className={selectCls} value={receiptId} disabled={!supplierId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{supplierId ? "— اختر إذن استلام —" : "اختر المورد أولاً"}</option>
-              {supplierReceipts.map((r) => <option key={r.id} value={r.id}>{r.number} — {r.dateLabel}</option>)}
-            </select>
+        {/* Tick one receipt to see it in full before saving, or several to raise a draft
+            for each in one pass. Still one invoice per receipt — that is what keeps GRNI
+            clearing to the piastre. */}
+        <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>إذون الاستلام</Label>
+            <div className="flex items-center gap-2">
+              {supplierReceipts.length > 1 && (
+                <Button type="button" variant="outline" size="sm"
+                  onClick={() => selectReceipts(supplierReceipts.map((r) => r.id))}>
+                  اختر الكل ({supplierReceipts.length})
+                </Button>
+              )}
+              {picked.length > 0 && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => selectReceipts([])}>
+                  امسح الاختيار
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>
+            </div>
           </div>
-          <div className="flex items-end text-sm text-muted-foreground">
+
+          {!supplierId ? (
+            <p className="text-sm text-muted-foreground">اختر المورد أولاً.</p>
+          ) : supplierReceipts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكَّدة غير مفوترة لهذا المورد.</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto rounded-lg border bg-background">
+              {supplierReceipts.map((r) => (
+                <label key={r.id} className="flex cursor-pointer items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0 hover:bg-muted/40">
+                  <input type="checkbox" className="size-4 rounded border-input"
+                    checked={picked.includes(r.id)} onChange={() => toggleReceipt(r.id)} />
+                  <span className="font-mono">{r.number}</span>
+                  <span className="text-muted-foreground">— {r.dateLabel}</span>
+                  {r.exchangeRate > 0 && r.currencyCode !== baseCode && (
+                    <span className="text-xs text-muted-foreground">· {r.currencyCode} @ {ratef(r.exchangeRate)}</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />جارٍ تحميل بنود الإذن…</span>
-              : supplierId && supplierReceipts.length === 0 ? "لا توجد إذون استلام مؤكَّدة غير مفوترة لهذا المورد."
+              : picked.length > 1 ? `هتتعمل ${picked.length} مسودة فاتورة — واحدة لكل إذن، كل واحدة بسعر صرف إذنها.`
               : "تنزل أصناف الإذن وأسعارها من أمر الشراء في الجدول."}
-          </div>
+          </p>
         </div>
 
         {/* Preview — بيانات الجدول (read-only) */}
@@ -230,7 +296,13 @@ export function PurchaseInvoiceFromReceiptForm({
             </TableHeader>
             <TableBody>
               {!preview ? (
-                <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ إذن استلام لعرض البنود.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  {/* With several receipts ticked there is no single set of lines to show —
+                      say that, rather than leaving the table looking broken. */}
+                  {picked.length > 1
+                    ? `${picked.length} إذون محدَّدة — كل واحد هيطلع مسودة فاتورة بأصنافه. علّم على إذن واحد بس لو عايز تشوف البنود قبل الحفظ.`
+                    : "اختر المورد ثم علّم على إذن استلام لعرض البنود."}
+                </TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
                   <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
