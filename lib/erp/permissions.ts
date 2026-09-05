@@ -27,6 +27,8 @@ export type ErpPermission =
   | "investors.view" | "investors.create" | "investors.edit" | "investors.delete" | "investors.manage"
   // HR & Payroll
   | "hr.view" | "hr.create" | "hr.post"
+  // Maintenance & fleet — one engine, two faces, so one pair of permissions
+  | "maintenance.view" | "maintenance.manage"
   // Users (org-level membership management)
   | "users.view" | "users.create" | "users.edit" | "users.delete"
   // Organization settings
@@ -41,6 +43,7 @@ export const allErpPermissions: ErpPermission[] = [
   "reports.view",
   "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
   "hr.view", "hr.create", "hr.post",
+  "maintenance.view", "maintenance.manage",
   "users.view", "users.create", "users.edit", "users.delete",
   "organization.manage",
 ];
@@ -58,6 +61,7 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
     "reports.view",
     "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
     "hr.view", "hr.create", "hr.post",
+    "maintenance.view", "maintenance.manage",
     "users.view",
   ],
 
@@ -81,6 +85,7 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
     "settings.view",
     "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.confirm",
     "purchases.view", "purchases.receive",
+    "maintenance.view", "maintenance.manage",
     "reports.view",
   ],
 
@@ -92,6 +97,7 @@ export const erpRolePermissions: Record<string, ErpPermission[]> = {
     "purchases.view",
     "reports.view",
     "investors.view",
+    "maintenance.view",
     "users.view",
   ],
 };

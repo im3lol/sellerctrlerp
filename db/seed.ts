@@ -107,7 +107,7 @@ async function main() {
     await db.insert(plans).values([
       { name: "الأساسية", priceMonthly: "800", priceAnnual: "7200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports"], maxUsers: 5, storageGb: null, sortOrder: 1 },
       { name: "البائع", priceMonthly: "1750", priceAnnual: "15600", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr"], maxUsers: 10, storageGb: null, sortOrder: 2 },
-      { name: "المتقدمة", priceMonthly: "3500", priceAnnual: "31200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr", "investors"], maxUsers: null, storageGb: null, sortOrder: 3 },
+      { name: "المتقدمة", priceMonthly: "3500", priceAnnual: "31200", enabledModules: ["sales", "inventory", "purchases", "accounting", "reports", "marketplace", "hr", "investors", "maintenance"], maxUsers: null, storageGb: null, sortOrder: 3 },
     ]);
     console.log("  ✓ seeded 3 subscription plans");
   }

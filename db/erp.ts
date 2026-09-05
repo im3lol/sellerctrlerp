@@ -1494,6 +1494,17 @@ export const fixedAssets = pgTable(
     glAssetAccountId: text("gl_asset_account_id").references(() => accounts.id),
     glAccumDeprecAccountId: text("gl_accum_deprec_account_id").references(() => accounts.id),
     glDeprecExpenseAccountId: text("gl_deprec_expense_account_id").references(() => accounts.id),
+    // ── the operational side: what maintenance and the fleet need from the same asset ──
+    // A second asset master would be a second place to disagree with, so the machine on
+    // the floor and the machine in the ledger stay one row.
+    meterType: text("meter_type").notNull().default("NONE"), // NONE | HOURS | KM
+    currentMeter: money("current_meter"),
+    /** Down for repair, whatever the ledger thinks of its book value. */
+    isDown: boolean("is_down").notNull().default(false),
+    plateNumber: text("plate_number"),
+    licenseExpiry: text("license_expiry"),
+    insuranceExpiry: text("insurance_expiry"),
+    driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1503,6 +1514,123 @@ export const fixedAssets = pgTable(
     index("fixed_assets_org_status_idx").on(t.organizationId, t.status),
   ],
 );
+
+/** Every meter reading ever taken, so a reading that looks wrong can be traced. */
+export const assetMeterReadings = pgTable("asset_meter_readings", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  readAt: ts("read_at").notNull(),
+  value: money("value").notNull(),
+  source: text("source").notNull().default("MANUAL"), // MANUAL | FUEL | TRIP | WORK_ORDER
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+});
+
+/**
+ * Preventive maintenance: do this every N days, or every N hours/kilometres, or both —
+ * whichever arrives first. lib/erp/maintenance.ts decides when that is.
+ */
+export const maintenancePlans = pgTable("maintenance_plans", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  nameAr: text("name_ar").notNull(),
+  everyDays: integer("every_days").notNull().default(0),
+  everyMeter: money("every_meter").notNull().default("0"),
+  lastDoneAt: ts("last_done_at"),
+  lastDoneMeter: money("last_done_meter"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * A job on an asset: a service that came due, or a fault someone reported. Parts leave the
+ * store through postStockMovement like any other issue; labour hours are recorded for cost
+ * reporting but never posted, because payroll already booked that wage.
+ */
+export const workOrders = pgTable(
+  "work_orders",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+    planId: text("plan_id").references(() => maintenancePlans.id, { onDelete: "set null" }),
+    type: text("type").notNull().default("CORRECTIVE"), // PREVENTIVE | CORRECTIVE
+    status: text("status").notNull().default("DRAFT"), // DRAFT | IN_PROGRESS | DONE | CANCELLED
+    reportedAt: ts("reported_at").notNull(),
+    startedAt: ts("started_at"),
+    completedAt: ts("completed_at"),
+    description: text("description").notNull(),
+    assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
+    meterAtWork: money("meter_at_work"),
+    laborHours: money("labor_hours").notNull().default("0"),
+    laborRate: money("labor_rate").notNull().default("0"),
+    downtimeHours: money("downtime_hours").notNull().default("0"),
+    partsCost: money("parts_cost").notNull().default("0"),
+    journalEntryId: text("journal_entry_id").references(() => journalEntries.id),
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("work_orders_org_number_idx").on(t.organizationId, t.number),
+    index("work_orders_org_asset_idx").on(t.organizationId, t.assetId),
+  ],
+);
+
+export const workOrderParts = pgTable("work_order_parts", {
+  id: pk(),
+  organizationId: orgId(),
+  workOrderId: text("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => items.id),
+  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+  quantity: money("quantity").notNull(),
+  /** Filled in on completion from what the store actually released. */
+  unitCost: money("unit_cost").notNull().default("0"),
+  movementId: text("movement_id"),
+  notes: text("notes"),
+  createdAt: createdAt(),
+});
+
+/** A tank of fuel, with the odometer at the pump — that reading is the whole point. */
+export const fuelLogs = pgTable("fuel_logs", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  filledAt: ts("filled_at").notNull(),
+  liters: money("liters").notNull(),
+  cost: money("cost").notNull(),
+  meterValue: money("meter_value"),
+  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
+  station: text("station"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+});
+
+/** Who took the vehicle, where, and how far it went. */
+export const trips = pgTable("trips", {
+  id: pk(),
+  organizationId: orgId(),
+  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
+  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
+  startedAt: ts("started_at").notNull(),
+  endedAt: ts("ended_at"),
+  startMeter: money("start_meter").notNull(),
+  endMeter: money("end_meter"),
+  purpose: text("purpose"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
 
 export const assetDepreciationLines = pgTable(
   "asset_depreciation_lines",
