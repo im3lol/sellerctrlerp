@@ -12,31 +12,29 @@
 -- FORCE makes the policy apply even to the table owner (belt-and-suspenders; a
 -- superuser/BYPASSRLS role still bypasses, which is why the app connects as appuser).
 --
--- Line/child tables (sales_invoice_lines, journal_entry_lines, …) are NOT here yet —
--- they have no organization_id column; they get denormalized + policied next.
+-- THE TABLE LIST IS DERIVED FROM THE CATALOG, NOT HAND-WRITTEN.
+-- It used to be two hand-maintained arrays (org tables here, line tables in
+-- 02-line-policies.sql). They drifted: 53 of 148 org-scoped tables had been added by
+-- feature migrations and were never added here, so running this file re-asserted
+-- isolation on two thirds of the schema while reading as if it covered all of it.
+-- Every table carrying organization_id wants exactly this policy, so asking the
+-- catalog is both shorter and incapable of falling behind. Line tables are included
+-- automatically — they carry organization_id too (denormalized in 0050, filled by the
+-- set_org trigger in 03-triggers.sql), which is the only thing this file needs to know.
 
 DO $$
 DECLARE
   t text;
-  org_tables text[] := ARRAY[
-    'account_budgets','accounting_configurations','accounting_journals','accounts','api_keys',
-    'asset_depreciation_lines','audit_logs','bank_accounts','bank_statement_lines','cost_centers',
-    'currencies','customers','delivery_notes','document_attachments','document_links',
-    'document_sequences','employees','exchange_rates','expense_claims','expenses','feedback',
-    'fiscal_periods','fixed_assets','holidays','investments','investors','item_categories',
-    'landed_cost_vouchers',
-    'item_codes','item_components','items','journal_entries','leave_requests',
-    'marketplace_settlement_txns','material_requests','opening_balances','org_subscriptions',
-    'organization_members','payment_vouchers','payroll_lines','payroll_runs','pick_lists',
-    'platform_balances','platform_credentials','profit_distributions','purchase_invoices','purchase_orders',
-    'purchase_receipts','purchase_returns','receipt_vouchers','recurring_expenses',
-    'recurring_journals','recurring_sales_invoices','sales_invoices','sales_orders',
-    'platform_removals','sales_platforms','sales_quotations','sales_returns','stock_adjustments','stock_assemblies',
-    'stock_batches','stock_movement_batches','stock_movements','stock_transfers',
-    'subscription_requests','suppliers','units_of_measure','unmatched_orders','warehouses','withdrawals'
-  ];
+  n int := 0;
 BEGIN
-  FOREACH t IN ARRAY org_tables LOOP
+  FOR t IN
+    SELECT c.relname
+    FROM information_schema.columns col
+    JOIN pg_class c ON c.relname = col.table_name AND c.relkind = 'r'
+    JOIN pg_namespace ns ON ns.oid = c.relnamespace AND ns.nspname = 'public'
+    WHERE col.table_schema = 'public' AND col.column_name = 'organization_id'
+    ORDER BY c.relname
+  LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS org_isolation ON %I', t);
@@ -47,5 +45,13 @@ BEGIN
         WITH CHECK (organization_id = current_setting('app.current_org', true)
                OR current_setting('app.is_platform_admin', true) = 'on')
     $f$, t);
+    -- appuser is the app's runtime role; without the grant the policy is moot because
+    -- the table is unreachable. Guarded so this file still runs on a DB built before
+    -- the role exists (db:migrate creates it first, via 00-appuser.sql).
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'appuser') THEN
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO appuser', t);
+    END IF;
+    n := n + 1;
   END LOOP;
+  RAISE NOTICE 'org_isolation applied to % table(s)', n;
 END $$;

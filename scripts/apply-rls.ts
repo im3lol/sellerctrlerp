@@ -26,7 +26,9 @@ const OWNER_URL =
   process.env.DATABASE_URL ??
   "postgres://sellerctrl:sellerctrl@localhost:5433/sellerctrl";
 
-const ALL = ["00-appuser.sql", "01-policies.sql", "02-line-policies.sql", "03-triggers.sql"];
+// 02-line-policies.sql is gone: 01 now derives its table list from the catalog, so line
+// tables (which carry organization_id too) are covered by the same loop.
+const ALL = ["00-appuser.sql", "01-policies.sql", "03-triggers.sql"];
 const FILES = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 for (const f of FILES) if (!ALL.includes(f)) throw new Error(`unknown RLS file: ${f} (expected one of ${ALL.join(", ")})`);
 
