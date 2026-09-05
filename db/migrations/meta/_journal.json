@@ -827,6 +827,20 @@
       "when": 1788572525490,
       "tag": "0117_colossal_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1788576436346,
+      "tag": "0118_living_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1788576771509,
+      "tag": "0119_green_black_bird",
+      "breakpoints": true
     }
   ]
 }

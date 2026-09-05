@@ -26,6 +26,8 @@ const lineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountAmount: z.coerce.number().min(0).default(0),
   taxAmount: z.coerce.number().min(0).default(0),
+  /** Ship this line from a specific warehouse. Omitted = the fallback below. */
+  warehouseId: z.string().optional(),
 });
 
 const schema = z.object({
@@ -96,6 +98,7 @@ export async function createSalesInvoiceAction(input: unknown): Promise<SaveInvo
           computed.map((l) => ({
             salesInvoiceId: inv.id,
             itemId: l.itemId,
+            warehouseId: l.warehouseId ?? null,
             quantity: String(l.quantity),
             unitPrice: String(l.unitPrice),
             discountAmount: String(l.discountAmount),
@@ -205,7 +208,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
           }
         } else {
           // Standalone invoice: issue stock OUT at WAC + COGS.
-          const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
+          const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity, warehouseId: salesInvoiceLines.warehouseId })
             .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
           const [wh] = await tx.select({ id: warehouses.id }).from(warehouses)
             .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true))).limit(1);
@@ -231,7 +234,7 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
               const qty = Number(l.quantity);
               if (qty <= 0) continue;
               const r = await postStockMovement(tx, {
-                orgId: auth.orgId, itemId: l.itemId, warehouseId: whByItem.get(l.itemId) ?? wh.id, type: "OUT",
+                orgId: auth.orgId, itemId: l.itemId, warehouseId: l.warehouseId ?? whByItem.get(l.itemId) ?? wh.id, type: "OUT",
                 quantity: qty, date: new Date(inv.date), referenceType: "SALES_INVOICE", referenceId: inv.id, reason: `صرف بيع ${inv.number}`,
               });
               // Zero-cost issue on a positive qty means the item has quantity but no

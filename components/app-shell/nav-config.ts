@@ -147,6 +147,7 @@ export const NAV: NavSection[] = [
       { label: "قوائم الأسعار", href: "/sales/price-lists", icon: "Tags", capability: "erp.sales.view", group: "البيانات الأساسية" },
       { label: "عمولات المبيعات", href: "/sales/commissions", icon: "Percent", capability: "erp.sales.view", group: "التقارير" },
 
+      { label: "نقطة البيع", href: "/sales/pos", icon: "Store", capability: "erp.sales.create", group: "دورة البيع" },
       { label: "عروض الأسعار", href: "/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر البيع", href: "/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },

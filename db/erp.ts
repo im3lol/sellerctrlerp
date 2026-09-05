@@ -1076,6 +1076,64 @@ export const qcInspections = pgTable(
   ],
 );
 
+/**
+ * A cashier's shift at a till. Opening records the float in the drawer; closing records
+ * what was actually counted, against what the sales say should be there. The difference
+ * is the number the shift exists to produce.
+ *
+ * A POS sale is an ordinary sales invoice — posted immediately, with a receipt voucher
+ * for the money — so revenue, COGS, stock and cash all come from the engines that
+ * already produce them. These tables only add what retail needs on top: whose shift, and
+ * how the customer paid.
+ */
+export const posShifts = pgTable(
+  "pos_shifts",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    number: text("number").notNull(),
+    warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    /** Where cash sales land — the till's own cash account. */
+    cashAccountId: text("cash_account_id").notNull().references(() => accounts.id),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userName: text("user_name"),
+    openedAt: ts("opened_at").notNull(),
+    closedAt: ts("closed_at"),
+    openingFloat: money("opening_float").notNull().default("0"),
+    /** What the cashier counted in the drawer at close. */
+    countedCash: money("counted_cash"),
+    /** Float + cash sales − cash refunds, as the system computed it. */
+    expectedCash: money("expected_cash"),
+    difference: money("difference"),
+    status: text("status").notNull().default("OPEN"), // OPEN · CLOSED
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("pos_shifts_org_number_idx").on(t.organizationId, t.number),
+    index("pos_shifts_open_idx").on(t.organizationId, t.status),
+  ],
+);
+
+/**
+ * How one sale was paid. A single sale can be split across methods — part cash, part
+ * card — which is why this is a table and not a column on the invoice.
+ */
+export const posPayments = pgTable("pos_payments", {
+  id: pk(),
+  organizationId: orgId(),
+  shiftId: text("shift_id").notNull().references(() => posShifts.id, { onDelete: "cascade" }),
+  salesInvoiceId: text("sales_invoice_id").notNull().references(() => salesInvoices.id, { onDelete: "cascade" }),
+  method: text("method").notNull(), // CASH | CARD | WALLET | VOUCHER
+  amount: money("amount").notNull(),
+  reference: text("reference"),
+  createdAt: createdAt(),
+}, (t) => [
+  index("pos_payments_shift_idx").on(t.shiftId),
+  index("pos_payments_invoice_idx").on(t.salesInvoiceId),
+]);
+
 /* ════════════════════════ ACCOUNTING ══════════════════════ */
 
 export const accounts = pgTable(
@@ -1568,6 +1626,10 @@ export const salesInvoiceLines = pgTable(
     uomId: text("uom_id").references(() => unitsOfMeasure.id),
     uomFactor: numeric("uom_factor", { precision: 18, scale: 6 }),
     itemId: text("item_id").notNull().references(() => items.id),
+    /** Which warehouse this line ships from. Null = the invoice engine's fallback (the
+     *  originating order line, else the first active warehouse). A till sets it so a
+     *  shop's sale depletes that shop's stock, not whichever warehouse sorts first. */
+    warehouseId: text("warehouse_id").references(() => warehouses.id),
     quantity: money("quantity").notNull(),
     unitPrice: money("unit_price").notNull(),
     discountAmount: money("discount_amount").notNull().default("0"),
