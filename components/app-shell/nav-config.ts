@@ -68,6 +68,9 @@ export const NAV: NavSection[] = [
       { label: "المصروفات", href: "/accounting/expenses", icon: "Wallet", capability: "erp.accounting.view", group: "المصروفات والأصول" },
       { label: "العُهد", href: "/accounting/custody", icon: "HandCoins", capability: "erp.accounting.view", group: "المصروفات والأصول" },
       { label: "الأصول الثابتة", href: "/accounting/assets", icon: "Building2", capability: "erp.accounting.view", group: "المصروفات والأصول" },
+      // A project is a cost dimension like a cost centre, so it belongs beside the other
+      // places cost lands — not as a top-level heading holding a single link.
+      { label: "المشاريع", href: "/projects", icon: "FolderKanban", capability: "erp.accounting.view", group: "المصروفات والأصول" },
 
       { label: "الحسابات البنكية", href: "/accounting/banks", icon: "Landmark", capability: "erp.accounting.view", group: "البنوك والخزينة" },
       { label: "المطابقة البنكية", href: "/accounting/reconciliation", icon: "ListChecks", capability: "erp.accounting.view", group: "البنوك والخزينة" },
@@ -200,16 +203,6 @@ export const NAV: NavSection[] = [
 
       { label: "مسير الرواتب", href: "/hr/payroll",   icon: "Banknote",      capability: "erp.hr.view", group: "المالية" },
       { label: "مطالبات المصروفات", href: "/hr/expense-claims", icon: "ReceiptText", capability: "erp.accounting.view", group: "المالية" },
-    ],
-  },
-  {
-    heading: "المشاريع",
-    href: "/projects",
-    capability: "erp.accounting.view",
-    moduleKey: "accounting",
-    icon: "FolderKanban",
-    items: [
-      { label: "المشاريع", href: "/projects", icon: "FolderKanban", capability: "erp.accounting.view", exact: true },
     ],
   },
   {

@@ -47,6 +47,8 @@ export const REPORT_MODULES: ReportModule[] = [
       { key: "sales-items", label: "تقرير أصناف المبيعات", view: "/sales/reports/items", excel: "/api/erp/sales/items/export", dates: "range" },
       { key: "sales-ledger", label: "دفتر المبيعات", view: "/sales/reports/ledger", excel: "/api/erp/sales/ledger/export", dates: "range" },
       { key: "sales-aging", label: "أعمار الذمم المدينة", view: "/sales/aging", excel: "/api/erp/sales/aging/export", dates: "asOf" },
+      { key: "pos-shifts", label: "ورديات نقطة البيع", view: "/sales/pos", excel: "/api/erp/exports/pos-shifts", dates: "none" },
+      { key: "promotions", label: "العروض", view: "/sales/promotions", excel: "/api/erp/exports/promotions", dates: "none" },
     ],
   },
   {
@@ -76,6 +78,23 @@ export const REPORT_MODULES: ReportModule[] = [
     icon: "UsersRound",
     reports: [
       { key: "hr-leaves", label: "أرصدة الإجازات", view: "/hr/leaves/report", excel: "/api/erp/hr/leaves/report/export", dates: "range" },
+      { key: "applicants", label: "المتقدّمون للوظائف", view: "/hr/recruitment", excel: "/api/erp/exports/applicants", dates: "none" },
+      { key: "training-courses", label: "الكورسات التدريبية", view: "/hr/training", excel: "/api/erp/exports/training-courses", dates: "none" },
+    ],
+  },
+  {
+    // Projects, maintenance and the fleet all hang off accounting (a project is a cost
+    // dimension, an asset is a fixed_assets row), but an owner looking for "what did the
+    // truck cost me" does not think of that as an accounting report — so it gets its own
+    // heading even though it shares the module permission.
+    key: "operations",
+    label: "التشغيل والأصول",
+    icon: "Wrench",
+    reports: [
+      { key: "projects", label: "المشاريع", view: "/projects", excel: "/api/erp/exports/projects", dates: "none" },
+      { key: "timesheets", label: "ساعات العمل", view: "/projects", excel: "/api/erp/exports/timesheets", dates: "none" },
+      { key: "work-orders", label: "أوامر الصيانة", view: "/maintenance", excel: "/api/erp/exports/work-orders", dates: "none" },
+      { key: "fuel-logs", label: "تعبئات الوقود", view: "/fleet", excel: "/api/erp/exports/fuel-logs", dates: "none" },
     ],
   },
 ];

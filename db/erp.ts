@@ -1474,6 +1474,11 @@ export const journalEntryLines = pgTable(
     // fetching one entry's lines. Postgres does not index a FK for you, so without
     // this, posting a single entry seq-scans the whole table (200k+ rows/yr).
     index("journal_entry_lines_entry_idx").on(t.journalEntryId),
+    // Every read of this table carries an organization_id predicate — RLS puts it there
+    // whether the query asked for it or not — so the ledger and trial-balance scans need
+    // an index that LEADS with the org. Without it they degrade to a seq scan on the
+    // largest table in the schema as soon as one tenant has real volume.
+    index("journal_entry_lines_org_account_idx").on(t.organizationId, t.accountId),
     index("journal_entry_lines_account_idx").on(t.accountId),
     index("journal_entry_lines_cost_center_idx").on(t.costCenterId),
     index("journal_entry_lines_project_idx").on(t.projectId),

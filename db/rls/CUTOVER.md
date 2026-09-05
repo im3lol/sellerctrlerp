@@ -55,7 +55,7 @@ It must run before step 3: the backfill is a data UPDATE, and once FORCE RLS is 
 would be row-filtered for a non-BYPASSRLS owner (see caveat). Order = backfill first.
 
 **3. Enable the policies.** Run **`npm run db:rls`** (applies `00-appuser.sql` +
-`01-policies.sql` + `02-line-policies.sql` as the owner, idempotent) — one command,
+`01-policies.sql` + `03-triggers.sql` as the owner, idempotent) — one command,
 reproducible on every deploy and after a restore. Prove it with **`npm run rls:leak`**
 (connects as appuser and asserts cross-tenant isolation; must print "PASSED").
 For prod, point it at the owner role: `MIGRATE_DATABASE_URL=… npm run db:rls`.

@@ -1,0 +1,1 @@
+CREATE INDEX "journal_entry_lines_org_account_idx" ON "journal_entry_lines" USING btree ("organization_id","account_id");
