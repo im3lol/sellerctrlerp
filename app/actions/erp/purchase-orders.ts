@@ -10,7 +10,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { purchaseOrders, purchaseOrderLines, suppliers, organizations, warehouses, materialRequests } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
-import { validateRate } from "@/lib/erp/fx";
+import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
@@ -81,8 +81,14 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
     const bad = validateRate(manual);
     if (bad) return { error: bad };
   }
-  const rate = !isForeign ? 1 : (manual ?? await getExchangeRate(orgId, code, baseCode, d));
-  const rateSource = isForeign && manual ? "MANUAL" : "AUTO";
+  // The rate on file for THIS document's date — the default, and the yardstick for
+  // whether a submitted rate counts as an override.
+  const auto = isForeign ? await getExchangeRate(orgId, code, baseCode, d) : 1;
+  const rate = !isForeign ? 1 : (manual ?? auto);
+  // "Manual" means a human chose a different number, not merely that the form posted the
+  // field. Deciding it here rather than trusting a flag from the client keeps the answer
+  // true for an API caller too.
+  const rateSource = isForeign ? rateSourceOf(manual, auto) : "AUTO";
   if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات، أو اكتب السعر يدوياً` };
   const toBase = (n: number) => round2(n * rate);
   const foreignTotal = round2(data.lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));

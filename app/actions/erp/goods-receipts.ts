@@ -15,6 +15,7 @@ import { inspectedItems, ensureQuarantineWarehouse } from "@/app/actions/erp/qua
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { toForeign } from "@/lib/erp/fx";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
@@ -327,7 +328,13 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
             ],
           });
         }
-        await tx.update(purchaseReceipts).set({ status: "RECEIVED" }).where(eq(purchaseReceipts.id, grn.id));
+        // Now that the value is known, record it in the supplier's own currency too, so
+        // the receipt can state what arrived without a reader doing the division.
+        const grnRate = Number(grn.exchangeRate ?? 1) || 1;
+        await tx.update(purchaseReceipts).set({
+          status: "RECEIVED",
+          foreignAmount: grnRate !== 1 ? String(toForeign(received, grnRate)) : null,
+        }).where(eq(purchaseReceipts.id, grn.id));
         const newStatus = await recomputePurchaseOrderStatus(tx, po.id);
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "PURCHASE_ORDER", fromId: po.id, fromNumber: po.number, toType: "GOODS_RECEIPT", toId: grn.id, toNumber: grn.number, relation: "FULFILLS" });
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `تأكيد إذن استلام ${grn.number} من أمر شراء ${po.number} (${newStatus === "RECEIVED" ? "كامل" : "جزئي"})`, metadata: { received } });

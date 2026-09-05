@@ -26,6 +26,18 @@ export function validateRate(rate: number): string | null {
 export const toForeign = (base: number, rate: number): number =>
   rate > 0 ? Math.round((base / rate) * 10000) / 10000 : 0;
 
+/**
+ * Was the rate on this document chosen by a person, or just the one on file?
+ *
+ * Answered by comparing, not by trusting a flag the form sent: a form that always posts
+ * the rate — even the untouched default — would otherwise mark every foreign document
+ * "manual", which is worse than not recording it at all because it looks like information.
+ */
+export function rateSourceOf(submitted: number | null | undefined, auto: number): "MANUAL" | "AUTO" {
+  if (submitted == null || !(submitted > 0)) return "AUTO";
+  return Math.abs(submitted - auto) > 1e-9 ? "MANUAL" : "AUTO";
+}
+
 export type RateChoice = { date: string; rate: number };
 
 /**

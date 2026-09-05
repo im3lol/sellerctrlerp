@@ -14,11 +14,17 @@ import { CellCombobox } from "@/components/erp/cell-combobox";
 import { selectCls } from "@/lib/utils";
 
 type Supplier = { id: string; nameAr: string };
-type BillableReceipt = { id: string; number: string; supplierId: string | null; dateLabel: string };
+type BillableReceipt = {
+  id: string; number: string; supplierId: string | null; dateLabel: string;
+  /** The rate approved on the purchase order and stamped on this receipt. */
+  currencyCode: string; exchangeRate: number; orderNumber: string | null;
+};
 type CurrencyOption = { code: string; nameAr: string; isBase: boolean; exchangeRate: string };
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+/** Rates are stored to 6dp; showing 3 would display a small-unit currency as zero. */
+const ratef = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 });
 
 export function PurchaseInvoiceFromReceiptForm({
   orgName, suppliers, receipts, currencies = [], latestRates = {},
@@ -43,8 +49,13 @@ export function PurchaseInvoiceFromReceiptForm({
   const baseCurrency = currencies.find((c) => c.isBase);
   const baseCode = baseCurrency?.code ?? "EGP";
   const foreignCurrencies = currencies.filter((c) => !c.isBase);
+
+  // The rate is NOT chosen here. One rate is approved on the purchase order and carried by
+  // the receipt; the invoice shows it and inherits it. The inputs below only appear for a
+  // receipt that carries no rate of its own — a receipt raised outside an order — because
+  // then there is nothing to inherit.
   const [currencyCode, setCurrencyCode] = useState(baseCode);
-  const [exchangeRate, setExchangeRate] = useState<string>(String(latestRates[baseCode] ?? 1));
+  const [exchangeRate, setExchangeRate] = useState<string>("1");
 
   const onCurrencyChange = (code: string) => {
     setCurrencyCode(code);
@@ -70,8 +81,19 @@ export function PurchaseInvoiceFromReceiptForm({
     });
   };
 
-  const isForeign = currencyCode !== baseCode;
-  const rate = parseFloat(exchangeRate) || 1;
+  // What the chosen receipt was valued at. This is the approved rate: the buyer picked it
+  // on the purchase order, the receipt carries it, and this invoice inherits it. It is
+  // shown, not asked for.
+  const chosen = useMemo(() => receipts.find((r) => r.id === receiptId) ?? null, [receipts, receiptId]);
+  const inherited = chosen && chosen.exchangeRate > 0 && chosen.currencyCode !== baseCode
+    ? { code: chosen.currencyCode, rate: chosen.exchangeRate, from: chosen.orderNumber }
+    : null;
+  /** Only a receipt with no rate of its own leaves anything to choose here. */
+  const needsOwnRate = !!chosen && !inherited && chosen.currencyCode === baseCode && foreignCurrencies.length > 0;
+
+  const isForeign = inherited ? true : currencyCode !== baseCode;
+  const rate = inherited ? inherited.rate : (parseFloat(exchangeRate) || 1);
+  const shownCurrency = inherited ? inherited.code : currencyCode;
   // For a foreign currency, the foreign display total = base ÷ rate.
   const foreignTotal = preview && isForeign ? preview.total / rate : null;
 
@@ -79,9 +101,14 @@ export function PurchaseInvoiceFromReceiptForm({
     if (!supplierId) return toast.error("اختر المورد");
     if (!receiptId) return toast.error("استدعِ إذن استلام أولاً");
     if (!preview || preview.lines.length === 0) return toast.error("لا توجد بنود للفوترة");
-    if (isForeign && (!exchangeRate || rate <= 0)) return toast.error("أدخل سعر الصرف");
+    // Nothing to validate when the rate is inherited — it was already approved upstream.
+    if (!inherited && needsOwnRate && isForeign && (!exchangeRate || rate <= 0)) return toast.error("أدخل سعر الصرف");
     start(async () => {
-      const r = await convertReceiptToInvoiceAction(receiptId, date, notes || undefined, currencyCode, isForeign ? rate : undefined);
+      const r = await convertReceiptToInvoiceAction(
+        receiptId, date, notes || undefined,
+        inherited ? undefined : currencyCode,
+        inherited ? undefined : (isForeign ? rate : undefined),
+      );
       if (r.ok) {
         toast.success("تم حفظ الفاتورة (مسودة) — رحّلها لاعتمادها");
         router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices");
@@ -120,8 +147,31 @@ export function PurchaseInvoiceFromReceiptForm({
           <div className="space-y-2"><Label>تاريخ الفاتورة</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
-        {/* Currency row — only shown when active non-base currencies are configured */}
-        {foreignCurrencies.length > 0 && (
+        {/* The approved rate, inherited — or, for a receipt that carries none, chosen here. */}
+        {inherited ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border bg-muted/20 p-3">
+            <div className="space-y-1">
+              <Label>عملة الفاتورة</Label>
+              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{inherited.code}</div>
+            </div>
+            <div className="space-y-1">
+              <Label>سعر الصرف المعتمد</Label>
+              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium tabular-nums">
+                ١ {inherited.code} = {ratef(inherited.rate)} {baseCode}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {inherited.from ? `سعر معتمد من أمر الشراء ${inherited.from}` : "سعر معتمد من إذن الاستلام"} — مبيتغيّرش هنا
+              </p>
+            </div>
+            {foreignTotal !== null && (
+              <div className="flex flex-col justify-end text-sm text-muted-foreground">
+                <span>إجمالي بالعملة الأجنبية:</span>
+                <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {inherited.code}</span>
+                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+              </div>
+            )}
+          </div>
+        ) : needsOwnRate && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-dashed bg-muted/20 p-3">
             <div className="space-y-2">
               <Label>عملة الفاتورة</Label>
@@ -133,14 +183,15 @@ export function PurchaseInvoiceFromReceiptForm({
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCode})</Label>
+                <Label>سعر الصرف (1 {shownCurrency} = ؟ {baseCode})</Label>
                 <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder="مثال: 3.75" />
+                <p className="text-xs text-muted-foreground">الإذن ده مش جاي من أمر شراء، فمفيش سعر معتمد يورثه.</p>
               </div>
             )}
             {isForeign && foreignTotal !== null && (
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
                 <span>إجمالي بالعملة الأجنبية:</span>
-                <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {currencyCode}</span>
+                <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {shownCurrency}</span>
                 <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
               </div>
             )}

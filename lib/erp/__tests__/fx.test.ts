@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateRate, toForeign, rateAsOf } from "@/lib/erp/fx";
+import { validateRate, toForeign, rateAsOf, rateSourceOf } from "@/lib/erp/fx";
 
 describe("a rate has to be a rate", () => {
   it("refuses zero, negative and nonsense", () => {
@@ -55,5 +55,32 @@ describe("which rate a document defaults to", () => {
 
   it("ignores a row recorded with no rate", () => {
     expect(rateAsOf([{ date: "2026-05-01", rate: 0 }, ...rates], "2026-05-15")?.rate).toBe(13.5);
+  });
+});
+
+describe("was the rate chosen by a person", () => {
+  it("says no when nothing was submitted", () => {
+    expect(rateSourceOf(null, 13.5)).toBe("AUTO");
+    expect(rateSourceOf(undefined, 13.5)).toBe("AUTO");
+  });
+
+  it("says no when the form merely echoed the default back", () => {
+    // The form posts the rate on every foreign order, touched or not. Comparing is what
+    // stops the field from reading "manual" on everything.
+    expect(rateSourceOf(13.5, 13.5)).toBe("AUTO");
+  });
+
+  it("says yes only when the number actually differs", () => {
+    expect(rateSourceOf(13.75, 13.5)).toBe("MANUAL");
+    expect(rateSourceOf(0.0021, 0.0022)).toBe("MANUAL");
+  });
+
+  it("ignores a floating-point hair's breadth", () => {
+    expect(rateSourceOf(13.5 + 1e-12, 13.5)).toBe("AUTO");
+  });
+
+  it("treats a zero or negative submission as no choice at all", () => {
+    expect(rateSourceOf(0, 13.5)).toBe("AUTO");
+    expect(rateSourceOf(-1, 13.5)).toBe("AUTO");
   });
 });
