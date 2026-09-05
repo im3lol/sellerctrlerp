@@ -15,6 +15,7 @@ import { inspectedItems, ensureQuarantineWarehouse } from "@/app/actions/erp/qua
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
+import { toForeign } from "@/lib/erp/fx";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
@@ -149,6 +150,12 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
         const [grn] = await tx.insert(purchaseReceipts).values({
           organizationId: auth.orgId, number, date: receiptDate, status: "DRAFT",
           purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
+          // The order's rate is THE approved rate for this cycle. Stamping it on the
+          // receipt is not a second opinion — it is the same number, carried so the
+          // document says out loud what it was valued at instead of making a reader open
+          // the order to find out.
+          currencyCode: po.currencyCode, exchangeRate: po.exchangeRate,
+          foreignAmount: null, rateSource: po.rateSource,
         }).returning({ id: purchaseReceipts.id });
         await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
           purchaseReceiptId: grn.id, itemId: t.itemId, warehouseId: t.warehouseId,
@@ -285,6 +292,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
           // Capitalise the per-unit shipping into the inventory cost. Price/discount
           // still come from the PO line, but shipping is THIS receipt's own real
           // freight cost — each delivery batch can carry a different rate.
+          //
           const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(gl.shippingPerUnit);
           received += round2(qty * unitNet);
           const destinationId = gl.warehouseId || grn.warehouseId;
@@ -320,7 +328,13 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
             ],
           });
         }
-        await tx.update(purchaseReceipts).set({ status: "RECEIVED" }).where(eq(purchaseReceipts.id, grn.id));
+        // Now that the value is known, record it in the supplier's own currency too, so
+        // the receipt can state what arrived without a reader doing the division.
+        const grnRate = Number(grn.exchangeRate ?? 1) || 1;
+        await tx.update(purchaseReceipts).set({
+          status: "RECEIVED",
+          foreignAmount: grnRate !== 1 ? String(toForeign(received, grnRate)) : null,
+        }).where(eq(purchaseReceipts.id, grn.id));
         const newStatus = await recomputePurchaseOrderStatus(tx, po.id);
         await linkDocuments(tx, { orgId: auth.orgId, fromType: "PURCHASE_ORDER", fromId: po.id, fromNumber: po.number, toType: "GOODS_RECEIPT", toId: grn.id, toNumber: grn.number, relation: "FULFILLS" });
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "POST", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `تأكيد إذن استلام ${grn.number} من أمر شراء ${po.number} (${newStatus === "RECEIVED" ? "كامل" : "جزئي"})`, metadata: { received } });
@@ -552,16 +566,24 @@ export async function convertReceiptToInvoiceAction(
       .where(and(eq(purchaseInvoices.goodsReceiptId, grn.id), eq(purchaseInvoices.organizationId, auth.orgId))).limit(1);
     if (existing) return { error: "لهذا الإذن فاتورة بالفعل (مسودة أو مرحّلة)" };
 
+    const invoiceDate = date ? new Date(date) : new Date(grn.date);
+
+    // ONE approved rate for the whole cycle. The order's rate — whatever the buyer chose
+    // or typed there — is what the receipt and this invoice carry, so the same shipment is
+    // never valued two ways and GRNI clears to the piastre. A caller may still pass a
+    // currency/rate for a receipt raised outside an order.
+    const baseCode = await getBaseCurrencyCode(auth.orgId);
+    const code = (grn.currencyCode ?? currencyCode ?? baseCode).toUpperCase();
+    const approvedRate = Number(grn.exchangeRate ?? 0) > 0
+      ? Number(grn.exchangeRate)
+      : (exchangeRate && exchangeRate > 0 ? exchangeRate : 1);
+
     const built = await buildReceiptInvoice(auth.orgId, grn);
     if ("error" in built) return built;
     if (built.total <= 0) return { error: "لا توجد كميات قابلة للفوترة" };
 
-    // Multi-currency: receipt amounts are in base currency; a foreign currency only
-    // records the display total (base ÷ rate). GL/AP stay in base.
-    const baseCode = await getBaseCurrencyCode(auth.orgId);
-    const cur = resolveCurrency(baseCode, currencyCode, exchangeRate, built.total);
-
-    const invoiceDate = date ? new Date(date) : new Date(grn.date);
+    const cur = resolveCurrency(baseCode, code, approvedRate, built.total);
+    const rateSource = grn.rateSource ?? "AUTO";
     const number = await nextNumber("PI", auth.orgId, invoiceDate.getFullYear());
     try {
       const invoiceId = await db.transaction(async (tx) => {
@@ -572,6 +594,7 @@ export async function convertReceiptToInvoiceAction(
           totalAmount: String(built.total), paidAmount: "0", balanceDue: String(built.total), notes: notes || `فاتورة استلام ${grn.number}`,
           currencyCode: cur.code, exchangeRate: String(cur.rate),
           foreignAmount: cur.foreignAmount !== null ? String(cur.foreignAmount) : null,
+          rateSource,
         }).returning({ id: purchaseInvoices.id });
         await tx.insert(purchaseInvoiceLines).values(built.lines.map((l) => ({
           purchaseInvoiceId: inv.id, itemId: l.itemId, quantity: String(l.quantity), unitPrice: String(l.unitPrice),

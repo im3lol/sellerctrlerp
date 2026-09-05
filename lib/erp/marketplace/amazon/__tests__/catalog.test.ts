@@ -19,10 +19,35 @@ describe("Catalog Items → CatalogRecord", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       asin: "ASINCHILD", imageUrl: "https://x/main.jpg", brand: "Acme",
-      weight: "0.5 kilograms", dimensions: "10 × 5 × 3 centimeters",
+      // Dimensions are converted to centimetres; the weight is deliberately not taken.
+      dimensions: "10 × 5 × 3 سم",
       parentAsin: "ASINPARENT", variationValue: "Red / L", name: "Widget Red L",
     });
     expect(out[0].identifiers).toEqual([{ type: "UPC", code: "012345678905" }, { type: "EAN", code: "4006381333931" }]);
+  });
+
+  it("converts a US catalogue's inches to centimetres", () => {
+    const out = parseCatalog({
+      items: [{
+        asin: "USITEM",
+        dimensions: [{ item: {
+          length: { value: 9.055, unit: "inches" }, width: { value: 2.165, unit: "inches" },
+          height: { value: 0.039, unit: "inches" },
+        } }],
+      }],
+    });
+    expect(out[0]).toMatchObject({ dimensions: "23 × 5.5 × 0.1 سم" });
+  });
+
+  it("never takes a weight from the catalogue, even when one is offered", () => {
+    // The catalogue reports the manufacturer's product weight. Freight-by-weight
+    // allocation divides by items.weightKg, so a figure that is not what actually ships
+    // would quietly misprice every shipment. The seller enters that number.
+    const out = parseCatalog({
+      items: [{ asin: "HASWEIGHT", dimensions: [{ item: { weight: { value: 0.37, unit: "pounds" } } }] }],
+    });
+    expect(out[0]).not.toHaveProperty("weight");
+    expect(out[0]).not.toHaveProperty("weightKg");
   });
 
   it("handles a bare item (no enrichment data) and an empty response", () => {

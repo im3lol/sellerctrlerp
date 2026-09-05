@@ -39,7 +39,9 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
   const [shelfLifeDays, setShelfLifeDays] = useState(initial?.shelfLifeDays != null ? String(initial.shelfLifeDays) : "");
   const [image, setImage] = useState(initial?.image ?? "");
   const [brand, setBrand] = useState(initial?.brand ?? "");
-  const [weight, setWeight] = useState(initial?.weight ?? "");
+  // The free-text weight is no longer editable — the numeric one is the weight. It is
+  // still sent back untouched so an old value is preserved rather than wiped by a save.
+  const weight = initial?.weight ?? "";
   const [weightKg, setWeightKg] = useState(initial?.weightKg != null ? String(initial.weightKg) : "");
   const [dimensions, setDimensions] = useState(initial?.dimensions ?? "");
   const [codes, setCodes] = useState<CodeRow[]>(initial?.codes?.length ? initial.codes : [{ codeType: "BARCODE", code: "" }]);
@@ -94,13 +96,19 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" min="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} /></div>
           <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" step="0.001" min="0" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
           <div className="space-y-2"><Label>العلامة التجارية</Label><Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="مثال: Logitech" /></div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-2"><Label>الوزن</Label><Input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.5 kg" /></div>
+          {/* One weight field, not two. There used to be a free-text one beside this that
+              the marketplace catalogue filled — two places to say the same thing, and the
+              text one was never the number anything used. The weight that matters is the
+              one the shipment is actually charged on, and only the seller knows it. */}
+          <div className="grid grid-cols-2 gap-2">
             <div className="space-y-2">
-              <Label>الوزن بالكيلوجرام <span className="font-normal text-muted-foreground">(لحساب تكلفة الشحن)</span></Label>
+              <Label>الوزن بالكيلوجرام <span className="font-normal text-muted-foreground">(يوزّع تكلفة الشحن)</span></Label>
               <Input type="number" step="0.001" min="0" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="0.500" dir="ltr" />
+              <p className="text-xs text-muted-foreground">
+                اكتب وزن الشحن الفعلي. لو سِبته فاضي، الصنف ده مش هياخد نصيبه من مصاريف الشحن الموزّعة بالوزن.
+              </p>
             </div>
-            <div className="space-y-2"><Label>الأبعاد</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder="10 × 5 × 3 cm" /></div>
+            <div className="space-y-2"><Label>الأبعاد</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder="10 × 5 × 3 سم" /></div>
           </div>
           <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
             <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصنف…" />

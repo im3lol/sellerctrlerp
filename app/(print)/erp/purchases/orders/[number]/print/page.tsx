@@ -4,8 +4,12 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, items, warehouses } from "@/db/schema";
 import { fmt, qty, dt } from "@/lib/erp/print-format";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
+
+/** Rates are stored to 6dp; rounding them on a printed document hides the real figure. */
+const rate6 = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 });
 
 const STATUS: Record<string, string> = {
   DRAFT: "مسودة", CONFIRMED: "مؤكّد", PARTIALLY_RECEIVED: "استلام جزئي",
@@ -38,7 +42,9 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         .select({
           qty: purchaseOrderLines.quantity,
           unitPrice: purchaseOrderLines.unitPrice,
+          shippingPerUnit: purchaseOrderLines.shippingPerUnit,
           discount: purchaseOrderLines.discountAmount,
+          tax: purchaseOrderLines.taxAmount,
           total: purchaseOrderLines.totalAmount,
           code: items.code,
           name: items.nameAr,
@@ -49,15 +55,27 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         .where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
     ]);
 
-    // Purchase orders are printed in the currency they were entered in; the ledger stores
-    // base (EGP), so divide stored base amounts by the rate for display.
+    // Everything is stored in base (EGP). A foreign order was entered in its own currency,
+    // so the printed sheet has to show BOTH: the figure the buyer agreed with the supplier,
+    // and the figure the books carry — with the rate that connects them. Printing one
+    // without the other is what makes a reader think a converted number is the original.
+    const baseCode = await getBaseCurrencyCode(orgId);
     const docRate = Number(po.exchangeRate) || 1;
-    const cur = po.currencyCode ?? "";
+    const cur = (po.currencyCode ?? baseCode) || baseCode;
+    const isForeign = cur.toUpperCase() !== baseCode.toUpperCase() && docRate > 0;
+    /** base → the order's own currency */
     const d = (v: string | number | null) => Number(v ?? 0) / docRate;
+    const b = (v: string | number | null) => Number(v ?? 0);
     const subtotal = Number(po.subtotal ?? 0);
     const shipping = Number(po.shippingAmount ?? 0);
     const discount = Number(po.discountAmount ?? 0);
     const tax = Number(po.taxAmount ?? 0);
+    // Column labels are the key the org's print-column settings hide by, so a domestic
+    // order keeps EXACTLY the labels it had — the currency suffix only appears where it
+    // resolves a real ambiguity, on a foreign order showing two currencies at once.
+    const cx = (label: string) => (isForeign ? `${label} (${cur})` : label);
+    const anyDiscount = lines.some((l) => Number(l.discount ?? 0) > 0);
+    const anyShipping = lines.some((l) => Number(l.shippingPerUnit ?? 0) > 0);
 
     return (
       <DocumentSheet
@@ -72,21 +90,32 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         meta={[
           { label: "التاريخ", value: dt(po.date) },
           { label: "الحالة", value: STATUS[po.status] ?? po.status },
+          // The rate is part of the document, not a detail: every base figure below is
+          // this multiplication, and a reader must be able to redo it.
+          ...(isForeign ? [
+            { label: "العملة", value: cur },
+            { label: "سعر الصرف", value: `١ ${cur} = ${rate6(docRate)} ${baseCode}` },
+            { label: "مصدر السعر", value: po.rateSource === "MANUAL" ? "يدوي" : `سعر ${dt(po.date)}` },
+          ] : []),
         ]}
         parties={[
           ...(supp ? [{ label: "المورّد", name: supp.nameAr, lines: [supp.address, supp.phone] }] : []),
           ...(wh ? [{ label: "التسليم إلى", name: wh.nameAr, lines: [] }] : []),
         ]}
         columns={[
-          { label: "#", width: "5%" },
+          { label: "#", width: "4%" },
           // Sits in the org's print-column settings like any other, so a tenant that does
           // not want pictures on paper can switch it off without a code change.
-          { label: "صورة", align: "center", width: "9%" },
-          { label: "الصنف", width: "36%" },
-          { label: "الكمية", align: "center", width: "12%" },
-          { label: `السعر (${cur})`, align: "end", width: "18%" },
-          { label: "الخصم", align: "end", width: "10%" },
-          { label: "الإجمالي", align: "end", width: "16%" },
+          { label: "صورة", align: "center", width: "7%" },
+          { label: "الصنف", width: isForeign ? "26%" : "36%" },
+          { label: "الكمية", align: "center", width: "9%" },
+          { label: cx("السعر"), align: "end", width: isForeign ? "13%" : "18%" },
+          ...(anyShipping ? [{ label: cx("شحن/وحدة"), align: "end" as const, width: "12%" }] : []),
+          ...(anyDiscount ? [{ label: cx("الخصم"), align: "end" as const, width: "10%" }] : []),
+          { label: cx("الإجمالي"), align: "end", width: isForeign ? "13%" : "16%" },
+          // The same line in pounds — shipping included, because that is what the books
+          // and the stock valuation will carry.
+          ...(isForeign ? [{ label: `الإجمالي (${baseCode})`, align: "end" as const, width: "14%" }] : []),
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
@@ -106,8 +135,10 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           </span>,
           qty(l.qty),
           fmt(d(l.unitPrice)),
-          Number(l.discount ?? 0) > 0 ? fmt(d(l.discount)) : "—",
+          ...(anyShipping ? [Number(l.shippingPerUnit ?? 0) > 0 ? fmt(d(l.shippingPerUnit)) : "—"] : []),
+          ...(anyDiscount ? [Number(l.discount ?? 0) > 0 ? fmt(d(l.discount)) : "—"] : []),
           <b key="t">{fmt(d(l.total))}</b>,
+          ...(isForeign ? [<b key="tb">{fmt(b(l.total))}</b>] : []),
         ])}
         // Every charge line appears only when it carries a value — a printed order should
         // not list "الجمارك 0" next to a real shipping figure. Shipping was missing from
@@ -115,11 +146,17 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         // did not add up to.
         totals={[
           { label: "الإجمالي الفرعي", value: `${fmt(d(subtotal))} ${cur}` },
-          ...(shipping > 0 ? [{ label: "الشحن", value: `${fmt(d(shipping))} ${cur}` }] : []),
+          ...(shipping > 0 ? [{ label: "الشحن الداخلي", value: `${fmt(d(shipping))} ${cur}` }] : []),
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${fmt(d(discount))} ${cur}`, tone: "danger" as const }] : []),
           ...(tax > 0 ? [{ label: `الضريبة (${po.taxPercent}%)`, value: `${fmt(d(tax))} ${cur}` }] : []),
+          ...(isForeign ? [
+            { label: `الإجمالي شامل الشحن (${cur})`, value: `${fmt(d(po.totalAmount))} ${cur}` },
+            { label: "سعر الصرف المعتمد", value: `١ ${cur} = ${rate6(docRate)} ${baseCode}` },
+          ] : []),
         ]}
-        balance={{ label: `الإجمالي (${cur})`, value: `${fmt(d(po.totalAmount))} ${cur}` }}
+        balance={isForeign
+          ? { label: `الإجمالي بالـ${baseCode} (شامل الشحن)`, value: `${fmt(b(po.totalAmount))} ${baseCode}` }
+          : { label: `الإجمالي (${cur})`, value: `${fmt(d(po.totalAmount))} ${cur}` }}
         note={po.notes}
         signatures={["إعداد", "اعتماد", "المورّد"]}
       />

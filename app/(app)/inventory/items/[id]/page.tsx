@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { and, eq, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
+import { formatWeight } from "@/lib/erp/units-convert";
 import { items, itemCodes, warehouses } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,7 +104,14 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
               <Field label="المتاح للبيع"><span className={(av?.available ?? totalQty) <= 0 ? "text-destructive font-semibold" : "font-semibold"}>{qf(av?.available ?? totalQty)}</span></Field>
               <Field label="قيمة المخزون">{money(totalVal)}</Field>
               {item.brand && <Field label="العلامة التجارية">{item.brand}</Field>}
-              {item.weight && <Field label="الوزن">{item.weight}</Field>}
+              {/* The number is the truth; the catalogue's own wording is only a fallback for
+                  a unit we could not convert. Showing "0.37 pounds" to an Egyptian seller
+                  is a figure they cannot act on. */}
+              {(formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight) && (
+                <Field label="الوزن">
+                  {formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight}
+                </Field>
+              )}
               {item.dimensions && <Field label="الأبعاد">{item.dimensions}</Field>}
             </div>
 

@@ -76,6 +76,11 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
         // the already-sold share hits COGS.
         const varianceLines = await receiptLineCosts(tx, grn);
         const grniAmount = round2(varianceLines.reduce((s, l) => s + l.value, 0));
+
+        // One approved rate runs the whole cycle (it is fixed on the order), so the only
+        // gap that can appear here is a real one: the supplier billed a different amount
+        // for the same goods. No exchange difference can arise between two documents that
+        // share a rate.
         const variance = round2(net - grniAmount);
 
         const glLines = [

@@ -1,4 +1,5 @@
 import "server-only";
+import { toCm, formatDimensionsCm } from "@/lib/erp/units-convert";
 import { spJson, paced, credKey } from "./client";
 import type { Credential, CatalogRecord, CatalogIdentifier } from "../connector";
 
@@ -42,18 +43,19 @@ export function parseCatalog(res: CatalogResponse): CatalogRecord[] {
       if (mapped && id.identifier) identifiers.push({ type: mapped, code: String(id.identifier) });
     }
 
+    // Weight is deliberately NOT taken from the catalogue: see CatalogRecord. Dimensions
+    // are display-only and nothing divides by them, so they are still worth having —
+    // converted to centimetres, because Amazon answers in inches.
     const dim = it.dimensions?.[0]?.item;
-    const w = num(dim?.weight);
-    const weight = w !== undefined ? `${w} ${dim?.weight?.unit ?? ""}`.trim() : undefined;
-    const l = num(dim?.length), wd = num(dim?.width), h = num(dim?.height);
     const dimUnit = dim?.length?.unit ?? dim?.width?.unit ?? dim?.height?.unit ?? "";
-    const dimensions = l !== undefined && wd !== undefined && h !== undefined ? `${l} × ${wd} × ${h} ${dimUnit}`.trim() : undefined;
+    const cm = (v: number | undefined) => (v !== undefined ? toCm(v, dimUnit) : null);
+    const dimensions = formatDimensionsCm(cm(num(dim?.length)), cm(num(dim?.width)), cm(num(dim?.height))) ?? undefined;
 
     const variationValue = [sum?.color, sum?.size].filter(Boolean).join(" / ") || undefined;
     const parentAsin = it.relationships?.[0]?.relationships?.find((r) => r.parentAsins?.length)?.parentAsins?.[0];
     const category = it.classifications?.[0]?.classifications?.find((c) => c.displayName)?.displayName || undefined;
 
-    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, weight, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue, category });
+    out.push({ asin: it.asin, imageUrl, brand: sum?.brand || undefined, dimensions, name: sum?.itemName || undefined, identifiers, parentAsin, variationValue, category });
   }
   return out;
 }

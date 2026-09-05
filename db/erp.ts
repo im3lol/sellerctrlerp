@@ -884,6 +884,16 @@ export const purchaseReceipts = pgTable(
     purchaseOrderId: text("purchase_order_id"),
     supplierId: text("supplier_id"),
     warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
+    // The rate the goods actually entered stock at. Inventory is measured on the day it
+    // arrived and never retranslated after — goods ordered in one month and received in
+    // another are not worth what they cost on the order date.
+    currencyCode: text("currency_code").notNull().default("EGP"),
+    exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
+    foreignAmount: money("foreign_amount"),
+
+    /** AUTO = the rate on file for the document's date; MANUAL = a human typed it. */
+    /** AUTO = the rate on file for the document's date; MANUAL = a human typed it. */
+    rateSource: text("rate_source").notNull().default("AUTO"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -2063,6 +2073,8 @@ export const salesInvoices = pgTable(
     currencyCode: text("currency_code").notNull().default("EGP"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
     foreignAmount: money("foreign_amount"),   // totalAmount in the invoice currency
+    /** AUTO = the rate on file for the document's date; MANUAL = a human typed it. */
+    rateSource: text("rate_source").notNull().default("AUTO"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -2201,6 +2213,8 @@ export const purchaseInvoices = pgTable(
     currencyCode: text("currency_code").notNull().default("EGP"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
     foreignAmount: money("foreign_amount"),
+    /** AUTO = the rate on file for the document's date; MANUAL = a human typed it. */
+    rateSource: text("rate_source").notNull().default("AUTO"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -2533,6 +2547,8 @@ export const purchaseOrders = pgTable(
     currencyCode: text("currency_code").notNull().default("EGP"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull().default("1"),
     foreignAmount: money("foreign_amount"), // totalAmount in the document currency
+    /** AUTO = the rate on file for the document's date; MANUAL = a human typed it. */
+    rateSource: text("rate_source").notNull().default("AUTO"),
     notes: text("notes"),
     // Approval control: POs above the org's poApprovalThreshold must be approved
     // before they can be confirmed.

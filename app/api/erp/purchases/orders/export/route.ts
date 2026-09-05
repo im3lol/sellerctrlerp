@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { purchaseOrders, purchaseOrderLines, suppliers, items } from "@/db/schema";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
+import { getBaseCurrencyCode } from "@/lib/erp/currency";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,8 @@ export async function GET(req: Request) {
     const orders = await db.select({
       id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date, status: purchaseOrders.status,
       supplierId: purchaseOrders.supplierId, shipping: purchaseOrders.shippingAmount, tax: purchaseOrders.taxAmount,
-      total: purchaseOrders.totalAmount, currency: purchaseOrders.currencyCode, notes: purchaseOrders.notes,
+      total: purchaseOrders.totalAmount, currency: purchaseOrders.currencyCode,
+      rate: purchaseOrders.exchangeRate, rateSource: purchaseOrders.rateSource, notes: purchaseOrders.notes,
     }).from(purchaseOrders).where(and(eq(purchaseOrders.organizationId, orgId), inArray(purchaseOrders.number, numbers)));
     if (!orders.length) return { orders, supRows: [], lineRows: [] };
 
@@ -47,17 +49,55 @@ export async function GET(req: Request) {
   const linesByOrder = new Map<string, typeof lineRows>();
   for (const l of lineRows) { const arr = linesByOrder.get(l.orderId) ?? []; arr.push(l); linesByOrder.set(l.orderId, arr); }
 
-  const headers = ["رقم الأمر", "التاريخ", "المورد", "الحالة", "كود الصنف", "اسم الصنف", "الكمية", "السعر", "الخصم", "الضريبة", "شحن/وحدة", "إجمالي البند", "العملة", "إجمالي الأمر", "شحن الأمر", "ضريبة الأمر", "ملاحظات"];
+  // Every amount in the database is in BASE currency. The old sheet dumped those figures
+  // straight out and put the order's currency code in a column beside them — so an order
+  // placed in dirhams exported pounds labelled AED, and there was no rate anywhere to
+  // catch it. Each money column now says which currency it is in, and the rate that
+  // connects the two travels with the row.
+  const baseCode = await getBaseCurrencyCode(orgId);
+  /** base → the order's own currency, at 4dp (a reported figure, not a posted one) */
+  const toDoc = (v: unknown, rate: number) => (rate > 0 ? Math.round((Number(v ?? 0) / rate) * 10000) / 10000 : Number(v ?? 0));
+
+  const headers = [
+    "رقم الأمر", "التاريخ", "المورد", "الحالة",
+    "العملة", "سعر الصرف", "مصدر السعر",
+    "كود الصنف", "اسم الصنف", "الكمية",
+    "سعر الوحدة (بعملة الأمر)", "خصم البند (بعملة الأمر)", "شحن/وحدة (بعملة الأمر)",
+    "ضريبة البند (بعملة الأمر)", "إجمالي البند (بعملة الأمر)",
+    `سعر الوحدة (${baseCode})`, `إجمالي البند شامل الشحن (${baseCode})`,
+    "إجمالي الأمر (بعملة الأمر)", `إجمالي الأمر شامل الشحن (${baseCode})`,
+    `شحن الأمر (${baseCode})`, `ضريبة الأمر (${baseCode})`,
+    "ملاحظات",
+  ];
+
   const rows: (string | number)[][] = [];
   for (const o of orders) {
     const sup = o.supplierId ? supById.get(o.supplierId) : undefined;
     const supplierLabel = sup ? `${sup.code} — ${sup.name}` : "—";
     const lines = linesByOrder.get(o.id) ?? [];
-    const base = [o.number, xlsxDate(o.date), supplierLabel, STATUS_LABEL[o.status] ?? o.status] as const;
-    const tail = [o.currency ?? "EGP", Number(o.total), Number(o.shipping), Number(o.tax), o.notes ?? ""] as const;
-    if (!lines.length) { rows.push([...base, "", "", "", "", "", "", "", ...tail]); continue; }
+    const cur = o.currency ?? baseCode;
+    const rate = Number(o.rate) || 1;
+
+    const head = [
+      o.number, xlsxDate(o.date), supplierLabel, STATUS_LABEL[o.status] ?? o.status,
+      cur, rate, o.rateSource === "MANUAL" ? "يدوي" : "تلقائي",
+    ] as const;
+    // Order-level figures repeat on every line, in both currencies, so a row can be read
+    // on its own without scrolling back to a header block.
+    const tail = [
+      toDoc(o.total, rate), Number(o.total), Number(o.shipping), Number(o.tax), o.notes ?? "",
+    ] as const;
+
+    if (!lines.length) { rows.push([...head, "", "", "", "", "", "", "", "", "", "", ...tail]); continue; }
     for (const l of lines) {
-      rows.push([...base, l.code ?? "", l.name ?? "", Number(l.qty), Number(l.unitPrice), Number(l.discount), Number(l.tax), Number(l.shipping), Number(l.total), ...tail]);
+      rows.push([
+        ...head,
+        l.code ?? "", l.name ?? "", Number(l.qty),
+        toDoc(l.unitPrice, rate), toDoc(l.discount, rate), toDoc(l.shipping, rate),
+        toDoc(l.tax, rate), toDoc(l.total, rate),
+        Number(l.unitPrice), Number(l.total),
+        ...tail,
+      ]);
     }
   }
 
@@ -65,6 +105,6 @@ export async function GET(req: Request) {
     sheet: "أوامر الشراء",
     filename: numbers.length === 1 ? `purchase-order-${numbers[0]}` : `purchase-orders-${numbers.length}`,
     headers, rows,
-    colWidths: [14, 12, 24, 12, 14, 26, 10, 12, 10, 10, 10, 12, 8, 12, 10, 10, 20],
+    colWidths: [14, 12, 24, 12, 8, 12, 11, 14, 30, 9, 16, 16, 16, 16, 18, 14, 20, 16, 20, 12, 12, 20],
   });
 }

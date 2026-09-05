@@ -39,7 +39,10 @@ export const PRINT_DOC_REGISTRY: PrintDocDef[] = [
   { key: "sales-quotation", label: "عرض سعر", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "السعر" }, { label: "الخصم" }, { label: "الإجمالي" }] },
   { key: "sales-delivery", label: "إذن صرف", columns: [{ label: "#" }, item, { label: "الكمية" }] },
   { key: "sales-return", label: "مرتجع بيع", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "السعر" }, { label: "الإجمالي" }] },
-  { key: "purchase-order", label: "أمر شراء", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "المستلم" }, { label: "السعر" }, { label: "الخصم" }, { label: "الإجمالي" }] },
+  // "المستلم" is not on the printed order (it is a receipt column); "شحن/وحدة" and the
+  // base-currency total are, on a foreign order. Kept in sync so the settings screen
+  // offers exactly the columns the sheet can draw.
+  { key: "purchase-order", label: "أمر شراء", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "السعر" }, { label: "شحن/وحدة" }, { label: "الخصم" }, { label: "الإجمالي" }] },
   { key: "purchase-invoice", label: "فاتورة شراء", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "السعر" }, { label: "شحن/وحدة" }, { label: "الخصم" }, { label: "الإجمالي" }] },
   { key: "purchase-receipt", label: "إذن استلام", columns: [{ label: "#" }, item, { label: "التشغيلة / الصلاحية" }, { label: "المستلم" }, { label: "المرفوض" }] },
   { key: "purchase-return", label: "مرتجع شراء", columns: [{ label: "#" }, item, { label: "الكمية" }, { label: "السعر" }, { label: "الإجمالي" }] },

@@ -18,6 +18,7 @@ import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-p
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import { lineVat } from "@/lib/erp/vat";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
+import { rateAsOf } from "@/lib/erp/fx";
 import { selectCls } from "@/lib/utils";
 import { UnitCell, type FormUnit } from "@/components/erp/unit-cell";
 import { fromBaseQuantity, toBaseQuantity, toBasePrice } from "@/lib/erp/item-units";
@@ -44,13 +45,15 @@ export type PurchaseOrderInitial = {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+/** Rates are numeric(18,6); 3dp would show a small-unit currency as zero. */
+const ratef = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 });
 // VAT is a single document-level choice (not per line). Base = goods value net of discount
 // (freight excluded), same convention as the sales side. `applyVat=false` → tax 0.
 const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, false) : 0);
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
 const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; initial?: PurchaseOrderInitial }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -65,9 +68,22 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const baseCode = currencies.find((c) => c.isBase)?.code ?? "EGP";
   const [currency, setCurrency] = useState(initial?.currencyCode ?? baseCode);
   const isForeign = currency !== baseCode;
-  // When editing and the currency is unchanged, keep the document's original rate; otherwise
-  // use the latest rate on file for the chosen currency.
-  const rate = !isForeign ? 1 : (isEdit && currency === initial?.currencyCode ? Number(initial.exchangeRate) : (latestRates[currency] ?? 0));
+  // The rate the document is priced at. Default = the rate recorded for the ORDER'S OWN
+  // DATE, not the newest one on file: an order dated last month priced with today's rate
+  // is simply wrong, and the form used to show one number while the server posted another.
+  // A blank override means "use the default"; typing one is a deliberate act and is
+  // recorded as such.
+  const [rateOverride, setRateOverride] = useState<string>(
+    isEdit && initial ? String(Number(initial.exchangeRate)) : "",
+  );
+  const autoRate = useMemo(() => {
+    if (!isForeign) return 1;
+    const asOf = rateAsOf(rateHistory[currency] ?? [], date);
+    return asOf ? asOf.rate : (latestRates[currency] ?? 0);
+  }, [isForeign, rateHistory, currency, date, latestRates]);
+  const typedRate = Number(rateOverride);
+  const isManualRate = isForeign && rateOverride.trim() !== "" && typedRate > 0 && typedRate !== autoRate;
+  const rate = !isForeign ? 1 : (rateOverride.trim() !== "" && typedRate > 0 ? typedRate : autoRate);
   // VAT is a single choice for the whole order (not per line). Default: on when the org has a rate.
   const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : vatRate > 0);
   const [lines, setLines] = useState<LineRow[]>(
@@ -118,7 +134,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         taxAmount: lineTax(l, vatRate, applyVat), discountAmount: round2(l.quantity * l.discountPerUnit),
         uomId: l.uomId || undefined, uomFactor: l.uomFactor,
       }));
-      const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, materialRequestId: requisitionId, lines: payload };
+      const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, exchangeRate: isManualRate ? rate : undefined, materialRequestId: requisitionId, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
         toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
@@ -194,11 +210,80 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 {currencies.map((c) => <option key={c.code} value={c.code}>{c.nameAr} ({c.code})</option>)}
               </select>
             )}
-            {isForeign && (rate > 0
-              ? <p className="text-xs text-muted-foreground">١ {currency} = {qtyf(rate)} {baseCode} — تُرحّل الحسابات بالـ{baseCode}</p>
-              : <p className="text-xs text-destructive">لا يوجد سعر صرف لـ{currency} — أضِفه من الإعدادات ← العملات</p>)}
           </div>
         </div>
+
+        {/* The rate gets a row of its own, not a corner of the currency box: it is the
+            number that decides what every line in this order costs in pounds, and it has
+            to be readable at a glance and obvious when it was overridden. */}
+        {isForeign && (
+          <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,16rem)_1fr]">
+            <div className="space-y-2">
+              <Label>سعر الصرف</Label>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-sm text-muted-foreground">١ {currency} =</span>
+                <Input
+                  type="number" step="0.000001" min="0" className="tabular-nums"
+                  placeholder={autoRate > 0 ? ratef(autoRate) : "اكتب السعر"}
+                  value={rateOverride}
+                  onChange={(e) => setRateOverride(e.target.value)}
+                />
+                <span className="shrink-0 text-sm text-muted-foreground">{baseCode}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>أسعار مسجّلة</Label>
+              {(rateHistory[currency] ?? []).length > 0 ? (
+                <select
+                  className={selectCls}
+                  value=""
+                  onChange={(e) => e.target.value && setRateOverride(e.target.value)}
+                >
+                  <option value="">اختر من الأسعار المسجّلة…</option>
+                  {(rateHistory[currency] ?? []).slice(0, 30).map((r) => (
+                    <option key={`${r.date}-${r.rate}`} value={String(r.rate)}>
+                      {r.date} — {ratef(r.rate)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex h-9 items-center rounded-md border border-dashed px-3 text-xs text-muted-foreground">
+                  مفيش أسعار مسجّلة لـ{currency}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col justify-end gap-1 pb-1">
+              {rate > 0 ? (
+                <>
+                  <div className="text-sm">
+                    <span className="font-semibold tabular-nums">١ {currency} = {ratef(rate)} {baseCode}</span>
+                    {isManualRate
+                      ? <span className="ms-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">سعر يدوي</span>
+                      : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">سعر {date}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-destructive">
+                  مفيش سعر صرف لـ{currency} في تاريخ الأمر — اكتبه هنا أو أضِفه من الإعدادات ← العملات.
+                </p>
+              )}
+              {rateOverride.trim() !== "" && (
+                <button
+                  type="button"
+                  className="self-start text-xs text-primary underline"
+                  onClick={() => setRateOverride("")}
+                >
+                  رجّع السعر الافتراضي
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border">
           <Table>

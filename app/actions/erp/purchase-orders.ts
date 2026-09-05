@@ -10,6 +10,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { purchaseOrders, purchaseOrderLines, suppliers, organizations, warehouses, materialRequests } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
+import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
@@ -41,6 +42,13 @@ const schema = z.object({
   // Document currency: line amounts arrive in THIS currency and are converted to base
   // (× exchange rate) before storing, so the GL/inventory stay base-only. Omitted = base.
   currencyCode: z.string().optional(),
+  /**
+   * The rate to price this order at. Omitted → the rate on file for the order's own
+   * date. Given → a human chose it, which is the point: a rate is a judgement about a
+   * day, and the person raising the order knows which day they mean better than a table
+   * of the last few figures anyone happened to enter.
+   */
+  exchangeRate: z.coerce.number().positive().optional(),
   /** Set when the order was raised from an approved requisition — links them and closes it. */
   materialRequestId: z.string().optional(),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
@@ -68,8 +76,20 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
   const baseCode = await getBaseCurrencyCode(orgId);
   const code = (data.currencyCode ?? baseCode).toUpperCase();
   const isForeign = code !== baseCode.toUpperCase();
-  const rate = isForeign ? await getExchangeRate(orgId, code, baseCode, d) : 1;
-  if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات ثم أعد المحاولة` };
+  const manual = data.exchangeRate && data.exchangeRate > 0 ? data.exchangeRate : null;
+  if (manual) {
+    const bad = validateRate(manual);
+    if (bad) return { error: bad };
+  }
+  // The rate on file for THIS document's date — the default, and the yardstick for
+  // whether a submitted rate counts as an override.
+  const auto = isForeign ? await getExchangeRate(orgId, code, baseCode, d) : 1;
+  const rate = !isForeign ? 1 : (manual ?? auto);
+  // "Manual" means a human chose a different number, not merely that the form posted the
+  // field. Deciding it here rather than trusting a flag from the client keeps the answer
+  // true for an API caller too.
+  const rateSource = isForeign ? rateSourceOf(manual, auto) : "AUTO";
+  if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات، أو اكتب السعر يدوياً` };
   const toBase = (n: number) => round2(n * rate);
   const foreignTotal = round2(data.lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));
 
@@ -87,7 +107,7 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
   const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
   const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
   const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
-  return { values: { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
+  return { values: { d, code, rate, rateSource, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
 }
 
 type POComputedLine = { itemId: string; quantity: number; unitPrice: number; shippingPerUnit: number; discountAmount: number; taxAmount: number; exempt: boolean; totalAmount: number; uomId?: string; uomFactor?: number };
@@ -108,7 +128,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const r = await resolvePurchaseOrderValues(auth.orgId, parsed.data);
     if ("error" in r) return { error: r.error };
-    const { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
+    const { d, code, rate, rateSource, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
     const { supplierId, warehouseId, notes } = parsed.data;
 
     const number = await nextNumber(auth.orgId, d.getFullYear());
@@ -120,7 +140,7 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
           expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
-          currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null,
+          currencyCode: code, exchangeRate: String(rate), rateSource, foreignAmount: isForeign ? String(foreignTotal) : null,
         }).returning({ id: purchaseOrders.id });
         await tx.insert(purchaseOrderLines).values(poLineRows(po.id, computed));
 
@@ -165,7 +185,7 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
 
     const r = await resolvePurchaseOrderValues(auth.orgId, parsed.data);
     if ("error" in r) return { error: r.error };
-    const { d, code, rate, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
+    const { d, code, rate, rateSource, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } = r.values;
     const { supplierId, warehouseId, notes } = parsed.data;
 
     try {
@@ -181,7 +201,7 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
           expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
-          currencyCode: code, exchangeRate: String(rate), foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
+          currencyCode: code, exchangeRate: String(rate), rateSource, foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
         }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
         await tx.delete(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
         await tx.insert(purchaseOrderLines).values(poLineRows(id, computed));

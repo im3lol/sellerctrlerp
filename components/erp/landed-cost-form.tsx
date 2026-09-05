@@ -37,6 +37,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
+  const [receiptFilter, setReceiptFilter] = useState("");
   const [lines, setLines] = useState<LcBasisLine[]>([]);
   const [charges, setCharges] = useState({ shipping: "", customs: "", insurance: "", other: "" });
   const [method, setMethod] = useState<"value" | "qty" | "weight">("value");
@@ -52,10 +53,16 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
       .map((s) => ({ id: s.id, label: counts.get(s.id) ? `${s.nameAr} — ${counts.get(s.id)} إذن` : s.nameAr, n: counts.get(s.id) ?? 0 }))
       .sort((a, b) => b.n - a.n);
   }, [suppliers, receipts]);
+  // Every receipt for the supplier stays listed whether ticked or not: removing a row the
+  // moment it is ticked makes the list jump under the cursor mid-selection.
   const openReceipts = useMemo(
-    () => receipts.filter((r) => r.supplierId === supplierId && !picked.includes(r.id)),
-    [receipts, supplierId, picked],
+    () => receipts.filter((r) => r.supplierId === supplierId),
+    [receipts, supplierId],
   );
+  const visibleReceipts = useMemo(() => {
+    const q = receiptFilter.trim().toLowerCase();
+    return q ? openReceipts.filter((r) => `${r.number} ${r.date}`.toLowerCase().includes(q)) : openReceipts;
+  }, [openReceipts, receiptFilter]);
   const pickedReceipts = useMemo(() => receipts.filter((r) => picked.includes(r.id)), [receipts, picked]);
 
   const total = round2((Number(charges.shipping) || 0) + (Number(charges.customs) || 0) + (Number(charges.insurance) || 0) + (Number(charges.other) || 0));
@@ -78,8 +85,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     setLines([]);
   };
 
-  const toggle = (id: string) => {
-    const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id];
+  const setPickedAll = (next: string[]) => {
     setPicked(next);
     if (!next.length) { setLines([]); return; }
     startLoad(async () => {
@@ -88,6 +94,9 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
       setLines(r.lines);
     });
   };
+
+  const toggle = (id: string) =>
+    setPickedAll(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورّد");
@@ -144,13 +153,45 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
             <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة لهذا المورّد — التكاليف تُحمَّل على بضاعة مستلَمة فقط.</p>
           ) : (
             <div className="space-y-2">
-              <div className="max-w-md">
-                <CellCombobox
-                  selectedLabel=""
-                  options={openReceipts.map((r) => ({ id: r.id, label: `${r.number} — ${r.date}` }))}
-                  onSelect={toggle}
-                  placeholder={openReceipts.length ? "ابحث برقم الإذن…" : "لا توجد إذون أخرى لهذا المورّد"}
+              {/* A freight bill almost always covers several deliveries, so the list ticks:
+                  reopening a dropdown once per receipt made the common case the slow one.
+                  The search box stays for a supplier with a long history. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="max-w-xs"
+                  value={receiptFilter}
+                  onChange={(e) => setReceiptFilter(e.target.value)}
+                  placeholder="ابحث برقم الإذن أو التاريخ…"
                 />
+                <Button type="button" variant="outline" size="sm" onClick={() => setPickedAll(visibleReceipts.map((r) => r.id))}>
+                  اختر الكل ({visibleReceipts.length})
+                </Button>
+                {picked.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPickedAll([])}>
+                    امسح الاختيار
+                  </Button>
+                )}
+                <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>
+              </div>
+
+              <div className="max-h-56 overflow-y-auto rounded-xl border">
+                {visibleReceipts.length === 0 ? (
+                  <p className="p-3 text-sm text-muted-foreground">مفيش إذون مطابقة للبحث.</p>
+                ) : visibleReceipts.map((r) => (
+                  <label
+                    key={r.id}
+                    className="flex cursor-pointer items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0 hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 rounded border-input"
+                      checked={picked.includes(r.id)}
+                      onChange={() => toggle(r.id)}
+                    />
+                    <span className="font-mono">{r.number}</span>
+                    <span className="text-muted-foreground">— {r.date}</span>
+                  </label>
+                ))}
               </div>
               {pickedReceipts.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -206,6 +247,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-start">الإذن</TableHead>
+                  <TableHead className="w-14 text-center">صورة</TableHead>
                   <TableHead className="text-start">الصنف</TableHead>
                   <TableHead className="text-start">المستودع</TableHead>
                   <TableHead className="text-start">الكمية</TableHead>
@@ -220,6 +262,15 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                   return (
                     <TableRow key={`${l.purchaseReceiptId}|${l.itemId}|${l.warehouseId}`}>
                       <TableCell className="font-mono text-xs">{l.receiptNumber}</TableCell>
+                      <TableCell className="text-center">
+                        {/* Fixed box + object-fit so a tall picture cannot stretch the row,
+                            and nothing at all when there is no image — a column of
+                            placeholders is noise. */}
+                        {l.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={l.image} alt="" className="mx-auto size-9 rounded object-contain" />
+                        ) : null}
+                      </TableCell>
                       <TableCell className="max-w-[22rem] whitespace-normal">
                         <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
                         <div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div>

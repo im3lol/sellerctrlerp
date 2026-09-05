@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { suppliers, purchaseReceipts, purchaseInvoices, organizations, currencies, exchangeRates } from "@/db/schema";
+import { suppliers, purchaseReceipts, purchaseOrders, purchaseInvoices, organizations, currencies, exchangeRates } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseInvoiceFromReceiptForm } from "@/components/erp/purchase-invoice-from-receipt-form";
 
@@ -13,8 +13,15 @@ export default async function NewPurchaseInvoicePage() {
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers)
         .where(eq(suppliers.organizationId, orgId)).orderBy(asc(suppliers.code)),
       db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
-      db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, supplierId: purchaseReceipts.supplierId, date: purchaseReceipts.date })
+      // The receipt carries the rate approved on its order — the invoice form shows it
+      // rather than asking for one, so the same shipment is never valued two ways.
+      db.select({
+        id: purchaseReceipts.id, number: purchaseReceipts.number, supplierId: purchaseReceipts.supplierId,
+        date: purchaseReceipts.date, currencyCode: purchaseReceipts.currencyCode,
+        exchangeRate: purchaseReceipts.exchangeRate, orderNumber: purchaseOrders.number,
+      })
         .from(purchaseReceipts)
+        .leftJoin(purchaseOrders, eq(purchaseOrders.id, purchaseReceipts.purchaseOrderId))
         .where(and(eq(purchaseReceipts.organizationId, orgId), eq(purchaseReceipts.status, "RECEIVED")))
         .orderBy(desc(purchaseReceipts.date), desc(purchaseReceipts.number)),
       db.select({ grnId: purchaseInvoices.goodsReceiptId }).from(purchaseInvoices)
@@ -32,7 +39,10 @@ export default async function NewPurchaseInvoicePage() {
 
     // A confirmed receipt is billable until it already has an invoice (draft or posted).
     const billedSet = new Set(billed.map((b) => b.grnId));
-    const receipts = grns.filter((g) => !billedSet.has(g.id)).map((g) => ({ id: g.id, number: g.number, supplierId: g.supplierId, dateLabel: dt(g.date) }));
+    const receipts = grns.filter((g) => !billedSet.has(g.id)).map((g) => ({
+      id: g.id, number: g.number, supplierId: g.supplierId, dateLabel: dt(g.date),
+      currencyCode: g.currencyCode, exchangeRate: Number(g.exchangeRate) || 1, orderNumber: g.orderNumber,
+    }));
 
     // Build latest-rate map: prefer historical rates, fall back to currency snapshot.
     const latestRates: Record<string, number> = {};
