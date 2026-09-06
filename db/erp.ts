@@ -71,6 +71,10 @@ export const organizations = pgTable(
     baseCurrencyId: text("base_currency_id"),
     fiscalYearStart: text("fiscal_year_start"),
     vatRate: money("vat_rate").notNull().default("14"),
+    // Purchase VAT: false = recoverable (Dr 1107 on the invoice, kept out of stock cost),
+    // true = loaded onto the goods. Only read when a receipt is CREATED; from then on the
+    // receipt line's own tax_per_unit snapshot decides — see purchaseReceiptLines.
+    purchaseVatCapitalised: boolean("purchase_vat_capitalised").notNull().default(false),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
     // Loyalty: points earned per pound (0 = programme off), pounds a point redeems for,
@@ -920,6 +924,11 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   // shippingPerUnit (which it defaults from at creation, see createReceiptFromOrderAction).
   // Capitalised into stock cost at confirm; NOT the PO-wide estimate.
   shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
+  // VAT capitalised into this receipt's unit cost, snapshotted at creation from the order
+  // line when the org loads purchase VAT onto goods (organizations.purchaseVatCapitalised).
+  // 0 when VAT is recoverable. Stored rather than recomputed so that flipping the org
+  // setting can never restate what a confirmed receipt already credited to GRNI.
+  taxPerUnit: numeric("tax_per_unit", { precision: 18, scale: 6 }).notNull().default("0"),
   batchNo: text("batch_no"), // lot/batch (perishables)
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),

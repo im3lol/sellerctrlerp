@@ -21,6 +21,7 @@ export default async function OrganizationSettingsPage() {
       vatRate: org?.vatRate ?? "14",
       fiscalYearStart: org?.fiscalYearStart ?? null,
       poApprovalThreshold: org?.poApprovalThreshold ?? "0",
+      purchaseVatCapitalised: Boolean(org?.purchaseVatCapitalised),
     };
 
     return (

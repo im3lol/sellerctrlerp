@@ -911,6 +911,13 @@
       "when": 1788619210001,
       "tag": "0129_item_weights_to_metric",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1788619210002,
+      "tag": "0130_purchase_vat_capitalised",
+      "breakpoints": true
     }
   ]
 }

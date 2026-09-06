@@ -10,10 +10,10 @@ export const round4 = (n: number): number => Math.round(n * 10000) / 10000;
  * Tax and discount are stored as LINE amounts, not per-unit — dividing them here is what
  * makes the row add up left to right for whoever is reading it.
  *
- * NOT the accounting cost: `receipt-cost.ts` capitalises `price − discount + shipping`
- * and leaves VAT out (it is reclaimed, not carried by the goods). This figure includes
- * tax and posted import costs because that is the number a trader prices against. The two
- * are meant to differ; nothing here reaches the ledger.
+ * This is the DISPLAY figure. It differs from the ledger's inventory cost by exactly the
+ * import costs, which sit on their own voucher: callers pass `taxAmount` only when the
+ * org loads purchase VAT onto goods, so the tax half agrees with `receivedUnitCost`.
+ * Nothing here reaches the ledger.
  */
 export function unitAllIn(l: {
   quantity: number;
@@ -27,4 +27,27 @@ export function unitAllIn(l: {
   // A zero-quantity line has no per-piece cost to spread the line amounts over.
   const spread = l.quantity > 0 ? perLine / l.quantity : 0;
   return round4(l.unitPrice + (l.shippingPerUnit ?? 0) + spread + (l.landedPerUnit ?? 0));
+}
+
+/**
+ * What ONE unit costs entering stock. THE definition — this figure is credited to GRNI
+ * (2103) when the receipt is confirmed and debited back when the invoice is posted, so
+ * both sides must call this and nothing else. If they drift, 2103 silently stops clearing
+ * and /purchases/grni starts reporting a difference nobody can explain.
+ *
+ * Price and discount come from the ORDER line (that is what was agreed); shipping and tax
+ * from the RECEIPT line (each delivery carries its own freight, and the VAT snapshot fixes
+ * what was actually capitalised at the time — see purchaseReceiptLines.taxPerUnit).
+ * `taxPerUnit` is 0 whenever the org treats purchase VAT as recoverable.
+ */
+export function receivedUnitCost(l: {
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  shippingPerUnit: number;
+  taxPerUnit?: number;
+}): number {
+  // The order's discount is a line amount; a zero-quantity line has nothing to spread over.
+  const discountPerUnit = l.quantity > 0 ? l.discountAmount / l.quantity : 0;
+  return l.unitPrice - discountPerUnit + l.shippingPerUnit + (l.taxPerUnit ?? 0);
 }

@@ -84,8 +84,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const typedRate = Number(rateOverride);
   const isManualRate = isForeign && rateOverride.trim() !== "" && typedRate > 0 && typedRate !== autoRate;
   const rate = !isForeign ? 1 : (rateOverride.trim() !== "" && typedRate > 0 ? typedRate : autoRate);
-  // VAT is a single choice for the whole order (not per line). Default: on when the org has a rate.
-  const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : vatRate > 0);
+  // VAT is a single choice for the whole order (not per line). Starts OFF: most purchases
+  // here carry no tax, and a default-on checkbox quietly adds it to orders that never had it.
+  const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : false);
   const [lines, setLines] = useState<LineRow[]>(
     initial?.lines?.length ? initial.lines.map((l) => ({ ...l, id: newId() }))
       : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 }))

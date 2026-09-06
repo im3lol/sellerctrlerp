@@ -34,8 +34,13 @@ export type SaveInvoiceState = ActionState & { id?: string };
  * confirmed goods receipt. The goods are already in stock (the GRN did Dr 1104 /
  * Cr 2103), so posting only clears GRNI →
  *   Dr بضاعة لم تُفوتر (2103) = الصافي
- *   Dr ضريبة المدخلات (1107) = الضريبة
+ *   Dr ضريبة المدخلات (1107) = الضريبة المستردّة فقط
  *   Cr الموردون (2101) = الإجمالي
+ *
+ * VAT the receipt already capitalised into stock (purchase_receipt_lines.tax_per_unit) is
+ * NOT recoverable and never reaches 1107 — it is inside the GRNI figure. Reading it off
+ * the receipt rather than off today's org setting is what lets the setting be flipped
+ * without restating documents that are mid-cycle.
  * No stock movement; marks the receipt INVOICED, bumps the order's invoicedQty.
  *
  * The old standalone branch (invoice receives stock itself) was removed: it was a
@@ -57,7 +62,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
 
     const total = Number(inv.totalAmount);
     const tax = Number(inv.taxAmount);
-    const net = Number(inv.subtotal) + Number(inv.shippingAmount) - Number(inv.discountAmount);
+    const netExTax = Number(inv.subtotal) + Number(inv.shippingAmount) - Number(inv.discountAmount);
 
     const byCode = await resolveAccountIds(auth.orgId, ["2103", "1107", "2101", "1104", "5101"]);
     const debitAcc = byCode["2103"];
@@ -77,6 +82,16 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
         const varianceLines = await receiptLineCosts(tx, grn);
         const grniAmount = round2(varianceLines.reduce((s, l) => s + l.value, 0));
 
+        // How much of this bill's VAT the receipt already put into stock. Capped at what
+        // the supplier actually billed: if the invoice was edited down, the excess is a
+        // real cost correction and belongs in the variance below, not in a negative
+        // debit to the input-tax account.
+        const grnTaxLines = await tx.select({ quantity: purchaseReceiptLines.quantity, taxPerUnit: purchaseReceiptLines.taxPerUnit })
+          .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+        const capitalisedTax = Math.min(round2(grnTaxLines.reduce((s, l) => s + Number(l.quantity) * Number(l.taxPerUnit), 0)), tax);
+        const recoverableTax = round2(tax - capitalisedTax);
+        const net = round2(netExTax + capitalisedTax);
+
         // One approved rate runs the whole cycle (it is fixed on the order), so the only
         // gap that can appear here is a real one: the supplier billed a different amount
         // for the same goods. No exchange difference can arise between two documents that
@@ -87,7 +102,7 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
           { accountId: debitAcc, debit: grniAmount, credit: 0, description: `تسوية بضاعة مستلمة ${inv.number}` },
           { accountId: byCode["2101"], debit: 0, credit: total, description: `مستحق للمورد ${inv.number}` },
         ];
-        if (tax > 0 && byCode["1107"]) glLines.splice(1, 0, { accountId: byCode["1107"], debit: tax, credit: 0, description: `ضريبة مدخلات ${inv.number}` });
+        if (recoverableTax > 0.004 && byCode["1107"]) glLines.splice(1, 0, { accountId: byCode["1107"], debit: recoverableTax, credit: 0, description: `ضريبة مدخلات ${inv.number}` });
 
         if (Math.abs(variance) > 0.004) {
           if (!byCode["1104"] || !byCode["5101"]) throw new Error("حسابات فرق السعر غير مكتملة (المخزون/تكلفة المبيعات).");

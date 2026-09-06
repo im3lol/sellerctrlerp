@@ -23,6 +23,8 @@ const profileSchema = z.object({
   logo: z.string().optional(),
   vatRate: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة"),
   poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
+  // An unchecked checkbox is absent from FormData entirely, so the default carries it.
+  purchaseVatCapitalised: z.coerce.boolean().default(false),
   fiscalYearStart: z.string().optional()
     .refine((s) => !s || !Number.isNaN(new Date(s).getTime()), "تاريخ بداية السنة المالية غير صالح"),
 });
@@ -46,6 +48,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       logo: formData.get("logo") || undefined,
       vatRate: formData.get("vatRate"),
       poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
+      purchaseVatCapitalised: formData.get("purchaseVatCapitalised") === "on",
       fiscalYearStart: formData.get("fiscalYearStart") || undefined,
     });
     if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -78,6 +81,8 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
         logo: d.logo || null,
         vatRate: String(d.vatRate),
         poApprovalThreshold: String(d.poApprovalThreshold),
+        // Only new goods receipts read this; confirmed ones keep their own snapshot.
+        purchaseVatCapitalised: d.purchaseVatCapitalised,
         fiscalYearStart: d.fiscalYearStart || null,
         updatedAt: new Date(),
       }).where(eq(organizations.id, auth.orgId));

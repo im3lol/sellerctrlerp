@@ -16,6 +16,7 @@ export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
   address: string | null; phone: string | null; email: string | null; logo: string | null;
   vatRate: string; fiscalYearStart: string | null; poApprovalThreshold: string;
+  purchaseVatCapitalised: boolean;
 };
 
 export type AccountOption = { id: string; code: string; nameAr: string; type: string };
@@ -134,6 +135,19 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="taxNumber">الرقم الضريبي</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="vatRate">نسبة ضريبة القيمة المضافة (%)</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="poApprovalThreshold">حد اعتماد أوامر الشراء</Label><Input id="poApprovalThreshold" name="poApprovalThreshold" type="number" step="0.01" min="0" defaultValue={profile.poApprovalThreshold} dir="ltr" placeholder="0 = بدون اعتماد" /></div>
+                {/* Which side of the ledger purchase VAT lands on. Only new goods receipts
+                    read it — anything already confirmed keeps the cost it was posted at. */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="purchaseVatCapitalised">ضريبة المشتريات</Label>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+                    <input id="purchaseVatCapitalised" name="purchaseVatCapitalised" type="checkbox" className="size-4 rounded border-input" defaultChecked={profile.purchaseVatCapitalised} />
+                    تُحمَّل على تكلفة البضاعة
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    افتحه لو مش بتسترد الضريبة من المصلحة — الضريبة هتدخل في تكلفة المخزون بدل حساب «ضريبة المدخلات».
+                    التغيير بيسري على المستندات الجديدة بس؛ اللي اتأكّد قبل كدا بيفضل بتكلفته.
+                  </p>
+                </div>
                 <div className="space-y-2"><Label htmlFor="fiscalYearStart">بداية السنة المالية</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /><p className="text-xs text-muted-foreground">اليوم والشهر فقط (يتكرر كل سنة). فارغ = 1 يناير. <b>يحكم حدود كل فتراتك المحاسبية والإقفال السنوي</b> — ويُقفل التغيير بعد أول عملية محاسبية.</p></div>
                 <div className="space-y-2"><Label htmlFor="phone">الهاتف</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="email">البريد الإلكتروني</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>

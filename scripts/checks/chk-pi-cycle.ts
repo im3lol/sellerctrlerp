@@ -62,7 +62,11 @@ async function main() {
     discount += round2(Number(p.discountAmount) * f); tax += round2(Number(p.taxAmount) * f);
   }
   subtotal = round2(subtotal); discount = round2(discount); tax = round2(tax);
-  const net = round2(subtotal - discount); const total = round2(net + tax);
+  // VAT the receipt capitalised into stock is already inside the GRNI figure — it clears
+  // with the goods and never reaches the input-tax account. Only the rest is recoverable.
+  const capTax = Math.min(round2(grnLines.reduce((a, gl) => a + Number(gl.quantity) * Number(gl.taxPerUnit), 0)), tax);
+  const recTax = round2(tax - capTax);
+  const net = round2(subtotal - discount + capTax); const total = round2(net + recTax);
 
   const SENTINEL = "ROLLBACK"; const out: string[] = [];
   try {
@@ -85,7 +89,7 @@ async function main() {
         { accountId: A["2103"], debit: net, credit: 0 },
         { accountId: A["2101"], debit: 0, credit: total },
       ];
-      if (tax > 0 && A["1107"]) lines.splice(1, 0, { accountId: A["1107"], debit: tax, credit: 0 });
+      if (recTax > 0.004 && A["1107"]) lines.splice(1, 0, { accountId: A["1107"], debit: recTax, credit: 0 });
       await postEntry(tx, { orgId, date: new Date("2026-06-21"), sourceType: "PURCHASE_INVOICE", sourceId: inv.id, description: "test", journalType: "PURCHASE", lines });
       await tx.update(suppliers).set({ balance: sql`${suppliers.balance} + ${total}` }).where(eq(suppliers.id, grn.supplierId!));
       await tx.update(purchaseReceipts).set({ status: "INVOICED", purchaseInvoiceId: inv.id }).where(eq(purchaseReceipts.id, grn.id));
@@ -106,7 +110,7 @@ async function main() {
   } catch (e) {
     if (!(e instanceof Error) || e.message !== SENTINEL) throw e;
   }
-  console.log(`receipt ${grn.number} | net ${net} tax ${tax} total ${total}`);
+  console.log(`receipt ${grn.number} | net ${net} tax ${tax} (capitalised ${capTax} / recoverable ${recTax}) total ${total}`);
   for (const l of out) console.log(" ", l);
   console.log("(rolled back — no demo data changed)");
   process.exit(0);

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts, purchaseReturns, landedCostVouchers, landedCostVoucherLines } from "@/db/schema";
+import { purchaseInvoices, purchaseInvoiceLines, suppliers, items, purchaseReceipts, purchaseReceiptLines, purchaseReturns, landedCostVouchers, landedCostVoucherLines } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,7 +41,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
       .where(and(eq(purchaseInvoices.number, raw), eq(purchaseInvoices.organizationId, orgId))).limit(1);
     if (!inv) notFound();
 
-    const [[sup], lines, [grn], rets, audit, lcv] = await Promise.all([
+    const [[sup], lines, [grn], rets, audit, lcv, grnTax] = await Promise.all([
       inv.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, inv.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
@@ -65,7 +65,15 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
               eq(landedCostVouchers.status, "POSTED"),
             ))
         : Promise.resolve([] as { itemId: string; perUnit: string; number: string }[]),
+      // The VAT the receipt actually put into stock cost. Reading it from the receipt (not
+      // from the invoice's tax, and not from today's org setting) is what keeps this screen
+      // showing the same cost the ledger posted.
+      inv.goodsReceiptId
+        ? db.select({ itemId: purchaseReceiptLines.itemId, taxPerUnit: purchaseReceiptLines.taxPerUnit })
+            .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, inv.goodsReceiptId))
+        : Promise.resolve([] as { itemId: string; taxPerUnit: string }[]),
     ]);
+    const capTaxByItem = new Map(grnTax.map((r) => [r.itemId, Number(r.taxPerUnit)]));
 
     const landedByItem = new Map<string, number>();
     const lcvDocs: string[] = [];
@@ -79,9 +87,12 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
     const rows = lines.map((l) => {
       const q = Number(l.qty);
       const landed = landedByItem.get(l.itemId) ?? 0;
+      // Only VAT that was capitalised belongs in the cost; recoverable VAT is an asset
+      // against the tax authority, not part of what the goods cost.
+      const capTaxUnit = capTaxByItem.get(l.itemId) ?? 0;
       const unit = unitAllIn({
         quantity: q, unitPrice: Number(l.unitPrice), shippingPerUnit: Number(l.shipping),
-        taxAmount: Number(l.tax), discountAmount: Number(l.discount), landedPerUnit: landed,
+        taxAmount: q * capTaxUnit, discountAmount: Number(l.discount), landedPerUnit: landed,
       });
       return {
         ...l, q, landed, unit,

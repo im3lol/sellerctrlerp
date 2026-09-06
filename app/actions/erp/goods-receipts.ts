@@ -2,14 +2,14 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { round2 } from "@/lib/erp/money";
+import { round2, receivedUnitCost } from "@/lib/erp/money";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
   purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, stockBatches,
-  journalEntries, warehouses, stockSerials, qcInspections} from "@/db/schema";
+  journalEntries, warehouses, stockSerials, qcInspections, organizations} from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { inspectedItems, ensureQuarantineWarehouse } from "@/app/actions/erp/quality";
 import { getBaseCurrencyCode, resolveCurrency } from "@/lib/erp/currency";
@@ -112,8 +112,15 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
-    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, shippingPerUnit: purchaseOrderLines.shippingPerUnit, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
+    const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, shippingPerUnit: purchaseOrderLines.shippingPerUnit, taxAmount: purchaseOrderLines.taxAmount, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
       .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+
+    // Read the VAT policy ONCE, here, and store the result on every line below. From this
+    // moment the receipt's cost is settled: changing the setting later cannot restate what
+    // this document credited to GRNI.
+    const [org] = await db.select({ capitaliseVat: organizations.purchaseVatCapitalised })
+      .from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
+    const capitaliseVat = Boolean(org?.capitaliseVat);
 
     // Per-line pick warehouses flow into stock movements — verify they belong to the org.
     const pickWhIds = [...new Set((picks ?? []).map((p) => p.warehouseId).filter((w): w is string => !!w))];
@@ -123,7 +130,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       if (okWh.length !== pickWhIds.length) return { error: "مستودع غير صالح في أحد البنود" };
     }
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
-    const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null; shippingPerUnit: number }[] = [];
+    const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null; shippingPerUnit: number; taxPerUnit: number }[] = [];
     for (const l of orderLines) {
       const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
       const p = picks ? pickBy.get(l.itemId) : undefined;
@@ -138,7 +145,10 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       if (want > EPS && l.isPerishable && !(p?.expiryDate) && !(l.shelfLifeDays && l.shelfLifeDays > 0)) {
         return { error: `الصنف «${l.name || l.code}» قابل للتلف — حدِّد تاريخ صلاحية للاستلام (أو اضبط «مدة الصلاحية» للصنف).` };
       }
-      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null, shippingPerUnit: p?.shippingPerUnit ?? Number(l.shippingPerUnit) });
+      // The order's tax is a line amount; spread it the way the discount is spread.
+      const orderedQty = Number(l.quantity) || 0;
+      const taxPerUnit = capitaliseVat && orderedQty > 0 ? Number(l.taxAmount) / orderedQty : 0;
+      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null, shippingPerUnit: p?.shippingPerUnit ?? Number(l.shippingPerUnit), taxPerUnit });
     }
     if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
 
@@ -159,7 +169,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
         }).returning({ id: purchaseReceipts.id });
         await tx.insert(purchaseReceiptLines).values(toReceive.map((t) => ({
           purchaseReceiptId: grn.id, itemId: t.itemId, warehouseId: t.warehouseId,
-          quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate, shippingPerUnit: String(t.shippingPerUnit),
+          quantity: String(t.qty), rejectedQty: String(t.rejected), batchNo: t.batchNo, expiryDate: t.expiryDate, shippingPerUnit: String(t.shippingPerUnit), taxPerUnit: String(t.taxPerUnit),
         })));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: number, summary: `حفظ مسودة إذن استلام ${number} من أمر شراء ${po.number}` });
         return { id: grn.id, number };
@@ -237,7 +247,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
     // second time (doubled inventory + a GRNI credit nothing will ever clear).
     if (po.status === "INVOICED") return { error: "أمر الشراء مفوتر مباشرة — المخزون مستلم عبر الفاتورة، احذف مسودة الاستلام" };
 
-    const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate, shippingPerUnit: purchaseReceiptLines.shippingPerUnit })
+    const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity, warehouseId: purchaseReceiptLines.warehouseId, batchNo: purchaseReceiptLines.batchNo, expiryDate: purchaseReceiptLines.expiryDate, shippingPerUnit: purchaseReceiptLines.shippingPerUnit, taxPerUnit: purchaseReceiptLines.taxPerUnit })
       .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
     const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
     if (!A["1104"] || !A["2103"]) return { error: "حسابات الاستلام غير مكتملة (المخزون/بضاعة لم تُفوتر)." };
@@ -289,11 +299,17 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
           const qty = Number(gl.quantity);
           if (qty <= EPS) continue; // rejected-only line: recorded, no stock/GL
           const pol = poByItem.get(gl.itemId)!;
-          // Capitalise the per-unit shipping into the inventory cost. Price/discount
-          // still come from the PO line, but shipping is THIS receipt's own real
-          // freight cost — each delivery batch can carry a different rate.
-          //
-          const unitNet = Number(pol.unitPrice) - Number(pol.discountAmount) / (Number(pol.quantity) || 1) + Number(gl.shippingPerUnit);
+          // Price and discount come from the PO line; shipping and VAT from THIS receipt
+          // (each delivery carries its own freight, and the tax snapshot fixes what was
+          // capitalised at creation). Same function receiptLineCosts calls — the invoice
+          // debits GRNI with exactly what this credits.
+          const unitNet = receivedUnitCost({
+            quantity: Number(pol.quantity),
+            unitPrice: Number(pol.unitPrice),
+            discountAmount: Number(pol.discountAmount),
+            shippingPerUnit: Number(gl.shippingPerUnit),
+            taxPerUnit: Number(gl.taxPerUnit),
+          });
           received += round2(qty * unitNet);
           const destinationId = gl.warehouseId || grn.warehouseId;
           const holdForQc = needsQc.has(gl.itemId) && quarantineId;
