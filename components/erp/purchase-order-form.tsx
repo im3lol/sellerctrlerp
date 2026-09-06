@@ -295,7 +295,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 <TableHead className="w-28 text-start">الوحدة</TableHead>
                 <TableHead className="w-28 text-start">الكمية</TableHead>
                 <TableHead className="w-36 text-start">السعر</TableHead>
+                <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
+                <TableHead className="w-28 text-start">الضريبة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="w-8" />
@@ -326,7 +328,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                     {/* Shown in the chosen unit, stored in base: 5 cartons writes 60 pieces. */}
                     <TableCell><Input type="number" step="any" min="0" value={fromBaseQuantity(l.quantity, l.uomFactor)} onChange={(e) => setLine(i, { quantity: toBaseQuantity(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
                     <TableCell><Input type="number" step="0.01" inputMode="decimal" value={round2(l.unitPrice * l.uomFactor)} onChange={(e) => setLine(i, { unitPrice: toBasePrice(Number(e.target.value) || 0, l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    {/* Internal freight agreed with the supplier — shown per the chosen unit
+                        like the price, stored per base unit. The receipt inherits it. */}
+                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={round2(l.shippingPerUnit * l.uomFactor)} onChange={(e) => setLine(i, { shippingPerUnit: toBasePrice(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    {/* VAT is the document-level choice, not a per-line entry — read only. */}
+                    <TableCell className="tabular-nums text-muted-foreground">{fmt(lineTax(l, vatRate, applyVat))}</TableCell>
                     <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>
@@ -337,10 +344,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         </div>
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
 
-        {/* Freight lives on its own document now — entering it here too would capitalise
-            the same cost twice (once at receipt confirm, once on the voucher). */}
+        {/* Two different costs, two different places. What the supplier charges for
+            getting the goods to you is part of the agreed price and belongs on the line
+            above (the receipt inherits it and capitalises it). Import freight and customs
+            arrive later, from other suppliers, on their own voucher — entering those here
+            would capitalise the same cost twice. */}
         <p className="text-xs text-muted-foreground">
-          تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على إذون الاستلام.
+          «شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه.
+          أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».
         </p>
 
         <div className="flex items-start justify-between gap-4 text-sm">
