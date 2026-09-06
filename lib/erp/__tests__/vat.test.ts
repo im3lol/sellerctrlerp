@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { lineVat, extractInclusiveVat, splitInclusiveOrderVat } from "../vat";
+import { round2 } from "../money";
 
 describe("lineVat", () => {
   it("applies the rate to (qty*price − discount)", () => {
@@ -46,5 +47,25 @@ describe("splitInclusiveOrderVat", () => {
   it("zero rate leaves prices as-is (tax 0)", () => {
     const r = splitInclusiveOrderVat([{ qty: 2, lineTotal: 100 }], 0);
     expect(r).toEqual({ subtotalNet: 100, taxTotal: 0, lines: [{ unitPriceNet: 50, taxAmount: 0 }] });
+  });
+});
+
+// The real Amazon order from the bug report: the marketplace said EGP 999.00 and the
+// importer recorded 876.32 + 122.68 VAT, on a channel that charges no VAT at all.
+describe("marketplace order split", () => {
+  const order = [{ qty: 1, lineTotal: 999 }];
+
+  it("leaves the price alone when the channel does not price VAT-inclusive", () => {
+    // rate 0 is how the platform switch says "no tax here" — the gate, not a special case.
+    const r = splitInclusiveOrderVat(order, 0);
+    expect(r.lines[0]).toEqual({ unitPriceNet: 999, taxAmount: 0 });
+    expect(r.subtotalNet).toBe(999);
+    expect(r.taxTotal).toBe(0);
+  });
+
+  it("carves the VAT out when the channel does", () => {
+    const r = splitInclusiveOrderVat(order, 14);
+    expect(r.lines[0]).toEqual({ unitPriceNet: 876.32, taxAmount: 122.68 });
+    expect(round2(r.subtotalNet + r.taxTotal)).toBe(999); // gross preserved either way
   });
 });

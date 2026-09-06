@@ -918,6 +918,13 @@
       "when": 1788619210002,
       "tag": "0130_purchase_vat_capitalised",
       "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1788619210003,
+      "tag": "0131_platform_prices_include_vat",
+      "breakpoints": true
     }
   ]
 }

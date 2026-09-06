@@ -2700,6 +2700,12 @@ export const salesPlatforms = pgTable(
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
+    // Do this channel's prices already contain VAT? Off by default, and off is the honest
+    // answer for a seller who isn't charging it: the order imports at the price the buyer
+    // paid, with no tax line. On, the importer carves the VAT out of the gross so output
+    // VAT (2102) is recognised — the gross total is preserved either way, so settlement
+    // reconciliation is unaffected by the choice.
+    pricesIncludeVat: boolean("prices_include_vat").notNull().default(false),
     // Deprecated — superseded by autoMode. Kept so legacy rows stay valid; not read.
     autoInvoice: boolean("auto_invoice").notNull().default(true),
     // What the automatic order flow creates from a marketplace order:
