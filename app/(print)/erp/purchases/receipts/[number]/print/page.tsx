@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses } from "@/db/schema";
-import { qty, dt } from "@/lib/erp/print-format";
+import { purchaseReceipts, purchaseReceiptLines, suppliers, items, warehouses, landedCostVouchers, landedCostVoucherLines } from "@/db/schema";
+import { qty, dt, fmt } from "@/lib/erp/print-format";
+import { receiptLineCosts } from "@/lib/erp/receipt-cost";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 
@@ -14,14 +15,20 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 /**
- * إذن الاستلام — what the storekeeper actually counted.
+ * إذن الاستلام — what the storekeeper actually counted, and what it cost.
  *
- * No prices, like the delivery note: this is the inspection record, and the rejected
- * column is the point of it — it's the evidence behind a short-delivery claim.
+ * The rejected column is the point of it: it's the evidence behind a short-delivery claim.
+ *
+ * Cost was deliberately left off this sheet — it's signed by the supplier's driver, and
+ * you don't hand someone your landed cost. It's here now because the receipt is what
+ * capitalised the stock and the owner wants it on the document, but it's gated twice: the
+ * viewer needs purchases.create or accounting.view, AND the columns are ordinary print
+ * columns, so «الإعدادات ← الطباعة» can switch them off for the copy that gets signed.
  */
 export default async function PrintGoodsReceiptPage({ params }: Params) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.view", async ({ orgId, can }) => {
+    const canSeeCost = can("purchases.create") || can("accounting.view");
     const [grn] = await db
       .select()
       .from(purchaseReceipts)
@@ -39,6 +46,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
         .where(eq(warehouses.id, grn.warehouseId)).limit(1).then((r) => r[0]),
       db
         .select({
+          itemId: purchaseReceiptLines.itemId,
           qty: purchaseReceiptLines.quantity,
           rejectedQty: purchaseReceiptLines.rejectedQty,
           batchNo: purchaseReceiptLines.batchNo,
@@ -51,6 +59,25 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
         .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
         .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id)),
     ]);
+
+    // Same figures the screen and the GRNI posting use — `receiptLineCosts`, not a second
+    // copy of the arithmetic — plus whatever POSTED import-cost vouchers loaded on.
+    const costByItem = new Map<string, number>();
+    const landedByItem = new Map<string, number>();
+    if (canSeeCost) {
+      for (const l of await receiptLineCosts(db, grn)) costByItem.set(l.itemId, l.unitNet);
+      const lcv = await db.select({ itemId: landedCostVoucherLines.itemId, perUnit: landedCostVoucherLines.perUnit })
+        .from(landedCostVoucherLines)
+        .innerJoin(landedCostVouchers, eq(landedCostVouchers.id, landedCostVoucherLines.voucherId))
+        .where(and(
+          eq(landedCostVoucherLines.purchaseReceiptId, grn.id),
+          eq(landedCostVouchers.organizationId, orgId),
+          eq(landedCostVouchers.status, "POSTED"),
+        ));
+      for (const v of lcv) landedByItem.set(v.itemId, (landedByItem.get(v.itemId) ?? 0) + Number(v.perUnit));
+    }
+    const unitAllInFor = (itemId: string) => (costByItem.get(itemId) ?? 0) + (landedByItem.get(itemId) ?? 0);
+    const totalValue = lines.reduce((s, l) => s + Number(l.qty ?? 0) * unitAllInFor(l.itemId), 0);
 
     const accepted = lines.reduce((s, l) => s + Number(l.qty ?? 0), 0);
     const rejected = lines.reduce((s, l) => s + Number(l.rejectedQty ?? 0), 0);
@@ -80,8 +107,12 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
           { label: "صورة", align: "center" as const, width: "9%" },
           { label: "الصنف", width: hasBatch ? "34%" : "54%" },
           ...(hasBatch ? [{ label: "التشغيلة / الصلاحية", width: "20%" }] : []),
-          { label: "المستلم", align: "end" as const, width: "16%" },
-          { label: "المرفوض", align: "end" as const, width: "17%" },
+          { label: "المستلم", align: "end" as const, width: canSeeCost ? "10%" : "16%" },
+          { label: "المرفوض", align: "end" as const, width: canSeeCost ? "10%" : "17%" },
+          ...(canSeeCost ? [
+            { label: "تكلفة القطعة الشاملة", align: "end" as const, width: "14%" },
+            { label: "الإجمالي", align: "end" as const, width: "13%" },
+          ] : []),
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
@@ -107,9 +138,20 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
           <span key="r" style={{ color: Number(l.rejectedQty ?? 0) > 0 ? "#d64545" : "#8a93a6" }}>
             {Number(l.rejectedQty ?? 0) > 0 ? qty(l.rejectedQty) : "—"}
           </span>,
+          ...(canSeeCost ? [
+            <b key="u">{fmt(unitAllInFor(l.itemId))}</b>,
+            <span key="v">{fmt(Number(l.qty ?? 0) * unitAllInFor(l.itemId))}</span>,
+          ] : []),
         ])}
-        totals={rejected > 0 ? [{ label: "إجمالي المرفوض", value: qty(rejected), tone: "danger" as const }] : []}
-        balance={{ label: "إجمالي المستلم", value: qty(accepted) }}
+        totals={[
+          ...(rejected > 0 ? [{ label: "إجمالي المرفوض", value: qty(rejected), tone: "danger" as const }] : []),
+          // Without cost the received quantity IS the bottom line, so it stays in `balance`
+          // alone; with cost it moves up here and the value takes the bottom line.
+          ...(canSeeCost ? [{ label: "إجمالي المستلم", value: qty(accepted) }] : []),
+        ]}
+        balance={canSeeCost
+          ? { label: "قيمة البضاعة الشاملة", value: fmt(totalValue) }
+          : { label: "إجمالي المستلم", value: qty(accepted) }}
         note={grn.notes}
         signatures={["المورّد", "أمين المخزن", "الفحص"]}
       />
