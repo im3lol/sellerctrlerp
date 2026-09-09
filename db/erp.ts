@@ -2121,6 +2121,9 @@ export const salesInvoiceLines = pgTable(
     discountAmount: money("discount_amount").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
     totalAmount: money("total_amount").notNull(),
+    // DEAD: nothing has ever written this — every row is 0. Cost of sales is posted by
+    // the DELIVERY as a stock movement, so read it from there (lib/erp/sales-cogs.ts).
+    // Both P&L engines used to sum this column and reported a cost of zero.
     costAmount: money("cost_amount").notNull().default("0"),
   },
   (t) => [

@@ -8,6 +8,7 @@ import {
 } from "@/db/schema";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { liveInvoice } from "@/lib/erp/invoice-status";
+import { itemSalesCogs } from "@/lib/erp/sales-cogs";
 
 export type ItemPnl = {
   units: number;        // units sold (posted invoices)
@@ -37,7 +38,6 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
     .select({
       units: sql<string>`coalesce(sum(${salesInvoiceLines.quantity}), 0)`,
       revenue: sql<string>`coalesce(sum(${salesInvoiceLines.totalAmount} - ${salesInvoiceLines.taxAmount}), 0)`,
-      cogs: sql<string>`coalesce(sum(${salesInvoiceLines.costAmount}), 0)`,
     })
     .from(salesInvoiceLines)
     .innerJoin(salesInvoices, eq(salesInvoices.id, salesInvoiceLines.salesInvoiceId))
@@ -65,7 +65,9 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
     : [{ referral: "0", fba: "0", other: "0", n: "0" }];
 
   const revenue = Number(sales?.revenue ?? 0);
-  const cogs = Number(sales?.cogs ?? 0);
+  // From the stock ledger, not the invoice line: nothing writes `cost_amount`, so the
+  // old `sum(costAmount)` reported every product as pure profit. See lib/erp/sales-cogs.ts.
+  const cogs = await itemSalesCogs(orgId, itemId);
   const referralFee = Number(fees?.referral ?? 0);
   const fbaFee = Number(fees?.fba ?? 0);
   const otherFee = Number(fees?.other ?? 0);
