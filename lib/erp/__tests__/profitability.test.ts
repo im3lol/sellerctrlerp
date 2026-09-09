@@ -22,13 +22,50 @@ describe("buildProfitability", () => {
     expect(r.profit).toBe(200);
   });
 
-  it("per-unit marketplace fees produce netProfit = profit − qty×fee", () => {
+  it("takes marketplace fees as the period TOTAL, not a per-unit rate", () => {
+    // The fee map is what Amazon actually deducted in settlements. Multiplying it by
+    // quantity — which this used to do — reported a real 1,046.66 of fees on a
+    // 4-unit item as 4,186.64 and turned a profitable product into a loss.
     const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 10, revenue: 1000 }];
-    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 600]]), new Map([["i1", 15]]));
+    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 600]]), new Map([["i1", 150]]));
     expect(r.profit).toBe(400);
-    expect(r.fees).toBe(150); // 10 × 15
+    expect(r.fees).toBe(150); // not 1500
     expect(r.netProfit).toBe(250);
     expect(r.netMargin).toBeCloseTo(25, 5);
+  });
+
+  it("gives the per-unit view a trader prices against", () => {
+    // 10 sold for 1000 net, 600 of cost, 150 of Amazon fees.
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 10, revenue: 1000 }];
+    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 600]]), new Map([["i1", 150]]), 25);
+    expect(r.avgSellPrice).toBe(100);
+    expect(r.unitCost).toBe(60);
+    expect(r.unitFees).toBe(15);
+    expect(r.breakEven).toBe(75);   // below this the piece loses money
+    expect(r.gap).toBe(25);         // selling 25 above break-even
+    expect(r.suggested).toBe(100);  // 75 / (1 − 0.25)
+  });
+
+  it("flags a product being sold below what it costs to sell", () => {
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 4, revenue: 280 }];
+    const [r] = buildProfitability(rows, new Map(), new Map([["i1", 240]]), new Map([["i1", 80]]));
+    expect(r.avgSellPrice).toBe(70);
+    expect(r.breakEven).toBe(80);
+    expect(r.gap).toBe(-10); // losing 10 a piece
+    expect(r.netProfit).toBe(-40);
+  });
+
+  it("offers no suggested price when the target margin is impossible", () => {
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 1, revenue: 100 }];
+    expect(buildProfitability(rows, new Map(), new Map([["i1", 50]]), undefined, 100)[0].suggested).toBe(0);
+    expect(buildProfitability(rows, new Map(), new Map([["i1", 50]]))[0].suggested).toBe(0);
+  });
+
+  it("does not divide by a zero quantity", () => {
+    const rows: ProfitInput[] = [{ itemId: "i1", code: "A", name: "صنف", qty: 0, revenue: 0 }];
+    const [r] = buildProfitability(rows, new Map(), new Map(), new Map([["i1", 5]]), 25);
+    expect(r.avgSellPrice).toBe(0);
+    expect(r.breakEven).toBe(0);
   });
 
   it("no fees map → fees 0 and netProfit === profit", () => {
