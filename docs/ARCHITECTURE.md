@@ -271,7 +271,7 @@ The one target:
   cp -r .next/static .next/standalone/.next/ \
     && cp -r public .next/standalone/ \
     && cp .env .next/standalone/.env
-  docker compose -f docker/docker-compose.yml --profile app up -d --build app
+  docker compose -f docker/docker-compose.yml --profile app up -d --build app worker
   ```
 
 Env is validated at boot by `lib/env.ts` — `DATABASE_URL` + `AUTH_SECRET` are required;

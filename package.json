@@ -16,6 +16,7 @@
     "db:rls": "tsx --tsconfig tsconfig.script.json scripts/apply-rls.ts",
     "rls:leak": "tsx --tsconfig tsconfig.script.json scripts/rls-leak-check.ts",
     "test:engine": "tsx --tsconfig tsconfig.script.json scripts/engine-check.ts",
+    "deploy": "bash scripts/deploy.sh",
     "gen:secrets": "tsx --tsconfig tsconfig.script.json scripts/gen-secrets.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --tsconfig tsconfig.script.json scripts/apply-rls.ts 00-appuser.sql && drizzle-kit migrate",
