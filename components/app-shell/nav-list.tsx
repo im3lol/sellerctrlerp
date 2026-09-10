@@ -44,7 +44,7 @@ function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked — the sidebar still works, it just forgets */ }
 }
 
-export function NavList({ role, erpPermissions, modules, platforms, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
+export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void }) {
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
@@ -57,7 +57,12 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
       ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
       : section;
 
-  const sections = NAV.map(withDynamic);
+  // Three reasons a section can be absent, and they are NOT the same thing: the
+  // subscription (the tenant has no such module), the member's permissions (they may
+  // not open it), and this — the owner simply doesn't want it in the list. Only the
+  // first two deny access; a hidden section's pages still open by direct link.
+  const hidden = new Set(navHidden ?? []);
+  const sections = NAV.filter((sec) => !sec.heading || !hidden.has(sec.heading)).map(withDynamic);
 
   // ── persisted open state ────────────────────────────────────────────────────
   // Keyed by HEADING, not array index: an index silently reopens the wrong module

@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { saveOrgProfileAction, saveAccountingConfigAction, uploadOrgLogoAction } from "@/app/actions/erp/settings";
+import { HIDEABLE_SECTIONS } from "@/components/app-shell/nav-config";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ export type OrgProfile = {
   address: string | null; phone: string | null; email: string | null; logo: string | null;
   vatRate: string; fiscalYearStart: string | null; poApprovalThreshold: string;
   purchaseVatCapitalised: boolean;
+  navHidden: string[];
 };
 
 export type AccountOption = { id: string; code: string; nameAr: string; type: string };
@@ -137,6 +139,27 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="poApprovalThreshold">حد اعتماد أوامر الشراء</Label><Input id="poApprovalThreshold" name="poApprovalThreshold" type="number" step="0.01" min="0" defaultValue={profile.poApprovalThreshold} dir="ltr" placeholder="0 = بدون اعتماد" /></div>
                 {/* Which side of the ledger purchase VAT lands on. Only new goods receipts
                     read it — anything already confirmed keeps the cost it was posted at. */}
+                {/* Which modules earn a row in the sidebar. Not permissions and not the
+                    subscription — both of those already deny access. This is the owner
+                    saying "we don't use that", so ninety items stop being ninety. */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>الأقسام الظاهرة في القائمة</Label>
+                  <div className="grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {HIDEABLE_SECTIONS.map((h) => (
+                      <label key={h} className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input type="hidden" name="navHideable" value={h} />
+                        <input type="checkbox" name={`navShow:${h}`} className="size-4 rounded border-input"
+                          defaultChecked={!profile.navHidden.includes(h)} />
+                        {h}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ده إخفاء من القائمة بس — مش صلاحيات. الصفحة تفضل شغالة بالرابط المباشر لأي حد له صلاحية عليها،
+                    والقسم اللي مش في اشتراكك مخفي أصلاً.
+                  </p>
+                </div>
+
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="purchaseVatCapitalised">ضريبة المشتريات</Label>
                   <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">

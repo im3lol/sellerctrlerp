@@ -19,6 +19,7 @@ export function Topbar({
   activeOrgId,
   erpPermissions,
   modules,
+  navHidden,
   platforms,
 }: {
   user: { name: string; email: string; role: Role; title?: string | null; avatarUrl?: string | null };
@@ -26,6 +27,7 @@ export function Topbar({
   activeOrgId: string | null;
   erpPermissions: string[];
   modules: string[];
+  navHidden?: string[];
   platforms?: { id: string; name: string; code: string }[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,7 +51,7 @@ export function Topbar({
             <Logo className="text-2xl text-sidebar-foreground" />
           </div>
           {/* Close the drawer when a link/heading navigates. */}
-          <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} onNavigate={() => setMenuOpen(false)} />
+          <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} navHidden={navHidden} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
       </Sheet>
 

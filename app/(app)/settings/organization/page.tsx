@@ -22,6 +22,7 @@ export default async function OrganizationSettingsPage() {
       fiscalYearStart: org?.fiscalYearStart ?? null,
       poApprovalThreshold: org?.poApprovalThreshold ?? "0",
       purchaseVatCapitalised: Boolean(org?.purchaseVatCapitalised),
+      navHidden: org?.navHidden ?? [],
     };
 
     return (

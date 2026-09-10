@@ -270,3 +270,14 @@ export const NAV: NavSection[] = [
     ],
   },
 ];
+
+/**
+ * Sections an owner may hide from the sidebar. Derived from NAV, so a module added
+ * later shows up here without anyone remembering to update a second list.
+ *
+ * Display only. The subscription and the member's permissions decide ACCESS; this
+ * decides what earns a row in a list that already has ninety of them.
+ */
+export const HIDEABLE_SECTIONS = NAV
+  .filter((s) => !!s.heading && s.heading !== "الإدارة والإعدادات")
+  .map((s) => s.heading as string);
