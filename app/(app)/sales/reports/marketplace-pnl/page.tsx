@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
+import { FeeCell } from "@/components/erp/fee-cell";
 
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const qtyf = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const pct = (n: number) => `${n.toFixed(1)}%`;
 const dt = (d: Date | null) => (d ? new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
@@ -90,6 +92,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
             <CardTitle>على مستوى الطلب</CardTitle>
             <CardDescription>
               كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون.
+              «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.
               {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).</span>}
               {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.</span>}
             </CardDescription>
@@ -106,9 +109,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                     <TableHead className="text-start">أمر البيع</TableHead>
                     <TableHead className="text-end">المبيعات</TableHead>
                     <TableHead className="text-end">مرتجع</TableHead>
-                    <TableHead className="text-end">عمولة</TableHead>
-                    <TableHead className="text-end">FBA</TableHead>
-                    <TableHead className="text-end">رسوم أخرى</TableHead>
+                    <TableHead className="text-end">العمولة</TableHead>
                     <TableHead className="text-end">التكلفة</TableHead>
                     <TableHead className="text-end">الصافي</TableHead>
                     <TableHead className="text-end">الهامش</TableHead>
@@ -125,9 +126,9 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                       <TableCell className="font-mono text-xs">{r.orderNumber ?? "—"}</TableCell>
                       <TableCell className="text-end tabular-nums">{fmt(r.sales)}</TableCell>
                       <TableCell className="text-end tabular-nums text-destructive">{r.refunds !== 0 ? fmt(r.refunds) : "—"}</TableCell>
-                      <TableCell className="text-end tabular-nums text-amber-600">{fmt(r.commission)}</TableCell>
-                      <TableCell className="text-end tabular-nums text-amber-600">{fmt(r.fbaFee)}</TableCell>
-                      <TableCell className="text-end tabular-nums text-amber-600">{r.otherFees !== 0 ? fmt(r.otherFees) : "—"}</TableCell>
+                      <TableCell className="text-end">
+                        <FeeCell commission={r.commission} commissionTax={r.commissionTax} fbaFee={r.fbaFee} fbaFeeTax={r.fbaFeeTax} otherFees={r.otherFees} />
+                      </TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{r.hasCogs ? fmt(r.cogs) : "—"}</TableCell>
                       <TableCell className={`text-end tabular-nums font-medium ${r.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.net)}</TableCell>
                       <TableCell className="text-end tabular-nums">{pct(r.margin)}</TableCell>
@@ -158,8 +159,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                     <TableHead className="text-start">الصنف</TableHead>
                     <TableHead className="text-end">الكمية</TableHead>
                     <TableHead className="text-end">المبيعات</TableHead>
-                    <TableHead className="text-end">عمولة</TableHead>
-                    <TableHead className="text-end">FBA</TableHead>
+                    <TableHead className="text-end">العمولة</TableHead>
                     <TableHead className="text-end">التكلفة</TableHead>
                     <TableHead className="text-end">الصافي</TableHead>
                     <TableHead className="text-end">متوسط البيع</TableHead>
@@ -180,8 +180,9 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                         </TableCell>
                         <TableCell className="text-end tabular-nums">{qtyf(r.units)}</TableCell>
                         <TableCell className="text-end tabular-nums">{fmt(r.sales)}</TableCell>
-                        <TableCell className="text-end tabular-nums text-amber-600">{fmt(r.commission)}</TableCell>
-                        <TableCell className="text-end tabular-nums text-amber-600">{fmt(r.fbaFee)}</TableCell>
+                        <TableCell className="text-end">
+                          <FeeCell commission={r.commission} commissionTax={r.commissionTax} fbaFee={r.fbaFee} fbaFeeTax={r.fbaFeeTax} otherFees={r.otherFees} />
+                        </TableCell>
                         <TableCell className="text-end tabular-nums text-muted-foreground">{r.hasCogs ? fmt(r.cogs) : "—"}</TableCell>
                         <TableCell className={`text-end tabular-nums font-medium ${r.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.net)}</TableCell>
                         <TableCell className="text-end tabular-nums">{fmt(r.unitSale)}</TableCell>
