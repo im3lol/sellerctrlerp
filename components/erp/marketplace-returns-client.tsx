@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { confirmPlatformReturnAction, type MarketplaceReturnRow } from "@/app/actions/erp/platform-returns";
-import type { ReturnReceipt } from "@/lib/erp/return-disposition";
+import type { ReturnCondition, NotReceivedReason } from "@/lib/erp/return-disposition";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -18,12 +18,29 @@ const dt = (s: string) => new Date(s).toLocaleDateString("en-GB", { year: "numer
 
 type Warehouse = { id: string; name: string };
 
-/** The three decisions, with what each one actually does spelled out. */
-const CHOICES: { key: ReturnReceipt; label: string; hint: string; icon: typeof PackageCheck; tone: string }[] = [
-  { key: "RECEIVED_SELLABLE", label: "سليم", hint: "عكس الفاتورة + رجوع للمخزون القابل للبيع", icon: PackageCheck, tone: "text-emerald-600" },
-  { key: "RECEIVED_DAMAGED", label: "تالف", hint: "عكس الفاتورة + البضاعة تتحط في المخزن اللي تختاره أو تتعدم", icon: PackageX, tone: "text-amber-600" },
-  { key: "NOT_RECEIVED", label: "ماستلمتوش", hint: "عكس الفاتورة بس — مفيش مخزون، في انتظار تعويض", icon: HandCoins, tone: "text-muted-foreground" },
+/**
+ * What was in the box. "Damaged" is not one thing: a dented BOX still sells, a scratched
+ * or opened or used unit is real stock that just can't be sold as new, and a destroyed
+ * one is worth nothing and must never enter a warehouse.
+ */
+const CONDITIONS: { key: ReturnCondition; label: string; effect: string; tone: string }[] = [
+  { key: "SELLABLE", label: "سليم", effect: "يرجع للمخزون القابل للبيع", tone: "text-emerald-600" },
+  { key: "PACKAGING_DAMAGED", label: "العبوة تالفة والمنتج سليم", effect: "يرجع للمخزون القابل للبيع", tone: "text-emerald-600" },
+  { key: "OPENED", label: "مفتوح", effect: "يرجع للمخزون بس مش للبيع كجديد", tone: "text-amber-600" },
+  { key: "SCRATCHED", label: "مخربش", effect: "يرجع للمخزون بس مش للبيع كجديد", tone: "text-amber-600" },
+  { key: "USED", label: "مستخدم", effect: "يرجع للمخزون بس مش للبيع كجديد", tone: "text-amber-600" },
+  { key: "DESTROYED", label: "تالف خالص", effect: "إعدام — مايدخلش أي مخزن", tone: "text-destructive" },
 ];
+
+/** Nothing came back — and which of these it was decides the claim you can make. */
+const REASONS: { key: NotReceivedReason; label: string }[] = [
+  { key: "NEVER_ARRIVED", label: "مرجعش أصلاً" },
+  { key: "WRONG_ITEM", label: "رجع منتج مختلف" },
+  { key: "SHORT_QUANTITY", label: "رجعت كمية أقل" },
+];
+
+/** Conditions that keep the unit off sale but still in stock — these need a destination. */
+const NEEDS_WAREHOUSE = new Set<ReturnCondition>(["OPENED", "SCRATCHED", "USED"]);
 
 /**
  * Marketplace customer returns awaiting a receipt decision.
@@ -49,11 +66,20 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
       .some((v) => (v ?? "").toLowerCase().includes(needle)));
   }, [rows, q]);
 
-  const act = (id: string, receipt: ReturnReceipt) => start(async () => {
-    setBusy(id);
-    const r = await confirmPlatformReturnAction(id, receipt, receipt === "RECEIVED_DAMAGED" ? (dest[id] || null) : null);
+  // Per-row decision state. Nothing is sent until the trader presses تأكيد, because
+  // every one of these outcomes is irreversible once it posts.
+  const [cond, setCond] = useState<Record<string, ReturnCondition | "">>({});
+  const [reason, setReason] = useState<Record<string, NotReceivedReason>>({});
+  const [qty, setQty] = useState<Record<string, string>>({});
+
+  const confirm = (o: MarketplaceReturnRow) => start(async () => {
+    setBusy(o.id);
+    const c = cond[o.id];
+    const r = await confirmPlatformReturnAction(o.id, c
+      ? { kind: "RECEIVED", condition: c, quantity: qty[o.id] ? Number(qty[o.id]) : null, warehouseId: dest[o.id] || null }
+      : { kind: "NOT_RECEIVED", reason: reason[o.id] ?? "NEVER_ARRIVED" });
     if ("error" in r) toast.error(r.error, { duration: 8000 });
-    else { setRows((rs) => rs.filter((x) => x.id !== id)); toast.success("تمّ الترحيل على الفاتورة والمخزون والطلب"); }
+    else { setRows((rs) => rs.filter((x) => x.id !== o.id)); toast.success("تمّ الترحيل على الفاتورة والمخزون والطلب"); }
     setBusy(null);
   });
 
@@ -68,13 +94,17 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
           <p className="text-sm text-muted-foreground">
             دي مرتجعات عملاء من المنصات، لسه <b>مسودّات</b>. العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.
           </p>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {CHOICES.map((c) => (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {CONDITIONS.map((c) => (
               <div key={c.key} className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
-                <c.icon className={`mt-0.5 size-4 shrink-0 ${c.tone}`} />
-                <span><b>{c.label}</b> — {c.hint}</span>
+                <PackageCheck className={`mt-0.5 size-4 shrink-0 ${c.tone}`} />
+                <span><b>{c.label}</b> — {c.effect}</span>
               </div>
             ))}
+            <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+              <HandCoins className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <span><b>ماستلمتوش</b> — عكس الفاتورة بس، مفيش مخزون، في انتظار تعويض</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -126,27 +156,54 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                       </TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(totalQty)}</TableCell>
                       <TableCell className="text-end tabular-nums font-medium">{fmt(o.total)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {CHOICES.map((c) => (
-                            <Button key={c.key} size="sm" variant="outline" disabled={isBusy}
-                              title={c.hint} onClick={() => act(o.id, c.key)}>
-                              {isBusy && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <c.icon className={`size-4 ${c.tone}`} />}
-                              {c.label}
-                            </Button>
-                          ))}
-                        </div>
-                        {warehouses.length > 0 && (
+                      <TableCell className="min-w-[280px]">
+                        <select
+                          className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                          value={cond[o.id] ?? ""}
+                          onChange={(e) => setCond((d) => ({ ...d, [o.id]: e.target.value as ReturnCondition | "" }))}
+                        >
+                          <option value="">ماستلمتوش</option>
+                          {CONDITIONS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                        </select>
+
+                        {/* Nothing came back: which of these decides the claim you can make. */}
+                        {!cond[o.id] && (
+                          <select
+                            className="mt-1.5 h-8 w-full rounded-md border bg-background px-2 text-xs"
+                            value={reason[o.id] ?? "NEVER_ARRIVED"}
+                            onChange={(e) => setReason((d) => ({ ...d, [o.id]: e.target.value as NotReceivedReason }))}
+                          >
+                            {REASONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                          </select>
+                        )}
+
+                        {/* Real stock, just not sellable as new — it needs somewhere to go. */}
+                        {cond[o.id] && NEEDS_WAREHOUSE.has(cond[o.id] as ReturnCondition) && warehouses.length > 0 && (
                           <select
                             className="mt-1.5 h-8 w-full rounded-md border bg-background px-2 text-xs"
                             value={dest[o.id] ?? ""}
                             onChange={(e) => setDest((d) => ({ ...d, [o.id]: e.target.value }))}
-                            title="وجهة البضاعة التالفة"
                           >
-                            <option value="">التالف: الافتراضي (مخزن التوالف أو إعدام)</option>
-                            {warehouses.map((w) => <option key={w.id} value={w.id}>التالف → {w.name}</option>)}
+                            <option value="">الوجهة: الافتراضي (مخزن التوالف أو إعدام)</option>
+                            {warehouses.map((w) => <option key={w.id} value={w.id}>→ {w.name}</option>)}
                           </select>
                         )}
+
+                        {/* Fewer units in the box than were billed — credit only those. */}
+                        {cond[o.id] && (
+                          <Input
+                            type="number" step="any" min="0" max={totalQty}
+                            className="mt-1.5 h-8 text-xs"
+                            placeholder={`الكمية المستلمة (${qtyf(totalQty)})`}
+                            value={qty[o.id] ?? ""}
+                            onChange={(e) => setQty((d) => ({ ...d, [o.id]: e.target.value }))}
+                          />
+                        )}
+
+                        <Button size="sm" className="mt-2 w-full" disabled={isBusy} onClick={() => confirm(o)}>
+                          {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageX className="size-4" />}
+                          تأكيد
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

@@ -8,8 +8,12 @@ import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders, deliveryNotes, salesInvoices, salesInvoiceLines, salesReturns, salesReturnLines, items, itemCodes, platformReturns, customers, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { normalizeCode } from "@/lib/erp/amazon-import";
+import { round2 } from "@/lib/erp/money";
 import { createSalesReturnAction, confirmSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
-import { planReceipt, RETURN_RECEIPTS, type ReturnReceipt } from "@/lib/erp/return-disposition";
+import {
+  planCondition, RETURN_CONDITIONS, NOT_RECEIVED_REASONS,
+  type ReturnCondition, type NotReceivedReason,
+} from "@/lib/erp/return-disposition";
 
 const returnSchema = z.object({
   externalOrderId: z.string().trim().min(1),
@@ -124,25 +128,66 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
  * return carries deliveryNoteId + salesOrderId and drops deliveredQty. Idempotent-ish: a
  * money return already POSTED is left alone; a linked platform_returns row is stamped.
  */
+/** What the trader found when the parcel was opened. */
+export type ReturnDecision =
+  | {
+      kind: "RECEIVED";
+      condition: ReturnCondition;
+      /** Units actually in the box. Fewer than billed → the credit is trimmed to match. */
+      quantity?: number | null;
+      /** Where unsellable-but-real goods go. Unset = the org's damaged warehouse. */
+      warehouseId?: string | null;
+    }
+  | { kind: "NOT_RECEIVED"; reason: NotReceivedReason };
+
 export async function confirmPlatformReturnAction(
   salesReturnId: string,
-  receipt: ReturnReceipt,
-  // Where a damaged unit goes. Left unset it falls back to the org's configured damaged
-  // warehouse, or a write-off when there is none — which was the only behaviour there
-  // used to be. A returned unit isn't always the same decision twice, so the choice
-  // belongs to whoever is holding it.
-  damagedWarehouseId?: string | null,
+  decision: ReturnDecision,
 ): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm", "marketplace");
   if ("error" in auth) return auth;
-  if (!RETURN_RECEIPTS.includes(receipt)) return { error: "قرار استلام غير صالح" };
-  const plan = planReceipt(receipt);
+
+  const received = decision.kind === "RECEIVED";
+  if (received && !RETURN_CONDITIONS.includes(decision.condition)) return { error: "حالة الصنف غير صالحة" };
+  if (!received && !NOT_RECEIVED_REASONS.includes(decision.reason)) return { error: "سبب عدم الاستلام غير صالح" };
+
+  const cond = received ? planCondition(decision.condition) : null;
+  const plan = {
+    restock: !!cond?.restock && !cond?.writeOff,
+    disposition: cond?.disposition ?? "SELLABLE",
+    // The stamp records what happened, so a reimbursement claim weeks later can say why.
+    status: received ? decision.condition : decision.reason,
+  };
+  // A destroyed unit must not land in any warehouse — force the write-off path regardless
+  // of what was picked or configured.
+  const damagedWarehouseId = received && !cond?.writeOff ? (decision.warehouseId ?? null) : null;
 
   return withOrgScope(auth.orgId, false, async () => {
     const [money] = await db.select().from(salesReturns)
       .where(and(eq(salesReturns.id, salesReturnId), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!money) return { error: "المرتجع غير موجود" };
     if (money.deliveryNoteId) return { error: "ده مرتجع مخزون — أكّده من سجل المرتجعات" };
+
+    // A short return credits only what came back. Done BEFORE the confirm, because after
+    // it the credit note is posted and the customer has been given money for goods that
+    // never arrived. Single-line returns only — a multi-line parcel needs the operator to
+    // say which line was short, and guessing would be worse than refusing.
+    if (received && decision.quantity != null) {
+      const lines = await db.select({ id: salesReturnLines.id, quantity: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice })
+        .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, salesReturnId));
+      const want = Number(decision.quantity);
+      if (!(want > 0)) return { error: "الكمية المستلمة لازم تكون أكبر من صفر" };
+      if (lines.length !== 1) return { error: "المرتجع فيه أكتر من صنف — عدّل الكميات من المرتجع نفسه قبل التأكيد" };
+      if (want > Number(lines[0].quantity)) return { error: "الكمية المستلمة أكبر من المرتجعة" };
+      if (money.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل — مش هينفع تعدّل الكمية" };
+      if (want !== Number(lines[0].quantity)) {
+        const total = round2(want * Number(lines[0].unitPrice));
+        await db.update(salesReturnLines).set({ quantity: String(want), totalAmount: String(total) })
+          .where(eq(salesReturnLines.id, lines[0].id));
+        await db.update(salesReturns).set({ totalAmount: String(total) })
+          .where(eq(salesReturns.id, salesReturnId));
+      }
+    }
 
     // 1) money credit note (reverse revenue/VAT/AR) — skip if already posted. viaPlatform tells
     // confirmSalesReturnAction we own the restock (step 2), bypassing its marketplace-return guard.

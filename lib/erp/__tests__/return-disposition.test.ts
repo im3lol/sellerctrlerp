@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planReturnStock, isUnsellable, planReceipt } from "../return-disposition";
+import { planReturnStock, isUnsellable, planReceipt, planCondition, RETURN_CONDITIONS } from "../return-disposition";
 
 describe("planReturnStock — disposition drives the stock side", () => {
   it("null/SELLABLE restocks the sellable warehouse (unchanged legacy behavior)", () => {
@@ -34,5 +34,32 @@ describe("planReceipt — the trader's receipt gate on a platform return", () =>
     const p = planReceipt("NOT_RECEIVED");
     expect(p.restock).toBe(false);
     expect(p.status).toBe("NOT_RECEIVED");
+  });
+});
+
+describe("planCondition — what actually came back", () => {
+  it("puts a dented BOX back on sale, because the product is fine", () => {
+    // The whole reason this exists: one "damaged" button either restocked goods that
+    // cannot be sold, or wrote off goods that could have been.
+    expect(planCondition("PACKAGING_DAMAGED")).toEqual({ restock: true, disposition: "SELLABLE", writeOff: false });
+    expect(planCondition("SELLABLE")).toEqual({ restock: true, disposition: "SELLABLE", writeOff: false });
+  });
+
+  it("keeps opened, scratched and used units in stock but off sale", () => {
+    // Real inventory worth real money — just not sellable as new.
+    for (const c of ["OPENED", "SCRATCHED", "USED"] as const) {
+      expect(planCondition(c)).toEqual({ restock: true, disposition: "UNSELLABLE", writeOff: false });
+    }
+  });
+
+  it("lets a destroyed unit into no warehouse at all", () => {
+    // Putting a worthless unit on a shelf inflates stock value with something that will
+    // never sell, so this is the one condition that writes off.
+    expect(planCondition("DESTROYED")).toMatchObject({ writeOff: true, disposition: "UNSELLABLE" });
+  });
+
+  it("never marks anything but genuinely sellable stock as sellable", () => {
+    const sellable = RETURN_CONDITIONS.filter((c) => planCondition(c).disposition === "SELLABLE");
+    expect(sellable).toEqual(["SELLABLE", "PACKAGING_DAMAGED"]);
   });
 });

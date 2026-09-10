@@ -26,6 +26,56 @@ export function planReturnStock(disposition: string | null | undefined, sellable
   return { kind: "WRITE_OFF" };
 }
 
+// ── What actually came back ───────────────────────────────────────────────────
+// "Damaged" is not one thing. A unit whose BOX is dented still sells; one that is
+// scratched, opened or used does not sell as new but is still worth money on the shelf;
+// one that is destroyed is worth nothing and should never enter stock at all. Collapsing
+// those into a single "damaged" button either restocks goods that cannot be sold or
+// writes off goods that could have been.
+export const RETURN_CONDITIONS = [
+  "SELLABLE",           // سليم — يرجع للبيع
+  "PACKAGING_DAMAGED",  // العبوة تالفة والمنتج سليم
+  "OPENED",             // مفتوح
+  "SCRATCHED",          // خربوش
+  "USED",               // مستخدم
+  "DESTROYED",          // تالف خالص
+] as const;
+export type ReturnCondition = (typeof RETURN_CONDITIONS)[number];
+
+// And "nothing came back" is not one thing either. Each of these is a different argument
+// to the marketplace, and the trader needs to know which happened when the reimbursement
+// is claimed weeks later.
+export const NOT_RECEIVED_REASONS = [
+  "NEVER_ARRIVED",   // مرجعش أصلاً
+  "WRONG_ITEM",      // رجع منتج مختلف
+  "SHORT_QUANTITY",  // رجعت كمية أقل
+] as const;
+export type NotReceivedReason = (typeof NOT_RECEIVED_REASONS)[number];
+
+export type ConditionPlan = {
+  /** Do the goods enter stock at all? */
+  restock: boolean;
+  /** SELLABLE puts them back on sale; anything else keeps them off it. */
+  disposition: ReturnDisposition;
+  /** True when the unit is worth nothing — it must not land in a warehouse. */
+  writeOff: boolean;
+};
+
+/**
+ * Pure: the unit's condition → what happens to stock.
+ *
+ * A dented box is still a sellable product, so it goes back on sale. Opened, scratched
+ * and used units are real inventory that simply cannot be sold as new — they restock, off
+ * sale, into whichever warehouse the trader names. Destroyed is the only condition that
+ * enters nothing anywhere: putting a worthless unit in a warehouse inflates stock value
+ * with something that will never sell.
+ */
+export function planCondition(c: ReturnCondition): ConditionPlan {
+  if (c === "SELLABLE" || c === "PACKAGING_DAMAGED") return { restock: true, disposition: "SELLABLE", writeOff: false };
+  if (c === "DESTROYED") return { restock: true, disposition: "UNSELLABLE", writeOff: true };
+  return { restock: true, disposition: "UNSELLABLE", writeOff: false };
+}
+
 // ── Platform-return RECEIPT gate ──────────────────────────────────────────────
 // A marketplace customer return only hits the books once the trader physically has the
 // unit back — the customer returns to the platform, which doesn't always ship it on to
