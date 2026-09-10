@@ -8,7 +8,7 @@ import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { AutoMode } from "@/lib/erp/fulfillment";
-import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
+import { upsertSettlementTxns, postSettlements, processSettlementRefunds } from "@/lib/erp/settlement-core";
 import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { upsertPlatformRemovals } from "@/lib/erp/removals-core";
@@ -296,10 +296,18 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
     const txns = await p.connector.fetchSettlements(p.cred, range); // slow fetch, unscoped
     const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns, p.connector.code));
     let posted = 0, deferredHeld = 0, returnsCreated = 0;
+    // Refunds raise their DRAFT credit note on EVERY sync, not only when settlements are
+    // auto-posted to the ledger. Those are different decisions: a draft posts nothing and
+    // is the whole point of the returns register, while GL posting is what deserves a
+    // switch. Gating them together meant a customer refund produced no return document at
+    // all — three real refunds sat in the money feed with an empty returns page.
+    const refunds = await withOrgScope(p.orgId, false, () => processSettlementRefunds(p.orgId, p.connector.code));
+    returnsCreated = refunds.created;
     if (p.autoPostSettlements) {
       const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null, p.connector.code));
       if ("error" in res) return { ok: false, error: res.error };
-      posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
+      posted = res.posted; deferredHeld = res.deferredHeld;
+      returnsCreated += res.returnsCreated;
     }
     // One extra request, and it is what makes the wallet auditable. Never let it break
     // the settlement sync — the money rows are the part that matters.
