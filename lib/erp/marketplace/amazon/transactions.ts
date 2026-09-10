@@ -2,6 +2,7 @@ import "server-only";
 import { spJson, paced, credKey } from "./client";
 import { round2 } from "@/lib/erp/money";
 import type { Credential } from "../connector";
+import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
 
 /**
  * Finances 2024-06-19 `listTransactions` — every transaction, deferred or settled.
@@ -149,10 +150,47 @@ export function toTxnRow(t: ApiTransaction): TxnRow {
   };
 }
 
+/**
+ * Into the row shape the settlement pipeline already speaks, so the poster, the payments
+ * screens and the reports keep working unchanged — only the SOURCE moves from the
+ * released-only flat file to the full transaction feed.
+ */
+export function toSettlementTxn(r: TxnRow): SettlementTxn {
+  return {
+    postedAt: r.postedAt,
+    settlementId: r.settlementId ?? "",
+    type: r.type,
+    orderId: r.orderId ?? "",
+    sku: r.sku ?? "",
+    description: r.description ?? "",
+    quantity: r.quantity,
+    status: r.status,
+    // listTransactions doesn't carry the estimated release date, so it stays unset rather
+    // than being invented; the status already says whether the money is still held.
+    releaseDate: null,
+    currency: r.currency,
+    productSales: r.productSales,
+    // The flat file split these out; here they arrive inside the breakdown tree and are
+    // already accounted for in `other`, so double-counting them would break the total.
+    shippingCredits: 0,
+    promotionalRebates: r.promotionalRebates,
+    sellingFees: r.sellingFees,
+    fbaFees: r.fbaFees,
+    otherTransactionFees: r.otherTransactionFees,
+    other: r.other,
+    total: r.total,
+    dedupKey: r.dedupKey,
+    transactionId: r.transactionId,
+    shipmentId: r.shipmentId,
+    breakdown: r.breakdown,
+    items: r.items,
+  };
+}
+
 type ListResponse = { payload?: { transactions?: ApiTransaction[]; nextToken?: string }; transactions?: ApiTransaction[]; nextToken?: string };
 
 /** Every transaction posted since `since`, following nextToken. */
-export async function fetchTransactions(cred: Credential, since: Date): Promise<TxnRow[]> {
+export async function fetchTransactionRows(cred: Credential, since: Date): Promise<TxnRow[]> {
   if (!cred.marketplaceId) return [];
   const out: TxnRow[] = [];
   let next: string | undefined;
@@ -169,4 +207,9 @@ export async function fetchTransactions(cred: Credential, since: Date): Promise<
     if (!next) break;
   }
   return out;
+}
+
+/** The connector's settlement source: every transaction, deferred or settled. */
+export async function fetchSettlements(cred: Credential, range: { from: Date }): Promise<SettlementTxn[]> {
+  return (await fetchTransactionRows(cred, range.from)).map(toSettlementTxn);
 }

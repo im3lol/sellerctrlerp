@@ -25,6 +25,23 @@ export type SettlementTxn = {
   otherTransactionFees: number;
   other: number;
   total: number;
+  // ── Finances listTransactions extras ──────────────────────────────────────
+  // The flat file has none of these. A row that carries `dedupKey` was keyed by its
+  // source (on the shipment, which survives DEFERRED → RELEASED); everything else falls
+  // back to the composite key below.
+  dedupKey?: string;
+  transactionId?: string | null;
+  shipmentId?: string | null;
+  breakdown?: unknown;
+  items?: SettlementTxnItem[];
+};
+
+/** One SKU inside a transaction — what a per-product P&L needs. */
+export type SettlementTxnItem = {
+  sku: string | null; asin: string | null; quantity: number;
+  productCharges: number; commission: number; commissionTax: number;
+  fbaFee: number; fbaFeeTax: number; otherFees: number; total: number;
+  breakdown: unknown;
 };
 
 const num = (v: unknown): number => Number(String(v ?? "").replace(/,/g, "").trim()) || 0;
@@ -97,8 +114,15 @@ export function parseSettlementWorkbook(buf: ArrayBuffer | Buffer): SettlementTx
   return out;
 }
 
-/** Stable per-row key for idempotent import (Amazon rows carry no unique id). */
+/**
+ * Stable per-row key for idempotent import (Amazon rows carry no unique id).
+ *
+ * A listTransactions row brings its own key, anchored on the shipment id so the same
+ * economic event keeps one key as it moves DEFERRED → DEFERRED_RELEASED → RELEASED. The
+ * composite below is the flat file's key and stays for report-fed sources.
+ */
 export function settlementDedupKey(t: SettlementTxn): string {
+  if (t.dedupKey) return t.dedupKey;
   return [t.settlementId, t.type, t.orderId, t.sku, t.postedAt?.toISOString() ?? "", t.total.toFixed(2)].join("|");
 }
 

@@ -15,6 +15,7 @@ import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturn
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensurePlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
+import { marketplaceTxnItems } from "@/db/schema";
 import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
 import { FEE_CATEGORY_ACCOUNT, FEE_CATEGORY_LABEL, type FeeCatKey } from "@/lib/erp/settlement-fees";
 import { bust, orgKey } from "@/lib/cache";
@@ -233,7 +234,18 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
     sellingFees: String(t.sellingFees), fbaFees: String(t.fbaFees), otherTransactionFees: String(t.otherTransactionFees),
     other: String(t.other), total: String(t.total), dedupKey: settlementDedupKey(t),
     salesOrderId: (t.orderId && orderMap.get(t.orderId)) || null,
+    transactionId: t.transactionId ?? null, shipmentId: t.shipmentId ?? null,
+    breakdown: (t.breakdown ?? null) as never,
   }));
+  // Rows whose key came from the source (listTransactions, anchored on the shipment)
+  // must never be summed on collision — see the merge below.
+  const itemsByKey = new Map<string, NonNullable<SettlementTxn["items"]>>();
+  const sourceKeyed = new Set<string>();
+  for (const t of txns) {
+    if (!t.dedupKey) continue;
+    sourceKeyed.add(t.dedupKey);
+    if (t.items?.length) itemsByKey.set(t.dedupKey, t.items);
+  }
 
   const beforeCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
     .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.channel, channel))))[0]?.n ?? 0;
@@ -245,6 +257,18 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
   for (const v of values) {
     const prev = byKey.get(v.dedupKey);
     if (!prev) { byKey.set(v.dedupKey, v); continue; }
+    if (sourceKeyed.has(v.dedupKey)) {
+      // ONE economic event, reported again at a later stage of its life. A single pull
+      // routinely contains a shipment as DEFERRED_RELEASED and again as RELEASED — the
+      // same 1,841.31, not 3,682.62 — so the later view REPLACES the earlier one.
+      // Released outranks Deferred; between equals, the later posting date wins.
+      const better = (v.status === "Released" && prev.status !== "Released")
+        || (v.status === prev.status && (v.postedAt?.getTime() ?? 0) > (prev.postedAt?.getTime() ?? 0));
+      if (better) byKey.set(v.dedupKey, v);
+      continue;
+    }
+    // Flat-file rows: two groups can share a key because it omits the shipment id, and
+    // there they really are two amounts that belong together.
     for (const k of ["quantity", "productSales", "shippingCredits", "promotionalRebates", "sellingFees", "fbaFees", "otherTransactionFees", "other", "total"] as const) {
       prev[k] = String(r2(Number(prev[k]) + Number(v[k])));
     }
@@ -256,10 +280,53 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
       target: [marketplaceSettlementTxns.organizationId, marketplaceSettlementTxns.dedupKey],
       set: {
         status: sql`excluded.status`,
-        releaseDate: sql`excluded.release_date`,
+        releaseDate: sql`coalesce(excluded.release_date, ${marketplaceSettlementTxns.releaseDate})`,
         salesOrderId: sql`coalesce(excluded.sales_order_id, ${marketplaceSettlementTxns.salesOrderId})`,
+        // A re-pull carries the authoritative amounts — Amazon can revise a transaction
+        // between statuses, and the stored row should follow rather than keep the first
+        // figure it ever saw.
+        postedAt: sql`coalesce(excluded.posted_at, ${marketplaceSettlementTxns.postedAt})`,
+        transactionId: sql`coalesce(excluded.transaction_id, ${marketplaceSettlementTxns.transactionId})`,
+        shipmentId: sql`coalesce(excluded.shipment_id, ${marketplaceSettlementTxns.shipmentId})`,
+        breakdown: sql`coalesce(excluded.breakdown, ${marketplaceSettlementTxns.breakdown})`,
+        productSales: sql`excluded.product_sales`,
+        promotionalRebates: sql`excluded.promotional_rebates`,
+        sellingFees: sql`excluded.selling_fees`,
+        fbaFees: sql`excluded.fba_fees`,
+        otherTransactionFees: sql`excluded.other_transaction_fees`,
+        other: sql`excluded.other`,
+        total: sql`excluded.total`,
       },
     });
+  }
+
+  // Per-SKU children. Written after the parents so the ids exist; replaced wholesale for
+  // each transaction, because a re-pull is the authority on what the transaction contains.
+  if (itemsByKey.size) {
+    const keys = [...itemsByKey.keys()];
+    const parents = await db.select({ id: marketplaceSettlementTxns.id, dedupKey: marketplaceSettlementTxns.dedupKey })
+      .from(marketplaceSettlementTxns)
+      .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), inArray(marketplaceSettlementTxns.dedupKey, keys)));
+    const idByKey = new Map(parents.map((p) => [p.dedupKey, p.id]));
+    const ids = [...idByKey.values()];
+    if (ids.length) {
+      await db.delete(marketplaceTxnItems)
+        .where(and(eq(marketplaceTxnItems.organizationId, orgId), inArray(marketplaceTxnItems.txnId, ids)));
+      const rows = keys.flatMap((k) => {
+        const txnId = idByKey.get(k);
+        if (!txnId) return [];
+        return (itemsByKey.get(k) ?? []).map((i) => ({
+          organizationId: orgId, txnId,
+          sku: i.sku, asin: i.asin, quantity: String(i.quantity),
+          productCharges: String(i.productCharges),
+          commission: String(i.commission), commissionTax: String(i.commissionTax),
+          fbaFee: String(i.fbaFee), fbaFeeTax: String(i.fbaFeeTax),
+          otherFees: String(i.otherFees), total: String(i.total),
+          breakdown: (i.breakdown ?? null) as never,
+        }));
+      });
+      for (let i = 0; i < rows.length; i += 500) await db.insert(marketplaceTxnItems).values(rows.slice(i, i + 500));
+    }
   }
   const afterCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
     .where(and(eq(marketplaceSettlementTxns.organizationId, orgId), eq(marketplaceSettlementTxns.channel, channel))))[0]?.n ?? 0;

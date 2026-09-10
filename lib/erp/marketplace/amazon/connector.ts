@@ -8,7 +8,10 @@ import { fetchListings, mergeProducts } from "./listings";
 import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
 import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
-import { fetchSettlements } from "./settlement-report";
+// Finances listTransactions, not the settlement flat file: the flat file only carries
+// money Amazon has already RELEASED, so deferred shipments — most of a recent month —
+// had no fees recorded at all. See lib/erp/marketplace/amazon/transactions.ts.
+import { fetchSettlements } from "./transactions";
 import { fetchBalance } from "./finances";
 import { fetchFbaReturns } from "./returns-report";
 import { fetchReimbursements, fetchLedgerEvents, fetchRemovals } from "./finance-reports";
