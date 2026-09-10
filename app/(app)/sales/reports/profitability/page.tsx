@@ -98,6 +98,17 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
       <div className="space-y-6">
         <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/profitability/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/profitability/print?${qs.toString()}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
+        {/* The marketplace view is a separate page rather than two more tables here: it
+            answers a different question (what Amazon charged, per order and per SKU) and
+            a four-table page is not a report anyone reads. */}
+        <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
+          className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
+          <span>
+            <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
+            <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
+          </span>
+          <span className="text-muted-foreground">←</span>
+        </a>
 
         <div className={`grid gap-4 ${hasFees ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-4"}`}>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الإيراد (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tRevenue)}</p></CardContent></Card>

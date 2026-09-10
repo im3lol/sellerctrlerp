@@ -27,6 +27,7 @@ const SHORTCUTS = [
   { label: "سندات القبض", href: "/sales/receipts", icon: "HandCoins" },
   { label: "أعمار الذمم المدينة", href: "/sales/aging", icon: "CalendarClock" },
   { label: "ربحية المنتجات", href: "/sales/reports/profitability", icon: "TrendingUp" },
+  { label: "ربحية المنصة", href: "/sales/reports/marketplace-pnl", icon: "Wallet" },
 ];
 
 /**
