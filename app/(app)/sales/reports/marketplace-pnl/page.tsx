@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -120,10 +121,24 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                     <TableRow key={r.externalOrderId}>
                       <TableCell className="whitespace-nowrap">{dt(r.postedAt)}</TableCell>
                       <TableCell>
-                        <span className="font-mono text-xs" dir="ltr">{r.externalOrderId}</span>
+                        {/* Both identifiers name the same order, so both open it. Without a
+                            matched sales order there is nothing to open — plain text. */}
+                        {r.orderNumber ? (
+                          <Link href={`/sales/orders/${encodeURIComponent(r.orderNumber)}`} className="font-mono text-xs text-primary hover:underline" dir="ltr">
+                            {r.externalOrderId}
+                          </Link>
+                        ) : (
+                          <span className="font-mono text-xs" dir="ltr">{r.externalOrderId}</span>
+                        )}
                         {r.deferred && <Badge variant="secondary" className="ms-2">مؤجّل</Badge>}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{r.orderNumber ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {r.orderNumber ? (
+                          <Link href={`/sales/orders/${encodeURIComponent(r.orderNumber)}`} className="text-primary hover:underline">
+                            {r.orderNumber}
+                          </Link>
+                        ) : "—"}
+                      </TableCell>
                       <TableCell className="text-end tabular-nums">{fmt(r.sales)}</TableCell>
                       <TableCell className="text-end tabular-nums text-destructive">{r.refunds !== 0 ? fmt(r.refunds) : "—"}</TableCell>
                       <TableCell className="text-end">
