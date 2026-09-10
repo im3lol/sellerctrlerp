@@ -4,6 +4,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -14,17 +15,6 @@ import { cn } from "@/lib/utils";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const pct = (n: number) => `${(n * 100).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 })}%`;
-
-const SHORTCUTS = [
-  { label: "الأصناف", href: "/inventory/items", icon: "Package", key: "items" },
-  { label: "صنف جديد", href: "/inventory/items/new", icon: "Plus" },
-  { label: "أرصدة المخزون", href: "/inventory/stock", icon: "Boxes" },
-  { label: "دفتر حركة المخزون", href: "/inventory/ledger", icon: "ScrollText" },
-  { label: "تسويات المخزون", href: "/inventory/adjustments", icon: "ClipboardCheck" },
-  { label: "التحويلات المخزنية", href: "/inventory/transfers", icon: "ArrowLeftRight" },
-  { label: "تنبيهات إعادة الطلب", href: "/inventory/reorder", icon: "TriangleAlert" },
-] as const;
 
 type ItemRow = { id: string; code: string; name: string; min_stock: string; category: string };
 type BalRow = { item_id: string; warehouse: string | null; qty: string; val: string };
@@ -33,7 +23,7 @@ type TrendRow = { m: string; type: string; qty: string };
 const DEAD_DAYS = 90; // matches the dead-stock report default (no sale in N days)
 
 export default async function InventoryDashboardPage() {
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     // Two scans only: (1) light — active items + their category; (2) the one heavy
     // DISTINCT ON over stock_movements for the latest balance per item+warehouse.
     // Every KPI/chart below is aggregated from these in JS — no extra heavy queries.
@@ -139,7 +129,7 @@ export default async function InventoryDashboardPage() {
     const hasMovement = trend.some((t) => t.inQ || t.outQ);
 
     const nearExp = Number((nearExpR.rows as { n: number }[])[0]?.n ?? 0);
-    const counts: Record<string, number> = { items: totalItems };
+    const counts: Record<string, number> = { "/inventory/items": totalItems };
 
     const todos = [
       { label: "أصناف تحت حد الطلب", hint: "تحتاج إعادة طلب", count: lowStock, href: "/inventory/reorder", icon: "TriangleAlert" },
@@ -300,20 +290,10 @@ export default async function InventoryDashboardPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>اختصارات</CardTitle><CardDescription>الوصول السريع لشاشات المخزون.</CardDescription></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link key={s.href} href={s.href} className="group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent">
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Icon name={s.icon} className="size-4" /></div>
-                  <span className="flex-1 text-sm font-medium">{s.label}</span>
-                  {"key" in s && s.key && counts[s.key] != null && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{intf(counts[s.key])}</span>}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="المخزون" permissions={permissions} counts={counts}
+          actions={[{ label: "صنف جديد", href: "/inventory/items/new", icon: "Plus" }, { label: "تسوية مخزون", href: "/inventory/adjustments/new", icon: "Plus" }]} />
       </div>
     );
   });

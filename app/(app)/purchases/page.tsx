@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -9,6 +8,7 @@ import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
@@ -18,16 +18,6 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
 
-const SHORTCUTS = [
-  { label: "الموردون", href: "/purchases/suppliers", icon: "Truck", key: "suppliers" },
-  { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", key: "orders" },
-  { label: "أمر شراء جديد", href: "/purchases/orders/new", icon: "Plus" },
-  { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck" },
-  { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", key: "invoices" },
-  { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote" },
-  { label: "أعمار الذمم الدائنة", href: "/purchases/aging", icon: "CalendarClock" },
-  { label: "ترتيب الموردين", href: "/purchases/reports/suppliers", icon: "BarChart3" },
-];
 
 /**
  * The المشتريات module overview.
@@ -38,7 +28,7 @@ const SHORTCUTS = [
  * period looks like, and where to go.
  */
 export default async function ErpPurchasesPage() {
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.view", async ({ orgId, permissions }) => {
     const today = new Date();
 
     const [supCount, poOpen, piDraft, reqDraft, grni, overdue, ranked, balances] = await Promise.all([
@@ -76,7 +66,7 @@ export default async function ErpPurchasesPage() {
     const top = ranked.rows.slice(0, 5);
     const max = Math.max(...top.map((r) => r.amount), 1);
     const counts: Record<string, number> = {
-      suppliers: cnt(supCount), orders: cnt(poOpen), invoices: cnt(piDraft),
+      "/purchases/suppliers": cnt(supCount), "/purchases/orders": cnt(poOpen), "/purchases/invoices": cnt(piDraft),
     };
 
     const kpis = [
@@ -154,23 +144,10 @@ export default async function ErpPurchasesPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>اختصارات</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link key={s.href} href={s.href}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-muted">
-                  <Icon name={s.icon} className="size-4 text-muted-foreground" />
-                  <span className="flex-1">{s.label}</span>
-                  {s.key && counts[s.key] > 0 && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{intf(counts[s.key])}</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="المشتريات" permissions={permissions} counts={counts}
+          actions={[{ label: "أمر شراء جديد", href: "/purchases/orders/new", icon: "Plus" }, { label: "فاتورة شراء جديدة", href: "/purchases/invoices/new", icon: "Plus" }]} />
       </div>
     );
   });

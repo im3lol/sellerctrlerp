@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -9,6 +8,7 @@ import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
@@ -18,24 +18,13 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
 
-const SHORTCUTS = [
-  { label: "العملاء", href: "/sales/customers", icon: "Users", key: "customers" },
-  { label: "أوامر البيع", href: "/sales/orders", icon: "ClipboardList", key: "orders" },
-  { label: "أمر بيع جديد", href: "/sales/orders/new", icon: "Plus" },
-  { label: "عروض الأسعار", href: "/sales/quotations", icon: "FileText" },
-  { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", key: "invoices" },
-  { label: "سندات القبض", href: "/sales/receipts", icon: "HandCoins" },
-  { label: "أعمار الذمم المدينة", href: "/sales/aging", icon: "CalendarClock" },
-  { label: "ربحية المنتجات", href: "/sales/reports/profitability", icon: "TrendingUp" },
-  { label: "ربحية المنصة", href: "/sales/reports/marketplace-pnl", icon: "Wallet" },
-];
 
 /**
  * The المبيعات module overview. This page used to be the customer list — see the
  * note on /erp/purchases for the reasoning.
  */
 export default async function ErpSalesPage() {
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const today = new Date();
 
     const [custCount, quotSent, soOpen, dnDraft, siDraft, overdue, overLimit, ranked, balances] = await Promise.all([
@@ -73,8 +62,9 @@ export default async function ErpSalesPage() {
 
     const top = ranked.rows.slice(0, 5);
     const max = Math.max(...top.map((r) => r.amount), 1);
+    // Keyed by href so the workspace can badge the right tile without a second lookup table.
     const counts: Record<string, number> = {
-      customers: cnt(custCount), orders: cnt(soOpen), invoices: cnt(siDraft),
+      "/sales/customers": cnt(custCount), "/sales/orders": cnt(soOpen), "/sales/invoices": cnt(siDraft),
     };
 
     const kpis = [
@@ -152,23 +142,10 @@ export default async function ErpSalesPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>اختصارات</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link key={s.href} href={s.href}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-muted">
-                  <Icon name={s.icon} className="size-4 text-muted-foreground" />
-                  <span className="flex-1">{s.label}</span>
-                  {s.key && counts[s.key] > 0 && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{intf(counts[s.key])}</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="المبيعات" permissions={permissions} counts={counts}
+          actions={[{ label: "أمر بيع جديد", href: "/sales/orders/new", icon: "Plus" }, { label: "فاتورة بيع جديدة", href: "/sales/invoices/new", icon: "Plus" }]} />
       </div>
     );
   });
