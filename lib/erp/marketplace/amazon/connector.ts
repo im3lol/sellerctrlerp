@@ -14,6 +14,7 @@ import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./
 import { fetchSettlements } from "./transactions";
 import { fetchBalance } from "./finances";
 import { fetchFbaReturns } from "./returns-report";
+import { fetchMfnReturns } from "./mfn-returns-report";
 import { fetchReimbursements, fetchLedgerEvents, fetchRemovals } from "./finance-reports";
 import { fetchFeesEstimates } from "./fees";
 import type { MarketplaceProduct } from "../dto";
@@ -89,8 +90,11 @@ export const amazonConnector: MarketplaceConnector = {
   fetchBalance(cred) {
     return fetchBalance(cred);
   },
-  fetchReturns(cred, range) {
-    return fetchFbaReturns(cred, range);
+  async fetchReturns(cred, range) {
+    // FBA and seller-fulfilled are separate reports; a seller can use either or both, so
+    // pull both and let the returns engine dedupe on its own keys.
+    const [fba, mfn] = await Promise.all([fetchFbaReturns(cred, range), fetchMfnReturns(cred, range)]);
+    return [...fba, ...mfn];
   },
   fetchRemovals(cred, range) {
     return fetchRemovals(cred, range);

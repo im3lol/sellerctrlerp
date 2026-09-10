@@ -5,7 +5,7 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { salesPlatforms, salesOrders, deliveryNotes, salesInvoices, salesInvoiceLines, salesReturns, salesReturnLines, items, itemCodes, platformReturns, customers } from "@/db/schema";
+import { salesPlatforms, salesOrders, deliveryNotes, salesInvoices, salesInvoiceLines, salesReturns, salesReturnLines, items, itemCodes, platformReturns, customers, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { createSalesReturnAction, confirmSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
@@ -124,7 +124,15 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
  * return carries deliveryNoteId + salesOrderId and drops deliveredQty. Idempotent-ish: a
  * money return already POSTED is left alone; a linked platform_returns row is stamped.
  */
-export async function confirmPlatformReturnAction(salesReturnId: string, receipt: ReturnReceipt): Promise<ActionState> {
+export async function confirmPlatformReturnAction(
+  salesReturnId: string,
+  receipt: ReturnReceipt,
+  // Where a damaged unit goes. Left unset it falls back to the org's configured damaged
+  // warehouse, or a write-off when there is none — which was the only behaviour there
+  // used to be. A returned unit isn't always the same decision twice, so the choice
+  // belongs to whoever is holding it.
+  damagedWarehouseId?: string | null,
+): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm", "marketplace");
   if ("error" in auth) return auth;
   if (!RETURN_RECEIPTS.includes(receipt)) return { error: "قرار استلام غير صالح" };
@@ -139,7 +147,7 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
     // 1) money credit note (reverse revenue/VAT/AR) — skip if already posted. viaPlatform tells
     // confirmSalesReturnAction we own the restock (step 2), bypassing its marketplace-return guard.
     if (money.status === "DRAFT") {
-      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition, viaPlatform: true });
+      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition, viaPlatform: true, damagedWarehouseId });
       if ("error" in r) return r;
     }
 
@@ -159,7 +167,7 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
       // unitPrice 0: the delivery-return confirm recomputes real restock cost server-side.
       const created = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: rLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: 0 })) });
       if (!created.ok || !created.id) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${("error" in created && created.error) || "فشل إنشاء إرجاع التسليم"}` };
-      const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition });
+      const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition, damagedWarehouseId });
       if ("error" in c) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${c.error}` };
     }
 
@@ -178,10 +186,21 @@ export type MarketplaceReturnRow = {
   id: string; number: string; date: string; channel: string | null; externalReturnId: string | null;
   customerName: string | null; invoiceNumber: string | null; total: number;
   disposition: string | null; itemsSummary: string;
+  items: { name: string | null; code: string | null; image: string | null; qty: number }[];
 };
 
 /** The platform customer returns awaiting the trader's receipt decision — DRAFT credit notes
  *  tagged with a channel (from the FBA sync or the CSV import). */
+/** Active warehouses, so the receipt decision can name a destination. */
+export async function getReturnWarehouses(): Promise<{ id: string; name: string }[]> {
+  const auth = await authorizeErp("sales.view", "marketplace");
+  if ("error" in auth) return [];
+  return withOrgScope(auth.orgId, false, async () =>
+    (await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true)))
+      .orderBy(warehouses.code)).map((w) => ({ id: w.id, name: w.name })));
+}
+
 export async function getMarketplaceReturns(): Promise<MarketplaceReturnRow[]> {
   const auth = await authorizeErp("sales.view", "marketplace");
   if ("error" in auth) return [];
@@ -205,18 +224,22 @@ export async function getMarketplaceReturns(): Promise<MarketplaceReturnRow[]> {
     if (rows.length === 0) return [];
 
     const ids = rows.map((r) => r.id);
-    const lines = await db.select({ rid: salesReturnLines.salesReturnId, qty: salesReturnLines.quantity, name: items.nameAr, code: items.code })
+    const lines = await db.select({ rid: salesReturnLines.salesReturnId, qty: salesReturnLines.quantity, name: items.nameAr, code: items.code, image: items.image })
       .from(salesReturnLines).leftJoin(items, eq(items.id, salesReturnLines.itemId))
       .where(inArray(salesReturnLines.salesReturnId, ids));
     const byRet = new Map<string, string[]>();
+    const itemsByRet = new Map<string, MarketplaceReturnRow["items"]>();
     for (const l of lines) {
       const label = `${l.name ?? l.code ?? "صنف"} ×${Number(l.qty)}`;
       (byRet.get(l.rid) ?? byRet.set(l.rid, []).get(l.rid)!).push(label);
+      (itemsByRet.get(l.rid) ?? itemsByRet.set(l.rid, []).get(l.rid)!)
+        .push({ name: l.name, code: l.code, image: l.image, qty: Number(l.qty) });
     }
     return rows.map((r) => ({
       id: r.id, number: r.number, date: new Date(r.date).toISOString(), channel: r.channel,
       externalReturnId: r.externalReturnId, customerName: r.customerName, invoiceNumber: r.invoiceNumber,
       total: Number(r.total), disposition: r.disposition, itemsSummary: (byRet.get(r.id) ?? []).join("، "),
+      items: itemsByRet.get(r.id) ?? [],
     }));
   });
 }
