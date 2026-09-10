@@ -49,10 +49,12 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   const pathname = usePathname();
   const router = useRouter();
 
-  // Merge live platform links into the dynamic "المنصات" group.
+  // Merge live platform links into the dynamic "المنصات" group, ahead of the static
+  // ones — Amazon and Noon are what you came to the module for; the returns and
+  // settlements pages underneath are what you do about them.
   const withDynamic = (section: NavSection): NavSection =>
     section.dynamicKey === "platforms" && platforms?.length
-      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
+      ? { ...section, items: [...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability })), ...section.items] }
       : section;
 
   // Three reasons a section can be absent, and they are NOT the same thing: the
