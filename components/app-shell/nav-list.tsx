@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
@@ -48,8 +48,6 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
 
   // Merge live platform links into the dynamic "المنصات" group.
   const withDynamic = (section: NavSection): NavSection =>
@@ -119,61 +117,12 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
 
   const pinned = pins.map((h) => allItems.find((x) => x.item.href === h)).filter((x): x is { item: NavItem; heading: string } => !!x);
 
-  // `/` focuses search, the way every dense app does it. Ignored while typing
-  // somewhere else, otherwise it eats the slash in a search box or a note field.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if (t?.isContentEditable) return;
-      if (e.key === "/" || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
-  const q = query.trim().toLowerCase();
-  const matches = q ? allItems.filter((x) => x.item.label.toLowerCase().includes(q) || x.heading.toLowerCase().includes(q)) : [];
 
   return (
     <nav className="flex flex-1 flex-col overflow-hidden">
-      <div className="px-3 pt-4">
-        <div className="relative">
-          <Icon name="Search" className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-sidebar-foreground/40" />
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
-            placeholder="ابحث في القائمة… /"
-            aria-label="ابحث في القائمة"
-            className="h-9 w-full rounded-xl border border-sidebar-border/50 bg-sidebar-accent/40 ps-8 pe-8 text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-sidebar-foreground/30"
-          />
-          {query && (
-            <button type="button" onClick={() => setQuery("")} aria-label="مسح البحث"
-              className="absolute end-2 top-1/2 -translate-y-1/2 text-sidebar-foreground/40 hover:text-sidebar-foreground">
-              <Icon name="X" className="size-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
       <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
-        {/* Search flattens everything: with ninety-odd pages, typing beats any tree. */}
-        {q ? (
-          matches.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-sidebar-foreground/50">مفيش صفحة بالاسم ده.</p>
-          ) : (
-            matches.map(({ item, heading }) => (
-              <NavLink key={item.href} item={item} heading={heading} active={isActive(pathname, item.href, item.exact)}
-                onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
-            ))
-          )
-        ) : (
-          <>
+        <>
             {pinned.length > 0 && (
               <div className="space-y-1 pb-2">
                 <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
@@ -278,8 +227,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
                 </div>
               );
             })}
-          </>
-        )}
+        </>
       </div>
     </nav>
   );

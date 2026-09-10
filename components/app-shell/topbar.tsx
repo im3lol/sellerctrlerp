@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Menu, Search } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
+import { AwesomeBar } from "@/components/app-shell/awesome-bar";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
 import type { Role } from "@/lib/rbac";
 
 export function Topbar({
@@ -31,13 +30,6 @@ export function Topbar({
   platforms?: { id: string; name: string; code: string }[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const router = useRouter();
-  const submitSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = q.trim();
-    if (query) router.push(`/search?q=${encodeURIComponent(query)}`);
-  };
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
       {/* Mobile menu */}
@@ -55,11 +47,8 @@ export function Topbar({
         </SheetContent>
       </Sheet>
 
-      {/* Search (start / right in RTL) — submits to the results page */}
-      <form onSubmit={submitSearch} className="relative hidden w-full max-w-xs md:block" data-tour="topbar-search" role="search">
-        <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن صنف أو عميل أو مورّد…" className="bg-muted/50 pr-9" aria-label="بحث" />
-      </form>
+      {/* One box for pages AND records — see AwesomeBar for why there is only one. */}
+      <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} />
 
       {/* Actions (pushed to the end / left in RTL). min-w-0 so the cluster can shrink:
           the column clips its overflow, so anything that doesn't fit is cut off the edge
