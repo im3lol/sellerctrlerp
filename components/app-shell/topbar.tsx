@@ -42,6 +42,9 @@ export function Topbar({
           <div className="flex h-16 items-center px-6">
             <Logo className="text-2xl text-sidebar-foreground" />
           </div>
+          <div className="px-4 pb-3">
+            <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} className="block" />
+          </div>
           {/* Close the drawer when a link/heading navigates. */}
           <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} navHidden={navHidden} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>

@@ -34,11 +34,13 @@ function allowed(item: NavItem, perms: Set<string>): boolean {
 }
 
 export function AwesomeBar({
-  erpPermissions, modules, navHidden,
+  erpPermissions, modules, navHidden, className,
 }: {
   erpPermissions: string[];
   modules?: string[];
   navHidden?: string[];
+  /** Overrides the topbar placement — the mobile drawer shows the same box full width. */
+  className?: string;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -116,7 +118,7 @@ export function AwesomeBar({
   const nothing = needle.length >= 2 && !loading && pageHits.length === 0 && hits.length === 0;
 
   return (
-    <div ref={boxRef} className="relative hidden w-full max-w-sm md:block" data-tour="topbar-search">
+    <div ref={boxRef} className={cn("relative w-full", className ?? "hidden max-w-sm md:block")} data-tour="topbar-search">
       <form onSubmit={(e) => { e.preventDefault(); full(); }} role="search">
         <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input

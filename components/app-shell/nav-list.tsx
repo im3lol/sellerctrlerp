@@ -117,130 +117,122 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
 
   const pinned = pins.map((h) => allItems.find((x) => x.item.href === h)).filter((x): x is { item: NavItem; heading: string } => !!x);
 
-
-
   return (
-    <nav className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
-        <>
-            {pinned.length > 0 && (
-              <div className="space-y-1 pb-2">
-                <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
-                {pinned.map(({ item }) => (
+    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {pinned.length > 0 && (
+        <div className="space-y-1 pb-2">
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
+          {pinned.map(({ item }) => (
+            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+              onNavigate={onNavigate} pinned onTogglePin={togglePin} />
+          ))}
+          <div className="mx-3 border-t border-sidebar-border/40 pt-1" />
+        </div>
+      )}
+
+      {sections.map((section, i) => {
+        // Subscription gate: hide a module the tenant doesn't have.
+        if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
+        const items = visibleItems(section, role, erpPerms);
+        // Show a module when it has visible items, OR it has a landing page the
+        // member is allowed to open (section.capability).
+        const sectionAllowed = !section.capability || navAllows(section.capability, role, erpPerms);
+        if (items.length === 0 && !(section.href && sectionAllowed)) return null;
+
+        // Top group with no heading (e.g. Dashboard): render items directly.
+        if (!section.heading) {
+          return (
+            <div key={i} className="space-y-1 pb-2">
+              {items.map((item) => (
+                <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+                  onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
+              ))}
+            </div>
+          );
+        }
+
+        const key = section.heading;
+        const hActive = !!section.href && isActive(pathname, section.href, true);
+        const groupActive = hActive || items.some((it) => isActive(pathname, it.href, it.exact));
+        // Opens by itself when it holds the current page, and closes when you say
+        // so — an explicit choice outranks the default, or the chevron is a lie.
+        const open = restored ? (openMap[key] ?? groupActive) : groupActive;
+        const chevron = <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />;
+
+        const ungrouped = items.filter((it) => !it.group);
+        const groupOrder: string[] = [];
+        const grouped: Record<string, typeof items> = {};
+        for (const it of items) {
+          if (!it.group) continue;
+          if (!grouped[it.group]) { grouped[it.group] = []; groupOrder.push(it.group); }
+          grouped[it.group].push(it);
+        }
+
+        return (
+          <div key={i} className="space-y-1">
+            <button
+              type="button"
+              onClick={() => onHeadingClick(key, open, section.href)}
+              aria-expanded={open}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                hActive && "bg-sidebar-accent",
+              )}
+            >
+              {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
+              <span className="flex-1 text-start">{section.heading}</span>
+              {items.length > 0 && chevron}
+            </button>
+
+            {open && items.length > 0 && (
+              <div className="ms-5 space-y-1 border-s border-sidebar-border/40 ps-2">
+                {ungrouped.map((item) => (
                   <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
-                    onNavigate={onNavigate} pinned onTogglePin={togglePin} />
+                    onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
                 ))}
-                <div className="mx-3 border-t border-sidebar-border/40 pt-1" />
+                {groupOrder.map((g) => {
+                  const gItems = grouped[g];
+                  const gKey = `${key}:${g}`;
+                  const gActive = gItems.some((it) => isActive(pathname, it.href, it.exact));
+                  const gOpen = restored ? (openGroups[gKey] ?? gActive) : gActive;
+                  return (
+                    <div key={g} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(gKey)}
+                        aria-expanded={gOpen}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/70"
+                      >
+                        <span className="flex-1 text-start">{g}</span>
+                        <Icon name="ChevronDown" className={cn("size-3.5 shrink-0 transition-transform", gOpen ? "rotate-180" : "")} />
+                      </button>
+                      {gOpen && (
+                        <div className="space-y-1">
+                          {gItems.map((item) => (
+                            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+                              onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-
-            {sections.map((section, i) => {
-              // Subscription gate: hide a module the tenant doesn't have.
-              if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
-              const items = visibleItems(section, role, erpPerms);
-              // Show a module when it has visible items, OR it has a landing page the
-              // member is allowed to open (section.capability).
-              const sectionAllowed = !section.capability || navAllows(section.capability, role, erpPerms);
-              if (items.length === 0 && !(section.href && sectionAllowed)) return null;
-
-              // Top group with no heading (e.g. Dashboard): render items directly.
-              if (!section.heading) {
-                return (
-                  <div key={i} className="space-y-1 pb-2">
-                    {items.map((item) => (
-                      <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
-                        onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
-                    ))}
-                  </div>
-                );
-              }
-
-              const key = section.heading;
-              const hActive = !!section.href && isActive(pathname, section.href, true);
-              const groupActive = hActive || items.some((it) => isActive(pathname, it.href, it.exact));
-              // The module holding the current page is always open; beyond that the
-              // saved state decides, so two modules can stay open across navigations.
-              const open = groupActive || (restored ? (openMap[key] ?? false) : false);
-              const chevron = <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />;
-
-              const ungrouped = items.filter((it) => !it.group);
-              const groupOrder: string[] = [];
-              const grouped: Record<string, typeof items> = {};
-              for (const it of items) {
-                if (!it.group) continue;
-                if (!grouped[it.group]) { grouped[it.group] = []; groupOrder.push(it.group); }
-                grouped[it.group].push(it);
-              }
-
-              return (
-                <div key={i} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => onHeadingClick(key, open, section.href)}
-                    aria-expanded={open}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
-                      groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                      hActive && "bg-sidebar-accent",
-                    )}
-                  >
-                    {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-                    <span className="flex-1 text-start">{section.heading}</span>
-                    {items.length > 0 && chevron}
-                  </button>
-
-                  {open && items.length > 0 && (
-                    <div className="ms-5 space-y-1 border-s border-sidebar-border/40 ps-2">
-                      {ungrouped.map((item) => (
-                        <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
-                          onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
-                      ))}
-                      {groupOrder.map((g) => {
-                        const gItems = grouped[g];
-                        const gKey = `${key}:${g}`;
-                        const gActive = gItems.some((it) => isActive(pathname, it.href, it.exact));
-                        const gOpen = gActive || (restored ? (openGroups[gKey] ?? false) : false);
-                        return (
-                          <div key={g} className="space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleGroup(gKey)}
-                              aria-expanded={gOpen}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/70"
-                            >
-                              <span className="flex-1 text-start">{g}</span>
-                              <Icon name="ChevronDown" className={cn("size-3.5 shrink-0 transition-transform", gOpen ? "rotate-180" : "")} />
-                            </button>
-                            {gOpen && (
-                              <div className="space-y-1">
-                                {gItems.map((item) => (
-                                  <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
-                                    onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </>
-      </div>
+          </div>
+        );
+      })}
     </nav>
   );
 }
 
 function NavLink({
-  item, active, onNavigate, heading, pinned, onTogglePin,
+  item, active, onNavigate, pinned, onTogglePin,
 }: {
   item: NavItem;
   active: boolean;
   onNavigate?: () => void;
-  /** Shown under the label in search results, so two same-named pages are telling apart. */
-  heading?: string;
   pinned?: boolean;
   onTogglePin?: (href: string) => void;
 }) {
@@ -251,17 +243,14 @@ function NavLink({
         onClick={onNavigate}
         data-tour={item.href}
         className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2 pe-9 text-sm font-medium transition-colors",
+          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
           active
             ? "bg-sidebar-foreground text-sidebar shadow-sm"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
         <Icon name={item.icon} className="size-[18px] shrink-0" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate">{item.label}</span>
-          {heading && <span className="block truncate text-[11px] opacity-60">{heading}</span>}
-        </span>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
       </Link>
       {onTogglePin && (
         // Visible on hover, and always once pinned — otherwise unpinning means
@@ -272,8 +261,8 @@ function NavLink({
           aria-label={pinned ? "إلغاء التثبيت" : "تثبيت"}
           title={pinned ? "إلغاء التثبيت" : "تثبيت في الأعلى"}
           className={cn(
-            "absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 transition-opacity",
-            active ? "text-sidebar hover:bg-sidebar/20" : "text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 backdrop-blur-sm transition-opacity",
+            active ? "bg-sidebar-foreground text-sidebar hover:bg-sidebar/20" : "bg-sidebar text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             pinned ? "opacity-100" : "opacity-0 focus:opacity-100 group-hover/nav:opacity-100",
           )}
         >
