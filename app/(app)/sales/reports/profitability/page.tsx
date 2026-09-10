@@ -31,6 +31,9 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
     const search = one(sp.q).trim().toLowerCase();
+    // Target margin for the suggested-price column. Query-string driven so the print and
+    // Excel links carry it too and all three agree.
+    const targetMargin = Math.min(95, Math.max(0, Number(one(sp.margin)) || 25));
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
     const [revRows, cogsRows, returnRows, feesByItem] = await Promise.all([
@@ -71,7 +74,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
     let list = buildProfitability(
       revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
-      returnsByItem, cogsByItem, feesByItem,
+      returnsByItem, cogsByItem, feesByItem, targetMargin,
     );
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name?.toLowerCase().includes(search));
     list.sort((a, b) => b.profit - a.profit);
@@ -84,13 +87,28 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const tNet = tProfit - tFees;
     const hasFees = tFees > 0;
 
-    const qs = new URLSearchParams({ from, to });
+    const qs = new URLSearchParams({ from, to, margin: String(targetMargin) });
     if (search) qs.set("q", search);
+    // A break-even without fees is not a break-even. The settlement arrives days after
+    // the sale, so say which rows are still missing theirs instead of showing a number
+    // that looks complete.
+    const missingFees = list.filter((r) => r.qty > 0 && r.fees === 0).length;
 
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/profitability/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/profitability/print?${qs.toString()}`} />} />
         <ItemSalesFilters from={from} to={to} q={search} />
+        {/* The marketplace view is a separate page rather than two more tables here: it
+            answers a different question (what Amazon charged, per order and per SKU) and
+            a four-table page is not a report anyone reads. */}
+        <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
+          className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
+          <span>
+            <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
+            <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
+          </span>
+          <span className="text-muted-foreground">←</span>
+        </a>
 
         <div className={`grid gap-4 ${hasFees ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-4"}`}>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الإيراد (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tRevenue)}</p></CardContent></Card>
@@ -148,6 +166,52 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                       <TableCell className="text-end tabular-nums">{pct(r.margin)}</TableCell>
                       {hasFees && <TableCell className="text-end tabular-nums text-muted-foreground">{r.fees > 0 ? fmt(r.fees) : "—"}</TableCell>}
                       {hasFees && <TableCell className={`text-end tabular-nums font-medium ${r.netProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{r.fees > 0 ? fmt(r.netProfit) : "—"}</TableCell>}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>ربحية القطعة الواحدة</CardTitle>
+            <CardDescription>
+              متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية.
+              أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.
+              {missingFees > 0 && (
+                <span className="text-amber-600"> · {qtyf(missingFees)} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.</span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {list.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-start">الصنف</TableHead>
+                    <TableHead className="text-end">الكمية</TableHead>
+                    <TableHead className="text-end">متوسط سعر البيع</TableHead>
+                    <TableHead className="text-end">التكلفة/وحدة</TableHead>
+                    <TableHead className="text-end">رسوم أمازون/وحدة</TableHead>
+                    <TableHead className="text-end">سعر التعادل</TableHead>
+                    <TableHead className="text-end">الفرق</TableHead>
+                    <TableHead className="text-end">السعر المقترح ({qtyf(targetMargin)}%)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {list.map((r, i) => (
+                    <TableRow key={`u-${r.code ?? i}`}>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
+                      <TableCell className="text-end tabular-nums font-medium">{fmt(r.avgSellPrice)}</TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.unitCost)}</TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">{r.fees > 0 ? fmt(r.unitFees) : "—"}</TableCell>
+                      <TableCell className="text-end tabular-nums font-medium">{fmt(r.breakEven)}</TableCell>
+                      <TableCell className={`text-end tabular-nums font-medium ${r.gap >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.gap)}</TableCell>
+                      <TableCell className="text-end tabular-nums">{r.suggested > 0 ? fmt(r.suggested) : "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

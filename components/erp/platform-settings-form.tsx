@@ -17,7 +17,7 @@ import { selectCls } from "@/lib/utils";
 type Platform = {
   id: string; name: string; code: string; integrationType: string; productSyncMode: string;
   syncProducts: boolean; syncOrders: boolean; syncInventory: boolean; syncSettlements: boolean; syncReturns: boolean;
-  autoPostSettlements: boolean; autoMode: string;
+  autoPostSettlements: boolean; autoMode: string; pricesIncludeVat: boolean;
   warehouseId: string | null; bankAccountId: string | null; customerName: string | null;
 };
 type Option = { id: string; nameAr: string };
@@ -69,6 +69,7 @@ export function PlatformSettingsForm({
   });
   const [autoMode, setAutoMode] = useState(platform.autoMode || "invoice");
   const [autoPostSettlements, setAutoPostSettlements] = useState(platform.autoPostSettlements);
+  const [pricesIncludeVat, setPricesIncludeVat] = useState(platform.pricesIncludeVat);
   const [warehouseId, setWarehouseId] = useState(platform.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform.bankAccountId ?? "");
 
@@ -83,7 +84,7 @@ export function PlatformSettingsForm({
         syncProducts: sources.products, syncOrders: sources.orders,
         syncInventory: sources.inventory, syncSettlements: sources.settlements,
         syncReturns: sources.returns,
-        autoPostSettlements, autoMode,
+        autoPostSettlements, autoMode, pricesIncludeVat,
         defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
       });
       if (r.ok) { toast.success("تم حفظ إعدادات المنصة"); router.refresh(); }
@@ -190,6 +191,15 @@ export function PlatformSettingsForm({
               <div className="text-xs text-muted-foreground">مفعّل: التسويات المسحوبة تُرحّل للقيود تلقائيًا. مُطفأ (الافتراضي): تُسحب وتنتظر مراجعتك ثم تضغط «ترحيل» يدويًا.</div>
             </div>
             <Switch checked={autoPostSettlements} onCheckedChange={setAutoPostSettlements} />
+          </div>
+          {/* Whether the channel's price already has tax inside it. Off is the honest
+              default: the order imports at the price the buyer paid, no tax line. */}
+          <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
+            <div>
+              <div className="text-sm font-medium">أسعار المنصة شاملة ض.ق.م</div>
+              <div className="text-xs text-muted-foreground">مُطفأ (الافتراضي): الأوامر تنزل بسعرها كامل ومفيش ضريبة تُرحَّل. مفعّل: تُستخرج الضريبة من السعر وتُرحَّل على «ضريبة المخرجات» — الإجمالي ما يتغيّرش في الحالتين. التغيير يسري على الأوامر الجديدة بس.</div>
+            </div>
+            <Switch checked={pricesIncludeVat} onCheckedChange={setPricesIncludeVat} />
           </div>
         </CardContent>
       </Card>

@@ -164,6 +164,7 @@ export const NAV: NavSection[] = [
       { label: "تقرير الدفتر", href: "/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view", group: "التقارير" },
       { label: "تقرير الأصناف", href: "/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view", group: "التقارير" },
       { label: "ربحية المنتجات", href: "/sales/reports/profitability", icon: "TrendingUp", capability: "erp.reports.view", group: "التقارير" },
+      { label: "ربحية المنصة", href: "/sales/reports/marketplace-pnl", icon: "Wallet", capability: "erp.reports.view", group: "التقارير" },
       { label: "ترتيب العملاء", href: "/sales/reports/customers", icon: "Users", capability: "erp.sales.view", group: "التقارير" },
     ],
   },

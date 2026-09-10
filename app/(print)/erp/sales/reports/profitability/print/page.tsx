@@ -21,6 +21,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
+    const targetMargin = Math.min(95, Math.max(0, Number(one(sp.margin)) || 25));
     const search = one(sp.q).trim().toLowerCase();
     const fromD = new Date(from), toD = new Date(to + "T23:59:59");
 
@@ -58,7 +59,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
     const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
     let list = buildProfitability(
       revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
-      returnsByItem, cogsByItem, feesByItem,
+      returnsByItem, cogsByItem, feesByItem, targetMargin,
     );
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name?.toLowerCase().includes(search));
     list.sort((a, b) => b.profit - a.profit);
@@ -82,8 +83,11 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
       ] : []),
     ];
 
-    const qs = new URLSearchParams({ from, to });
+    const qs = new URLSearchParams({ from, to, margin: String(targetMargin) });
     if (search) qs.set("q", search);
+    // Say which rows are still waiting on a settlement instead of printing a break-even
+    // that quietly excludes Amazon's cut.
+    const missingFees = list.filter((r) => r.qty > 0 && r.fees === 0).length;
 
     return (
       <ReportSheet
@@ -127,10 +131,37 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
             "", "الإجمالي", "", fmt(tRevenue), fmt(tCogs), fmt(tProfit), pct(tMargin),
             ...(hasFees ? [fmt(tFees), fmt(tNet)] : []),
           ],
+        }, {
+          title: "ربحية القطعة الواحدة",
+          columns: [
+            { label: "الصنف" },
+            { label: "الكمية", align: "end" as const },
+            { label: "متوسط سعر البيع", align: "end" as const },
+            { label: "التكلفة/وحدة", align: "end" as const },
+            { label: "رسوم أمازون/وحدة", align: "end" as const },
+            { label: "سعر التعادل", align: "end" as const },
+            { label: "الفرق", align: "end" as const },
+            { label: `السعر المقترح (${targetMargin}%)`, align: "end" as const },
+          ],
+          rows: list.map((r) => [
+            <span key="n">
+              {r.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10, marginInlineEnd: 6 }}>{r.code}</span>}
+              {r.name}
+            </span>,
+            qty(r.qty),
+            <b key="s">{fmt(r.avgSellPrice)}</b>,
+            fmt(r.unitCost),
+            r.fees > 0 ? fmt(r.unitFees) : "—",
+            <b key="be">{fmt(r.breakEven)}</b>,
+            <b key="g" style={{ color: r.gap >= 0 ? "#1f9d63" : "#d64545" }}>{fmt(r.gap)}</b>,
+            r.suggested > 0 ? fmt(r.suggested) : "—",
+          ]),
         }]}
         note={list.length === 0
           ? "لا توجد مبيعات في هذه الفترة."
-          : "التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة)."}
+          : "التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة)."
+            + " سعر التعادل = التكلفة الشاملة للقطعة + رسوم أمازون الفعلية."
+            + (missingFees > 0 ? ` ${missingFees} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.` : "")}
         backHref={`/sales/reports/profitability?${qs.toString()}`}
       />
     );

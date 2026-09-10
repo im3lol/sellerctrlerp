@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates, organizations } from "@/db/schema";
+import { items, itemCodes, itemCategories, unitsOfMeasure, salesOrders, salesOrderLines, warehouses, deliveryNotes, unmatchedOrders, exchangeRates, organizations, salesPlatforms } from "@/db/schema";
 import { getBaseCurrencyCode } from "@/lib/erp/currency";
 import { orderToBase, isForeign } from "./order-fx";
 import { splitInclusiveOrderVat } from "@/lib/erp/vat";
@@ -177,11 +177,20 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // with NO rate on file is left unconverted; the loops below keep it DRAFT (never auto-invoice a
   // wrong-currency order) and we alert once per currency.
   const base = await getBaseCurrencyCode(orgId);
-  // Marketplace prices are VAT-INCLUSIVE — carve the VAT component out at ingest so the
-  // order/invoice recognises output VAT (2102) instead of booking 100% of channel revenue
-  // as tax-free. The gross total is preserved (settlement still reconciles).
+  // Does this channel price with VAT inside? The PLATFORM decides, not the org — a seller
+  // can be registered in one channel and not another, and most here charge no VAT at all.
+  // This used to be unconditional, so every marketplace order had 14% carved out of it and
+  // booked as output VAT (2102) that nobody owed. Off → rate 0 → the split below returns
+  // price = gross and tax = 0, which is exactly what the CSV importer already does
+  // (app/actions/erp/platforms.ts). Read here rather than passed in, so all three ingest
+  // callers — the sync worker, the manual file import and the Noon webhook — get it right
+  // without each having to remember. No platform (a bare DTO import) means no VAT.
   const [orgRow] = await db.select({ vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-  const vatRate = Number(orgRow?.vatRate ?? 0);
+  const [platRow] = ctx.platformId
+    ? await db.select({ inclusive: salesPlatforms.pricesIncludeVat }).from(salesPlatforms)
+        .where(and(eq(salesPlatforms.id, ctx.platformId), eq(salesPlatforms.organizationId, orgId))).limit(1)
+    : [undefined];
+  const vatRate = platRow?.inclusive ? Number(orgRow?.vatRate ?? 0) : 0;
   const foreignCodes = [...new Set(orders.filter((o) => isForeign(o, base)).map((o) => o.currency!))];
   const rateBy = new Map<string, number>();
   if (foreignCodes.length) {
@@ -233,8 +242,8 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   const insertOrder = async (o: PreviewOrder, status: string): Promise<string | null> => {
     const d = new Date(o.date || Date.now());
     try {
-      // Carve VAT out of the inclusive marketplace prices: net subtotal + per-line/order tax,
-      // gross line/order totals preserved (settlement still reconciles).
+      // Split the marketplace price. When the channel doesn't price VAT-inclusive (the
+      // default) this is a no-op passthrough: unit price = gross, tax = 0.
       const vat = splitInclusiveOrderVat(o.lines.map((l) => ({ qty: l.qty, lineTotal: l.lineTotal })), vatRate);
       return await db.transaction(async (tx) => {
         const number = await nextDocumentNumber(tx, orgId, "SO", d.getFullYear());

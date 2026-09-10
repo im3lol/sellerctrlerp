@@ -34,6 +34,7 @@ const schema = z.object({
   syncSettlements: z.boolean().optional(),
   syncReturns: z.boolean().optional(),
   autoPostSettlements: z.boolean().optional(),
+  pricesIncludeVat: z.boolean().optional(),
   autoMode: z.enum(["draft", "order", "deliver", "invoice"]).optional(),
   accountingStartDate: z.string().optional().nullable(),
 });
@@ -193,6 +194,7 @@ export async function updatePlatformAction(id: string, input: unknown): Promise<
       ...(parsed.data.syncSettlements !== undefined ? { syncSettlements: parsed.data.syncSettlements } : {}),
       ...(parsed.data.syncReturns !== undefined ? { syncReturns: parsed.data.syncReturns } : {}),
       ...(parsed.data.autoPostSettlements !== undefined ? { autoPostSettlements: parsed.data.autoPostSettlements } : {}),
+      ...(parsed.data.pricesIncludeVat !== undefined ? { pricesIncludeVat: parsed.data.pricesIncludeVat } : {}),
       ...(parsed.data.autoMode !== undefined ? { autoMode: parsed.data.autoMode } : {}),
       ...(parsed.data.accountingStartDate !== undefined ? { accountingStartDate: parsed.data.accountingStartDate || null } : {}),
       // Only touch these when the caller actually sent them — a partial update (e.g. the

@@ -117,7 +117,9 @@ export async function createPurchaseReturnAction(input: unknown): Promise<SaveRe
 
 /**
  * Confirm (post) a DRAFT purchase return — atomic + idempotent:
- *   Dr الموردون (2101) = total · Cr المخزون (1104) = net · Cr ضريبة المدخلات (1107) = tax
+ *   Dr الموردون (2101) = total · Cr المخزون (1104) = قيمة البضاعة · Cr ضريبة المدخلات (1107) = المستردّ فقط
+ *   (VAT the original receipt capitalised into stock is credited back with the goods, not
+ *    to 1107 — it was never recoverable. See purchase_receipt_lines.tax_per_unit.)
  *   + issue stock out at the credited unit price (keeps GL inventory == ledger).
  *   + reduce the supplier balance. Sets status = POSTED.
  */
@@ -218,6 +220,23 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
     const tax = round2(net * taxRate);
     const total = round2(net + tax);
 
+    // Send back the VAT the way it came in. Whatever the original receipt capitalised
+    // rides with the goods; only the rest was ever an input-tax asset to reverse.
+    const grnTaxByItem = new Map<string, number>();
+    if (inv.goodsReceiptId) {
+      const grnLines = await db.select({ itemId: purchaseReceiptLines.itemId, taxPerUnit: purchaseReceiptLines.taxPerUnit })
+        .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, inv.goodsReceiptId));
+      for (const l of grnLines) grnTaxByItem.set(l.itemId, Number(l.taxPerUnit));
+    }
+    const capitalisedTax = Math.min(
+      round2(lines.reduce((s, l) => s + l.quantity * (grnTaxByItem.get(l.itemId) ?? 0), 0)),
+      tax,
+    );
+    const recoverableTax = round2(tax - capitalisedTax);
+    // What should leave inventory / GRNI: the goods at the price billed, plus the VAT that
+    // was baked into their cost.
+    const goodsCredit = round2(net + capitalisedTax);
+
     const A = await resolveAccountIds(auth.orgId, ["2101", "1104", "2103", "1107", "4201", "5301", "5302"]);
     // Money-side return: from a GRN-billed invoice it restores GRNI (2103); a standalone
     // invoice (which received stock itself) credits Inventory (1104) and issues stock out.
@@ -250,7 +269,7 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
 
         // Standalone invoice issues stock out at FIFO batch cost; from-GRN invoices
         // touch no stock (credit GRNI at net). `cost` = inventory value credited.
-        let cost = net;
+        let cost = goodsCredit;
         if (!fromReceipt) {
           cost = 0;
           for (const l of lines) {
@@ -267,8 +286,8 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
           { accountId: A["2101"], debit: total, credit: 0, description: `إشعار مدين ${inv.number}` },
           { accountId: creditAcc, debit: 0, credit: cost, description: fromReceipt ? `تسوية بضاعة لم تُفوتر ${ret.number}` : `إرجاع مخزون ${ret.number}` },
         ];
-        if (tax > 0 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: tax, description: `عكس ضريبة مدخلات ${ret.number}` });
-        const variance = round2(net - cost); // 0 for from-GRN; price↔cost gap for standalone
+        if (recoverableTax > 0.004 && A["1107"]) glLines.push({ accountId: A["1107"], debit: 0, credit: recoverableTax, description: `عكس ضريبة مدخلات ${ret.number}` });
+        const variance = round2(goodsCredit - cost); // 0 for from-GRN; price↔cost gap for standalone
         const varGain = A["5302"] ?? A["4201"]; // dedicated purchase-return price variance (5302), fallback to surplus/shrinkage
         const varLoss = A["5302"] ?? A["5301"];
         if (variance > 0 && varGain) glLines.push({ accountId: varGain, debit: 0, credit: variance, description: `فرق سعر مرتجع ${ret.number}` });

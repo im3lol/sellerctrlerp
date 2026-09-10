@@ -19,7 +19,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
         syncProducts: salesPlatforms.syncProducts, syncOrders: salesPlatforms.syncOrders,
         syncInventory: salesPlatforms.syncInventory, syncSettlements: salesPlatforms.syncSettlements,
         syncReturns: salesPlatforms.syncReturns,
-        autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode,
+        autoPostSettlements: salesPlatforms.autoPostSettlements, autoMode: salesPlatforms.autoMode, pricesIncludeVat: salesPlatforms.pricesIncludeVat,
         warehouseId: salesPlatforms.defaultWarehouseId, bankAccountId: salesPlatforms.bankAccountId,
         customerName: customers.nameAr,
       })

@@ -49,7 +49,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, grn.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
       db.select({ name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.id, grn.warehouseId)).limit(1),
-      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, shipping: purchaseReceiptLines.shippingPerUnit, code: items.code, name: items.nameAr, image: items.image, tracking: items.tracking, wh: warehouses.nameAr })
+      db.select({ id: purchaseReceiptLines.id, itemId: purchaseReceiptLines.itemId, qty: purchaseReceiptLines.quantity, rejected: purchaseReceiptLines.rejectedQty, code: items.code, name: items.nameAr, image: items.image, tracking: items.tracking, wh: warehouses.nameAr })
         .from(purchaseReceiptLines)
         .leftJoin(items, eq(items.id, purchaseReceiptLines.itemId))
         .leftJoin(warehouses, eq(warehouses.id, purchaseReceiptLines.warehouseId))
@@ -65,7 +65,6 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
       getDocumentAudit(orgId, grn.id),
     ]);
     const anyRejected = lines.some((l) => Number(l.rejected) > 0);
-    const anyShipping = lines.some((l) => Number(l.shipping) > 0);
 
     // ── All-in cost ──────────────────────────────────────────────────────────────
     // Goods cost from the shared definition, plus whatever POSTED import-cost vouchers
@@ -166,11 +165,8 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                   <TableHead className="text-start">مخزن الاستلام</TableHead>
                   <TableHead className="text-start">الكمية المستلمة</TableHead>
                   {anyRejected && <TableHead className="text-start">الكمية المرفوضة</TableHead>}
-                  {anyShipping && <TableHead className="text-start">شحن/وحدة</TableHead>}
-                  {canSeeCost && <TableHead className="text-start">تكلفة البضاعة/وحدة</TableHead>}
-                  {canSeeCost && anyLanded && <TableHead className="text-start">تكاليف محمَّلة/وحدة</TableHead>}
-                  {canSeeCost && <TableHead className="text-start">الإجمالي الشامل/وحدة</TableHead>}
-                  {canSeeCost && <TableHead className="text-start">القيمة</TableHead>}
+                  {canSeeCost && <TableHead className="text-start">تكلفة القطعة الشاملة</TableHead>}
+                  {canSeeCost && <TableHead className="text-start">الإجمالي</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,9 +183,6 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                     <TableCell>{qtyf(l.qty)}</TableCell>
                     {anyRejected && <TableCell className={Number(l.rejected) > 0 ? "text-destructive" : "text-muted-foreground"}>{qtyf(l.rejected)}</TableCell>}
-                    {anyShipping && <TableCell>{fmt(l.shipping)}</TableCell>}
-                    {canSeeCost && <TableCell className="tabular-nums">{fmt(goods)}</TableCell>}
-                    {canSeeCost && anyLanded && <TableCell className="tabular-nums text-amber-600">{fmt(landed)}</TableCell>}
                     {canSeeCost && <TableCell className="font-medium tabular-nums">{fmt(goods + landed)}</TableCell>}
                     {canSeeCost && <TableCell className="tabular-nums">{fmt(Number(l.qty) * (goods + landed))}</TableCell>}
                   </TableRow>

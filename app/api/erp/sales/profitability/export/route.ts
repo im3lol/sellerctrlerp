@@ -20,6 +20,7 @@ export async function GET(req: Request) {
   const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));
   const to = p.get("to") || now.toISOString().slice(0, 10);
   const fromD = new Date(from), toD = new Date(to + "T23:59:59");
+  const targetMargin = Math.min(95, Math.max(0, Number(p.get("margin")) || 25));
 
   return withOrgScope(orgId, false, async () => {
   const [revRows, cogsRows, returnRows, feesByItem] = await Promise.all([
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
   const returnsByItem = new Map(returnRows.map((r) => [r.itemId, Number(r.revenue ?? 0)]));
   const list = buildProfitability(
     revRows.map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, qty: Number(r.qty ?? 0), revenue: Number(r.revenue ?? 0) })),
-    returnsByItem, cogsByItem, feesByItem,
+    returnsByItem, cogsByItem, feesByItem, targetMargin,
   ).sort((a, b) => b.profit - a.profit);
 
   const tRev = list.reduce((s, r) => s + r.revenue, 0);
@@ -55,10 +56,12 @@ export async function GET(req: Request) {
   return xlsxResponse({
     sheet: "ربحية المنتجات",
     filename: `profitability-${from}_${to}`,
-    headers: ["الكود", "الصنف", "الكمية", "الإيراد", "التكلفة", "الربح", "الهامش %", "رسوم أمازون الفعلية", "الصافي بعد الرسوم"],
-    rows: list.map((r) => [r.code, r.name, r.qty, r.revenue, r.cogs, r.profit, r.revenue > 0 ? Number(r.margin.toFixed(1)) : "", r.fees, r.netProfit]),
-    totalRow: ["", "الإجمالي", "", tRev, tCogs, tRev - tCogs, "", tFees, tRev - tCogs - tFees],
-    colWidths: [12, 28, 12, 16, 16, 16, 10, 16, 16],
+    headers: ["الكود", "الصنف", "الكمية", "الإيراد", "التكلفة", "الربح", "الهامش %", "رسوم أمازون الفعلية", "الصافي بعد الرسوم",
+      "متوسط سعر البيع", "التكلفة/وحدة", "رسوم أمازون/وحدة", "سعر التعادل", "الفرق", `السعر المقترح (${targetMargin}%)`],
+    rows: list.map((r) => [r.code, r.name, r.qty, r.revenue, r.cogs, r.profit, r.revenue > 0 ? Number(r.margin.toFixed(1)) : "", r.fees, r.netProfit,
+      r.avgSellPrice, r.unitCost, r.fees > 0 ? r.unitFees : "", r.breakEven, r.gap, r.suggested > 0 ? r.suggested : ""]),
+    totalRow: ["", "الإجمالي", "", tRev, tCogs, tRev - tCogs, "", tFees, tRev - tCogs - tFees, "", "", "", "", "", ""],
+    colWidths: [12, 28, 12, 16, 16, 16, 10, 16, 16, 16, 14, 16, 14, 12, 18],
   });
   });
 }

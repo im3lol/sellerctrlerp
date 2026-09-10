@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { purchaseReceiptLines, purchaseOrderLines } from "@/db/schema";
-import { round2 } from "@/lib/erp/money";
+import { round2, receivedUnitCost } from "@/lib/erp/money";
 
 type Exec = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -19,12 +19,11 @@ export type ReceiptLineCost = {
 /**
  * What a goods receipt actually capitalised, per line.
  *
- * THE definition of a received unit's cost: price and discount come from the ORDER line
- * (that is what was agreed), shipping from the RECEIPT line (each delivery can carry its
- * own freight). This mirrors `confirmReceiptAction`'s `unitNet`
- * (app/actions/erp/goods-receipts.ts) — the two must stay identical, because the receipt
- * credits GRNI with this figure and the invoice debits GRNI with it. If they drift,
- * 2103 silently stops clearing and /purchases/grni starts showing a difference.
+ * The arithmetic itself is `receivedUnitCost` (lib/erp/money.ts) — the same function
+ * `confirmReceiptAction` calls (app/actions/erp/goods-receipts.ts). They used to be two
+ * copies of one formula with a comment begging them to stay identical; now they cannot
+ * drift, which matters because the receipt credits GRNI with this figure and the invoice
+ * debits GRNI with it.
  *
  * Everything that needs "what did this receipt cost" reads it from here: the invoice's
  * three-way match, the purchase-return price cap, the GRNI reconciliation, and the
@@ -40,6 +39,7 @@ export async function receiptLineCosts(
       quantity: purchaseReceiptLines.quantity,
       warehouseId: purchaseReceiptLines.warehouseId,
       shippingPerUnit: purchaseReceiptLines.shippingPerUnit,
+      taxPerUnit: purchaseReceiptLines.taxPerUnit,
     })
     .from(purchaseReceiptLines)
     .where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
@@ -64,9 +64,13 @@ export async function receiptLineCosts(
     .map((gl) => {
       const quantity = Number(gl.quantity);
       const pol = poByItem.get(gl.itemId);
-      const unitNet = pol
-        ? pol.unitPrice - pol.discountAmount / (pol.quantity || 1) + Number(gl.shippingPerUnit)
-        : Number(gl.shippingPerUnit);
+      const unitNet = receivedUnitCost({
+        quantity: pol?.quantity ?? 0,
+        unitPrice: pol?.unitPrice ?? 0,
+        discountAmount: pol?.discountAmount ?? 0,
+        shippingPerUnit: Number(gl.shippingPerUnit),
+        taxPerUnit: Number(gl.taxPerUnit),
+      });
       return {
         itemId: gl.itemId,
         warehouseId: gl.warehouseId || grn.warehouseId,

@@ -9,9 +9,9 @@ import type { MarketplaceOrder, DateRange } from "../dto";
 
 
 type Money = { Amount?: string | number; CurrencyCode?: string };
-type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string; FulfillmentChannel?: string };
+type ApiOrder = { AmazonOrderId?: string; PurchaseDate?: string; OrderStatus?: string; FulfillmentChannel?: string; OrderTotal?: Money };
 type OrdersResponse = { payload?: { Orders?: ApiOrder[]; NextToken?: string } };
-type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money; PromotionDiscount?: Money; ShipPromotionDiscount?: Money };
+type ApiOrderItem = { ASIN?: string; SellerSKU?: string; Title?: string; QuantityOrdered?: number; ItemPrice?: Money; ShippingPrice?: Money; PromotionDiscount?: Money; ShipPromotionDiscount?: Money; ShippingDiscount?: Money };
 type ItemsResponse = { payload?: { OrderItems?: ApiOrderItem[]; NextToken?: string } };
 
 const amt = (m?: Money) => Number(m?.Amount ?? 0) || 0;
@@ -28,10 +28,24 @@ export function toMarketplaceOrder(o: ApiOrder, items: ApiOrderItem[]): Marketpl
   });
   const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
   const shippingTotal = round2(lines.reduce((s, l) => s + l.shipping, 0));
-  // Buyer pays ItemPrice + ShippingPrice − PromotionDiscount − ShipPromotionDiscount.
-  // ItemPrice/ShippingPrice are gross, so the promos are what the buyer actually saved
-  // (e.g. a free-shipping promo of −20). Without this the SO total overstates by the promo.
-  const discount = round2(items.reduce((s, it) => s + amt(it.PromotionDiscount) + amt(it.ShipPromotionDiscount), 0));
+
+  // ItemPrice and ShippingPrice are gross; the reductions come back in whichever field
+  // Amazon felt like using. A real order (404-8234280-6421164) put a free-shipping waiver
+  // in ShippingDiscount, left PromotionDiscount at 0.00, and omitted ShipPromotionDiscount
+  // entirely — we read only the latter two, so the order booked 20 EGP too high.
+  const itemised = round2(items.reduce((s, it) =>
+    s + amt(it.PromotionDiscount) + amt(it.ShipPromotionDiscount) + amt(it.ShippingDiscount), 0));
+
+  // Then don't rely on having named every field. OrderTotal is what Amazon actually
+  // charged the buyer, so treat it as the authority and let the discount absorb whatever
+  // it doesn't itemise — the next unmodelled field costs nothing instead of silently
+  // inflating revenue. Guard: if the components come to LESS than Amazon's total (a tax
+  // or fee we don't represent) we'd be inventing a negative discount, so keep the
+  // itemised figure and let the difference show up rather than fabricating one.
+  const reported = amt(o.OrderTotal);
+  const derived = round2(subtotal + shippingTotal - reported);
+  const discount = reported > 0 && derived >= 0 ? derived : itemised;
+
   return {
     externalId: o.AmazonOrderId ?? "", date: o.PurchaseDate ?? new Date().toISOString(), status: mapStatus(o.OrderStatus),
     // Order currency from the line prices (all lines share it). amazon.eg → EGP (= base, no

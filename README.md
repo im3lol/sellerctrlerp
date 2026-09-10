@@ -65,7 +65,7 @@ cd .next/standalone && PORT=3011 NODE_ENV=production AUTH_TRUST_HOST=true node s
 ### Docker (containerized app)
 
 ```bash
-docker compose -f docker/docker-compose.yml --profile app up -d --build app   # → http://localhost:3000
+npm run deploy   # build → migrate → RLS → rebuild app AND worker → health gate (auto-rollback)
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment) for the Docker rebuild

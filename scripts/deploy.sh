@@ -35,12 +35,18 @@ echo "▶ 5/6  build + swap…"
 DC up -d --build
 
 echo "▶ 6/6  health gate…"
+# BOTH containers. `DC up -d --build` (no service argument) rebuilds every service in the
+# profile, so the worker is always redeployed with the app — but the gate used to watch
+# only the app, so a worker that failed to come up went unreported. A silently stale or
+# dead worker means marketplace syncs keep running old code while everything looks fine.
 ok=""
 for i in $(seq 1 20); do
-  s="$(docker inspect --format '{{.State.Health.Status}}' sellerctrl-app 2>/dev/null || echo none)"
-  if [ "$s" = "healthy" ]; then ok=1; break; fi
+  a="$(docker inspect --format '{{.State.Health.Status}}' sellerctrl-app 2>/dev/null || echo none)"
+  w="$(docker inspect --format '{{.State.Health.Status}}' sellerctrl-worker 2>/dev/null || echo none)"
+  if [ "$a" = "healthy" ] && [ "$w" = "healthy" ]; then ok=1; break; fi
   sleep 6
 done
+echo "    app=$a worker=$w"
 
 if [ -n "$ok" ]; then
   echo "✅ deployed and healthy."

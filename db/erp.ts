@@ -71,6 +71,10 @@ export const organizations = pgTable(
     baseCurrencyId: text("base_currency_id"),
     fiscalYearStart: text("fiscal_year_start"),
     vatRate: money("vat_rate").notNull().default("14"),
+    // Purchase VAT: false = recoverable (Dr 1107 on the invoice, kept out of stock cost),
+    // true = loaded onto the goods. Only read when a receipt is CREATED; from then on the
+    // receipt line's own tax_per_unit snapshot decides — see purchaseReceiptLines.
+    purchaseVatCapitalised: boolean("purchase_vat_capitalised").notNull().default(false),
     // Purchase orders above this amount require approval before confirming (0 = off).
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
     // Loyalty: points earned per pound (0 = programme off), pounds a point redeems for,
@@ -920,6 +924,11 @@ export const purchaseReceiptLines = pgTable("purchase_receipt_lines", {
   // shippingPerUnit (which it defaults from at creation, see createReceiptFromOrderAction).
   // Capitalised into stock cost at confirm; NOT the PO-wide estimate.
   shippingPerUnit: money("shipping_per_unit").notNull().default("0"),
+  // VAT capitalised into this receipt's unit cost, snapshotted at creation from the order
+  // line when the org loads purchase VAT onto goods (organizations.purchaseVatCapitalised).
+  // 0 when VAT is recoverable. Stored rather than recomputed so that flipping the org
+  // setting can never restate what a confirmed receipt already credited to GRNI.
+  taxPerUnit: numeric("tax_per_unit", { precision: 18, scale: 6 }).notNull().default("0"),
   batchNo: text("batch_no"), // lot/batch (perishables)
   expiryDate: ts("expiry_date"),
   purchaseInvoiceLineId: text("purchase_invoice_line_id"),
@@ -2112,6 +2121,9 @@ export const salesInvoiceLines = pgTable(
     discountAmount: money("discount_amount").notNull().default("0"),
     taxAmount: money("tax_amount").notNull().default("0"),
     totalAmount: money("total_amount").notNull(),
+    // DEAD: nothing has ever written this — every row is 0. Cost of sales is posted by
+    // the DELIVERY as a stock movement, so read it from there (lib/erp/sales-cogs.ts).
+    // Both P&L engines used to sum this column and reported a cost of zero.
     costAmount: money("cost_amount").notNull().default("0"),
   },
   (t) => [
@@ -2691,6 +2703,12 @@ export const salesPlatforms = pgTable(
     // When settlements are pulled: true = post to GL automatically; false = pull
     // only and leave posting to a manual click on the settlements screen.
     autoPostSettlements: boolean("auto_post_settlements").notNull().default(false),
+    // Do this channel's prices already contain VAT? Off by default, and off is the honest
+    // answer for a seller who isn't charging it: the order imports at the price the buyer
+    // paid, with no tax line. On, the importer carves the VAT out of the gross so output
+    // VAT (2102) is recognised — the gross total is preserved either way, so settlement
+    // reconciliation is unaffected by the choice.
+    pricesIncludeVat: boolean("prices_include_vat").notNull().default(false),
     // Deprecated — superseded by autoMode. Kept so legacy rows stay valid; not read.
     autoInvoice: boolean("auto_invoice").notNull().default(true),
     // What the automatic order flow creates from a marketplace order:
@@ -2834,6 +2852,14 @@ export const marketplaceSettlementTxns = pgTable(
     otherTransactionFees: money("other_transaction_fees").notNull().default("0"),
     other: money("other").notNull().default("0"),
     total: money("total").notNull().default("0"),
+    // From Finances listTransactions. `transactionId` CHANGES as a transaction moves
+    // DEFERRED → DEFERRED_RELEASED → RELEASED, so it is traceability only, never a key;
+    // `shipmentId` stays the same across all three and is what dedupKey anchors on.
+    transactionId: text("transaction_id"),
+    shipmentId: text("shipment_id"),
+    // The itemised fee tree exactly as Amazon returns it, so the order-level view can show
+    // what Seller Central shows (each fee split into base and tax) without re-deriving it.
+    breakdown: jsonb("breakdown"),
     dedupKey: text("dedup_key").notNull(),
     journalEntryId: text("journal_entry_id"), // set once the (released) row is posted
     salesOrderId: text("sales_order_id"),
@@ -2844,6 +2870,36 @@ export const marketplaceSettlementTxns = pgTable(
     uniqueIndex("mkt_settle_dedup_idx").on(t.organizationId, t.dedupKey),
     index("mkt_settle_order_idx").on(t.organizationId, t.orderId),
     index("mkt_settle_status_idx").on(t.organizationId, t.channel, t.status),
+  ],
+);
+
+// One row per SKU inside a marketplace transaction. The parent row carries a single sku,
+// which suits a settlement-report line but not a multi-item order — and attributing Amazon's
+// fees per PRODUCT (not per order) is the whole point of a per-product P&L.
+export const marketplaceTxnItems = pgTable(
+  "marketplace_txn_items",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    txnId: text("txn_id").notNull().references(() => marketplaceSettlementTxns.id, { onDelete: "cascade" }),
+    sku: text("sku"),
+    asin: text("asin"),
+    quantity: money("quantity").notNull().default("0"),
+    productCharges: money("product_charges").notNull().default("0"),
+    // Fees are stored NEGATIVE, exactly as Amazon reports them, so a row sums to `total`
+    // without anyone having to remember a sign convention.
+    commission: money("commission").notNull().default("0"),
+    commissionTax: money("commission_tax").notNull().default("0"),
+    fbaFee: money("fba_fee").notNull().default("0"),
+    fbaFeeTax: money("fba_fee_tax").notNull().default("0"),
+    otherFees: money("other_fees").notNull().default("0"),
+    total: money("total").notNull().default("0"),
+    breakdown: jsonb("breakdown"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("mkt_txn_items_txn_idx").on(t.organizationId, t.txnId),
+    index("mkt_txn_items_sku_idx").on(t.organizationId, t.sku),
   ],
 );
 
