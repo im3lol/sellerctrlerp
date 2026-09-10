@@ -160,6 +160,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
             <CardTitle>على مستوى المنتج</CardTitle>
             <CardDescription>
               الرسوم موزّعة على كل SKU — ده اللي تقرير التسويات القديم ماكانش يقدر يعمله.
+              الكمية **صافية**: المباع ناقص المرتجع، فالمنتج اللي اترجع كله بيبان بصفر.
               «سعر التعادل» = تكلفة القطعة + رسوم أمازون للقطعة؛ تحته المنتج بيخسر.
             </CardDescription>
           </CardHeader>
@@ -189,11 +190,26 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                       <TableRow key={r.sku}>
                         <TableCell className="font-mono text-xs" dir="ltr">{r.sku}</TableCell>
                         <TableCell className="max-w-[280px] whitespace-normal">
-                          <div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>
-                            {r.code && <span className="font-mono text-xs text-muted-foreground">{r.code}</span>} {r.name ?? <span className="text-amber-600">صنف غير مربوط</span>}
-                          </div>
+                          {r.itemId ? (
+                            <Link href={`/inventory/items/${r.itemId}`} className="line-clamp-2 leading-snug text-primary hover:underline" title={r.name ?? undefined}>
+                              <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}
+                            </Link>
+                          ) : (
+                            // The SKU is right there in the previous column — say what to do
+                            // about it instead of just calling it unlinked.
+                            <span className="text-amber-600" title="اربط الكود ده بصنف من صفحة الصنف ← الأكواد">
+                              صنف غير مربوط — اربط الكود بصنف
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell className="text-end tabular-nums">{qtyf(r.units)}</TableCell>
+                        <TableCell className="text-end tabular-nums">
+                          {qtyf(r.units)}
+                          {r.unitsRefunded > 0 && (
+                            <span className="block text-[11px] leading-tight text-destructive">
+                              {qtyf(r.unitsSold)} مباع · {qtyf(r.unitsRefunded)} مرتجع
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-end tabular-nums">{fmt(r.sales)}</TableCell>
                         <TableCell className="text-end">
                           <FeeCell commission={r.commission} commissionTax={r.commissionTax} fbaFee={r.fbaFee} fbaFeeTax={r.fbaFeeTax} otherFees={r.otherFees} />
