@@ -1,0 +1,123 @@
+/**
+ * Write the release notes for what shipped, into the changelog tenants read at /whats-new.
+ *
+ * The page has existed all along with nothing in it. Notes are inserted UNPUBLISHED: this
+ * is customer-facing copy in the owner's voice, and several of these entries say that a
+ * number used to be wrong — how much of that to tell customers, and in what words, is the
+ * owner's call, not mine. Review and publish from /admin/changelog.
+ *
+ * Idempotent: an entry whose title already exists is left alone, so re-running is safe.
+ *
+ *   DATABASE_URL=... npx tsx --tsconfig tsconfig.script.json scripts/seed-changelog.ts
+ */
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { changelogEntries } from "@/db/schema";
+
+type Entry = { title: string; body: string; kind: "feature" | "improvement" | "fix"; module: string | null };
+
+const ENTRIES: Entry[] = [
+  {
+    kind: "feature", module: "marketplace",
+    title: "تقرير ربحية المنصة — بالطلب وبالمنتج",
+    body: `تقرير جديد بيوضّح ربحك الحقيقي على أمازون من زاويتين:
+
+- **على مستوى الطلب:** كل طلب وإيراده ورسومه وتكلفته وصافي ربحه — نفس أرقام صفحة «Transaction details» على أمازون.
+- **على مستوى المنتج:** الرسوم موزّعة على كل SKU، مع **سعر التعادل** لكل قطعة (التكلفة + رسوم أمازون)، فتعرف على طول أي منتج بتبيعه بأقل مما بيكلّفك.
+
+تلاقيه في: المبيعات ← التقارير ← ربحية المنصة.`,
+  },
+  {
+    kind: "improvement", module: "marketplace",
+    title: "رسوم أمازون بقت كاملة — شاملة الحركات المؤجّلة",
+    body: `أمازون بيأجّل تحويل فلوس الطلب لحد ما يتسلّم للعميل، وكانت رسوم الطلبات المؤجّلة دي مش بتظهر غير بعد أسابيع.
+
+دلوقتي بنسحب كل الحركات — المؤجّلة والمحرَّرة — من واجهة المدفوعات مباشرة، فرسوم أي طلب بتبان من أول يوم، وكل رسم متفصّل لأساسيه وضريبته.
+
+قف على أي رقم في عمود «العمولة» علشان تشوف التفصيل.`,
+  },
+  {
+    kind: "fix", module: "marketplace",
+    title: "أوامر المنصات بتنزل بسعرها بدون ضريبة",
+    body: `كان السيستم بيفترض إن أسعار المنصات شاملة ض.ق.م ويستخرج نسبة الضريبة من كل طلب.
+
+دلوقتي فيه مفتاح لكل منصة في إعداداتها: **«أسعار المنصة شاملة ض.ق.م»** — مقفول افتراضياً، يعني الأمر بينزل بسعره كامل ومفيش ضريبة بتترحّل. افتحه لو أسعارك على المنصة فعلاً شاملة الضريبة.`,
+  },
+  {
+    kind: "fix", module: "marketplace",
+    title: "إجمالي الطلب بيطابق أمازون بالظبط",
+    body: `الخصومات اللي أمازون بيعملها — زي إعفاء الشحن — بترجع في حقول مختلفة حسب نوع العرض، وكان ممكن واحد منها يفوت فيطلع إجمالي الأمر أعلى من الحقيقة.
+
+دلوقتي بنعتمد **الإجمالي المُعلَن من أمازون نفسه** كمرجع، فالأمر عندك بيساوي اللي المشتري دفعه مهما كان شكل الخصم.`,
+  },
+  {
+    kind: "feature", module: "purchases",
+    title: "سعر صرف واحد معتمد لأمر الشراء",
+    body: `لما تشتري بعملة أجنبية، تقدر تختار سعر الصرف من الأسعار المسجّلة أو تكتبه يدوي على أمر الشراء.
+
+**السعر ده بيبقى هو المعتمد للدورة كلها** — إذن الاستلام والفاتورة بيمشوا بيه، فمفيش سعر تاني يظهر في أي مستند لو البضاعة وصلت في وقت تاني.`,
+  },
+  {
+    kind: "feature", module: "purchases",
+    title: "ضريبة المشتريات: تُحمَّل على التكلفة أو تُسترد",
+    body: `إعداد جديد في بيانات المنشأة: **«ضريبة المشتريات تُحمَّل على تكلفة البضاعة»**.
+
+- **مقفول (الافتراضي):** الضريبة تروح حساب ضريبة المدخلات زي ما هي، وتكلفة المخزون من غيرها.
+- **مفتوح:** الضريبة تدخل في تكلفة المنتج — مناسب لو مش بتسترد الضريبة من المصلحة.
+
+التغيير بيسري على المستندات الجديدة بس؛ اللي اتأكّد قبل كدا بيفضل بتكلفته.`,
+  },
+  {
+    kind: "improvement", module: "purchases",
+    title: "تكلفة القطعة الشاملة على المستندات والتقارير",
+    body: `إذن الاستلام وفاتورة الشراء بيوضّحوا دلوقتي **تكلفة القطعة شاملة كل حاجة**: سعر البضاعة + الشحن + تكاليف الاستيراد المحمَّلة.
+
+والأهم إن الأرقام دي بقت تنزل في **ملفات Excel وصفحات الطباعة** كمان، مش على الشاشة بس. وفاتورة الشراء بتفرّق بوضوح بين «المستحق للمورد» و«التكلفة الشاملة للبضاعة» — لأن تكاليف الاستيراد بتتدفع لمورد تاني.`,
+  },
+  {
+    kind: "improvement", module: "purchases",
+    title: "تحديد أكتر من إذن استلام في نفس الوقت",
+    body: `في **فاتورة الشراء** و**تكاليف الاستيراد**، تقدر تعلّم على أكتر من إذن استلام مرة واحدة بدل ما تختار واحد كل مرة — مع بحث و«اختر الكل» وعدّاد.
+
+في الفاتورة، كل إذن بيطلع له مسودة فاتورة لوحده بسعر صرفه، والتقرير بيقولك كام نجح وكام فشل بالاسم.
+
+وصورة المنتج بقت تظهر في جدول تكاليف الاستيراد.`,
+  },
+  {
+    kind: "improvement", module: "inventory",
+    title: "الأوزان بالكيلو والجرام والأبعاد بالسنتيمتر",
+    body: `أوزان المنتجات بقت تتعرض بالكيلوجرام والجرام بدل الأرطال، والأبعاد بالسنتيمتر.
+
+كمان **الوزن مابقاش بيتسحب من أمازون** — بتدخله بنفسك، لأن الوزن الفعلي هو اللي بيتوزّع عليه الشحن في تكاليف الاستيراد.`,
+  },
+  {
+    kind: "fix", module: "reports",
+    title: "تصحيح أرقام تقرير ربحية المنتجات",
+    body: `تقرير الربحية بقى بيحسب صح:
+
+- **رسوم أمازون** كانت بتتضرب في الكمية بالغلط، فمنتج مبيع ٤ قطع كانت رسومه تظهر أربع أضعاف الحقيقة.
+- **تكلفة المبيعات** بقت تتقرا من دفتر المخزون (اللي بيتقيّد فيه فعلاً وقت الصرف).
+
+وضفنا أعمدة جديدة: متوسط سعر البيع الفعلي، سعر التعادل، والفرق بينهم — بالأحمر لو المنتج بتتباع تحت تكلفته — وسعر مقترح عند هامش ربح تحدده.`,
+  },
+];
+
+async function main() {
+  let added = 0, skipped = 0;
+  for (const e of ENTRIES) {
+    const [exists] = await db.select({ id: changelogEntries.id }).from(changelogEntries)
+      .where(eq(changelogEntries.title, e.title)).limit(1);
+    if (exists) { skipped++; continue; }
+    await db.insert(changelogEntries).values({
+      title: e.title, body: e.body, kind: e.kind, module: e.module,
+      releasedAt: new Date(), isPublished: false,
+    });
+    added++;
+    console.log(`  + [${e.kind}] ${e.title}`);
+  }
+  console.log(`\n${added} added as DRAFTS, ${skipped} already there.`);
+  console.log("Review and publish them from /admin/changelog — nothing is visible to tenants until you do.");
+  process.exit(0);
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });
