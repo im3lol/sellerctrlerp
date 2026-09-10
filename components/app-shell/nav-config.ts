@@ -28,6 +28,8 @@ export const NAV: NavSection[] = [
   {
     items: [
       { label: "لوحة التحكم", href: "/dashboard", icon: "LayoutDashboard", exact: true },
+      // Every module's unconfirmed documents in one list. It existed with no way in.
+      { label: "المسودات", href: "/drafts", icon: "FileClock" },
     ],
   },
   {
@@ -58,10 +60,8 @@ export const NAV: NavSection[] = [
       // Named for what they are, not for the party: "العملاء"/"الموردون" now belong to
       // the master files under المبيعات/المشتريات, and two different things sharing a
       // nav label is how you end up clicking the wrong one.
-      { label: "سندات القبض", href: "/sales/receipts", icon: "HandCoins", capability: "erp.sales.view", group: "الذمم المدينة" },
       { label: "كشف حساب العميل", href: "/accounting/customer-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم المدينة" },
 
-      { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "الذمم الدائنة" },
       { label: "خطة السداد", href: "/purchases/payment-plan", icon: "CalendarClock", capability: "erp.purchases.view", group: "الذمم الدائنة" },
       { label: "كشف حساب المورّد", href: "/accounting/supplier-statement", icon: "ScrollText", capability: "erp.accounting.view", group: "الذمم الدائنة" },
 
@@ -75,6 +75,7 @@ export const NAV: NavSection[] = [
       { label: "الحسابات البنكية", href: "/accounting/banks", icon: "Landmark", capability: "erp.accounting.view", group: "البنوك والخزينة" },
       { label: "المطابقة البنكية", href: "/accounting/reconciliation", icon: "ListChecks", capability: "erp.accounting.view", group: "البنوك والخزينة" },
 
+      { label: "القوائم المالية", href: "/reports", icon: "FileSpreadsheet", capability: "erp.accounting.view", group: "التقارير والمطابقات" },
       { label: "تحليل الديون المتأخرة", href: "/accounting/aging", icon: "CalendarClock", capability: "erp.accounting.view", group: "التقارير والمطابقات" },
       { label: "توقّع التدفق النقدي", href: "/accounting/cashflow-forecast", icon: "TrendingUp", capability: "erp.reports.view", group: "التقارير والمطابقات" },
       { label: "مطابقة حسابات المراقبة", href: "/accounting/control-reconciliation", icon: "Scale", capability: "erp.reports.view", group: "التقارير والمطابقات" },
@@ -102,9 +103,10 @@ export const NAV: NavSection[] = [
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "تكاليف الاستيراد", href: "/purchases/landed-costs", icon: "Ship", capability: "erp.purchases.create", group: "دورة الشراء" },
+      { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "دورة الشراء" },
 
       { label: "مطابقة بضاعة لم تُفوتر", href: "/purchases/grni", icon: "Scale", capability: "erp.purchases.view", group: "التقارير" },
-      { label: "تقرير الدفتر", href: "/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view", group: "التقارير" },
+      { label: "دفتر المشتريات", href: "/purchases/reports/ledger", icon: "BookOpen", capability: "erp.purchases.view", group: "التقارير" },
       { label: "ترتيب الموردين", href: "/purchases/reports/suppliers", icon: "Users", capability: "erp.purchases.view", group: "التقارير" },
     ],
   },
@@ -154,14 +156,16 @@ export const NAV: NavSection[] = [
       { label: "نقطة البيع", href: "/sales/pos", icon: "Store", capability: "erp.sales.create", group: "دورة البيع" },
       { label: "عروض الأسعار", href: "/sales/quotations", icon: "FileText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر البيع", href: "/sales/orders", icon: "ClipboardList", capability: "erp.sales.view", group: "دورة البيع" },
+      { label: "إذون الصرف", href: "/sales/deliveries", icon: "Truck", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "المرتجعات", href: "/sales/returns", icon: "Undo2", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "مرتجعات المنصات", href: "/sales/marketplace-returns", icon: "PackageX", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "أوامر السحب", href: "/sales/marketplace-removals", icon: "PackageX", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "تعويضات المنصات", href: "/sales/marketplace-reimbursements", icon: "HandCoins", capability: "erp.accounting.view", group: "دورة البيع" },
+      { label: "سندات القبض", href: "/sales/receipts", icon: "HandCoins", capability: "erp.sales.view", group: "دورة البيع" },
       { label: "الفواتير الدورية", href: "/sales/recurring", icon: "Repeat", capability: "erp.sales.view", group: "دورة البيع" },
 
-      { label: "تقرير الدفتر", href: "/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view", group: "التقارير" },
+      { label: "دفتر المبيعات", href: "/sales/reports/ledger", icon: "BookOpen", capability: "erp.sales.view", group: "التقارير" },
       { label: "تقرير الأصناف", href: "/sales/reports/items", icon: "BarChart3", capability: "erp.sales.view", group: "التقارير" },
       { label: "ربحية المنتجات", href: "/sales/reports/profitability", icon: "TrendingUp", capability: "erp.reports.view", group: "التقارير" },
       { label: "ربحية المنصة", href: "/sales/reports/marketplace-pnl", icon: "Wallet", capability: "erp.reports.view", group: "التقارير" },
@@ -232,13 +236,6 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    heading: "الأدوات",
-    icon: "Wrench",
-    items: [
-      { label: "الاستيراد والتصدير", href: "/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
-    ],
-  },
-  {
     // Product documentation and support, not tenant data — no capability gate on the
     // support items: anyone signed in can read how the system works or tell us it's
     // broken.
@@ -265,6 +262,8 @@ export const NAV: NavSection[] = [
       // The migration step: a company that already exists starts here, not at an
       // empty ledger.
       { label: "الأرصدة الافتتاحية", href: "/settings/opening-balance", icon: "Upload", capability: "erp.accounting.create" },
+      // Was a section of its own holding this single item.
+      { label: "الاستيراد والتصدير", href: "/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
       { label: "صلاحيات المستخدمين", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
       { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.view" },
