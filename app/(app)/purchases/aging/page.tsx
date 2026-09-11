@@ -5,18 +5,14 @@ import { purchaseInvoices, suppliers } from "@/db/schema";
 import { buildAging, openForAging, AGING_BUCKETS, BUCKET_LABELS, type OpenDoc } from "@/lib/erp/aging";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { AgingTable } from "@/components/erp/aging-table";
 import { selectCls } from "@/lib/utils";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ApAgingPage({ searchParams }: { searchParams: Promise<{ asOf?: string }> }) {
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const asOf = sp.asOf || iso(new Date());
 
@@ -43,27 +39,27 @@ export default async function ApAgingPage({ searchParams }: { searchParams: Prom
     const { rows, totals, grand } = buildAging(open, new Date(`${asOf}T23:59:59`));
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Truck" title="أعمار ذمم الموردين" subtitle="أرصدة مستحقة للموردين من فواتير الشراء المُرحّلة" backHref="/purchases"
-          action={<ReportToolbar excel={grand > 0 ? `/api/erp/purchases/aging/export?asOf=${asOf}` : undefined} printHref={`/erp/purchases/aging/print?asOf=${asOf}`} />}
-        />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>كما في تاريخ</CardTitle>
-            <CardDescription>تُصنَّف الأرصدة حسب تاريخ الاستحقاق.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="asOf">التاريخ</Label>
-                <input id="asOf" name="asOf" type="date" defaultValue={asOf} className={selectCls} />
-              </div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
+      <ReportShell
+        reportKey="purch-aging"
+        icon="Truck"
+        title="أعمار ذمم الموردين"
+        subtitle="أرصدة مستحقة للموردين من فواتير الشراء المُرحّلة"
+        query={`asOf=${asOf}`}
+        permissions={permissions}
+        filters={<ReportField label="كما في تاريخ"><input name="asOf" type="date" defaultValue={asOf} className={selectCls} /></ReportField>}
+        kpis={[
+          { label: "إجمالي المستحق", value: grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }) },
+          ...AGING_BUCKETS.map((b) => ({
+            label: BUCKET_LABELS[b],
+            value: totals[b].toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }),
+            tone: (b === AGING_BUCKETS[0] ? "muted" : "loss") as "muted" | "loss",
+          })),
+        ]}
+        chartTitle={grand > 0 ? "المستحق حسب العمر" : undefined}
+        chart={grand > 0
+          ? <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel="المستحق" money height={220} />
+          : undefined}
+      >
         <Card>
           <CardHeader>
             <CardTitle>تحليل الأعمار</CardTitle>
@@ -74,7 +70,7 @@ export default async function ApAgingPage({ searchParams }: { searchParams: Prom
             <AgingTable rows={rows} totals={totals} grand={grand} partyLabel="المورد" empty="لا توجد أرصدة مستحقة للموردين." />
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

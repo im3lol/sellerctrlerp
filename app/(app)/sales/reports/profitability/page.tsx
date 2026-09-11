@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -8,8 +8,7 @@ import { getSettlementFeesByItem } from "@/lib/erp/item-pnl";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,7 +25,7 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 const SALE_REFS = ["DELIVERY", "SALES_INVOICE", "SALES_RETURN"];
 
 export default async function ProfitabilityReportPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
@@ -95,42 +94,49 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
     const missingFees = list.filter((r) => r.qty > 0 && r.fees === 0).length;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="TrendingUp" title="ربحية المنتجات" subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/profitability/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/profitability/print?${qs.toString()}`} />} />
-        <ItemSalesFilters from={from} to={to} q={search} />
-        {/* The marketplace view is a separate page rather than two more tables here: it
-            answers a different question (what Amazon charged, per order and per SKU) and
-            a four-table page is not a report anyone reads. */}
-        <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
-          className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
-          <span>
-            <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
-            <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
-          </span>
-          <span className="text-muted-foreground">←</span>
-        </a>
-
-        <div className={`grid gap-4 ${hasFees ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-4"}`}>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الإيراد (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tRevenue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">تكلفة البضاعة المباعة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tCogs)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الربح الإجمالي</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tProfit)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">هامش الربح</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{pct(tMargin)}</p></CardContent></Card>
-          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رسوم أمازون الفعلية</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tFees)}</p></CardContent></Card>}
-          {hasFees && <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح بعد الرسوم</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>}
-        </div>
-
-        {list.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>أعلى الأصناف ربحًا</CardTitle>
-              <CardDescription>أعلى ٨ أصناف حسب الربح.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: r.profit }))} valueLabel="الربح" money height={240} colors={list.slice(0, 8).map((r) => (r.profit >= 0 ? "#008300" : "#e34948"))} />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="sales-profit"
+        icon="TrendingUp"
+        title="ربحية المنتجات"
+        subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف"
+        query={qs.toString()}
+        permissions={permissions}
+        filtersRaw={
+          <div className="space-y-3">
+            <ItemSalesFilters from={from} to={to} q={search} />
+            {/* The marketplace view is a separate page rather than two more tables here:
+                it answers a different question (what Amazon charged, per order and per
+                SKU) and a four-table page is not a report anyone reads. */}
+            <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
+              className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
+              <span>
+                <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
+                <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
+              </span>
+              <span className="text-muted-foreground">←</span>
+            </a>
+          </div>
+        }
+        kpis={[
+          { label: "صافي الإيراد", value: fmt(tRevenue), hint: "بدون ضريبة" },
+          { op: "−" },
+          { label: "تكلفة البضاعة المباعة", value: fmt(tCogs) },
+          ...(hasFees ? [
+            { op: "−" as const },
+            { label: "رسوم أمازون الفعلية", value: fmt(tFees), tone: "muted" as const },
+          ] : []),
+          { op: "=" },
+          hasFees
+            ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` }
+            : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` },
+        ]}
+        chartTitle={list.length > 0 ? "أعلى ٨ أصناف ربحًا" : undefined}
+        chart={list.length > 0 ? (
+          <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: r.profit }))}
+            valueLabel="الربح" money height={240}
+            colors={list.slice(0, 8).map((r) => (r.profit >= 0 ? "#008300" : "#e34948"))} />
+        ) : undefined}
+      >
         <Card>
           <CardHeader>
             <CardTitle>الربحية حسب الصنف</CardTitle>
@@ -219,7 +225,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

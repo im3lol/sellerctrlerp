@@ -55,6 +55,11 @@ export function ReportShell({
   filters,
   /** Hidden inputs the filter form must resubmit (a tab, a mode) — inside the form. */
   filterHidden,
+  /**
+   * A page that already owns its filter UI (a client component with its own form)
+   * puts it here instead — it lands in the same place, without a second form around it.
+   */
+  filtersRaw,
   kpis,
   chart,
   chartTitle,
@@ -69,6 +74,7 @@ export function ReportShell({
   permissions: string[];
   filters?: ReactNode;
   filterHidden?: ReactNode;
+  filtersRaw?: ReactNode;
   kpis?: ReportKpi[];
   chart?: ReactNode;
   chartTitle?: string;
@@ -91,6 +97,8 @@ export function ReportShell({
       <div className="no-print">
         <ReportSwitcher current={view} permissions={permissions} />
       </div>
+
+      {filtersRaw && <div className="no-print">{filtersRaw}</div>}
 
       {filters && (
         <Card className="no-print">

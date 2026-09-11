@@ -1,4 +1,4 @@
-import { and, between, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -6,8 +6,7 @@ import { salesInvoices, salesInvoiceLines, items } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (v: unknown) =>
@@ -21,7 +20,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function ItemSalesReportPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -63,43 +62,24 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
     if (search) qs.set("q", search);
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="BarChart3"
-          title="تقرير مبيعات الأصناف"
-          subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
-          action={<ReportToolbar excel={filtered.length > 0 ? `/api/erp/sales/items/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/items/print?${qs.toString()}`} />}
-        />
-
-        <ItemSalesFilters from={from} to={to} q={search} />
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الإيراد</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold tabular-nums">{fmt(totalRevenue)}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الكميات</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold tabular-nums">{qtyf(totalQty)}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">عدد الأصناف</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold tabular-nums">{filtered.length}</p></CardContent>
-          </Card>
-        </div>
-
-        {filtered.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>أعلى الأصناف مبيعًا</CardTitle>
-              <CardDescription>أعلى ٨ أصناف حسب الإيراد.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart data={filtered.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: Number(r.totalRevenue ?? 0) }))} valueLabel="الإيراد" money height={240} />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="sales-items"
+        icon="BarChart3"
+        title="تقرير مبيعات الأصناف"
+        subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
+        query={qs.toString()}
+        permissions={permissions}
+        filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
+        kpis={[
+          { label: "إجمالي الإيراد", value: fmt(totalRevenue) },
+          { label: "إجمالي الكميات", value: qtyf(totalQty), tone: "muted" },
+          { label: "عدد الأصناف", value: String(filtered.length), tone: "muted" },
+        ]}
+        chartTitle={filtered.length > 0 ? "أعلى ٨ أصناف إيرادًا" : undefined}
+        chart={filtered.length > 0
+          ? <BarChart data={filtered.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: Number(r.totalRevenue ?? 0) }))} valueLabel="الإيراد" money height={240} />
+          : undefined}
+      >
         <Card>
           <CardHeader>
             <CardTitle>تفصيل الأصناف</CardTitle>
@@ -155,7 +135,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }
