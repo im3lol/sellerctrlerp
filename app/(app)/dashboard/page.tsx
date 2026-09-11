@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
-import { getEnabledModules } from "@/lib/erp/entitlements";
+import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
+import { getMemberAccess } from "@/lib/erp/auth-guard";
+import { organizations } from "@/db/schema";
+import { db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { AppLauncher } from "@/components/app-shell/app-launcher";
 import { getSubscriptionState } from "@/lib/erp/subscription";
 import { getErpOverview, getPendingWork, getSalesTrend } from "@/lib/erp/overview";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,6 +36,15 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const { org } = await getActiveOrg();
   const enabled = user.role === "system_admin" || !org ? null : await getEnabledModules(org.id);
+  // The launcher strip: the same grid as /apps, so the dashboard opens with the whole
+  // system in view instead of six numbers and no map.
+  const [launcherAccess, launcherHidden] = org && user
+    ? await Promise.all([
+        getMemberAccess(org.id, user),
+        db.select({ hidden: organizations.navHidden }).from(organizations)
+          .where(eq(organizations.id, org.id)).limit(1).then((r) => r[0]?.hidden ?? []),
+      ])
+    : [{ permissions: new Set<string>() }, [] as string[]];
   const tiles = TILES.filter((t) => !enabled || enabled.has(t.module));
   const sub = org && user.role !== "system_admin" ? await getSubscriptionState(org.id) : null;
   const subBanner = sub && sub.isTrial
@@ -90,6 +104,13 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold">مرحباً، {user.name}</h1>
         <p className="text-muted-foreground">نظام {org?.nameAr ?? "الإدارة"} — نظرة عامة سريعة.</p>
       </div>
+
+      <AppLauncher
+        compact
+        erpPermissions={[...launcherAccess.permissions]}
+        modules={user.role === "system_admin" ? [...ALL_MODULES] : enabled ? [...enabled] : undefined}
+        navHidden={launcherHidden}
+      />
 
       {subBanner && (
         <Link href="/settings/subscription" className={`flex items-center justify-between rounded-2xl border p-4 ${subBanner.cls}`}>

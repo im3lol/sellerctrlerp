@@ -16,6 +16,10 @@ export type NavSection = {
   href?: string; // module overview/landing — clicking the heading label navigates here
   capability?: string; // gates the whole module (heading) — hidden when the member lacks it
   icon?: string; // module (lucide) icon shown next to the heading
+  // Tile colour in the app launcher. Odoo and Frappe colour every app icon because the
+  // eye finds a colour before it reads a word — with a dozen modules that is the
+  // difference between scanning and searching. Sidebar rows stay monochrome.
+  color?: string;
   moduleKey?: string; // subscription module gate; hidden when the tenant lacks it
   dynamicKey?: "platforms"; // group whose items are augmented at render from live data
   items: NavItem[];
@@ -51,6 +55,7 @@ export const NAV: NavSection[] = [
     // marketplace return stood next to a shop return and settlements had no entry at
     // all — so a seller's daily round was spread across two modules and a dead page.
     heading: "المنصات",
+    color: "bg-violet-500",
     href: "/platforms",
     capability: "erp.sales.view",
     moduleKey: "marketplace",
@@ -67,6 +72,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المحاسبة",
+    color: "bg-sky-600",
     href: "/accounting",
     capability: "erp.accounting.view",
     moduleKey: "accounting",
@@ -108,6 +114,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المشتريات",
+    color: "bg-amber-600",
     href: "/purchases",
     capability: "erp.purchases.view",
     moduleKey: "purchases",
@@ -136,6 +143,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المخزون",
+    color: "bg-teal-600",
     href: "/inventory",
     capability: "erp.inventory.view",
     moduleKey: "inventory",
@@ -171,6 +179,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "المبيعات",
+    color: "bg-emerald-600",
     href: "/sales",
     capability: "erp.sales.view",
     moduleKey: "sales",
@@ -200,6 +209,7 @@ export const NAV: NavSection[] = [
   {
     // Four pages. Two sub-headers over four pages is filing for its own sake.
     heading: "المستثمرون",
+    color: "bg-yellow-600",
     href: "/investors",
     capability: "erp.investors.view",
     moduleKey: "investors",
@@ -213,6 +223,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "الموارد البشرية",
+    color: "bg-pink-600",
     href: "/hr",
     capability: "erp.hr.view",
     moduleKey: "hr",
@@ -237,6 +248,7 @@ export const NAV: NavSection[] = [
     // One engine, two faces: the workshop cares about what is due and what a repair cost;
     // the fleet cares about the same machines plus fuel, drivers and papers.
     heading: "الصيانة والأسطول",
+    color: "bg-orange-600",
     href: "/maintenance",
     capability: "erp.maintenance.view",
     moduleKey: "maintenance",
@@ -248,6 +260,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "التقارير",
+    color: "bg-indigo-600",
     href: "/reports/center",
     capability: "erp.reports.view",
     moduleKey: "reports",
@@ -263,6 +276,7 @@ export const NAV: NavSection[] = [
     // support items: anyone signed in can read how the system works or tell us it's
     // broken.
     heading: "الدعم",
+    color: "bg-cyan-600",
     // No href: the heading used to open the academy, which is hidden for now — the
     // heading just toggles the group.
     icon: "GraduationCap",
@@ -277,6 +291,7 @@ export const NAV: NavSection[] = [
   },
   {
     heading: "الإدارة والإعدادات",
+    color: "bg-slate-600",
     icon: "ShieldCheck",
     items: [
       // Platform admin panel (/admin) is deliberately NOT linked from the tenant

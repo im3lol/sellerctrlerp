@@ -7,6 +7,7 @@ import { Icon } from "@/components/icon";
 import { Input } from "@/components/ui/input";
 import { NAV, type NavItem } from "@/components/app-shell/nav-config";
 import { quickSearchAction, type QuickHit } from "@/app/actions/erp/quick-search";
+import { erpAllows } from "@/lib/nav-access";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,13 +26,6 @@ const KIND_LABEL: Record<QuickHit["kind"], string> = {
   customer: "عميل",
   supplier: "مورّد",
 };
-
-function allowed(item: NavItem, perms: Set<string>): boolean {
-  if (!item.capability) return true;
-  // Only ERP grants are checked here; a platform-role page is left out rather than
-  // offered to someone who may not open it.
-  return item.capability.startsWith("erp.") && perms.has(item.capability.slice(4));
-}
 
 export function AwesomeBar({
   erpPermissions, modules, navHidden, className,
@@ -58,7 +52,7 @@ export function AwesomeBar({
       if (section.heading && hidden.has(section.heading)) continue;
       if (section.moduleKey && modules && !modules.includes(section.moduleKey)) continue;
       for (const item of section.items) {
-        if (allowed(item, perms)) out.push({ item, heading: section.heading ?? "" });
+        if (erpAllows(item, perms)) out.push({ item, heading: section.heading ?? "" });
       }
     }
     return out;

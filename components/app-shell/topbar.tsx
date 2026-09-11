@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import Link from "next/link";
+import { Menu, LayoutGrid } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { AwesomeBar } from "@/components/app-shell/awesome-bar";
+import { AppLauncher } from "@/components/app-shell/app-launcher";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Role } from "@/lib/rbac";
 
 export function Topbar({
@@ -30,6 +33,7 @@ export function Topbar({
   platforms?: { id: string; name: string; code: string }[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
       {/* Mobile menu */}
@@ -39,9 +43,9 @@ export function Topbar({
         </SheetTrigger>
         <SheetContent side="right" className="w-72 overflow-y-auto bg-sidebar p-0 text-sidebar-foreground">
           <SheetTitle className="sr-only">القائمة</SheetTitle>
-          <div className="flex h-16 items-center px-6">
+          <Link href="/apps" onClick={() => setMenuOpen(false)} className="flex h-16 items-center px-6" aria-label="التطبيقات">
             <Logo className="text-2xl text-sidebar-foreground" />
-          </div>
+          </Link>
           <div className="px-4 pb-3">
             <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} className="block" />
           </div>
@@ -49,6 +53,23 @@ export function Topbar({
           <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} navHidden={navHidden} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
       </Sheet>
+
+      {/* The app grid, one click from anywhere — the sidebar is a map you have to
+          already read; this is the one you start from. Same component as /apps. */}
+      <Dialog open={appsOpen} onOpenChange={setAppsOpen}>
+        <DialogTrigger
+          className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="التطبيقات"
+          title="التطبيقات"
+        >
+          <LayoutGrid className="size-5" />
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogTitle>التطبيقات</DialogTitle>
+          <AppLauncher erpPermissions={erpPermissions} modules={modules} navHidden={navHidden}
+            onNavigate={() => setAppsOpen(false)} />
+        </DialogContent>
+      </Dialog>
 
       {/* One box for pages AND records — see AwesomeBar for why there is only one. */}
       <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} />

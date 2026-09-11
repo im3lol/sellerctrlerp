@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NAV, type NavItem } from "@/components/app-shell/nav-config";
+import { erpAllows } from "@/lib/nav-access";
 
 /**
  * A module's workspace: every page in it, grouped the way the sidebar groups them.
@@ -16,16 +17,6 @@ import { NAV, type NavItem } from "@/components/app-shell/nav-config";
  * `nav-config.ts` imports nothing from the database (its own comment says so, and
  * settings-form.tsx already imports it), so a server component can read it directly.
  */
-
-/** Same rule the sidebar uses: `erp.<module>.<action>` against the member's ERP grants. */
-function allowed(item: NavItem, permissions: Set<string>): boolean {
-  if (!item.capability) return true;
-  if (item.capability.startsWith("erp.")) return permissions.has(item.capability.slice(4));
-  // Platform-role capabilities aren't ERP grants; the sidebar resolves those against the
-  // OS role. A workspace only ever lists ERP pages, so anything else is left out rather
-  // than shown to someone who may not open it.
-  return false;
-}
 
 export function ModuleWorkspace({
   heading,
@@ -42,7 +33,7 @@ export function ModuleWorkspace({
 }) {
   const perms = new Set(permissions);
   const section = NAV.find((s) => s.heading === heading);
-  const items = (section?.items ?? []).filter((it) => allowed(it, perms));
+  const items = (section?.items ?? []).filter((it) => erpAllows(it, perms));
   if (items.length === 0 && !actions?.length) return null;
 
   // Keep the nav's own ordering: ungrouped first, then each group in the order it appears.
