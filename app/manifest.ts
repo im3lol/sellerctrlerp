@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "SellerCtrl",
     short_name: "SellerCtrl",
     description: "نظام إدارة عمليات SellerCtrl — تحكم كامل في عملياتك من مكان واحد",
-    start_url: "/dashboard",
+    start_url: "/apps",
     display: "standalone",
     dir: "rtl",
     lang: "ar",

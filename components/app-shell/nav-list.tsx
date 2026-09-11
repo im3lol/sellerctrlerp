@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { NAV, type NavItem, type NavSection } from "@/components/app-shell/nav-config";
 import { can, type Role, type Capability } from "@/lib/rbac";
+import { activeModule } from "@/lib/active-module";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -31,6 +32,9 @@ function visibleItems(section: NavSection, role: Role, erpPerms: Set<string>) {
 const PINS_KEY = "nav_pins";
 const OPEN_KEY = "nav_open";
 const GROUPS_KEY = "nav_open_groups";
+// Which module you were last in. Only breaks ties for pages two modules share; it can
+// never put you in a module the current page is not part of.
+const MODULE_KEY = "nav_module";
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -72,6 +76,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [pins, setPins] = useState<string[]>([]);
+  const [lastModule, setLastModule] = useState<string | null>(null);
   // Saved state is applied AFTER mount. Reading storage during render would render
   // different markup on the server than the client and break hydration, so the first
   // paint shows the module holding the current page and the rest settles a tick later.
@@ -80,6 +85,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
     setOpenMap(load<Record<string, boolean>>(OPEN_KEY, {}));
     setOpenGroups(load<Record<string, boolean>>(GROUPS_KEY, {}));
     setPins(load<string[]>(PINS_KEY, []));
+    setLastModule(load<string | null>(MODULE_KEY, null));
     setRestored(true);
   }, []);
 
@@ -105,6 +111,19 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   useEffect(() => { if (restored) save(GROUPS_KEY, openGroups); }, [openGroups, restored]);
   useEffect(() => { if (restored) save(PINS_KEY, pins); }, [pins, restored]);
 
+  // ── module scope ────────────────────────────────────────────────────────────
+  // The list shows ONE module: the one holding the current page. A warehouse clerk
+  // opens the warehouse and sees warehouse pages, not a hundred and ten rows across
+  // nine departments. Pages belonging to no module (the launcher, your profile) fall
+  // back to the full list so nothing becomes unreachable.
+  const current = activeModule(pathname, lastModule);
+  useEffect(() => {
+    if (restored && current?.heading && current.heading !== lastModule) {
+      setLastModule(current.heading);
+      save(MODULE_KEY, current.heading);
+    }
+  }, [current?.heading, lastModule, restored]);
+
   // Every item the member may see, flattened once — the source for both search and
   // the pinned block, so a pin can never point at something they can't open.
   const allItems = useMemo(() => {
@@ -119,8 +138,27 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
 
   const pinned = pins.map((h) => allItems.find((x) => x.item.href === h)).filter((x): x is { item: NavItem; heading: string } => !!x);
 
+  // In module scope: the loose top rows, the module itself, then support/settings.
+  // Out of it (the launcher, a profile page) the full list is the right answer.
+  const ALWAYS = ["الدعم", "الإدارة والإعدادات"];
+  const shown = current
+    ? sections.filter((s) => !s.heading || s.heading === current.heading || ALWAYS.includes(s.heading))
+    : sections;
+
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {/* The way back. In module scope this is the most important row on the screen —
+          without it you are in a room with no door. */}
+      <Link
+        href="/apps"
+        onClick={onNavigate}
+        className="mb-2 flex items-center gap-2 rounded-xl border border-sidebar-border/50 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      >
+        <Icon name="LayoutGrid" className="size-[18px] shrink-0" />
+        <span className="flex-1 text-start">كل التطبيقات</span>
+        {current && <Icon name="ChevronLeft" className="size-4 shrink-0 opacity-60" />}
+      </Link>
+
       {pinned.length > 0 && (
         <div className="space-y-1 pb-2">
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
@@ -132,7 +170,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
         </div>
       )}
 
-      {sections.map((section, i) => {
+      {shown.map((section, i) => {
         // Subscription gate: hide a module the tenant doesn't have.
         if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
         const items = visibleItems(section, role, erpPerms);
@@ -158,6 +196,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
         const groupActive = hActive || items.some((it) => isActive(pathname, it.href, it.exact));
         // Opens by itself when it holds the current page, and closes when you say
         // so — an explicit choice outranks the default, or the chevron is a lie.
+        const inModule = !!current && section.heading === current.heading;
         const open = restored ? (openMap[key] ?? groupActive) : groupActive;
         const chevron = <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />;
 
@@ -197,7 +236,12 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
                   const gItems = grouped[g];
                   const gKey = `${key}:${g}`;
                   const gActive = gItems.some((it) => isActive(pathname, it.href, it.exact));
-                  const gOpen = restored ? (openGroups[gKey] ?? gActive) : gActive;
+                  // Inside your own module every group starts open: you came here to
+                  // work, and hunting for a collapsed header is not work. Out of module
+                  // scope only the group holding the page opens, or the full list would
+                  // be a hundred rows tall.
+                  const gDefault = inModule || gActive;
+                  const gOpen = restored ? (openGroups[gKey] ?? gDefault) : gDefault;
                   return (
                     <div key={g} className="space-y-1">
                       <button

@@ -3,7 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   customers, suppliers, items, salesOrders, purchaseOrders, stockTransfers, salesInvoices, purchaseInvoices,
-  posShifts, promotions, workOrders, fixedAssets, fuelLogs, projects, timesheets, employees,
+  posShifts, promotions, fixedAssets, projects, timesheets, employees,
   jobOpenings, jobApplicants, trainingCourses,
 } from "@/db/schema";
 
@@ -162,40 +162,6 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
       return rows.map((r) => [r.code, r.nameAr, PROMO_TYPE[r.type] ?? r.type, num(r.value), r.item ?? "الفاتورة كلها", r.startsAt, r.endsAt, yn(r.active)]);
     },
   },
-  "work-orders": {
-    title: "أوامر الصيانة", module: "accounting.view",
-    headers: ["الرقم", "الأصل", "النوع", "الحالة", "البلاغ", "الإقفال", "قطع غيار", "ساعات عمل", "توقّف (ساعة)", "الوصف"],
-    colWidths: [16, 26, 12, 12, 12, 12, 14, 12, 12, 40],
-    fetch: async (orgId) => {
-      const rows = await db.select({
-        number: workOrders.number, asset: fixedAssets.nameAr, type: workOrders.type,
-        status: workOrders.status, reportedAt: workOrders.reportedAt, completedAt: workOrders.completedAt,
-        parts: workOrders.partsCost, hours: workOrders.laborHours, downtime: workOrders.downtimeHours,
-        description: workOrders.description,
-      }).from(workOrders).leftJoin(fixedAssets, eq(fixedAssets.id, workOrders.assetId))
-        .where(eq(workOrders.organizationId, orgId)).orderBy(desc(workOrders.reportedAt));
-      return rows.map((r) => [
-        r.number, r.asset, r.type === "PREVENTIVE" ? "دورية" : "عطل", WO_STATUS[r.status] ?? r.status,
-        d10(r.reportedAt), d10(r.completedAt), num(r.parts), num(r.hours), num(r.downtime), r.description,
-      ]);
-    },
-  },
-  "fuel-logs": {
-    title: "تعبئات الوقود", module: "accounting.view",
-    headers: ["التاريخ", "السيارة", "اللوحة", "اللترات", "التكلفة", "العدّاد", "المحطة", "السائق"],
-    colWidths: [12, 26, 14, 12, 14, 14, 20, 22],
-    fetch: async (orgId) => {
-      const rows = await db.select({
-        filledAt: fuelLogs.filledAt, asset: fixedAssets.nameAr, plate: fixedAssets.plateNumber,
-        liters: fuelLogs.liters, cost: fuelLogs.cost, meter: fuelLogs.meterValue,
-        station: fuelLogs.station, driver: employees.fullName,
-      }).from(fuelLogs)
-        .leftJoin(fixedAssets, eq(fixedAssets.id, fuelLogs.assetId))
-        .leftJoin(employees, eq(employees.id, fuelLogs.driverEmployeeId))
-        .where(eq(fuelLogs.organizationId, orgId)).orderBy(desc(fuelLogs.filledAt));
-      return rows.map((r) => [d10(r.filledAt), r.asset, r.plate, num(r.liters), num(r.cost), r.meter == null ? "" : num(r.meter), r.station, r.driver]);
-    },
-  },
   projects: {
     title: "المشاريع", module: "accounting.view",
     headers: ["الكود", "الاسم", "العميل", "الحالة", "من", "إلى", "الميزانية"],
@@ -254,5 +220,5 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
 
 export const EXPORT_ORDER = [
   "items", "customers", "suppliers", "sales-orders", "purchase-orders", "stock-transfers", "sales-invoices", "purchase-invoices",
-  "pos-shifts", "promotions", "work-orders", "fuel-logs", "projects", "timesheets", "applicants", "training-courses",
+  "pos-shifts", "promotions", "projects", "timesheets", "applicants", "training-courses",
 ] as const;

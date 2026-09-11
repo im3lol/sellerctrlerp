@@ -93,18 +93,15 @@ export const REPORT_MODULES: ReportModule[] = [
     ],
   },
   {
-    // Projects, maintenance and the fleet all hang off accounting (a project is a cost
-    // dimension, an asset is a fixed_assets row), but an owner looking for "what did the
-    // truck cost me" does not think of that as an accounting report — so it gets its own
-    // heading even though it shares the module permission.
+    // A project is a cost dimension and an asset is a fixed_assets row, so both hang off
+    // accounting — but someone looking for "what did this project cost" does not think of
+    // that as an accounting report, so it gets its own heading.
     key: "operations",
-    label: "التشغيل والأصول",
-    icon: "Wrench",
+    label: "المشاريع والأصول",
+    icon: "FolderKanban",
     reports: [
       { key: "projects", label: "المشاريع", view: "/projects", excel: "/api/erp/exports/projects", dates: "none" },
       { key: "timesheets", label: "ساعات العمل", view: "/projects", excel: "/api/erp/exports/timesheets", dates: "none" },
-      { key: "work-orders", label: "أوامر الصيانة", view: "/maintenance", excel: "/api/erp/exports/work-orders", dates: "none" },
-      { key: "fuel-logs", label: "تعبئات الوقود", view: "/fleet", excel: "/api/erp/exports/fuel-logs", dates: "none" },
     ],
   },
 ];

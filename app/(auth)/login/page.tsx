@@ -18,7 +18,7 @@ export default async function LoginPage({
       ]}
     >
       <LoginForm
-        callbackUrl={callbackUrl ?? "/dashboard"}
+        callbackUrl={callbackUrl ?? "/apps"}
         title="تسجيل الدخول"
         subtitle="ادخل إلى حساب مؤسستك"
         welcome="👋 أهلاً بك في SellerCtrl — سجّل الدخول لإدارة تجارتك."

@@ -1,10 +1,11 @@
 /**
  * Write the release notes for what shipped, into the changelog tenants read at /whats-new.
  *
- * The page has existed all along with nothing in it. Notes are inserted UNPUBLISHED: this
- * is customer-facing copy in the owner's voice, and several of these entries say that a
- * number used to be wrong — how much of that to tell customers, and in what words, is the
- * owner's call, not mine. Review and publish from /admin/changelog.
+ * Notes are inserted PUBLISHED. They were drafts at first — customer-facing copy in the
+ * owner's voice, and several entries say a number used to be wrong. The owner read the
+ * list and asked for all of it to be visible: a customer who can see that a bug was found
+ * and fixed trusts the next release more than one who sees nothing at all.
+ * Unpublish any single entry from /admin/changelog.
  *
  * Idempotent: an entry whose title already exists is left alone, so re-running is safe.
  *
@@ -154,7 +155,7 @@ async function main() {
     if (exists) { skipped++; continue; }
     await db.insert(changelogEntries).values({
       title: e.title, body: e.body, kind: e.kind, module: e.module,
-      releasedAt: new Date(), isPublished: false,
+      releasedAt: new Date(), isPublished: true,
     });
     added++;
     console.log(`  + [${e.kind}] ${e.title}`);

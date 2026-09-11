@@ -245,20 +245,6 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    // One engine, two faces: the workshop cares about what is due and what a repair cost;
-    // the fleet cares about the same machines plus fuel, drivers and papers.
-    heading: "الصيانة والأسطول",
-    color: "bg-orange-600",
-    href: "/maintenance",
-    capability: "erp.maintenance.view",
-    moduleKey: "maintenance",
-    icon: "Wrench",
-    items: [
-      { label: "الصيانة", href: "/maintenance", icon: "Wrench", capability: "erp.maintenance.view", exact: true },
-      { label: "الأسطول", href: "/fleet", icon: "Truck", capability: "erp.maintenance.view" },
-    ],
-  },
-  {
     heading: "التقارير",
     color: "bg-indigo-600",
     href: "/reports/center",
