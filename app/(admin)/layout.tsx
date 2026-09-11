@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         <AdminSidebar />
         <div className="mt-auto border-t border-sidebar-border/40 p-4">
-          <Link href="/dashboard" className="text-sm text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground">← الرجوع للنظام</Link>
+          <Link href="/apps" className="text-sm text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground">← الرجوع للنظام</Link>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">

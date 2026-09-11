@@ -63,9 +63,9 @@ export async function requireErpModule(
 ): Promise<{ orgId: string; userId: string; role: string; permissions: string[]; can: (p: ErpPermission) => boolean }> {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
-  if (!org) redirect("/dashboard");
+  if (!org) redirect("/apps");
   const access = await getMemberAccess(org.id, user);
-  if (!access.role) redirect("/dashboard");
+  if (!access.role) redirect("/apps");
   if (!access.permissions.has(permission)) redirect("/dashboard");
   // Subscription entitlement: the tenant must have the module enabled. The
   // platform owner (system_admin) bypasses so they can support any account.

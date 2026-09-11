@@ -33,7 +33,7 @@ export default function AppError({
       </div>
       <div className="flex gap-2">
         <Button onClick={reset}>إعادة المحاولة</Button>
-        <Button variant="outline" asChild><Link href="/dashboard">لوحة التحكم</Link></Button>
+        <Button variant="outline" asChild><Link href="/apps">التطبيقات</Link></Button>
       </div>
     </div>
   );

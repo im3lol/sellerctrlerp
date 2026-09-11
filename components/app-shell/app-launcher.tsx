@@ -18,25 +18,16 @@ import { cn } from "@/lib/utils";
  * a second list — the same reason ModuleWorkspace reads it.
  */
 
-/** The top section has no heading, so its two pages are tiles in their own right. */
-const LOOSE_COLORS: Record<string, string> = {
-  "/dashboard": "bg-blue-600",
-  "/drafts": "bg-zinc-500",
-};
-
 export function AppLauncher({
   erpPermissions,
   modules,
   navHidden,
   onNavigate,
-  /** Denser tiles for the dashboard strip, where the grid is not the whole screen. */
-  compact,
 }: {
   erpPermissions: string[];
   modules?: string[];
   navHidden?: string[];
   onNavigate?: () => void;
-  compact?: boolean;
 }) {
   const perms = new Set(erpPermissions);
   const hidden = new Set(navHidden ?? []);
@@ -46,11 +37,9 @@ export function AppLauncher({
     if (section.moduleKey && modules && !modules.includes(section.moduleKey)) continue;
     const items = section.items.filter((i) => erpAllows(i, perms));
 
-    if (!section.heading) {
-      // Dashboard and Drafts belong to no module; they are their own tiles.
-      for (const i of items) tiles.push({ label: i.label, href: i.href, icon: i.icon, color: LOOSE_COLORS[i.href] ?? "bg-zinc-500", pages: 0 });
-      continue;
-    }
+    // Modules only. The heading-less top section (dashboard, drafts) holds pages, not
+    // modules, and a launcher that mixes the two is the clutter it exists to remove.
+    if (!section.heading) continue;
     if (hidden.has(section.heading)) continue;
 
     // A module with a landing page stays visible even with no items the member may
@@ -68,9 +57,7 @@ export function AppLauncher({
   }
 
   return (
-    <div className={cn("grid gap-3", compact
-      ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6")}>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
       {tiles.map((t) => (
         <Link
           key={t.href}
@@ -81,12 +68,12 @@ export function AppLauncher({
           <span className={cn(
             "flex items-center justify-center rounded-2xl text-white shadow-sm transition-transform group-hover:scale-105",
             t.color,
-            compact ? "size-11" : "size-14",
+            "size-14",
           )}>
-            <Icon name={t.icon} className={compact ? "size-5" : "size-7"} />
+            <Icon name={t.icon} className="size-7" />
           </span>
           <span className="min-w-0 text-sm font-medium leading-tight">{t.label}</span>
-          {!compact && t.pages > 0 && (
+          {t.pages > 0 && (
             <span className="text-xs text-muted-foreground">
               {t.pages.toLocaleString("ar-EG-u-nu-latn")} صفحة
             </span>
