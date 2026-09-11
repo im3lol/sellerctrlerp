@@ -136,9 +136,12 @@ export async function runOrdersJob(d: SyncJob): Promise<void> {
     // failure on an already-Shipped order (no future update event) would otherwise
     // be silently lost; re-scanning the same window is safe (dedup skips repeats).
     await markSync(d.orgId, d.provider, r.failed > 0 ? { lastSyncStatus: "auto", needsReauth: false } : { lastSyncStatus: "auto", needsReauth: false, ordersSyncedAt: to });
-    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created, failedProducts: r.failed, apiRequests });
+    // Still OK — most of the batch landed — but a run with failures records why, and the
+    // runs table shows it as partial instead of a clean green "done".
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.created, newProducts: r.created, failedProducts: r.failed, apiRequests },
+      r.failed > 0 ? (r.firstError ?? `${r.failed} أمر لم يُسجَّل`).slice(0, 200) : undefined);
   } catch (e) {
-    console.error("[queue] order sync failed:", e);
+    log.error("[queue]order sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة المبيعات");
   }
 }
@@ -166,7 +169,7 @@ export async function runSettlementsJob(d: SyncJob): Promise<void> {
     await markSync(d.orgId, d.provider, { lastSyncStatus: "auto", needsReauth: false });
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.updated, newProducts: r.imported, updatedProducts: r.posted, apiRequests });
   } catch (e) {
-    console.error("[queue] settlement sync failed:", e);
+    log.error("[queue]settlement sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التسويات");
   }
 }
@@ -180,7 +183,7 @@ export async function runInventoryAuditJob(d: SyncJob): Promise<void> {
     const [r, apiRequests] = await withRequestCount(() => runInventoryAudit(prep));
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.totalSkus, newProducts: r.withDiff, apiRequests });
   } catch (e) {
-    console.error("[queue] inventory audit failed:", e);
+    log.error("[queue]inventory audit failed", { orgId: d.orgId, err: e });
     // Keep the stored message short — never dump a raw SQL error to the UI.
     const msg = (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تدقيق المخزون";
     await finishRun(d.orgId, runId, "FAILED", {}, msg);
@@ -205,7 +208,7 @@ export async function runReturnsJob(d: SyncJob): Promise<void> {
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported, newProducts: r.created, updatedProducts: r.linkedToSettlement, failedProducts: r.unmatched, apiRequests });
   } catch (e) {
-    console.error("[queue] returns sync failed:", e);
+    log.error("[queue]returns sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة المرتجعات");
   }
 }
@@ -222,7 +225,7 @@ export async function runReimbursementsJob(d: SyncJob): Promise<void> {
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.skipped, newProducts: r.imported, apiRequests });
   } catch (e) {
-    console.error("[queue] reimbursements sync failed:", e);
+    log.error("[queue]reimbursements sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة التعويضات");
   }
 }
@@ -241,7 +244,7 @@ export async function runRemovalsJob(d: SyncJob): Promise<void> {
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported, newProducts: r.imported, apiRequests });
   } catch (e) {
-    console.error("[queue] removals sync failed:", e);
+    log.error("[queue]removals sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة أوامر السحب");
   }
 }
@@ -258,7 +261,7 @@ export async function runLedgerJob(d: SyncJob): Promise<void> {
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.imported + r.skipped, newProducts: r.imported, apiRequests });
   } catch (e) {
-    console.error("[queue] ledger sync failed:", e);
+    log.error("[queue]ledger sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل مزامنة دفتر FBA");
   }
 }
@@ -274,7 +277,7 @@ export async function runPricingJob(d: SyncJob): Promise<void> {
     if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
     await finishRun(d.orgId, runId, "OK", { productsProcessed: r.itemsConsidered, updatedProducts: r.estimated, apiRequests });
   } catch (e) {
-    console.error("[queue] fees sync failed:", e);
+    log.error("[queue]fees sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تقدير الرسوم");
   }
 }

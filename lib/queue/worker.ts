@@ -53,7 +53,8 @@ export function startWorkers(): void {
   // for the whole stale window (60 min) after every restart.
   void withPlatformScope(() =>
     db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف بإعادة تشغيل الخادم" })
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"))),
+      // Same list as the scheduler's reaper — REMOVALS and the product kinds were missing.
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY"]), eq(syncRuns.status, "RUNNING"))),
   ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {

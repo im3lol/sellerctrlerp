@@ -88,6 +88,8 @@ export type IngestResult = {
   skippedPreGoLive: number; // new orders skipped: purchase date before the go-live floor
   autoCreated: number; // stub items created for unknown SKUs (order kept DRAFT)
   failed: number;
+  /** The first failure's reason, so a partial run can say WHY and not only how many. */
+  firstError?: string | null;
 };
 
 /** Build a code/altCode → item resolver for the org (item_codes, then item.code). */
@@ -98,6 +100,12 @@ export async function buildMatcher(orgId: string, orders: MarketplaceOrder[]) {
     if (l.altCode) norms.add(normalizeCode(l.altCode));
   }
   const normList = [...norms].filter(Boolean);
+  // No codes to match — the sync pulled no orders. Don't load the whole catalogue to
+  // match nothing: the per-minute order sync lands here on almost every tick.
+  if (normList.length === 0) {
+    const none: ItemResolver = () => ({ itemId: null, itemName: null });
+    return none;
+  }
   // norm → the SET of items carrying it. A shared code (ASIN, barcode) can belong to several
   // products, so we keep all of them and only match when exactly ONE owns the code — never
   // guess an arbitrary product from an ambiguous shared code.
@@ -162,7 +170,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   // parked in unmatched_orders + surfaced as a notification; the seller creates the product
   // (with its platform codes) and the order manually. See recordUnmatched below.
   const autoCreated = 0;
-  const reviewIds = new Set(
+  const reviewIds = new Set(orders.length === 0 ? [] :
     (await db.select({ id: items.id }).from(items).where(and(eq(items.organizationId, orgId), eq(items.needsReview, true)))).map((r) => r.id),
   );
   const hasReviewItem = (o: PreviewOrder) => o.lines.some((l) => l.itemId && reviewIds.has(l.itemId));
@@ -209,7 +217,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     return o; // unconverted → stays DRAFT below
   });
 
-  const existing = await existingOrders(orgId, ctx.channel);
+  // Nothing fetched → nothing to classify, so don't read every order this channel ever
+  // had. The parked-order retry further down still runs: it doesn't depend on a fetch.
+  const existing = orders.length ? await existingOrders(orgId, ctx.channel) : new Map<string, { id: string; status: string }>();
   const { toCreate, transitions, toCancel, duplicates, blocked } = classifyOrders(prepped, resolve, existing);
 
   // Park each unmatched order (unknown product) for manual handling, and clear any parked
@@ -235,6 +245,9 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
   }
 
   let created = 0, transitioned = 0, fulfilled = 0, cancelled = 0, failed = 0, stockDrafted = 0, skippedPreGoLive = 0;
+  // A failed order used to leave only a count behind — the reason was thrown away, so
+  // "3 failed" was all anyone could ever learn. Keep the first one.
+  let firstError: string | null = null;
   const stockBlocked: { externalId: string; reason: string }[] = [];
   const autoMode: AutoMode = ctx.autoMode ?? "invoice";
   const createFloor = ctx.createFloor ?? null;
@@ -274,7 +287,8 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
         });
         return so.id;
       });
-    } catch {
+    } catch (e) {
+      firstError ??= `${o.externalId}: ${e instanceof Error ? e.message : String(e)}`;
       return null;
     }
   };
@@ -286,7 +300,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     const f = await fulfillOrder(orgId, orderId, { mode: autoMode, draftOnShort: true });
     if (f.ok) { if (f.drafted) stockDrafted++; else if (!f.noop) fulfilled++; }
     else if (f.blocked) stockBlocked.push({ externalId: extId, reason: f.error });
-    else failed++;
+    else { failed++; firstError ??= `${extId}: ${f.error}`; }
   };
 
   // Re-write a still-editable DRAFT order's lines + totals + channel status from the
@@ -344,7 +358,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
     if (o.status !== "Shipped") continue;
     if (o.existingStatus === "DRAFT") {
       const c = await confirmSalesOrderAction(o.existingId);
-      if (!c.ok) { failed++; continue; }
+      if (!c.ok) { failed++; firstError ??= `${o.externalId}: ${("error" in c && c.error) || "تعذّر تأكيد الأمر"}`; continue; }
       transitioned++;
     }
     await runCycle(o.existingId, o.externalId);
@@ -391,7 +405,7 @@ export async function ingestOrders(orgId: string, userId: string | null, ctx: Pl
 
   return {
     created, transitioned, fulfilled, cancelled, stockBlocked, stockDrafted,
-    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, skippedPreGoLive, autoCreated, failed,
+    skippedDuplicate: duplicates.length, skippedUnmatched: blocked.length, skippedPreGoLive, autoCreated, failed, firstError,
   };
 }
 

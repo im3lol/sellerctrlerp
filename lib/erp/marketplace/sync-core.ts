@@ -30,7 +30,7 @@ export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: C
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; fnskus: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
 export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
-export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number; firstError?: string | null } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 export type FbaCodesSync = { ok: true; total: number; attached: number; unmatched: number } | { ok: false; error: string };
 export type BalanceSync = { ok: true; groups: number } | { ok: false; error: string };
@@ -273,7 +273,7 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const createFloor = orderCreateFloor(range.mode, p.ctx.accountingStartDate ?? null, range.from, startOfToday);
     const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, { ...p.ctx, createFloor }, orders));
-    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, skippedPreGoLive: r.skippedPreGoLive, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed };
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, skippedPreGoLive: r.skippedPreGoLive, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed, firstError: r.firstError ?? null };
   } catch (e) {
     return coreFail(p, e, "فشل سحب الأوامر");
   }

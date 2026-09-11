@@ -39,7 +39,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
     const runs = await db.select({
       id: syncRuns.id, kind: syncRuns.kind, status: syncRuns.status,
       productsProcessed: syncRuns.productsProcessed, newProducts: syncRuns.newProducts,
-      updatedProducts: syncRuns.updatedProducts, apiRequests: syncRuns.apiRequests,
+      updatedProducts: syncRuns.updatedProducts, failedProducts: syncRuns.failedProducts, apiRequests: syncRuns.apiRequests,
       error: syncRuns.error, startedAt: syncRuns.startedAt, finishedAt: syncRuns.finishedAt,
     }).from(syncRuns)
       .where(and(eq(syncRuns.organizationId, orgId), eq(syncRuns.provider, platform.code.toLowerCase())))
