@@ -1,5 +1,6 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { currencies, exchangeRates } from "@/db/schema";
 
 /**
@@ -27,13 +28,20 @@ export async function getExchangeRate(orgId: string, code: string, baseCode: str
   return snap && Number(snap.rate) > 0 ? Number(snap.rate) : 0;
 }
 
-/** The org's base-currency code (falls back to "EGP" when none is flagged). */
+/**
+ * The org's base-currency code (falls back to "EGP" when none is flagged).
+ *
+ * Scopes itself. Three export routes called this after their own withOrgScope had
+ * closed, RLS returned no row, and the "EGP" fallback quietly stood in — so any org
+ * whose base currency isn't the pound got EGP printed on its exports. Scoping here
+ * covers every caller; withOrgScope is a no-op inside an open scope.
+ */
 export async function getBaseCurrencyCode(orgId: string): Promise<string> {
-  const [base] = await db
+  const [base] = await withOrgScope(orgId, false, () => db
     .select({ code: currencies.code })
     .from(currencies)
     .where(and(eq(currencies.organizationId, orgId), eq(currencies.isBase, true)))
-    .limit(1);
+    .limit(1));
   return base?.code ?? "EGP";
 }
 
