@@ -1,14 +1,8 @@
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
-import { getCashFlow, type CashLine } from "@/lib/erp/cashflow";
+import { getCashFlow } from "@/lib/erp/cashflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportTabs } from "@/components/erp/report-tabs";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { BarChart } from "@/components/charts/bar-chart";
 
 const fmt   = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 });
@@ -20,7 +14,7 @@ export default async function CashFlowPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
     const now = new Date();
@@ -30,49 +24,39 @@ export default async function CashFlowPage({
     const { netIncome, operating, investing, financing, opTotal, invTotal, finTotal, netCashChange, cashBegin, cashEnd } =
       await getCashFlow(orgId, new Date(from), new Date(`${to}T23:59:59`));
 
+    const query = new URLSearchParams({ from, to }).toString();
+    const hasActivity = opTotal !== 0 || invTotal !== 0 || finTotal !== 0;
+
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="ArrowLeftRight" title="التدفق النقدي" subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
-          action={
-            <ReportToolbar
-              excel={`/api/erp/reports/cash-flow/export?${new URLSearchParams({ from, to }).toString()}`}
-              printHref={`/reports/cash-flow/print?${new URLSearchParams({ from, to }).toString()}`}
-            />
-          }
-        />
-        <ReportTabs active="/reports/cash-flow" />
-
-        {/* Date filter */}
-        <Card>
-          <CardContent className="pt-5">
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="from">من تاريخ</Label>
-                <input id="from" name="from" type="date" defaultValue={from} className={inp} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="to">إلى تاريخ</Label>
-                <input id="to" name="to" type="date" defaultValue={to} className={inp} />
-              </div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Activity comparison */}
-        {(opTotal !== 0 || invTotal !== 0 || finTotal !== 0) && (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">التدفق حسب النشاط</CardTitle></CardHeader>
-            <CardContent>
-              <BarChart
-                data={[{ label: "تشغيلية", value: opTotal }, { label: "استثمارية", value: invTotal }, { label: "تمويلية", value: finTotal }]}
-                valueLabel="صافي التدفق" money height={220}
-                colors={[opTotal, invTotal, finTotal].map((v) => (v >= 0 ? "#008300" : "#e34948"))}
-              />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="cash-flow"
+        icon="ArrowLeftRight"
+        title="التدفق النقدي"
+        subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
+        query={query}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={inp} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={inp} /></ReportField>
+          </>
+        }
+        kpis={[
+          { label: "رصيد أول الفترة", value: fmt(cashBegin), tone: "muted" },
+          { op: "+" },
+          { label: "صافي التغير", value: fmt(netCashChange), tone: netCashChange >= 0 ? "profit" : "loss" },
+          { op: "=" },
+          { label: "رصيد آخر الفترة", value: fmt(cashEnd) },
+        ]}
+        chartTitle={hasActivity ? "التدفق حسب النشاط" : undefined}
+        chart={hasActivity ? (
+          <BarChart
+            data={[{ label: "تشغيلية", value: opTotal }, { label: "استثمارية", value: invTotal }, { label: "تمويلية", value: finTotal }]}
+            valueLabel="صافي التدفق" money height={220}
+            colors={[opTotal, invTotal, finTotal].map((v) => (v >= 0 ? "#008300" : "#e34948"))}
+          />
+        ) : undefined}
+      >
         {/* Operating */}
         <CashSection title="الأنشطة التشغيلية" total={opTotal}>
           <CashRow label="صافي الربح / (الخسارة)" amount={netIncome} />
@@ -116,7 +100,7 @@ export default async function CashFlowPage({
             </p>
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

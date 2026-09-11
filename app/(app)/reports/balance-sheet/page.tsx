@@ -1,14 +1,8 @@
 import { loadErpPage } from "@/lib/erp/org";
 import { accountBalances, naturalAmount, type AccountBalance } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportTabs } from "@/components/erp/report-tabs";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,7 +13,7 @@ export default async function BalanceSheetPage({
 }: {
   searchParams: Promise<{ to?: string }>;
 }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const to = sp.to || iso(new Date());
 
@@ -50,42 +44,23 @@ export default async function BalanceSheetPage({
     const balanced = Math.abs(totalAssets - totalLiabEquity) < 0.01;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Scale" title="الميزانية العمومية" subtitle={`كما في ${to} — من القيود المُرحّلة`}
-          action={
-            <ReportToolbar
-              excel={`/api/erp/reports/balance-sheet/export?to=${to}`}
-              printHref={`/reports/balance-sheet/print?to=${to}`}
-            />
-          }
-        />
-        <ReportTabs active="/reports/balance-sheet" />
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الأصول</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(totalAssets)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الخصوم</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(totalLiabilities)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">حقوق الملكية</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalEquity >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(totalEquity)}</p></CardContent></Card>
-        </div>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>التاريخ</CardTitle>
-              <CardDescription>أرصدة الحسابات حتى تاريخ محدّد.</CardDescription>
-            </div>
-            <Badge variant={balanced ? "default" : "destructive"}>{balanced ? "متوازنة" : "غير متوازنة"}</Badge>
-          </CardHeader>
-          <CardContent>
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="to">كما في تاريخ</Label>
-                <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
-              </div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
+      <ReportShell
+        reportKey="balance-sheet"
+        icon="Scale"
+        title="الميزانية العمومية"
+        subtitle={`كما في ${to} — من القيود المُرحّلة`}
+        query={`to=${to}`}
+        permissions={permissions}
+        filters={<ReportField label="كما في تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>}
+        kpis={[
+          { label: "إجمالي الأصول", value: fmt(totalAssets) },
+          { op: "=" },
+          { label: "إجمالي الخصوم", value: fmt(totalLiabilities) },
+          { op: "+" },
+          { label: "حقوق الملكية", value: fmt(totalEquity), tone: totalEquity >= 0 ? "profit" : "loss",
+            hint: balanced ? "متوازنة" : "غير متوازنة" },
+        ]}
+      >
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -138,7 +113,7 @@ export default async function BalanceSheetPage({
             فرق غير متوازن: {fmt(totalAssets - totalLiabEquity)} — راجع القيود غير المتوازنة أو الحسابات غير المصنّفة.
           </div>
         )}
-      </div>
+      </ReportShell>
     );
   });
 }

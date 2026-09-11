@@ -7,11 +7,7 @@ import { getBaseCurrencyCode } from "@/lib/erp/currency";
 // money() carries the single currency-symbol map — the same one the printed
 // documents use — so a تقرير ضريبة can't print a currency the invoices don't.
 import { money } from "@/lib/erp/print-format";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportTabs } from "@/components/erp/report-tabs";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/icon";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Params = { searchParams: Promise<{ from?: string; to?: string }> };
@@ -20,22 +16,6 @@ const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ── Summary box ─────────────────────────────────────────── */
-function Tile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: "green" | "red" | "blue" }) {
-  const colorCls = accent === "green"
-    ? "text-emerald-600 dark:text-emerald-400"
-    : accent === "red"
-    ? "text-red-600 dark:text-red-400"
-    : accent === "blue"
-    ? "text-blue-600 dark:text-blue-400"
-    : "text-foreground";
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-2xl font-bold tabular-nums ${colorCls}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
 
 /* ── VAT lines table ─────────────────────────────────────── */
 type VatLine = { number: string; date: Date; counterparty: string; netAmount: number; taxAmount: number; taxRate: number };
@@ -85,7 +65,7 @@ function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string })
 
 /* ── Page ──────────────────────────────────────────────────── */
 export default async function VatReportPage({ searchParams }: Params) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
 
@@ -176,54 +156,34 @@ export default async function VatReportPage({ searchParams }: Params) {
     const outputBase = salesLines.reduce((s, l) => s + l.netAmount, 0);
     const inputBase  = purchaseLines.reduce((s, l) => s + l.netAmount, 0);
 
+    const query = new URLSearchParams({ from: fromISO, to: toISO }).toString();
+    const inp = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm";
+
     return (
-      <div className="space-y-6" dir="rtl">
-        <ErpPageHeader
-          icon="Percent"
-          title="تقرير ضريبة القيمة المضافة"
-          subtitle="ملخّص الضريبة المحصّلة على المبيعات والضريبة المدفوعة على المشتريات"
-          action={
-            <ReportToolbar
-              excel={`/api/erp/reports/vat/export?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}
-              printHref={`/reports/vat/print?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}
-            />
-          }
-        />
-        <ReportTabs active="/reports/vat" />
-
-        {/* Date filter */}
-        <form method="GET" className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">من</label>
-            <input name="from" type="date" defaultValue={fromISO}
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">إلى</label>
-            <input name="to" type="date" defaultValue={toISO}
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm" />
-          </div>
-          <button type="submit"
-            className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90">
-            عرض
-          </button>
-        </form>
-
-        {/* Summary tiles */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Tile label="الضريبة المحصّلة (مخرجات)"  value={money(outputVat, currency)}  sub={`على مبيعات ${money(outputBase, currency)}`}  accent="green" />
-          <Tile label="الضريبة المدفوعة (مدخلات)"  value={money(inputVat, currency)}   sub={`على مشتريات ${money(inputBase, currency)}`} accent="blue"  />
-          <Tile
-            label={netVat >= 0 ? "صافي الضريبة المستحقة" : "ضريبة مستردّة"}
-            value={money(Math.abs(netVat), currency)}
-            sub={netVat >= 0 ? "مستحق للهيئة" : "قابل للاسترداد"}
-            accent={netVat >= 0 ? "red" : "green"}
-          />
-          <Tile label="عدد الفواتير الخاضعة"
-            value={String(salesLines.length + purchaseLines.length)}
-            sub={`${salesLines.length} مبيعات · ${purchaseLines.length} مشتريات`} />
-        </div>
-
+      <ReportShell
+        reportKey="vat"
+        icon="Percent"
+        title="تقرير ضريبة القيمة المضافة"
+        subtitle={`من ${fromISO} إلى ${toISO} — المحصّلة على المبيعات والمدفوعة على المشتريات`}
+        query={query}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={fromISO} className={inp} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={toISO} className={inp} /></ReportField>
+          </>
+        }
+        kpis={[
+          { label: "المحصّلة (مخرجات)", value: money(outputVat, currency), hint: `على مبيعات ${money(outputBase, currency)}` },
+          { op: "−" },
+          { label: "المدفوعة (مدخلات)", value: money(inputVat, currency), hint: `على مشتريات ${money(inputBase, currency)}` },
+          { op: "=" },
+          { label: netVat >= 0 ? "المستحقة للهيئة" : "القابلة للاسترداد",
+            value: money(Math.abs(netVat), currency),
+            tone: netVat >= 0 ? "loss" : "profit",
+            hint: `${salesLines.length + purchaseLines.length} فاتورة خاضعة` },
+        ]}
+      >
         {/* VAT return box */}
         <Card>
           <CardHeader><CardTitle className="text-base">ملخّص الإقرار الضريبي</CardTitle></CardHeader>
@@ -266,7 +226,7 @@ export default async function VatReportPage({ searchParams }: Params) {
           <h3 className="font-semibold">تفاصيل الضريبة المدفوعة (فواتير الشراء)</h3>
           <VatTable lines={purchaseLines} emptyText="لا توجد فواتير شراء خاضعة للضريبة في هذه الفترة" />
         </div>
-      </div>
+      </ReportShell>
     );
   });
 }

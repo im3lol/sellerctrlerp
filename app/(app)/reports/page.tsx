@@ -4,19 +4,14 @@ import { accountBalances } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportTabs } from "@/components/erp/report-tabs";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ErpReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const now = new Date();
     const from = sp.from || (await orgFiscalYearStartISO(orgId, now));
@@ -30,41 +25,30 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
     const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
     const balanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
+    const query = new URLSearchParams({ from, to }).toString();
+
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="BarChart3"
-          title="التقارير المالية — ميزان المراجعة"
-          subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
-          action={
-            <ReportToolbar
-              excel={`/api/erp/reports/trial-balance/export?${new URLSearchParams({ from, to }).toString()}`}
-              printHref={`/reports/trial-balance/print?${new URLSearchParams({ from, to }).toString()}`}
-            />
-          }
-        />
-        <ReportTabs active="/reports" />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>الفترة</CardTitle>
-            <CardDescription>اختر فترة ميزان المراجعة.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="from">من تاريخ</Label>
-                <input id="from" name="from" type="date" defaultValue={from} className={selectCls} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="to">إلى تاريخ</Label>
-                <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
-              </div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
+      <ReportShell
+        reportKey="trial-balance"
+        icon="BarChart3"
+        title="ميزان المراجعة"
+        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        query={query}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+          </>
+        }
+        kpis={[
+          { label: "إجمالي المدين", value: fmt(totalDebit) },
+          { op: "=" },
+          { label: "إجمالي الدائن", value: fmt(totalCredit) },
+          { label: "الفرق", value: fmt(Math.abs(totalDebit - totalCredit)), tone: balanced ? "profit" : "loss",
+            hint: balanced ? "متوازن" : "غير متوازن" },
+        ]}
+      >
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>
@@ -111,7 +95,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }
