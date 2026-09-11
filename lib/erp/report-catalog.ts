@@ -41,6 +41,10 @@ export const REPORT_MODULES: ReportModule[] = [
       { key: "ratios", label: "المؤشرات المالية", view: "/reports/ratios", excel: "/api/erp/reports/ratios/export", print: "/erp/reports/ratios/print", dates: "none" },
       { key: "cost-centers", label: "أرباح مراكز التكلفة", view: "/reports/cost-centers", excel: "/api/erp/reports/cost-centers/export", print: "/erp/reports/cost-centers/print", dates: "range" },
       { key: "fx", label: "إعادة تقييم العملات", view: "/reports/fx-revaluation", excel: "/api/erp/reports/fx-revaluation/export", print: "/erp/reports/fx-revaluation/print", dates: "none" },
+      // Both statements have a print view and no Excel route. They were missing from
+      // the catalogue entirely, so the report switcher couldn't reach them.
+      { key: "customer-statement", label: "كشف حساب العميل", view: "/accounting/customer-statement", excel: null, print: "/erp/accounting/customer-statement/print", dates: "range" },
+      { key: "supplier-statement", label: "كشف حساب المورّد", view: "/accounting/supplier-statement", excel: null, print: "/erp/accounting/supplier-statement/print", dates: "range" },
     ],
   },
   {

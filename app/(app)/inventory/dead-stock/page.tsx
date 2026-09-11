@@ -4,11 +4,9 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
-import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
+import { filterFieldCls } from "@/components/erp/filter-bar";
 
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -20,7 +18,7 @@ const DAYS = [30, 60, 90, 180, 365];
 type Row = { code: string | null; name: string | null; qty: number; val: number; sold: number; last: string | null };
 
 export default async function DeadStockPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const days = DAYS.includes(Number(sp.days)) ? Number(sp.days) : 90;
     const q = (sp.q ?? "").trim().toLowerCase();
@@ -71,28 +69,31 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
     if (q) filterQs.set("q", q);
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="PackageX" title="المخزون الراكد وبطيء الحركة" subtitle="رأس المال المحبوس في بضاعة لا تتحرك" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/inventory/dead-stock/export?${filterQs.toString()}` : undefined} printHref={`/erp/inventory/dead-stock/print?${filterQs.toString()}`} />} />
-
-        <FilterBar active={!!q || days !== 90} clearHref="/inventory/dead-stock">
-          <div className="space-y-2">
-            <Label htmlFor="days">فترة القياس</Label>
-            <select id="days" name="days" defaultValue={String(days)} className={`${filterFieldCls} min-w-32`}>
-              {DAYS.map((d) => <option key={d} value={d}>آخر {d} يوم</option>)}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="q">بحث</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder="الكود أو الاسم" className="min-w-56" />
-          </div>
-        </FilterBar>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">أصناف راكدة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{deadCount}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة المخزون الراكد</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-destructive">{fmt(deadVal)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة المخزون البطيء</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(slowVal)}</p></CardContent></Card>
-        </div>
-
+      <ReportShell
+        reportKey="inv-dead"
+        icon="PackageX"
+        title="المخزون الراكد وبطيء الحركة"
+        subtitle="رأس المال المحبوس في بضاعة لا تتحرك"
+        query={filterQs.toString()}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="فترة القياس">
+              <select name="days" defaultValue={String(days)} className={filterFieldCls}>
+                {DAYS.map((d) => <option key={d} value={d}>آخر {d} يوم</option>)}
+              </select>
+            </ReportField>
+            <ReportField label="بحث">
+              <Input name="q" defaultValue={q} placeholder="الكود أو الاسم" />
+            </ReportField>
+          </>
+        }
+        kpis={[
+          { label: "أصناف راكدة", value: String(deadCount), tone: "muted" },
+          { label: "قيمة المخزون الراكد", value: fmt(deadVal), tone: "loss" },
+          { label: "قيمة المخزون البطيء", value: fmt(slowVal) },
+        ]}
+      >
         <Card>
           <CardHeader>
             <CardTitle>الأصناف المتوفّرة مرتّبة حسب الركود</CardTitle>
@@ -131,7 +132,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

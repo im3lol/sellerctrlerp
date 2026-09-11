@@ -2,8 +2,8 @@ import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, purchaseInvoices, paymentVouchers, purchaseReturns } from "@/db/schema";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
+import { selectCls } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FormCombobox } from "@/components/erp/form-combobox";
@@ -26,7 +26,7 @@ type TxRow = {
 };
 
 export default async function SupplierStatementPage({ searchParams }: Params) {
-  return loadErpPage("accounting.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
 
@@ -159,65 +159,41 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
     };
 
     return (
-      <div className="space-y-6" dir="rtl">
-        <ErpPageHeader
-          icon="ScrollText"
-          title="كشف حساب المورّد"
-          subtitle="عرض كل المعاملات (فواتير · مدفوعات · مرتجعات) لمورّد محدد خلال فترة"
-          backHref="/accounting"
-          action={selectedId ? <ReportToolbar printHref={`/erp/accounting/supplier-statement/print?${new URLSearchParams({ supplierId: selectedId, from: fromISO, to: toISO }).toString()}`} /> : undefined}
-        />
-
-        <form method="GET" className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1 min-w-48">
-            <label className="text-xs text-muted-foreground">المورّد</label>
-            <FormCombobox
-              name="supplierId"
-              defaultValue={selectedId}
-              placeholder="ابحث عن مورّد…"
-              options={supplierRows.map((s) => ({ id: s.id, label: s.nameAr }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">من</label>
-            <input name="from" type="date" defaultValue={fromISO}
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">إلى</label>
-            <input name="to" type="date" defaultValue={toISO}
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm" />
-          </div>
-          <button type="submit"
-            className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90">
-            عرض
-          </button>
-        </form>
-
+      <ReportShell
+        reportKey="supplier-statement"
+        icon="ScrollText"
+        title="كشف حساب المورّد"
+        subtitle="فواتير ومدفوعات ومرتجعات مورّد خلال فترة"
+        query={selectedId ? new URLSearchParams({ supplierId: selectedId, from: fromISO, to: toISO }).toString() : ""}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="المورّد">
+              <FormCombobox name="supplierId" defaultValue={selectedId} placeholder="ابحث…"
+                options={supplierRows.map((s) => ({ id: s.id, label: s.nameAr }))} />
+            </ReportField>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
+          </>
+        }
+        kpis={selectedId ? [
+          { label: "رصيد الافتتاح", value: money(openingBalance, currency), tone: "muted" as const },
+          { op: "+" as const },
+          { label: "إجمالي الفواتير", value: money(txRows.reduce((s, r) => s + r.credit, 0), currency), tone: "loss" as const },
+          { op: "−" as const },
+          { label: "إجمالي المدفوعات", value: money(txRows.reduce((s, r) => s + r.debit, 0), currency), tone: "profit" as const },
+          { op: "=" as const },
+          { label: closingBalance >= 0 ? "المستحق للمورّد" : "رصيد زائد (دفعنا زيادة)",
+            value: money(Math.abs(closingBalance), currency),
+            tone: closingBalance > 0 ? "loss" as const : "profit" as const },
+        ] : undefined}
+      >
         {!selectedId ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
             اختر مورّدًا لعرض كشف حسابه.
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[
-                { label: "رصيد الافتتاح",      value: money(openingBalance, currency),  cls: "" },
-                { label: "إجمالي الفواتير",    value: money(txRows.reduce((s, r) => s + r.credit, 0), currency), cls: "text-red-600 dark:text-red-400" },
-                { label: "إجمالي المدفوعات",   value: money(txRows.reduce((s, r) => s + r.debit, 0), currency),  cls: "text-emerald-600 dark:text-emerald-400" },
-                {
-                  label: closingBalance >= 0 ? "الرصيد الدائن (مستحق)" : "رصيد زائد (دفعنا زيادة)",
-                  value: money(Math.abs(closingBalance), currency),
-                  cls: closingBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
-                },
-              ].map((t, i) => (
-                <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-                  <p className="text-xs text-muted-foreground">{t.label}</p>
-                  <p className={`mt-1 text-xl font-bold tabular-nums ${t.cls}`}>{t.value}</p>
-                </div>
-              ))}
-            </div>
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
@@ -289,7 +265,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
             </Card>
           </>
         )}
-      </div>
+      </ReportShell>
     );
   });
 }
