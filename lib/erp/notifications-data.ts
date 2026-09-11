@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withOrgScope } from "@/lib/db-scope";
 import { auditLogs } from "@/db/schema";
 
 export type Activity = { action: string; summary: string | null; number: string | null; at: string; href: string | null };
@@ -40,8 +41,19 @@ const ENTITY_PERM: Record<string, string> = {
 
 /** Org-scoped notification counts + recent activity, filtered to what `perms` allows
  *  (undefined = show everything, e.g. the daily cron). `sinceIso` counts documents
- *  created after that instant. */
-export async function computeNotifications(orgId: string, sinceIso?: string, perms?: Set<string>): Promise<Notifications> {
+ *  created after that instant.
+ *
+ *  Runs inside the org's RLS scope itself. Both callers — the bell's server action and
+ *  the daily digest cron — called this bare, and the app connects as `appuser`, whose
+ *  RLS policies return NO rows until app.current_org is set: every count was 0 (5,270
+ *  items visible to the owner, 0 to this function), so the badge never lit and the
+ *  chime, which only plays when the total rises, never played. Scoping here rather than
+ *  at each call site fixes both, and withOrgScope is a no-op when a scope is already open. */
+export function computeNotifications(orgId: string, sinceIso?: string, perms?: Set<string>): Promise<Notifications> {
+  return withOrgScope(orgId, false, () => compute(orgId, sinceIso, perms));
+}
+
+async function compute(orgId: string, sinceIso?: string, perms?: Set<string>): Promise<Notifications> {
   const since = sinceIso ? new Date(sinceIso) : null;
   const can = (p: string) => !perms || perms.has(p);
   const anyDoc = can("sales.view") || can("purchases.view") || can("accounting.view");
