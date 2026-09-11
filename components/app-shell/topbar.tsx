@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { modulesContaining } from "@/lib/active-module";
 import { Menu, LayoutGrid } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
@@ -34,10 +36,11 @@ export function Topbar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
+  const inModule = modulesContaining(usePathname()).length > 0;
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
       {/* Mobile menu */}
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+      {inModule && <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetTrigger className="grid size-10 place-items-center rounded-lg hover:bg-accent lg:hidden">
           <Menu className="size-5" />
         </SheetTrigger>
@@ -52,7 +55,7 @@ export function Topbar({
           {/* Close the drawer when a link/heading navigates. */}
           <NavList role={user.role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} navHidden={navHidden} onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
-      </Sheet>
+      </Sheet>}
 
       {/* The app grid, one click from anywhere — the sidebar is a map you have to
           already read; this is the one you start from. Same component as /apps. */}

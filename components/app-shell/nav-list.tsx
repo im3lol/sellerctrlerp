@@ -136,14 +136,15 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modules, platforms, role, erpPermissions]);
 
-  const pinned = pins.map((h) => allItems.find((x) => x.item.href === h)).filter((x): x is { item: NavItem; heading: string } => !!x);
-
-  // In module scope: the loose top rows, the module itself, then support/settings.
-  // Out of it (the launcher, a profile page) the full list is the right answer.
-  const ALWAYS = ["الدعم", "الإدارة والإعدادات"];
-  const shown = current
-    ? sections.filter((s) => !s.heading || s.heading === current.heading || ALWAYS.includes(s.heading))
-    : sections;
+  // ONE module and nothing else — not the dashboard row, not settings, not a pin from
+  // another department. Everything outside the module is one click away on the launcher,
+  // and the moment a second module shares the rail it stops being "my work" again.
+  // Outside any module there is no sidebar at all (Sidebar/Topbar check the same rule).
+  if (!current) return null;
+  const shown = sections.filter((s) => s.heading === current.heading);
+  const pinned = pins
+    .map((h) => allItems.find((x) => x.item.href === h && x.heading === current.heading))
+    .filter((x): x is { item: NavItem; heading: string } => !!x);
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -156,7 +157,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
       >
         <Icon name="LayoutGrid" className="size-[18px] shrink-0" />
         <span className="flex-1 text-start">كل التطبيقات</span>
-        {current && <Icon name="ChevronLeft" className="size-4 shrink-0 opacity-60" />}
+        <Icon name="ChevronLeft" className="size-4 shrink-0 opacity-60" />
       </Link>
 
       {pinned.length > 0 && (
