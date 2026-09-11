@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { PurchasesLedgerTable } from "@/components/erp/purchases-ledger-table";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { selectCls } from "@/lib/utils";
@@ -25,7 +24,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PurchasesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fSupplier = one(sp.supplier);
     const fType = one(sp.type); // "" = all, else ORDER|RECEIPT|INVOICE|RETURN
@@ -61,13 +60,14 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
     const exportHref = `/api/erp/purchases/ledger/export?${filterQs().toString()}`;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="BookOpen"
-          title="تقرير دفتر المشتريات"
-          subtitle={`${totalRows} حركة`}
-          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} printHref={`/erp/purchases/reports/ledger/print?${filterQs().toString()}`} />}
-        />
+      <ReportShell
+        reportKey="purch-ledger"
+        icon="BookOpen"
+        title="تقرير دفتر المشتريات"
+        subtitle={`${totalRows} حركة`}
+        query={filterQs().toString()}
+        permissions={permissions}
+      >
         <Card>
           <CardHeader>
             <CardTitle>دفتر المشتريات (Ledger)</CardTitle>
@@ -129,7 +129,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

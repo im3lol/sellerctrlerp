@@ -3,27 +3,30 @@ import { computeFxRevaluation } from "@/lib/erp/fx-revaluation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { FxPostButton } from "@/components/erp/fx-post-button";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function FxRevaluationPage() {
-  return loadErpPage("reports.view", async ({ orgId, can }) => {
+  return loadErpPage("reports.view", async ({ orgId, can, permissions }) => {
     // Shared with the posting action so the number the accountant sees is the number posted.
     const { base, rows, netGain } = await computeFxRevaluation(orgId);
     const canPost = can("accounting.create") && Math.abs(netGain) >= 0.01;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="BadgeDollarSign" title="إعادة تقييم العملات الأجنبية" subtitle="الأرباح/الخسائر غير المحققة على الأرصدة الأجنبية المفتوحة" action={<div className="flex items-center gap-2">{canPost && <FxPostButton />}<ReportToolbar excel="/api/erp/reports/fx-revaluation/export" printHref="/erp/reports/fx-revaluation/print" /></div>} />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">العملة الأساسية</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{base}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح/الخسارة غير المحقّق</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${netGain >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(netGain)}</p></CardContent></Card>
-        </div>
-
+      <ReportShell
+        reportKey="fx"
+        icon="BadgeDollarSign"
+        title="إعادة تقييم العملات الأجنبية"
+        subtitle="الأرباح/الخسائر غير المحققة على الأرصدة الأجنبية المفتوحة"
+        permissions={permissions}
+        actions={canPost ? <FxPostButton /> : undefined}
+        kpis={[
+          { label: "العملة الأساسية", value: base, tone: "muted" },
+          { label: "صافي الربح/الخسارة غير المحقّق", value: fmt(netGain), tone: netGain >= 0 ? "profit" : "loss" },
+        ]}
+      >
         <Card>
           <CardHeader>
             <CardTitle>حسب العملة</CardTitle>
@@ -58,7 +61,7 @@ export default async function FxRevaluationPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

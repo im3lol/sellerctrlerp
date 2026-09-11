@@ -2,20 +2,16 @@ import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { leaveRequests } from "@/db/schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { LEAVE_TYPES } from "@/lib/erp/leave";
 import { selectCls } from "@/lib/utils";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function LeaveReportPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
-  return loadErpPage("hr.view", async ({ orgId }) => {
+  return loadErpPage("hr.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const now = new Date();
     const from = sp.from || `${now.getFullYear()}-01-01`;
@@ -51,23 +47,24 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
     const grandTotal = colTotals.reduce((s, n) => s + n, 0);
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="CalendarDays" title="تقرير أرصدة الإجازات" subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`} backHref="/hr/leaves"
-          action={
-            <ReportToolbar excel={`/api/erp/hr/leaves/report/export?${new URLSearchParams({ from, to }).toString()}`} printHref={`/erp/hr/leaves/report/print?${new URLSearchParams({ from, to }).toString()}`} />
-          } />
-
-        <Card>
-          <CardHeader><CardTitle>الفترة</CardTitle><CardDescription>تُحتسب الطلبات المعتمدة التي تبدأ ضمن الفترة.</CardDescription></CardHeader>
-          <CardContent>
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label htmlFor="from">من تاريخ</Label><input id="from" name="from" type="date" defaultValue={from} className={selectCls} /></div>
-              <div className="space-y-2"><Label htmlFor="to">إلى تاريخ</Label><input id="to" name="to" type="date" defaultValue={to} className={selectCls} /></div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
+      <ReportShell
+        reportKey="hr-leaves"
+        icon="CalendarDays"
+        title="تقرير أرصدة الإجازات"
+        subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`}
+        query={new URLSearchParams({ from, to }).toString()}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+          </>
+        }
+        kpis={[
+          { label: "إجمالي الأيام المعتمدة", value: String(grandTotal) },
+          { label: "موظفون لهم إجازات", value: String(list.length), tone: "muted" },
+        ]}
+      >
         <Card>
           <CardHeader><CardTitle>الأيام المعتمدة لكل موظف</CardTitle></CardHeader>
           <CardContent>
@@ -100,7 +97,7 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

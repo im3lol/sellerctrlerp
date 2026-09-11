@@ -63,6 +63,8 @@ export function ReportShell({
   kpis,
   chart,
   chartTitle,
+  /** An extra control beside the Excel/print buttons — posting an FX entry, say. */
+  actions,
   children,
 }: {
   reportKey: string;
@@ -78,6 +80,7 @@ export function ReportShell({
   kpis?: ReportKpi[];
   chart?: ReactNode;
   chartTitle?: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const entry = REPORT_MODULES.flatMap((m) => m.reports).find((r) => r.key === reportKey);
@@ -91,7 +94,12 @@ export function ReportShell({
         icon={icon}
         title={title}
         subtitle={subtitle}
-        action={<ReportToolbar excel={entry?.excel ? `${entry.excel}${qs}` : undefined} printHref={entry?.print ? `${entry.print}${qs}` : undefined} />}
+        action={
+          <div className="flex items-center gap-2">
+            {actions}
+            <ReportToolbar excel={entry?.excel ? `${entry.excel}${qs}` : undefined} printHref={entry?.print ? `${entry.print}${qs}` : undefined} />
+          </div>
+        }
       />
 
       <div className="no-print">
