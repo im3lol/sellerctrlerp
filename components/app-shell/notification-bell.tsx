@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, FileClock, CheckCheck, ShoppingCart, Undo2, HandCoins, Volume2, VolumeX } from "lucide-react";
+import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, CheckCheck, ShoppingCart, Undo2, HandCoins, Volume2, VolumeX } from "lucide-react";
 import { getNotificationsAction } from "@/app/actions/erp/notifications";
 import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -66,7 +66,6 @@ export function NotificationBell() {
     { show: !!n?.mktReimbursements, icon: <HandCoins className="size-4" />, tone: "primary", label: "تعويضات بانتظار التسجيل", count: n?.mktReimbursements ?? 0, href: "/sales/marketplace-reimbursements" },
     { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف من أمازون تحتاج مراجعة", count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
     { show: !!n?.stockWaiting, icon: <PackageX className="size-4" />, tone: "amber", label: "أذون صرف بانتظار توفّر المخزون", count: n?.stockWaiting ?? 0, href: "/sales/deliveries?status=DRAFT" },
-    { show: !!n?.pendingDrafts, icon: <FileClock className="size-4" />, tone: "amber", label: "مسودات بانتظار التأكيد", count: n?.pendingDrafts ?? 0, href: "/drafts" },
     { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/audit" },
     { show: !!n?.lowStock, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/inventory/reorder" },
     { show: !!n?.expiring, icon: <CalendarClock className="size-4" />, tone: "amber", label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/inventory/expiry" },

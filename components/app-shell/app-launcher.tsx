@@ -37,9 +37,12 @@ export function AppLauncher({
     if (section.moduleKey && modules && !modules.includes(section.moduleKey)) continue;
     const items = section.items.filter((i) => erpAllows(i, perms));
 
-    // Modules only. The heading-less top section (dashboard, drafts) holds pages, not
-    // modules, and a launcher that mixes the two is the clutter it exists to remove.
-    if (!section.heading) continue;
+    // The heading-less top section is the dashboard: one page, not a module, but the
+    // owner wants it one click from home, so it is the first tile and the only non-module.
+    if (!section.heading) {
+      for (const i of items) tiles.push({ label: i.label, href: i.href, icon: i.icon, color: "bg-blue-600", pages: 0 });
+      continue;
+    }
     if (hidden.has(section.heading)) continue;
 
     // A module with a landing page stays visible even with no items the member may

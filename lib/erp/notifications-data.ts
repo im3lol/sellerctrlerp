@@ -2,7 +2,6 @@ import "server-only";
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs } from "@/db/schema";
-import { countPendingDrafts } from "@/lib/erp/drafts";
 
 export type Activity = { action: string; summary: string | null; number: string | null; at: string; href: string | null };
 export type Notifications = {
@@ -12,7 +11,6 @@ export type Notifications = {
   overdueTotal: number;
   overdueAP: number;
   overdueAPTotal: number;
-  pendingDrafts: number;
   stockWaiting: number;
   newActivity: number;
   newOrders: number;
@@ -50,7 +48,7 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
   const ZERO = Promise.resolve({ rows: [{ n: 0 }] } as { rows: { n: number }[] });
   const ZERO_TOTAL = Promise.resolve({ rows: [{ n: 0, total: "0" }] } as { rows: { n: number; total: string }[] });
 
-  const [low, exp, ar, ap, activity, since_, drafts, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes, mktReturnsRes, mktRemovalsRes, mktReimbursementsRes] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes, mktReturnsRes, mktRemovalsRes, mktReimbursementsRes] = await Promise.all([
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id FROM items i
@@ -83,7 +81,6 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
       ? db.select({ n: sql<number>`count(*)::int` }).from(auditLogs)
           .where(and(eq(auditLogs.organizationId, orgId), inArray(auditLogs.action, ["CREATE", "CONFIRM", "POST"]), gt(auditLogs.createdAt, since)))
       : Promise.resolve([{ n: 0 }]),
-    (can("sales.view") || can("purchases.view")) ? countPendingDrafts(orgId) : Promise.resolve(0),
     // New marketplace (Amazon/Noon/…) sales orders since the user last looked.
     since && can("sales.view")
       ? db.execute<{ n: number }>(sql`
@@ -146,5 +143,5 @@ export async function computeNotifications(orgId: string, sinceIso?: string, per
       const base = ENTITY_PATH[a.entityType];
       return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
     });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, pendingDrafts: drafts, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: lowStock + expiring + overdueAR + overdueAP + drafts + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
+  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
 }

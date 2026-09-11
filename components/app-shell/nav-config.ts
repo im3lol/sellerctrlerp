@@ -44,8 +44,6 @@ export const NAV: NavSection[] = [
   {
     items: [
       { label: "لوحة التحكم", href: "/dashboard", icon: "LayoutDashboard", exact: true },
-      // Every module's unconfirmed documents in one list. It existed with no way in.
-      { label: "المسودات", href: "/drafts", icon: "FileClock" },
     ],
   },
   {
