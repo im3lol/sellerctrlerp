@@ -1,4 +1,4 @@
-import type { NavItem } from "@/components/app-shell/nav-config";
+import type { NavItem, NavSection } from "@/components/app-shell/nav-config";
 
 /**
  * Who sees what in the navigation — written once.
@@ -28,4 +28,22 @@ export function erpAllows(item: NavItem, perms: Set<string>): boolean {
 export function erpGrants(capability: string | undefined, perms: Set<string>): boolean {
   if (!capability) return true;
   return capability.startsWith("erp.") && perms.has(capability.slice(4));
+}
+
+/**
+ * Would this module show for this member at all? The subscription, the owner's hide
+ * list, and whether any of its rows (or its own landing page) is open to them.
+ *
+ * The one-module sidebar decided "is this page in a module?" before applying any of
+ * these, so a hidden or unsubscribed module still claimed its pages and the rail came up
+ * holding nothing but the way back. Sidebar, Topbar and NavList all ask this now.
+ */
+export function sectionAllowed(
+  section: NavSection,
+  opts: { permissions: Set<string>; modules?: string[]; navHidden?: string[] },
+): boolean {
+  if (section.moduleKey && opts.modules && !opts.modules.includes(section.moduleKey)) return false;
+  if (section.heading && opts.navHidden?.includes(section.heading)) return false;
+  return section.items.some((i) => erpAllows(i, opts.permissions))
+    || (!!section.href && erpGrants(section.capability, opts.permissions));
 }

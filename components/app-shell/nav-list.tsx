@@ -7,6 +7,7 @@ import { Icon } from "@/components/icon";
 import { NAV, type NavItem, type NavSection } from "@/components/app-shell/nav-config";
 import { can, type Role, type Capability } from "@/lib/rbac";
 import { activeModule } from "@/lib/active-module";
+import { sectionAllowed } from "@/lib/nav-access";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -115,8 +116,9 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   // The list shows ONE module: the one holding the current page. A warehouse clerk
   // opens the warehouse and sees warehouse pages, not a hundred and ten rows across
   // nine departments. Pages belonging to no module (the launcher, your profile) fall
-  // back to the full list so nothing becomes unreachable.
-  const current = activeModule(pathname, lastModule);
+  // back to NO sidebar (Sidebar and Topbar apply the same rule), and a module this member
+  // can't see never claims a page — see sectionAllowed.
+  const current = activeModule(pathname, lastModule, (s) => sectionAllowed(s, { permissions: erpPerms, modules, navHidden }));
   useEffect(() => {
     if (restored && current?.heading && current.heading !== lastModule) {
       setLastModule(current.heading);

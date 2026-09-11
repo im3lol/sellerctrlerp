@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { activeModule, modulesContaining } from "@/lib/active-module";
+import type { NavSection } from "@/components/app-shell/nav-config";
 
 /**
  * The sidebar shows one module at a time, so "which module is this page in" has to have
@@ -46,5 +47,22 @@ describe("activeModule", () => {
   it("/reports is the accounting statement page, /reports/center is the reports module", () => {
     expect(modulesContaining("/reports").map((s) => s.heading)).toContain("المحاسبة");
     expect(activeModule("/reports/center")?.heading).toBe("التقارير");
+  });
+
+  it("a module the member can't see never claims a page", () => {
+    const noAccounting = (s: NavSection) => s.heading !== "المحاسبة";
+    // Statements are listed under both; with accounting unavailable they belong to reports.
+    expect(activeModule("/reports/income-statement", null, noAccounting)?.heading).toBe("التقارير");
+    // A page only accounting lists has nowhere to go → no sidebar, never an empty one.
+    expect(activeModule("/accounting/journal", null, noAccounting)).toBeNull();
+  });
+
+  it("a statement opened from the reports centre keeps the reports sidebar", () => {
+    expect(activeModule("/reports/income-statement", "التقارير")?.heading).toBe("التقارير");
+    expect(activeModule("/reports/income-statement", "المحاسبة")?.heading).toBe("المحاسبة");
+  });
+
+  it("the setup checklist sits under settings", () => {
+    expect(activeModule("/setup")?.heading).toBe("الإدارة والإعدادات");
   });
 });

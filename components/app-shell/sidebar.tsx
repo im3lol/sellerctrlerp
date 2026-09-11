@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { modulesContaining } from "@/lib/active-module";
+import { sectionAllowed } from "@/lib/nav-access";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import type { Role } from "@/lib/rbac";
@@ -14,8 +15,11 @@ export function Sidebar({ role, erpPermissions, modules, platforms, navHidden }:
   // worse the more the browser was zoomed in (zoom shortens the viewport in CSS pixels).
   // No module, no sidebar: the launcher is the whole screen, and a page that belongs to
   // no module (the dashboard, your profile) has no list of siblings to show.
+  // Only modules this member can actually see count — otherwise a hidden or unsubscribed
+  // module claims the page and the rail renders empty.
   const pathname = usePathname();
-  if (modulesContaining(pathname).length === 0) return null;
+  const perms = new Set(erpPermissions);
+  if (modulesContaining(pathname, (s) => sectionAllowed(s, { permissions: perms, modules, navHidden })).length === 0) return null;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">

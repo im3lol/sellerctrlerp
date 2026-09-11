@@ -30,10 +30,13 @@ function matches(pathname: string, href: string, exact?: boolean): boolean {
  * length rule the reports module could never be entered, because accounting comes
  * first in NAV and would win every time.
  */
-export function modulesContaining(pathname: string): NavSection[] {
+export function modulesContaining(pathname: string, allowed?: (s: NavSection) => boolean): NavSection[] {
   const scored: { section: NavSection; score: number }[] = [];
   for (const section of NAV) {
     if (!section.heading) continue;
+    // A module this member can't see (unsubscribed, hidden by the owner, no rows they
+    // may open) must not claim the page — it used to, and drew an empty sidebar.
+    if (allowed && !allowed(section)) continue;
     let best = -1;
     for (const i of section.items) if (matches(pathname, i.href, i.exact)) best = Math.max(best, i.href.length);
     // The module's own landing, and anything nested under it with no row of its own
@@ -48,16 +51,16 @@ export function modulesContaining(pathname: string): NavSection[] {
 }
 
 /**
- * The module to show, or null when the page belongs to none (the launcher itself,
- * a profile page, search). Callers fall back to the full list there rather than
- * showing an empty sidebar.
+ * The module to show, or null when the page belongs to none the member can see (the
+ * launcher itself, a profile page, search). Callers render NO sidebar there — never an
+ * empty one.
  *
  * `remembered` is the heading the user last entered, which decides pages that two
  * modules share. It never *adds* a module — a remembered heading that doesn't contain
  * the current path is ignored, so navigating away from a module leaves it.
  */
-export function activeModule(pathname: string, remembered?: string | null): NavSection | null {
-  const candidates = modulesContaining(pathname);
+export function activeModule(pathname: string, remembered?: string | null, allowed?: (s: NavSection) => boolean): NavSection | null {
+  const candidates = modulesContaining(pathname, allowed);
   if (candidates.length === 0) return null;
   if (remembered) {
     const kept = candidates.find((s) => s.heading === remembered);

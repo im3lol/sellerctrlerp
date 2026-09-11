@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { modulesContaining } from "@/lib/active-module";
+import { sectionAllowed } from "@/lib/nav-access";
 import { Menu, LayoutGrid } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
@@ -36,7 +37,10 @@ export function Topbar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
-  const inModule = modulesContaining(usePathname()).length > 0;
+  // Same rule as the sidebar, so the phone's menu button appears exactly when there's a
+  // module list to put in it.
+  const perms = new Set(erpPermissions);
+  const inModule = modulesContaining(usePathname(), (s) => sectionAllowed(s, { permissions: perms, modules, navHidden })).length > 0;
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
       {/* Mobile menu */}

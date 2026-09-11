@@ -63,7 +63,8 @@ export const NAV: NavSection[] = [
       { label: "مرتجعات المنصات", href: "/sales/marketplace-returns", icon: "Undo2", capability: "erp.sales.view" },
       { label: "أوامر السحب", href: "/sales/marketplace-removals", icon: "PackageX", capability: "erp.sales.view" },
       { label: "التعويضات", href: "/sales/marketplace-reimbursements", icon: "HandCoins", capability: "erp.accounting.view" },
-      // The page has existed for months with no route into it from anywhere.
+      // A redirect, not a page: it finds this tenant's Amazon platform and opens its
+      // settlement import. Keeps the row working without hard-coding a platform code.
       { label: "تسويات المنصات", href: "/sales/orders/settlements", icon: "Scale", capability: "erp.accounting.create" },
       { label: "ربحية المنصات", href: "/sales/reports/marketplace-pnl", icon: "Wallet", capability: "erp.reports.view" },
     ],
@@ -251,6 +252,11 @@ export const NAV: NavSection[] = [
     icon: "ChartColumn",
     items: [
       { label: "التقارير", href: "/reports/center", icon: "FileText", capability: "erp.reports.view", exact: true },
+      // Listed here AND under المحاسبة, like إذون الاستلام under purchases and inventory.
+      // Only accounting claimed it before, so a statement opened from the reports centre
+      // flipped the sidebar to accounting — or, for a tenant with reports but not
+      // accounting, left the page with no module at all.
+      { label: "القوائم المالية", href: "/reports", icon: "FileSpreadsheet", capability: "erp.reports.view" },
       { label: "التحليلات", href: "/reports/analytics", icon: "Activity", capability: "erp.reports.view" },
       { label: "باني التقارير", href: "/reports/builder", icon: "Table2", capability: "erp.reports.view" },
     ],
@@ -288,6 +294,9 @@ export const NAV: NavSection[] = [
       { label: "استيراد وتصدير", href: "/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
       { label: "الصلاحيات", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
+      // The setup checklist is opened from Settings; without a row here it belonged to no
+      // module and lost the sidebar the moment you arrived.
+      { label: "دليل الإعداد", href: "/setup", icon: "ListChecks", capability: "erp.settings.view" },
       { label: "الإعدادات", href: "/settings", icon: "Settings", capability: "erp.settings.view" },
     ],
   },
