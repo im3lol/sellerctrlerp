@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
 import { listApprovals, approvalEntityHref, APPROVAL_DOC_LABEL, type ApprovalRow } from "@/lib/erp/approvals";
 import { timeAgo, type ApprovalDocType } from "@/lib/erp/approval-policy";
+import { listStuckDocs } from "@/lib/erp/stuck-docs";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CANCELLED: { label: "اتلغى", cls: "bg-muted text-muted-foreground" },
 };
 
-type Tab = "pending" | "mine" | "done";
+type Tab = "pending" | "mine" | "done" | "late";
 
 /**
  * «الموافقات» — every document held for a manager, in one place.
@@ -32,22 +33,26 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     const canDecide = can("approvals.decide");
     const isAdmin = role === "admin" || role === "super_admin";
     const sp = await searchParams;
-    const tab: Tab = sp.tab === "mine" || sp.tab === "done" ? sp.tab : canDecide ? "pending" : "mine";
+    const tab: Tab = sp.tab === "mine" || sp.tab === "done" || sp.tab === "late" ? sp.tab : canDecide ? "pending" : "mine";
 
     const rows: ApprovalRow[] =
-      tab === "pending" ? await listApprovals(orgId, { status: "PENDING" })
+      tab === "late" ? []
+      : tab === "pending" ? await listApprovals(orgId, { status: "PENDING" })
       : tab === "mine" ? await listApprovals(orgId, { requestedBy: user.id, limit: 100 })
       : (await listApprovals(orgId, { limit: 150 })).filter((r) => r.status === "APPROVED" || r.status === "REJECTED");
+    const stuck = tab === "late" ? await listStuckDocs(orgId, can) : [];
 
     const tabs: { key: Tab; label: string; show: boolean }[] = [
       { key: "pending", label: "مستني موافقتك", show: canDecide },
       { key: "mine", label: "طلباتي", show: true },
+      { key: "late", label: "المتأخر", show: true },
       { key: "done", label: "اتقرر فيها", show: canDecide },
     ];
 
     const empty: Record<Tab, string> = {
       pending: "مفيش حاجة مستنية موافقتك ✓",
       mine: "مابعتّش أي مستند للاعتماد.",
+      late: "مفيش مستند واقف ✓",
       done: "لسه مفيش قرارات.",
     };
 
@@ -67,8 +72,22 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
 
         <Card>
           <CardContent className="p-0">
-            {rows.length === 0 ? (
+            {rows.length === 0 && stuck.length === 0 ? (
               <div className="py-14 text-center text-muted-foreground">{empty[tab]}</div>
+            ) : tab === "late" ? (
+              <div className="divide-y">
+                {stuck.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
+                    <Badge variant="secondary">{s.label}</Badge>
+                    <Link href={s.href} className="font-mono text-sm font-medium hover:text-primary hover:underline">{s.number}</Link>
+                    <span className="text-sm text-muted-foreground">{s.why}</span>
+                    <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium tabular-nums",
+                      s.days >= 14 ? "bg-destructive/10 text-destructive" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300")}>
+                      من {s.days} يوم
+                    </span>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="divide-y">
                 {rows.map((r) => {

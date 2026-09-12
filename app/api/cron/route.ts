@@ -1,6 +1,8 @@
 import { and, eq, gte, lt, lte, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, platformCredentials, orgSubscriptions, syncRuns } from "@/db/schema";
+import { organizations, organizationMembers, users, platformCredentials, orgSubscriptions, syncRuns } from "@/db/schema";
+import { getMemberAccess } from "@/lib/erp/auth-guard";
+import { listStuckDocs } from "@/lib/erp/stuck-docs";
 import { expiryReminderEmail } from "@/lib/saas/email-templates";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
@@ -25,9 +27,9 @@ const row = (label: string, count: number, href: string) =>
   `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0"><a href="${href}" style="color:#1e3a8a;text-decoration:none">${label}</a></td><td style="padding:10px 0;text-align:left;font-weight:bold">${fmt(count)}</td></tr>`;
 
 /**
- * Daily reminder digest (driven by the compose cron sidecar, guarded by CRON_SECRET). Emails each org's
- * pending drafts + overdue invoices + inventory alerts to REMINDER_EMAIL_TO.
- * No-op when email isn't configured.
+ * Daily jobs (driven by the compose cron sidecar, guarded by CRON_SECRET), ending with a
+ * reminder digest emailed to each active member — only what their permissions show.
+ * The digest is a no-op when email isn't configured (sendEmail returns false).
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -149,27 +151,37 @@ export async function GET(req: Request) {
     if (diverged.length) log.error("cron.control_divergence", { count: diverged.length, details: diverged.slice(0, 20) });
   } catch (e) { log.warn("cron.control_reconciliation_failed", { err: e }); }
 
-  // 2) Daily reminder digest — only when email is configured.
-  const to = process.env.REMINDER_EMAIL_TO;
-  if (!to) return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, skipped: "REMINDER_EMAIL_TO not set" });
-
+  // 2) Daily reminder digest — one email per active member, built from what THEY may see
+  //    (a storekeeper gets stock alerts, not overdue invoices). Sequential on purpose: this
+  //    runs inside one platform-scope transaction.
   let sent = 0;
   for (const org of orgs) {
-    const n = await computeNotifications(org.id);
-    const lines: string[] = [];
-    if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
-    if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
-    if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));
-    if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/inventory/expiry`));
-    if (lines.length === 0) continue;
+    const members = await db.select({ userId: users.id, email: users.email })
+      .from(organizationMembers).innerJoin(users, eq(users.id, organizationMembers.userId))
+      .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.isActive, true)));
+    for (const m of members) {
+      try {
+        const { permissions } = await getMemberAccess(org.id, { id: m.userId, role: "employee" } as Parameters<typeof getMemberAccess>[1]);
+        const n = await computeNotifications(org.id, undefined, permissions);
+        const stuck = await listStuckDocs(org.id, (p) => permissions.has(p));
+        const lines: string[] = [];
+        if (n.pendingApprovals) lines.push(row("✋ مستندات مستنية موافقتك", n.pendingApprovals, `${origin}/approvals`));
+        if (stuck.length) lines.push(row("⏳ مستندات واقفة محدش حرّكها", stuck.length, `${origin}/approvals?tab=late`));
+        if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
+        if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
+        if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));
+        if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/inventory/expiry`));
+        if (lines.length === 0) continue;
 
-    const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
-      <h2 style="color:#1e3a8a">تذكير SellerCtrl — ${org.name}</h2>
-      <p style="color:#555">لديك مهام تحتاج مراجعة اليوم:</p>
-      <table style="width:100%;border-collapse:collapse">${lines.join("")}</table>
-      <p style="margin-top:16px"><a href="${origin}/dashboard" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">فتح النظام</a></p>
-    </div>`;
-    if (await sendEmail({ to, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
+        const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
+          <h2 style="color:#1e3a8a">تذكير SellerCtrl — ${org.name}</h2>
+          <p style="color:#555">لديك مهام تحتاج مراجعة اليوم:</p>
+          <table style="width:100%;border-collapse:collapse">${lines.join("")}</table>
+          <p style="margin-top:16px"><a href="${origin}/approvals" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">فتح النظام</a></p>
+        </div>`;
+        if (await sendEmail({ to: m.email, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
+      } catch (e) { log.warn("cron.digest_failed", { orgId: org.id, err: e }); }
+    }
   }
 
   return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });

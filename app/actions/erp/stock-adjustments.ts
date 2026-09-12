@@ -6,7 +6,7 @@ import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { stockAdjustments, stockAdjustmentLines } from "@/db/schema";
 import { currentStock } from "@/lib/erp/inventory";
-import { approvalGate } from "@/lib/erp/approvals";
+import { approvalGate, cancelApprovals } from "@/lib/erp/approvals";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { createAdjustment, confirmAdjustment, updateAdjustmentLines } from "@/lib/erp/inventory-writes";
@@ -80,6 +80,7 @@ export async function deleteStockAdjustmentAction(id: string): Promise<ActionSta
 
     await db.delete(stockAdjustments).where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId)));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "STOCK_ADJUSTMENT", entityId: id, summary: "حذف تسوية مخزون (مسودة)" });
+    await cancelApprovals(auth.orgId, "STOCK_ADJUSTMENT", id);
     revalidatePath("/inventory/adjustments");
     return { ok: true };
   });

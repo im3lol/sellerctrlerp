@@ -14,7 +14,7 @@ import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { creditVerdict, creditError } from "@/lib/erp/credit";
 import { tryRecordAudit } from "@/lib/erp/audit";
-import { approvalGate, getApprovalPolicy } from "@/lib/erp/approvals";
+import { approvalGate, cancelApprovals, getApprovalPolicy } from "@/lib/erp/approvals";
 import { getErpContext } from "@/lib/erp/erp-context";
 import { currentStock } from "@/lib/erp/inventory";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
@@ -285,6 +285,7 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
       .returning({ id: salesOrders.id });
     if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
+    await cancelApprovals(auth.orgId, "SALES_ORDER", id);
     revalidatePath("/sales/orders");
     return { ok: true };
   });

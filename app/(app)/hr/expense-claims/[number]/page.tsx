@@ -10,13 +10,16 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { ExpenseClaimRowActions } from "@/components/erp/expense-claim-row-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { docNumberParam } from "@/lib/erp/doc-route";
+import { getEntityApproval } from "@/lib/erp/approvals";
+import { requireUser } from "@/lib/session";
+import { ApprovalBanner } from "@/components/erp/approval-banner";
 
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function ExpenseClaimDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
-  return loadErpPage("accounting.view", async ({ orgId, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, expenseClaims,
       { id: expenseClaims.id, number: expenseClaims.number, organizationId: expenseClaims.organizationId }, "/hr/expense-claims");
     const [claim] = await db.select({ id: expenseClaims.id, number: expenseClaims.number, date: expenseClaims.date, employee: expenseClaims.employeeName, status: expenseClaims.status, notes: expenseClaims.notes, cashName: accounts.nameAr })
@@ -28,6 +31,7 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
       .from(expenseClaimLines).innerJoin(accounts, eq(accounts.id, expenseClaimLines.expenseAccountId))
       .where(eq(expenseClaimLines.claimId, claim.id));
     const total = lines.reduce((s, l) => s + Number(l.amount), 0);
+    const [approval, me] = await Promise.all([getEntityApproval(orgId, claim.id), requireUser()]);
 
     return (
       <div className="space-y-6">
@@ -38,6 +42,8 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
               <ExpenseClaimRowActions id={claim.id} status={claim.status} canManage={can("accounting.post")} />
             </div>
           } />
+        <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
+          isAdmin={role === "admin" || role === "super_admin"} />
         <Card>
           <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود المصروف</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></CardHeader>
           <CardContent>

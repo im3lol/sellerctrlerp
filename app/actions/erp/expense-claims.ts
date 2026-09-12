@@ -11,7 +11,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
-import { approvalGate } from "@/lib/erp/approvals";
+import { approvalGate, cancelApprovals } from "@/lib/erp/approvals";
 import { round2 } from "@/lib/erp/money";
 
 export type SaveState = ActionState & { id?: string; number?: string };
@@ -123,6 +123,7 @@ export async function deleteExpenseClaimAction(id: string): Promise<ActionState>
     if (!claim) return { error: "المطالبة غير موجودة" };
     if (claim.status !== "DRAFT") return { error: "لا يمكن حذف مطالبة معتمدة" };
     await db.delete(expenseClaims).where(and(eq(expenseClaims.id, id), eq(expenseClaims.organizationId, auth.orgId)));
+    await cancelApprovals(auth.orgId, "EXPENSE_CLAIM", id);
     revalidatePath("/hr/expense-claims");
     return { ok: true };
   });

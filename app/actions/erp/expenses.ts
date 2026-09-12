@@ -10,7 +10,7 @@ import { expenses, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
-import { approvalGate } from "@/lib/erp/approvals";
+import { approvalGate, cancelApprovals } from "@/lib/erp/approvals";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
 export type SaveExpenseState = ActionState & { id?: string };
@@ -166,6 +166,7 @@ export async function deleteExpenseAction(id: string): Promise<ActionState> {
       .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId), eq(expenses.status, "DRAFT")))
       .returning({ id: expenses.id });
     if (!gone.length) return { error: "لا يمكن حذف مصروف مؤكّد" };
+    await cancelApprovals(auth.orgId, "EXPENSE", id);
     revalidatePath("/accounting/expenses");
     return { ok: true };
   });

@@ -13,7 +13,7 @@ import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
-import { approvalGate } from "@/lib/erp/approvals";
+import { approvalGate, cancelApprovals } from "@/lib/erp/approvals";
 
 // `number` so the form can land on the voucher it just created — that is where the
 // «تأكيد» button lives, and a draft nobody confirms is a draft that never posts.
@@ -203,6 +203,7 @@ export async function deletePaymentVoucherAction(id: string): Promise<ActionStat
     if (!v) return { error: "السند غير موجود" };
     if (v.status !== "DRAFT") return { error: "لا يمكن حذف سند مؤكّد" };
     await db.delete(paymentVouchers).where(and(eq(paymentVouchers.id, id), eq(paymentVouchers.organizationId, auth.orgId)));
+    await cancelApprovals(auth.orgId, "PAYMENT", id);
     revalidatePath("/purchases/payments");
     return { ok: true };
   });

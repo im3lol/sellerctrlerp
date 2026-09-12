@@ -12,7 +12,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
 import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
-import { approvalGate, approveDirectly } from "@/lib/erp/approvals";
+import { approvalGate, approveDirectly, cancelApprovals } from "@/lib/erp/approvals";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
 import { linkDocuments } from "@/lib/erp/links";
@@ -289,6 +289,7 @@ export async function deletePurchaseOrderAction(id: string): Promise<ActionState
       .returning({ id: purchaseOrders.id });
     if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `حذف أمر شراء ${po.number}` });
+    await cancelApprovals(auth.orgId, "PURCHASE_ORDER", id);
     revalidatePath("/purchases/orders");
     return { ok: true };
   });
