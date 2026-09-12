@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, CheckCheck, ShoppingCart, Undo2, HandCoins, Volume2, VolumeX } from "lucide-react";
+import { Bell, ClipboardCheck, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, CheckCheck, ShoppingCart, Undo2, HandCoins, Volume2, VolumeX } from "lucide-react";
 import { getNotificationsAction } from "@/app/actions/erp/notifications";
 import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -58,6 +58,7 @@ export function NotificationBell() {
   const showBadge = total > 0 && total > ackTotal;
 
   const rows = [
+    { show: !!n?.pendingApprovals, icon: <ClipboardCheck className="size-4" />, tone: "red", label: "مستندات مستنية موافقتك", count: n?.pendingApprovals ?? 0, href: "/approvals" },
     { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: "طلبات أمازون جديدة", count: n?.newOrders ?? 0, href: "/sales/orders" },
     { show: !!n?.unmatched, icon: <PackageX className="size-4" />, tone: "red", label: "طلبات بمنتج غير معرَّف", count: n?.unmatched ?? 0, href: "/sales/orders/unmatched" },
     { show: !!n?.unclaimedReturns, icon: <Undo2 className="size-4" />, tone: "amber", label: "مرتجعات منصّات بانتظار المطابقة", count: n?.unclaimedReturns ?? 0, href: "/sales/returns" },

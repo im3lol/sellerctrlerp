@@ -11,6 +11,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
+import { approvalGate } from "@/lib/erp/approvals";
 import { round2 } from "@/lib/erp/money";
 
 export type SaveState = ActionState & { id?: string; number?: string };
@@ -83,6 +84,9 @@ export async function approveExpenseClaimAction(id: string): Promise<ActionState
     if (lines.length === 0) return { error: "لا توجد بنود" };
     const total = round2(lines.reduce((s, l) => s + Number(l.amount), 0));
     if (total <= 0) return { error: "الإجمالي غير صحيح" };
+
+    const gate = await approvalGate({ ...auth, entityId: claim.id, entityNumber: claim.number, amount: total, facts: { docType: "EXPENSE_CLAIM", amount: total } });
+    if ("error" in gate) return { error: gate.error };
 
     try {
       await db.transaction(async (tx) => {

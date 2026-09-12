@@ -2,7 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, organizations, unitsOfMeasure } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, unitsOfMeasure } from "@/db/schema";
+import { getApprovalPolicy, getEntityApproval } from "@/lib/erp/approvals";
+import { requireUser } from "@/lib/session";
+import { ApprovalBanner } from "@/components/erp/approval-banner";
+import { needsApproval } from "@/lib/erp/approval-policy";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,7 +34,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function PurchaseOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("purchases.view", async ({ orgId, can }) => {
+  return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: purchaseOrders.number }).from(purchaseOrders)
         .where(and(eq(purchaseOrders.id, raw), eq(purchaseOrders.organizationId, orgId))).limit(1);
@@ -71,10 +75,9 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
     const st = STATUS[po.status] ?? { label: po.status, variant: "secondary" as const };
     const canManage = can("purchases.create");
 
-    // Approval control: POs above the org threshold need approval before confirming.
-    const [orgRow] = await db.select({ threshold: organizations.poApprovalThreshold }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-    const threshold = Number(orgRow?.threshold ?? 0);
-    const poNeedsApproval = threshold > 0 && Number(po.totalAmount) > threshold;
+    // Approval control: above the company's threshold the order goes to a manager first.
+    const poNeedsApproval = needsApproval(await getApprovalPolicy(orgId), { docType: "PURCHASE_ORDER", total: Number(po.totalAmount) }) != null;
+    const [approval, me] = await Promise.all([getEntityApproval(orgId, po.id), requireUser()]);
 
     // The order is shown in the currency it was entered in; the ledger stores base (EGP),
     // so divide the stored base amounts by the rate for display.
@@ -97,6 +100,8 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
             </div>
           }
         />
+        <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
+          isAdmin={role === "admin" || role === "super_admin"} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>

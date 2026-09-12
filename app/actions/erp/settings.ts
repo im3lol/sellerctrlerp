@@ -22,7 +22,14 @@ const profileSchema = z.object({
   // Printed on every document header. Empty = the header falls back to an initials tile.
   logo: z.string().optional(),
   vatRate: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة"),
-  poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
+  // Manager approvals (lib/erp/approval-policy.ts). 0 = that document type never needs one.
+  apEnabled: z.coerce.boolean().default(false),
+  apPurchaseOrder: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
+  apSalesDiscountPct: z.coerce.number().min(0, "نسبة غير صالحة").max(100, "نسبة غير صالحة").default(0),
+  apSalesBelowCost: z.coerce.boolean().default(false),
+  apStockWriteOff: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
+  apPayment: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
+  apExpense: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
   // An unchecked checkbox is absent from FormData entirely, so the default carries it.
   purchaseVatCapitalised: z.coerce.boolean().default(false),
   navHidden: z.array(z.string()).default([]),
@@ -48,7 +55,13 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       email: formData.get("email") || "",
       logo: formData.get("logo") || undefined,
       vatRate: formData.get("vatRate"),
-      poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
+      apEnabled: formData.get("apEnabled") === "on",
+      apPurchaseOrder: formData.get("apPurchaseOrder") || 0,
+      apSalesDiscountPct: formData.get("apSalesDiscountPct") || 0,
+      apSalesBelowCost: formData.get("apSalesBelowCost") === "on",
+      apStockWriteOff: formData.get("apStockWriteOff") || 0,
+      apPayment: formData.get("apPayment") || 0,
+      apExpense: formData.get("apExpense") || 0,
       purchaseVatCapitalised: formData.get("purchaseVatCapitalised") === "on",
       // One checkbox per section, named navShow:<heading>. Absent = unticked = hidden,
       // so the stored list is what the owner did NOT tick.
@@ -84,7 +97,10 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
         email: d.email || null,
         logo: d.logo || null,
         vatRate: String(d.vatRate),
-        poApprovalThreshold: String(d.poApprovalThreshold),
+        approvalPolicy: {
+          enabled: d.apEnabled, purchaseOrder: d.apPurchaseOrder, salesDiscountPct: d.apSalesDiscountPct,
+          salesBelowCost: d.apSalesBelowCost, stockWriteOff: d.apStockWriteOff, payment: d.apPayment, expense: d.apExpense,
+        },
         // Only new goods receipts read this; confirmed ones keep their own snapshot.
         purchaseVatCapitalised: d.purchaseVatCapitalised,
         navHidden: d.navHidden,

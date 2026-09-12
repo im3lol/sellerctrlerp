@@ -2,7 +2,9 @@ import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReturns, purchaseReturnLines, organizations } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReturns, purchaseReturnLines } from "@/db/schema";
+import { getApprovalPolicy } from "@/lib/erp/approvals";
+import { needsApproval } from "@/lib/erp/approval-policy";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,8 +60,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
-    const [orgRow] = await db.select({ threshold: organizations.poApprovalThreshold }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-    const approvalThreshold = Number(orgRow?.threshold ?? 0);
+    const policy = await getApprovalPolicy(orgId);
 
     const rows = await db
       .select({ id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date, total: purchaseOrders.totalAmount, status: purchaseOrders.status, supplier: suppliers.nameAr, approvedAt: purchaseOrders.approvedAt })
@@ -107,7 +108,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
       orderedQty: aggBy.get(r.id)?.ordered ?? 0, receivedQty: aggBy.get(r.id)?.received ?? 0,
       returned: (retsByPo.get(r.id) ?? []).some((x) => x.status === "POSTED"),
       returns: retsByPo.get(r.id) ?? [],
-      poNeedsApproval: approvalThreshold > 0 && Number(r.total) > approvalThreshold,
+      poNeedsApproval: needsApproval(policy, { docType: "PURCHASE_ORDER", total: Number(r.total) }) != null,
       poApproved: !!r.approvedAt,
     }));
 

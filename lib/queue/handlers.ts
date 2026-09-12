@@ -32,7 +32,7 @@ async function workerErpContext(orgId: string): Promise<ErpContext | null> {
     .orderBy(sql`case when ${organizationMembers.role} = 'admin' then 0 else 1 end`, asc(organizationMembers.joinedAt))
     .limit(1));
   if (!m) return null;
-  return { userId: m.userId, orgId, role: "admin", permissions: new Set(allErpPermissions) };
+  return { userId: m.userId, orgId, role: "admin", permissions: new Set(allErpPermissions), system: true };
 }
 
 // Job handlers. IMPORT does the complete Reports-API enumeration; DISCOVERY does the

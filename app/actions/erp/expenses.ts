@@ -10,6 +10,7 @@ import { expenses, accounts } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { postEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
+import { approvalGate } from "@/lib/erp/approvals";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 
 export type SaveExpenseState = ActionState & { id?: string };
@@ -111,6 +112,15 @@ export async function confirmExpenseAction(id: string): Promise<ActionState> {
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
+    // Manager approval first, outside the posting transaction — filing a request must
+    // not be rolled back with a posting that was never going to happen.
+    const [head] = await db.select({ number: expenses.number, amount: expenses.amount, status: expenses.status }).from(expenses)
+      .where(and(eq(expenses.id, id), eq(expenses.organizationId, auth.orgId))).limit(1);
+    if (head?.status === "DRAFT") {
+      const amount = Number(head.amount);
+      const gate = await approvalGate({ ...auth, entityId: id, entityNumber: head.number, amount, facts: { docType: "EXPENSE", amount } });
+      if ("error" in gate) return { error: gate.error };
+    }
     try {
       await db.transaction(async (tx) => {
         // Read the expense under a row lock and post from THAT copy: a draft edit can

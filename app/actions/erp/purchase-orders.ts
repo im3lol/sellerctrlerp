@@ -3,15 +3,16 @@
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { round2 } from "@/lib/erp/money";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
-import { purchaseOrders, purchaseOrderLines, suppliers, organizations, warehouses, materialRequests } from "@/db/schema";
+import { purchaseOrders, purchaseOrderLines, suppliers, warehouses, materialRequests } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
 import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { approvalGate, approveDirectly } from "@/lib/erp/approvals";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
 import { linkDocuments } from "@/lib/erp/links";
@@ -202,6 +203,8 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
           currencyCode: code, exchangeRate: String(rate), rateSource, foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
+          // An approval covers the order as it was approved — an edit needs a fresh one.
+          approvedBy: null, approvedAt: null,
         }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
         await tx.delete(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
         await tx.insert(purchaseOrderLines).values(poLineRows(id, computed));
@@ -216,21 +219,22 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
   });
 }
 
-/** Confirm a DRAFT purchase order (approval only — no stock/GL). Above the org's
- *  approval threshold the order must be approved first. */
+/** Confirm a DRAFT purchase order (approval only — no stock/GL). Above the company's
+ *  approval threshold it goes to a manager first (lib/erp/approvals.ts). */
 export async function confirmPurchaseOrderAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, total: purchaseOrders.totalAmount, approvedAt: purchaseOrders.approvedAt }).from(purchaseOrders)
+    const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, total: purchaseOrders.totalAmount }).from(purchaseOrders)
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
 
-    const [org] = await db.select({ threshold: organizations.poApprovalThreshold }).from(organizations).where(eq(organizations.id, auth.orgId)).limit(1);
-    const threshold = Number(org?.threshold ?? 0);
-    if (threshold > 0 && Number(po.total) > threshold && !po.approvedAt) {
-      return { error: `أمر شراء بقيمة تتجاوز حد الاعتماد (${threshold.toLocaleString("ar-EG")}) — يجب اعتماده أولاً` };
+    const total = Number(po.total);
+    const gate = await approvalGate({ ...auth, entityId: id, entityNumber: po.number, amount: total, facts: { docType: "PURCHASE_ORDER", total } });
+    if ("error" in gate) {
+      revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
+      return { error: gate.error };
     }
 
     // Compare-and-swap on the status the checks above were made against, so a concurrent
@@ -246,21 +250,20 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
   });
 }
 
-/** Approve a DRAFT purchase order so it can be confirmed (spending control). */
+/** Approve a DRAFT purchase order so it can be confirmed (spending control). Needs
+ *  approvals.decide — it used to need only purchases.confirm, which the purchasing role
+ *  holds, so a buyer could approve their own spend. */
 export async function approvePurchaseOrderAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("purchases.confirm");
+  const auth = await authorizeErp("approvals.decide");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
-    const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, approvedAt: purchaseOrders.approvedAt }).from(purchaseOrders)
+    const [po] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, total: purchaseOrders.totalAmount }).from(purchaseOrders)
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
     if (!po) return { error: "الأمر غير موجود" };
     if (po.status !== "DRAFT") return { error: "لا يمكن اعتماد أمر مؤكّد" };
-    if (po.approvedAt) return { error: "الأمر معتمد بالفعل" };
-    const approved = await db.update(purchaseOrders).set({ approvedBy: auth.userId, approvedAt: new Date() })
-      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, "DRAFT"), isNull(purchaseOrders.approvedAt)))
-      .returning({ id: purchaseOrders.id });
-    if (!approved.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
-    await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `اعتماد أمر شراء ${po.number}` });
+    const total = Number(po.total);
+    const r = await approveDirectly({ ...auth, entityId: id, entityNumber: po.number, amount: total, facts: { docType: "PURCHASE_ORDER", total } });
+    if ("error" in r) return { error: r.error };
     revalidatePath("/purchases/orders");
     revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
     return { ok: true };

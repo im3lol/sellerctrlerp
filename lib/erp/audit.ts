@@ -7,7 +7,10 @@ import { emitErpEvent } from "@/lib/erp/realtime";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
 
-export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT" | "IMPERSONATE";
+// SUBMIT/APPROVE/REJECT are the manager-approval trail (lib/erp/approvals.ts). Approving a
+// purchase order used to be logged as CONFIRM, which read as if it had been confirmed.
+export type AuditAction = "CREATE" | "CONFIRM" | "POST" | "CANCEL" | "REVERSE" | "DELETE" | "UPDATE" | "CONVERT" | "IMPERSONATE"
+  | "SUBMIT" | "APPROVE" | "REJECT";
 
 export type AuditInput = {
   orgId: string;

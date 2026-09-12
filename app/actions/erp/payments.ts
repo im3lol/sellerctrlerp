@@ -13,6 +13,7 @@ import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { recordAudit, tryRecordAudit } from "@/lib/erp/audit";
+import { approvalGate } from "@/lib/erp/approvals";
 
 // `number` so the form can land on the voucher it just created — that is where the
 // «تأكيد» button lives, and a draft nobody confirms is a draft that never posts.
@@ -87,6 +88,8 @@ export async function confirmPaymentVoucherAction(id: string): Promise<ActionSta
     if (!v.cashAccountId) return { error: "حساب النقدية/البنك غير محدّد" };
 
     const amount = Number(v.amount);
+    const gate = await approvalGate({ ...auth, entityId: id, entityNumber: v.number, amount, facts: { docType: "PAYMENT", amount } });
+    if ("error" in gate) return { error: gate.error };
     const A = await resolveAccountIds(auth.orgId, ["2101"]);
     const ap = A["2101"] ? { id: A["2101"] } : undefined;
     if (!ap) return { error: "حساب الموردون (2101) غير موجود" };

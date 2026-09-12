@@ -4,7 +4,9 @@ import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { stockAdjustments } from "@/db/schema";
+import { stockAdjustments, stockAdjustmentLines } from "@/db/schema";
+import { currentStock } from "@/lib/erp/inventory";
+import { approvalGate } from "@/lib/erp/approvals";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { bulkOp, type BulkOpResult } from "@/lib/erp/bulk-delete";
 import { createAdjustment, confirmAdjustment, updateAdjustmentLines } from "@/lib/erp/inventory-writes";
@@ -25,11 +27,35 @@ export async function createStockAdjustmentAction(input: unknown): Promise<SaveA
   });
 }
 
+/**
+ * What confirming would take off the books, at today's average cost — the figure the
+ * write-off approval is about. Same delta rule confirmAdjustment posts with ("set" counts
+ * against the current balance, otherwise the entered value is the delta).
+ */
+async function adjustmentWriteOff(orgId: string, id: string): Promise<number> {
+  const lines = await db.select({ itemId: stockAdjustmentLines.itemId, warehouseId: stockAdjustmentLines.warehouseId, mode: stockAdjustmentLines.mode, entered: stockAdjustmentLines.enteredValue })
+    .from(stockAdjustmentLines).where(eq(stockAdjustmentLines.stockAdjustmentId, id));
+  let out = 0;
+  for (const ln of lines) {
+    const cur = await currentStock(orgId, ln.itemId, ln.warehouseId);
+    const delta = ln.mode === "set" ? Number(ln.entered) - cur.quantity : Number(ln.entered);
+    if (delta < 0) out += -delta * cur.avgCost;
+  }
+  return Math.round(out * 100) / 100;
+}
+
 /** Confirm (post) a DRAFT adjustment — books the ADJ stock movements + one netting journal entry. */
 export async function confirmStockAdjustmentAction(id: string): Promise<ActionState> {
   const auth = await authorizeErp("inventory.confirm");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    const [adj] = await db.select({ number: stockAdjustments.number, status: stockAdjustments.status }).from(stockAdjustments)
+      .where(and(eq(stockAdjustments.id, id), eq(stockAdjustments.organizationId, auth.orgId))).limit(1);
+    if (adj?.status === "DRAFT") {
+      const writeOff = await adjustmentWriteOff(auth.orgId, id);
+      const gate = await approvalGate({ ...auth, entityId: id, entityNumber: adj.number, amount: writeOff, facts: { docType: "STOCK_ADJUSTMENT", writeOff } });
+      if ("error" in gate) return { error: gate.error };
+    }
     const r = await confirmAdjustment(auth.orgId, auth.userId, id);
     if ("error" in r) return { error: r.error };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "STOCK_ADJUSTMENT", entityId: id, summary: "تأكيد وترحيل تسوية مخزون" });
