@@ -23,6 +23,7 @@ const MODULES: { key: string; label: string }[] = [
   { key: "reports", label: "التقارير" },
   { key: "investors", label: "المستثمرون" },
   { key: "hr", label: "الموارد البشرية" },
+  { key: "approvals", label: "الاعتمادات" },
   { key: "settings", label: "الإعدادات" },
   { key: "users", label: "المستخدمون" },
   { key: "organization", label: "المؤسسة" },
@@ -31,6 +32,7 @@ const ACTION_LABEL: Record<string, string> = {
   view: "عرض", create: "إنشاء", edit: "تعديل", delete: "حذف", confirm: "تأكيد",
   post: "ترحيل", reverse: "عكس القيود", collect: "تحصيل", pay: "سداد", manage: "إدارة كاملة",
   receive: "استلام البضاعة",
+  decide: "اعتماد أو رفض المستندات المحجوزة للمدير",
 };
 
 export default async function PermissionsPage() {

@@ -44,6 +44,8 @@ export const NAV: NavSection[] = [
   {
     items: [
       { label: "لوحة التحكم", href: "/dashboard", icon: "LayoutDashboard", exact: true },
+      // Manager approvals + stuck documents: work that belongs to no single module.
+      { label: "الموافقات", href: "/approvals", icon: "ClipboardCheck" },
     ],
   },
   {

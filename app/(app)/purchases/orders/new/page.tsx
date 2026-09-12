@@ -5,8 +5,12 @@ import { suppliers, warehouses, items, organizations, materialRequests, material
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrderForm } from "@/components/erp/purchase-order-form";
 import { getUnitsByItem } from "@/lib/erp/item-units-data";
+import { getReorderPlan } from "@/lib/erp/reorder-data";
 
-export default async function NewPurchaseOrderPage({ searchParams }: { searchParams: Promise<{ reorder?: string; fromRequisition?: string }> }) {
+type SP = { reorder?: string; fromRequisition?: string; window?: string; lead?: string; cover?: string; supplier?: string };
+const days = (v: string | undefined, def: number) => (Number(v) > 0 && Number(v) <= 365 ? Number(v) : def);
+
+export default async function NewPurchaseOrderPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
     const reorder = sp.reorder === "1";
@@ -70,30 +74,21 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
       }
     }
 
-    // Prefill from reorder shortfall: items at/below min stock, suggested qty brings
-    // them up to maxStock (or 2× minStock when no max is set).
+    // Prefill from the reorder plan — the same quantities the reorder page showed, for the
+    // items last bought from `supplier` ("none" = never bought before; absent = all).
+    let initialSupplierId: string | undefined;
     if (reorder && !initialLines) {
-      const short = (await db.execute<{ id: string; suggest: string }>(sql`
-        SELECT i.id,
-               ceil(GREATEST(1, COALESCE(NULLIF(i.max_stock, 0), i.min_stock * 2) - COALESCE(s.qty, 0))) AS suggest
-        FROM items i
-        LEFT JOIN (
-          SELECT item_id, SUM(bq) AS qty FROM (
-            SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq
-            FROM stock_movements WHERE organization_id = ${orgId}
-            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
-          ) t GROUP BY item_id
-        ) s ON s.item_id = i.id
-        WHERE i.organization_id = ${orgId} AND i.is_active = true AND i.min_stock > 0 AND COALESCE(s.qty, 0) <= i.min_stock
-        ORDER BY i.code
-      `)).rows as { id: string; suggest: string }[];
-      if (short.length) initialLines = short.map((r) => ({ itemId: r.id, quantity: Number(r.suggest) }));
+      const plan = await getReorderPlan(orgId, { windowDays: days(sp.window, 30), leadDays: days(sp.lead, 14), coverDays: days(sp.cover, 60) });
+      const want = sp.supplier === "none" ? null : sp.supplier;
+      const mine = plan.filter((r) => r.suggestedQty > 0 && (sp.supplier === undefined || r.supplierId === want));
+      if (mine.length) initialLines = mine.map((r) => ({ itemId: r.itemId, quantity: r.suggestedQty }));
+      if (want && supList.some((s) => s.id === want)) initialSupplierId = want;
     }
 
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates}
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} initialSupplierId={initialSupplierId} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates}
         rateHistory={rateHistory} />
       </div>
     );

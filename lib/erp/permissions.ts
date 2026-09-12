@@ -27,7 +27,9 @@ export type ErpPermission =
   | "investors.view" | "investors.create" | "investors.edit" | "investors.delete" | "investors.manage"
   // HR & Payroll
   | "hr.view" | "hr.create" | "hr.post"
-  // Maintenance & fleet — one engine, two faces, so one pair of permissions
+  // Approvals — decide on documents held for a manager (lib/erp/approval-policy.ts).
+  // Admin has it; any other member gets it through a per-member grant.
+  | "approvals.decide"
   // Users (org-level membership management)
   | "users.view" | "users.create" | "users.edit" | "users.delete"
   // Organization settings
@@ -42,6 +44,7 @@ export const allErpPermissions: ErpPermission[] = [
   "reports.view",
   "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
   "hr.view", "hr.create", "hr.post",
+  "approvals.decide",
   "users.view", "users.create", "users.edit", "users.delete",
   "organization.manage",
 ];

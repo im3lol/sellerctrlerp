@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SettingsForm, type OrgProfile } from "@/components/erp/settings-form";
+import { parseApprovalPolicy } from "@/lib/erp/approval-policy";
 
 export default async function OrganizationSettingsPage() {
   return loadErpPage("settings.view", async ({ orgId, can }) => {
@@ -20,7 +21,7 @@ export default async function OrganizationSettingsPage() {
       logo: org?.logo ?? null,
       vatRate: org?.vatRate ?? "14",
       fiscalYearStart: org?.fiscalYearStart ?? null,
-      poApprovalThreshold: org?.poApprovalThreshold ?? "0",
+      approvalPolicy: parseApprovalPolicy(org?.approvalPolicy),
       purchaseVatCapitalised: Boolean(org?.purchaseVatCapitalised),
       navHidden: org?.navHidden ?? [],
     };

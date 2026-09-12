@@ -953,6 +953,20 @@
       "when": 1788619210007,
       "tag": "0135_hot_path_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1788619210008,
+      "tag": "0136_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1788700000000,
+      "tag": "0137_telegram_link",
+      "breakpoints": true
     }
   ]
 }

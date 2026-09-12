@@ -21,8 +21,15 @@ describe("planReorder", () => {
     expect(p.suggestedQty).toBe(0);
   });
 
-  it("out: zero on-hand is always flagged", () => {
-    expect(planReorder({ ...base, onHand: 0, soldInWindow: 0 }).status).toBe("out");
+  it("out: zero on-hand with demand (sales or a min_stock floor) is flagged", () => {
+    expect(planReorder({ ...base, onHand: 0, soldInWindow: 30 }).status).toBe("out");
+    expect(planReorder({ ...base, onHand: 0, soldInWindow: 0, minStock: 5 }).status).toBe("out");
+  });
+
+  it("zero on-hand, never sold, no min_stock → not a shortage", () => {
+    const p = planReorder({ ...base, onHand: 0, soldInWindow: 0 });
+    expect(p.status).toBe("ok");
+    expect(p.needsReorder).toBe(false);
   });
 
   it("no sales history: falls back to the static min_stock floor", () => {

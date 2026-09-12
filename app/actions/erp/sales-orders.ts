@@ -14,6 +14,9 @@ import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { getAvailability } from "@/lib/erp/availability";
 import { creditVerdict, creditError } from "@/lib/erp/credit";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { approvalGate, cancelApprovals, getApprovalPolicy } from "@/lib/erp/approvals";
+import { getErpContext } from "@/lib/erp/erp-context";
+import { currentStock } from "@/lib/erp/inventory";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
 
@@ -213,10 +216,31 @@ export async function confirmSalesOrderAction(id: string, opts?: { overrideCredi
     const [so] = await db.select({
       status: salesOrders.status, number: salesOrders.number,
       customerId: salesOrders.customerId, totalAmount: salesOrders.totalAmount,
+      subtotal: salesOrders.subtotal, discountAmount: salesOrders.discountAmount,
     }).from(salesOrders)
       .where(and(eq(salesOrders.id, id), eq(salesOrders.organizationId, auth.orgId))).limit(1);
     if (!so) return { error: "الأمر غير موجود" };
     if (so.status !== "DRAFT") return { error: "الأمر مؤكّد بالفعل" };
+
+    // Manager approval: a discount over the limit, or a line priced under its cost. Lines
+    // and costs are only read when the company actually has a sales rule on — and never
+    // for the marketplace worker, whose prices come from the platform.
+    const policy = await getApprovalPolicy(auth.orgId);
+    if (policy.enabled && (policy.salesDiscountPct > 0 || policy.salesBelowCost) && !getErpContext()?.system) {
+      const soLines = await db.select({ itemId: salesOrderLines.itemId, warehouseId: salesOrderLines.warehouseId, unitPrice: salesOrderLines.unitPrice, name: items.nameAr, code: items.code })
+        .from(salesOrderLines).innerJoin(items, eq(items.id, salesOrderLines.itemId)).where(eq(salesOrderLines.salesOrderId, id));
+      const lines: { label: string; unitPrice: number; unitCost: number | null }[] = [];
+      for (const l of soLines) {
+        // No warehouse on the line → no balance to cost it from → not judged.
+        const cost = l.warehouseId && policy.salesBelowCost ? (await currentStock(auth.orgId, l.itemId, l.warehouseId)).avgCost : 0;
+        lines.push({ label: l.name ?? l.code, unitPrice: Number(l.unitPrice), unitCost: cost > 0 ? cost : null });
+      }
+      const gate = await approvalGate({
+        ...auth, entityId: id, entityNumber: so.number, amount: Number(so.totalAmount),
+        facts: { docType: "SALES_ORDER", gross: Number(so.subtotal), discount: Number(so.discountAmount), lines },
+      });
+      if ("error" in gate) return { error: gate.error };
+    }
 
     // Credit gate. The invoice-posting check catches this too, but by then the goods
     // have usually shipped — refusing here is the cheap moment. Finance can override.
@@ -261,6 +285,7 @@ export async function deleteSalesOrderAction(id: string): Promise<ActionState> {
       .returning({ id: salesOrders.id });
     if (!gone.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "SALES_ORDER", entityId: id, entityNumber: so.number, summary: `حذف أمر بيع ${so.number}` });
+    await cancelApprovals(auth.orgId, "SALES_ORDER", id);
     revalidatePath("/sales/orders");
     return { ok: true };
   });

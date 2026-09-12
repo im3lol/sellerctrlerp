@@ -10,6 +10,10 @@ import { SetupProgressCard } from "@/components/erp/setup-progress-card";
 import { getSetupStatus } from "@/lib/erp/setup-status";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { Icon } from "@/components/icon";
+import { getMemberAccess } from "@/lib/erp/auth-guard";
+import { withOrgScope } from "@/lib/db-scope";
+import { countPendingApprovals } from "@/lib/erp/approvals";
+import { listStuckDocs } from "@/lib/erp/stuck-docs";
 
 const TILES: { label: string; href: string; icon: string; module: string; desc: string }[] = [
   { label: "المحاسبة", href: "/accounting", icon: "Calculator", module: "accounting", desc: "دليل الحسابات، القيود، التقارير المالية" },
@@ -61,15 +65,32 @@ export default async function DashboardPage() {
   if (org && user.role !== "system_admin") {
     try { setup = await getSetupStatus(org.id); } catch { setup = null; }
   }
-  const pendingTiles = pending
-    ? [
-        { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/accounting/journal", icon: "BookText" },
-        { label: "فواتير بيع مسودة", hint: "المبيعات", count: pending.siDraft, href: "/sales/invoices", icon: "ReceiptText" },
-        { label: "فواتير شراء مسودة", hint: "المشتريات", count: pending.piDraft, href: "/purchases/invoices", icon: "ReceiptText" },
-        { label: "أوامر بيع بانتظار الشحن", hint: "المبيعات", count: pending.soAwaiting, href: "/sales/orders", icon: "ClipboardList" },
-        { label: "أوامر شراء بانتظار الاستلام", hint: "المشتريات", count: pending.poAwaiting, href: "/purchases/orders", icon: "PackageCheck" },
-      ]
-    : [];
+  // This member's own inbox: documents waiting for their decision, and ones nobody moved
+  // that they can see. Fail-safe like everything else here.
+  let inbox = { approvals: 0, stuck: 0 };
+  if (org) {
+    try {
+      const { permissions } = await getMemberAccess(org.id, user);
+      inbox = await withOrgScope(org.id, false, async () => ({
+        approvals: permissions.has("approvals.decide") ? await countPendingApprovals(org.id) : 0,
+        stuck: (await listStuckDocs(org.id, (p) => permissions.has(p))).length,
+      }));
+    } catch { /* keep zeros */ }
+  }
+
+  const pendingTiles = [
+    { label: "مستني موافقتك", hint: "الموافقات", count: inbox.approvals, href: "/approvals", icon: "ClipboardCheck" },
+    { label: "مستندات واقفة محدش حرّكها", hint: "الموافقات", count: inbox.stuck, href: "/approvals?tab=late", icon: "Clock" },
+    ...(pending
+      ? [
+          { label: "قيود غير مُرحّلة", hint: "المحاسبة", count: pending.jeDraft, href: "/accounting/journal", icon: "BookText" },
+          { label: "فواتير بيع مسودة", hint: "المبيعات", count: pending.siDraft, href: "/sales/invoices", icon: "ReceiptText" },
+          { label: "فواتير شراء مسودة", hint: "المشتريات", count: pending.piDraft, href: "/purchases/invoices", icon: "ReceiptText" },
+          { label: "أوامر بيع بانتظار الشحن", hint: "المبيعات", count: pending.soAwaiting, href: "/sales/orders", icon: "ClipboardList" },
+          { label: "أوامر شراء بانتظار الاستلام", hint: "المشتريات", count: pending.poAwaiting, href: "/purchases/orders", icon: "PackageCheck" },
+        ]
+      : []),
+  ];
 
   const kpis = ov
     ? [

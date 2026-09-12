@@ -74,8 +74,12 @@ export const organizations = pgTable(
     // true = loaded onto the goods. Only read when a receipt is CREATED; from then on the
     // receipt line's own tax_per_unit snapshot decides — see purchaseReceiptLines.
     purchaseVatCapitalised: boolean("purchase_vat_capitalised").notNull().default(false),
-    // Purchase orders above this amount require approval before confirming (0 = off).
+    // SUPERSEDED by approvalPolicy.purchaseOrder (migration 0136 copied it across). Kept
+    // only to avoid a drop migration; do not read or write it.
     poApprovalThreshold: money("po_approval_threshold").notNull().default("0"),
+    // Manager approvals — thresholds per document type (lib/erp/approval-policy.ts).
+    // Null = approvals off, which is every company that never opened the setting.
+    approvalPolicy: jsonb("approval_policy").$type<Record<string, unknown>>(),
     // Loyalty: points earned per pound (0 = programme off), pounds a point redeems for,
     // and the balance a customer must reach before redeeming anything.
     loyaltyEarnRate: money("loyalty_earn_rate").notNull().default("0"),
@@ -112,6 +116,9 @@ export const organizationMembers = pgTable(
     // Per-user ERP permission overrides on top of the role: force-grant / force-revoke.
     permissionOverrides: jsonb("permission_overrides").$type<{ grant: string[]; revoke: string[] }>(),
     isActive: boolean("is_active").notNull().default(true),
+    // The member's own Telegram chat, linked from their profile (lib/erp/telegram.ts).
+    // Approval requests and decisions reach them there.
+    telegramChatId: text("telegram_chat_id"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1377,6 +1384,35 @@ export const auditLogs = pgTable(
     // getDocumentAudit filters org + entity_id with no entity_type, which the index above
     // can't serve — every document page's history card.
     index("audit_logs_org_entity_idx").on(t.organizationId, t.entityId),
+  ],
+);
+
+/**
+ * A document held for a manager. A layer on top of the document's DRAFT status — not a
+ * status of its own — so every existing status filter keeps working. `reason` is also
+ * the fingerprint: an approval covers exactly the facts that produced it.
+ */
+export const approvalRequests = pgTable(
+  "approval_requests",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    entityNumber: text("entity_number"),
+    amount: money("amount"),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("PENDING"), // PENDING | APPROVED | REJECTED | CANCELLED
+    requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    decidedAt: ts("decided_at"),
+    comment: text("comment"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("approval_requests_org_status_idx").on(t.organizationId, t.status, t.requestedAt),
+    index("approval_requests_entity_idx").on(t.organizationId, t.entityId),
   ],
 );
 

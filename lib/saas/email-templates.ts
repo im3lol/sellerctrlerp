@@ -43,6 +43,16 @@ const row = (html: string) => `<tr><td style="padding:4px 0">${html}</td></tr>`;
 const esc = (v: string) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** A notice about one approval request — to the approvers when it is filed, to the
+ *  requester when it is decided. Every line is tenant text, so all of it is escaped. */
+export function approvalEmail(d: { heading: string; lines: string[]; href: string }): Email {
+  return {
+    subject: d.heading,
+    html: layout({ heading: esc(d.heading), bodyHtml: d.lines.map((l) => row(esc(l))).join(""), cta: { label: "افتح المستند", href: d.href } }),
+    text: `${d.heading}\n${d.lines.join("\n")}\n${d.href}`,
+  };
+}
+
 export function welcomeEmail(d: { name?: string; orgName: string; appUrl: string }): Email {
   const hi = d.name ? `أهلاً ${d.name}` : "أهلاً بك";
   const hiHtml = d.name ? `أهلاً ${esc(d.name)}` : "أهلاً بك";

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { saveOrgProfileAction, saveAccountingConfigAction, uploadOrgLogoAction } from "@/app/actions/erp/settings";
 import { HIDEABLE_SECTIONS } from "@/components/app-shell/nav-config";
 import type { ActionState } from "@/lib/erp/action-auth";
+import type { ApprovalPolicy } from "@/lib/erp/approval-policy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { selectCls } from "@/lib/utils";
 export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
   address: string | null; phone: string | null; email: string | null; logo: string | null;
-  vatRate: string; fiscalYearStart: string | null; poApprovalThreshold: string;
+  vatRate: string; fiscalYearStart: string | null; approvalPolicy: ApprovalPolicy;
   purchaseVatCapitalised: boolean;
   navHidden: string[];
 };
@@ -136,7 +137,29 @@ export function SettingsForm({
                 <div className="space-y-2"><Label htmlFor="legalName">الاسم القانوني</Label><Input id="legalName" name="legalName" defaultValue={profile.legalName ?? ""} /></div>
                 <div className="space-y-2"><Label htmlFor="taxNumber">الرقم الضريبي</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
                 <div className="space-y-2"><Label htmlFor="vatRate">نسبة ضريبة القيمة المضافة (%)</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
-                <div className="space-y-2"><Label htmlFor="poApprovalThreshold">حد اعتماد أوامر الشراء</Label><Input id="poApprovalThreshold" name="poApprovalThreshold" type="number" step="0.01" min="0" defaultValue={profile.poApprovalThreshold} dir="ltr" placeholder="0 = بدون اعتماد" /></div>
+                {/* Manager approvals — one level, a threshold per document type. Off by
+                    default: a company that never opens this sees no change at all. */}
+                <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" name="apEnabled" className="size-4 rounded border-input" defaultChecked={profile.approvalPolicy.enabled} />
+                    اعتمادات المدير — المستند اللي فوق الحد يستنى موافقة حد عنده صلاحية «الاعتماد» قبل ما يتأكد
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-1"><Label htmlFor="apPurchaseOrder">أمر شراء فوق</Label><Input id="apPurchaseOrder" name="apPurchaseOrder" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.purchaseOrder || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <div className="space-y-1"><Label htmlFor="apPayment">سند صرف فوق</Label><Input id="apPayment" name="apPayment" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.payment || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <div className="space-y-1"><Label htmlFor="apExpense">مصروف أو مطالبة موظف فوق</Label><Input id="apExpense" name="apExpense" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.expense || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <div className="space-y-1"><Label htmlFor="apStockWriteOff">بضاعة خارجة من المخزون (تسوية/إعدام) فوق</Label><Input id="apStockWriteOff" name="apStockWriteOff" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.stockWriteOff || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <div className="space-y-1"><Label htmlFor="apSalesDiscountPct">خصم على أمر بيع فوق (%)</Label><Input id="apSalesDiscountPct" name="apSalesDiscountPct" type="number" step="0.1" min="0" max="100" defaultValue={profile.approvalPolicy.salesDiscountPct || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <label className="flex cursor-pointer items-center gap-2 self-end pb-2 text-sm">
+                      <input type="checkbox" name="apSalesBelowCost" className="size-4 rounded border-input" defaultChecked={profile.approvalPolicy.salesBelowCost} />
+                      البيع بأقل من التكلفة
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    اللي يعمل المستند مايعتمدوش بنفسه — إلا المدير (المالك)، فشركة فيها شخص واحد ماتقفش. طلبات أمازون ونون
+                    اللي بتنزل تلقائي ماتعدّيش على الاعتماد، لأن سعرها من المنصة مش من حد.
+                  </p>
+                </div>
                 {/* Which side of the ledger purchase VAT lands on. Only new goods receipts
                     read it — anything already confirmed keeps the cost it was posted at. */}
                 {/* Which modules earn a row in the sidebar. Not permissions and not the

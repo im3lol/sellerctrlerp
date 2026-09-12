@@ -39,7 +39,9 @@ export function planReorder(i: ReorderInput): ReorderPlan {
     : Math.max(0, Math.ceil(i.minStock - i.onHand - inbound));
 
   const status: ReorderStatus =
-    i.onHand <= 0 ? "out"
+    // Zero stock is a shortage only when something says the item is wanted: recent sales
+    // or a min_stock floor. A never-sold catalogue item sitting at zero is not.
+    i.onHand <= 0 ? (velocity > 0 || i.minStock > 0 ? "out" : "ok")
     : velocity > 0 && daysOfCover <= i.leadDays ? "critical" // won't survive the lead time
     : (velocity > 0 && daysOfCover <= i.coverDays) || (velocity === 0 && i.minStock > 0 && i.onHand <= i.minStock) ? "low"
     : "ok";

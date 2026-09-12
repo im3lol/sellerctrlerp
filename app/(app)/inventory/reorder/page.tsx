@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
-import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 import { Label } from "@/components/ui/label";
-import { planReorder, type ReorderStatus } from "@/lib/erp/reorder";
+import { type ReorderStatus } from "@/lib/erp/reorder";
+import { getReorderPlan } from "@/lib/erp/reorder-data";
 
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const d1 = (n: number) => (n === Infinity ? "∞" : n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 }));
-
-type Row = { code: string; name: string; min_stock: string; on_hand: string; sold: string; inbound: string };
 
 const WINDOWS = [30, 60, 90];
 const LEADS = [7, 14, 21, 30, 45, 60];
@@ -35,6 +32,9 @@ type SP = { window?: string; lead?: string; cover?: string };
  * supplier lead time. Items whose stock won't outlast the lead time are "حرج"; the
  * suggested quantity refills to the target days of cover. Falls back to the static
  * min_stock only for items with no sales history.
+ *
+ * Each supplier the shortfall was last bought from gets its own button, opening a purchase
+ * order prefilled with exactly these quantities — reviewed before anything is saved.
  */
 export default async function ReorderPage({ searchParams }: { searchParams: Promise<SP> }) {
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
@@ -42,51 +42,20 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
     const windowDays = pick(sp.window, WINDOWS, 30);
     const leadDays = pick(sp.lead, LEADS, 14);
     const coverDays = pick(sp.cover, COVERS, 60);
-    const since = new Date(Date.now() - windowDays * 86_400_000);
 
-    const res = await db.execute<Row>(sql`
-      WITH latest AS (
-        SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
-        FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
-      ), velocity AS (
-        SELECT item_id, SUM(quantity) AS sold FROM stock_movements
-        WHERE organization_id = ${orgId} AND type = 'OUT'
-          AND reference_type IN ('DELIVERY','SALES_INVOICE') AND date >= ${since}
-        GROUP BY item_id
-      ), inbound AS (
-        -- Units already on the way from the most recent FBA audit snapshot.
-        SELECT item_id, SUM(inbound) AS inbound FROM inventory_audit_lines
-        WHERE organization_id = ${orgId} AND item_id IS NOT NULL
-          AND audit_id = (SELECT id FROM inventory_audits WHERE organization_id = ${orgId} AND status = 'OK' ORDER BY created_at DESC LIMIT 1)
-        GROUP BY item_id
-      )
-      SELECT i.code, coalesce(i.name_ar, i.code) AS name, coalesce(i.min_stock, 0) AS min_stock,
-             coalesce(sum(l.balance_quantity), 0) AS on_hand, coalesce(max(v.sold), 0) AS sold,
-             coalesce(max(ib.inbound), 0) AS inbound
-      FROM items i
-      LEFT JOIN latest l ON l.item_id = i.id
-      LEFT JOIN velocity v ON v.item_id = i.id
-      LEFT JOIN inbound ib ON ib.item_id = i.id
-      WHERE i.organization_id = ${orgId} AND i.is_active = true
-      GROUP BY i.id
-    `);
-
-    const planned = (res.rows as Row[])
-      .map((r) => ({
-        code: r.code, name: r.name,
-        onHand: Number(r.on_hand), inbound: Number(r.inbound),
-        ...planReorder({
-          onHand: Number(r.on_hand), soldInWindow: Number(r.sold), windowDays, leadDays, coverDays,
-          minStock: Number(r.min_stock), inbound: Number(r.inbound),
-        }),
-      }))
-      .filter((r) => r.needsReorder);
-
-    const rank: Record<ReorderStatus, number> = { out: 0, critical: 1, low: 2, ok: 3 };
-    planned.sort((a, b) => rank[a.status] - rank[b.status] || a.daysOfCover - b.daysOfCover);
-
+    const planned = await getReorderPlan(orgId, { windowDays, leadDays, coverDays });
     const criticalCount = planned.filter((r) => r.status === "out" || r.status === "critical").length;
+
+    // One prefilled order per last supplier; items never bought before share one more.
+    const bySupplier = new Map<string, { name: string; count: number }>();
+    for (const r of planned) {
+      if (r.suggestedQty <= 0) continue;
+      const key = r.supplierId ?? "none";
+      const g = bySupplier.get(key) ?? { name: r.supplierName ?? "بدون مورد سابق", count: 0 };
+      g.count++;
+      bySupplier.set(key, g);
+    }
+    const qs = `window=${windowDays}&lead=${leadDays}&cover=${coverDays}`;
 
     return (
       <div className="space-y-6">
@@ -95,8 +64,16 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
           title="تخطيط إعادة الطلب"
           subtitle={`${planned.length} صنف يحتاج طلب · ${criticalCount} حرج/نافد`}
           backHref="/inventory"
-          action={planned.length > 0 && can("purchases.create") ? (
-            <Button asChild><Link href="/purchases/orders/new?reorder=1"><Icon name="ClipboardList" className="size-4" />أنشئ أمر شراء بالنواقص</Link></Button>
+          action={bySupplier.size > 0 && can("purchases.create") ? (
+            <div className="flex flex-wrap gap-2">
+              {[...bySupplier].map(([key, g], idx) => (
+                <Button key={key} asChild variant={idx === 0 ? "default" : "outline"}>
+                  <Link href={`/purchases/orders/new?reorder=1&${qs}&supplier=${encodeURIComponent(key)}`}>
+                    <Icon name="ClipboardList" className="size-4" />أمر شراء — {g.name} ({q(g.count)})
+                  </Link>
+                </Button>
+              ))}
+            </div>
           ) : undefined}
         />
 
@@ -124,7 +101,10 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
         <Card>
           <CardHeader>
             <CardTitle>أصناف تحتاج طلبًا حسب معدّل البيع</CardTitle>
-            <CardDescription>«أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({leadDays} يوم) هيخلص قبل وصول الشحنة.</CardDescription>
+            <CardDescription>
+              «أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({leadDays} يوم) هيخلص قبل وصول الشحنة.
+              الأصناف اللي ماتباعتش في الفترة ومالهاش حد طلب مش بتظهر هنا.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {planned.length === 0 ? (
@@ -136,6 +116,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                     <TableRow>
                       <TableHead className="text-start">الكود</TableHead>
                       <TableHead className="text-start">الصنف</TableHead>
+                      <TableHead className="text-start">آخر مورد</TableHead>
                       <TableHead className="text-start">المتاح</TableHead>
                       <TableHead className="text-start">الوارد</TableHead>
                       <TableHead className="text-start">بيع/يوم</TableHead>
@@ -149,9 +130,10 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                     {planned.map((r) => {
                       const st = STATUS[r.status as Exclude<ReorderStatus, "ok">];
                       return (
-                        <TableRow key={r.code}>
+                        <TableRow key={r.itemId}>
                           <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
                           <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">{r.supplierName ?? "—"}</TableCell>
                           <TableCell>{q(r.onHand)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{r.inbound > 0 ? q(r.inbound) : "—"}</TableCell>
                           <TableCell className="tabular-nums">{d1(r.velocity)}</TableCell>

@@ -9,6 +9,9 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherDetailActions } from "@/components/erp/voucher-detail-actions";
 import { Field, DocAuditCard, UUID_RE } from "@/components/erp/document-detail";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { getEntityApproval } from "@/lib/erp/approvals";
+import { requireUser } from "@/lib/session";
+import { ApprovalBanner } from "@/components/erp/approval-banner";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -21,7 +24,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function PaymentVoucherDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("purchases.view", async ({ orgId, can }) => {
+  return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: paymentVouchers.number }).from(paymentVouchers)
         .where(and(eq(paymentVouchers.id, raw), eq(paymentVouchers.organizationId, orgId))).limit(1);
@@ -33,7 +36,7 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
       .where(and(eq(paymentVouchers.number, raw), eq(paymentVouchers.organizationId, orgId))).limit(1);
     if (!pv) notFound();
 
-    const [[sup], [inv], [acc], audit] = await Promise.all([
+    const [[sup], [inv], [acc], audit, approval, me] = await Promise.all([
       db.select({ name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, pv.supplierId)).limit(1),
       pv.purchaseInvoiceId
         ? db.select({ number: purchaseInvoices.number }).from(purchaseInvoices).where(eq(purchaseInvoices.id, pv.purchaseInvoiceId)).limit(1)
@@ -42,6 +45,8 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
         ? db.select({ code: accounts.code, name: accounts.nameAr }).from(accounts).where(eq(accounts.id, pv.cashAccountId)).limit(1)
         : Promise.resolve([] as { code: string; name: string }[]),
       getDocumentAudit(orgId, pv.id),
+      getEntityApproval(orgId, pv.id),
+      requireUser(),
     ]);
 
     const st = STATUS[pv.status] ?? { label: pv.status, variant: "secondary" as const };
@@ -55,6 +60,8 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
           backHref="/purchases/payments"
           action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{st.label}</Badge><VoucherDetailActions id={pv.id} number={pv.number} type="payment" status={pv.status} canManage={can("purchases.pay")} /></div>}
         />
+        <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
+          isAdmin={role === "admin" || role === "super_admin"} />
 
         <Card>
           <CardHeader><CardTitle>بيانات السند</CardTitle></CardHeader>

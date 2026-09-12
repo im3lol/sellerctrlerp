@@ -12,6 +12,9 @@ import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustm
 import { DocAuditCard } from "@/components/erp/document-detail";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { getEntityApproval } from "@/lib/erp/approvals";
+import { requireUser } from "@/lib/session";
+import { ApprovalBanner } from "@/components/erp/approval-banner";
 import { docNumberParam } from "@/lib/erp/doc-route";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
@@ -21,7 +24,7 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year
 
 export default async function AdjustmentDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
-  return loadErpPage("inventory.view", async ({ orgId, can }) => {
+  return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
       { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "/inventory/adjustments");
     const canManage = can("inventory.create");
@@ -29,7 +32,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
     const [adj] = await db.select().from(stockAdjustments)
       .where(and(eq(stockAdjustments.number, number), eq(stockAdjustments.organizationId, orgId))).limit(1);
     if (!adj) notFound();
-    const audit = await getDocumentAudit(orgId, adj.id);
+    const [audit, approval, me] = await Promise.all([getDocumentAudit(orgId, adj.id), getEntityApproval(orgId, adj.id), requireUser()]);
 
     const lines = await db
       .select({
@@ -111,6 +114,8 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
             </div>
           }
         />
+        <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
+          isAdmin={role === "admin" || role === "super_admin"} />
 
         <Card>
           <CardHeader><CardTitle>بيانات التسوية</CardTitle></CardHeader>

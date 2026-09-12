@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
-import { auditLogs } from "@/db/schema";
+import { auditLogs, approvalRequests } from "@/db/schema";
 
 export type Activity = { action: string; summary: string | null; number: string | null; at: string; href: string | null };
 export type Notifications = {
@@ -21,6 +21,8 @@ export type Notifications = {
   mktReturns: number;
   mktRemovals: number;
   mktReimbursements: number;
+  /** Documents waiting for this member's approval (only counted for approvers). */
+  pendingApprovals: number;
   total: number;
   recent: Activity[];
 };
@@ -155,5 +157,11 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>): P
       const base = ENTITY_PATH[a.entityType];
       return { action: a.action, summary: a.summary, number: a.number, at: a.at.toISOString(), href: base && a.number ? `${base}/${encodeURIComponent(a.number)}` : null };
     });
-  return { lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
+  // Approvals waiting — only for someone who can decide them; everyone else would just
+  // see a number they can do nothing about.
+  const pendingApprovals = can("approvals.decide")
+    ? Number((await db.select({ n: sql<number>`count(*)::int` }).from(approvalRequests)
+        .where(and(eq(approvalRequests.organizationId, orgId), eq(approvalRequests.status, "PENDING"))))[0]?.n ?? 0)
+    : 0;
+  return { pendingApprovals, lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: pendingApprovals + lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
 }

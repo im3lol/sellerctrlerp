@@ -14,6 +14,9 @@ import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/co
 import { Copyable } from "@/components/erp/copyable";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { getDocumentAudit } from "@/lib/erp/audit";
+import { getEntityApproval } from "@/lib/erp/approvals";
+import { requireUser } from "@/lib/session";
+import { ApprovalBanner } from "@/components/erp/approval-banner";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
@@ -38,7 +41,7 @@ const CHANNEL_STATUS: Record<string, string> = {
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("sales.view", async ({ orgId, can }) => {
+  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: salesOrders.number }).from(salesOrders)
         .where(and(eq(salesOrders.id, raw), eq(salesOrders.organizationId, orgId))).limit(1);
@@ -110,6 +113,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
 
     const st = STATUS[so.status] ?? { label: so.status, variant: "secondary" as const };
     const canManage = can("sales.create");
+    const [approval, me] = await Promise.all([getEntityApproval(orgId, so.id), requireUser()]);
 
     return (
       <div className="space-y-6">
@@ -125,6 +129,8 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             </div>
           }
         />
+        <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
+          isAdmin={role === "admin" || role === "super_admin"} />
 
         {so.externalOrderId && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
