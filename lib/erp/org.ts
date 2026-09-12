@@ -58,12 +58,14 @@ export const getActiveOrg = cache(async (): Promise<{
 export async function requireErpModule(
   permission: ErpPermission,
   moduleOverride?: string,
-): Promise<{ orgId: string; userId: string; role: string; can: (p: ErpPermission) => boolean }> {
+  // `permissions` is the raw grant list, for callers that need to filter a set of pages
+  // rather than ask about one — the module workspace derives its cards from it.
+): Promise<{ orgId: string; userId: string; role: string; permissions: string[]; can: (p: ErpPermission) => boolean }> {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
-  if (!org) redirect("/dashboard");
+  if (!org) redirect("/apps");
   const access = await getMemberAccess(org.id, user);
-  if (!access.role) redirect("/dashboard");
+  if (!access.role) redirect("/apps");
   if (!access.permissions.has(permission)) redirect("/dashboard");
   // Subscription entitlement: the tenant must have the module enabled. The
   // platform owner (system_admin) bypasses so they can support any account.
@@ -75,7 +77,7 @@ export async function requireErpModule(
     // the in-app subscription page to pick a plan.
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/settings/subscription?locked=${mod}`);
   }
-  return { orgId: org.id, userId: user.id, role: access.role, can: (p: ErpPermission) => access.permissions.has(p) };
+  return { orgId: org.id, userId: user.id, role: access.role, permissions: [...access.permissions], can: (p: ErpPermission) => access.permissions.has(p) };
 }
 
 /**
@@ -92,7 +94,7 @@ export async function requireErpModule(
  */
 export async function loadErpPage<T>(
   permission: ErpPermission,
-  handler: (ctx: { orgId: string; role: string; can: (p: ErpPermission) => boolean }) => Promise<T>,
+  handler: (ctx: { orgId: string; role: string; permissions: string[]; can: (p: ErpPermission) => boolean }) => Promise<T>,
   moduleOverride?: string,
 ): Promise<T> {
   const ctx = await requireErpModule(permission, moduleOverride);

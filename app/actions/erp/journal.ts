@@ -300,7 +300,9 @@ export async function bulkJournalAction(op: "post" | "delete", ids: string[], al
   if (all) {
     const auth = await authorizeErp(op === "post" ? "accounting.post" : "accounting.create");
     if ("error" in auth) return { ok: false, error: auth.error };
-    ids = await matchingJournalIds(auth.orgId, all);
+    // authorizeErp's own scope has closed by now; without this the lookup ran
+    // unscoped, RLS returned nothing, and "select all pages" said nothing was selected.
+    ids = await withOrgScope(auth.orgId, false, () => matchingJournalIds(auth.orgId, all));
   }
   return bulkOp(ids, op === "post" ? postDraftEntryAction : deleteDraftEntryAction);
 }

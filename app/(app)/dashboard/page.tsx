@@ -43,7 +43,10 @@ export default async function DashboardPage() {
   // Degrade gracefully: the overview fans out many queries; if it fails (e.g. a
   // transient pooler hiccup) still render the module tiles instead of crashing.
   let ov: Awaited<ReturnType<typeof getErpOverview>> | null = null;
-  try { ov = org ? await getErpOverview(org.id) : null; } catch { ov = null; }
+  // Remember that it FAILED, not just that it's null — null used to read as "brand-new
+  // org", so one failed query sent an established seller to the getting-started screen.
+  let ovFailed = false;
+  try { ov = org ? await getErpOverview(org.id) : null; } catch { ov = null; ovFailed = true; }
 
   // Consolidated cross-module workflow inbox (one query, fail-safe).
   let pending: Awaited<ReturnType<typeof getPendingWork>> | null = null;
@@ -81,7 +84,7 @@ export default async function DashboardPage() {
 
   // Brand-new org with no transactional data yet → show a getting-started hero
   // instead of a wall of zeros. (system_admin dashboards are never "empty".)
-  const isEmpty = !!org && user.role !== "system_admin" &&
+  const isEmpty = !!org && user.role !== "system_admin" && !ovFailed &&
     (!ov || (ov.net === 0 && ov.cash === 0 && ov.ar === 0 && ov.ap === 0 && ov.inventoryValue === 0 && ov.salesMonth === 0));
 
   return (
@@ -102,6 +105,15 @@ export default async function DashboardPage() {
         <div data-tour="setup-card">
           <SetupProgressCard done={setup.essentialDone} total={setup.essentialTotal} />
         </div>
+      )}
+
+      {ovFailed && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="flex items-center justify-between gap-4 p-4 text-sm text-destructive">
+            <span>تعذّر تحميل المؤشرات دلوقتي — بياناتك سليمة، جرّب تحدّث الصفحة.</span>
+            <Link href="/dashboard" className="shrink-0 underline">تحديث</Link>
+          </CardContent>
+        </Card>
       )}
 
       {isEmpty && (

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -7,35 +6,16 @@ import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-
-const SHORTCUTS = [
-  { label: "دليل الحسابات", href: "/accounting/chart", icon: "Calculator", key: "accounts" },
-  { label: "القيود اليومية", href: "/accounting/journal", icon: "BookText", key: "journal" },
-  { label: "قيد جديد", href: "/accounting/journal/new", icon: "Plus" },
-  { label: "دفتر الأستاذ", href: "/accounting/ledger", icon: "BookOpen" },
-  { label: "ميزان المراجعة", href: "/reports", icon: "ChartPie" },
-  { label: "قائمة الدخل", href: "/reports/income-statement", icon: "TrendingUp" },
-  { label: "الميزانية العمومية", href: "/reports/balance-sheet", icon: "Scale" },
-  { label: "مراكز التكلفة", href: "/accounting/cost-centers", icon: "Target" },
-  { label: "الفترات المالية", href: "/accounting/periods", icon: "Lock" },
-  { label: "فواتير البيع", href: "/sales/invoices", icon: "ReceiptText", key: "sales" },
-  { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", key: "purchases" },
-  { label: "سندات القبض", href: "/sales/receipts", icon: "HandCoins" },
-  { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote" },
-  { label: "المصروفات", href: "/accounting/expenses", icon: "Wallet" },
-  { label: "استيراد طلبات أمازون", href: "/sales/orders/import", icon: "Upload" },
-  { label: "تسويات أمازون", href: "/sales/orders/settlements", icon: "Landmark" },
-] as const;
 
 export default async function AccountingDashboardPage() {
-  return loadErpPage("accounting.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const [balances, [acc], [je], [si], [pi], [jeDraft], [siDraft], [piDraft]] = await Promise.all([
       accountBalances({ orgId }),
       db.select({ n: sql<number>`count(*)` }).from(accounts).where(eq(accounts.organizationId, orgId)),
@@ -64,7 +44,7 @@ export default async function AccountingDashboardPage() {
     const cash = (byCode[rc["1101"]] ?? 0) + (byCode[rc["1102"]] ?? 0);
     const assets = balances.filter((b) => b.type === "ASSET").reduce((s, b) => s + naturalAmount(b), 0);
 
-    const counts: Record<string, number> = { accounts: Number(acc.n), journal: Number(je.n), sales: Number(si.n), purchases: Number(pi.n) };
+    const counts: Record<string, number> = { "/accounting/chart": Number(acc.n), "/accounting/journal": Number(je.n), "/sales/invoices": Number(si.n), "/purchases/invoices": Number(pi.n) };
 
     const max = Math.max(income, expense, Math.abs(net), 1);
     const bars = [
@@ -145,31 +125,10 @@ export default async function AccountingDashboardPage() {
         </div>
 
         {/* Shortcuts */}
-        <Card>
-          <CardHeader>
-            <CardTitle>اختصارات</CardTitle>
-            <CardDescription>الوصول السريع لشاشات المحاسبة.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className="group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary hover:bg-accent"
-                >
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Icon name={s.icon} className="size-4" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium">{s.label}</span>
-                  {"key" in s && s.key && counts[s.key] != null && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{intf(counts[s.key])}</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="المحاسبة" permissions={permissions} counts={counts}
+          actions={[{ label: "قيد يومية جديد", href: "/accounting/journal/new", icon: "Plus" }, { label: "مصروف جديد", href: "/accounting/expenses/new", icon: "Plus" }]} />
       </div>
     );
   });

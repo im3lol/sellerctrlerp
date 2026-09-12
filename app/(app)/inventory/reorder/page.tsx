@@ -48,7 +48,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
       WITH latest AS (
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
       ), velocity AS (
         SELECT item_id, SUM(quantity) AS sold FROM stock_movements
         WHERE organization_id = ${orgId} AND type = 'OUT'

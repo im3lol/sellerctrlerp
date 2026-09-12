@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { selectCls } from "@/lib/utils";
 
@@ -24,7 +23,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function StockBalancePage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
     const fWarehouse = one(sp.warehouse);
@@ -49,32 +48,14 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
     const exportHref = `/api/erp/inventory/stock/export?${filterQs().toString()}`;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="Boxes"
-          title="أرصدة المخزون"
-          subtitle={`قيمة المخزون ${fmt(totals.value)} — من دفتر المخزون`}
-          backHref="/inventory"
-          action={<ReportToolbar excel={lines.length > 0 ? exportHref : undefined} printHref={`/erp/inventory/stock/print?${filterQs().toString()}`} />}
-        />
-
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          {[
-            { label: "قيمة المخزون", value: intl(Math.round(totals.value)), tone: "" },
-            { label: "إجمالي الكمية", value: qty(totals.quantity), tone: "" },
-            { label: "عدد الأصناف", value: intl(totals.items), tone: "" },
-            { label: "مخزون منخفض", value: intl(totals.low), tone: "text-amber-600" },
-            { label: "مخزون نافد", value: intl(totals.out), tone: "text-destructive" },
-          ].map((k) => (
-            <Card key={k.label}>
-              <CardContent className="p-4">
-                <div className="text-sm text-muted-foreground">{k.label}</div>
-                <div className={`mt-1 text-lg font-bold tabular-nums ${k.tone}`}>{k.value}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
+      <ReportShell
+        reportKey="inv-stock"
+        icon="Boxes"
+        title="أرصدة المخزون"
+        subtitle={`${lines.length} صنف`}
+        query={filterQs().toString()}
+        permissions={permissions}
+      >
         <Card>
           <CardHeader>
             <CardTitle>الرصيد الحالي</CardTitle>
@@ -162,7 +143,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

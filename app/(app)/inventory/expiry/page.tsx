@@ -3,13 +3,9 @@ import Link from "next/link";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { Pagination } from "@/components/erp/pagination";
 import { selectCls } from "@/lib/utils";
@@ -25,7 +21,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function ExpiryPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
     const fWarehouse = one(sp.warehouse);
@@ -48,52 +44,48 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
     const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="CalendarClock" title="تنبيهات انتهاء الصلاحية" subtitle={`${rows.length} دفعة`} backHref="/inventory" action={<ReportToolbar excel={rows.length > 0 ? `/api/erp/inventory/expiry/export?${filterQs.toString()}` : undefined} printHref={`/erp/inventory/expiry/print?${filterQs.toString()}`} />} />
-
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">منتهية</div><div className="text-2xl font-bold text-destructive">{intl(totals.expiredCount)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المنتهي</div><div className="text-2xl font-bold text-destructive">{fmt(totals.expiredValue)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قرب الانتهاء (≤{intl(withinDays)} يوم)</div><div className="text-2xl font-bold text-amber-600">{intl(totals.nearCount)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة قرب الانتهاء</div><div className="text-2xl font-bold text-amber-600">{fmt(totals.nearValue)}</div></CardContent></Card>
-        </div>
-
+      <ReportShell
+        reportKey="inv-expiry"
+        icon="CalendarClock"
+        title="انتهاء الصلاحية"
+        subtitle={`${rows.length} دفعة لها تاريخ صلاحية`}
+        query={filterQs.toString()}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="المنتج (اسم أو كود)">
+              <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" options={productSuggestions} />
+            </ReportField>
+            <ReportField label="المستودع">
+              <select name="warehouse" defaultValue={fWarehouse} className={selectCls}>
+                <option value="">كل المستودعات</option>
+                {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+              </select>
+            </ReportField>
+            <ReportField label="الحالة">
+              <select name="status" defaultValue={fStatus} className={selectCls}>
+                <option value="">الكل</option>
+                {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </ReportField>
+            <ReportField label="حد التنبيه (أيام)">
+              <Input name="within" type="number" min="1" defaultValue={String(withinDays)} />
+            </ReportField>
+          </>
+        }
+        kpis={[
+          { label: "دفعات منتهية", value: intl(totals.expiredCount), tone: "loss" },
+          { label: "قيمة المنتهي", value: fmt(totals.expiredValue), tone: "loss" },
+          { label: `قرب الانتهاء (≤${intl(withinDays)} يوم)`, value: intl(totals.nearCount) },
+          { label: "قيمة قرب الانتهاء", value: fmt(totals.nearValue) },
+        ]}
+      >
         <Card>
           <CardHeader>
             <CardTitle>الدفعات حسب الصلاحية</CardTitle>
             <CardDescription>كل دفعة لها رصيد وتاريخ صلاحية، مرتّبة بالأقرب انتهاءً. «منتهي» انقضى تاريخه، «قرب الانتهاء» خلال المدة المحددة.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <details open={hasFilters} className="rounded-lg border">
-              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
-              </summary>
-              <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
-                <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" options={productSuggestions} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="warehouse">المستودع</Label>
-                  <select id="warehouse" name="warehouse" defaultValue={fWarehouse} className={selectCls}>
-                    <option value="">كل المستودعات</option>
-                    {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
-                  <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1"><Label htmlFor="within">حد التنبيه (أيام)</Label><Input id="within" name="within" type="number" min="1" defaultValue={String(withinDays)} /></div>
-                <div className="flex gap-2 sm:col-span-4">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/expiry">مسح</Link></Button>}
-                </div>
-              </form>
-            </details>
 
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد دفعات مطابقة." : "لا توجد دفعات لها تاريخ صلاحية."}</div>
@@ -136,7 +128,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

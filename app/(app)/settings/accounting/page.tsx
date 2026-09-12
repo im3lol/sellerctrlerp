@@ -9,7 +9,7 @@ import { SettingsForm, type AccountOption, type AccountingConfig, type OrgProfil
 const EMPTY_PROFILE: OrgProfile = {
   nameAr: "", nameEn: "", legalName: null, taxNumber: null, address: null, phone: null,
   email: null, logo: null, vatRate: "14", fiscalYearStart: null, poApprovalThreshold: "0",
-  purchaseVatCapitalised: false,
+  purchaseVatCapitalised: false, navHidden: [],
 };
 
 export default async function AccountingSettingsPage() {

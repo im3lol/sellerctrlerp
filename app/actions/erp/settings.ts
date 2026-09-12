@@ -25,6 +25,7 @@ const profileSchema = z.object({
   poApprovalThreshold: z.coerce.number().min(0, "قيمة غير صالحة").default(0),
   // An unchecked checkbox is absent from FormData entirely, so the default carries it.
   purchaseVatCapitalised: z.coerce.boolean().default(false),
+  navHidden: z.array(z.string()).default([]),
   fiscalYearStart: z.string().optional()
     .refine((s) => !s || !Number.isNaN(new Date(s).getTime()), "تاريخ بداية السنة المالية غير صالح"),
 });
@@ -49,6 +50,9 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       vatRate: formData.get("vatRate"),
       poApprovalThreshold: formData.get("poApprovalThreshold") ?? 0,
       purchaseVatCapitalised: formData.get("purchaseVatCapitalised") === "on",
+      // One checkbox per section, named navShow:<heading>. Absent = unticked = hidden,
+      // so the stored list is what the owner did NOT tick.
+      navHidden: formData.getAll("navHideable").map(String).filter((h) => formData.get(`navShow:${h}`) !== "on"),
       fiscalYearStart: formData.get("fiscalYearStart") || undefined,
     });
     if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -83,6 +87,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
         poApprovalThreshold: String(d.poApprovalThreshold),
         // Only new goods receipts read this; confirmed ones keep their own snapshot.
         purchaseVatCapitalised: d.purchaseVatCapitalised,
+        navHidden: d.navHidden,
         fiscalYearStart: d.fiscalYearStart || null,
         updatedAt: new Date(),
       }).where(eq(organizations.id, auth.orgId));

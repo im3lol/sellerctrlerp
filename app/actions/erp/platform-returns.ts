@@ -5,11 +5,15 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { salesPlatforms, salesOrders, deliveryNotes, salesInvoices, salesInvoiceLines, salesReturns, salesReturnLines, items, itemCodes, platformReturns, customers } from "@/db/schema";
+import { salesPlatforms, salesOrders, deliveryNotes, salesInvoices, salesInvoiceLines, salesReturns, salesReturnLines, items, itemCodes, platformReturns, customers, warehouses } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { normalizeCode } from "@/lib/erp/amazon-import";
+import { round2 } from "@/lib/erp/money";
 import { createSalesReturnAction, confirmSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
-import { planReceipt, RETURN_RECEIPTS, type ReturnReceipt } from "@/lib/erp/return-disposition";
+import {
+  planCondition, RETURN_CONDITIONS, NOT_RECEIVED_REASONS,
+  type ReturnCondition, type NotReceivedReason,
+} from "@/lib/erp/return-disposition";
 
 const returnSchema = z.object({
   externalOrderId: z.string().trim().min(1),
@@ -124,11 +128,39 @@ export async function importPlatformReturnsAction(platformId: string, returnsInp
  * return carries deliveryNoteId + salesOrderId and drops deliveredQty. Idempotent-ish: a
  * money return already POSTED is left alone; a linked platform_returns row is stamped.
  */
-export async function confirmPlatformReturnAction(salesReturnId: string, receipt: ReturnReceipt): Promise<ActionState> {
+/** What the trader found when the parcel was opened. */
+export type ReturnDecision =
+  | {
+      kind: "RECEIVED";
+      condition: ReturnCondition;
+      /** Units actually in the box. Fewer than billed → the credit is trimmed to match. */
+      quantity?: number | null;
+      /** Where unsellable-but-real goods go. Unset = the org's damaged warehouse. */
+      warehouseId?: string | null;
+    }
+  | { kind: "NOT_RECEIVED"; reason: NotReceivedReason };
+
+export async function confirmPlatformReturnAction(
+  salesReturnId: string,
+  decision: ReturnDecision,
+): Promise<ActionState> {
   const auth = await authorizeErp("sales.confirm", "marketplace");
   if ("error" in auth) return auth;
-  if (!RETURN_RECEIPTS.includes(receipt)) return { error: "قرار استلام غير صالح" };
-  const plan = planReceipt(receipt);
+
+  const received = decision.kind === "RECEIVED";
+  if (received && !RETURN_CONDITIONS.includes(decision.condition)) return { error: "حالة الصنف غير صالحة" };
+  if (!received && !NOT_RECEIVED_REASONS.includes(decision.reason)) return { error: "سبب عدم الاستلام غير صالح" };
+
+  const cond = received ? planCondition(decision.condition) : null;
+  const plan = {
+    restock: !!cond?.restock && !cond?.writeOff,
+    disposition: cond?.disposition ?? "SELLABLE",
+    // The stamp records what happened, so a reimbursement claim weeks later can say why.
+    status: received ? decision.condition : decision.reason,
+  };
+  // A destroyed unit must not land in any warehouse — force the write-off path regardless
+  // of what was picked or configured.
+  const damagedWarehouseId = received && !cond?.writeOff ? (decision.warehouseId ?? null) : null;
 
   return withOrgScope(auth.orgId, false, async () => {
     const [money] = await db.select().from(salesReturns)
@@ -136,10 +168,31 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
     if (!money) return { error: "المرتجع غير موجود" };
     if (money.deliveryNoteId) return { error: "ده مرتجع مخزون — أكّده من سجل المرتجعات" };
 
+    // A short return credits only what came back. Done BEFORE the confirm, because after
+    // it the credit note is posted and the customer has been given money for goods that
+    // never arrived. Single-line returns only — a multi-line parcel needs the operator to
+    // say which line was short, and guessing would be worse than refusing.
+    if (received && decision.quantity != null) {
+      const lines = await db.select({ id: salesReturnLines.id, quantity: salesReturnLines.quantity, unitPrice: salesReturnLines.unitPrice })
+        .from(salesReturnLines).where(eq(salesReturnLines.salesReturnId, salesReturnId));
+      const want = Number(decision.quantity);
+      if (!(want > 0)) return { error: "الكمية المستلمة لازم تكون أكبر من صفر" };
+      if (lines.length !== 1) return { error: "المرتجع فيه أكتر من صنف — عدّل الكميات من المرتجع نفسه قبل التأكيد" };
+      if (want > Number(lines[0].quantity)) return { error: "الكمية المستلمة أكبر من المرتجعة" };
+      if (money.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل — مش هينفع تعدّل الكمية" };
+      if (want !== Number(lines[0].quantity)) {
+        const total = round2(want * Number(lines[0].unitPrice));
+        await db.update(salesReturnLines).set({ quantity: String(want), totalAmount: String(total) })
+          .where(eq(salesReturnLines.id, lines[0].id));
+        await db.update(salesReturns).set({ totalAmount: String(total) })
+          .where(eq(salesReturns.id, salesReturnId));
+      }
+    }
+
     // 1) money credit note (reverse revenue/VAT/AR) — skip if already posted. viaPlatform tells
     // confirmSalesReturnAction we own the restock (step 2), bypassing its marketplace-return guard.
     if (money.status === "DRAFT") {
-      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition, viaPlatform: true });
+      const r = await confirmSalesReturnAction(salesReturnId, { disposition: plan.disposition, viaPlatform: true, damagedWarehouseId });
       if ("error" in r) return r;
     }
 
@@ -159,7 +212,7 @@ export async function confirmPlatformReturnAction(salesReturnId: string, receipt
       // unitPrice 0: the delivery-return confirm recomputes real restock cost server-side.
       const created = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: rLines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: 0 })) });
       if (!created.ok || !created.id) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${("error" in created && created.error) || "فشل إنشاء إرجاع التسليم"}` };
-      const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition });
+      const c = await confirmSalesReturnAction(created.id, { disposition: plan.disposition, damagedWarehouseId });
       if ("error" in c) return { error: `تمّ عكس الفاتورة، لكن تعذّر إرجاع المخزون: ${c.error}` };
     }
 
@@ -178,10 +231,21 @@ export type MarketplaceReturnRow = {
   id: string; number: string; date: string; channel: string | null; externalReturnId: string | null;
   customerName: string | null; invoiceNumber: string | null; total: number;
   disposition: string | null; itemsSummary: string;
+  items: { name: string | null; code: string | null; image: string | null; qty: number }[];
 };
 
 /** The platform customer returns awaiting the trader's receipt decision — DRAFT credit notes
  *  tagged with a channel (from the FBA sync or the CSV import). */
+/** Active warehouses, so the receipt decision can name a destination. */
+export async function getReturnWarehouses(): Promise<{ id: string; name: string }[]> {
+  const auth = await authorizeErp("sales.view", "marketplace");
+  if ("error" in auth) return [];
+  return withOrgScope(auth.orgId, false, async () =>
+    (await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses)
+      .where(and(eq(warehouses.organizationId, auth.orgId), eq(warehouses.isActive, true)))
+      .orderBy(warehouses.code)).map((w) => ({ id: w.id, name: w.name })));
+}
+
 export async function getMarketplaceReturns(): Promise<MarketplaceReturnRow[]> {
   const auth = await authorizeErp("sales.view", "marketplace");
   if ("error" in auth) return [];
@@ -205,18 +269,22 @@ export async function getMarketplaceReturns(): Promise<MarketplaceReturnRow[]> {
     if (rows.length === 0) return [];
 
     const ids = rows.map((r) => r.id);
-    const lines = await db.select({ rid: salesReturnLines.salesReturnId, qty: salesReturnLines.quantity, name: items.nameAr, code: items.code })
+    const lines = await db.select({ rid: salesReturnLines.salesReturnId, qty: salesReturnLines.quantity, name: items.nameAr, code: items.code, image: items.image })
       .from(salesReturnLines).leftJoin(items, eq(items.id, salesReturnLines.itemId))
       .where(inArray(salesReturnLines.salesReturnId, ids));
     const byRet = new Map<string, string[]>();
+    const itemsByRet = new Map<string, MarketplaceReturnRow["items"]>();
     for (const l of lines) {
       const label = `${l.name ?? l.code ?? "صنف"} ×${Number(l.qty)}`;
       (byRet.get(l.rid) ?? byRet.set(l.rid, []).get(l.rid)!).push(label);
+      (itemsByRet.get(l.rid) ?? itemsByRet.set(l.rid, []).get(l.rid)!)
+        .push({ name: l.name, code: l.code, image: l.image, qty: Number(l.qty) });
     }
     return rows.map((r) => ({
       id: r.id, number: r.number, date: new Date(r.date).toISOString(), channel: r.channel,
       externalReturnId: r.externalReturnId, customerName: r.customerName, invoiceNumber: r.invoiceNumber,
       total: Number(r.total), disposition: r.disposition, itemsSummary: (byRet.get(r.id) ?? []).join("، "),
+      items: itemsByRet.get(r.id) ?? [],
     }));
   });
 }

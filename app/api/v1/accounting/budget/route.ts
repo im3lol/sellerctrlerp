@@ -1,5 +1,5 @@
 import { runAsErp } from "@/lib/erp/api-auth";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { emitErpEvent } from "@/lib/erp/realtime";
 import { db } from "@/lib/db";

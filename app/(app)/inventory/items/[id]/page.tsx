@@ -39,7 +39,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
     const stockRows = (await db.execute<{ wid: string; q: string; v: string }>(sql`
       SELECT DISTINCT ON (warehouse_id) warehouse_id wid, balance_quantity q, balance_value v
       FROM stock_movements WHERE organization_id = ${orgId} AND item_id = ${item.id}
-      ORDER BY warehouse_id, created_at DESC, number DESC
+      ORDER BY warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
     `)).rows as { wid: string; q: string; v: string }[];
     const whs = await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.organizationId, orgId));
     const whName = new Map(whs.map((w) => [w.id, w.name]));

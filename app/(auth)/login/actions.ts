@@ -10,7 +10,7 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const callbackUrl = (formData.get("callbackUrl") as string) || "/dashboard";
+  const callbackUrl = (formData.get("callbackUrl") as string) || "/apps";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const token = String(formData.get("token") ?? "").trim();

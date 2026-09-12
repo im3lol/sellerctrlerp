@@ -4,11 +4,12 @@ import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, platformCredentials } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PlatformsManager } from "@/components/erp/platforms-manager";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { registeredConnectors } from "@/lib/erp/marketplace/registry";
 import { enabledConnectorCodes } from "@/lib/saas/connector-enabled";
 
 export default async function PlatformsPage() {
-  return loadErpPage("sales.view", async ({ orgId, can }) => {
+  return loadErpPage("sales.view", async ({ orgId, can, permissions }) => {
     const enabled = await enabledConnectorCodes();
     const [rows, whRows, bankRows] = await Promise.all([
       db.select({
@@ -59,6 +60,11 @@ export default async function PlatformsPage() {
           canManage={can("sales.create")}
           connectors={registeredConnectors().filter((c) => enabled.has(c.code)).map((c) => ({ code: c.code, label: c.label }))}
         />
+
+        {/* The pages that only exist because a platform does — returns, removals,
+            reimbursements, settlements, P&L. Derived from NAV like every other module
+            workspace, so this can't fall behind the sidebar. */}
+        <ModuleWorkspace heading="المنصات" permissions={permissions} />
       </div>
     );
   }, "marketplace");

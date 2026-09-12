@@ -1,6 +1,6 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lt, lte, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, platformCredentials, orgSubscriptions } from "@/db/schema";
+import { organizations, platformCredentials, orgSubscriptions, syncRuns } from "@/db/schema";
 import { expiryReminderEmail } from "@/lib/saas/email-templates";
 import { computeNotifications } from "@/lib/erp/notifications-data";
 import { generateDueRecurringExpenses, generateDueRecurringJournals, generateDueRecurringSalesInvoices } from "@/lib/erp/recurring";
@@ -123,6 +123,17 @@ export async function GET(req: Request) {
     }
   }
 
+  // 1e) sync_runs gets a row a minute per connected platform (~1,500 a day for one
+  // tenant) and nothing ever trimmed it. Keep successes a month and failures a quarter:
+  // long enough to investigate, short enough not to grow without bound.
+  try {
+    const day = 24 * 60 * 60 * 1000;
+    await db.delete(syncRuns).where(or(
+      and(eq(syncRuns.status, "OK"), lt(syncRuns.startedAt, new Date(now.getTime() - 30 * day))),
+      and(eq(syncRuns.status, "FAILED"), lt(syncRuns.startedAt, new Date(now.getTime() - 90 * day))),
+    ));
+  } catch (e) { log.warn("cron.sync_runs_prune_failed", { err: e }); }
+
   // 1f) Control-account reconciliation: alert (once, aggregated → Telegram via log.error)
   // if any org's AR/AP control account (GL 1103/2101) diverged from its customer/supplier
   // subledger — the signature of a manual JV that moved the balance sheet without the
@@ -146,7 +157,6 @@ export async function GET(req: Request) {
   for (const org of orgs) {
     const n = await computeNotifications(org.id);
     const lines: string[] = [];
-    if (n.pendingDrafts) lines.push(row("📝 مسودات بانتظار التأكيد", n.pendingDrafts, `${origin}/drafts`));
     if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
     if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
     if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));

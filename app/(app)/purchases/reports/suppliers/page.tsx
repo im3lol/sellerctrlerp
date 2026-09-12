@@ -7,8 +7,7 @@ import { purchaseInvoices, suppliers } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,7 +18,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function SupplierRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("purchases.view", async ({ orgId }) => {
+  return loadErpPage("purchases.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
@@ -46,29 +45,24 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
     const qsStr = new URLSearchParams({ from, to, ...(search ? { q: search } : {}) }).toString();
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب الموردين" subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل"
-          action={<ReportToolbar excel={list.length > 0 ? `/api/erp/purchases/suppliers/export?${qsStr}` : undefined} printHref={`/erp/purchases/reports/suppliers/print?${qsStr}`} />} />
-        <ItemSalesFilters from={from} to={to} q={search} />
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">موردون لديهم مشتريات</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{list.length}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي المشتريات (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tSpend)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الذمم المستحقة للموردين</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(tAp)}</p></CardContent></Card>
-        </div>
-
-        {list.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>أعلى الموردين مشتريات</CardTitle>
-              <CardDescription>أعلى ٨ موردين حسب قيمة المشتريات.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.spend }))} valueLabel="المشتريات" money height={240} />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="purch-suppliers"
+        icon="Users"
+        title="ترتيب الموردين"
+        subtitle="أعلى الموردين بالمشتريات مع الرصيد المستحق وآخر تعامل"
+        query={qsStr}
+        permissions={permissions}
+        filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
+        kpis={[
+          { label: "موردون لديهم مشتريات", value: String(list.length), tone: "muted" },
+          { label: "إجمالي المشتريات", value: fmt(tSpend), hint: "بدون ضريبة" },
+          { label: "الذمم المستحقة للموردين", value: fmt(tAp), hint: "الرصيد الحالي" },
+        ]}
+        chartTitle={list.length > 0 ? "أعلى ٨ موردين مشتريات" : undefined}
+        chart={list.length > 0
+          ? <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.spend }))} valueLabel="المشتريات" money height={240} />
+          : undefined}
+      >
         <Card>
           <CardHeader>
             <CardTitle>الموردون حسب المشتريات</CardTitle>
@@ -113,7 +107,7 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/session";
-import { withPlatformScope } from "@/lib/db-scope";
+import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { exportOrgData } from "@/lib/erp/backup";
@@ -18,7 +18,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     db.select({ name: organizations.nameAr }).from(organizations).where(eq(organizations.id, id)).limit(1));
   if (!org) return new Response("Not found", { status: 404 });
   const b = await exportOrgData(id, org.name);
-  await tryRecordAudit({ orgId: id, userId: user.id, action: "CREATE", entityType: "DATA_BACKUP", summary: `المشرف نزّل نسخة احتياطية (${b.totalRows} صف)`, metadata: { tables: b.tableCount, rows: b.totalRows } });
+  // The platform owner pulling a tenant's entire dataset is exactly what an audit trail
+  // is for — and outside a scope the insert was rejected by RLS and silently swallowed.
+  await withOrgScope(id, false, () => tryRecordAudit({ orgId: id, userId: user.id, action: "CREATE", entityType: "DATA_BACKUP", summary: `المشرف نزّل نسخة احتياطية (${b.totalRows} صف)`, metadata: { tables: b.tableCount, rows: b.totalRows } }));
   return new Response(new Uint8Array(b.buffer), {
     headers: {
       "Content-Type": "application/gzip",

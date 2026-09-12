@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
-import { NAV, type NavSection } from "@/components/app-shell/nav-config";
+import { NAV, type NavItem, type NavSection } from "@/components/app-shell/nav-config";
 import { can, type Role, type Capability } from "@/lib/rbac";
+import { activeModule } from "@/lib/active-module";
+import { sectionAllowed } from "@/lib/nav-access";
 import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -25,61 +27,158 @@ function visibleItems(section: NavSection, role: Role, erpPerms: Set<string>) {
   return section.items.filter((it) => !it.capability || navAllows(it.capability, role, erpPerms));
 }
 
-export function NavList({ role, erpPermissions, modules, platforms, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; onNavigate?: () => void }) {
+// Per-user, per-device sidebar state. localStorage rather than a table: these are
+// conveniences, not data — the same call notif_seen_at already makes. Every read is
+// wrapped because a private window throws on access rather than returning null.
+const PINS_KEY = "nav_pins";
+const OPEN_KEY = "nav_open";
+const GROUPS_KEY = "nav_open_groups";
+// Which module you were last in. Only breaks ties for pages two modules share; it can
+// never put you in a module the current page is not part of.
+const MODULE_KEY = "nav_module";
+
+function load<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function save(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked — the sidebar still works, it just forgets */ }
+}
+
+export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void }) {
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
 
-  // Merge live platform links into the dynamic "المنصات" group.
+  // Merge live platform links into the dynamic "المنصات" group, ahead of the static
+  // ones — Amazon and Noon are what you came to the module for; the returns and
+  // settlements pages underneath are what you do about them.
   const withDynamic = (section: NavSection): NavSection =>
     section.dynamicKey === "platforms" && platforms?.length
-      ? { ...section, items: [...section.items, ...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability }))] }
+      ? { ...section, items: [...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability })), ...section.items] }
       : section;
 
-  // A module is open if it contains the active route. Users can toggle modules
-  // open/closed; we seed the open set with whichever module is currently active.
-  const headingActive = (section: NavSection) => !!section.href && isActive(pathname, section.href, true);
-  const initiallyOpen = () => {
-    const open: Record<number, boolean> = {};
-    NAV.forEach((section, i) => {
-      const sec = withDynamic(section);
-      if (sec.heading && (headingActive(sec) || visibleItems(sec, role, erpPerms).some((it) => isActive(pathname, it.href, it.exact)))) {
-        open[i] = true;
-      }
-    });
-    return open;
-  };
-  const [openMap, setOpenMap] = useState<Record<number, boolean>>(initiallyOpen);
-  const setOpen = (i: number, v: boolean) => setOpenMap((m) => ({ ...m, [i]: v }));
+  // Three reasons a section can be absent, and they are NOT the same thing: the
+  // subscription (the tenant has no such module), the member's permissions (they may
+  // not open it), and this — the owner simply doesn't want it in the list. Only the
+  // first two deny access; a hidden section's pages still open by direct link.
+  const hidden = new Set(navHidden ?? []);
+  const sections = NAV.filter((sec) => !sec.heading || !hidden.has(sec.heading)).map(withDynamic);
+
+  // ── persisted open state ────────────────────────────────────────────────────
+  // Keyed by HEADING, not array index: an index silently reopens the wrong module
+  // the first time anyone reorders nav-config. Read after mount, never during
+  // render — localStorage doesn't exist on the server and reading it in render is
+  // how you get a hydration mismatch.
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [pins, setPins] = useState<string[]>([]);
+  const [lastModule, setLastModule] = useState<string | null>(null);
+  // Saved state is applied AFTER mount. Reading storage during render would render
+  // different markup on the server than the client and break hydration, so the first
+  // paint shows the module holding the current page and the rest settles a tick later.
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    setOpenMap(load<Record<string, boolean>>(OPEN_KEY, {}));
+    setOpenGroups(load<Record<string, boolean>>(GROUPS_KEY, {}));
+    setPins(load<string[]>(PINS_KEY, []));
+    setLastModule(load<string | null>(MODULE_KEY, null));
+    setRestored(true);
+  }, []);
+
+  const setOpen = (key: string, v: boolean) => setOpenMap((m) => ({ ...m, [key]: v }));
+  const toggleGroup = (key: string) => setOpenGroups((m) => ({ ...m, [key]: !m[key] }));
+
   // Click the whole heading to toggle; opening a module with a landing page also
-  // navigates there. No need to hit the chevron (which is now just an indicator).
-  // Note: we deliberately do NOT call onNavigate here — on mobile the drawer stays
-  // open after a heading tap so the user can expand its groups and pick a sub-item;
-  // only a leaf link (NavLink) closes the drawer.
-  const onHeadingClick = (i: number, open: boolean, href?: string) => {
+  // navigates there. Deliberately does NOT call onNavigate — on mobile the drawer
+  // stays open after a heading tap so the user can drill in; only a leaf closes it.
+  const onHeadingClick = (key: string, open: boolean, href?: string) => {
     const willOpen = !open;
-    setOpen(i, willOpen);
+    setOpen(key, willOpen);
     if (willOpen && href) router.push(href);
   };
 
-  // Collapsed sub-groups within a module, keyed "moduleIndex:groupName". A group
-  // auto-opens when it contains the active route; otherwise it stays collapsed so
-  // the sidebar stays short until the user drills in.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const toggleGroup = (key: string) => setOpenGroups((m) => ({ ...m, [key]: !m[key] }));
+  // ── pinned pages ────────────────────────────────────────────────────────────
+  const togglePin = (href: string) =>
+    setPins((p) => (p.includes(href) ? p.filter((x) => x !== href) : [...p, href]));
+
+  // Persist after the state settles, never inside an updater — an updater must stay
+  // pure, and `restored` stops the first render writing empty state over saved state.
+  useEffect(() => { if (restored) save(OPEN_KEY, openMap); }, [openMap, restored]);
+  useEffect(() => { if (restored) save(GROUPS_KEY, openGroups); }, [openGroups, restored]);
+  useEffect(() => { if (restored) save(PINS_KEY, pins); }, [pins, restored]);
+
+  // ── module scope ────────────────────────────────────────────────────────────
+  // The list shows ONE module: the one holding the current page. A warehouse clerk
+  // opens the warehouse and sees warehouse pages, not a hundred and ten rows across
+  // nine departments. Pages belonging to no module (the launcher, your profile) fall
+  // back to NO sidebar (Sidebar and Topbar apply the same rule), and a module this member
+  // can't see never claims a page — see sectionAllowed.
+  const current = activeModule(pathname, lastModule, (s) => sectionAllowed(s, { permissions: erpPerms, modules, navHidden }));
+  useEffect(() => {
+    if (restored && current?.heading && current.heading !== lastModule) {
+      setLastModule(current.heading);
+      save(MODULE_KEY, current.heading);
+    }
+  }, [current?.heading, lastModule, restored]);
+
+  // Every item the member may see, flattened once — the source for both search and
+  // the pinned block, so a pin can never point at something they can't open.
+  const allItems = useMemo(() => {
+    const out: { item: NavItem; heading: string }[] = [];
+    for (const section of sections) {
+      if (section.moduleKey && modules && !modules.includes(section.moduleKey)) continue;
+      for (const item of visibleItems(section, role, erpPerms)) out.push({ item, heading: section.heading ?? "" });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modules, platforms, role, erpPermissions]);
+
+  // ONE module and nothing else — not the dashboard row, not settings, not a pin from
+  // another department. Everything outside the module is one click away on the launcher,
+  // and the moment a second module shares the rail it stops being "my work" again.
+  // Outside any module there is no sidebar at all (Sidebar/Topbar check the same rule).
+  if (!current) return null;
+  const shown = sections.filter((s) => s.heading === current.heading);
+  const pinned = pins
+    .map((h) => allItems.find((x) => x.item.href === h && x.heading === current.heading))
+    .filter((x): x is { item: NavItem; heading: string } => !!x);
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {NAV.map((rawSection, i) => {
-        const section = withDynamic(rawSection);
+      {/* The way back. In module scope this is the most important row on the screen —
+          without it you are in a room with no door. */}
+      <Link
+        href="/apps"
+        onClick={onNavigate}
+        className="mb-2 flex items-center gap-2 rounded-xl border border-sidebar-border/50 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      >
+        <Icon name="LayoutGrid" className="size-[18px] shrink-0" />
+        <span className="flex-1 text-start">كل التطبيقات</span>
+        <Icon name="ChevronLeft" className="size-4 shrink-0 opacity-60" />
+      </Link>
+
+      {pinned.length > 0 && (
+        <div className="space-y-1 pb-2">
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
+          {pinned.map(({ item }) => (
+            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+              onNavigate={onNavigate} pinned onTogglePin={togglePin} />
+          ))}
+          <div className="mx-3 border-t border-sidebar-border/40 pt-1" />
+        </div>
+      )}
+
+      {shown.map((section, i) => {
         // Subscription gate: hide a module the tenant doesn't have.
         if (section.moduleKey && modules && !modules.includes(section.moduleKey)) return null;
         const items = visibleItems(section, role, erpPerms);
         // Show a module when it has visible items, OR it has a landing page the
-        // member is allowed to open (section.capability). This keeps a module with
-        // a href but no items (e.g. المنصات before any platform is added) visible to
-        // members who have the module, while hiding it entirely from members whose
-        // role doesn't grant it.
+        // member is allowed to open (section.capability).
         const sectionAllowed = !section.capability || navAllows(section.capability, role, erpPerms);
         if (items.length === 0 && !(section.href && sectionAllowed)) return null;
 
@@ -88,23 +187,22 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
           return (
             <div key={i} className="space-y-1 pb-2">
               {items.map((item) => (
-                <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+                  onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
               ))}
             </div>
           );
         }
 
-        // Collapsible module (auto-open when it contains the active route).
-        const hActive = headingActive(section);
+        const key = section.heading;
+        const hActive = !!section.href && isActive(pathname, section.href, true);
         const groupActive = hActive || items.some((it) => isActive(pathname, it.href, it.exact));
-        const open = openMap[i] ?? groupActive;
-        const headingCls = cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
-          groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-        );
+        // Opens by itself when it holds the current page, and closes when you say
+        // so — an explicit choice outranks the default, or the chevron is a lie.
+        const inModule = !!current && section.heading === current.heading;
+        const open = restored ? (openMap[key] ?? groupActive) : groupActive;
         const chevron = <Icon name="ChevronDown" className={cn("size-4 shrink-0 transition-transform", open ? "rotate-180" : "")} />;
 
-        // Split items into ungrouped (shown directly) + ordered sub-groups (collapsible).
         const ungrouped = items.filter((it) => !it.group);
         const groupOrder: string[] = [];
         const grouped: Record<string, typeof items> = {};
@@ -116,13 +214,15 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
 
         return (
           <div key={i} className="space-y-1">
-            {/* Whole heading toggles open/closed on click; opening a module that has
-                a landing page also navigates there. The chevron is only an indicator. */}
             <button
               type="button"
-              onClick={() => onHeadingClick(i, open, section.href)}
+              onClick={() => onHeadingClick(key, open, section.href)}
               aria-expanded={open}
-              className={cn(headingCls, "w-full", hActive && "bg-sidebar-accent")}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                hActive && "bg-sidebar-accent",
+              )}
             >
               {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
               <span className="flex-1 text-start">{section.heading}</span>
@@ -130,20 +230,26 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
             </button>
 
             {open && items.length > 0 && (
-              <div className="space-y-1 border-s border-sidebar-border/40 ms-5 ps-2">
+              <div className="ms-5 space-y-1 border-s border-sidebar-border/40 ps-2">
                 {ungrouped.map((item) => (
-                  <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                  <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+                    onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
                 ))}
                 {groupOrder.map((g) => {
                   const gItems = grouped[g];
-                  const key = `${i}:${g}`;
+                  const gKey = `${key}:${g}`;
                   const gActive = gItems.some((it) => isActive(pathname, it.href, it.exact));
-                  const gOpen = openGroups[key] ?? gActive;
+                  // Inside your own module every group starts open: you came here to
+                  // work, and hunting for a collapsed header is not work. Out of module
+                  // scope only the group holding the page opens, or the full list would
+                  // be a hundred rows tall.
+                  const gDefault = inModule || gActive;
+                  const gOpen = restored ? (openGroups[gKey] ?? gDefault) : gDefault;
                   return (
                     <div key={g} className="space-y-1">
                       <button
                         type="button"
-                        onClick={() => toggleGroup(key)}
+                        onClick={() => toggleGroup(gKey)}
                         aria-expanded={gOpen}
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/70"
                       >
@@ -153,7 +259,8 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
                       {gOpen && (
                         <div className="space-y-1">
                           {gItems.map((item) => (
-                            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)} onNavigate={onNavigate} />
+                            <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
+                              onNavigate={onNavigate} pinned={pins.includes(item.href)} onTogglePin={togglePin} />
                           ))}
                         </div>
                       )}
@@ -170,28 +277,47 @@ export function NavList({ role, erpPermissions, modules, platforms, onNavigate }
 }
 
 function NavLink({
-  item,
-  active,
-  onNavigate,
+  item, active, onNavigate, pinned, onTogglePin,
 }: {
-  item: NavSection["items"][number];
+  item: NavItem;
   active: boolean;
   onNavigate?: () => void;
+  pinned?: boolean;
+  onTogglePin?: (href: string) => void;
 }) {
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      data-tour={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-        active
-          ? "bg-sidebar-foreground text-sidebar shadow-sm"
-          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+    <div className="group/nav relative">
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        data-tour={item.href}
+        className={cn(
+          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+          active
+            ? "bg-sidebar-foreground text-sidebar shadow-sm"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        )}
+      >
+        <Icon name={item.icon} className="size-[18px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      </Link>
+      {onTogglePin && (
+        // Visible on hover, and always once pinned — otherwise unpinning means
+        // hunting for an invisible control.
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); onTogglePin(item.href); }}
+          aria-label={pinned ? "إلغاء التثبيت" : "تثبيت"}
+          title={pinned ? "إلغاء التثبيت" : "تثبيت في الأعلى"}
+          className={cn(
+            "absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 backdrop-blur-sm transition-opacity",
+            active ? "bg-sidebar-foreground text-sidebar hover:bg-sidebar/20" : "bg-sidebar text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            pinned ? "opacity-100" : "opacity-0 focus:opacity-100 group-hover/nav:opacity-100",
+          )}
+        >
+          <Icon name={pinned ? "PinOff" : "Pin"} className="size-3.5" />
+        </button>
       )}
-    >
-      <Icon name={item.icon} className="size-[18px]" />
-      <span>{item.label}</span>
-    </Link>
+    </div>
   );
 }

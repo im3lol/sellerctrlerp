@@ -1,5 +1,5 @@
 import { withPlatformScope } from "@/lib/db-scope";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, asc, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, orgSubscriptions, plans, subscriptionRequests, organizationMembers, documentAttachments } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";

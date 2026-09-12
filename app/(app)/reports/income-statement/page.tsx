@@ -5,14 +5,8 @@ import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportTabs } from "@/components/erp/report-tabs";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,7 +17,7 @@ export default async function IncomeStatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
     const now = new Date();
@@ -70,53 +64,34 @@ export default async function IncomeStatementPage({
       return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
     });
 
+    const query = new URLSearchParams({ from, to }).toString();
+
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="TrendingUp"
-          title="قائمة الدخل"
-          subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
-          action={
-            <ReportToolbar
-              excel={`/api/erp/reports/income-statement/export?${new URLSearchParams({ from, to }).toString()}`}
-              printHref={`/reports/income-statement/print?${new URLSearchParams({ from, to }).toString()}`}
-            />
-          }
-        />
-        <ReportTabs active="/reports/income-statement" />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>الفترة</CardTitle>
-            <CardDescription>اختر فترة قائمة الدخل.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="from">من تاريخ</Label>
-                <input id="from" name="from" type="date" defaultValue={from} className={selectCls} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="to">إلى تاريخ</Label>
-                <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
-              </div>
-              <Button type="submit">عرض</Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {monthlyNet.some((m) => m.value !== 0) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>صافي الربح الشهري</CardTitle>
-              <CardDescription>آخر ١٢ شهرًا — أخضر ربح، أحمر خسارة.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart data={monthlyNet} valueLabel="الصافي" money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="income-statement"
+        icon="TrendingUp"
+        title="قائمة الدخل"
+        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        query={query}
+        permissions={permissions}
+        filters={
+          <>
+            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+          </>
+        }
+        kpis={[
+          { label: "إجمالي الإيرادات", value: fmt(totalRevenue) },
+          { op: "−" },
+          { label: "إجمالي المصروفات", value: fmt(totalExpense) },
+          { op: "=" },
+          { label: "صافي الربح", value: fmt(netProfit), tone: netProfit >= 0 ? "profit" : "loss" },
+        ]}
+        chartTitle={monthlyNet.some((m) => m.value !== 0) ? "صافي الربح الشهري — آخر ١٢ شهرًا" : undefined}
+        chart={monthlyNet.some((m) => m.value !== 0)
+          ? <BarChart data={monthlyNet} valueLabel="الصافي" money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
+          : undefined}
+      >
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -139,18 +114,7 @@ export default async function IncomeStatementPage({
           </Card>
         </div>
 
-        <Card>
-          <CardContent className="flex items-center justify-between py-6">
-            <div className="text-lg font-semibold">صافي الربح / (الخسارة)</div>
-            <div className="flex items-center gap-3">
-              <Badge variant={netProfit >= 0 ? "default" : "destructive"}>{netProfit >= 0 ? "ربح" : "خسارة"}</Badge>
-              <span className={`text-2xl font-bold ${netProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-                {fmt(netProfit)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

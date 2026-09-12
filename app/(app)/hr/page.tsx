@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, leaveRequests, payrollRuns, expenseClaims } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
@@ -14,16 +14,6 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
 
-const SHORTCUTS = [
-  { label: "الموظفون", href: "/hr/employees", icon: "UsersRound", key: "employees" },
-  { label: "الإجازات", href: "/hr/leaves", icon: "CalendarDays", key: "leaves" },
-  { label: "طلب إجازة جديد", href: "/hr/leaves/new", icon: "Plus" },
-  { label: "تقرير الإجازات", href: "/hr/leaves/report", icon: "BarChart3" },
-  { label: "مسير الرواتب", href: "/hr/payroll", icon: "Banknote", key: "payroll" },
-  { label: "مسير رواتب جديد", href: "/hr/payroll/new", icon: "Plus" },
-  { label: "مطالبات المصروفات", href: "/hr/expense-claims", icon: "ReceiptText", key: "claims" },
-  { label: "تقويم العطلات", href: "/hr/holidays", icon: "CalendarOff" },
-];
 
 /**
  * The الموارد البشرية module overview.
@@ -33,7 +23,7 @@ const SHORTCUTS = [
  * the same shape as المشتريات/المبيعات before the split.
  */
 export default async function ErpHrPage() {
-  return loadErpPage("hr.view", async ({ orgId }) => {
+  return loadErpPage("hr.view", async ({ orgId, permissions }) => {
     const now = new Date();
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
@@ -67,7 +57,7 @@ export default async function ErpHrPage() {
     ];
 
     const counts: Record<string, number> = {
-      employees: cnt(active), leaves: cnt(leavePending), payroll: cnt(runDraft), claims: cnt(claimsPending),
+      "/hr/employees": cnt(active), "/hr/leaves/report": cnt(leavePending), "/hr/payroll": cnt(runDraft), "/hr/expense-claims": cnt(claimsPending),
     };
 
     const kpis = [
@@ -136,23 +126,10 @@ export default async function ErpHrPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>اختصارات</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link key={s.href} href={s.href}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-muted">
-                  <Icon name={s.icon} className="size-4 text-muted-foreground" />
-                  <span className="flex-1">{s.label}</span>
-                  {s.key && counts[s.key] > 0 && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{intf(counts[s.key])}</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="الموارد البشرية" permissions={permissions} counts={counts}
+          actions={[{ label: "مسير رواتب جديد", href: "/hr/payroll/new", icon: "Plus" }]} />
       </div>
     );
   });

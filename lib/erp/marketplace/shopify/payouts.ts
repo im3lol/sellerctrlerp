@@ -2,7 +2,7 @@ import "server-only";
 import type { Credential } from "../connector";
 import type { DateRange } from "../dto";
 import type { SettlementTxn } from "@/lib/erp/amazon-settlement";
-import { shopifyGraphql, paginate } from "./client";
+import { paginate } from "./client";
 
 // Shopify Payments balance transactions → the neutral SettlementTxn shape the shared
 // settlement engine already consumes (Dr wallet 1110 / Cr receivable + fees; payouts

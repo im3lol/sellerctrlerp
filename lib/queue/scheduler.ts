@@ -1,5 +1,6 @@
 import "server-only";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { backoffUntil, BACKOFF_LOOKBACK } from "./backoff";
 import { db } from "@/lib/db";
 import { platformCredentials, syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
@@ -29,7 +30,9 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
     // Reap dead RUNNING order/settlement syncs (a crashed job never wrote its finish
     // row) so the dedup checks below don't block forever on a stuck run.
     await db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف غير متوقّع" })
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING"]), eq(syncRuns.status, "RUNNING"),
+      // DISCOVERY/IMPORT/INVENTORY were missing, so a product sync that died stayed
+      // RUNNING for good — seven Noon discovery runs had sat there for up to 14 days.
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY"]), eq(syncRuns.status, "RUNNING"),
         sql`${syncRuns.startedAt} < now() - interval '${sql.raw(String(STALE_MIN))} minutes'`));
 
     const creds = await db.select({
@@ -58,6 +61,17 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       return !!r;
     };
 
+    // A sync that keeps failing never advances its watermark, so it stays "due" and was
+    // re-enqueued every tick — Noon discovery ran 266 times a day, two-thirds failing.
+    // Back off 1 → 5 → 30 → 120 minutes per consecutive failure; one success resets it.
+    const backedOff = async (orgId: string, provider: string, kind: string) => {
+      const recent = await db.select({ status: syncRuns.status, startedAt: syncRuns.startedAt }).from(syncRuns)
+        .where(and(eq(syncRuns.organizationId, orgId), eq(syncRuns.provider, provider), eq(syncRuns.kind, kind)))
+        .orderBy(desc(syncRuns.startedAt)).limit(BACKOFF_LOOKBACK);
+      const until = backoffUntil(recent);
+      return !!until && until.getTime() > now;
+    };
+
     let orders = 0, discovery = 0, settlements = 0, feeds = 0;
     for (const c of creds) {
       const connectedAt = c.connectedAt ? new Date(c.connectedAt) : null;
@@ -75,13 +89,15 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       };
       // Don't stack order jobs: skip if one is already running for this org (else a
       // slow/rate-limited sync piles up dozens of concurrent jobs that jam Amazon).
-      if (!(await isRunning(c.orgId, "ORDERS"))) {
+      if (!(await isRunning(c.orgId, "ORDERS")) && !(await backedOff(c.orgId, c.provider, "ORDERS"))) {
         const oSince = incrementalFrom(c.ordersSyncedAt ? new Date(c.ordersSyncedAt) : null, connectedAt, now).toISOString();
         if (await enqueue(QUEUES.orders, { orgId: c.orgId, provider: c.provider, marketplaceId: c.marketplaceId ?? undefined, since: oSince })) orders++;
       }
 
       const stale = !c.productsSyncedAt || now - new Date(c.productsSyncedAt).getTime() > 20 * (DAY_MS / 24);
-      if (stale) {
+      // Discovery had neither guard the other kinds have: no "already running" check and
+      // no pause after a failure.
+      if (stale && !(await isRunning(c.orgId, "DISCOVERY")) && !(await backedOff(c.orgId, c.provider, "DISCOVERY"))) {
         const pSince = c.productsSyncedAt ? incrementalFrom(new Date(c.productsSyncedAt), connectedAt, now).toISOString() : undefined;
         if (await enqueue(QUEUES.discovery, { orgId: c.orgId, provider: c.provider, marketplaceId: c.marketplaceId ?? undefined, since: pSince })) discovery++;
       }

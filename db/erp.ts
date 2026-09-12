@@ -84,6 +84,9 @@ export const organizations = pgTable(
     loyaltyMinRedeem: integer("loyalty_min_redeem").notNull().default(0),
     // Setup-checklist steps the admin marked done manually (keys of SetupStatus).
     setupSkipped: jsonb("setup_skipped").$type<string[]>(),
+    // Sidebar sections the owner hid, by heading. DISPLAY ONLY — permissions and the
+    // subscription decide access; this just keeps the list to what the company uses.
+    navHidden: jsonb("nav_hidden").$type<string[]>(),
     // Print preferences: letterhead overrides + hidden columns per document (lib/erp/print-settings.ts).
     printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     // Where this tenant came from at signup (utm_source or the referring host) — acquisition attribution.
@@ -853,6 +856,8 @@ export const deliveryNotes = pgTable(
     // Order → delivery → invoice: walked by the delivery list, the invoice-from-
     // delivery flow, and the Amazon settlement's subledger lookup.
     index("delivery_notes_order_idx").on(t.salesOrderId),
+    // The bell counts DRAFT deliveries waiting on stock every minute, per open tab.
+    index("delivery_notes_org_status_idx").on(t.organizationId, t.status),
   ],
 );
 
@@ -1370,6 +1375,9 @@ export const auditLogs = pgTable(
   (t) => [
     index("audit_logs_org_idx").on(t.organizationId, t.createdAt),
     index("audit_logs_entity_idx").on(t.entityType, t.entityId),
+    // getDocumentAudit filters org + entity_id with no entity_type, which the index above
+    // can't serve — every document page's history card.
+    index("audit_logs_org_entity_idx").on(t.organizationId, t.entityId),
   ],
 );
 
@@ -1795,122 +1803,11 @@ export const fixedAssets = pgTable(
   ],
 );
 
-/** Every meter reading ever taken, so a reading that looks wrong can be traced. */
-export const assetMeterReadings = pgTable("asset_meter_readings", {
-  id: pk(),
-  organizationId: orgId(),
-  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
-  readAt: ts("read_at").notNull(),
-  value: money("value").notNull(),
-  source: text("source").notNull().default("MANUAL"), // MANUAL | FUEL | TRIP | WORK_ORDER
-  notes: text("notes"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
 
-/**
- * Preventive maintenance: do this every N days, or every N hours/kilometres, or both —
- * whichever arrives first. lib/erp/maintenance.ts decides when that is.
- */
-export const maintenancePlans = pgTable("maintenance_plans", {
-  id: pk(),
-  organizationId: orgId(),
-  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
-  nameAr: text("name_ar").notNull(),
-  everyDays: integer("every_days").notNull().default(0),
-  everyMeter: money("every_meter").notNull().default("0"),
-  lastDoneAt: ts("last_done_at"),
-  lastDoneMeter: money("last_done_meter"),
-  isActive: boolean("is_active").notNull().default(true),
-  notes: text("notes"),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
 
-/**
- * A job on an asset: a service that came due, or a fault someone reported. Parts leave the
- * store through postStockMovement like any other issue; labour hours are recorded for cost
- * reporting but never posted, because payroll already booked that wage.
- */
-export const workOrders = pgTable(
-  "work_orders",
-  {
-    id: pk(),
-    organizationId: orgId(),
-    number: text("number").notNull(),
-    assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
-    planId: text("plan_id").references(() => maintenancePlans.id, { onDelete: "set null" }),
-    type: text("type").notNull().default("CORRECTIVE"), // PREVENTIVE | CORRECTIVE
-    status: text("status").notNull().default("DRAFT"), // DRAFT | IN_PROGRESS | DONE | CANCELLED
-    reportedAt: ts("reported_at").notNull(),
-    startedAt: ts("started_at"),
-    completedAt: ts("completed_at"),
-    description: text("description").notNull(),
-    assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
-    warehouseId: text("warehouse_id").references(() => warehouses.id),
-    meterAtWork: money("meter_at_work"),
-    laborHours: money("labor_hours").notNull().default("0"),
-    laborRate: money("labor_rate").notNull().default("0"),
-    downtimeHours: money("downtime_hours").notNull().default("0"),
-    partsCost: money("parts_cost").notNull().default("0"),
-    journalEntryId: text("journal_entry_id").references(() => journalEntries.id),
-    notes: text("notes"),
-    createdBy: text("created_by"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    uniqueIndex("work_orders_org_number_idx").on(t.organizationId, t.number),
-    index("work_orders_org_asset_idx").on(t.organizationId, t.assetId),
-  ],
-);
 
-export const workOrderParts = pgTable("work_order_parts", {
-  id: pk(),
-  organizationId: orgId(),
-  workOrderId: text("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  itemId: text("item_id").notNull().references(() => items.id),
-  warehouseId: text("warehouse_id").notNull().references(() => warehouses.id),
-  quantity: money("quantity").notNull(),
-  /** Filled in on completion from what the store actually released. */
-  unitCost: money("unit_cost").notNull().default("0"),
-  movementId: text("movement_id"),
-  notes: text("notes"),
-  createdAt: createdAt(),
-});
 
-/** A tank of fuel, with the odometer at the pump — that reading is the whole point. */
-export const fuelLogs = pgTable("fuel_logs", {
-  id: pk(),
-  organizationId: orgId(),
-  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
-  filledAt: ts("filled_at").notNull(),
-  liters: money("liters").notNull(),
-  cost: money("cost").notNull(),
-  meterValue: money("meter_value"),
-  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
-  station: text("station"),
-  notes: text("notes"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
 
-/** Who took the vehicle, where, and how far it went. */
-export const trips = pgTable("trips", {
-  id: pk(),
-  organizationId: orgId(),
-  assetId: text("asset_id").notNull().references(() => fixedAssets.id, { onDelete: "cascade" }),
-  driverEmployeeId: text("driver_employee_id").references(() => employees.id, { onDelete: "set null" }),
-  startedAt: ts("started_at").notNull(),
-  endedAt: ts("ended_at"),
-  startMeter: money("start_meter").notNull(),
-  endMeter: money("end_meter"),
-  purpose: text("purpose"),
-  notes: text("notes"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
 
 export const assetDepreciationLines = pgTable(
   "asset_depreciation_lines",
@@ -2097,6 +1994,8 @@ export const salesInvoices = pgTable(
     // Overdue AR.
     index("sales_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
     index("sales_invoices_customer_idx").on(t.customerId),
+    // Every refund, return and fulfilment walks order → delivery → invoice on this column.
+    index("sales_invoices_delivery_note_idx").on(t.organizationId, t.deliveryNoteId),
   ],
 );
 
@@ -3239,6 +3138,8 @@ export const salesReturns = pgTable(
     // work out what is still returnable — one lookup per credit note.
     index("sales_returns_invoice_idx").on(t.salesInvoiceId),
     index("sales_returns_delivery_idx").on(t.deliveryNoteId),
+    // The orders list looks up returns by sales_order_id IN (…) on every page view.
+    index("sales_returns_order_idx").on(t.salesOrderId),
   ],
 );
 
@@ -3506,7 +3407,12 @@ export const syncRuns = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     finishedAt: ts("finished_at"),
   },
-  (t) => [index("sync_runs_org_idx").on(t.organizationId), index("sync_runs_started_idx").on(t.startedAt)],
+  (t) => [
+    index("sync_runs_org_idx").on(t.organizationId),
+    index("sync_runs_started_idx").on(t.startedAt),
+    // The scheduler asks "is this kind running / backing off for this org?" every tick.
+    index("sync_runs_org_kind_started_idx").on(t.organizationId, t.kind, t.startedAt),
+  ],
 );
 
 /** Inventory Auditor run — a read-only snapshot comparing Amazon FBA quantities to

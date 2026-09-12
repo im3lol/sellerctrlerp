@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { accounts, fbaReimbursements, platformReturns, platformRemovals, itemCodes } from "@/db/schema";
+import { accounts, fbaReimbursements, platformReturns, platformRemovals } from "@/db/schema";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 

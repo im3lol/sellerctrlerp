@@ -5,8 +5,6 @@ import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, items, purchaseReceipts, purchaseInvoices, organizations, unitsOfMeasure } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/icon";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";

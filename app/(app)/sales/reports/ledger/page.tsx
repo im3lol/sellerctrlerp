@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { SalesLedgerTable } from "@/components/erp/sales-ledger-table";
 import { LedgerCombobox } from "@/components/erp/ledger-combobox";
 import { selectCls } from "@/lib/utils";
@@ -25,7 +24,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fCustomer = one(sp.customer).trim();
     const fType = one(sp.type); // "" = all, else ORDER|DELIVERY|INVOICE|RETURN
@@ -61,13 +60,14 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
     const exportHref = `/api/erp/sales/ledger/export?${filterQs().toString()}`;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="BookOpen"
-          title="تقرير دفتر المبيعات"
-          subtitle={`${totalRows} حركة`}
-          action={<ReportToolbar excel={totalRows > 0 ? exportHref : undefined} printHref={`/erp/sales/reports/ledger/print?${filterQs().toString()}`} />}
-        />
+      <ReportShell
+        reportKey="sales-ledger"
+        icon="BookOpen"
+        title="تقرير دفتر المبيعات"
+        subtitle={`${totalRows} حركة`}
+        query={filterQs().toString()}
+        permissions={permissions}
+      >
         <Card>
           <CardHeader>
             <CardTitle>دفتر المبيعات (Ledger)</CardTitle>
@@ -129,7 +129,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

@@ -26,7 +26,7 @@ export async function impersonateTenantAction(orgId: string): Promise<{ ok: fals
     orgId, userId: user.id, action: "IMPERSONATE", entityType: "ORGANIZATION", entityId: orgId,
     summary: `دخول المشرف للدعم — ${target.nameAr}`,
   }));
-  redirect("/dashboard"); // outside any scope so its NEXT_REDIRECT throw doesn't roll back the audit
+  redirect("/apps"); // outside any scope so its NEXT_REDIRECT throw doesn't roll back the audit
 }
 
 /** Leave support mode: clear the impersonation selection and return to /admin. */

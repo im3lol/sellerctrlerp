@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -7,8 +7,7 @@ import { salesInvoices, customers } from "@/db/schema";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,7 +18,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function CustomerRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
@@ -47,28 +46,24 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
     if (search) qs.set("q", search);
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Users" title="ترتيب العملاء" subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل" action={<ReportToolbar excel={list.length > 0 ? `/api/erp/sales/customers/export?${qs.toString()}` : undefined} printHref={`/erp/sales/reports/customers/print?${qs.toString()}`} />} />
-        <ItemSalesFilters from={from} to={to} q={search} />
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">عملاء لديهم مبيعات</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{list.length}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الإيراد (بدون ضريبة)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{fmt(tRevenue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الذمم المستحقة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tAr)}</p></CardContent></Card>
-        </div>
-
-        {list.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>أعلى العملاء إيرادًا</CardTitle>
-              <CardDescription>أعلى ٨ عملاء حسب الإيراد.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.revenue }))} valueLabel="الإيراد" money height={240} />
-            </CardContent>
-          </Card>
-        )}
-
+      <ReportShell
+        reportKey="sales-customers"
+        icon="Users"
+        title="ترتيب العملاء"
+        subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل"
+        query={qs.toString()}
+        permissions={permissions}
+        filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
+        kpis={[
+          { label: "عملاء لديهم مبيعات", value: String(list.length), tone: "muted" },
+          { label: "إجمالي الإيراد", value: fmt(tRevenue), tone: "profit", hint: "بدون ضريبة" },
+          { label: "الذمم المستحقة", value: fmt(tAr), hint: "الرصيد الحالي" },
+        ]}
+        chartTitle={list.length > 0 ? "أعلى ٨ عملاء إيرادًا" : undefined}
+        chart={list.length > 0
+          ? <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.revenue }))} valueLabel="الإيراد" money height={240} />
+          : undefined}
+      >
         <Card>
           <CardHeader>
             <CardTitle>العملاء حسب الإيراد</CardTitle>
@@ -113,7 +108,7 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

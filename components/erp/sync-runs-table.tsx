@@ -25,6 +25,7 @@ export type SyncRunRow = {
   productsProcessed: number;
   newProducts: number;
   updatedProducts: number;
+  failedProducts: number;
   apiRequests: number;
   error: string | null;
   startedAt: Date;
@@ -39,7 +40,10 @@ function duration(start: Date, end: Date | null): string {
   return s < 60 ? `${s} ث` : `${Math.floor(s / 60)} د ${s % 60} ث`;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, failed }: { status: string; failed: number }) {
+  // OK with failures is a partial run: most of it landed, some didn't. It used to show
+  // the same green "done" as a clean run, and the failure count wasn't on screen at all.
+  if (status === "OK" && failed > 0) return <Badge className="bg-amber-500">جزئية</Badge>;
   if (status === "OK") return <Badge className="bg-emerald-600">تمت</Badge>;
   if (status === "RUNNING") return <Badge variant="secondary">جارية</Badge>;
   return <Badge variant="destructive">فشلت</Badge>;
@@ -64,6 +68,7 @@ export function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
                 <TableHead>معالج</TableHead>
                 <TableHead>جديد</TableHead>
                 <TableHead>محدّث</TableHead>
+                <TableHead>فشل</TableHead>
                 <TableHead>طلبات API</TableHead>
                 <TableHead>المدة</TableHead>
                 <TableHead>بدأت في</TableHead>
@@ -74,10 +79,11 @@ export function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{KIND_AR[r.kind] ?? r.kind}</TableCell>
-                  <TableCell><StatusBadge status={r.status} /></TableCell>
+                  <TableCell><StatusBadge status={r.status} failed={r.failedProducts} /></TableCell>
                   <TableCell className="tabular-nums">{r.productsProcessed}</TableCell>
                   <TableCell className="tabular-nums">{r.newProducts}</TableCell>
                   <TableCell className="tabular-nums">{r.updatedProducts}</TableCell>
+                  <TableCell className={r.failedProducts ? "tabular-nums text-destructive" : "tabular-nums"}>{r.failedProducts}</TableCell>
                   <TableCell className="tabular-nums">{r.apiRequests}</TableCell>
                   <TableCell className="tabular-nums">{duration(r.startedAt, r.finishedAt)}</TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{dt(r.startedAt)}</TableCell>

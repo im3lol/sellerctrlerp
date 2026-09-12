@@ -8,7 +8,7 @@ import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import { ingestOrders, ingestProducts, reconcileInventory, enrichItems, linkVariationFamilies, type PlatformCtx, type ProductSyncMode } from "@/lib/erp/marketplace/ingest";
 import type { AutoMode } from "@/lib/erp/fulfillment";
-import { upsertSettlementTxns, postSettlements } from "@/lib/erp/settlement-core";
+import { upsertSettlementTxns, postSettlements, processSettlementRefunds } from "@/lib/erp/settlement-core";
 import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { upsertPlatformRemovals } from "@/lib/erp/removals-core";
@@ -30,7 +30,7 @@ export type SyncPrep = { orgId: string; connector: MarketplaceConnector; cred: C
 export type ProductsSync = { ok: true; total: number; linked: number; created: number; alreadyLinked: number; skippedUnmatched: number; fnskus: number; images: number; barcodes: number; fields: number; families: number } | { ok: false; error: string };
 /** Light status shape for the sync-progress popup (queue path reads it from sync_runs). */
 export type ProductSyncStatus = { phase: "running" | "done" | "error" | "idle"; total?: number; created?: number; linked?: number; error?: string };
-export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number } | { ok: false; error: string };
+export type OrdersSync = { ok: true; created: number; fulfilled: number; transitioned: number; cancelled: number; skippedDuplicate: number; skippedUnmatched: number; skippedPreGoLive: number; stockBlocked: number; stockDrafted: number; failed: number; firstError?: string | null } | { ok: false; error: string };
 export type InventorySync = { ok: true; matched: number; withDiff: number; unmatched: number } | { ok: false; error: string };
 export type FbaCodesSync = { ok: true; total: number; attached: number; unmatched: number } | { ok: false; error: string };
 export type BalanceSync = { ok: true; groups: number } | { ok: false; error: string };
@@ -273,7 +273,7 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const createFloor = orderCreateFloor(range.mode, p.ctx.accountingStartDate ?? null, range.from, startOfToday);
     const r = await withOrgScope(p.orgId, false, () => ingestOrders(p.orgId, userId, { ...p.ctx, createFloor }, orders));
-    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, skippedPreGoLive: r.skippedPreGoLive, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed };
+    return { ok: true, created: r.created, fulfilled: r.fulfilled, transitioned: r.transitioned, cancelled: r.cancelled, skippedDuplicate: r.skippedDuplicate, skippedUnmatched: r.skippedUnmatched, skippedPreGoLive: r.skippedPreGoLive, stockBlocked: r.stockBlocked.length, stockDrafted: r.stockDrafted, failed: r.failed, firstError: r.firstError ?? null };
   } catch (e) {
     return coreFail(p, e, "فشل سحب الأوامر");
   }
@@ -296,10 +296,18 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
     const txns = await p.connector.fetchSettlements(p.cred, range); // slow fetch, unscoped
     const up = await withOrgScope(p.orgId, false, () => upsertSettlementTxns(p.orgId, txns, p.connector.code));
     let posted = 0, deferredHeld = 0, returnsCreated = 0;
+    // Refunds raise their DRAFT credit note on EVERY sync, not only when settlements are
+    // auto-posted to the ledger. Those are different decisions: a draft posts nothing and
+    // is the whole point of the returns register, while GL posting is what deserves a
+    // switch. Gating them together meant a customer refund produced no return document at
+    // all — three real refunds sat in the money feed with an empty returns page.
+    const refunds = await withOrgScope(p.orgId, false, () => processSettlementRefunds(p.orgId, p.connector.code));
+    returnsCreated = refunds.created;
     if (p.autoPostSettlements) {
       const res = await withOrgScope(p.orgId, false, () => postSettlements(p.orgId, null, p.connector.code));
       if ("error" in res) return { ok: false, error: res.error };
-      posted = res.posted; deferredHeld = res.deferredHeld; returnsCreated = res.returnsCreated;
+      posted = res.posted; deferredHeld = res.deferredHeld;
+      returnsCreated += res.returnsCreated;
     }
     // One extra request, and it is what makes the wallet auditable. Never let it break
     // the settlement sync — the money rows are the part that matters.

@@ -1,16 +1,15 @@
 import { loadErpPage } from "@/lib/erp/org";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { Card, CardContent } from "@/components/ui/card";
+import { ReportShell } from "@/components/erp/report-shell";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ratio = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
 const pctv = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : "—");
 
 export default async function RatiosReportPage() {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const balances = await accountBalances({ orgId });
 
     const byCode = Object.fromEntries(balances.map((b) => [b.code, Number(b.balance)]));
@@ -52,9 +51,13 @@ export default async function RatiosReportPage() {
     );
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Activity" title="المؤشرات المالية" subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية" action={<ReportToolbar excel="/api/erp/reports/ratios/export" printHref="/erp/reports/ratios/print" />} />
-
+      <ReportShell
+        reportKey="ratios"
+        icon="Activity"
+        title="المؤشرات المالية"
+        subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية"
+        permissions={permissions}
+      >
         <div>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">السيولة</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -86,7 +89,7 @@ export default async function RatiosReportPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">المؤشرات محسوبة من أرصدة الأستاذ الحالية؛ نسب النشاط (DSO/DPO/الدوران) تفترض الأرصدة الجارية معدّلاً سنوياً — للإرشاد لا للتقارير الرسمية.</p>
-      </div>
+      </ReportShell>
     );
   });
 }

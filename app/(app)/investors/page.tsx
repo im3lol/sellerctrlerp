@@ -7,6 +7,7 @@ import { orgOwnership } from "@/lib/erp/investor-equity-queries";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { ModuleWorkspace } from "@/components/erp/module-workspace";
 import { AcademyLink } from "@/components/erp/academy-link";
 import { NeedsAttention } from "@/components/erp/needs-attention";
 import { Icon } from "@/components/icon";
@@ -17,14 +18,6 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const pct = (n: number) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 })}%`;
 const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
 
-const SHORTCUTS = [
-  { label: "المستثمرون", href: "/investors/list", icon: "Coins", key: "investors" },
-  { label: "مساهمات رأس المال", href: "/investors/investments", icon: "PiggyBank", key: "investments" },
-  { label: "توزيعات الأرباح", href: "/investors/distributions", icon: "PieChart", key: "distributions" },
-  { label: "السحوبات", href: "/investors/withdrawals", icon: "Banknote" },
-  { label: "دفتر الأستاذ", href: "/accounting/ledger", icon: "BookOpen" },
-  { label: "الميزانية العمومية", href: "/reports/balance-sheet", icon: "Scale" },
-];
 
 /**
  * The المستثمرون module overview.
@@ -34,7 +27,7 @@ const SHORTCUTS = [
  * now actually use, so this page and the balance sheet cannot disagree.
  */
 export default async function InvestorsPage() {
-  return loadErpPage("investors.view", async ({ orgId }) => {
+  return loadErpPage("investors.view", async ({ orgId, permissions }) => {
     const [names, active, distDraft, investCount, profitPaid, owners, balances] = await Promise.all([
       db.select({ id: investors.id, name: investors.fullName, code: investors.code })
         .from(investors).where(eq(investors.organizationId, orgId)),
@@ -60,7 +53,7 @@ export default async function InvestorsPage() {
     ];
 
     const counts: Record<string, number> = {
-      investors: cnt(active), investments: cnt(investCount), distributions: cnt(distDraft),
+      "/investors/list": cnt(active), "/investors/investments": cnt(investCount), "/investors/distributions": cnt(distDraft),
     };
 
     const kpis = [
@@ -139,23 +132,9 @@ export default async function InvestorsPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>اختصارات</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
-              {SHORTCUTS.map((s) => (
-                <Link key={s.href} href={s.href}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-muted">
-                  <Icon name={s.icon} className="size-4 text-muted-foreground" />
-                  <span className="flex-1">{s.label}</span>
-                  {s.key && counts[s.key] > 0 && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{intf(counts[s.key])}</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Every page in this module, straight from the sidebar config — see
+            ModuleWorkspace for why this is derived and not another hand-kept list. */}
+        <ModuleWorkspace heading="المستثمرون" permissions={permissions} counts={counts} />
       </div>
     );
   });

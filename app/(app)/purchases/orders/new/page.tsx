@@ -81,7 +81,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
           SELECT item_id, SUM(bq) AS qty FROM (
             SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq
             FROM stock_movements WHERE organization_id = ${orgId}
-            ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
           ) t GROUP BY item_id
         ) s ON s.item_id = i.id
         WHERE i.organization_id = ${orgId} AND i.is_active = true AND i.min_stock > 0 AND COALESCE(s.qty, 0) <= i.min_stock

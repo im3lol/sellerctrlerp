@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, salesReturns, salesReturnLines } from "@/db/schema";
@@ -40,8 +40,8 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const conds = [eq(salesOrders.organizationId, orgId)];
     if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesOrders.status, fStatus));
-    if (fChannel === "MANUAL") conds.push(isNull(salesOrders.channel));
-    else if (fChannel) conds.push(eq(salesOrders.channel, fChannel));
+    // channel is NOT NULL DEFAULT 'MANUAL', so a manual order is 'MANUAL', never null.
+    if (fChannel) conds.push(eq(salesOrders.channel, fChannel));
     if (fFulfillment) conds.push(eq(salesOrders.fulfillmentType, fFulfillment));
     if (fCustomer) conds.push(eq(salesOrders.customerId, fCustomer));
     if (from) conds.push(gte(salesOrders.date, new Date(from)));

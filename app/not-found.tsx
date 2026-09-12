@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="text-muted-foreground">عذراً، لم نتمكّن من العثور على ما تبحث عنه.</p>
       </div>
       <Button asChild>
-        <Link href="/dashboard">العودة إلى لوحة التحكم</Link>
+        <Link href="/apps">العودة إلى التطبيقات</Link>
       </Button>
     </main>
   );

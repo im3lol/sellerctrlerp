@@ -24,12 +24,18 @@ export type OrderPnl = {
   externalOrderId: string; orderNumber: string | null; postedAt: Date | null;
   status: string; deferred: boolean;
   sales: number; refunds: number; commission: number; fbaFee: number; otherFees: number;
+  // The tax half of each fee, kept separate because that is how Seller Central shows it —
+  // a single combined figure is correct but impossible to check against Amazon at a glance.
+  commissionTax: number; fbaFeeTax: number;
   fees: number; cogs: number; net: number; margin: number; hasCogs: boolean;
 };
 
 export type ProductPnl = {
-  sku: string; asin: string | null; code: string | null; name: string | null;
-  units: number; sales: number; commission: number; fbaFee: number; otherFees: number;
+  sku: string; asin: string | null; itemId: string | null; code: string | null; name: string | null;
+  // `units` is NET: sold minus refunded. Amazon reports a refund's quantity as POSITIVE,
+  // so summing it raw counted one sale and its refund as two pieces sold.
+  units: number; unitsSold: number; unitsRefunded: number; sales: number; commission: number; fbaFee: number; otherFees: number;
+  commissionTax: number; fbaFeeTax: number;
   fees: number; cogs: number; net: number; margin: number;
   unitSale: number; unitFees: number; unitCost: number; breakEven: number; hasCogs: boolean;
 };
@@ -82,6 +88,26 @@ export async function getOrderPnl(
     for (const r of rows) if (r.orderId) cogsByOrder.set(r.orderId, n(r.cogs));
   }
 
+  // The parent row carries each fee inclusive of its tax; the split lives on the items.
+  const taxByOrder = new Map<string, { commissionTax: number; fbaFeeTax: number }>();
+  {
+    const tRows = await db.select({
+      orderId: marketplaceSettlementTxns.orderId,
+      commissionTax: sql<string>`coalesce(sum(${marketplaceTxnItems.commissionTax}), 0)`,
+      fbaFeeTax: sql<string>`coalesce(sum(${marketplaceTxnItems.fbaFeeTax}), 0)`,
+    })
+      .from(marketplaceTxnItems)
+      .innerJoin(marketplaceSettlementTxns, eq(marketplaceSettlementTxns.id, marketplaceTxnItems.txnId))
+      .where(and(
+        eq(marketplaceTxnItems.organizationId, orgId),
+        eq(marketplaceSettlementTxns.channel, channel),
+        gte(marketplaceSettlementTxns.postedAt, from),
+        lte(marketplaceSettlementTxns.postedAt, to),
+      ))
+      .groupBy(marketplaceSettlementTxns.orderId);
+    for (const r of tRows) if (r.orderId) taxByOrder.set(r.orderId, { commissionTax: n(r.commissionTax), fbaFeeTax: n(r.fbaFeeTax) });
+  }
+
   const byOrder = new Map<string, OrderPnl & { salesOrderId: string | null }>();
   for (const t of txns) {
     const key = t.externalOrderId ?? "";
@@ -90,6 +116,7 @@ export async function getOrderPnl(
       externalOrderId: key, orderNumber: t.orderNumber ?? null, postedAt: t.postedAt,
       status: t.status, deferred: false,
       sales: 0, refunds: 0, commission: 0, fbaFee: 0, otherFees: 0,
+      commissionTax: 0, fbaFeeTax: 0,
       fees: 0, cogs: 0, net: 0, margin: 0, hasCogs: false, salesOrderId: t.salesOrderId,
     };
     // A refund is negative product sales; keeping it in its own column makes a
@@ -108,12 +135,14 @@ export async function getOrderPnl(
 
   return [...byOrder.values()].map((r) => {
     const cogs = r.salesOrderId ? (cogsByOrder.get(r.salesOrderId) ?? 0) : 0;
+    const tax = taxByOrder.get(r.externalOrderId);
     // Fees are stored negative, exactly as Amazon reports them.
     const fees = round2(r.commission + r.fbaFee + r.otherFees);
     const revenue = round2(r.sales + r.refunds);
     const net = round2(revenue + fees - cogs);
     return {
       ...r, cogs, fees, net,
+      commissionTax: tax?.commissionTax ?? 0, fbaFeeTax: tax?.fbaFeeTax ?? 0,
       margin: revenue > 0 ? (net / revenue) * 100 : 0,
       hasCogs: cogs !== 0,
     };
@@ -127,17 +156,24 @@ export async function getProductPnl(
   const rows = await db.select({
     sku: marketplaceTxnItems.sku,
     asin: marketplaceTxnItems.asin,
-    units: sql<string>`coalesce(sum(${marketplaceTxnItems.quantity}), 0)`,
+    unitsSold: sql<string>`coalesce(sum(case when ${marketplaceSettlementTxns.type} <> 'Refund' then ${marketplaceTxnItems.quantity} else 0 end), 0)`,
+    unitsRefunded: sql<string>`coalesce(sum(case when ${marketplaceSettlementTxns.type} = 'Refund' then ${marketplaceTxnItems.quantity} else 0 end), 0)`,
     sales: sql<string>`coalesce(sum(${marketplaceTxnItems.productCharges}), 0)`,
     commission: sql<string>`coalesce(sum(${marketplaceTxnItems.commission}), 0)`,
     fbaFee: sql<string>`coalesce(sum(${marketplaceTxnItems.fbaFee}), 0)`,
     otherFees: sql<string>`coalesce(sum(${marketplaceTxnItems.otherFees}), 0)`,
+    commissionTax: sql<string>`coalesce(sum(${marketplaceTxnItems.commissionTax}), 0)`,
+    fbaFeeTax: sql<string>`coalesce(sum(${marketplaceTxnItems.fbaFeeTax}), 0)`,
   })
     .from(marketplaceTxnItems)
     .innerJoin(marketplaceSettlementTxns, eq(marketplaceSettlementTxns.id, marketplaceTxnItems.txnId))
     .where(and(
       eq(marketplaceTxnItems.organizationId, orgId),
       eq(marketplaceSettlementTxns.channel, channel),
+      // Ads charges, service fees and adjustments produce item rows with no product on
+      // them. They are real money, and they are counted in the platform P&L — but they
+      // are not a product, and listing them here as "unlinked item" told nobody anything.
+      sql`coalesce(${marketplaceTxnItems.sku}, '') <> ''`,
       gte(marketplaceSettlementTxns.postedAt, from),
       lte(marketplaceSettlementTxns.postedAt, to),
     ))
@@ -178,7 +214,8 @@ export async function getProductPnl(
 
   return rows.map((r) => {
     const it = r.sku ? itemBySku.get(r.sku) : undefined;
-    const units = n(r.units);
+    const unitsSold = n(r.unitsSold), unitsRefunded = n(r.unitsRefunded);
+    const units = unitsSold - unitsRefunded;
     const sales = round2(n(r.sales));
     const commission = round2(n(r.commission)), fbaFee = round2(n(r.fbaFee)), otherFees = round2(n(r.otherFees));
     const fees = round2(commission + fbaFee + otherFees);
@@ -188,8 +225,9 @@ export async function getProductPnl(
     const unitFees = units > 0 ? round2(-fees / units) : 0;   // shown positive: what a piece costs in fees
     const unitCost = units > 0 ? round2(cogs / units) : 0;
     return {
-      sku: r.sku ?? "—", asin: r.asin, code: it?.code ?? null, name: it?.name ?? null,
-      units, sales, commission, fbaFee, otherFees, fees, cogs, net,
+      sku: r.sku ?? "—", asin: r.asin, itemId: it?.id ?? null, code: it?.code ?? null, name: it?.name ?? null,
+      units, unitsSold, unitsRefunded, sales, commission, fbaFee, otherFees, fees, cogs, net,
+      commissionTax: round2(n(r.commissionTax)), fbaFeeTax: round2(n(r.fbaFeeTax)),
       margin: sales > 0 ? (net / sales) * 100 : 0,
       unitSale, unitFees, unitCost,
       // Below this a piece loses money once Amazon has taken its cut.

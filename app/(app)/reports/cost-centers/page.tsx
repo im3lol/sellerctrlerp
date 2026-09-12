@@ -6,8 +6,7 @@ import { journalEntryLines, journalEntries, accounts, costCenters } from "@/db/s
 import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemSalesFilters } from "@/components/erp/item-sales-filters";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -17,7 +16,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function CostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("reports.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);
@@ -56,16 +55,22 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
     const tNet = tRev - tExp;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader icon="Target" title="الأرباح والخسائر حسب مركز التكلفة" subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة" action={<ReportToolbar excel={`/api/erp/reports/cost-centers/export?${qs}`} printHref={`/erp/reports/cost-centers/print?${qs}`} />} />
-        <ItemSalesFilters from={from} to={to} q={search} />
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الإيراد</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{fmt(tRev)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي المصروف</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-destructive">{fmt(tExp)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>
-        </div>
-
+      <ReportShell
+        reportKey="cost-centers"
+        icon="Target"
+        title="الأرباح حسب مركز التكلفة"
+        subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة"
+        query={qs}
+        permissions={permissions}
+        filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
+        kpis={[
+          { label: "إجمالي الإيراد", value: fmt(tRev), tone: "profit" },
+          { op: "−" },
+          { label: "إجمالي المصروف", value: fmt(tExp), tone: "loss" },
+          { op: "=" },
+          { label: "صافي الربح", value: fmt(tNet), tone: tNet >= 0 ? "profit" : "loss" },
+        ]}
+      >
         {list.some((r) => r.revenue > 0 || r.expense > 0) && (
           <Card>
             <CardHeader>
@@ -116,7 +121,7 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

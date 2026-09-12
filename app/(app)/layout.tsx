@@ -5,7 +5,7 @@ import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
-import { salesPlatforms } from "@/db/schema";
+import { salesPlatforms, organizations } from "@/db/schema";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
@@ -29,7 +29,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   //    so an invited member sees only what their role grants.
   //  - platforms: active sales platforms under the "المنصات" nav group (own org scope —
   //    the layout renders outside any page's loadErpPage scope).
-  const [enabledModules, access, platforms] = await Promise.all([
+  //  - navHidden: sections the owner chose not to show. Display only — the pages stay
+  //    reachable by direct link for anyone whose permissions allow them.
+  const [enabledModules, access, platforms, navHidden] = await Promise.all([
     user.role === "system_admin" ? Promise.resolve([...ALL_MODULES])
       : org ? getEnabledModules(org.id).then((m) => [...m]) : Promise.resolve([]),
     org ? getMemberAccess(org.id, user) : Promise.resolve({ role: null, permissions: new Set<string>() }),
@@ -38,12 +40,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           .where(and(eq(salesPlatforms.organizationId, org.id), eq(salesPlatforms.isActive, true)))
           .orderBy(asc(salesPlatforms.name)))
       : Promise.resolve([] as { id: string; name: string; code: string }[]),
+    org ? db.select({ hidden: organizations.navHidden }).from(organizations)
+        .where(eq(organizations.id, org.id)).limit(1).then((r) => r[0]?.hidden ?? [])
+      : Promise.resolve([] as string[]),
   ]);
   const erpPermissions = [...access.permissions];
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} />
+      <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} />
       {/* overflow-x-CLIP, not hidden: `hidden` computes overflow-y to `auto`, which makes
           this div a scroll container — and that silently broke the topbar's `sticky top-0`
           (it scrolled away with the page). `clip` contains a stray wide child just the same
@@ -62,6 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           erpPermissions={erpPermissions}
           modules={enabledModules}
           platforms={platforms}
+          navHidden={navHidden}
         />
         {user.role === "system_admin" && activeOrg.org && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">

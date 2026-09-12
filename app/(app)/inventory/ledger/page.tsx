@@ -7,9 +7,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/icon";
-import { ErpPageHeader } from "@/components/erp/page-header";
-import { ReportToolbar } from "@/components/erp/report-toolbar";
+import { ReportShell } from "@/components/erp/report-shell";
 import { ItemPickerField } from "@/components/erp/item-picker-field";
 import { selectCls } from "@/lib/utils";
 
@@ -24,7 +22,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function StockLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("inventory.view", async ({ orgId }) => {
+  return loadErpPage("inventory.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const itemId = one(sp.item);
     const fWarehouse = one(sp.warehouse);
@@ -57,15 +55,14 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
     const exportHref = `/api/erp/inventory/ledger/export?${filterQs().toString()}`;
 
     return (
-      <div className="space-y-6">
-        <ErpPageHeader
-          icon="ScrollText"
-          title="دفتر حركة المخزون"
-          subtitle={itemLabel || "أحدث حركات المخزون"}
-          backHref="/inventory"
-          action={<ReportToolbar excel={rows.length > 0 ? exportHref : undefined} printHref={`/erp/inventory/ledger/print?${filterQs().toString()}`} />}
-        />
-
+      <ReportShell
+        reportKey="inv-ledger"
+        icon="ScrollText"
+        title="دفتر حركة المخزون"
+        subtitle={`${rows.length} حركة`}
+        query={filterQs().toString()}
+        permissions={permissions}
+      >
         <Card>
           <CardHeader>
             <CardTitle>تصفية</CardTitle>
@@ -194,7 +191,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
             )}
           </CardContent>
         </Card>
-      </div>
+      </ReportShell>
     );
   });
 }

@@ -5,18 +5,17 @@ import { and, desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, stockMovements, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines, salesPlatforms,
+  salesInvoiceLines, itemCodes, items, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines, salesPlatforms,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry } from "@/lib/erp/posting";
-import { currentStock } from "@/lib/erp/inventory";
-import { createSalesReturnAction, createDeliveryReturnAction, confirmSalesReturnAction } from "@/app/actions/erp/sales-returns";
+import { createSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensurePlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 import { marketplaceTxnItems } from "@/db/schema";
-import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
+import { splitSettlementRows, perOrderGL, nonOrderGL, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
 import { FEE_CATEGORY_ACCOUNT, FEE_CATEGORY_LABEL, type FeeCatKey } from "@/lib/erp/settlement-fees";
 import { bust, orgKey } from "@/lib/cache";
 
@@ -116,27 +115,23 @@ async function linkOrders(orgId: string, txns: SettlementTxn[], channel: string)
 }
 
 /**
- * For every not-yet-processed "Refund" settlement row, run the full return
- * cycle against the original Amazon order's posted invoice + delivery:
- *   • مرتجع فاتورة بيع (credit note) — reverse revenue + VAT + receivable.
- *   • مرتجع إذن صرف (delivery return) — restock at the delivery's cost + reverse
- *     COGS, and drop the order's deliveredQty (→ recomputes the order status).
+ * For every not-yet-processed "Refund" settlement row, raise a DRAFT مرتجع فاتورة
+ * against the original order's posted invoice — and stop there.
+ *
+ * It used to confirm the credit note and restock off the delivery in the same pass. That
+ * assumes the goods are back, and a marketplace refund does not mean that: the customer
+ * returns to Amazon, which may never ship the unit on, may ship it damaged, or may refund
+ * without a return at all. So the money side waits as a DRAFT in the returns register and
+ * the trader completes it with a RECEIPT decision — received sellable, received damaged,
+ * or not received (awaiting a reimbursement) — through confirmPlatformReturnAction. That
+ * gate already existed; the refund path simply bypassed it.
+ *
+ * Deferred refunds count too. Amazon holding the money changes when it is paid, not
+ * whether the customer was refunded, and a DRAFT posts nothing either way.
+ *
  * Idempotent: a Refund row is skipped once its `salesReturnId` is set.
  */
-async function processSettlementRefunds(orgId: string, channel: string): Promise<{ created: number; unmatched: string[] }> {
-  // Resume claimed-but-unposted refunds from a crashed run: salesReturnId was
-  // stamped but the credit note is still DRAFT — confirm it now (idempotent).
-  const stuck = await db.select({ retId: salesReturns.id })
-    .from(marketplaceSettlementTxns)
-    .innerJoin(salesReturns, eq(salesReturns.id, marketplaceSettlementTxns.salesReturnId))
-    .where(and(
-      eq(marketplaceSettlementTxns.organizationId, orgId),
-      eq(marketplaceSettlementTxns.channel, channel),
-      eq(marketplaceSettlementTxns.type, "Refund"),
-      eq(salesReturns.status, "DRAFT"),
-    ));
-  for (const s of stuck) await confirmSalesReturnAction(s.retId).catch(() => {});
-
+export async function processSettlementRefunds(orgId: string, channel: string): Promise<{ created: number; unmatched: string[] }> {
   const refunds = await db.select({
     id: marketplaceSettlementTxns.id, orderId: marketplaceSettlementTxns.orderId,
     sku: marketplaceSettlementTxns.sku, quantity: marketplaceSettlementTxns.quantity,
@@ -145,7 +140,6 @@ async function processSettlementRefunds(orgId: string, channel: string): Promise
     eq(marketplaceSettlementTxns.organizationId, orgId),
     eq(marketplaceSettlementTxns.channel, channel),
     eq(marketplaceSettlementTxns.type, "Refund"),
-    eq(marketplaceSettlementTxns.status, "Released"),
     isNull(marketplaceSettlementTxns.salesReturnId),
   ));
   if (refunds.length === 0) return { created: 0, unmatched: [] };
@@ -190,28 +184,17 @@ async function processSettlementRefunds(orgId: string, channel: string): Promise
     const unitPrice = Number(invLine.unitPrice);
     const date = (rf.releaseDate ?? rf.postedAt ?? new Date()).toISOString().slice(0, 10);
 
-    // 1) Money-side credit note (invoice is delivery-sourced → this is money-only).
-    //    Claim-first: create the DRAFT, stamp salesReturnId, THEN confirm — a crash
-    //    after the old create+confirm but before the stamp re-posted the credit
-    //    note on retry. Now a crash before the stamp leaves at most an orphan
-    //    DRAFT (no GL), and after it the resume pass above confirms the claim.
-    const moneyRet = await createSalesReturnAction({ salesInvoiceId: inv.id, date, lines: [{ itemId, quantity: qty, unitPrice }] });
-    if (!moneyRet.ok || !moneyRet.id) { flag(rf.orderId, moneyRet.error || "تعذّر مرتجع الفاتورة"); continue; }
+    // The DRAFT credit note, carrying its channel so it lands in the marketplace returns
+    // register. Stamped immediately so a crash can't produce a second one on retry. It is
+    // NOT confirmed and nothing is restocked: that waits on the receipt decision.
+    const moneyRet = await createSalesReturnAction({
+      salesInvoiceId: inv.id, date,
+      notes: `مرتجع ${channel} — طلب ${rf.orderId}`,
+      channel, externalReturnId: rf.orderId,
+      lines: [{ itemId, quantity: qty, unitPrice }],
+    });
+    if (!moneyRet.ok || !moneyRet.id) { flag(rf.orderId, moneyRet.error || "تعذّر إنشاء مرتجع الفاتورة"); continue; }
     await db.update(marketplaceSettlementTxns).set({ salesReturnId: moneyRet.id }).where(eq(marketplaceSettlementTxns.id, rf.id));
-    const confMoney = await confirmSalesReturnAction(moneyRet.id);
-    if (!confMoney.ok) { flag(rf.orderId, confMoney.error || "تعذّر ترحيل مرتجع الفاتورة"); continue; }
-
-    // 2) Stock-side return off the delivery, restocked at the delivery's own cost.
-    const [outMove] = await db.select({ unitCost: stockMovements.unitCost }).from(stockMovements)
-      .where(and(eq(stockMovements.organizationId, orgId), eq(stockMovements.referenceId, dn.id), eq(stockMovements.itemId, itemId), eq(stockMovements.type, "OUT"))).limit(1);
-    const restockCost = outMove ? Number(outMove.unitCost) : (await currentStock(orgId, itemId, dn.warehouseId)).avgCost;
-    const stockRet = await createDeliveryReturnAction({ deliveryNoteId: dn.id, date, lines: [{ itemId, quantity: qty, unitPrice: restockCost }] });
-    if (stockRet.ok && stockRet.id) {
-      const conf = await confirmSalesReturnAction(stockRet.id);
-      if (!conf.ok) flag(rf.orderId, `مرتجع الفاتورة تم، لكن تعذّر مرتجع المخزون: ${conf.error}`);
-    } else {
-      flag(rf.orderId, `مرتجع الفاتورة تم، لكن تعذّر إنشاء مرتجع المخزون: ${stockRet.ok ? "" : stockRet.error}`);
-    }
 
     // Already stamped (claim-first) before the confirm above.
     created++;

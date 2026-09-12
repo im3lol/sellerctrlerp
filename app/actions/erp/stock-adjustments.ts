@@ -79,7 +79,9 @@ export async function bulkStockAdjustmentsAction(op: "confirm" | "delete", ids: 
   if (all) {
     const auth = await authorizeErp(op === "confirm" ? "inventory.confirm" : "inventory.create");
     if ("error" in auth) return { ok: false, error: auth.error };
-    ids = await matchingAdjustmentIds(auth.orgId, all);
+    // Same fix as journal.ts: authorizeErp's scope is closed here, so the lookup has
+    // to open its own or RLS hands back an empty list.
+    ids = await withOrgScope(auth.orgId, false, () => matchingAdjustmentIds(auth.orgId, all));
   }
   return bulkOp(ids, op === "confirm" ? confirmStockAdjustmentAction : deleteStockAdjustmentAction);
 }
