@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  newClientRef, canQueueOffline, enqueue, markSynced, markFailed, retry, discard,
+  newClientRef, canQueueOffline, enqueue, markFailed, retry, discard,
   pending, failed, unsettledCount, drawerAdjustment, prune, syncOrder,
   type QueuedSale,
 } from "@/lib/erp/pos-sync";

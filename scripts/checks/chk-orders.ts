@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { organizations, salesOrders, salesOrderLines, purchaseOrders, purchaseOrderLines } from "@/db/schema";
 async function main(){

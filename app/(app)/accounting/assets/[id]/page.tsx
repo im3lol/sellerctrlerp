@@ -25,9 +25,8 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ id: string }> };
 
 export default async function AssetDetailPage({ params }: Params) {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const { id } = await params;
-    const canEdit = can("accounting.create");
 
     const [asset] = await db
       .select({

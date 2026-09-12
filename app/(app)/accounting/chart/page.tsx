@@ -6,7 +6,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { AccountsTree } from "@/components/erp/accounts-tree";
 
 export default async function ChartOfAccountsPage() {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const [rows, balRows] = await Promise.all([
       db
         .select({

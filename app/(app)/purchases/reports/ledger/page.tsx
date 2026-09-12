@@ -57,7 +57,6 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       u.set("page", String(p));
       return `?${u.toString()}`;
     };
-    const exportHref = `/api/erp/purchases/ledger/export?${filterQs().toString()}`;
 
     return (
       <ReportShell

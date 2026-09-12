@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, deliveryNotes, deliveryNoteLines, salesOrderLines, accounts, stockMovements } from "@/db/schema";
+import { organizations, deliveryNotes, salesOrderLines, accounts, stockMovements } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 

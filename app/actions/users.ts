@@ -40,10 +40,9 @@ export async function createUserAction(_prev: ActionState, formData: FormData): 
   if (existing.length) return { error: "البريد مستخدم بالفعل" };
 
   const passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
-  const [u] = await db
+  await db
     .insert(users)
-    .values({ name: d.name, email: d.email, passwordHash, passwordChangedAt: new Date(), role: d.role, title: d.title })
-    .returning();
+    .values({ name: d.name, email: d.email, passwordHash, passwordChangedAt: new Date(), role: d.role, title: d.title });
 
   return { ok: true };
 }

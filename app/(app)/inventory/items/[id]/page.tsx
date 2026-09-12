@@ -27,7 +27,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
   // URL carries the item CODE; old UUID links still resolve. ponytail: a code
   // with a literal "/" would split the segment — none in use; encode on links.
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+  return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const [item] = await db.select().from(items)
       .where(and(eq(items.organizationId, orgId), isUuid ? or(eq(items.id, id), eq(items.code, id)) : eq(items.code, id)))
       .limit(1);

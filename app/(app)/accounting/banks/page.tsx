@@ -18,7 +18,7 @@ const fmt = (n: number) =>
 type SP = { q?: string; active?: string };
 
 export default async function BankAccountsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();
     const active = sp.active ?? "";

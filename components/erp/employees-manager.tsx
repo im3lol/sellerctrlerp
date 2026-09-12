@@ -141,7 +141,7 @@ function EmployeeDialog({
   );
 }
 
-export function EmployeesManager({ members, orgId }: { members: Member[]; orgId: string }) {
+export function EmployeesManager({ members }: { members: Member[]; orgId: string }) {
   const [editing, setEditing] = useState<Member | null>(null);
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");

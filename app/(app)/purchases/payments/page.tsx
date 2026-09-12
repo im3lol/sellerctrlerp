@@ -20,7 +20,7 @@ const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل ب�
 type SP = { q?: string; status?: string; method?: string; from?: string; to?: string; page?: string };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
+  return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canManage = can("purchases.pay");
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();

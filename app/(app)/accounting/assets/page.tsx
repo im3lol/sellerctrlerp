@@ -27,7 +27,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 type SP = { q?: string; category?: string; status?: string };
 
 export default async function FixedAssetsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canEdit = can("accounting.create");
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();

@@ -19,7 +19,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function ReceiptsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
+  return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canManage = can("purchases.create");
     const canConfirm = can("purchases.confirm");
     const canReceive = can("purchases.receive");

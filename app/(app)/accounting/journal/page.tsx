@@ -36,7 +36,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 type SP = { q?: string; status?: string; source?: string; from?: string; to?: string; page?: string };
 
 export default async function JournalPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();
     const status = sp.status ?? "";

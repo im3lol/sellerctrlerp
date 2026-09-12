@@ -49,7 +49,6 @@ async function main() {
   const SENTINEL = "ROLLBACK"; const out: string[] = [];
   try {
     await db.transaction(async (tx) => {
-      const s0 = await sums(tx, orgId);
       const ar0 = await bal(tx, orgId, A["1103"]); const rev0 = await bal(tx, orgId, A["4102"]);
       const inv0 = await bal(tx, orgId, A["1104"]); const cogs0 = await bal(tx, orgId, A["5101"]);
 

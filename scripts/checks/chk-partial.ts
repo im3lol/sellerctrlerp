@@ -8,14 +8,13 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import {
-  organizations, accounts, journalEntries, journalEntryLines, stockMovements,
-  salesOrders, salesOrderLines, deliveryNotes, deliveryNoteLines, salesInvoices, salesInvoiceLines, customers, warehouses,
+  organizations, accounts, journalEntries, journalEntryLines, 
+  salesOrders, salesOrderLines, deliveryNotes, deliveryNoteLines, warehouses,
 } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
 
 async function acctBalance(orgId: string, code: string) {
   const [a] = await db.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.organizationId, orgId), eq(accounts.code, code))).limit(1);

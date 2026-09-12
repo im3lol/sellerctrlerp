@@ -13,7 +13,7 @@ const fmt = (n: number) =>
 type Params = { params: Promise<{ id: string }> };
 
 export default async function BankAccountDetailPage({ params }: Params) {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const { id } = await params;
     const canEdit = can("accounting.create");
 

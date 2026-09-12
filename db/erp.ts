@@ -26,7 +26,6 @@ import {
   jsonb,
   uniqueIndex,
   index,
-  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";

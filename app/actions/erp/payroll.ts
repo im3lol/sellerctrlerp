@@ -8,7 +8,7 @@ import { and, eq, gte, lte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   employees, payrollRuns, payrollLines, accounts, leaveRequests,
-  organizationMembers, users as usersTable,
+  organizationMembers, 
 } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";
 import { nextDocumentNumber } from "@/lib/erp/sequence";

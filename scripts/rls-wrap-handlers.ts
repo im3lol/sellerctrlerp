@@ -21,7 +21,6 @@
 import ts from "typescript";
 import fs from "fs";
 
-const GUARD = 'if ("error" in auth) return auth;';
 
 function wrapFile(file: string): "wrapped" | "skip" | "partial" {
   const src = fs.readFileSync(file, "utf8");

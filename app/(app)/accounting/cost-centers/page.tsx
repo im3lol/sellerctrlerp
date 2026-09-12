@@ -6,7 +6,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { CostCentersTree } from "@/components/erp/cost-centers-tree";
 
 export default async function CostCentersPage() {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const rows = await db
       .select({
         id: costCenters.id,

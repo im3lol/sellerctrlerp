@@ -1,7 +1,7 @@
 // Faithful test of SO→invoice conversion at the data layer, rolled back so demo data is untouched.
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
-import { organizations, salesOrders, salesOrderLines, salesInvoices, salesInvoiceLines, customers } from "@/db/schema";
+import { organizations, salesOrders, salesOrderLines, salesInvoices, salesInvoiceLines } from "@/db/schema";
 
 const ROLLBACK = "ROLLBACK_SENTINEL";
 async function main() {
