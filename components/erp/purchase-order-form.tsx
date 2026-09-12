@@ -53,12 +53,12 @@ const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && va
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
 const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, initialSupplierId, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; initialSupplierId?: string; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
   const isEdit = !!initial?.id;
-  const [supplierId, setSupplierId] = useState(initial?.supplierId ?? "");
+  const [supplierId, setSupplierId] = useState(initial?.supplierId ?? initialSupplierId ?? "");
   const [warehouseId, setWarehouseId] = useState(initial?.warehouseId ?? warehouses[0]?.id ?? "");
   const [date, setDate] = useState(initial?.date ?? today);
   const [expectedDate, setExpectedDate] = useState(initial?.expectedDate ?? "");
