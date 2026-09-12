@@ -4,6 +4,7 @@ import { approvalRequests, organizations, purchaseOrders, users } from "@/db/sch
 import { getErpContext } from "@/lib/erp/erp-context";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { notifyApprovalRequested, notifyApprovalDecided } from "@/lib/erp/approval-notify";
 import {
   parseApprovalPolicy, needsApproval, canSelfApprove, decisionBlocked,
   type ApprovalPolicy, type ApprovalFacts, type ApprovalDocType,
@@ -99,11 +100,18 @@ export async function approvalGate(i: GateInput): Promise<{ ok: true } | { error
     return { error: `مستني اعتماد المدير: ${reason}`, pending: true };
   }
 
-  await db.insert(approvalRequests).values({
+  const [filed] = await db.insert(approvalRequests).values({
     organizationId: i.orgId, entityType, entityId: i.entityId, entityNumber: i.entityNumber ?? null,
     amount: i.amount != null ? String(i.amount) : null, reason, status: "PENDING", requestedBy: i.userId,
-  }).onConflictDoNothing(); // one open request per document (partial unique index)
+  }).onConflictDoNothing() // one open request per document (partial unique index)
+    .returning({ id: approvalRequests.id });
   await tryRecordAudit({ orgId: i.orgId, userId: i.userId, action: "SUBMIT", entityType, entityId: i.entityId, entityNumber: i.entityNumber, summary: `طلب اعتماد — ${reason}` });
+  if (filed) {
+    await notifyApprovalRequested({
+      id: filed.id, orgId: i.orgId, label: APPROVAL_DOC_LABEL[entityType], number: i.entityNumber ?? null, reason,
+      href: approvalEntityHref(entityType, i.entityNumber ?? null, i.entityId), requesterId: i.userId,
+    });
+  }
   return { error: `اتبعت للمدير يعتمده: ${reason}`, pending: true };
 }
 
@@ -148,6 +156,12 @@ export async function decideApproval(d: DecideInput): Promise<{ ok: true } | { e
   await tryRecordAudit({
     orgId: d.orgId, userId: d.userId, action: d.decision, entityType: r.entityType, entityId: r.entityId, entityNumber: r.entityNumber,
     summary: d.decision === "APPROVE" ? `اعتماد — ${r.reason}` : `رفض — ${r.reason} — ${comment}`,
+  });
+  const type = r.entityType as ApprovalDocType;
+  await notifyApprovalDecided({
+    id: r.id, orgId: d.orgId, label: APPROVAL_DOC_LABEL[type] ?? r.entityType, number: r.entityNumber, reason: r.reason,
+    href: approvalEntityHref(type, r.entityNumber, r.entityId), requesterId: r.requestedBy, deciderId: d.userId,
+    approved: d.decision === "APPROVE", comment,
   });
   return { ok: true };
 }

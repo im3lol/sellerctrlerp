@@ -17,6 +17,12 @@ const RULES: { perm: ErpPermission; label: string; path: string; why: string; da
   { perm: "sales.view", label: "إذن صرف", path: "/sales/deliveries", why: "مسودة لسه ماتأكدتش", days: 2, from: "delivery_notes", since: "created_at", where: "status = 'DRAFT'" },
   { perm: "sales.view", label: "فاتورة بيع", path: "/sales/invoices", why: "مسودة لسه ماتأكدتش", days: 2, from: "sales_invoices", since: "created_at", where: "status = 'DRAFT'" },
   { perm: "sales.view", label: "مرتجع منصة", path: "/sales/returns", why: "مستني قرارك (مخزن ولا تالف)", days: 7, from: "sales_returns", since: "created_at", where: "status = 'DRAFT' AND channel IS NOT NULL AND channel <> 'MANUAL'" },
+  // The customer sent it back but the platform never forwarded it, and no reimbursement has
+  // come in for that order: time to open a claim. Leaves the list by itself the moment a
+  // reimbursement for the order is pulled in.
+  { perm: "sales.view", label: "مرتجع ماوصلش", path: "/sales/returns", why: "ماوصلكش ومفيش تعويض — افتح مطالبة عند المنصة", days: 30,
+    from: "(SELECT sr.id, sr.number, sr.organization_id, sr.date AS since FROM platform_returns pr JOIN sales_returns sr ON sr.id = pr.sales_return_id WHERE pr.status = 'NOT_RECEIVED' AND NOT EXISTS (SELECT 1 FROM fba_reimbursements f WHERE f.organization_id = pr.organization_id AND f.order_id = pr.order_id)) x",
+    since: "since", where: "true" },
   { perm: "purchases.view", label: "أمر شراء", path: "/purchases/orders", why: "عدّى موعد وصوله", days: 0, from: "purchase_orders", since: "expected_date", where: "status IN ('CONFIRMED','PARTIALLY_RECEIVED')" },
   { perm: "purchases.view", label: "فاتورة شراء", path: "/purchases/invoices", why: "مسودة لسه ماتأكدتش", days: 3, from: "purchase_invoices", since: "created_at", where: "status = 'DRAFT'" },
   { perm: "purchases.view", label: "طلب شراء", path: "/purchases/requisitions", why: "مستني حد يعتمده", days: 5, from: "material_requests", since: "created_at", where: "status = 'DRAFT'" },

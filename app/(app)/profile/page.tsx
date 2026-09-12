@@ -8,10 +8,25 @@ import { ProfileForm } from "@/components/profile/profile-form";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { ClockButton } from "@/components/erp/clock-button";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { organizationMembers } from "@/db/schema";
+import { getActiveOrg } from "@/lib/erp/org";
+import { withOrgScope } from "@/lib/db-scope";
+import { telegramEnabled, linkPayload, botUsername } from "@/lib/erp/telegram";
+import { unlinkTelegramAction } from "@/app/actions/erp/telegram";
 
 export default async function ProfilePage() {
   const user = await requireUser();
   const init = user.name.split(" ").slice(0, 2).map((p) => p[0]).join("");
+
+  // Telegram: approval requests and decisions reach this member on their phone.
+  const { org } = await getActiveOrg();
+  const [member] = org && telegramEnabled()
+    ? await withOrgScope(org.id, false, () => db.select({ id: organizationMembers.id, chatId: organizationMembers.telegramChatId })
+        .from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, user.id))).limit(1))
+    : [];
+  const bot = member && !member.chatId ? await botUsername() : null;
 
   return (
     <div>
@@ -40,6 +55,20 @@ export default async function ProfilePage() {
             <Icon name="IdCard" className="size-4" />
             ملفي الوظيفي — راتبي وإجازاتي
           </Link>
+
+          {member?.chatId ? (
+            <form action={unlinkTelegramAction} className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+              <span className="flex items-center gap-2"><Icon name="Send" className="size-4" />تليجرام مربوط ✓</span>
+              <button type="submit" className="text-xs text-muted-foreground hover:text-destructive">فك الربط</button>
+            </form>
+          ) : member && bot ? (
+            <a href={`https://t.me/${bot}?start=${linkPayload(member.id)}`} target="_blank" rel="noopener noreferrer"
+              title="الرابط صالح ١٥ دقيقة"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent">
+              <Icon name="Send" className="size-4" />
+              اربط تليجرام — توصلك الموافقات على موبايلك
+            </a>
+          ) : null}
         </Card>
 
         <Card className="p-6 lg:col-span-2">

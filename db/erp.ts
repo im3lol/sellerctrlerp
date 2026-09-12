@@ -116,6 +116,9 @@ export const organizationMembers = pgTable(
     // Per-user ERP permission overrides on top of the role: force-grant / force-revoke.
     permissionOverrides: jsonb("permission_overrides").$type<{ grant: string[]; revoke: string[] }>(),
     isActive: boolean("is_active").notNull().default(true),
+    // The member's own Telegram chat, linked from their profile (lib/erp/telegram.ts).
+    // Approval requests and decisions reach them there.
+    telegramChatId: text("telegram_chat_id"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
