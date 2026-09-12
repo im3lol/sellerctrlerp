@@ -5,7 +5,7 @@ import { academyLessons } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { type ModuleKey } from "@/lib/erp/module-list";
-import { isLessonKind, ACADEMY_ADMIN_ONLY, ACADEMY_CAPABILITY, type Lesson } from "@/lib/erp/academy-core";
+import { isLessonKind, ACADEMY_ADMIN_ONLY, type Lesson } from "@/lib/erp/academy-core";
 
 /**
  * الأكاديمية — lesson queries. Server-only: it imports the db.

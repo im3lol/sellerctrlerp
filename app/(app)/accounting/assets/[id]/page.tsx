@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { fixedAssets, assetDepreciationLines, accounts } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import { AssetDisposeForm } from "@/components/erp/asset-dispose-form";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";

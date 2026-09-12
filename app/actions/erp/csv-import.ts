@@ -1,7 +1,7 @@
 "use server";
 
 import { withOrgScope } from "@/lib/db-scope";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, items, itemCodes, suppliers } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";

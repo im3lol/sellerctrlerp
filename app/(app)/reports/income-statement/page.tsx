@@ -6,7 +6,6 @@ import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Icon } from "@/components/icon";
 import { ReportShell, ReportField } from "@/components/erp/report-shell";
 import { selectCls } from "@/lib/utils";
 

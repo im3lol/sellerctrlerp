@@ -1,7 +1,7 @@
 import "server-only";
 import type { Credential } from "../connector";
 import type { MarketplaceProduct } from "../dto";
-import { shopifyGraphql, paginate } from "./client";
+import { paginate } from "./client";
 
 // Shopify products → neutral MarketplaceProduct (one row per variant). `code` is the
 // seller SKU (primary match key); `altCode` is the variant GID (carried as the

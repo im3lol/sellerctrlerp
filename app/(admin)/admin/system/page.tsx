@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { withPlatformScope } from "@/lib/db-scope";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,12 @@ const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.
 const int = (n: number) => n.toLocaleString("ar-EG");
 
 export default async function SystemPage() {
+  // Platform scope: document_attachments is RLS-policied, and with no scope open the
+  // storage card and the per-tenant storage table both read zero.
+  return withPlatformScope(() => render());
+}
+
+async function render() {
   const [meta] = await db.execute<{ db_size: number; attach_bytes: number; attach_count: number; orgs: number; conns: number }>(sql`
     SELECT
       pg_database_size(current_database()) AS db_size,

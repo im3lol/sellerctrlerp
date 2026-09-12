@@ -18,7 +18,9 @@ export async function GET() {
   const [org] = await withOrgScope(orgId, false, () =>
     db.select({ name: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1));
   const b = await exportOrgData(orgId, org?.name ?? "org");
-  await tryRecordAudit({ orgId, userId, action: "CREATE", entityType: "DATA_BACKUP", summary: `تنزيل نسخة احتياطية (${b.totalRows} صف)`, metadata: { tables: b.tableCount, rows: b.totalRows } });
+  // Scoped: outside a scope RLS rejects the audit_logs insert and tryRecordAudit swallows
+  // it, so every full-data download went unrecorded.
+  await withOrgScope(orgId, false, () => tryRecordAudit({ orgId, userId, action: "CREATE", entityType: "DATA_BACKUP", summary: `تنزيل نسخة احتياطية (${b.totalRows} صف)`, metadata: { tables: b.tableCount, rows: b.totalRows } }));
   return new Response(new Uint8Array(b.buffer), {
     headers: {
       "Content-Type": "application/gzip",

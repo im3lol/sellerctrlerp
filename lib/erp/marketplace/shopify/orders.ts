@@ -2,7 +2,7 @@ import "server-only";
 import type { Credential } from "../connector";
 import type { MarketplaceOrder } from "../dto";
 import type { DateRange } from "../dto";
-import { shopifyGraphql, paginate } from "./client";
+import { paginate } from "./client";
 
 // Shopify orders → neutral MarketplaceOrder. Status contract: "FULFILLED" → "Shipped"
 // (fulfil now); anything else stays as-is → the order stays DRAFT in the ERP.

@@ -15,7 +15,7 @@ import { normalizeCode } from "@/lib/erp/amazon-import";
 import { ensurePlatform, ensurePlatformWalletGl } from "@/lib/erp/platform-provision";
 import { settlementDedupKey, type SettlementTxn } from "@/lib/erp/amazon-settlement";
 import { marketplaceTxnItems } from "@/db/schema";
-import { splitSettlementRows, perOrderGL, nonOrderGL, orderReceivable, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
+import { splitSettlementRows, perOrderGL, nonOrderGL, perOrderFeesByCat, nonOrderFeesByCat, type SettleAmounts } from "@/lib/erp/settlement-gl";
 import { FEE_CATEGORY_ACCOUNT, FEE_CATEGORY_LABEL, type FeeCatKey } from "@/lib/erp/settlement-fees";
 import { bust, orgKey } from "@/lib/cache";
 

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import {
