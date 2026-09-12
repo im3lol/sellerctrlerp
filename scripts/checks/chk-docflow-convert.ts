@@ -2,8 +2,8 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { organizations, accounts, journalEntries, journalEntryLines,
-  deliveryNotes, salesOrders, salesOrderLines, salesInvoices, salesInvoiceLines, customers,
-  purchaseReceipts, purchaseOrders, purchaseOrderLines, purchaseInvoices, purchaseInvoiceLines, suppliers } from "@/db/schema";
+  deliveryNotes, salesOrders, salesInvoices, 
+  purchaseReceipts, purchaseOrders, purchaseInvoices } from "@/db/schema";
 
 const ROLLBACK = "RB";
 const r2 = (n: number) => Math.round(n * 100) / 100;

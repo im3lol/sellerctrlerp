@@ -14,7 +14,6 @@ import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const expDate = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS_OPTIONS: [string, string][] = [["OK", "متوفّر"], ["LOW", "منخفض"], ["OUT", "نافد"]];
@@ -45,7 +44,6 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
       if (fStatus) u.set("status", fStatus);
       return u;
     };
-    const exportHref = `/api/erp/inventory/stock/export?${filterQs().toString()}`;
 
     return (
       <ReportShell

@@ -52,7 +52,6 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
       u.set("page", String(p));
       return `?${u.toString()}`;
     };
-    const exportHref = `/api/erp/inventory/ledger/export?${filterQs().toString()}`;
 
     return (
       <ReportShell

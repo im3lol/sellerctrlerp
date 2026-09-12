@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   accounts, salesOrders, marketplaceSettlementTxns, deliveryNotes, salesInvoices,
-  salesInvoiceLines, itemCodes, items, bankAccounts, customers, salesReturns, journalEntries, journalEntryLines, salesPlatforms,
+  salesInvoiceLines, itemCodes, items, bankAccounts, customers, journalEntries, journalEntryLines, salesPlatforms,
 } from "@/db/schema";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, stockBatches } from "@/db/schema";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";

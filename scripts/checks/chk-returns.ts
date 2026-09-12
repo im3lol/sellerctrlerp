@@ -7,7 +7,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import {
-  organizations, accounts, journalEntries, journalEntryLines, stockMovements,
+  organizations, accounts, journalEntries, journalEntryLines, 
   salesReturns, salesReturnLines, salesInvoices, customers,
   purchaseReturns, purchaseReturnLines, purchaseInvoices, suppliers,
 } from "@/db/schema";

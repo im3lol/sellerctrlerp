@@ -31,7 +31,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
+  return loadErpPage("purchases.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts)
         .where(and(eq(purchaseReceipts.id, raw), eq(purchaseReceipts.organizationId, orgId))).limit(1);

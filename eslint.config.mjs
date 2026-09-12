@@ -17,7 +17,26 @@ const eslintConfig = defineConfig([
     "**/.next/**",
     "android/**",
     "mobile/dist/**",
+    // Gradle's generated web assets (mobile/android/app/build/**) — copies of our own
+    // bundle, not source. They were being linted and counted.
+    "mobile/android/**",
   ]),
+
+  // Unused-but-intentional, spelled the conventional way: an `_`-prefixed name is a
+  // parameter a signature requires or a key pulled out only to drop it, and a key
+  // destructured next to `...rest` exists to omit it from `rest`. Everything else that's
+  // unused is still a warning.
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      }],
+    },
+  },
 
   // React Compiler rules, baselined — NOT waived.
   //

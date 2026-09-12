@@ -9,7 +9,7 @@ type Params = { params: Promise<{ year: string }> };
 
 export default async function BudgetEntryPage({ params }: Params) {
   const year = parseInt((await params).year, 10);
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canEdit = can("accounting.create");
 
     // Load all leaf P&L accounts

@@ -8,7 +8,7 @@
  */
 import { db } from "@/lib/db";
 import { sql, and, eq, inArray } from "drizzle-orm";
-import { deliveryNotes, deliveryNoteLines, salesReturns, salesReturnLines, accounts, journalEntries, journalEntryLines, stockMovements } from "@/db/schema";
+import { deliveryNotes, salesReturns, salesReturnLines, accounts, journalEntries, journalEntryLines, stockMovements } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;

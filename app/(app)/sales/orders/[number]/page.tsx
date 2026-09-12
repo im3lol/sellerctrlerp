@@ -3,7 +3,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesOrders, salesOrderLines, customers, items, itemCodes, deliveryNotes, salesInvoices, marketplaceSettlementTxns } from "@/db/schema";
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -39,7 +38,7 @@ const CHANNEL_STATUS: Record<string, string> = {
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: salesOrders.number }).from(salesOrders)
         .where(and(eq(salesOrders.id, raw), eq(salesOrders.organizationId, orgId))).limit(1);

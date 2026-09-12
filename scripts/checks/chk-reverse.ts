@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines, accounts, stockMovements } from "@/db/schema";
+import { organizations, purchaseReceipts, accounts, stockMovements } from "@/db/schema";
 import { postStockMovement } from "@/lib/erp/inventory";
 import { postEntry } from "@/lib/erp/posting";
 
@@ -48,7 +48,6 @@ async function main() {
   const SENTINEL = "ROLLBACK"; const out: string[] = [];
   try {
     await db.transaction(async (tx) => {
-      const s0 = await sums(tx, orgId);
       const grni0 = await bal(tx, orgId, A["2103"]); const inv0 = await bal(tx, orgId, A["1104"]);
       const st0 = await onHand(tx, orgId, m0.itemId, grn.warehouseId);
 

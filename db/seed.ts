@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { postEntry } from "@/lib/erp/posting";
 import { postStockMovement, currentStock } from "@/lib/erp/inventory";
@@ -126,8 +126,8 @@ async function main() {
   const [mona] = await db.insert(users).values(mk("منى سالم", "mona@sellerctrl.com", "employee", "أخصائية منتجات")).returning();
 
   // ── 2 clients ──
-  const [client1] = await db.insert(users).values(mk("متجر النخبة", "client1@sellerctrl.com", "client", "بائع")).returning();
-  const [client2] = await db.insert(users).values(mk("متجر الأناقة", "client2@sellerctrl.com", "client", "بائع")).returning();
+  await db.insert(users).values(mk("متجر النخبة", "client1@sellerctrl.com", "client", "بائع"));
+  await db.insert(users).values(mk("متجر الأناقة", "client2@sellerctrl.com", "client", "بائع"));
 
 
   // ── Organization (the single tenant) ──

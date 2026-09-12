@@ -3,7 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   customers, suppliers, items, salesOrders, purchaseOrders, stockTransfers, salesInvoices, purchaseInvoices,
-  posShifts, promotions, fixedAssets, projects, timesheets, employees,
+  posShifts, promotions, projects, timesheets, employees,
   jobOpenings, jobApplicants, trainingCourses,
 } from "@/db/schema";
 
@@ -37,7 +37,6 @@ const st = (s: string | null) => (s ? STATUS_AR[s] ?? s : "");
 // The newer modules carry their own vocabularies; exporting raw enum names would hand
 // the owner a spreadsheet of English constants.
 const PROMO_TYPE: Record<string, string> = { PERCENT: "نسبة", AMOUNT: "مبلغ لكل قطعة", BUY_X_GET_Y: "اشترِ واحصل" };
-const WO_STATUS: Record<string, string> = { DRAFT: "مفتوح", IN_PROGRESS: "شغّال", DONE: "مقفول", CANCELLED: "ملغي" };
 const PROJECT_STATUS: Record<string, string> = { DRAFT: "مسودة", ACTIVE: "شغّال", ON_HOLD: "متوقّف", DONE: "مقفول", CANCELLED: "ملغي" };
 const STAGE: Record<string, string> = { APPLIED: "قدّم", SCREENING: "فرز", INTERVIEW: "مقابلة", OFFER: "عرض", HIRED: "اتعيّن", REJECTED: "مرفوض" };
 const COURSE_STATUS: Record<string, string> = { PLANNED: "مخطّطة", RUNNING: "شغّالة", DONE: "خلصت", CANCELLED: "ملغية" };

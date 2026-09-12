@@ -31,7 +31,6 @@ export default async function CashflowForecastPage() {
     ]);
 
     const startCash = Number(cashRow[0]?.bal ?? 0);
-    const now = Date.now();
     const startOfToday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
 
     // Bucket index: 0 = overdue, 1..WEEKS = week N, WEEKS+1 = later.

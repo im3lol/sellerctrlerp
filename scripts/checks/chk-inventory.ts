@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { organizations, accounts, journalEntries, journalEntryLines, stockMovements } from "@/db/schema";
 

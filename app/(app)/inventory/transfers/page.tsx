@@ -20,7 +20,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function TransfersPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+  return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const canManage = can("inventory.create");
     const sp = await searchParams;
     const q = one(sp.q).trim();

@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  organizations, purchaseReceipts, purchaseReceiptLines, purchaseOrderLines,
+  organizations, purchaseReceipts, purchaseOrderLines,
   accounts, stockMovements,
 } from "@/db/schema";
 import { postEntry } from "@/lib/erp/posting";

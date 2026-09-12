@@ -27,7 +27,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function SalesInvoiceDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: salesInvoices.number }).from(salesInvoices)
         .where(and(eq(salesInvoices.id, raw), eq(salesInvoices.organizationId, orgId))).limit(1);

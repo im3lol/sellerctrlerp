@@ -6,7 +6,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PeriodsManager } from "@/components/erp/periods-manager";
 
 export default async function PeriodsPage() {
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const rows = await db
       .select({
         id: fiscalPeriods.id,

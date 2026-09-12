@@ -22,7 +22,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesInvoicesPage({ searchParams }: { searchParams: Promise<SP> }) {
-  return loadErpPage("sales.view", async ({ orgId, role, can }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.create");
     const canPost = can("accounting.post");
     const canCollect = can("sales.collect");

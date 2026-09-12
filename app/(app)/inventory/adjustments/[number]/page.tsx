@@ -21,7 +21,7 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year
 
 export default async function AdjustmentDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
-  return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
+  return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
       { id: stockAdjustments.id, number: stockAdjustments.number, organizationId: stockAdjustments.organizationId }, "/inventory/adjustments");
     const canManage = can("inventory.create");

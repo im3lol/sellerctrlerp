@@ -3,7 +3,7 @@ import {
   moduleCards, progress, isModuleKey, isLive, lessonHref, opensInApp, byKind,
   isLessonKind, KIND_LABELS, KIND_PLURAL, KIND_ICONS, LESSON_KINDS, MODULE_ICONS,
   ACADEMY_ADMIN_ONLY, ACADEMY_CAPABILITY,
-  type Lesson, type LessonKind,
+  type Lesson, 
 } from "../academy-core";
 import { ALL_MODULES, MODULE_LABELS } from "../module-list";
 import { can } from "../../rbac";

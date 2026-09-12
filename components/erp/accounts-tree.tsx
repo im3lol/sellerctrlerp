@@ -25,9 +25,6 @@ export type Account = {
   type: string; normalBalance: string; parentId: string | null; isLeaf: boolean; isActive: boolean;
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  ASSET: "أصول", LIABILITY: "خصوم", EQUITY: "حقوق ملكية", REVENUE: "إيرادات", EXPENSE: "مصروفات",
-};
 const money = (n: number) => Math.abs(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Balance label: net = debit − credit → Dr if ≥0, Cr if <0. */

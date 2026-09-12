@@ -32,7 +32,7 @@ const SOURCE: Record<string, string> = {
 
 export default async function JournalEntryDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = decodeURIComponent((await params).number);
-  return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db
         .select({ number: journalEntries.number })
