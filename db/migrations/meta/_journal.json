@@ -946,6 +946,13 @@
       "when": 1788619210006,
       "tag": "0134_drop_maintenance_fleet",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1788619210007,
+      "tag": "0135_hot_path_indexes",
+      "breakpoints": true
     }
   ]
 }

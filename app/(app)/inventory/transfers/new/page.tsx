@@ -17,7 +17,7 @@ export default async function NewTransferPage() {
       db.execute<StockRow>(sql`
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
       `),
     ]);
 

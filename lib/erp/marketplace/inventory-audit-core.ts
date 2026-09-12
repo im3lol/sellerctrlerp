@@ -56,7 +56,7 @@ export async function runInventoryAudit(p: SyncPrep): Promise<AuditOutcome> {
         SELECT DISTINCT ON (item_id) item_id, balance_quantity AS bq
         FROM stock_movements
         WHERE organization_id = ${p.orgId} AND warehouse_id = ${warehouseId}
-        ORDER BY item_id, created_at DESC, number DESC`);
+        ORDER BY item_id, created_at DESC, split_part(number, '-', 3)::int DESC`);
       for (const r of rows.rows ?? []) erpQtyById.set(r.item_id, Number(r.bq));
     }
 

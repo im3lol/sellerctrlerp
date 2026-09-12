@@ -49,7 +49,7 @@ export async function generateCountAction(input: z.input<typeof generateSchema>)
       SELECT DISTINCT ON (item_id) item_id, balance_quantity AS qty, balance_value AS val
       FROM stock_movements
       WHERE organization_id = ${auth.orgId} AND warehouse_id = ${d.warehouseId}
-      ORDER BY item_id, created_at DESC, number DESC
+      ORDER BY item_id, created_at DESC, split_part(number, '-', 3)::int DESC
     `);
     const rows = (balances.rows as { item_id: string; qty: string; val: string }[])
       .filter((r) => Number(r.qty) > 1e-9);

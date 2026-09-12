@@ -67,7 +67,7 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>): P
         LEFT JOIN (
           SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
           FROM stock_movements WHERE organization_id = ${orgId}
-          ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+          ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
         ) l ON l.item_id = i.id
         WHERE i.organization_id = ${orgId} AND i.is_active = true AND coalesce(i.min_stock,0) > 0
         GROUP BY i.id

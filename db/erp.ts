@@ -856,6 +856,8 @@ export const deliveryNotes = pgTable(
     // Order → delivery → invoice: walked by the delivery list, the invoice-from-
     // delivery flow, and the Amazon settlement's subledger lookup.
     index("delivery_notes_order_idx").on(t.salesOrderId),
+    // The bell counts DRAFT deliveries waiting on stock every minute, per open tab.
+    index("delivery_notes_org_status_idx").on(t.organizationId, t.status),
   ],
 );
 
@@ -1373,6 +1375,9 @@ export const auditLogs = pgTable(
   (t) => [
     index("audit_logs_org_idx").on(t.organizationId, t.createdAt),
     index("audit_logs_entity_idx").on(t.entityType, t.entityId),
+    // getDocumentAudit filters org + entity_id with no entity_type, which the index above
+    // can't serve — every document page's history card.
+    index("audit_logs_org_entity_idx").on(t.organizationId, t.entityId),
   ],
 );
 
@@ -1989,6 +1994,8 @@ export const salesInvoices = pgTable(
     // Overdue AR.
     index("sales_invoices_org_status_due_idx").on(t.organizationId, t.status, t.dueDate),
     index("sales_invoices_customer_idx").on(t.customerId),
+    // Every refund, return and fulfilment walks order → delivery → invoice on this column.
+    index("sales_invoices_delivery_note_idx").on(t.organizationId, t.deliveryNoteId),
   ],
 );
 
@@ -3131,6 +3138,8 @@ export const salesReturns = pgTable(
     // work out what is still returnable — one lookup per credit note.
     index("sales_returns_invoice_idx").on(t.salesInvoiceId),
     index("sales_returns_delivery_idx").on(t.deliveryNoteId),
+    // The orders list looks up returns by sales_order_id IN (…) on every page view.
+    index("sales_returns_order_idx").on(t.salesOrderId),
   ],
 );
 
@@ -3398,7 +3407,12 @@ export const syncRuns = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     finishedAt: ts("finished_at"),
   },
-  (t) => [index("sync_runs_org_idx").on(t.organizationId), index("sync_runs_started_idx").on(t.startedAt)],
+  (t) => [
+    index("sync_runs_org_idx").on(t.organizationId),
+    index("sync_runs_started_idx").on(t.startedAt),
+    // The scheduler asks "is this kind running / backing off for this org?" every tick.
+    index("sync_runs_org_kind_started_idx").on(t.organizationId, t.kind, t.startedAt),
+  ],
 );
 
 /** Inventory Auditor run — a read-only snapshot comparing Amazon FBA quantities to

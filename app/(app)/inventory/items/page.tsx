@@ -96,7 +96,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bq
           FROM stock_movements
           WHERE organization_id = ${orgId} AND item_id IN (${idList})
-          ORDER BY item_id, warehouse_id, created_at DESC, number DESC
+          ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
         ) t GROUP BY item_id`);
       for (const r of stockRes.rows as { item_id: string; qty: string }[]) onHandById.set(r.item_id, Number(r.qty));
     }
