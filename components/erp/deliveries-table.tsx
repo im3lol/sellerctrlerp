@@ -5,6 +5,7 @@ import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { bulkDeliveriesAction, type DeliveriesFilter } from "@/app/actions/erp/deliveries";
+import { createPickListAction } from "@/app/actions/erp/pick-lists";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,6 +49,17 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
   const hasDraft = allPages || selRows.some((r) => r.status === "DRAFT");
   const hasDelivered = allPages || selRows.some((r) => r.status === "DELIVERED");
 
+  // The selected drafts, gathered into one walk through the warehouse.
+  const pickRound = () => {
+    const ids = selRows.filter((r) => r.status === "DRAFT").map((r) => r.id);
+    start(async () => {
+      const r = await createPickListAction(ids);
+      if (r.error || !r.number) { toast.error(r.error ?? "تعذّر إنشاء الجولة"); return; }
+      toast.success(`جولة التجهيز ${r.number}`);
+      router.push(`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`);
+    });
+  };
+
   const run = (op: "confirm" | "bill" | "delete" | "reverse", verb: string) => {
     void (async () => {
       if (!(await confirm({ title: `${verb} ${int(count)} إذن`, danger: op === "delete" || op === "reverse" }))) return;
@@ -70,6 +82,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
           <div className="ms-auto flex gap-2">
             {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
+            {canCreate && hasDraft && !allPages && <Button size="sm" variant="outline" disabled={pending} onClick={pickRound} title="تجمّع الأذون المسودة المحدّدة في لفّة تجهيز واحدة على المخزن"><Icon name="ScanLine" className="size-4" />جولة تجهيز</Button>}
             {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
             {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
             {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}

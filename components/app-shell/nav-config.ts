@@ -165,6 +165,7 @@ export const NAV: NavSection[] = [
       { label: "إذون الصرف", href: "/sales/deliveries", icon: "Truck", capability: "erp.sales.view", group: "العمليات" },
       { label: "تسويات المخزون", href: "/inventory/adjustments", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "العمليات" },
       { label: "الجرد الدوري", href: "/inventory/cycle-count", icon: "ListChecks", capability: "erp.inventory.view", group: "العمليات" },
+      { label: "جولات التجهيز", href: "/inventory/pick-lists", icon: "ScanLine", capability: "erp.inventory.view", group: "العمليات" },
       { label: "فحص الجودة", href: "/inventory/quality", icon: "ShieldCheck", capability: "erp.inventory.view", group: "العمليات" },
       { label: "التحويلات", href: "/inventory/transfers", icon: "ArrowLeftRight", capability: "erp.inventory.view", group: "العمليات" },
       { label: "الحزم", href: "/inventory/bundles", icon: "Boxes", capability: "erp.inventory.view", group: "العمليات" },

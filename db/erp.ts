@@ -973,6 +973,9 @@ export const pickListLines = pgTable("pick_list_lines", {
   quantity: money("quantity").notNull(),
   pickedQty: money("picked_qty").notNull().default("0"),
   salesInvoiceId: text("sales_invoice_id"),
+  /** The delivery this line serves, and the bin it was to be picked from (snapshotted). */
+  deliveryNoteId: text("delivery_note_id").references(() => deliveryNotes.id, { onDelete: "cascade" }),
+  binCode: text("bin_code"),
   notes: text("notes"),
 }, (t) => [
   index("pick_list_lines_list_idx").on(t.pickListId),
