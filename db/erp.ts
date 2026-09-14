@@ -94,6 +94,10 @@ export const organizations = pgTable(
     printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     // Where this tenant came from at signup (utm_source or the referring host) — acquisition attribution.
     signupSource: text("signup_source"),
+    // A company's own Anthropic key (encryptSecret() ciphertext) and model — its AI reads run
+    // on these instead of the platform's, outside the plan's monthly limit.
+    aiApiKey: text("ai_api_key"),
+    aiModel: text("ai_model"),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1929,6 +1933,33 @@ export const documentAttachments = pgTable(
   ],
 );
 
+/** One AI read of an uploaded bill (lib/erp/ai-reader.ts): the file, what came back, what it
+ *  cost, and the document it became. The file is the only thing the model ever sees. */
+export const aiCaptures = pgTable(
+  "ai_captures",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    kind: text("kind").notNull().default("BILL"),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    fileSize: integer("file_size").notNull(),
+    storageKey: text("storage_key"),
+    status: text("status").notNull().default("DONE"), // DONE | FAILED — only DONE counts toward the limit
+    result: jsonb("result"),
+    error: text("error"),
+    model: text("model"),
+    ownKey: boolean("own_key").notNull().default(false),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    entityType: text("entity_type"),
+    entityId: text("entity_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_captures_org_idx").on(t.organizationId, t.createdAt)],
+);
+
 /* ══════════════════════════ BANKING ═══════════════════════ */
 
 export const bankAccounts = pgTable(
@@ -2141,6 +2172,8 @@ export const suppliers = pgTable(
     organizationId: orgId(),
     code: text("code").notNull(),
     nameAr: text("name_ar").notNull(),
+    /** Digits only. Learnt from the bills themselves (lib/erp/ai-bill.ts) — the surest match. */
+    taxNumber: text("tax_number"),
     phone: text("phone"),
     email: text("email"),
     address: text("address"),
@@ -3348,6 +3381,10 @@ export const platformSettings = pgTable("platform_settings", {
   smtpPass: text("smtp_pass"),                        // encryptSecret() ciphertext
   smtpFrom: text("smtp_from"),                        // From address, e.g. info@sellerctrl.com
   smtpFromName: text("smtp_from_name"),               // display name, e.g. SellerCtrl
+  // AI bill reading (lib/erp/ai-reader.ts). No model = the feature is off. Key = encryptSecret() ciphertext.
+  aiApiKey: text("ai_api_key"),
+  aiModel: text("ai_model"),
+  aiMonthlyLimit: integer("ai_monthly_limit").notNull().default(50), // reads per company per month on the platform key
   updatedAt: updatedAt(),
 });
 

@@ -1,12 +1,13 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { withPlatformScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
-import { platformSettings, platformIntegrations, platformCredentials } from "@/db/schema";
+import { platformSettings, platformIntegrations, platformCredentials, aiCaptures } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
+import { isAiModel } from "@/lib/erp/ai-bill";
 import { connectorConfigured } from "@/lib/saas/connector-configured";
 
 const SINGLETON = "singleton";
@@ -149,6 +150,37 @@ export async function saveEmailSettingsAction(input: { host?: string; port?: num
     return { ok: true };
   } catch (e) {
     console.error("[email-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
+
+/** Owner reads the AI config — the key is never returned, only whether it's set. */
+export async function getAiSettingsAdmin() {
+  await requireCapability("employee.manage");
+  return withPlatformScope(async () => {
+    const [row] = await db.select().from(platformSettings).limit(1);
+    const start = new Date(); start.setUTCDate(1); start.setUTCHours(0, 0, 0, 0);
+    const [used] = await db.select({ n: sql<number>`count(*)::int` }).from(aiCaptures)
+      .where(and(eq(aiCaptures.ownKey, false), eq(aiCaptures.status, "DONE"), gte(aiCaptures.createdAt, start)));
+    return { model: row?.aiModel ?? "", monthlyLimit: row?.aiMonthlyLimit ?? 50, hasKey: !!row?.aiApiKey, usedThisMonth: used?.n ?? 0 };
+  });
+}
+
+/** Save the AI config. A blank key keeps the stored one; no model = the feature is off. */
+export async function saveAiSettingsAction(input: { apiKey?: string; model: string | null; monthlyLimit: number }): Promise<Res> {
+  await requireCapability("employee.manage");
+  if (input.model && !isAiModel(input.model)) return { error: "موديل غير معروف" };
+  const key = input.apiKey?.trim();
+  if (key && !key.startsWith("sk-ant-")) return { error: "ده مش شكل مفتاح Anthropic (بيبدأ بـ sk-ant-)" };
+  const limit = Number.isFinite(input.monthlyLimit) ? Math.max(0, Math.trunc(input.monthlyLimit)) : 50;
+  try {
+    const set: Record<string, unknown> = { id: SINGLETON, aiModel: input.model || null, aiMonthlyLimit: limit, updatedAt: new Date() };
+    if (key) set.aiApiKey = encryptSecret(key);
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[ai-settings] save failed:", e);
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
   }
 }

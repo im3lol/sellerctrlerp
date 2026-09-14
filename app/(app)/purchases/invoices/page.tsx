@@ -109,7 +109,10 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
           title="فواتير الشراء"
           subtitle={`${total} فاتورة`}
           action={canManage ? (
-            <Button asChild><Link href="/purchases/invoices/new"><Icon name="Plus" className="size-4" />فاتورة شراء</Link></Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild><Link href="/purchases/read-bill"><Icon name="Sparkles" className="size-4" />اقرأ فاتورة</Link></Button>
+              <Button asChild><Link href="/purchases/invoices/new"><Icon name="Plus" className="size-4" />فاتورة شراء</Link></Button>
+            </div>
           ) : undefined}
         />
 

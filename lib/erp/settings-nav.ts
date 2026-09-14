@@ -56,6 +56,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     items: [
       { label: "النسخ الاحتياطي", desc: "تحميل نسخة كاملة من بيانات مؤسستك والنسخ المحفوظة تلقائياً", href: "/settings/backup", icon: "DatabaseBackup", capability: "settings.edit" },
       { label: "مفاتيح الـ API", desc: "اربط أنظمتك الخارجية بالبيانات عبر REST API", href: "/settings/api-keys", icon: "Braces", capability: "settings.view" },
+      { label: "الذكاء الاصطناعي", desc: "قراءة فواتير الموردين — بمفتاح المنصة أو بمفتاح شركتك", href: "/settings/ai", icon: "Sparkles", capability: "settings.view" },
       { label: "إعداد الحساب", desc: "قائمة خطوات التجهيز الأولي للنظام", href: "/setup", icon: "Rocket", capability: "sales.view", external: true },
       { label: "المستودعات والأصناف", desc: "إدارة الأصناف والمخازن ووحدات القياس", href: "/inventory/items", icon: "Warehouse", capability: "inventory.view", external: true },
     ],

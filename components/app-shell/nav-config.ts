@@ -128,6 +128,7 @@ export const NAV: NavSection[] = [
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "قراءة الفواتير", href: "/purchases/read-bill", icon: "ScanText", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "تكاليف الاستيراد", href: "/purchases/landed-costs", icon: "Ship", capability: "erp.purchases.create", group: "دورة الشراء" },
       { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "دورة الشراء" },
       // GRNI is where the cycle fails to close, so it belongs in the cycle, not in a
