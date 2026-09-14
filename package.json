@@ -25,6 +25,7 @@
     "db:seed": "tsx --tsconfig tsconfig.script.json db/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@aws-sdk/client-s3": "^3.1069.0",
     "@aws-sdk/client-sqs": "^3.1094.0",
     "@aws-sdk/s3-request-presigner": "^3.1069.0",

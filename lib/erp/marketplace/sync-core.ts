@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, platformCredentials } from "@/db/schema";
@@ -12,7 +12,7 @@ import { upsertSettlementTxns, postSettlements, processSettlementRefunds } from 
 import { upsertPlatformReturns, processPlatformReturns, fromFbaReturn } from "@/lib/erp/returns-core";
 import { upsertReimbursements, upsertLedgerEvents } from "@/lib/erp/fba-finance-core";
 import { upsertPlatformRemovals } from "@/lib/erp/removals-core";
-import { platformItemFees, itemCodes, items, platformBalances } from "@/db/schema";
+import { platformItemFees, platformOffers, itemCodes, items, platformBalances } from "@/db/schema";
 import type { MarketplaceConnector, Credential } from "@/lib/erp/marketplace/connector";
 import { isAuthError as isAmazonAuthError } from "@/lib/erp/marketplace/amazon/client";
 import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
@@ -471,5 +471,64 @@ export async function syncFeesCore(p: SyncPrep): Promise<FeesSync> {
     return { ok: true, estimated, itemsConsidered: bySku.size };
   } catch (e) {
     return coreFail(p, e, "فشل تقدير الرسوم");
+  }
+}
+
+export type OffersSync = { ok: true; checked: number; lost: number } | { ok: false; error: string };
+
+/** Buy Box watch: the competitive picture now for every Amazon-linked SKU I have stock of. */
+export async function syncOffersCore(p: SyncPrep): Promise<OffersSync> {
+  const fetchOffers = p.connector.fetchOffers;
+  if (!fetchOffers) return { ok: false, error: "المنصة لا تدعم مراقبة الأسعار" };
+  try {
+    // Only listings I can sell right now — stock on hand somewhere. An out-of-stock listing
+    // can't hold the Buy Box, and the whole catalogue (4,214 SKUs at one tenant, 37 in stock)
+    // would spend the pricing quota for ~7 minutes a day on nothing.
+    const { rows: linked } = await withOrgScope(p.orgId, false, () => db.execute<{ item_id: string; code: string }>(sql`
+      WITH bal AS (
+        SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity FROM stock_movements
+        WHERE organization_id = ${p.orgId}
+        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+      ), stock AS (SELECT item_id FROM bal GROUP BY item_id HAVING sum(balance_quantity) > 0)
+      SELECT ic.item_id, ic.code FROM item_codes ic
+      JOIN items i ON i.id = ic.item_id
+      JOIN stock s ON s.item_id = ic.item_id
+      WHERE ic.organization_id = ${p.orgId} AND ic.code_type = 'SKU' AND i.is_active = true`));
+    const bySku = new Map(linked.map((l) => [l.code, l.item_id]));
+
+    // Items that dropped out (sold out, deactivated) stop being watched — and stop alerting.
+    await withOrgScope(p.orgId, false, () => db.delete(platformOffers).where(and(
+      eq(platformOffers.organizationId, p.orgId), eq(platformOffers.channel, p.connector.code),
+      ...(bySku.size ? [notInArray(platformOffers.itemId, [...new Set(bySku.values())])] : []),
+    )));
+    if (bySku.size === 0) return { ok: true, checked: 0, lost: 0 };
+
+    const snaps = await fetchOffers(p.cred, [...bySku.keys()]);
+    const money = (n: number | null) => (n != null ? String(n) : null);
+
+    // Per item, not per SKU: two SKUs of one item are one row and one alert.
+    const lostItems = new Set<string>();
+    await withOrgScope(p.orgId, false, async () => {
+      for (const s of snaps) {
+        const itemId = bySku.get(s.sku);
+        if (!itemId) continue;
+        const vals = {
+          sku: s.sku, currency: s.currency, myPrice: money(s.myPrice), buyBoxPrice: money(s.buyBoxPrice),
+          lowestPrice: money(s.lowestPrice), offerCount: s.offerCount, isWinner: s.isWinner, checkedAt: new Date(),
+        };
+        await db.insert(platformOffers)
+          .values({ organizationId: p.orgId, channel: p.connector.code, itemId, ...vals, lostSince: s.isWinner === false ? new Date() : null })
+          .onConflictDoUpdate({
+            target: [platformOffers.organizationId, platformOffers.itemId, platformOffers.channel],
+            // Lost: stamp the moment it first happened and keep that stamp while it stays
+            // lost. Won back — or no Buy Box shown at all — clears it.
+            set: { ...vals, lostSince: s.isWinner === false ? sql`coalesce(${platformOffers.lostSince}, now())` : null },
+          });
+        if (s.isWinner === false) lostItems.add(itemId);
+      }
+    });
+    return { ok: true, checked: snaps.length, lost: lostItems.size };
+  } catch (e) {
+    return coreFail(p, e, "فشل سحب الأسعار");
   }
 }

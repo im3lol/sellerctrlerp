@@ -18,6 +18,7 @@ export const QUEUES = {
   removals: "amazon-removals",   // FBA removal orders -> DRAFT تسويات مخزون (on trader confirm)
   reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
   ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
+  offers: "amazon-offers",       // Buy Box watch (Product Pricing API, read-only)
   maintenance: "maintenance",    // per-tenant daily backup (fans the cron out of one serial loop)
 } as const;
 

@@ -171,6 +171,7 @@ export async function GET(req: Request) {
         if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
         if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
         if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));
+        if (n.lostBuyBox) lines.push(row("🏆 أصناف خسرت الـBuy Box", n.lostBuyBox, `${origin}/platforms/amazon/buy-box`));
         if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/inventory/expiry`));
         if (lines.length === 0) continue;
 

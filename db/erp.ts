@@ -3062,6 +3062,30 @@ export const platformItemFees = pgTable(
   (t) => [uniqueIndex("platform_item_fees_item_idx").on(t.organizationId, t.itemId, t.channel)],
 );
 
+// Buy Box monitoring (Product Pricing API): the latest competitive picture per listed item,
+// refreshed daily. lostSince is set when the item stops winning and cleared when it wins back.
+export const platformOffers = pgTable(
+  "platform_offers",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    sku: text("sku").notNull(),
+    asin: text("asin"),
+    currency: text("currency"),
+    myPrice: money("my_price"),
+    buyBoxPrice: money("buy_box_price"),
+    lowestPrice: money("lowest_price"),
+    offerCount: integer("offer_count").notNull().default(0),
+    /** true = mine, false = someone else's, null = no Buy Box shown at all. */
+    isWinner: boolean("is_winner"),
+    lostSince: timestamp("lost_since", { withTimezone: true }),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("platform_offers_item_idx").on(t.organizationId, t.itemId, t.channel)],
+);
+
 /* ════════════════════════ INVESTORS ═══════════════════════ */
 
 export const investors = pgTable(

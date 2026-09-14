@@ -118,4 +118,6 @@ export interface MarketplaceConnector {
   fetchLedgerEvents?(cred: Credential, range: DateRange): Promise<FbaLedgerRow[]>;
   /** Estimated marketplace fees for SKUs at given prices (Product Fees API). */
   fetchFees?(cred: Credential, skus: { sku: string; price: number }[]): Promise<FeeEstimate[]>;
+  /** The competitive picture for my SKUs — Buy Box holder, prices, offer count (Product Pricing API). */
+  fetchOffers?(cred: Credential, skus: string[]): Promise<import("./amazon/offers").OfferSnapshot[]>;
 }

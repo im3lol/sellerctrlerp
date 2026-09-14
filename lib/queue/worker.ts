@@ -6,7 +6,7 @@ import { syncRuns } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
 import { redisConnection } from "./redis";
 import { QUEUES, type QueueName, type SyncJob } from "./queues";
-import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runFbaCodesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runRemovalsJob, runReimbursementsJob, runLedgerJob, runPricingJob, runMaintenanceJob } from "./handlers";
+import { runImportJob, runDiscoveryJob, runDetailsJob, runImagesJob, runFbaCodesJob, runOrdersJob, runSettlementsJob, runInventoryAuditJob, runReturnsJob, runRemovalsJob, runReimbursementsJob, runLedgerJob, runPricingJob, runOffersJob, runMaintenanceJob } from "./handlers";
 
 // BullMQ workers — run ONLY in the worker container (WORKER=1, booted from
 // instrumentation.ts). concurrency + limiter cap how fast we hit Amazon so we stay
@@ -30,6 +30,7 @@ const CONC: Record<QueueName, number> = {
   "amazon-removals": 1,
   "amazon-reimbursements": 1,
   "amazon-ledger": 1,
+  "amazon-offers": 1, // an account's pricing quota is ~0.5 req/s — one run at a time
   "maintenance": 3, // per-tenant daily backups fan out — a few at a time is plenty
 };
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
@@ -54,7 +55,7 @@ export function startWorkers(): void {
   void withPlatformScope(() =>
     db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف بإعادة تشغيل الخادم" })
       // Same list as the scheduler's reaper — REMOVALS and the product kinds were missing.
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY"]), eq(syncRuns.status, "RUNNING"))),
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY", "OFFERS"]), eq(syncRuns.status, "RUNNING"))),
   ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
   const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
@@ -77,6 +78,7 @@ export function startWorkers(): void {
   make(QUEUES.removals, runRemovalsJob);
   make(QUEUES.reimbursements, runReimbursementsJob);
   make(QUEUES.ledger, runLedgerJob);
+  make(QUEUES.offers, runOffersJob);
   make(QUEUES.maintenance, runMaintenanceJob);
   console.log("[queue] Amazon sync workers started");
 

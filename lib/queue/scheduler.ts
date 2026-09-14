@@ -19,6 +19,7 @@ const RETURNS_MS = 12 * 60 * 60 * 1000; // FBA returns report — twice a day is
 const FINANCE_MS = 24 * 60 * 60 * 1000; // reimbursements + ledger — daily
 const FEES_MS = 7 * 24 * 60 * 60 * 1000; // fee estimates — weekly (also on-demand button)
 const AUDIT_MS = 24 * 60 * 60 * 1000; // FBA inventory audit — daily, so the shipment plan reads fresh numbers
+const OFFERS_MS = 24 * 60 * 60 * 1000; // Buy Box watch — daily
 
 /**
  * Enqueue the due sync jobs for every autoSync connection: an incremental
@@ -33,7 +34,7 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
     await db.update(syncRuns).set({ status: "FAILED", finishedAt: new Date(), error: "توقّف غير متوقّع" })
       // DISCOVERY/IMPORT/INVENTORY were missing, so a product sync that died stayed
       // RUNNING for good — seven Noon discovery runs had sat there for up to 14 days.
-      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY"]), eq(syncRuns.status, "RUNNING"),
+      .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY", "OFFERS"]), eq(syncRuns.status, "RUNNING"),
         sql`${syncRuns.startedAt} < now() - interval '${sql.raw(String(STALE_MIN))} minutes'`));
 
     const creds = await db.select({
@@ -71,6 +72,14 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
         .orderBy(desc(syncRuns.startedAt)).limit(BACKOFF_LOOKBACK);
       const until = backoffUntil(recent);
       return !!until && until.getTime() > now;
+    };
+
+    // When a kind last started for this connection — for the daily feeds that keep no watermark.
+    const lastRunAt = async (orgId: string, provider: string, kind: string) => {
+      const [r] = await db.select({ at: syncRuns.startedAt }).from(syncRuns)
+        .where(and(eq(syncRuns.organizationId, orgId), eq(syncRuns.provider, provider), eq(syncRuns.kind, kind)))
+        .orderBy(desc(syncRuns.startedAt)).limit(1);
+      return r?.at ?? null;
     };
 
     let orders = 0, discovery = 0, settlements = 0, feeds = 0;
@@ -132,10 +141,12 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       // FBA audit: kept fresh daily for an org that has run one — the first run stays a
       // deliberate click (it needs the platform's warehouse set). Read-only either way.
       if (conn?.fetchInventoryDetail && !(await isRunning(c.orgId, "INVENTORY")) && !(await backedOff(c.orgId, c.provider, "INVENTORY"))) {
-        const [last] = await db.select({ startedAt: syncRuns.startedAt }).from(syncRuns)
-          .where(and(eq(syncRuns.organizationId, c.orgId), eq(syncRuns.provider, c.provider), eq(syncRuns.kind, "INVENTORY")))
-          .orderBy(desc(syncRuns.startedAt)).limit(1);
-        if (last && due(last.startedAt, AUDIT_MS) && (await enqueue(QUEUES.inventory, base))) feeds++;
+        const last = await lastRunAt(c.orgId, c.provider, "INVENTORY");
+        if (last && due(last, AUDIT_MS) && (await enqueue(QUEUES.inventory, base))) feeds++;
+      }
+      // Buy Box watch: daily for every connection that can read prices. Read-only.
+      if (conn?.fetchOffers && !(await isRunning(c.orgId, "OFFERS")) && !(await backedOff(c.orgId, c.provider, "OFFERS"))) {
+        if (due(await lastRunAt(c.orgId, c.provider, "OFFERS"), OFFERS_MS) && (await enqueue(QUEUES.offers, base))) feeds++;
       }
     }
     return { orders, discovery, settlements, feeds, total: creds.length };
