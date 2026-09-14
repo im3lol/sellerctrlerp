@@ -33,6 +33,9 @@ const specSchema = z.object({
   })).max(8).default([]),
   sort: z.object({ column: z.coerce.number().int().min(0), dir: z.enum(["asc", "desc"]) }).nullable().default(null),
   limit: z.coerce.number().int().min(0).max(5000).optional(),
+  pivotBy: z.coerce.number().int().min(0).nullable().optional(),
+  dateBucket: z.enum(["month", "year"]).nullable().optional(),
+  chart: z.enum(["bar", "trend", "donut"]).nullable().optional(),
 });
 
 export type RunReportResult = ReportResult & { datasetTitle: string; allHeaders: string[] };

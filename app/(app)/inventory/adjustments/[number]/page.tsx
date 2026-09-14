@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
 import { AdjustmentLinesEditor, type EditorLine } from "@/components/erp/adjustment-lines-editor";
-import { DocAuditCard } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { getEntityApproval } from "@/lib/erp/approvals";
@@ -173,7 +173,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           </CardContent>
         </Card>
 
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="STOCK_ADJUSTMENT" entityId={adj.id} entityNumber={adj.number} audit={audit} />
       </div>
     );
   });

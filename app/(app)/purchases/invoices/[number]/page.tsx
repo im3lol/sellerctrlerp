@@ -10,7 +10,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemThumb } from "@/components/erp/item-thumb";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { PurchaseInvoiceDetailActions } from "@/components/erp/purchase-invoice-detail-actions";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { AttachmentsCard } from "@/components/erp/attachments-card";
 import { round2, unitAllIn } from "@/lib/erp/money";
@@ -199,7 +200,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
 
         <AttachmentsCard entityType="PURCHASE_INVOICE" entityId={inv.id} canManage={canManage} />
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="PURCHASE_INVOICE" entityId={inv.id} entityNumber={inv.number} audit={audit} />
       </div>
     );
   });

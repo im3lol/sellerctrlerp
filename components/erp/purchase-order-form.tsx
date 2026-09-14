@@ -53,7 +53,7 @@ const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && va
 const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
 const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
-export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, initialSupplierId, requisitionId, lastPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; initialSupplierId?: string; requisitionId?: string; lastPrices?: Record<string, number>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
+export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, initialSupplierId, requisitionId, lastPrices = {}, supplierPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; initialSupplierId?: string; requisitionId?: string; lastPrices?: Record<string, number>; supplierPrices?: Record<string, Record<string, number>>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -87,9 +87,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   // VAT is a single choice for the whole order (not per line). Starts OFF: most purchases
   // here carry no tax, and a default-on checkbox quietly adds it to orders that never had it.
   const [applyVat, setApplyVat] = useState(initial ? initial.applyVat : false);
+  // A line's starting price: what the chosen supplier charges (supplier catalog), else the
+  // last price paid anyone. Switching supplier later leaves prices already typed alone.
+  const priceOf = (itemId: string) => supplierPrices[supplierId]?.[itemId] ?? lastPrices[itemId] ?? 0;
   const [lines, setLines] = useState<LineRow[]>(
     initial?.lines?.length ? initial.lines.map((l) => ({ ...l, id: newId() }))
-      : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: lastPrices[l.itemId] ?? 0 }))
+      : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: priceOf(l.itemId) }))
       : [newLine()],
   );
   // id → row, so a line cell can show the item's picture and code without another query.
@@ -109,7 +112,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
     setLines((ls) => {
       const idx = ls.findIndex((l) => l.itemId === item.id);
       if (idx >= 0) return ls.map((l, i) => (i === idx ? { ...l, quantity: l.quantity + 1 } : l));
-      const line: Line = { itemId: item.id, quantity: 1, unitPrice: lastPrices[item.id] ?? 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 };
+      const line: Line = { itemId: item.id, quantity: 1, unitPrice: priceOf(item.id), shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 };
       const emptyIdx = ls.findIndex((l) => !l.itemId);
       if (emptyIdx >= 0) return ls.map((l, i) => (i === emptyIdx ? { ...line, id: l.id } : l));
       return [...ls, { ...line, id: newId() }];
@@ -316,7 +319,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                     <TableCell className="min-w-64 max-w-72">
                       <ItemPicker
                         selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
-                        onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && lastPrices[it.id] ? { unitPrice: lastPrices[it.id] } : {}) })}
+                        onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && priceOf(it.id) ? { unitPrice: priceOf(it.id) } : {}) })}
                       />
                     </TableCell>
                     <TableCell>

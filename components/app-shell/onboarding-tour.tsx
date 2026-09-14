@@ -19,12 +19,12 @@ type Step = { icon: string; title: string; body: string; target?: string; href?:
 const TOURS: Record<string, Step[]> = {
   home: [
     { icon: "Rocket", title: "أهلاً بك في SellerCtrl", body: "نظام واحد يدير محاسبتك ومخزونك ومبيعاتك ومشترياتك ومنصاتك. دي جولة سريعة على أهم الأماكن — ولكل قسم جولته الخاصة أول ما تدخله." },
-    { icon: "LayoutDashboard", title: "وحدات النظام", body: "من هنا تدخل لأي وحدة: المحاسبة، المبيعات، المشتريات، المخزون… كل عملية فيها تترحّل لحساباتك تلقائيًا.", target: "dashboard-tiles" },
+    { icon: "LayoutGrid", title: "صفحة التطبيقات", body: "دي صفحتك الرئيسية: كل وحدة أيقونة. دوس على أي وحدة تدخلها، والقائمة الجانبية هتعرض صفحاتها هي بس. ولوحة التحكم — بتحليلات الشغل كله واختصاراته — أول أيقونة.", target: "app-launcher" },
     { icon: "Search", title: "البحث السريع", body: "ابحث عن أي مستند أو صنف أو عميل من أي مكان في النظام.", target: "topbar-search" },
     { icon: "Bell", title: "الإشعارات", body: "الجرس بيجمع كل اللي محتاج انتباهك: مسودات، مخزون منخفض، طلبات أمازون الجديدة، وأذون بانتظار المخزون.", target: "notification-bell" },
     { icon: "Building2", title: "مؤسستك", body: "لو عندك أكثر من شركة، بدّل بينها من هنا — كل شركة ببياناتها المعزولة تمامًا.", target: "org-switcher" },
-    { icon: "Rocket", title: "أكمل إعداد حسابك", body: "الكرت ده بيتابع خطوات تجهيز حسابك (أصناف، عملاء، أرصدة…) — بيختفي لوحده أول ما تكمّل.", target: "setup-card" },
-    { icon: "CreditCard", title: "جاهز؟", body: "أنت في تجربة مجانية ١٤ يومًا بكل الوحدات. ادخل أي قسم من القائمة الجانبية وهتلاقي جولة قصيرة مستنياك." },
+    { icon: "Rocket", title: "أكمل إعداد حسابك", body: "في لوحة التحكم هتلاقي كرت بيتابع خطوات تجهيز حسابك (أصناف، عملاء، أرصدة…) — بيختفي لوحده أول ما تكمّل." },
+    { icon: "CreditCard", title: "جاهز؟", body: "أنت في تجربة مجانية ١٤ يومًا بكل الوحدات. دوس على أي وحدة من هنا وهتلاقي جولة قصيرة مستنياك." },
   ],
   sales: [
     { icon: "ShoppingCart", title: "جولة المبيعات", body: "هنمشي على دورة البيع كاملة صفحة بصفحة: عميل ← أمر بيع ← إذن صرف ← فاتورة ← سند قبض. اضغط «التالي» وهننتقل سوا." },
@@ -84,7 +84,7 @@ const TOURS: Record<string, Step[]> = {
 
 /** Map the current path to a tour key (module), or null when none applies. */
 function routeKey(path: string): string | null {
-  if (path === "/dashboard") return "home";
+  if (path === "/apps") return "home";
   if (path.startsWith("/platforms")) return "platforms";
   if (path.startsWith("/purchases")) return "purchases";
   if (path.startsWith("/sales")) return "sales";

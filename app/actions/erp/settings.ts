@@ -71,6 +71,15 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const d = parsed.data;
 
+    // «المتأخر» limits (lib/erp/stuck-docs.ts): st_<rule> = days. Blank keeps the default,
+    // and parseStuckDays drops any key that isn't a rule.
+    const stuck: Record<string, number> = {};
+    for (const [k, v] of formData.entries()) {
+      if (!k.startsWith("st_") || String(v).trim() === "") continue;
+      const n = Math.trunc(Number(v));
+      if (Number.isFinite(n) && n >= 0 && n <= 365) stuck[k.slice(3)] = n;
+    }
+
     // The fiscal-year start is the accounting foundation — it drives every period
     // boundary. It's free to set/change BEFORE the first posting, but LOCKED once any
     // journal entry or stock movement exists (changing it then would orphan the periods
@@ -100,6 +109,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
         approvalPolicy: {
           enabled: d.apEnabled, purchaseOrder: d.apPurchaseOrder, salesDiscountPct: d.apSalesDiscountPct,
           salesBelowCost: d.apSalesBelowCost, stockWriteOff: d.apStockWriteOff, payment: d.apPayment, expense: d.apExpense,
+          stuck,
         },
         // Only new goods receipts read this; confirmed ones keep their own snapshot.
         purchaseVatCapitalised: d.purchaseVatCapitalised,

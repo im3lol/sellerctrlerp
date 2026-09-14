@@ -12,6 +12,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { createPurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
 import { linkDocuments } from "@/lib/erp/links";
 import { compareQuotes, validateRfq, type Comparison } from "@/lib/erp/rfq";
+import { recordSupplierPrices } from "@/lib/erp/supplier-catalog";
 
 /**
  * طلب عروض الأسعار. The RFQ itself posts nothing — it is a question sent to several
@@ -225,7 +226,7 @@ export async function awardRfqAction(rfqId: string, rfqSupplierId: string, wareh
     if (rfq.status === "CANCELLED") return { error: "الطلب ملغي" };
 
     const [winner] = await db
-      .select({ id: rfqSuppliers.id, supplierId: rfqSuppliers.supplierId, name: suppliers.nameAr })
+      .select({ id: rfqSuppliers.id, supplierId: rfqSuppliers.supplierId, name: suppliers.nameAr, leadDays: rfqSuppliers.leadDays })
       .from(rfqSuppliers)
       .leftJoin(suppliers, eq(suppliers.id, rfqSuppliers.supplierId))
       .where(and(eq(rfqSuppliers.id, rfqSupplierId), eq(rfqSuppliers.rfqId, rfqId)))
@@ -258,6 +259,10 @@ export async function awardRfqAction(rfqId: string, rfqSupplierId: string, wareh
       })),
     });
     if (!r.ok || !r.id) return { error: r.error ?? "تعذّر إنشاء أمر الشراء" };
+    // Their quote is what they charge, and the lead time they promised — the catalog
+    // remembers both for the next order.
+    await recordSupplierPrices(auth.orgId, winner.supplierId,
+      basket.map((l) => ({ itemId: l.itemId, unitPrice: priceByLine.get(l.id)! })), { leadDays: winner.leadDays });
     // The create action returns only an id; the number is what a link and an audit line
     // need to be readable.
     const [po] = await db.select({ number: purchaseOrders.number }).from(purchaseOrders)

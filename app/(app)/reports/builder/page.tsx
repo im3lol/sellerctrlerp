@@ -6,7 +6,9 @@ import { listSavedReportsAction } from "@/app/actions/erp/report-builder";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportBuilderPage() {
+export default async function ReportBuilderPage({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
+  // ?r=<saved report id> — a dashboard tile opening its report here.
+  const { r } = await searchParams;
   return loadErpPage("reports.view", async ({ can }) => {
     // Only datasets this user could already export — the builder grants no new access.
     const datasets = Object.entries(EXPORT_DATASETS)
@@ -27,6 +29,8 @@ export default async function ReportBuilderPage() {
           <p className="text-sm text-muted-foreground">مفيش بيانات متاحة لصلاحياتك.</p>
         ) : (
           <ReportBuilderUI
+            key={r ?? ""}
+            initialId={r}
             datasets={datasets}
             saved={(saved.rows ?? []).filter((r) => datasets.some((d) => d.key === r.dataset))}
           />

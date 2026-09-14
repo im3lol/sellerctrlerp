@@ -134,3 +134,38 @@ export function decisionBlocked(input: {
 export function canSelfApprove(role: string, canDecide: boolean): boolean {
   return canDecide && role === "admin";
 }
+
+/**
+ * «المتأخر» — after how many days each kind of open document counts as stuck
+ * (lib/erp/stuck-docs.ts). Stored with the approvals in organizations.approval_policy
+ * under `stuck`; whatever a company leaves blank keeps the default. The purchase order is
+ * counted from its promised arrival date, everything else from when it was created.
+ */
+export type StuckKey = "so" | "dn" | "si" | "ret" | "unrec" | "po" | "pi" | "mr" | "je";
+
+export const STUCK_RULES: { key: StuckKey; label: string; def: number }[] = [
+  { key: "so", label: "أمر بيع مؤكد ولسه ماتشحنش", def: 3 },
+  { key: "dn", label: "إذن صرف مسودة", def: 2 },
+  { key: "si", label: "فاتورة بيع مسودة", def: 2 },
+  { key: "ret", label: "مرتجع منصة مستني قرارك", def: 7 },
+  { key: "unrec", label: "مرتجع ماوصلش ومفيش تعويض", def: 30 },
+  { key: "po", label: "أمر شراء بعد موعد وصوله", def: 0 },
+  { key: "pi", label: "فاتورة شراء مسودة", def: 3 },
+  { key: "mr", label: "طلب شراء مستني اعتماد", def: 5 },
+  { key: "je", label: "قيد مسودة", def: 3 },
+];
+
+export type StuckDays = Record<StuckKey, number>;
+
+/** organizations.approval_policy → the days for every rule (0..365, whole days). */
+export function parseStuckDays(raw: unknown): StuckDays {
+  const set = raw && typeof raw === "object" ? (raw as Record<string, unknown>).stuck : null;
+  const s = set && typeof set === "object" ? (set as Record<string, unknown>) : {};
+  const out = {} as StuckDays;
+  for (const { key, def } of STUCK_RULES) {
+    const v = s[key];
+    const n = Number(v);
+    out[key] = v !== undefined && v !== null && v !== "" && Number.isFinite(n) && n >= 0 ? Math.min(Math.trunc(n), 365) : def;
+  }
+  return out;
+}

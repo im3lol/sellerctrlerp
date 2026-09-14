@@ -50,6 +50,6 @@ export async function requireUser(): Promise<SessionUser> {
 /** Require a capability; redirect to /dashboard if the user lacks it. */
 export async function requireCapability(capability: Capability): Promise<SessionUser> {
   const user = await requireUser();
-  if (!can(user.role, capability)) redirect("/dashboard");
+  if (!can(user.role, capability)) redirect("/apps");
   return user;
 }

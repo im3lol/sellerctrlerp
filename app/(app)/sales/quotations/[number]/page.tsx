@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { renderRichText } from "@/lib/erp/rich-text";
 import { QuotationDetailActions } from "@/components/erp/quotation-detail-actions";
-import { DocAuditCard } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { docNumberParam } from "@/lib/erp/doc-route";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
@@ -94,7 +94,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
           </CardContent>
         </Card>
 
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="QUOTATION" entityId={qt.id} entityNumber={qt.number} audit={audit} />
       </div>
     );
   });

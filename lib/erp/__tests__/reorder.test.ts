@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planReorder } from "@/lib/erp/reorder";
+import { planReorder, chooseSupplier, type SupplierOffer } from "@/lib/erp/reorder";
 
 const base = { windowDays: 30, leadDays: 14, coverDays: 60, minStock: 0 };
 
@@ -56,5 +56,38 @@ describe("planReorder", () => {
     const p = planReorder({ ...base, onHand: 5, soldInWindow: 0, minStock: 0 });
     expect(p.status).toBe("ok");
     expect(p.suggestedQty).toBe(0);
+  });
+
+  it("the supplier's minimum order lifts a smaller suggestion, never creates one", () => {
+    // 2/day, 20 on hand, 70 inbound → 30 needed; supplier sells in 50s.
+    expect(planReorder({ ...base, onHand: 20, soldInWindow: 60, inbound: 70, minOrderQty: 50 }).suggestedQty).toBe(50);
+    expect(planReorder({ ...base, onHand: 20, soldInWindow: 60, inbound: 200, minOrderQty: 50 }).suggestedQty).toBe(0);
+  });
+});
+
+describe("chooseSupplier", () => {
+  const offer = (o: Partial<SupplierOffer>): SupplierOffer => ({
+    supplierId: "s", supplierName: "", isPreferred: false, lastOrderedAt: null, unitPrice: null, leadDays: null, minQty: null, ...o,
+  });
+
+  it("takes the preferred supplier even if another was ordered from more recently", () => {
+    const pick = chooseSupplier([
+      offer({ supplierId: "recent", lastOrderedAt: new Date("2026-09-01") }),
+      offer({ supplierId: "preferred", isPreferred: true, lastOrderedAt: new Date("2026-01-01") }),
+    ]);
+    expect(pick?.supplierId).toBe("preferred");
+  });
+
+  it("otherwise the one last ordered from", () => {
+    const pick = chooseSupplier([
+      offer({ supplierId: "old", lastOrderedAt: new Date("2026-03-01") }),
+      offer({ supplierId: "new", lastOrderedAt: new Date("2026-08-01") }),
+      offer({ supplierId: "never" }),
+    ]);
+    expect(pick?.supplierId).toBe("new");
+  });
+
+  it("no catalog, no supplier", () => {
+    expect(chooseSupplier([])).toBeNull();
   });
 });

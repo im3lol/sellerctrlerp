@@ -10,7 +10,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { DeliveryDetailActions } from "@/components/erp/delivery-detail-actions";
 import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
@@ -136,7 +137,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         </Card>
 
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="DELIVERY_NOTE" entityId={dn.id} entityNumber={dn.number} audit={audit} />
       </div>
     );
   });

@@ -29,7 +29,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 export default async function FeedbackPage() {
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
-  if (!org) redirect("/dashboard");
+  if (!org) redirect("/apps");
 
   const mine = await withOrgScope(org.id, false, () => db.select().from(feedback)
     .where(eq(feedback.organizationId, org.id))

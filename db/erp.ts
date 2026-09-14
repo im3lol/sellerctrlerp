@@ -973,6 +973,9 @@ export const pickListLines = pgTable("pick_list_lines", {
   quantity: money("quantity").notNull(),
   pickedQty: money("picked_qty").notNull().default("0"),
   salesInvoiceId: text("sales_invoice_id"),
+  /** The delivery this line serves, and the bin it was to be picked from (snapshotted). */
+  deliveryNoteId: text("delivery_note_id").references(() => deliveryNotes.id, { onDelete: "cascade" }),
+  binCode: text("bin_code"),
   notes: text("notes"),
 }, (t) => [
   index("pick_list_lines_list_idx").on(t.pickListId),
@@ -1709,6 +1712,26 @@ export const savedReports = pgTable(
 );
 
 /**
+ * A dashboard: a named grid of saved reports. A widget is a report id and a width — the
+ * reports run afresh, under the viewer's own permissions, every time it opens.
+ */
+export const dashboards = pgTable(
+  "dashboards",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    nameAr: text("name_ar").notNull(),
+    widgets: jsonb("widgets").$type<{ reportId: string; wide?: boolean }[]>().notNull().default([]),
+    /** Private to whoever built it unless they share it with the org. */
+    isShared: boolean("is_shared").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("dashboards_org_idx").on(t.organizationId)],
+);
+
+/**
  * A project is a COST DIMENSION, like a cost centre. Money reaches it the ordinary way —
  * an expense, a bill, an invoice, each stamped with the project — so there is no second
  * costing engine here, only a place to compare that against what was promised.
@@ -2128,6 +2151,67 @@ export const suppliers = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("suppliers_org_code_idx").on(t.organizationId, t.code)],
+);
+
+/** What each supplier sells us of each item: their code, price (base currency, base
+ *  unit), minimum order and lead time. lib/erp/supplier-catalog.ts keeps it current. */
+export const supplierItems = pgTable(
+  "supplier_items",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+    supplierSku: text("supplier_sku"),
+    unitPrice: numeric("unit_price", { precision: 18, scale: 4 }),
+    minQty: numeric("min_qty", { precision: 18, scale: 3 }),
+    leadDays: integer("lead_days"),
+    isPreferred: boolean("is_preferred").notNull().default(false),
+    lastOrderedAt: ts("last_ordered_at"),
+    updatedAt: updatedAt(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("supplier_items_org_item_supplier_idx").on(t.organizationId, t.itemId, t.supplierId),
+    index("supplier_items_org_supplier_idx").on(t.organizationId, t.supplierId),
+  ],
+);
+
+/** A comment on a document (any kind — lib/erp/chatter.ts), with who it @mentions. */
+export const docComments = pgTable(
+  "doc_comments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    kind: text("kind").notNull(),
+    entityId: text("entity_id").notNull(),
+    entityNumber: text("entity_number"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    mentions: uuid("mentions").array().notNull().default(sql`'{}'`),
+    createdAt: createdAt(),
+  },
+  (t) => [index("doc_comments_entity_idx").on(t.organizationId, t.entityId, t.createdAt)],
+);
+
+/** Someone has to do something about a document by a date. */
+export const docFollowUps = pgTable(
+  "doc_follow_ups",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    kind: text("kind").notNull(),
+    entityId: text("entity_id").notNull(),
+    entityNumber: text("entity_number"),
+    summary: text("summary").notNull(),
+    assignedTo: uuid("assigned_to").notNull().references(() => users.id, { onDelete: "cascade" }),
+    dueDate: date("due_date").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    doneAt: ts("done_at"),
+    doneBy: uuid("done_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("doc_follow_ups_entity_idx").on(t.organizationId, t.entityId)],
 );
 
 export const purchaseInvoices = pgTable(

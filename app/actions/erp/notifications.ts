@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { computeNotifications, type Notifications } from "@/lib/erp/notifications-data";
 
-const EMPTY: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, stockWaiting: 0, newActivity: 0, newOrders: 0, needsReview: 0, unmatched: 0, unclaimedReturns: 0, mktReturns: 0, mktRemovals: 0, mktReimbursements: 0, pendingApprovals: 0, total: 0, recent: [] };
+const EMPTY: Notifications = { lowStock: 0, expiring: 0, overdueAR: 0, overdueTotal: 0, overdueAP: 0, overdueAPTotal: 0, stockWaiting: 0, newActivity: 0, newOrders: 0, needsReview: 0, unmatched: 0, unclaimedReturns: 0, mktReturns: 0, mktRemovals: 0, mktReimbursements: 0, pendingApprovals: 0, myFollowUps: 0, total: 0, recent: [] };
 
 export async function getNotificationsAction(sinceIso?: string): Promise<Notifications> {
   const { org } = await getActiveOrg();
@@ -14,5 +14,5 @@ export async function getNotificationsAction(sinceIso?: string): Promise<Notific
   // Only surface what this member is allowed to see — a warehouse manager gets
   // inventory alerts, not overdue AP/AR, etc.
   const { permissions } = await getMemberAccess(org.id, user);
-  return computeNotifications(org.id, sinceIso, permissions);
+  return computeNotifications(org.id, sinceIso, permissions, user.id);
 }

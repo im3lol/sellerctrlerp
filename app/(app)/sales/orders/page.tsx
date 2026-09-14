@@ -10,9 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesOrdersTable } from "@/components/erp/sales-orders-table";
-import { selectCls } from "@/lib/utils";
+import { OrdersKanban, type KanbanCard } from "@/components/erp/kanban-board";
+import { cn, selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
+/** The board shows every status at once, so it takes the latest N under the filters. */
+const BOARD_LIMIT = 300;
+const day = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_DELIVERED", "تسليم جزئي"],
@@ -36,6 +40,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const from = one(sp.from);
     const to = one(sp.to);
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+    const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(salesOrders.organizationId, orgId)];
     if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
@@ -64,7 +69,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
     const safePage = Math.min(page, pages);
 
-    const rows = await db
+    const rows = view === "board" ? [] : await db
       .select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel, externalOrderId: salesOrders.externalOrderId, channelStatus: salesOrders.channelStatus, fulfillmentType: salesOrders.fulfillmentType })
       .from(salesOrders)
       .leftJoin(customers, eq(customers.id, salesOrders.customerId))
@@ -111,6 +116,18 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       returns: retsBySo.get(r.id) ?? [],
     }));
 
+    const channelLabel = Object.fromEntries(CHANNEL_OPTIONS) as Record<string, string>;
+    const boardCards: KanbanCard[] = view === "board"
+      ? (await db.select({ id: salesOrders.id, number: salesOrders.number, date: salesOrders.date, total: salesOrders.totalAmount, status: salesOrders.status, customer: customers.nameAr, channel: salesOrders.channel })
+          .from(salesOrders).leftJoin(customers, eq(customers.id, salesOrders.customerId)).where(where)
+          .orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(BOARD_LIMIT))
+          .map((r) => ({
+            id: r.id, column: r.status, title: r.number, subtitle: r.customer, amount: money(Number(r.total ?? 0)),
+            meta: `${day(r.date)}${r.channel !== "MANUAL" && channelLabel[r.channel] ? ` · ${channelLabel[r.channel]}` : ""}`,
+            href: `/sales/orders/${encodeURIComponent(r.number)}`,
+          }))
+      : [];
+
     const hasFilters = Boolean(q || fStatus || fChannel || fFulfillment || fCustomer || from || to);
     const qs = (p: number) => {
       const u = new URLSearchParams();
@@ -124,6 +141,14 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       u.set("page", String(p));
       return `?${u.toString()}`;
     };
+    // Same filters, the other view.
+    const viewHref = (v: "table" | "board") => {
+      const u = new URLSearchParams(qs(1).slice(1));
+      u.delete("page");
+      if (v === "board") u.set("view", "board");
+      const s = u.toString();
+      return s ? `/sales/orders?${s}` : "/sales/orders";
+    };
 
     return (
       <div className="space-y-6">
@@ -131,12 +156,24 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
           icon="ClipboardList"
           title="أوامر البيع"
           subtitle={`${total} أمر`}
-          action={canManage ? (
-            <div className="flex gap-2">
-              <Button variant="outline" asChild><Link href="/platforms"><Icon name="Store" className="size-4" />المنصات (الاستيراد والتسويات)</Link></Button>
-              <Button asChild><Link href="/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
+          action={
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-lg border p-0.5">
+                {(["table", "board"] as const).map((v) => (
+                  <Link key={v} href={viewHref(v)}
+                    className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm", view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+                    <Icon name={v === "table" ? "List" : "Columns3"} className="size-4" />{v === "table" ? "جدول" : "كانبان"}
+                  </Link>
+                ))}
+              </div>
+              {canManage && (
+                <>
+                  <Button variant="outline" asChild><Link href="/platforms"><Icon name="Store" className="size-4" />المنصات (الاستيراد والتسويات)</Link></Button>
+                  <Button asChild><Link href="/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
+                </>
+              )}
             </div>
-          ) : undefined}
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -152,6 +189,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
+                {view === "board" && <input type="hidden" name="view" value="board" />}
                 <div className="space-y-1"><Label htmlFor="q">رقم الأمر / أمازون</Label><Input id="q" name="q" defaultValue={q} placeholder="SO-2026-... أو 407-..." /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">الحالة</Label>
@@ -193,7 +231,14 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               </form>
             </details>
 
-            {tableRows.length === 0 ? (
+            {view === "board" ? (
+              <>
+                <OrdersKanban kind="sales" cards={boardCards} canMove={canConfirm || canManage} />
+                {boardCards.length >= BOARD_LIMIT && (
+                  <p className="text-xs text-muted-foreground">بيعرض آخر {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} أمر — ضيّق الفلاتر عشان توصل للأقدم.</p>
+                )}
+              </>
+            ) : tableRows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر بيع بعد."}</div>
             ) : (
               <>

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { purchaseOrders } from "@/db/schema";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { approvalGate } from "@/lib/erp/approvals";
+import { catalogFromOrder } from "@/lib/erp/supplier-catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await db.update(purchaseOrders).set({ status: "CONFIRMED" })
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId), eq(purchaseOrders.status, "DRAFT")));
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number} (موبايل)` });
+    await catalogFromOrder(auth.orgId, id);
     return Response.json({ ok: true });
   });
 }

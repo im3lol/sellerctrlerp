@@ -162,10 +162,11 @@ export async function GET(req: Request) {
     for (const m of members) {
       try {
         const { permissions } = await getMemberAccess(org.id, { id: m.userId, role: "employee" } as Parameters<typeof getMemberAccess>[1]);
-        const n = await computeNotifications(org.id, undefined, permissions);
+        const n = await computeNotifications(org.id, undefined, permissions, m.userId);
         const stuck = await listStuckDocs(org.id, (p) => permissions.has(p));
         const lines: string[] = [];
         if (n.pendingApprovals) lines.push(row("✋ مستندات مستنية موافقتك", n.pendingApprovals, `${origin}/approvals`));
+        if (n.myFollowUps) lines.push(row("📌 متابعات عليك النهارده", n.myFollowUps, `${origin}/approvals?tab=tasks`));
         if (stuck.length) lines.push(row("⏳ مستندات واقفة محدش حرّكها", stuck.length, `${origin}/approvals?tab=late`));
         if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
         if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));

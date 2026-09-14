@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { JournalEntryActions } from "@/components/erp/journal-entry-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
-import { DocAuditCard } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) =>
@@ -160,7 +160,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
           </CardContent>
         </Card>
 
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="JOURNAL_ENTRY" entityId={entry.id} entityNumber={entry.number} audit={audit} />
       </div>
     );
   });

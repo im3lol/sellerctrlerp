@@ -967,6 +967,34 @@
       "when": 1788700000000,
       "tag": "0137_telegram_link",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1788800000000,
+      "tag": "0138_supplier_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1788900000000,
+      "tag": "0139_doc_chatter",
+      "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1789000000000,
+      "tag": "0140_pick_list_deliveries",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1789100000000,
+      "tag": "0141_dashboards",
+      "breakpoints": true
     }
   ]
 }

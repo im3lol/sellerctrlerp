@@ -8,9 +8,10 @@ import {
   type RunReportResult, type SavedReportRow,
 } from "@/app/actions/erp/report-builder";
 import {
-  FILTER_LABEL, AGGREGATE_LABEL, EMPTY_SPEC,
-  type Aggregate, type Filter, type FilterOp, type ReportSpec,
+  FILTER_LABEL, AGGREGATE_LABEL, EMPTY_SPEC, CHART_LABEL, DATE_BUCKET_LABEL,
+  type Aggregate, type ChartKind, type DateBucket, type Filter, type FilterOp, type ReportSpec,
 } from "@/lib/erp/report-builder";
+import { ReportChart } from "@/components/erp/report-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -27,19 +28,24 @@ const fmt = (v: unknown) =>
   typeof v === "number" ? v.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 }) : (v ?? "") as string;
 
 const NO_VALUE: FilterOp[] = ["empty", "notEmpty"];
+const CHART_ICON: Record<ChartKind, string> = { bar: "ChartColumn", trend: "ChartLine", donut: "ChartPie" };
 
 /**
  * Pick a dataset, choose what to show, filter it, group it, total it. Everything runs
  * against the same read-only fetchers the Excel export uses — the builder opens no door
  * that was not already open.
  */
-export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]; saved: SavedReportRow[] }) {
+export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: DatasetOption[]; saved: SavedReportRow[]; initialId?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [dataset, setDataset] = useState(datasets[0]?.key ?? "");
-  const [spec, setSpec] = useState<ReportSpec>({ ...EMPTY_SPEC });
+  // Opened from a dashboard tile: start on that saved report.
+  const initial = initialId ? saved.find((r) => r.id === initialId) : undefined;
+  const [dataset, setDataset] = useState(initial?.dataset ?? datasets[0]?.key ?? "");
+  const [spec, setSpec] = useState<ReportSpec>(initial?.spec ?? { ...EMPTY_SPEC });
   const [result, setResult] = useState<RunReportResult | null>(null);
-  const [savingAs, setSavingAs] = useState<{ id?: string; nameAr: string; isShared: boolean } | null>(null);
+  const [savingAs, setSavingAs] = useState<{ id?: string; nameAr: string; isShared: boolean } | null>(
+    initial ? { id: initial.mine ? initial.id : undefined, nameAr: initial.nameAr, isShared: initial.isShared } : null,
+  );
 
   const ds = datasets.find((d) => d.key === dataset);
   const headers = ds?.headers ?? [];
@@ -58,7 +64,7 @@ export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]
     setResult(null);
   };
 
-  useEffect(() => { if (dataset) run(dataset, { ...EMPTY_SPEC }); /* first load */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (dataset) run(dataset, spec); /* first load */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setFilter = (i: number, patch: Partial<Filter>) =>
     setSpec((s) => ({ ...s, filters: s.filters.map((f, k) => (k === i ? { ...f, ...patch } : f)) }));
@@ -135,11 +141,37 @@ export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]
             <div className="space-y-2">
               <Label>تجميع حسب</Label>
               <select className={`${selectCls} w-48`} value={spec.groupBy ?? ""}
-                onChange={(e) => setSpec((s) => ({ ...s, groupBy: e.target.value === "" ? null : Number(e.target.value) }))}>
+                onChange={(e) => {
+                  const g = e.target.value === "" ? null : Number(e.target.value);
+                  // A pivot hangs off the grouping, and never on the same column.
+                  setSpec((s) => ({ ...s, groupBy: g, pivotBy: g == null || s.pivotBy === g ? null : s.pivotBy }));
+                }}>
                 <option value="">بدون تجميع</option>
                 {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
               </select>
             </div>
+            {spec.groupBy != null && (
+              <>
+                <div className="space-y-2">
+                  <Label>وأعمدة حسب (محوري)</Label>
+                  <select className={`${selectCls} w-48`} value={spec.pivotBy ?? ""}
+                    onChange={(e) => setSpec((s) => ({ ...s, pivotBy: e.target.value === "" ? null : Number(e.target.value) }))}>
+                    <option value="">بدون</option>
+                    {headers.map((h, i) => (i === spec.groupBy ? null : <option key={i} value={i}>{h}</option>))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>التواريخ</Label>
+                  <select className={`${selectCls} w-32`} value={spec.dateBucket ?? ""}
+                    onChange={(e) => setSpec((s) => ({ ...s, dateBucket: (e.target.value || null) as DateBucket | null }))}>
+                    <option value="">زي ما هي</option>
+                    {(Object.keys(DATE_BUCKET_LABEL) as DateBucket[]).map((k) => (
+                      <option key={k} value={k}>{DATE_BUCKET_LABEL[k]}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label>أقصى عدد صفوف</Label>
               <Input type="number" step="1" min="0" className="w-32 tabular-nums" placeholder="الكل"
@@ -153,6 +185,14 @@ export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]
               ابدأ من جديد
             </Button>
           </div>
+
+          {spec.pivotBy != null && (
+            <p className="text-xs text-muted-foreground">
+              كل خانة في الجدول المحوري بتعرض{" "}
+              <b>{spec.aggregates[0] ? `${AGGREGATE_LABEL[spec.aggregates[0].agg]} ${headers[spec.aggregates[0].column] ?? ""}` : "عدد الصفوف"}</b>
+              {" "}— أول إجمالي تحت هو اللي بيتحسب.
+            </p>
+          )}
 
           {spec.groupBy == null && (
             <div className="space-y-2">
@@ -247,10 +287,23 @@ export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]
                   {result.rows.length < result.matched && ` · معروض ${result.rows.length}`}
                 </CardDescription>
               </div>
-              <Button size="sm" variant="outline"
-                onClick={() => setSavingAs((v) => v ?? { nameAr: "", isShared: false })}>
-                <Icon name="Save" className="size-4" />احفظ التقرير
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded-lg border p-0.5" role="group" aria-label="طريقة العرض">
+                  {([null, "bar", "trend", "donut"] as (ChartKind | null)[]).map((k) => (
+                    <Button key={k ?? "table"} size="sm" variant={(spec.chart ?? null) === k ? "default" : "ghost"}
+                      disabled={k != null && !result.grouped}
+                      title={k != null && !result.grouped ? "الرسم محتاج «تجميع حسب»" : undefined}
+                      onClick={() => setSpec((s) => ({ ...s, chart: k }))}>
+                      <Icon name={k == null ? "Table2" : CHART_ICON[k]} className="size-4" />
+                      {k == null ? "جدول" : CHART_LABEL[k]}
+                    </Button>
+                  ))}
+                </div>
+                <Button size="sm" variant="outline"
+                  onClick={() => setSavingAs((v) => v ?? { nameAr: "", isShared: false })}>
+                  <Icon name="Save" className="size-4" />احفظ التقرير
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -275,6 +328,12 @@ export function ReportBuilderUI({ datasets, saved }: { datasets: DatasetOption[]
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
                 <Button variant="ghost" onClick={() => setSavingAs(null)}>رجوع</Button>
+              </div>
+            )}
+
+            {spec.chart && result.grouped && result.rows.length > 0 && (
+              <div className="rounded-xl border p-3">
+                <ReportChart result={result} kind={spec.chart} />
               </div>
             )}
 

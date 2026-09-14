@@ -57,7 +57,7 @@ export default auth((req) => {
     if (path === "/login/admin") {
       return role === "system_admin" ? Response.redirect(new URL("/admin", nextUrl)) : undefined;
     }
-    return Response.redirect(new URL("/dashboard", nextUrl));
+    return Response.redirect(new URL("/apps", nextUrl));
   }
 
   return undefined;

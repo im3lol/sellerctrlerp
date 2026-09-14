@@ -10,7 +10,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
 import { Icon } from "@/components/icon";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { Copyable } from "@/components/erp/copyable";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -250,7 +251,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         )}
 
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="SALES_ORDER" entityId={so.id} entityNumber={so.number} audit={audit} />
       </div>
     );
   });

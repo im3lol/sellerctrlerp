@@ -66,7 +66,7 @@ export async function requireErpModule(
   if (!org) redirect("/apps");
   const access = await getMemberAccess(org.id, user);
   if (!access.role) redirect("/apps");
-  if (!access.permissions.has(permission)) redirect("/dashboard");
+  if (!access.permissions.has(permission)) redirect("/apps");
   // Subscription entitlement: the tenant must have the module enabled. The
   // platform owner (system_admin) bypasses so they can support any account.
   // `moduleOverride` gates on a different module than the permission's own
