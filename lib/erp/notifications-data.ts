@@ -1,8 +1,9 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { cairoToday } from "@/lib/erp/chatter";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
-import { auditLogs, approvalRequests } from "@/db/schema";
+import { auditLogs, approvalRequests, docFollowUps } from "@/db/schema";
 
 export type Activity = { action: string; summary: string | null; number: string | null; at: string; href: string | null };
 export type Notifications = {
@@ -23,6 +24,8 @@ export type Notifications = {
   mktReimbursements: number;
   /** Documents waiting for this member's approval (only counted for approvers). */
   pendingApprovals: number;
+  /** Follow-ups on this member (lib/erp/chatter.ts), due today or overdue. */
+  myFollowUps: number;
   total: number;
   recent: Activity[];
 };
@@ -51,11 +54,11 @@ const ENTITY_PERM: Record<string, string> = {
  *  items visible to the owner, 0 to this function), so the badge never lit and the
  *  chime, which only plays when the total rises, never played. Scoping here rather than
  *  at each call site fixes both, and withOrgScope is a no-op when a scope is already open. */
-export function computeNotifications(orgId: string, sinceIso?: string, perms?: Set<string>): Promise<Notifications> {
-  return withOrgScope(orgId, false, () => compute(orgId, sinceIso, perms));
+export function computeNotifications(orgId: string, sinceIso?: string, perms?: Set<string>, userId?: string): Promise<Notifications> {
+  return withOrgScope(orgId, false, () => compute(orgId, sinceIso, perms, userId));
 }
 
-async function compute(orgId: string, sinceIso?: string, perms?: Set<string>): Promise<Notifications> {
+async function compute(orgId: string, sinceIso?: string, perms?: Set<string>, userId?: string): Promise<Notifications> {
   const since = sinceIso ? new Date(sinceIso) : null;
   const can = (p: string) => !perms || perms.has(p);
   const anyDoc = can("sales.view") || can("purchases.view") || can("accounting.view");
@@ -163,5 +166,10 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>): P
     ? Number((await db.select({ n: sql<number>`count(*)::int` }).from(approvalRequests)
         .where(and(eq(approvalRequests.organizationId, orgId), eq(approvalRequests.status, "PENDING"))))[0]?.n ?? 0)
     : 0;
-  return { pendingApprovals, lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: pendingApprovals + lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
+  // Follow-ups on this member, due today (Cairo) or already late.
+  const myFollowUps = userId
+    ? Number((await db.select({ n: sql<number>`count(*)::int` }).from(docFollowUps)
+        .where(and(eq(docFollowUps.organizationId, orgId), eq(docFollowUps.assignedTo, userId), isNull(docFollowUps.doneAt), lte(docFollowUps.dueDate, cairoToday()))))[0]?.n ?? 0)
+    : 0;
+  return { pendingApprovals, myFollowUps, lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: pendingApprovals + myFollowUps + lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
 }

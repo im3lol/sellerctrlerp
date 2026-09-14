@@ -2154,6 +2154,43 @@ export const supplierItems = pgTable(
   ],
 );
 
+/** A comment on a document (any kind — lib/erp/chatter.ts), with who it @mentions. */
+export const docComments = pgTable(
+  "doc_comments",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    kind: text("kind").notNull(),
+    entityId: text("entity_id").notNull(),
+    entityNumber: text("entity_number"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    mentions: uuid("mentions").array().notNull().default(sql`'{}'`),
+    createdAt: createdAt(),
+  },
+  (t) => [index("doc_comments_entity_idx").on(t.organizationId, t.entityId, t.createdAt)],
+);
+
+/** Someone has to do something about a document by a date. */
+export const docFollowUps = pgTable(
+  "doc_follow_ups",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    kind: text("kind").notNull(),
+    entityId: text("entity_id").notNull(),
+    entityNumber: text("entity_number"),
+    summary: text("summary").notNull(),
+    assignedTo: uuid("assigned_to").notNull().references(() => users.id, { onDelete: "cascade" }),
+    dueDate: date("due_date").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    doneAt: ts("done_at"),
+    doneBy: uuid("done_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("doc_follow_ups_entity_idx").on(t.organizationId, t.entityId)],
+);
+
 export const purchaseInvoices = pgTable(
   "purchase_invoices",
   {

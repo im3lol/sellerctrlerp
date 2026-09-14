@@ -10,9 +10,10 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 const dtt = (d: Date) =>
   new Date(d).toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-const ACTION_AR: Record<string, string> = {
+export const ACTION_AR: Record<string, string> = {
   CREATE: "إنشاء", CONFIRM: "تأكيد", POST: "ترحيل", CONVERT: "تحويل",
   CANCEL: "إلغاء", REVERSE: "عكس", DELETE: "حذف", UPDATE: "تعديل",
+  SUBMIT: "طلب اعتماد", APPROVE: "اعتماد", REJECT: "رفض",
 };
 
 /** A labelled read-only field tile. */

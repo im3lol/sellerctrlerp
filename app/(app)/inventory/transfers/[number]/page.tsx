@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { StockRowActions } from "@/components/erp/stock-row-actions";
 import { BarcodePrintButton } from "@/components/erp/barcode-print-button";
-import { DocAuditCard } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { docNumberParam } from "@/lib/erp/doc-route";
@@ -125,7 +125,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
           </CardContent>
         </Card>
 
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="STOCK_TRANSFER" entityId={tr.id} entityNumber={tr.number} audit={audit} />
       </div>
     );
   });

@@ -59,6 +59,7 @@ export function NotificationBell() {
 
   const rows = [
     { show: !!n?.pendingApprovals, icon: <ClipboardCheck className="size-4" />, tone: "red", label: "مستندات مستنية موافقتك", count: n?.pendingApprovals ?? 0, href: "/approvals" },
+    { show: !!n?.myFollowUps, icon: <CalendarClock className="size-4" />, tone: "amber", label: "متابعات عليك النهارده", count: n?.myFollowUps ?? 0, href: "/approvals?tab=tasks" },
     { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: "طلبات أمازون جديدة", count: n?.newOrders ?? 0, href: "/sales/orders" },
     { show: !!n?.unmatched, icon: <PackageX className="size-4" />, tone: "red", label: "طلبات بمنتج غير معرَّف", count: n?.unmatched ?? 0, href: "/sales/orders/unmatched" },
     { show: !!n?.unclaimedReturns, icon: <Undo2 className="size-4" />, tone: "amber", label: "مرتجعات منصّات بانتظار المطابقة", count: n?.unclaimedReturns ?? 0, href: "/sales/returns" },

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherDetailActions } from "@/components/erp/voucher-detail-actions";
-import { Field, DocAuditCard, UUID_RE } from "@/components/erp/document-detail";
+import { Field, UUID_RE } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { getEntityApproval } from "@/lib/erp/approvals";
 import { requireUser } from "@/lib/session";
@@ -79,7 +80,7 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
           </CardContent>
         </Card>
 
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="PAYMENT_VOUCHER" entityId={pv.id} entityNumber={pv.number} audit={audit} />
       </div>
     );
   });

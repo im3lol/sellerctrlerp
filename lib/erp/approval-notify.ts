@@ -37,6 +37,18 @@ function sends(p: Person, heading: string, lines: string[], path: string, button
 
 const fire = (jobs: Promise<unknown>[]) => { void Promise.allSettled(jobs); };
 
+/** Tell these members something about a document (a mention, a follow-up) — email, and
+ *  Telegram for those who linked it. Fire-and-forget like the approval notices. */
+export async function notifyUsers(orgId: string, userIds: string[], heading: string, lines: string[], path: string): Promise<void> {
+  if (!userIds.length) return;
+  try {
+    const all = await members(orgId);
+    fire(all.filter((m) => userIds.includes(m.userId)).flatMap((p) => sends(p, heading, lines, path)));
+  } catch (e) {
+    log.warn("notify.users_failed", { orgId, err: e });
+  }
+}
+
 export async function notifyApprovalRequested(r: Req & { requesterId: string }): Promise<void> {
   try {
     const all = await members(r.orgId);

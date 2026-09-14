@@ -13,7 +13,8 @@ import { ReceiptDetailActions } from "@/components/erp/receipt-detail-actions";
 import { ReceiptSerialsPanel } from "@/components/erp/receipt-serials-panel";
 import { type BulkRow } from "@/components/erp/barcode-print";
 import { toPrintCodes } from "@/lib/erp/print-codes";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { receiptLineCosts } from "@/lib/erp/receipt-cost";
 
@@ -219,7 +220,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         )}
 
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="GOODS_RECEIPT" entityId={grn.id} entityNumber={grn.number} audit={audit} />
       </div>
     );
   });

@@ -15,7 +15,8 @@ import { ItemThumb } from "@/components/erp/item-thumb";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { OrderRowActions } from "@/components/erp/order-row-actions";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { displayQuantity } from "@/lib/erp/item-units";
 
@@ -170,7 +171,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
         </Card>
 
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="PURCHASE_ORDER" entityId={po.id} entityNumber={po.number} audit={audit} />
       </div>
     );
   });

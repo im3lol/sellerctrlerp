@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReturnDetailActions } from "@/components/erp/return-detail-actions";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -110,7 +111,7 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
         </Card>
 
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="PURCHASE_RETURN" entityId={ret.id} entityNumber={ret.number} audit={audit} />
       </div>
     );
   });

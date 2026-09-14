@@ -4,6 +4,10 @@ import { requireUser } from "@/lib/session";
 import { listApprovals, approvalEntityHref, APPROVAL_DOC_LABEL, type ApprovalRow } from "@/lib/erp/approvals";
 import { timeAgo, type ApprovalDocType } from "@/lib/erp/approval-policy";
 import { listStuckDocs } from "@/lib/erp/stuck-docs";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { docFollowUps } from "@/db/schema";
+import { CHATTER_DOCS, cairoToday, docHref, followUpState, isChatterKind } from "@/lib/erp/chatter";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +23,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   CANCELLED: { label: "اتلغى", cls: "bg-muted text-muted-foreground" },
 };
 
-type Tab = "pending" | "mine" | "done" | "late";
+type Tab = "pending" | "mine" | "done" | "late" | "tasks";
 
 /**
  * «الموافقات» — every document held for a manager, in one place.
@@ -33,18 +37,26 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     const canDecide = can("approvals.decide");
     const isAdmin = role === "admin" || role === "super_admin";
     const sp = await searchParams;
-    const tab: Tab = sp.tab === "mine" || sp.tab === "done" || sp.tab === "late" ? sp.tab : canDecide ? "pending" : "mine";
+    const tab: Tab = sp.tab === "mine" || sp.tab === "done" || sp.tab === "late" || sp.tab === "tasks" ? sp.tab : canDecide ? "pending" : "mine";
 
     const rows: ApprovalRow[] =
-      tab === "late" ? []
+      tab === "late" || tab === "tasks" ? []
       : tab === "pending" ? await listApprovals(orgId, { status: "PENDING" })
       : tab === "mine" ? await listApprovals(orgId, { requestedBy: user.id, limit: 100 })
       : (await listApprovals(orgId, { limit: 150 })).filter((r) => r.status === "APPROVED" || r.status === "REJECTED");
     const stuck = tab === "late" ? await listStuckDocs(orgId, can) : [];
+    // Open follow-ups on me, soonest first — closed from their document's page.
+    const tasks = tab === "tasks"
+      ? await db.select().from(docFollowUps)
+          .where(and(eq(docFollowUps.organizationId, orgId), eq(docFollowUps.assignedTo, user.id), isNull(docFollowUps.doneAt)))
+          .orderBy(asc(docFollowUps.dueDate)).limit(200)
+      : [];
+    const today = cairoToday();
 
     const tabs: { key: Tab; label: string; show: boolean }[] = [
       { key: "pending", label: "مستني موافقتك", show: canDecide },
       { key: "mine", label: "طلباتي", show: true },
+      { key: "tasks", label: "متابعاتي", show: true },
       { key: "late", label: "المتأخر", show: true },
       { key: "done", label: "اتقرر فيها", show: canDecide },
     ];
@@ -53,6 +65,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       pending: "مفيش حاجة مستنية موافقتك ✓",
       mine: "مابعتّش أي مستند للاعتماد.",
       late: "مفيش مستند واقف ✓",
+      tasks: "مفيش متابعات عليك ✓",
       done: "لسه مفيش قرارات.",
     };
 
@@ -72,8 +85,30 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
 
         <Card>
           <CardContent className="p-0">
-            {rows.length === 0 && stuck.length === 0 ? (
+            {rows.length === 0 && stuck.length === 0 && tasks.length === 0 ? (
               <div className="py-14 text-center text-muted-foreground">{empty[tab]}</div>
+            ) : tab === "tasks" ? (
+              <div className="divide-y">
+                {tasks.map((t) => {
+                  const k = isChatterKind(t.kind) ? t.kind : null;
+                  const st = followUpState(String(t.dueDate), null, today);
+                  return (
+                    <div key={t.id} className="flex flex-wrap items-center gap-3 p-4">
+                      {k && <Badge variant="secondary">{CHATTER_DOCS[k].label}</Badge>}
+                      {k && t.entityNumber && (
+                        <Link href={docHref(k, t.entityNumber)} className="font-mono text-sm font-medium hover:text-primary hover:underline">{t.entityNumber}</Link>
+                      )}
+                      <span className="text-sm">{t.summary}</span>
+                      <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium",
+                        st === "overdue" ? "bg-destructive/10 text-destructive"
+                        : st === "today" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                        : "bg-muted text-muted-foreground")}>
+                        {st === "overdue" ? "متأخرة" : st === "today" ? "النهارده" : "جاية"} · {String(t.dueDate)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             ) : tab === "late" ? (
               <div className="divide-y">
                 {stuck.map((s) => (

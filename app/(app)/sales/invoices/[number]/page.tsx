@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesInvoiceDetailActions } from "@/components/erp/sales-invoice-detail-actions";
-import { Field, LinkedDocsCard, DocAuditCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
+import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
 import { AttachmentsCard } from "@/components/erp/attachments-card";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
@@ -121,7 +122,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
 
         <AttachmentsCard entityType="SALES_INVOICE" entityId={inv.id} canManage={canManage} />
         <LinkedDocsCard links={linked} />
-        <DocAuditCard rows={audit} />
+        <DocChatter kind="SALES_INVOICE" entityId={inv.id} entityNumber={inv.number} audit={audit} />
       </div>
     );
   });
