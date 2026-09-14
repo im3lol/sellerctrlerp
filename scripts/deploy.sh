@@ -12,6 +12,10 @@ cd "$(dirname "$0")/.."
 DC() { ( cd docker && docker compose --profile app "$@" ); }
 
 echo "▶ 1/6  host build (heap 8G)…"
+# Always build cold. A build that starts from the previous build's Turbopack cache
+# deadlocks right after spawning its PostCSS workers — idle CPU, no .next writes, forever
+# (deploy24/25/27, 2026-09-14). A cold build compiles in ~4 min, faster than the old warm ones.
+rm -rf .next/cache/turbopack
 NODE_OPTIONS="--max-old-space-size=8192" npm run build
 
 echo "▶ 2/6  copy static + public into standalone…"
