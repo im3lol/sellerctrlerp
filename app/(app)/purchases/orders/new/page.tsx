@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
-import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines, currencies, exchangeRates } from "@/db/schema";
+import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines, currencies, exchangeRates, supplierItems } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrderForm } from "@/components/erp/purchase-order-form";
 import { getUnitsByItem } from "@/lib/erp/item-units-data";
@@ -45,7 +45,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     }
 
     // Last unit price paid per item (any supplier) — suggested on the PO line.
-    // ponytail: last price across all suppliers; make it per-supplier if negotiated price lists are needed.
+    // The fallback for a supplier with no price in the catalog (supplierPrices below).
     const lastPriceRows = (await db.execute<{ item_id: string; unit_price: string }>(sql`
       SELECT DISTINCT ON (pol.item_id) pol.item_id, pol.unit_price
       FROM purchase_order_lines pol
@@ -55,6 +55,14 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     `)).rows as { item_id: string; unit_price: string }[];
     const lastPrices: Record<string, number> = {};
     for (const r of lastPriceRows) lastPrices[r.item_id] = Number(r.unit_price);
+
+    // What each supplier charges per item (the supplier catalog) — the price a line starts
+    // at once its supplier is picked. ponytail: the whole catalog ships to the form; load it
+    // per supplier if a tenant's catalog grows past a few thousand rows.
+    const supplierPrices: Record<string, Record<string, number>> = {};
+    const catalog = await db.select({ supplierId: supplierItems.supplierId, itemId: supplierItems.itemId, unitPrice: supplierItems.unitPrice })
+      .from(supplierItems).where(and(eq(supplierItems.organizationId, orgId), isNotNull(supplierItems.unitPrice)));
+    for (const c of catalog) (supplierPrices[c.supplierId] ??= {})[c.itemId] = Number(c.unitPrice);
 
     let initialLines: { itemId: string; quantity: number }[] | undefined;
     let requisitionId: string | undefined;
@@ -88,7 +96,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
-        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} initialSupplierId={initialSupplierId} requisitionId={requisitionId} lastPrices={lastPrices} currencies={currRows} latestRates={latestRates}
+        <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} initialSupplierId={initialSupplierId} requisitionId={requisitionId} lastPrices={lastPrices} supplierPrices={supplierPrices} currencies={currRows} latestRates={latestRates}
         rateHistory={rateHistory} />
       </div>
     );

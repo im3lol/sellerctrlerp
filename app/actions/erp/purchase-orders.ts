@@ -12,6 +12,7 @@ import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
 import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { catalogFromOrder } from "@/lib/erp/supplier-catalog";
 import { approvalGate, approveDirectly, cancelApprovals } from "@/lib/erp/approvals";
 import { cancelledDocReferences } from "@/lib/erp/doc-delete";
 import { dependentsList } from "@/lib/erp/doc-dependents";
@@ -244,6 +245,7 @@ export async function confirmPurchaseOrderAction(id: string): Promise<ActionStat
       .returning({ id: purchaseOrders.id });
     if (!done.length) return { error: "تغيّرت حالة الأمر — حدّث الصفحة" };
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CONFIRM", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: po.number, summary: `تأكيد أمر شراء ${po.number}` });
+    await catalogFromOrder(auth.orgId, id);
     revalidatePath("/purchases/orders");
     revalidatePath(`/purchases/orders/${encodeURIComponent(po.number)}`);
     return { ok: true };

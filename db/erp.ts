@@ -2130,6 +2130,30 @@ export const suppliers = pgTable(
   (t) => [uniqueIndex("suppliers_org_code_idx").on(t.organizationId, t.code)],
 );
 
+/** What each supplier sells us of each item: their code, price (base currency, base
+ *  unit), minimum order and lead time. lib/erp/supplier-catalog.ts keeps it current. */
+export const supplierItems = pgTable(
+  "supplier_items",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+    supplierSku: text("supplier_sku"),
+    unitPrice: numeric("unit_price", { precision: 18, scale: 4 }),
+    minQty: numeric("min_qty", { precision: 18, scale: 3 }),
+    leadDays: integer("lead_days"),
+    isPreferred: boolean("is_preferred").notNull().default(false),
+    lastOrderedAt: ts("last_ordered_at"),
+    updatedAt: updatedAt(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("supplier_items_org_item_supplier_idx").on(t.organizationId, t.itemId, t.supplierId),
+    index("supplier_items_org_supplier_idx").on(t.organizationId, t.supplierId),
+  ],
+);
+
 export const purchaseInvoices = pgTable(
   "purchase_invoices",
   {

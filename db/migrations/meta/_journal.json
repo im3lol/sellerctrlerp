@@ -967,6 +967,13 @@
       "when": 1788700000000,
       "tag": "0137_telegram_link",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1788800000000,
+      "tag": "0138_supplier_items",
+      "breakpoints": true
     }
   ]
 }
