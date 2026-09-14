@@ -18,6 +18,7 @@ const SETTLE_MS = 12 * 60 * 60 * 1000; // settlements settle ~biweekly → a slo
 const RETURNS_MS = 12 * 60 * 60 * 1000; // FBA returns report — twice a day is plenty
 const FINANCE_MS = 24 * 60 * 60 * 1000; // reimbursements + ledger — daily
 const FEES_MS = 7 * 24 * 60 * 60 * 1000; // fee estimates — weekly (also on-demand button)
+const AUDIT_MS = 24 * 60 * 60 * 1000; // FBA inventory audit — daily, so the shipment plan reads fresh numbers
 
 /**
  * Enqueue the due sync jobs for every autoSync connection: an incremental
@@ -127,6 +128,14 @@ export async function enqueueDueSyncs(now = Date.now()): Promise<{ orders: numbe
       }
       if (can.fees && due(c.feesSyncedAt, FEES_MS) && !(await isRunning(c.orgId, "PRICING"))) {
         if (await enqueue(QUEUES.pricing, base)) feeds++;
+      }
+      // FBA audit: kept fresh daily for an org that has run one — the first run stays a
+      // deliberate click (it needs the platform's warehouse set). Read-only either way.
+      if (conn?.fetchInventoryDetail && !(await isRunning(c.orgId, "INVENTORY")) && !(await backedOff(c.orgId, c.provider, "INVENTORY"))) {
+        const [last] = await db.select({ startedAt: syncRuns.startedAt }).from(syncRuns)
+          .where(and(eq(syncRuns.organizationId, c.orgId), eq(syncRuns.provider, c.provider), eq(syncRuns.kind, "INVENTORY")))
+          .orderBy(desc(syncRuns.startedAt)).limit(1);
+        if (last && due(last.startedAt, AUDIT_MS) && (await enqueue(QUEUES.inventory, base))) feeds++;
       }
     }
     return { orders, discovery, settlements, feeds, total: creds.length };
