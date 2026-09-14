@@ -61,7 +61,7 @@ export function LoginForm({
         </Alert>
       )}
 
-      <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/dashboard"} />
+      <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/apps"} />
 
       <div className={mfa ? "hidden" : "space-y-2"}>
         <Label htmlFor="email">البريد الإلكتروني أو اسم المستخدم</Label>

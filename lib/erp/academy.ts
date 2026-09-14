@@ -38,7 +38,7 @@ export async function canSeeAcademy(): Promise<boolean> {
  * curtain, not a missing route.
  */
 export async function requireAcademyAccess(): Promise<void> {
-  if (!(await canSeeAcademy())) redirect("/dashboard");
+  if (!(await canSeeAcademy())) redirect("/apps");
 }
 
 const row = (r: typeof academyLessons.$inferSelect): Lesson => ({

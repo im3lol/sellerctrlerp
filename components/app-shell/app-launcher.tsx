@@ -60,7 +60,7 @@ export function AppLauncher({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" data-tour="app-launcher">
       {tiles.map((t) => (
         <Link
           key={t.href}
