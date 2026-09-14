@@ -12,9 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { PurchaseOrdersTable } from "@/components/erp/purchase-orders-table";
-import { selectCls } from "@/lib/utils";
+import { OrdersKanban, type KanbanCard } from "@/components/erp/kanban-board";
+import { cn, selectCls } from "@/lib/utils";
 
 const PER_PAGE = 10;
+/** The board shows every status at once, so it takes the latest N under the filters. */
+const BOARD_LIMIT = 300;
+const day = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_RECEIVED", "استلام جزئي"],
@@ -35,6 +39,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
     const from = one(sp.from);
     const to = one(sp.to);
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
+    const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(purchaseOrders.organizationId, orgId)];
     if (q) conds.push(ilike(purchaseOrders.number, `%${q}%`));
@@ -62,7 +67,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
 
     const policy = await getApprovalPolicy(orgId);
 
-    const rows = await db
+    const rows = view === "board" ? [] : await db
       .select({ id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date, total: purchaseOrders.totalAmount, status: purchaseOrders.status, supplier: suppliers.nameAr, approvedAt: purchaseOrders.approvedAt })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
@@ -112,6 +117,16 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
       poApproved: !!r.approvedAt,
     }));
 
+    const boardCards: KanbanCard[] = view === "board"
+      ? (await db.select({ id: purchaseOrders.id, number: purchaseOrders.number, date: purchaseOrders.date, total: purchaseOrders.totalAmount, status: purchaseOrders.status, supplier: suppliers.nameAr })
+          .from(purchaseOrders).leftJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId)).where(where)
+          .orderBy(desc(purchaseOrders.date), desc(purchaseOrders.number)).limit(BOARD_LIMIT))
+          .map((r) => ({
+            id: r.id, column: r.status, title: r.number, subtitle: r.supplier, amount: money(Number(r.total ?? 0)),
+            meta: day(r.date), href: `/purchases/orders/${encodeURIComponent(r.number)}`,
+          }))
+      : [];
+
     const hasFilters = Boolean(q || fStatus || fSupplier || from || to);
     const qs = (p: number) => {
       const u = new URLSearchParams();
@@ -123,6 +138,14 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
       u.set("page", String(p));
       return `?${u.toString()}`;
     };
+    // Same filters, the other view.
+    const viewHref = (v: "table" | "board") => {
+      const u = new URLSearchParams(qs(1).slice(1));
+      u.delete("page");
+      if (v === "board") u.set("view", "board");
+      const s = u.toString();
+      return s ? `/purchases/orders?${s}` : "/purchases/orders";
+    };
 
     return (
       <div className="space-y-6">
@@ -130,9 +153,19 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
           icon="ClipboardList"
           title="أوامر الشراء"
           subtitle={`${total} أمر`}
-          action={canManage ? (
-            <Button asChild><Link href="/purchases/orders/new"><Icon name="Plus" className="size-4" />أمر شراء</Link></Button>
-          ) : undefined}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-lg border p-0.5">
+                {(["table", "board"] as const).map((v) => (
+                  <Link key={v} href={viewHref(v)}
+                    className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm", view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+                    <Icon name={v === "table" ? "List" : "Columns3"} className="size-4" />{v === "table" ? "جدول" : "كانبان"}
+                  </Link>
+                ))}
+              </div>
+              {canManage && <Button asChild><Link href="/purchases/orders/new"><Icon name="Plus" className="size-4" />أمر شراء</Link></Button>}
+            </div>
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -152,6 +185,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
+                {view === "board" && <input type="hidden" name="view" value="board" />}
                 <div className="space-y-1"><Label htmlFor="q">رقم الأمر</Label><Input id="q" name="q" defaultValue={q} placeholder="PO-2026-..." /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">الحالة</Label>
@@ -176,7 +210,14 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
               </form>
             </details>
 
-            {rows.length === 0 ? (
+            {view === "board" ? (
+              <>
+                <OrdersKanban kind="purchase" cards={boardCards} canMove={canConfirm || canManage} />
+                {boardCards.length >= BOARD_LIMIT && (
+                  <p className="text-xs text-muted-foreground">بيعرض آخر {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} أمر — ضيّق الفلاتر عشان توصل للأقدم.</p>
+                )}
+              </>
+            ) : rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر شراء بعد."}</div>
             ) : (
               <>

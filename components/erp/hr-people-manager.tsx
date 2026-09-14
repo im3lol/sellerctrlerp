@@ -10,7 +10,7 @@ import {
   saveCourseAction, deleteCourseAction, enrollAction, setEnrollmentStatusAction, unenrollAction,
 } from "@/app/actions/erp/hr-people";
 import {
-  STAGE_LABEL, PIPELINE, funnel, overallScore, SCORE_VERDICT, courseOutcome,
+  STAGE_LABEL, PIPELINE, funnel, canMoveTo, overallScore, SCORE_VERDICT, courseOutcome,
   type Stage, type Score, type Enrollment,
 } from "@/lib/erp/hr-people";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
+import { KanbanBoard } from "@/components/erp/kanban-board";
 import { confirm } from "@/components/erp/confirm";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { selectCls } from "@/lib/utils";
@@ -83,6 +84,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
   const [interview, setInterview] = useState({ interviewerId: "", scheduledAt: `${today()}T10:00`, outcome: "PENDING", rating: "", notes: "" });
 
   const mine = useMemo(() => applicants.filter((a) => a.openingId === selected), [applicants, selected]);
+  const [board, setBoard] = useState(false);
   const f = useMemo(() => funnel(mine), [mine]);
 
   return (
@@ -249,10 +251,25 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 <Badge key={s} variant="outline">{STAGE_LABEL[s]}: {f.counts[s]}</Badge>
               ))}
               <Badge variant="outline">{STAGE_LABEL.REJECTED}: {f.counts.REJECTED}</Badge>
+              {mine.length > 0 && (
+                <Button size="sm" variant="outline" className="ms-auto" onClick={() => setBoard((b) => !b)}>
+                  <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? "قائمة" : "كانبان"}
+                </Button>
+              )}
             </div>
 
             {mine.length === 0 ? (
               <p className="text-sm text-muted-foreground">مفيش متقدّمين على الوظيفة دي.</p>
+            ) : board ? (
+              // Same rule as the stage dropdown (canMoveTo), same action — only dragged.
+              <KanbanBoard
+                columns={[...PIPELINE, "REJECTED" as Stage].map((s) => ({ key: s, label: STAGE_LABEL[s] }))}
+                cards={mine.map((a) => ({ id: a.id, column: a.stage, title: a.fullName, subtitle: a.phone ?? a.email, meta: a.source ?? undefined }))}
+                readOnly={!canManage}
+                why={(from, to) => canMoveTo(from as Stage, to as Stage)}
+                move={(id, _from, to) => moveApplicantAction(id, to as Stage)}
+                askBefore={(_from, to) => (to === "REJECTED" ? "رفض المتقدّم؟" : null)}
+              />
             ) : mine.map((a) => (
               <div key={a.id} className="space-y-3 rounded-xl border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
