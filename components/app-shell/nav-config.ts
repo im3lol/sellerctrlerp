@@ -262,6 +262,7 @@ export const NAV: NavSection[] = [
       { label: "القوائم المالية", href: "/reports", icon: "FileSpreadsheet", capability: "erp.reports.view" },
       { label: "التحليلات", href: "/reports/analytics", icon: "Activity", capability: "erp.reports.view" },
       { label: "باني التقارير", href: "/reports/builder", icon: "Table2", capability: "erp.reports.view" },
+      { label: "لوحات التقارير", href: "/reports/dashboards", icon: "LayoutDashboard", capability: "erp.reports.view" },
     ],
   },
   {

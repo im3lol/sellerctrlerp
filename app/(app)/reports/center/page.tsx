@@ -54,6 +54,20 @@ export default async function ReportsCenterPage() {
           <Icon name="ChevronLeft" className="size-4 text-muted-foreground" />
         </Link>
 
+        <Link href="/reports/dashboards"
+          className="flex items-center justify-between rounded-2xl border p-4 transition-colors hover:border-primary">
+          <div className="flex items-center gap-3">
+            <Icon name="LayoutDashboard" className="size-5 text-primary" />
+            <div>
+              <div className="font-medium">لوحات التقارير</div>
+              <div className="text-sm text-muted-foreground">
+                تقاريرك المحفوظة ورسوماتها في صفحة واحدة — ليك أو للفريق كله.
+              </div>
+            </div>
+          </div>
+          <Icon name="ChevronLeft" className="size-4 text-muted-foreground" />
+        </Link>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base"><Icon name="History" className="size-5 text-primary" />آخر التقارير المُحمّلة</CardTitle>

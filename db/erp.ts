@@ -1712,6 +1712,26 @@ export const savedReports = pgTable(
 );
 
 /**
+ * A dashboard: a named grid of saved reports. A widget is a report id and a width — the
+ * reports run afresh, under the viewer's own permissions, every time it opens.
+ */
+export const dashboards = pgTable(
+  "dashboards",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    nameAr: text("name_ar").notNull(),
+    widgets: jsonb("widgets").$type<{ reportId: string; wide?: boolean }[]>().notNull().default([]),
+    /** Private to whoever built it unless they share it with the org. */
+    isShared: boolean("is_shared").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("dashboards_org_idx").on(t.organizationId)],
+);
+
+/**
  * A project is a COST DIMENSION, like a cost centre. Money reaches it the ordinary way —
  * an expense, a bill, an invoice, each stamped with the project — so there is no second
  * costing engine here, only a place to compare that against what was promised.
