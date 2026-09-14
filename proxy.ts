@@ -19,6 +19,7 @@ export default auth((req) => {
     path.startsWith("/login") ||
     path.startsWith("/signup") ||
     path.startsWith("/privacy") || // public legal page
+    path.startsWith("/d/") || // customer document link — authorised by its signed, expiring token (lib/erp/doc-link.ts)
 
     path === "/api/health" || // liveness/readiness probe — no session, no tenant data
     path.startsWith("/api/auth") ||

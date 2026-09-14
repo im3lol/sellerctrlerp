@@ -1,6 +1,8 @@
-import { and, eq, gte, lt, lte, or } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, organizationMembers, users, platformCredentials, orgSubscriptions, syncRuns } from "@/db/schema";
+import { organizations, organizationMembers, users, platformCredentials, orgSubscriptions, syncRuns, salesInvoices, customers } from "@/db/schema";
+import { parseReminderPolicy, reminderDue } from "@/lib/erp/reminders";
+import { docLinkUrl } from "@/lib/erp/doc-link";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { listStuckDocs } from "@/lib/erp/stuck-docs";
 import { expiryReminderEmail } from "@/lib/saas/email-templates";
@@ -108,6 +110,44 @@ export async function GET(req: Request) {
     await db.update(orgSubscriptions).set({ dunningStage: 999 })
       .where(and(eq(orgSubscriptions.status, "ACTIVE"), gte(orgSubscriptions.expiresAt, soon)));
   } catch (e) { log.error("cron.expiry_reminders_failed", { err: e }); }
+
+  // 1f) Overdue-invoice reminders (lib/erp/reminders.ts): for each company that switched them
+  // on, one email per stage to the customer, carrying the invoice's customer link. The stage
+  // is marked even when the email can't go out (no address, mailbox not set up), so nothing
+  // retries daily — and a missed run sends only the latest stage, never a burst.
+  try {
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+    const companies = await db.select({ id: organizations.id, name: organizations.nameAr, phone: organizations.phone, policy: organizations.approvalPolicy }).from(organizations);
+    for (const o of companies) {
+      const policy = parseReminderPolicy(o.policy);
+      if (!policy.enabled) continue;
+      const overdue = await db.select({
+        id: salesInvoices.id, number: salesInvoices.number, dueDate: salesInvoices.dueDate, balance: salesInvoices.balanceDue,
+        currency: salesInvoices.currencyCode, stage: salesInvoices.reminderStage, email: customers.email, customer: customers.nameAr,
+      }).from(salesInvoices).innerJoin(customers, eq(customers.id, salesInvoices.customerId))
+        .where(and(eq(salesInvoices.organizationId, o.id), inArray(salesInvoices.status, ["POSTED", "PARTIAL_PAID"]),
+          gt(salesInvoices.balanceDue, "0"), lt(salesInvoices.dueDate, now)));
+      for (const inv of overdue) {
+        if (!inv.dueDate) continue;
+        const days = Math.floor((now.getTime() - new Date(inv.dueDate).getTime()) / 86400000);
+        const stage = reminderDue(days, policy.stages, inv.stage);
+        if (stage == null) continue;
+        if (inv.email) {
+          const link = docLinkUrl(origin, { o: o.id, k: "SI", id: inv.id });
+          const amount = Number(inv.balance).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
+            <h2 style="color:#1e3a8a">${esc(o.name)}</h2>
+            <p>أهلاً ${esc(inv.customer)}،</p>
+            <p>ده تذكير ودّي إن فاتورة رقم <b>${esc(inv.number)}</b> عدّى على ميعاد استحقاقها ${days} يوم، والمتبقّي عليها <b>${amount} ${esc(inv.currency)}</b>.</p>
+            <p style="margin-top:16px"><a href="${link}" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">عرض الفاتورة</a></p>
+            <p style="color:#777;font-size:12px">لو دفعت خلاص، تجاهل الرسالة دي.${o.phone ? ` لأي استفسار: ${esc(o.phone)}` : ""}</p>
+          </div>`;
+          await sendEmail({ to: inv.email, subject: `تذكير: فاتورة ${inv.number} متأخرة`, html });
+        }
+        await db.update(salesInvoices).set({ reminderStage: stage }).where(eq(salesInvoices.id, inv.id));
+      }
+    }
+  } catch (e) { log.error("cron.invoice_reminders_failed", { err: e }); }
 
   // 1d) Per-tenant safety backup to object storage, then prune to the last 14.
   // Fan out one job per tenant when Redis is available so the heavy full-DB export runs

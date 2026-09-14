@@ -16,11 +16,13 @@ import { waNumber } from "@/lib/phone";
 export function SalesInvoiceDetailActions({
   id, number, status, canPost, canManage,
   totalAmount, customerPhone, customerEmail,
-  balanceDue, canCollect,
+  balanceDue, canCollect, link,
 }: {
   id: string; number: string; status: string; canPost: boolean; canManage: boolean;
   totalAmount?: string | null; customerPhone?: string | null; customerEmail?: string | null;
   balanceDue?: string | null; canCollect?: boolean;
+  /** The customer link (/d/<token>) — only for an invoice the customer may see. */
+  link?: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -40,7 +42,8 @@ export function SalesInvoiceDetailActions({
     Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const shareMsg = `فاتورة رقم: ${number}
-المبلغ الإجمالي: ${fmt(totalAmount)}
+المبلغ الإجمالي: ${fmt(totalAmount)}${link ? `
+تفاصيل الفاتورة: ${link}` : ""}
 للاستفسار أو الدفع يرجى التواصل معنا.`;
   const waPhone = waNumber(customerPhone);
   const hasBalance = Number(balanceDue ?? 0) > 0;
@@ -51,6 +54,8 @@ export function SalesInvoiceDetailActions({
     href: `https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}` });
   if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
     href: `mailto:${customerEmail}?subject=${encodeURIComponent(`فاتورة رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}` });
+  if (link) items.push({ label: "نسخ رابط العميل", icon: "Link",
+    onSelect: () => { void navigator.clipboard.writeText(link).then(() => toast.success("اتنسخ الرابط — صالح ٣٠ يوم")); } });
 
   if (status === "DRAFT") {
     if (canManage) items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending,

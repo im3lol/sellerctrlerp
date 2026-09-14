@@ -23,7 +23,7 @@ import { waNumber } from "@/lib/phone";
  * emphasis change, to match the rest of the cycle.
  */
 export function QuotationDetailActions({
-  id, number, status, canManage, total, customerPhone, customerEmail,
+  id, number, status, canManage, total, customerPhone, customerEmail, link,
 }: {
   id: string;
   number: string;
@@ -32,6 +32,8 @@ export function QuotationDetailActions({
   total?: number;
   customerPhone?: string | null;
   customerEmail?: string | null;
+  /** The customer link (/d/<token>): the customer reads the quote and accepts or rejects it there. */
+  link?: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -50,15 +52,19 @@ export function QuotationDetailActions({
   const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const shareMsg = `عرض سعر رقم: ${number}${total != null ? `\nالإجمالي: ${fmt(total)}` : ""}\nفي انتظار ردكم، وشكراً لثقتكم.`;
   const waPhone = waNumber(customerPhone);
+  const message = link ? `${shareMsg}
+للاطلاع على العرض والرد عليه: ${link}` : shareMsg;
 
   // Print and share need no write permission — a viewer may still send the customer a copy.
   const items: DocAction[] = [
     { label: "طباعة", icon: "Printer", href: `/sales/quotations/${encodeURIComponent(number)}/print`, newTab: true },
   ];
   if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
-    href: `https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}` });
+    href: `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}` });
   if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
-    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`عرض سعر رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}` });
+    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`عرض سعر رقم ${number}`)}&body=${encodeURIComponent(message)}` });
+  if (link) items.push({ label: "نسخ رابط العميل", icon: "Link",
+    onSelect: () => { void navigator.clipboard.writeText(link).then(() => toast.success("اتنسخ الرابط — صالح ٣٠ يوم")); } });
 
   if (canManage) {
     if (status === "DRAFT") items.push({ label: "تعديل", icon: "Pencil", href: `/sales/quotations/${encodeURIComponent(number)}/edit` });

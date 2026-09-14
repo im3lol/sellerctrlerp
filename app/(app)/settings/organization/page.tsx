@@ -5,6 +5,7 @@ import { organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SettingsForm, type OrgProfile } from "@/components/erp/settings-form";
 import { parseApprovalPolicy, parseStuckDays } from "@/lib/erp/approval-policy";
+import { parseReminderPolicy } from "@/lib/erp/reminders";
 
 export default async function OrganizationSettingsPage() {
   return loadErpPage("settings.view", async ({ orgId, can }) => {
@@ -23,6 +24,7 @@ export default async function OrganizationSettingsPage() {
       fiscalYearStart: org?.fiscalYearStart ?? null,
       approvalPolicy: parseApprovalPolicy(org?.approvalPolicy),
       stuckDays: parseStuckDays(org?.approvalPolicy),
+      reminders: parseReminderPolicy(org?.approvalPolicy),
       purchaseVatCapitalised: Boolean(org?.purchaseVatCapitalised),
       navHidden: org?.navHidden ?? [],
     };

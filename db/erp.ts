@@ -2063,6 +2063,8 @@ export const salesInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
+    /** Last overdue-reminder stage sent (days after due; lib/erp/reminders.ts). 0 = none. */
+    reminderStage: integer("reminder_stage").notNull().default(0),
     // Multi-currency: GL always stores base-currency amounts; these fields preserve
     // the original foreign currency for display and FX reconciliation.
     currencyCode: text("currency_code").notNull().default("EGP"),
