@@ -12,7 +12,7 @@ export function moduleOfPermission(permission: string): string {
 
 /**
  * Modules the org may access — delegates to the subscription engine. No row →
- * 14-day trial from creation (all modules) then locked; a live subscription →
+ * TRIAL_DAYS trial from creation (all modules) then locked; a live subscription →
  * its `enabledModules`; expired/cancelled → nothing. See {@link getSubscriptionState}.
  */
 export async function getEnabledModules(orgId: string): Promise<Set<string>> {

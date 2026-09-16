@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TRIAL_DAYS } from "@/lib/erp/trial";
 import {
   Calculator,
   Boxes,
@@ -117,7 +118,9 @@ export default async function Home() {
             <Button variant="ghost" asChild>
               <Link href="/login">دخول العملاء</Link>
             </Button>
-            <DemoRequestButton label="اطلب ديمو" className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90" />
+            <Button asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
+              <Link href="/signup">ابدأ مجاناً</Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -138,13 +141,15 @@ export default async function Home() {
             مصمّمة خصيصاً لبائعي أمازون ونون والعلامات التجارية.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <DemoRequestButton label="اطلب ديمو مجاني" size="lg" className="text-base" />
-            <Button size="lg" variant="outline" asChild className="text-base">
-              <Link href="#modules">استكشف المزايا</Link>
+            {/* Self-serve signup is open (owner, 2026-09-17): the trial is the main path, a
+                guided demo the second one. */}
+            <Button size="lg" asChild className="text-base">
+              <Link href="/signup">ابدأ تجربتك المجانية</Link>
             </Button>
+            <DemoRequestButton label="اطلب ديمو" size="lg" variant="outline" className="text-base" />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            جرّب النظام كامل · إعداد في دقائق · دعم بالعربي على واتساب
+            {TRIAL_DAYS} يوم مجاناً بكل الوحدات · بدون بطاقة ائتمان · دعم بالعربي على واتساب
           </p>
 
           {/* Dashboard preview — a live, on-brand mockup of the unified board */}
@@ -153,6 +158,7 @@ export default async function Home() {
             <div className="relative overflow-hidden rounded-2xl border bg-card text-right shadow-2xl">
               <DashboardPreview />
             </div>
+            <p className="mt-3 text-center text-xs text-muted-foreground">بيانات توضيحية لعرض شكل النظام.</p>
           </div>
         </div>
       </section>
@@ -258,7 +264,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">باقات تناسب حجم تجارتك</h2>
-            <p className="mt-3 text-muted-foreground">ابدأ بتجربة مجانية ١٤ يوماً — بدون بطاقة ائتمان. اختر باقتك بعد كده.</p>
+            <p className="mt-3 text-muted-foreground">ابدأ بتجربة مجانية {TRIAL_DAYS} يوماً — بدون بطاقة ائتمان. اختر باقتك بعد كده.</p>
           </div>
           <Pricing plans={pricing} />
         </div>
@@ -292,7 +298,10 @@ export default async function Home() {
             ابدأ اليوم وأدِر المحاسبة والمخزون والمبيعات والمشتريات من نظام واحد.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <DemoRequestButton label="اطلب ديمو مجاني" size="lg" className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base" />
+            <Button size="lg" asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base">
+              <Link href="/signup">ابدأ تجربتك المجانية — {TRIAL_DAYS} يوم</Link>
+            </Button>
+            <DemoRequestButton label="اطلب ديمو" size="lg" variant="outline" className="border-primary-foreground/40 bg-transparent text-base text-primary-foreground hover:bg-primary-foreground/10" />
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-primary-foreground/80">
             <span className="flex items-center gap-1.5"><Check className="size-4" /> جرّب النظام كامل</span>

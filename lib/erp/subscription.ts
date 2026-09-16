@@ -5,7 +5,9 @@ import { withOrgScope } from "@/lib/db-scope";
 import { organizations, orgSubscriptions } from "@/db/schema";
 import { ALL_MODULES } from "@/lib/erp/module-list";
 
-export const TRIAL_DAYS = 14;
+import { TRIAL_DAYS } from "@/lib/erp/trial";
+
+export { TRIAL_DAYS };
 const DAY = 86_400_000;
 
 export type SubState = {

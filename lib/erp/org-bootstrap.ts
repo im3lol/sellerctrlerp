@@ -21,7 +21,7 @@ export type NewOrgInput = {
 
 /**
  * Bootstrap a brand-new tenant: the organization, its owner (org_admin), an admin
- * membership, and a 14-day TRIAL subscription over the chosen modules. Shared by
+ * membership, and a TRIAL_DAYS-long TRIAL subscription over the chosen modules. Shared by
  * self-service signup and the admin "add organization" action so the bootstrap can't
  * drift between them.
  *

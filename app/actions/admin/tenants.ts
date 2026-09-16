@@ -52,7 +52,7 @@ export async function deleteTenantAction(input: { orgId: string; confirmName: st
   return { ok: true };
 }
 
-/** Owner-only: create a new tenant (organization + owner login + 14-day trial +
+/** Owner-only: create a new tenant (organization + owner login + TRIAL_DAYS trial +
  *  chart of accounts). The owner signs in with the email + password set here. */
 export async function createTenantAction(input: {
   companyName: string; ownerName: string; email: string; password: string; phone?: string;
