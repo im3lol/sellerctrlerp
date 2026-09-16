@@ -24,6 +24,7 @@ const MODULES: { key: string; label: string }[] = [
   { key: "investors", label: "المستثمرون" },
   { key: "hr", label: "الموارد البشرية" },
   { key: "approvals", label: "الاعتمادات" },
+  { key: "automation", label: "الأتمتة" },
   { key: "settings", label: "الإعدادات" },
   { key: "users", label: "المستخدمون" },
   { key: "organization", label: "المؤسسة" },

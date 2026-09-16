@@ -298,6 +298,7 @@ export const NAV: NavSection[] = [
       // Was a section of its own holding this single item.
       { label: "استيراد وتصدير", href: "/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
       { label: "الصلاحيات", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
+      { label: "الأتمتة", href: "/automation", icon: "Workflow", capability: "erp.automation.manage" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
       // The setup checklist is opened from Settings; without a row here it belonged to no
       // module and lost the sidebar the moment you arrived.

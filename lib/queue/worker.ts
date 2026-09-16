@@ -31,6 +31,7 @@ const CONC: Record<QueueName, number> = {
   "amazon-reimbursements": 1,
   "amazon-ledger": 1,
   "amazon-offers": 1, // an account's pricing quota is ~0.5 req/s — one run at a time
+  "automation": 3,    // cheap: one rule lookup per audited event; webhooks time out at 8s
   "maintenance": 3, // per-tenant daily backups fan out — a few at a time is plenty
 };
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
@@ -58,8 +59,8 @@ export function startWorkers(): void {
       .where(and(inArray(syncRuns.kind, ["ORDERS", "SETTLEMENTS", "RETURNS", "REMOVALS", "REIMBURSEMENTS", "LEDGER", "PRICING", "DISCOVERY", "IMPORT", "INVENTORY", "OFFERS"]), eq(syncRuns.status, "RUNNING"))),
   ).catch((e) => console.error("[queue] orphan-run reap failed:", e));
 
-  const make = (name: QueueName, handler: (data: SyncJob) => Promise<void>) => {
-    const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data), { connection, concurrency: CONC[name] ?? 2, limiter: LIMITER });
+  const make = (name: QueueName, handler: (data: SyncJob, job: Job<SyncJob>) => Promise<void>) => {
+    const w = new Worker(name, (job: Job<SyncJob>) => handler(job.data, job), { connection, concurrency: CONC[name] ?? 2, limiter: LIMITER });
     w.on("failed", (job, err) => console.error(`[queue] ${name} job ${job?.id} failed:`, err?.message));
     workers.push(w);
     return w;
@@ -79,6 +80,11 @@ export function startWorkers(): void {
   make(QUEUES.reimbursements, runReimbursementsJob);
   make(QUEUES.ledger, runLedgerJob);
   make(QUEUES.offers, runOffersJob);
+  make(QUEUES.automation, async (d, job) => {
+    if (!d.automation) return;
+    const { runAutomationJob } = await import("@/lib/erp/automation/engine");
+    await runAutomationJob(d.orgId, d.automation, job.attemptsMade + 1 >= (job.opts.attempts ?? 1));
+  });
   make(QUEUES.maintenance, runMaintenanceJob);
   console.log("[queue] Amazon sync workers started");
 

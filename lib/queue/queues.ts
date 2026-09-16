@@ -19,6 +19,7 @@ export const QUEUES = {
   reimbursements: "amazon-reimbursements", // FBA reimbursements feed (read-only)
   ledger: "amazon-ledger",       // FBA ledger detail feed (read-only)
   offers: "amazon-offers",       // Buy Box watch (Product Pricing API, read-only)
+  automation: "automation",      // workflow rules: one audited document event per job (lib/erp/automation)
   maintenance: "maintenance",    // per-tenant daily backup (fans the cron out of one serial loop)
 } as const;
 
@@ -26,7 +27,7 @@ export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
 /** One sync job. `since` (ISO) makes DISCOVERY incremental; `asins` scopes an
  *  enrichment job to a subset; `userId` is the actor for jobs that write documents. */
-export type SyncJob = { orgId: string; provider: string; marketplaceId?: string; since?: string; asins?: string[]; userId?: string; ordersMode?: "created" | "updated" };
+export type SyncJob = { orgId: string; provider: string; marketplaceId?: string; since?: string; asins?: string[]; userId?: string; ordersMode?: "created" | "updated"; automation?: import("@/lib/erp/automation/queue").AutomationJob };
 
 const cache = new Map<QueueName, Queue>();
 function getQueue(name: QueueName): Queue {

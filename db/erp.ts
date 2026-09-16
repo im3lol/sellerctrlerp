@@ -2249,6 +2249,48 @@ export const docFollowUps = pgTable(
   (t) => [index("doc_follow_ups_entity_idx").on(t.organizationId, t.entityId)],
 );
 
+/** A workflow rule (lib/erp/automation): when a document event happens, if its fields
+ *  match, run the actions. `spec` = { trigger, match, conditions, actions }. */
+export const automationRules = pgTable(
+  "automation_rules",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    spec: jsonb("spec").$type<import("../lib/erp/automation/model").RuleSpec>().notNull(),
+    /** Confirming/posting documents needs this switched on for the rule, explicitly. */
+    allowPost: boolean("allow_post").notNull().default(false),
+    createdBy: text("created_by"),
+    runCount: integer("run_count").notNull().default(0),
+    lastRunAt: ts("last_run_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("automation_rules_org_idx").on(t.organizationId, t.enabled)],
+);
+
+/** One rule run on one document: what each action did, or why it failed. */
+export const automationRuns = pgTable(
+  "automation_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    ruleId: text("rule_id").notNull().references(() => automationRules.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    entityNumber: text("entity_number"),
+    event: text("event").notNull(),
+    status: text("status").notNull(), // DONE | FAILED
+    detail: jsonb("detail").$type<string[]>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("automation_runs_rule_idx").on(t.organizationId, t.ruleId, t.createdAt),
+    index("automation_runs_org_idx").on(t.organizationId, t.createdAt),
+  ],
+);
+
 export const purchaseInvoices = pgTable(
   "purchase_invoices",
   {
@@ -3348,6 +3390,7 @@ export const plans = pgTable("plans", {
   enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
   maxUsers: integer("max_users"),   // null = unlimited
   storageGb: integer("storage_gb"), // null = unlimited
+  maxAutomations: integer("max_automations"), // workflow rules a company may keep; null = unlimited
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: createdAt(),
