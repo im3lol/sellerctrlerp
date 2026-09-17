@@ -68,6 +68,11 @@ cd .next/standalone && PORT=3011 NODE_ENV=production AUTH_TRUST_HOST=true node s
 npm run deploy   # build → migrate → RLS → rebuild app AND worker → health gate (auto-rollback)
 ```
 
+Before a production deploy, rotate the database and MinIO credentials and generate the
+application secrets with `npm run gen:secrets`. `npm run deploy` now runs a secret
+preflight and refuses missing, short, or known-default production credentials. Follow
+[`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md) for the required rotation order.
+
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment) for the Docker rebuild
 flow and the self-hosted deployment model.
 

@@ -55,11 +55,34 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   const router = useRouter();
 
   // Merge live platform links into the dynamic "المنصات" group, ahead of the static
-  // ones — Amazon and Noon are what you came to the module for; the returns and
-  // settlements pages underneath are what you do about them.
+  // cross-platform work. Amazon gets its operational shortcuts here because its tools
+  // are useful daily and otherwise hide behind its overview page; other providers keep
+  // their single overview until they grow a comparable toolset.
   const withDynamic = (section: NavSection): NavSection =>
     section.dynamicKey === "platforms" && platforms?.length
-      ? { ...section, items: [...platforms.map((p) => ({ label: p.name, href: `/platforms/${p.code.toLowerCase()}`, icon: "Store", capability: "erp.sales.view" as Capability })), ...section.items] }
+      ? {
+        ...section,
+        items: [
+          ...platforms.flatMap((p) => {
+            const code = p.code.toLowerCase();
+            const href = `/platforms/${code}`;
+            if (code !== "amazon") {
+              return [{ label: p.name, href, icon: "Store", capability: "erp.sales.view" as Capability }];
+            }
+            return [
+              { label: "لوحة أمازون", href, icon: "Store", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
+              { label: "مراقبة Buy Box", href: `${href}/buy-box`, icon: "Trophy", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
+              { label: "خطة FBA", href: `${href}/fba-plan`, icon: "Boxes", capability: "erp.inventory.view" as Capability, group: "أدوات أمازون" },
+              { label: "مزامنة أمازون", href: `${href}/import`, icon: "RefreshCw", capability: "erp.sales.view" as Capability, group: "المزامنة والتسويات" },
+              { label: "دفعات أمازون", href: `${href}/payouts`, icon: "Landmark", capability: "erp.accounting.create" as Capability, group: "المزامنة والتسويات" },
+              { label: "رسوم أمازون", href: `${href}/fees`, icon: "ReceiptText", capability: "erp.accounting.view" as Capability, group: "المزامنة والتسويات" },
+              { label: "كشف أمازون", href: `${href}/statements`, icon: "FileText", capability: "erp.accounting.view" as Capability, group: "المزامنة والتسويات" },
+              { label: "فحص المزامنة", href: `${href}/verify`, icon: "ShieldCheck", capability: "erp.sales.view" as Capability, group: "المزامنة والتسويات" },
+            ];
+          }),
+          ...section.items,
+        ],
+      }
       : section;
 
   // Three reasons a section can be absent, and they are NOT the same thing: the

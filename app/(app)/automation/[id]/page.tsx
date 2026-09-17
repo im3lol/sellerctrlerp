@@ -34,5 +34,5 @@ export default async function AutomationRulePage({ params }: { params: Promise<{
         />
       </div>
     );
-  });
+  }, "settings");
 }

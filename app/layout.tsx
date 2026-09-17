@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { thmanyah } from "./fonts";
 import { Providers } from "./providers";
+import { marketingUrl } from "@/lib/marketing-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  // One host for canonical, OG, robots and the sitemap — the one the app is served on.
-  metadataBase: new URL(process.env.APP_URL ?? "https://app.sellerctrl.com"),
+  // Crawlable marketing pages live on the apex; application links can still use APP_URL.
+  metadataBase: new URL(marketingUrl),
   title: {
     default: "SellerCtrl | ERP عربي لبائعي Amazon",
     template: "%s | SellerCtrl",

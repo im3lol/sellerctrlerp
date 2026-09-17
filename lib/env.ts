@@ -20,11 +20,49 @@ const OPTIONAL = [
   "NOON_WEBHOOK_SECRET", // Noon order webhook shared secret (mandatory once Noon is live)
 ] as const;
 
+const INSECURE_PRODUCTION_VALUES = new Set([
+  "sellerctrl",
+  "appuser",
+  "minioadmin",
+  "replace-me-with-a-long-random-string",
+  "replace-with-a-long-random-string",
+]);
+
+const PRODUCTION_SECRET_KEYS = ["AUTH_SECRET", "ENCRYPTION_KEY", "CRON_SECRET", "S3_SECRET_KEY"] as const;
+
+function productionEnvProblems(): string[] {
+  const problems: string[] = [];
+  const required = ["ENCRYPTION_KEY", "CRON_SECRET", "REDIS_URL", "S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"] as const;
+  for (const key of required) {
+    if (!process.env[key]) problems.push(`${key} مطلوب في production`);
+  }
+  for (const key of PRODUCTION_SECRET_KEYS) {
+    const value = process.env[key];
+    if (value && (value.length < 32 || INSECURE_PRODUCTION_VALUES.has(value))) {
+      problems.push(`${key} يجب أن يكون سرًا عشوائيًا بطول 32 حرفًا على الأقل`);
+    }
+  }
+  try {
+    const databaseUrl = new URL(process.env.DATABASE_URL ?? "");
+    const password = decodeURIComponent(databaseUrl.password);
+    if (!password || password.length < 32 || INSECURE_PRODUCTION_VALUES.has(password)) {
+      problems.push("DATABASE_URL يجب أن يحتوي على كلمة مرور قوية وغير افتراضية");
+    }
+  } catch {
+    problems.push("DATABASE_URL غير صالح");
+  }
+  return problems;
+}
+
 export function validateEnv(): void {
   const parsed = requiredSchema.safeParse(process.env);
   if (!parsed.success) {
     const msg = parsed.error.issues.map((i) => i.message).join(" · ");
     throw new Error(`[env] إعدادات بيئة مطلوبة ناقصة: ${msg}`);
+  }
+  if (process.env.NODE_ENV === "production") {
+    const problems = productionEnvProblems();
+    if (problems.length) throw new Error(`[env] إعدادات production غير آمنة: ${problems.join(" · ")}`);
   }
   for (const key of OPTIONAL) {
     if (!process.env[key]) console.warn(`[env] متغير اختياري غير مضبوط: ${key} (الميزة المرتبطة به قد لا تعمل)`);

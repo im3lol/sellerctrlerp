@@ -142,5 +142,5 @@ export default async function AutomationPage() {
         </Card>
       </div>
     );
-  });
+  }, "settings");
 }

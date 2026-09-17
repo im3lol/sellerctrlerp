@@ -14,6 +14,7 @@ import {
   type Action, type Facts, type RuleSpec,
 } from "@/lib/erp/automation/model";
 import { findDocId, loadFacts } from "@/lib/erp/automation/facts";
+import { getSubscriptionState } from "@/lib/erp/subscription";
 
 /**
  * Workflow rules — who may build them (automation.manage), how many a plan allows, and a
@@ -54,12 +55,23 @@ function parseSpec(raw: unknown): { spec: RuleSpec } | { error: string } {
   return bad ? { error: bad } : { spec };
 }
 
-/** How many rules the company's plan allows — null when there's no cap (or no plan yet: the trial). */
-async function ruleLimit(orgId: string): Promise<number | null> {
+/** Automation is a paid-plan capability with a numeric cap, rather than an ERP module.
+ * The regular settings entitlement grants access to its screen; this check is the
+ * subscription gate that makes the cap enforceable on every write path. */
+async function automationAccess(orgId: string): Promise<{ live: boolean; limit: number | null }> {
+  const subscription = await getSubscriptionState(orgId);
+  if (!subscription.live) return { live: false, limit: 0 };
   const [row] = await db.select({ max: plans.maxAutomations }).from(orgSubscriptions)
     .leftJoin(plans, eq(plans.id, orgSubscriptions.planId))
     .where(eq(orgSubscriptions.organizationId, orgId)).limit(1);
-  return row?.max ?? null;
+  // No subscription row is the active trial, where rules are deliberately uncapped.
+  return { live: true, limit: row?.max ?? null };
+}
+
+function automationLocked(access: { live: boolean; limit: number | null }): string | null {
+  if (!access.live) return "الأتمتة متاحة مع اشتراك أو تجربة نشطة";
+  if (access.limit === 0) return "باقتك لا تشمل قواعد الأتمتة";
+  return null;
 }
 
 /** Webhook secrets: a new one is encrypted; the editor's «kept» marker keeps the stored one. */
@@ -75,7 +87,7 @@ function secureActions(actions: Action[], previous: Action[] | undefined): Actio
 }
 
 export async function saveRuleAction(input: { id?: string; name: string; enabled: boolean; spec: unknown }): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("automation.manage");
+  const auth = await authorizeErp("automation.manage", "settings");
   if ("error" in auth) return auth;
   const name = (input.name ?? "").trim().slice(0, 120);
   if (!name) return { error: "سمّي القاعدة" };
@@ -83,10 +95,15 @@ export async function saveRuleAction(input: { id?: string; name: string; enabled
   if ("error" in parsed) return parsed;
 
   return withOrgScope(auth.orgId, false, async () => {
+    const access = await automationAccess(auth.orgId);
     if (input.id) {
       const [existing] = await db.select({ spec: automationRules.spec }).from(automationRules)
         .where(and(eq(automationRules.id, input.id), eq(automationRules.organizationId, auth.orgId))).limit(1);
       if (!existing) return { error: "القاعدة مش موجودة" };
+      if (input.enabled) {
+        const locked = automationLocked(access);
+        if (locked) return { error: locked };
+      }
       const spec = { ...parsed.spec, actions: secureActions(parsed.spec.actions, existing.spec.actions) };
       await db.update(automationRules).set({ name, enabled: !!input.enabled, spec, updatedAt: new Date() })
         .where(eq(automationRules.id, input.id));
@@ -95,7 +112,9 @@ export async function saveRuleAction(input: { id?: string; name: string; enabled
       return { ok: true, id: input.id };
     }
 
-    const limit = await ruleLimit(auth.orgId);
+    const locked = automationLocked(access);
+    if (locked) return { error: locked };
+    const limit = access.limit;
     if (limit != null) {
       const [{ n }] = await db.select({ n: count() }).from(automationRules).where(eq(automationRules.organizationId, auth.orgId));
       if (n >= limit) return { error: `باقتك بتسمح بـ${limit} قاعدة أتمتة — رقّي الباقة أو امسح قاعدة` };
@@ -111,9 +130,13 @@ export async function saveRuleAction(input: { id?: string; name: string; enabled
 }
 
 export async function toggleRuleAction(id: string, enabled: boolean): Promise<ActionState> {
-  const auth = await authorizeErp("automation.manage");
+  const auth = await authorizeErp("automation.manage", "settings");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (enabled) {
+      const locked = automationLocked(await automationAccess(auth.orgId));
+      if (locked) return { error: locked };
+    }
     const [row] = await db.update(automationRules).set({ enabled, updatedAt: new Date() })
       .where(and(eq(automationRules.id, id), eq(automationRules.organizationId, auth.orgId)))
       .returning({ name: automationRules.name });
@@ -125,7 +148,7 @@ export async function toggleRuleAction(id: string, enabled: boolean): Promise<Ac
 }
 
 export async function deleteRuleAction(id: string): Promise<ActionState> {
-  const auth = await authorizeErp("automation.manage");
+  const auth = await authorizeErp("automation.manage", "settings");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
     const [row] = await db.delete(automationRules)
@@ -150,7 +173,7 @@ export type RuleTestResult = ActionState & { matched?: boolean; facts?: Facts; l
 
 /** What the rule would do on a real document — nothing is sent or written. */
 export async function testRuleAction(spec: unknown, number: string): Promise<RuleTestResult> {
-  const auth = await authorizeErp("automation.manage");
+  const auth = await authorizeErp("automation.manage", "settings");
   if ("error" in auth) return auth;
   const parsed = parseSpec(spec);
   if ("error" in parsed) return parsed;
