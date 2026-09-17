@@ -20,6 +20,9 @@ fi
 set -a
 . ./.env
 set +a
+# `.env` is also used for local development and commonly says development. A deployment
+# must never inherit that value into Next's production compiler or the generated runtime.
+export NODE_ENV=production
 
 DC() { ( cd docker && docker compose --env-file ../.env --profile app "$@" ); }
 
