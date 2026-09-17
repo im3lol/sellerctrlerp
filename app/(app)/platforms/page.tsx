@@ -46,7 +46,7 @@ export default async function PlatformsPage() {
         <ErpPageHeader
           icon="Store"
           title="المنصات والقنوات"
-          subtitle="أمازون، نون، وغيرها — تربط المبيعات والمخزون والحسابات، وتُدار كلها من هنا"
+          subtitle="أمازون متاحة الآن لربط المبيعات والمخزون والحسابات — نون وبقية المنصات قريبًا"
         />
         <PlatformsManager
           platforms={rows.map((r) => ({

@@ -12,6 +12,7 @@ import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { round2 } from "@/lib/erp/money";
 import { normalizeCode } from "@/lib/erp/amazon-import";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { connectorEnabled } from "@/lib/saas/connector-enabled";
 
 const codeSchema = z.string().trim().min(2, "الكود قصير جدًا").max(20, "الكود طويل جدًا")
   .regex(/^[A-Za-z0-9_-]+$/, "الكود بحروف إنجليزية/أرقام فقط");
@@ -60,6 +61,7 @@ export async function createPlatformAction(input: unknown): Promise<ActionState 
     if (!parsed.success) return { error: parsed.error.issues[0].message };
     const { name, integrationType, defaultWarehouseId, bankAccountId } = parsed.data;
     const code = parsed.data.code.toUpperCase();
+    if (code !== "AMAZON") return { error: "أمازون هي المنصة المتاحة حاليًا — باقي المنصات قريبًا" };
 
     const [dup] = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
       .where(and(eq(salesPlatforms.organizationId, auth.orgId), eq(salesPlatforms.code, code))).limit(1);
@@ -154,6 +156,7 @@ export async function provisionMarketplaceAction(input: { connector: string; ful
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return auth;
   return withOrgScope(auth.orgId, false, async () => {
+    if (!(await connectorEnabled(input.connector))) return { error: "هذه المنصة قريبًا — أمازون فقط متاحة حاليًا" };
     if (input.connector === "AMAZON" && input.fulfillment && input.fulfillment !== "FBA") return { error: "نوع التنفيذ المتاح حاليًا هو FBA فقط" };
     try {
       const p = await ensurePlatform(auth.orgId, input.connector); // platform + customer + warehouse + settlement bank

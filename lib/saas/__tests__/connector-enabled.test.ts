@@ -24,21 +24,15 @@ beforeEach(() => {
   delete process.env.SHOPIFY_ENABLED; delete process.env.NOON_ENABLED;
 });
 
-describe("enabledConnectorCodes — DB toggle over env, Amazon default on", () => {
-  it("defaults: Amazon on, others off (no row, no env)", async () => {
+describe("enabledConnectorCodes — Amazon-only go-live", () => {
+  it("exposes Amazon only", async () => {
     expect([...(await enabledConnectorCodes())]).toEqual(["AMAZON"]);
   });
-  it("env flags enable Shopify/Noon when DB is null", async () => {
+  it("ignores environment and database flags for unfinished connectors", async () => {
     process.env.SHOPIFY_ENABLED = "1"; process.env.NOON_ENABLED = "1";
+    state.byCode = { NOON: { enabled: true }, SHOPIFY: { enabled: true } };
     const s = await enabledConnectorCodes();
-    expect(s.has("SHOPIFY")).toBe(true); expect(s.has("NOON")).toBe(true);
-  });
-  it("DB toggle wins over env (explicit false disables despite env=1)", async () => {
-    process.env.NOON_ENABLED = "1";
-    state.byCode = { NOON: { enabled: false }, AMAZON: { enabled: false } };
-    const s = await enabledConnectorCodes();
-    expect(s.has("NOON")).toBe(false);
-    expect(s.has("AMAZON")).toBe(false); // explicit false overrides the default-on
+    expect(s.has("SHOPIFY")).toBe(false); expect(s.has("NOON")).toBe(false);
   });
 });
 

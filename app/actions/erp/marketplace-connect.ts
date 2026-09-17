@@ -11,6 +11,7 @@ import { ensureNoonPlatform, ensureWooPlatform, ensureJumiaPlatform } from "@/li
 import { parseNoonCreds } from "@/lib/erp/marketplace/noon/constants";
 import { validateStoreUrl, WOO_REGION } from "@/lib/erp/marketplace/woo/constants";
 import { JUMIA_REGION } from "@/lib/erp/marketplace/jumia/constants";
+import { connectorEnabled } from "@/lib/saas/connector-enabled";
 
 /**
  * Connect Noon by pasting the service-account credential .json (from
@@ -20,6 +21,7 @@ import { JUMIA_REGION } from "@/lib/erp/marketplace/jumia/constants";
  * decrypting every credential. No secret is ever logged or returned.
  */
 export async function connectNoonAction(credentialJson: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await connectorEnabled("NOON"))) return { ok: false, error: "نون قريبًا — أمازون فقط متاحة حاليًا" };
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
@@ -62,6 +64,7 @@ export async function connectNoonAction(credentialJson: string): Promise<{ ok: t
  * the consumer key in `marketplaceId` (both read by the Woo client). No secret is logged.
  */
 export async function connectWooAction(input: { storeUrl: string; consumerKey: string; consumerSecret: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await connectorEnabled("WOO"))) return { ok: false, error: "ووكومرس قريبًا — أمازون فقط متاحة حاليًا" };
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 
@@ -91,6 +94,7 @@ export async function connectWooAction(input: { storeUrl: string; consumerKey: s
  * Jumia client. No secret is logged.
  */
 export async function connectJumiaAction(input: { userId: string; apiKey: string; apiHost: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await connectorEnabled("JUMIA"))) return { ok: false, error: "جوميا قريبًا — أمازون فقط متاحة حاليًا" };
   const auth = await authorizeErp("sales.create", "marketplace");
   if ("error" in auth) return { ok: false, error: auth.error };
 

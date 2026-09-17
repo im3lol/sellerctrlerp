@@ -1,5 +1,5 @@
 import "server-only";
-import { getIntegrationConfig, getIntegrationEnabled } from "./integration-config";
+import { getIntegrationConfig } from "./integration-config";
 
 /**
  * Which marketplace connectors are enabled for this deployment. Owner toggles them in
@@ -8,16 +8,9 @@ import { getIntegrationConfig, getIntegrationEnabled } from "./integration-confi
  * on. Iterates the registered connectors, so a NEW connector is picked up automatically.
  */
 export async function enabledConnectorCodes(): Promise<Set<string>> {
-  // Dynamic import breaks the registry→connectors→config load-time cycle.
-  const { CONNECTORS } = await import("@/lib/erp/marketplace/registry");
-  const codes = Object.keys(CONNECTORS);
-  const flags = await Promise.all(codes.map((c) => getIntegrationEnabled(c)));
-  const set = new Set<string>();
-  codes.forEach((code, i) => {
-    const dflt = code === "AMAZON" ? true : process.env[`${code}_ENABLED`] === "1"; // Amazon is first-class
-    if (flags[i] ?? dflt) set.add(code);
-  });
-  return set;
+  // Go-live scope: Amazon is the only production-ready connector. Keep the registry
+  // intact for development, but never expose or activate unfinished providers.
+  return new Set(["AMAZON"]);
 }
 
 export async function connectorEnabled(code: string): Promise<boolean> {

@@ -52,6 +52,8 @@ function providedKey(req: Request, body: WebhookBody): string | null {
 }
 
 export async function POST(req: Request) {
+  return bad(410, "نون قريبًا — الاستقبال متوقف حاليًا");
+  /*
   // Mandatory shared-secret gate (fail-closed) — Noon has no signature scheme.
   const secret = await getNoonWebhookSecret();
   if (!secret) return bad(503, "webhook secret not configured");
@@ -110,4 +112,5 @@ export async function POST(req: Request) {
     console.error("[noon-webhook] order ingest failed:", e instanceof Error ? e.message : e);
     return ok("deferred: fetch failed");
   }
+  */
 }

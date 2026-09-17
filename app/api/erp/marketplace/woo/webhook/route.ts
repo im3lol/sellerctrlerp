@@ -21,6 +21,8 @@ const ok = (msg = "ok") => new Response(JSON.stringify({ ok: true, msg }), { sta
 const bad = (status: number, error: string) => new Response(JSON.stringify({ ok: false, error }), { status, headers: { "content-type": "application/json" } });
 
 export async function POST(req: Request) {
+  return bad(410, "ووكومرس قريبًا — الاستقبال متوقف حاليًا");
+  /*
   // Fail-closed: without a configured secret we can't authenticate the caller.
   const secret = await getWooWebhookSecret();
   if (!secret) return bad(503, "webhook secret not configured");
@@ -60,4 +62,5 @@ export async function POST(req: Request) {
     console.error("[woo-webhook] order ingest failed:", e instanceof Error ? e.message : e);
     return ok("deferred: ingest failed");
   }
+  */
 }

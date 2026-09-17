@@ -7,6 +7,7 @@ import { ensurePlatform } from "@/lib/erp/platform-provision";
 import { getConnector } from "@/lib/erp/marketplace/registry";
 import type { MarketplaceConnector } from "@/lib/erp/marketplace/connector";
 import { verifyState, type OAuthState } from "@/lib/erp/marketplace/oauth-state";
+import { connectorEnabled } from "@/lib/saas/connector-enabled";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
 
   const connector = getConnector(provider);
   if (!connector?.oauth) return back(false, "موصّل غير مدعوم");
+  if (!(await connectorEnabled(connector.code))) return back(false, "هذه المنصة قريبًا — أمازون فقط متاحة حاليًا");
 
   const url = new URL(req.url);
   const state = verifyState(url.searchParams.get("state") || "");

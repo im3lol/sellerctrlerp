@@ -112,16 +112,11 @@ function CreatePlatformDialog({
       </DialogHeader>
 
       {mode === "choose" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3">
           <button type="button" onClick={() => setMode("auto")} className={`${tileCls} flex-col items-start gap-1.5 p-4 hover:border-primary`}>
             <PlugZap className="size-6 text-primary" />
             <span className="font-semibold">ربط آلي</span>
             <span className="text-xs text-muted-foreground">اختر منصة معروفة (أمازون) ويتم التجهيز تلقائيًا: عميل + مخزن + بنك.</span>
-          </button>
-          <button type="button" onClick={() => setMode("manual")} className={`${tileCls} flex-col items-start gap-1.5 p-4 hover:border-primary`}>
-            <Pencil className="size-6 text-muted-foreground" />
-            <span className="font-semibold">ربط يدوي</span>
-            <span className="text-xs text-muted-foreground">تحدّد كل البيانات بنفسك (لأي منصة أو ملف CSV).</span>
           </button>
         </div>
       )}
@@ -262,11 +257,12 @@ export function PlatformsManager({
 
       {platforms.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-          لا توجد منصات — أضف منصتك الأولى (مثلًا أمازون).
+          لا توجد منصات — أضف أمازون للبدء. نون وبقية المنصات قريبًا.
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {platforms.map((p) => {
+            const available = p.code.toUpperCase() === "AMAZON";
             const brand = BRANDS.find((b) => b.code === p.code.toUpperCase());
             const last = ago(p.lastSyncAt);
             const detail = `/platforms/${p.code.toLowerCase()}`;
@@ -284,11 +280,12 @@ export function PlatformsManager({
                         )}
                       </div>
                       <div>
-                        <Link href={detail} className="font-semibold hover:text-primary">{p.name}</Link>
+                        {available ? <Link href={detail} className="font-semibold hover:text-primary">{p.name}</Link> : <span className="font-semibold">{p.name}</span>}
                         <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
                       </div>
                     </div>
-                    {!p.isActive ? <Badge variant="secondary">موقوفة</Badge>
+                    {!available ? <Badge variant="secondary">قريبًا</Badge>
+                      : !p.isActive ? <Badge variant="secondary">موقوفة</Badge>
                       : p.connected ? <Badge className="bg-emerald-600">مربوط ✓</Badge>
                       : <Badge variant="outline">غير مربوط</Badge>}
                   </div>
@@ -300,10 +297,11 @@ export function PlatformsManager({
                   </div>
 
                   <div className="flex gap-2 border-t pt-3">
-                    <Button asChild size="sm" className="flex-1">
+                    {available && <Button asChild size="sm" className="flex-1">
                       <Link href={detail}><ExternalLink className="size-4" />فتح</Link>
-                    </Button>
-                    {canManage && (
+                    </Button>}
+                    {!available && <span className="flex flex-1 items-center justify-center text-sm text-muted-foreground">قريبًا</span>}
+                    {canManage && available && (
                       <>
                         <Button asChild size="sm" variant="outline">
                           <Link href={`${detail}/settings`}><Settings className="size-4" />إعدادات</Link>
