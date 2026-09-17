@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, selectCls } from "@/lib/utils";
+import { TRIAL_DAYS } from "@/lib/erp/trial";
 
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
 
@@ -96,7 +97,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
         <div className="space-y-4">
           <div className="text-center">
             <h1 className="text-xl font-bold">أنشئ حساب شركتك</h1>
-            <p className="text-sm text-muted-foreground">ابدأ تجربتك المجانية ١٤ يوماً — بدون بطاقة ائتمان.</p>
+            <p className="text-sm text-muted-foreground">ابدأ تجربتك المجانية {TRIAL_DAYS} يوماً — بدون بطاقة ائتمان.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2"><Label>اسم الشركة *</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="شركتك" /></div>
@@ -135,7 +136,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
         <div className="space-y-4">
           <div className="text-center">
             <h1 className="text-xl font-bold">اختر باقتك أو ابدأ بالتجربة</h1>
-            <p className="text-sm text-muted-foreground">اشترك الآن في باقة، أو ابدأ بتجربة مجانية ١٤ يوماً وقرّر لاحقاً.</p>
+            <p className="text-sm text-muted-foreground">اشترك الآن في باقة، أو ابدأ بتجربة مجانية {TRIAL_DAYS} يوماً وقرّر لاحقاً.</p>
           </div>
 
           {plans.length > 0 && (
@@ -193,7 +194,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
             </div>
           ) : (
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center text-sm">
-              تبدأ بـ <b>تجربة مجانية ١٤ يوماً</b> بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.
+              تبدأ بـ <b>تجربة مجانية {TRIAL_DAYS} يوماً</b> بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.
             </div>
           )}
         </div>

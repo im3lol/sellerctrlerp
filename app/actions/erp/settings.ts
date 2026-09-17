@@ -9,6 +9,7 @@ import { organizations, accountingConfigurations, fiscalPeriods, journalEntries,
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { fiscalYearBoundsFor } from "@/lib/erp/fiscal";
 import { putObject, publicUrl } from "@/lib/storage";
+import { parseReminderPolicy } from "@/lib/erp/reminders";
 
 
 const profileSchema = z.object({
@@ -80,6 +81,13 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
       if (Number.isFinite(n) && n >= 0 && n <= 365) stuck[k.slice(3)] = n;
     }
 
+    // Overdue reminders (lib/erp/reminders.ts): "3, 10, 20" → days after the due date. The
+    // policy object is rewritten whole on save, so this must ride along or it's wiped.
+    const reminders = parseReminderPolicy({ reminders: {
+      enabled: formData.get("rmEnabled") === "on",
+      stages: String(formData.get("rmStages") ?? "").split(/[\s,،]+/).filter(Boolean).map(Number),
+    } });
+
     // The fiscal-year start is the accounting foundation — it drives every period
     // boundary. It's free to set/change BEFORE the first posting, but LOCKED once any
     // journal entry or stock movement exists (changing it then would orphan the periods
@@ -110,6 +118,7 @@ export async function saveOrgProfileAction(_prev: ActionState, formData: FormDat
           enabled: d.apEnabled, purchaseOrder: d.apPurchaseOrder, salesDiscountPct: d.apSalesDiscountPct,
           salesBelowCost: d.apSalesBelowCost, stockWriteOff: d.apStockWriteOff, payment: d.apPayment, expense: d.apExpense,
           stuck,
+          reminders,
         },
         // Only new goods receipts read this; confirmed ones keep their own snapshot.
         purchaseVatCapitalised: d.purchaseVatCapitalised,

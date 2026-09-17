@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 export type Plan = {
   id: string; name: string; priceMonthly: number; priceAnnual: number;
   enabledModules: string[]; maxUsers: number | null; storageGb: number | null;
+  maxAutomations: number | null;
   isActive: boolean; sortOrder: number;
 };
 
@@ -32,6 +33,7 @@ function EditDialog({ plan, onClose }: { plan: Plan | null; onClose: () => void 
   const [priceAnnual, setPriceAnnual] = useState(String(plan?.priceAnnual ?? ""));
   const [maxUsers, setMaxUsers] = useState(plan?.maxUsers != null ? String(plan.maxUsers) : "");
   const [storageGb, setStorageGb] = useState(plan?.storageGb != null ? String(plan.storageGb) : "");
+  const [maxAutomations, setMaxAutomations] = useState(plan?.maxAutomations != null ? String(plan.maxAutomations) : "");
   const [sortOrder, setSortOrder] = useState(String(plan?.sortOrder ?? 0));
   const [modules, setModules] = useState<string[]>(plan?.enabledModules ?? [...ALL_MODULES]);
 
@@ -41,6 +43,7 @@ function EditDialog({ plan, onClose }: { plan: Plan | null; onClose: () => void 
     const r = await upsertPlanAction({
       id: plan?.id, name, priceMonthly: Number(priceMonthly) || 0, priceAnnual: Number(priceAnnual) || 0,
       enabledModules: modules, maxUsers: maxUsers ? Number(maxUsers) : null, storageGb: storageGb ? Number(storageGb) : null,
+      maxAutomations: maxAutomations === "" ? null : Number(maxAutomations),
       sortOrder: Number(sortOrder) || 0,
     });
     if ("ok" in r) { toast.success("تم حفظ الباقة"); onClose(); router.refresh(); }
@@ -58,6 +61,7 @@ function EditDialog({ plan, onClose }: { plan: Plan | null; onClose: () => void 
           <div className="space-y-1.5"><Label>السعر السنوي</Label><Input type="number" min="0" value={priceAnnual} onChange={(e) => setPriceAnnual(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>أقصى مستخدمين</Label><Input type="number" min="1" value={maxUsers} onChange={(e) => setMaxUsers(e.target.value)} placeholder="بلا حد" /></div>
           <div className="space-y-1.5"><Label>التخزين (جيجابايت)</Label><Input type="number" min="1" value={storageGb} onChange={(e) => setStorageGb(e.target.value)} placeholder="بلا حد" /></div>
+          <div className="space-y-1.5"><Label>قواعد الأتمتة</Label><Input type="number" min="0" value={maxAutomations} onChange={(e) => setMaxAutomations(e.target.value)} placeholder="بلا حد" /></div>
         </div>
         <div className="space-y-2">
           <Label>الوحدات المضمّنة</Label>
@@ -102,6 +106,7 @@ export function PlansManager({ plans }: { plans: Plan[] }) {
               <TableHead className="text-start">شهري / سنوي</TableHead>
               <TableHead className="text-start">مستخدمون</TableHead>
               <TableHead className="text-start">تخزين</TableHead>
+              <TableHead className="text-start">أتمتة</TableHead>
               <TableHead className="text-start">الوحدات</TableHead>
               <TableHead className="text-start">الحالة</TableHead>
               <TableHead className="text-start">إجراءات</TableHead>
@@ -109,13 +114,14 @@ export function PlansManager({ plans }: { plans: Plan[] }) {
           </TableHeader>
           <TableBody>
             {plans.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">لا توجد باقات — أنشئ أول باقة.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">لا توجد باقات — أنشئ أول باقة.</TableCell></TableRow>
             ) : plans.map((p) => (
               <TableRow key={p.id}>
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell className="text-sm tabular-nums">{int(p.priceMonthly)} / {int(p.priceAnnual)}</TableCell>
                 <TableCell className="text-sm">{cap(p.maxUsers)}</TableCell>
                 <TableCell className="text-sm">{p.storageGb == null ? "∞" : `${int(p.storageGb)} جيجا`}</TableCell>
+                <TableCell className="text-sm">{cap(p.maxAutomations)}</TableCell>
                 <TableCell className="text-sm">{p.enabledModules.length}/{ALL_MODULES.length}</TableCell>
                 <TableCell><Badge variant={p.isActive ? "default" : "outline"}>{p.isActive ? "مفعّلة" : "موقوفة"}</Badge></TableCell>
                 <TableCell>

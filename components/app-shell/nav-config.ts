@@ -50,10 +50,9 @@ export const NAV: NavSection[] = [
   },
   {
     // Cross-cutting hub: platforms/channels tie sales + inventory + accounts together.
-    // The live platforms are listed first (injected at render), then the work that only
-    // exists BECAUSE of a platform. Those five used to sit in المبيعات, where a
-    // marketplace return stood next to a shop return and settlements had no entry at
-    // all — so a seller's daily round was spread across two modules and a dead page.
+    // Amazon has a deeper operational surface than a normal sales channel, so its live
+    // entry expands into its daily tools (in NavList). This keeps Buy Box, FBA, sync and
+    // settlement work one click away without leaking Amazon-only rows to other channels.
     heading: "المنصات",
     color: "bg-violet-500",
     href: "/platforms",
@@ -62,13 +61,14 @@ export const NAV: NavSection[] = [
     icon: "Store",
     dynamicKey: "platforms",
     items: [
-      { label: "مرتجعات المنصات", href: "/sales/marketplace-returns", icon: "Undo2", capability: "erp.sales.view" },
-      { label: "أوامر السحب", href: "/sales/marketplace-removals", icon: "PackageX", capability: "erp.sales.view" },
-      { label: "التعويضات", href: "/sales/marketplace-reimbursements", icon: "HandCoins", capability: "erp.accounting.view" },
+      { label: "مرتجعات المنصات", href: "/sales/marketplace-returns", icon: "Undo2", capability: "erp.sales.view", group: "المتابعة" },
+      { label: "أوامر السحب", href: "/sales/marketplace-removals", icon: "PackageX", capability: "erp.sales.view", group: "المتابعة" },
+      { label: "التعويضات", href: "/sales/marketplace-reimbursements", icon: "HandCoins", capability: "erp.accounting.view", group: "المتابعة" },
       // A redirect, not a page: it finds this tenant's Amazon platform and opens its
       // settlement import. Keeps the row working without hard-coding a platform code.
-      { label: "تسويات المنصات", href: "/sales/orders/settlements", icon: "Scale", capability: "erp.accounting.create" },
-      { label: "ربحية المنصات", href: "/sales/reports/marketplace-pnl", icon: "Wallet", capability: "erp.reports.view" },
+      { label: "تسويات المنصات", href: "/sales/orders/settlements", icon: "Scale", capability: "erp.accounting.create", group: "المال والمخزون" },
+      { label: "ربحية المنصات", href: "/sales/reports/marketplace-pnl", icon: "Wallet", capability: "erp.reports.view", group: "المال والمخزون" },
+      { label: "مطابقة FBA", href: "/inventory/reconciliation", icon: "ClipboardCheck", capability: "erp.inventory.view", group: "المال والمخزون" },
     ],
   },
   {
@@ -128,6 +128,7 @@ export const NAV: NavSection[] = [
       { label: "أوامر الشراء", href: "/purchases/orders", icon: "ClipboardList", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "إذون الاستلام", href: "/purchases/receipts", icon: "PackageCheck", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "فواتير الشراء", href: "/purchases/invoices", icon: "ReceiptText", capability: "erp.purchases.view", group: "دورة الشراء" },
+      { label: "قراءة الفواتير", href: "/purchases/read-bill", icon: "ScanText", capability: "erp.purchases.view", group: "دورة الشراء" },
       { label: "تكاليف الاستيراد", href: "/purchases/landed-costs", icon: "Ship", capability: "erp.purchases.create", group: "دورة الشراء" },
       { label: "سندات الصرف", href: "/purchases/payments", icon: "Banknote", capability: "erp.purchases.view", group: "دورة الشراء" },
       // GRNI is where the cycle fails to close, so it belongs in the cycle, not in a
@@ -297,6 +298,7 @@ export const NAV: NavSection[] = [
       // Was a section of its own holding this single item.
       { label: "استيراد وتصدير", href: "/imports", icon: "ArrowRightLeft", capability: "erp.sales.view" },
       { label: "الصلاحيات", href: "/settings/permissions", icon: "ShieldCheck", capability: "erp.settings.edit" },
+      { label: "الأتمتة", href: "/automation", icon: "Workflow", capability: "erp.automation.manage" },
       { label: "سجل التدقيق", href: "/audit", icon: "ScrollText", capability: "erp.settings.edit" },
       // The setup checklist is opened from Settings; without a row here it belonged to no
       // module and lost the sidebar the moment you arrived.

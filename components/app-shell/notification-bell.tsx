@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ClipboardCheck, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, CheckCheck, ShoppingCart, Undo2, HandCoins, Volume2, VolumeX } from "lucide-react";
+import { Bell, ClipboardCheck, PackageX, CalendarClock, Clock, FilePlus2, CheckCircle2, CheckCheck, ShoppingCart, Undo2, HandCoins, Trophy, Volume2, VolumeX } from "lucide-react";
 import { getNotificationsAction } from "@/app/actions/erp/notifications";
 import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -66,6 +66,7 @@ export function NotificationBell() {
     { show: !!n?.mktReturns, icon: <Undo2 className="size-4" />, tone: "red", label: "مرتجعات منصّات بانتظار الاستلام", count: n?.mktReturns ?? 0, href: "/sales/marketplace-returns" },
     { show: !!n?.mktRemovals, icon: <PackageX className="size-4" />, tone: "amber", label: "أوامر سحب بانتظار المراجعة", count: n?.mktRemovals ?? 0, href: "/sales/marketplace-removals" },
     { show: !!n?.mktReimbursements, icon: <HandCoins className="size-4" />, tone: "primary", label: "تعويضات بانتظار التسجيل", count: n?.mktReimbursements ?? 0, href: "/sales/marketplace-reimbursements" },
+    { show: !!n?.lostBuyBox, icon: <Trophy className="size-4" />, tone: "red", label: "أصناف خسرت الـBuy Box", count: n?.lostBuyBox ?? 0, href: "/platforms/amazon/buy-box" },
     { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف من أمازون تحتاج مراجعة", count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
     { show: !!n?.stockWaiting, icon: <PackageX className="size-4" />, tone: "amber", label: "أذون صرف بانتظار توفّر المخزون", count: n?.stockWaiting ?? 0, href: "/sales/deliveries?status=DRAFT" },
     { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/audit" },

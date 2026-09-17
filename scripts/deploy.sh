@@ -9,16 +9,35 @@
 #   bash scripts/deploy.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-DC() { ( cd docker && docker compose --profile app "$@" ); }
 
-echo "▶ 1/6  host build (heap 8G)…"
+# The application containers already receive this file through Compose's `env_file`,
+# but the host-side preflight and Compose interpolation need it too. Loading it once
+# makes all three phases validate and use the exact same deployment configuration.
+if [ ! -f .env ]; then
+  echo "❌ missing .env — deployment secrets must be supplied on the host."
+  exit 1
+fi
+set -a
+. ./.env
+set +a
+
+DC() { ( cd docker && docker compose --env-file ../.env --profile app "$@" ); }
+
+echo "▶ 1/7  production environment preflight…"
+npm run env:production:check
+
+echo "▶ 2/7  host build (heap 8G)…"
+# Always build cold. A build that starts from the previous build's Turbopack cache
+# deadlocks right after spawning its PostCSS workers — idle CPU, no .next writes, forever
+# (deploy24/25/27, 2026-09-14). A cold build compiles in ~4 min, faster than the old warm ones.
+rm -rf .next/cache/turbopack
 NODE_OPTIONS="--max-old-space-size=8192" npm run build
 
-echo "▶ 2/6  copy static + public into standalone…"
+echo "▶ 3/7  copy static + public into standalone…"
 cp -r .next/static .next/standalone/.next/
 cp -r public .next/standalone/
 
-echo "▶ 3/6  apply schema + policies + integrity triggers (idempotent, safe on live data)…"
+echo "▶ 4/7  apply schema + policies + integrity triggers (idempotent, safe on live data)…"
 # Migrations are additive and idempotent, so applying them before the swap is safe: the
 # old code keeps running against the new schema until the container swaps.
 # NEVER `drizzle-kit push` against this DB — it changes the schema without recording a
@@ -27,14 +46,14 @@ echo "▶ 3/6  apply schema + policies + integrity triggers (idempotent, safe on
 npm run db:migrate
 npm run db:rls
 
-echo "▶ 4/6  tag the running image for rollback…"
+echo "▶ 5/7  tag the running image for rollback…"
 PREV="$(docker inspect sellerctrl-app --format '{{.Image}}' 2>/dev/null || true)"
 if [ -n "$PREV" ]; then docker tag "$PREV" sellerctrl-app:rollback && echo "    saved $PREV → sellerctrl-app:rollback"; fi
 
-echo "▶ 5/6  build + swap…"
+echo "▶ 6/7  build + swap…"
 DC up -d --build
 
-echo "▶ 6/6  health gate…"
+echo "▶ 7/7  health gate…"
 # BOTH containers. `DC up -d --build` (no service argument) rebuilds every service in the
 # profile, so the worker is always redeployed with the app — but the gate used to watch
 # only the app, so a worker that failed to come up went unreported. A silently stale or

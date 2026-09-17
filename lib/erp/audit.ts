@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auditLogs, users } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { emitErpEvent } from "@/lib/erp/realtime";
+import { queueAutomation, currentDepth } from "@/lib/erp/automation/queue";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
@@ -31,7 +32,7 @@ export type AuditInput = {
  * `db` (outside a tx) it swallows errors; inside a tx the caller decides.
  */
 export async function recordAudit(exec: Exec, input: AuditInput): Promise<void> {
-  await exec.insert(auditLogs).values({
+  const [row] = await exec.insert(auditLogs).values({
     organizationId: input.orgId,
     userId: input.userId ?? null,
     action: input.action,
@@ -40,9 +41,17 @@ export async function recordAudit(exec: Exec, input: AuditInput): Promise<void> 
     entityNumber: input.entityNumber ?? null,
     summary: input.summary ?? null,
     metadata: input.metadata ?? null,
-  });
+  }).returning({ id: auditLogs.id });
   // Live-notify subscribers (web SSE + mobile SSE). Every mutation logs here.
   emitErpEvent(input.orgId, { action: input.action, entity: input.entityType, id: input.entityId, number: input.entityNumber });
+  // …and so does workflow automation: queue the event (no DB work here — this may be inside
+  // the action's transaction). The worker runs it only once this row is committed.
+  if (row && input.entityId) {
+    queueAutomation(input.orgId, {
+      auditId: row.id, entity: input.entityType, event: input.action, entityId: input.entityId,
+      entityNumber: input.entityNumber ?? null, depth: currentDepth(),
+    });
+  }
 }
 
 /** Fire-and-forget audit on the shared db connection; never throws. */

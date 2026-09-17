@@ -5,12 +5,13 @@ import { db } from "@/lib/db";
 import { plans } from "@/db/schema";
 import { Logo } from "@/components/brand/logo";
 import { SignupWizard } from "@/components/auth/signup-wizard";
+import { TRIAL_DAYS } from "@/lib/erp/trial";
 
 // Dynamic so the SIGNUP_OPEN gate below is read per request — a statically prerendered
 // page bakes the redirect at build time, making the env toggle a no-op until a rebuild.
 export const dynamic = "force-dynamic";
 
-const POINTS = ["إعداد شركتك ودليل حساباتك في دقائق", "١٤ يوماً مجاناً بكل الوحدات", "بدون بطاقة ائتمان — ألغِ في أي وقت"];
+const POINTS = ["إعداد شركتك ودليل حساباتك في دقائق", `${TRIAL_DAYS} يوماً مجاناً بكل الوحدات`, "بدون بطاقة ائتمان — ألغِ في أي وقت"];
 
 export default async function SignupPage() {
   // Self-serve signup is closed by default — the landing routes leads through

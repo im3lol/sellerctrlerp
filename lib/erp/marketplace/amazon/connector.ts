@@ -17,6 +17,7 @@ import { fetchFbaReturns } from "./returns-report";
 import { fetchMfnReturns } from "./mfn-returns-report";
 import { fetchReimbursements, fetchLedgerEvents, fetchRemovals } from "./finance-reports";
 import { fetchFeesEstimates } from "./fees";
+import { fetchListingOffers } from "./offers";
 import type { MarketplaceProduct } from "../dto";
 
 const marketplaces: ConnectorMarketplace[] = MARKETPLACES.map((m) => ({
@@ -107,5 +108,8 @@ export const amazonConnector: MarketplaceConnector = {
   },
   fetchFees(cred, skus) {
     return fetchFeesEstimates(cred, skus);
+  },
+  fetchOffers(cred, skus) {
+    return fetchListingOffers(cred, skus);
   },
 };

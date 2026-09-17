@@ -22,6 +22,8 @@ export type Notifications = {
   mktReturns: number;
   mktRemovals: number;
   mktReimbursements: number;
+  /** Amazon listings whose Buy Box someone else holds (platform_offers, daily). */
+  lostBuyBox: number;
   /** Documents waiting for this member's approval (only counted for approvers). */
   pendingApprovals: number;
   /** Follow-ups on this member (lib/erp/chatter.ts), due today or overdue. */
@@ -65,7 +67,7 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>, us
   const ZERO = Promise.resolve({ rows: [{ n: 0 }] } as { rows: { n: number }[] });
   const ZERO_TOTAL = Promise.resolve({ rows: [{ n: 0, total: "0" }] } as { rows: { n: number; total: string }[] });
 
-  const [low, exp, ar, ap, activity, since_, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes, mktReturnsRes, mktRemovalsRes, mktReimbursementsRes] = await Promise.all([
+  const [low, exp, ar, ap, activity, since_, newOrdersRes, reviewRes, stockWaitRes, unmatchedRes, unclaimedReturnsRes, mktReturnsRes, mktRemovalsRes, mktReimbursementsRes, lostBuyBoxRes] = await Promise.all([
     can("inventory.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM (
         SELECT i.id FROM items i
@@ -136,6 +138,10 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>, us
     can("accounting.view") ? db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM fba_reimbursements
       WHERE organization_id = ${orgId} AND status = 'PENDING'`) : ZERO,
+    // Listings that lost the Buy Box to another seller → /platforms/amazon/buy-box.
+    can("sales.view") ? db.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM platform_offers
+      WHERE organization_id = ${orgId} AND is_winner = false`) : ZERO,
   ]);
 
   const lowStock = Number(low.rows[0]?.n ?? 0);
@@ -153,6 +159,7 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>, us
   const mktReturns = Number(mktReturnsRes.rows[0]?.n ?? 0);
   const mktRemovals = Number(mktRemovalsRes.rows[0]?.n ?? 0);
   const mktReimbursements = Number(mktReimbursementsRes.rows[0]?.n ?? 0);
+  const lostBuyBox = Number(lostBuyBoxRes.rows[0]?.n ?? 0);
   const recent: Activity[] = activity
     .filter((a) => { const p = ENTITY_PERM[a.entityType]; return !p || can(p); }) // only docs this member can see
     .slice(0, 8)
@@ -171,5 +178,5 @@ async function compute(orgId: string, sinceIso?: string, perms?: Set<string>, us
     ? Number((await db.select({ n: sql<number>`count(*)::int` }).from(docFollowUps)
         .where(and(eq(docFollowUps.organizationId, orgId), eq(docFollowUps.assignedTo, userId), isNull(docFollowUps.doneAt), lte(docFollowUps.dueDate, cairoToday()))))[0]?.n ?? 0)
     : 0;
-  return { pendingApprovals, myFollowUps, lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, total: pendingApprovals + myFollowUps + lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements, recent };
+  return { pendingApprovals, myFollowUps, lowStock, expiring, overdueAR, overdueTotal, overdueAP, overdueAPTotal, stockWaiting, newActivity, newOrders, needsReview, unmatched, unclaimedReturns, mktReturns, mktRemovals, mktReimbursements, lostBuyBox, total: pendingApprovals + myFollowUps + lowStock + expiring + overdueAR + overdueAP + stockWaiting + newActivity + newOrders + needsReview + unmatched + unclaimedReturns + mktReturns + mktRemovals + mktReimbursements + lostBuyBox, recent };
 }

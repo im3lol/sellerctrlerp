@@ -49,7 +49,7 @@ const schema = z.object({
 
 /**
  * Self-service tenant signup: creates the company, its owner (org_admin), an
- * admin membership, and a 14-day TRIAL subscription over the chosen modules,
+ * admin membership, and a TRIAL_DAYS-long TRIAL subscription over the chosen modules,
  * bootstraps the chart of accounts, then signs the owner in (redirects).
  */
 export async function signupAction(input: SignupInput): Promise<{ error: string }> {

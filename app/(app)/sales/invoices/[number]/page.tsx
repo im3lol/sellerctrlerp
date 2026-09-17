@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SalesInvoiceDetailActions } from "@/components/erp/sales-invoice-detail-actions";
+import { docLinkUrl } from "@/lib/erp/doc-link";
 import { Field, LinkedDocsCard, UUID_RE, type DocLink } from "@/components/erp/document-detail";
 import { DocChatter } from "@/components/erp/doc-chatter";
 import { getDocumentAudit } from "@/lib/erp/audit";
@@ -60,6 +61,9 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
     const canPost = can("accounting.post");
     const canManage = can("sales.create");
     const canCollect = can("sales.collect");
+    // A customer link only for an invoice the customer may see — not a draft, not a cancelled one.
+    const link = process.env.APP_URL && inv.status !== "DRAFT" && inv.status !== "CANCELLED"
+      ? docLinkUrl(process.env.APP_URL, { o: orgId, k: "SI", id: inv.id }) : null;
 
     return (
       <div className="space-y-6">
@@ -68,7 +72,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
           title={`فاتورة بيع ${inv.number}`}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "فاتورة بيع"}
           backHref="/sales/invoices"
-          action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} canCollect={canCollect} balanceDue={String(inv.balanceDue)} totalAmount={String(inv.totalAmount)} customerPhone={cust?.phone ?? null} customerEmail={cust?.email ?? null} />}
+          action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} canCollect={canCollect} balanceDue={String(inv.balanceDue)} totalAmount={String(inv.totalAmount)} customerPhone={cust?.phone ?? null} customerEmail={cust?.email ?? null} link={link} />}
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

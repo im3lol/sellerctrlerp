@@ -30,6 +30,9 @@ export type ErpPermission =
   // Approvals — decide on documents held for a manager (lib/erp/approval-policy.ts).
   // Admin has it; any other member gets it through a per-member grant.
   | "approvals.decide"
+  // Workflow automation — build and edit rules (lib/erp/automation). Admin has it; anyone
+  // else through a per-member grant.
+  | "automation.manage"
   // Users (org-level membership management)
   | "users.view" | "users.create" | "users.edit" | "users.delete"
   // Organization settings
@@ -45,6 +48,7 @@ export const allErpPermissions: ErpPermission[] = [
   "investors.view", "investors.create", "investors.edit", "investors.delete", "investors.manage",
   "hr.view", "hr.create", "hr.post",
   "approvals.decide",
+  "automation.manage",
   "users.view", "users.create", "users.edit", "users.delete",
   "organization.manage",
 ];

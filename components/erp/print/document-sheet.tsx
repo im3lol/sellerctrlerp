@@ -85,8 +85,8 @@ export type DocumentSheetProps = {
   hiddenColumns?: string[];
   /** Org print settings: extra line above the footer (thanks / terms). */
   footerText?: string;
-  /** Where the «رجوع» button goes. */
-  backHref: string;
+  /** Where the «رجوع» button goes. None on the customer link — there is nowhere to go back to. */
+  backHref?: string;
 };
 
 const initials = (name: string | null | undefined) =>
@@ -135,9 +135,11 @@ export function DocumentSheet({
 
       <div className="no-print fixed top-4 start-4 z-50 flex gap-2">
         <PrintNowButton />
-        <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
-          رجوع
-        </a>
+        {backHref && (
+          <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
+            رجوع
+          </a>
+        )}
       </div>
 
       <div className="doc" style={{ position: "relative" }}>

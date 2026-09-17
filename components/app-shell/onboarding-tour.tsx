@@ -6,6 +6,7 @@ import { Sparkles, X, ArrowLeft, ArrowRight, EyeOff } from "lucide-react";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TRIAL_DAYS } from "@/lib/erp/trial";
 import { dismissTourAction } from "@/app/actions/erp/onboarding";
 
 /**
@@ -24,7 +25,7 @@ const TOURS: Record<string, Step[]> = {
     { icon: "Bell", title: "الإشعارات", body: "الجرس بيجمع كل اللي محتاج انتباهك: مسودات، مخزون منخفض، طلبات أمازون الجديدة، وأذون بانتظار المخزون.", target: "notification-bell" },
     { icon: "Building2", title: "مؤسستك", body: "لو عندك أكثر من شركة، بدّل بينها من هنا — كل شركة ببياناتها المعزولة تمامًا.", target: "org-switcher" },
     { icon: "Rocket", title: "أكمل إعداد حسابك", body: "في لوحة التحكم هتلاقي كرت بيتابع خطوات تجهيز حسابك (أصناف، عملاء، أرصدة…) — بيختفي لوحده أول ما تكمّل." },
-    { icon: "CreditCard", title: "جاهز؟", body: "أنت في تجربة مجانية ١٤ يومًا بكل الوحدات. دوس على أي وحدة من هنا وهتلاقي جولة قصيرة مستنياك." },
+    { icon: "CreditCard", title: "جاهز؟", body: `أنت في تجربة مجانية ${TRIAL_DAYS} يومًا بكل الوحدات. دوس على أي وحدة من هنا وهتلاقي جولة قصيرة مستنياك.` },
   ],
   sales: [
     { icon: "ShoppingCart", title: "جولة المبيعات", body: "هنمشي على دورة البيع كاملة صفحة بصفحة: عميل ← أمر بيع ← إذن صرف ← فاتورة ← سند قبض. اضغط «التالي» وهننتقل سوا." },

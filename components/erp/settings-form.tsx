@@ -8,6 +8,7 @@ import { saveOrgProfileAction, saveAccountingConfigAction, uploadOrgLogoAction }
 import { HIDEABLE_SECTIONS } from "@/components/app-shell/nav-config";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { STUCK_RULES, type ApprovalPolicy, type StuckDays } from "@/lib/erp/approval-policy";
+import type { ReminderPolicy } from "@/lib/erp/reminders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ export type OrgProfile = {
   nameAr: string; nameEn: string; legalName: string | null; taxNumber: string | null;
   address: string | null; phone: string | null; email: string | null; logo: string | null;
   vatRate: string; fiscalYearStart: string | null; approvalPolicy: ApprovalPolicy; stuckDays: StuckDays;
+  reminders: ReminderPolicy;
   purchaseVatCapitalised: boolean;
   navHidden: string[];
 };
@@ -176,6 +178,22 @@ export function SettingsForm({
                   <p className="text-xs text-muted-foreground">
                     بيظهر في تبويب «المتأخر» في صفحة الموافقات، وفي لوحة التحكم والإيميل اليومي. أمر الشراء بيتحسب من موعد
                     وصوله، والباقي من يوم ما اتعمل. كل واحد بيشوف المستندات اللي في صلاحياته بس.
+                  </p>
+                </div>
+                {/* Overdue-invoice reminders (lib/erp/reminders.ts) — one email per stage, with
+                    the invoice's customer link. Saved in approvalPolicy beside the stuck limits. */}
+                <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" name="rmEnabled" className="size-4 rounded border-input" defaultChecked={profile.reminders.enabled} />
+                    فكّر العملاء بالفواتير المتأخرة بإيميل
+                  </label>
+                  <div className="space-y-1">
+                    <Label htmlFor="rmStages">بعد كام يوم من الاستحقاق (أرقام مفصولة بفاصلة)</Label>
+                    <Input id="rmStages" name="rmStages" defaultValue={profile.reminders.stages.join(", ")} dir="ltr" className="max-w-xs" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    كل تذكير بيتبعت مرة واحدة، ومعاه رابط الفاتورة اللي العميل يفتحها منه. محتاج إيميل العميل يكون مسجّل،
+                    وإيميل المنصة يكون شغّال.
                   </p>
                 </div>
                 {/* Which side of the ledger purchase VAT lands on. Only new goods receipts

@@ -7,6 +7,8 @@ import { authConfig } from "./auth.config";
  * users off the landing/login pages. A default export is a valid proxy handler.
  */
 const { auth } = NextAuth(authConfig);
+const legacyMarketingHosts = new Set(["app.sellerctrl.com", "www.sellerctrl.com"]);
+const publicMarketingPaths = new Set(["/", "/signup", "/privacy", "/robots.txt", "/sitemap.xml"]);
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -14,11 +16,23 @@ export default auth((req) => {
   const role = (req.auth?.user as { role?: string } | undefined)?.role;
   const path = nextUrl.pathname;
 
+  // The tunnel serves multiple hostnames from one container. Consolidate only the
+  // crawlable pages so canonical URLs, robots and the sitemap cannot split SEO equity.
+  const marketingOrigin = new URL(process.env.MARKETING_URL ?? "https://sellerctrl.com");
+  if (legacyMarketingHosts.has(nextUrl.hostname) && publicMarketingPaths.has(path) && nextUrl.host !== marketingOrigin.host) {
+    const redirectUrl = nextUrl.clone();
+    redirectUrl.protocol = marketingOrigin.protocol;
+    redirectUrl.host = marketingOrigin.host;
+    return Response.redirect(redirectUrl, 308);
+  }
+
   const isPublic =
     path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/signup") ||
     path.startsWith("/privacy") || // public legal page
+    path === "/robots.txt" || path === "/sitemap.xml" || // crawlers read these signed-out
+    path.startsWith("/d/") || // customer document link — authorised by its signed, expiring token (lib/erp/doc-link.ts)
 
     path === "/api/health" || // liveness/readiness probe — no session, no tenant data
     path.startsWith("/api/auth") ||

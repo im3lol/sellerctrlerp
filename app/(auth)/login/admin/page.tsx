@@ -13,7 +13,7 @@ export default function AdminLoginPage() {
       ]}
     >
       <LoginForm
-        callbackUrl="/dashboard"
+        callbackUrl="/admin"
         title="دخول الإدارة"
         subtitle="لوحة تحكم مدير النظام ومدير العمليات"
         welcome="🔐 منطقة الإدارة — صلاحيات كاملة لإدارة النظام والفرق والعملاء."

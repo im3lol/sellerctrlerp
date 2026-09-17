@@ -8,7 +8,7 @@ import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { log } from "@/lib/log";
 import { startRun, finishRun } from "@/lib/erp/sync-runs";
 import { enrichItems } from "@/lib/erp/marketplace/ingest";
-import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, syncFbaCodesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
+import { prepareSync, syncProductsCore, importProductsCore, syncOrdersCore, syncSettlementsCore, syncReturnsCore, syncRemovalsCore, syncReimbursementsCore, syncLedgerCore, syncFeesCore, syncOffersCore, syncFbaCodesCore, markSync, type SyncPrep, type ProductsSync } from "@/lib/erp/marketplace/sync-core";
 import { runInventoryAudit } from "@/lib/erp/marketplace/inventory-audit-core";
 import { runWithErpContext, type ErpContext } from "@/lib/erp/erp-context";
 import { withRequestCount } from "@/lib/erp/marketplace/amazon/client";
@@ -279,6 +279,21 @@ export async function runPricingJob(d: SyncJob): Promise<void> {
   } catch (e) {
     log.error("[queue]fees sync failed", { orgId: d.orgId, err: e });
     await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل تقدير الرسوم");
+  }
+}
+
+/** Buy Box watch — who holds the Buy Box for every Amazon-linked SKU (daily / on demand). */
+export async function runOffersJob(d: SyncJob): Promise<void> {
+  const runId = await startRun(d.orgId, d.provider, "OFFERS", d.marketplaceId);
+  const prep = await prepareSync(d.orgId, d.provider.toUpperCase());
+  if ("error" in prep) { await finishRun(d.orgId, runId, "FAILED", {}, prep.error); return; }
+  try {
+    const [r, apiRequests] = await withRequestCount(() => syncOffersCore(prep));
+    if (!r.ok) { await finishRun(d.orgId, runId, "FAILED", { apiRequests }, r.error); return; }
+    await finishRun(d.orgId, runId, "OK", { productsProcessed: r.checked, updatedProducts: r.lost, apiRequests });
+  } catch (e) {
+    log.error("[queue]offers sync failed", { orgId: d.orgId, err: e });
+    await finishRun(d.orgId, runId, "FAILED", {}, (e instanceof Error ? e.message : "").slice(0, 200) || "فشل سحب الأسعار");
   }
 }
 

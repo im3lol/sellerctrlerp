@@ -94,6 +94,10 @@ export const organizations = pgTable(
     printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     // Where this tenant came from at signup (utm_source or the referring host) — acquisition attribution.
     signupSource: text("signup_source"),
+    // A company's own Anthropic key (encryptSecret() ciphertext) and model — its AI reads run
+    // on these instead of the platform's, outside the plan's monthly limit.
+    aiApiKey: text("ai_api_key"),
+    aiModel: text("ai_model"),
     status: text("status").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -1929,6 +1933,33 @@ export const documentAttachments = pgTable(
   ],
 );
 
+/** One AI read of an uploaded bill (lib/erp/ai-reader.ts): the file, what came back, what it
+ *  cost, and the document it became. The file is the only thing the model ever sees. */
+export const aiCaptures = pgTable(
+  "ai_captures",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    kind: text("kind").notNull().default("BILL"),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    fileSize: integer("file_size").notNull(),
+    storageKey: text("storage_key"),
+    status: text("status").notNull().default("DONE"), // DONE | FAILED — only DONE counts toward the limit
+    result: jsonb("result"),
+    error: text("error"),
+    model: text("model"),
+    ownKey: boolean("own_key").notNull().default(false),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    entityType: text("entity_type"),
+    entityId: text("entity_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_captures_org_idx").on(t.organizationId, t.createdAt)],
+);
+
 /* ══════════════════════════ BANKING ═══════════════════════ */
 
 export const bankAccounts = pgTable(
@@ -2032,6 +2063,8 @@ export const salesInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
+    /** Last overdue-reminder stage sent (days after due; lib/erp/reminders.ts). 0 = none. */
+    reminderStage: integer("reminder_stage").notNull().default(0),
     // Multi-currency: GL always stores base-currency amounts; these fields preserve
     // the original foreign currency for display and FX reconciliation.
     currencyCode: text("currency_code").notNull().default("EGP"),
@@ -2141,6 +2174,8 @@ export const suppliers = pgTable(
     organizationId: orgId(),
     code: text("code").notNull(),
     nameAr: text("name_ar").notNull(),
+    /** Digits only. Learnt from the bills themselves (lib/erp/ai-bill.ts) — the surest match. */
+    taxNumber: text("tax_number"),
     phone: text("phone"),
     email: text("email"),
     address: text("address"),
@@ -2212,6 +2247,48 @@ export const docFollowUps = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("doc_follow_ups_entity_idx").on(t.organizationId, t.entityId)],
+);
+
+/** A workflow rule (lib/erp/automation): when a document event happens, if its fields
+ *  match, run the actions. `spec` = { trigger, match, conditions, actions }. */
+export const automationRules = pgTable(
+  "automation_rules",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    spec: jsonb("spec").$type<import("../lib/erp/automation/model").RuleSpec>().notNull(),
+    /** Confirming/posting documents needs this switched on for the rule, explicitly. */
+    allowPost: boolean("allow_post").notNull().default(false),
+    createdBy: text("created_by"),
+    runCount: integer("run_count").notNull().default(0),
+    lastRunAt: ts("last_run_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("automation_rules_org_idx").on(t.organizationId, t.enabled)],
+);
+
+/** One rule run on one document: what each action did, or why it failed. */
+export const automationRuns = pgTable(
+  "automation_runs",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    ruleId: text("rule_id").notNull().references(() => automationRules.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    entityNumber: text("entity_number"),
+    event: text("event").notNull(),
+    status: text("status").notNull(), // DONE | FAILED
+    detail: jsonb("detail").$type<string[]>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("automation_runs_rule_idx").on(t.organizationId, t.ruleId, t.createdAt),
+    index("automation_runs_org_idx").on(t.organizationId, t.createdAt),
+  ],
 );
 
 export const purchaseInvoices = pgTable(
@@ -3062,6 +3139,30 @@ export const platformItemFees = pgTable(
   (t) => [uniqueIndex("platform_item_fees_item_idx").on(t.organizationId, t.itemId, t.channel)],
 );
 
+// Buy Box monitoring (Product Pricing API): the latest competitive picture per listed item,
+// refreshed daily. lostSince is set when the item stops winning and cleared when it wins back.
+export const platformOffers = pgTable(
+  "platform_offers",
+  {
+    id: pk(),
+    organizationId: orgId(),
+    channel: text("channel").notNull().default("AMAZON"),
+    itemId: text("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    sku: text("sku").notNull(),
+    asin: text("asin"),
+    currency: text("currency"),
+    myPrice: money("my_price"),
+    buyBoxPrice: money("buy_box_price"),
+    lowestPrice: money("lowest_price"),
+    offerCount: integer("offer_count").notNull().default(0),
+    /** true = mine, false = someone else's, null = no Buy Box shown at all. */
+    isWinner: boolean("is_winner"),
+    lostSince: timestamp("lost_since", { withTimezone: true }),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("platform_offers_item_idx").on(t.organizationId, t.itemId, t.channel)],
+);
+
 /* ════════════════════════ INVESTORS ═══════════════════════ */
 
 export const investors = pgTable(
@@ -3289,6 +3390,7 @@ export const plans = pgTable("plans", {
   enabledModules: jsonb("enabled_modules").$type<string[]>().notNull().default([]),
   maxUsers: integer("max_users"),   // null = unlimited
   storageGb: integer("storage_gb"), // null = unlimited
+  maxAutomations: integer("max_automations"), // workflow rules a company may keep; null = unlimited
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: createdAt(),
@@ -3324,6 +3426,10 @@ export const platformSettings = pgTable("platform_settings", {
   smtpPass: text("smtp_pass"),                        // encryptSecret() ciphertext
   smtpFrom: text("smtp_from"),                        // From address, e.g. info@sellerctrl.com
   smtpFromName: text("smtp_from_name"),               // display name, e.g. SellerCtrl
+  // AI bill reading (lib/erp/ai-reader.ts). No model = the feature is off. Key = encryptSecret() ciphertext.
+  aiApiKey: text("ai_api_key"),
+  aiModel: text("ai_model"),
+  aiMonthlyLimit: integer("ai_monthly_limit").notNull().default(50), // reads per company per month on the platform key
   updatedAt: updatedAt(),
 });
 

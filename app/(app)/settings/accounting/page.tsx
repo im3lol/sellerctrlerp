@@ -5,11 +5,12 @@ import { accounts, accountingConfigurations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { SettingsForm, type AccountOption, type AccountingConfig, type OrgProfile } from "@/components/erp/settings-form";
 import { APPROVALS_OFF, parseStuckDays } from "@/lib/erp/approval-policy";
+import { parseReminderPolicy } from "@/lib/erp/reminders";
 
 // ponytail: SettingsForm requires a profile even for the accounting-only section — feed an empty one.
 const EMPTY_PROFILE: OrgProfile = {
   nameAr: "", nameEn: "", legalName: null, taxNumber: null, address: null, phone: null,
-  email: null, logo: null, vatRate: "14", fiscalYearStart: null, approvalPolicy: APPROVALS_OFF, stuckDays: parseStuckDays(null),
+  email: null, logo: null, vatRate: "14", fiscalYearStart: null, approvalPolicy: APPROVALS_OFF, stuckDays: parseStuckDays(null), reminders: parseReminderPolicy(null),
   purchaseVatCapitalised: false, navHidden: [],
 };
 

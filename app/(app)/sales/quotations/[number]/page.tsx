@@ -17,6 +17,8 @@ import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
+import { docLinkUrl } from "@/lib/erp/doc-link";
+
 const ST: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" }, SENT: { label: "مُرسل", variant: "outline" },
   ACCEPTED: { label: "مقبول", variant: "default" }, REJECTED: { label: "مرفوض", variant: "destructive" },
@@ -44,6 +46,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
     const headerDiscount = Number(qt.discountAmount) || 0;
     const total = Math.max(0, gross - headerDiscount);
     const st = ST[qt.status] ?? ST.DRAFT;
+    const link = process.env.APP_URL ? docLinkUrl(process.env.APP_URL, { o: orgId, k: "QT", id: qt.id }) : null;
 
     return (
       <div className="space-y-6">
@@ -51,7 +54,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
           action={
             <QuotationDetailActions
               id={qt.id} number={qt.number} status={qt.status} canManage={can("sales.create")}
-              total={total} customerPhone={qt.customerPhone} customerEmail={qt.customerEmail}
+              total={total} customerPhone={qt.customerPhone} customerEmail={qt.customerEmail} link={link}
             />
           } />
         <Card>

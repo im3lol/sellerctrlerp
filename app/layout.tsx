@@ -1,11 +1,34 @@
 import type { Metadata, Viewport } from "next";
 import { thmanyah } from "./fonts";
 import { Providers } from "./providers";
+import { marketingUrl } from "@/lib/marketing-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SellerCtrl",
-  description: "نظام إدارة عمليات SellerCtrl — تحكم كامل في عملياتك من مكان واحد",
+  // Crawlable marketing pages live on the apex; application links can still use APP_URL.
+  metadataBase: new URL(marketingUrl),
+  title: {
+    default: "SellerCtrl | ERP عربي لبائعي Amazon",
+    template: "%s | SellerCtrl",
+  },
+  description: "نظام ERP عربي موحّد لبائعي Amazon: المحاسبة والمخزون والمبيعات والشراء والتسويات في مكان واحد.",
+  keywords: ["ERP", "Amazon", "بائع أمازون", "محاسبة", "مخزون", "SellerCtrl"],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "ar_EG",
+    url: "/",
+    siteName: "SellerCtrl",
+    title: "SellerCtrl | ERP عربي لبائعي Amazon",
+    description: "المحاسبة والمخزون والمبيعات والشراء والتسويات في نظام واحد.",
+    images: [{ url: "/brand/landing-mockup.png", width: 1536, height: 1024, alt: "لوحة SellerCtrl — بيانات توضيحية" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SellerCtrl | ERP عربي لبائعي Amazon",
+    description: "المحاسبة والمخزون والمبيعات والشراء والتسويات في نظام واحد.",
+    images: ["/brand/landing-mockup.png"],
+  },
   appleWebApp: { capable: true, title: "SellerCtrl", statusBarStyle: "default" },
 };
 

@@ -26,6 +26,7 @@ export type PlanInput = {
   enabledModules: string[];
   maxUsers?: number | null;   // null = unlimited
   storageGb?: number | null;  // null = unlimited
+  maxAutomations?: number | null; // null = unlimited, 0 = none
   isActive?: boolean;
   sortOrder?: number;
 };
@@ -44,6 +45,7 @@ export async function upsertPlanAction(input: PlanInput): Promise<Res> {
       enabledModules: modules,
       maxUsers: input.maxUsers != null && input.maxUsers > 0 ? Math.floor(input.maxUsers) : null,
       storageGb: input.storageGb != null && input.storageGb > 0 ? Math.floor(input.storageGb) : null,
+      maxAutomations: input.maxAutomations != null && input.maxAutomations >= 0 ? Math.floor(input.maxAutomations) : null,
       isActive: input.isActive ?? true,
       sortOrder: input.sortOrder ?? 0,
       updatedAt: new Date(),

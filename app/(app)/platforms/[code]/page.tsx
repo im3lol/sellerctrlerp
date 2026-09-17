@@ -233,7 +233,11 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                   <CardTitle>تدقيق مخزون FBA</CardTitle>
                   <CardDescription>مطابقة كميات أمازون مع مخزن «{platform.warehouseName ?? "غير محدد"}» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.</CardDescription>
                 </div>
-                {audit && <Link href="/inventory/reconciliation" className="shrink-0 text-sm text-primary hover:underline">التقرير الكامل ←</Link>}
+                <div className="flex shrink-0 items-center gap-3 text-sm">
+                  <Link href={`/platforms/${platform.code.toLowerCase()}/fba-plan`} className="text-primary hover:underline">خطة شحن FBA ←</Link>
+                  <Link href={`/platforms/${platform.code.toLowerCase()}/buy-box`} className="text-primary hover:underline">مراقبة الـBuy Box ←</Link>
+                  {audit && <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل ←</Link>}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
