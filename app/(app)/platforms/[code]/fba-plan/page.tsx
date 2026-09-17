@@ -121,6 +121,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
             fromWarehouseId={source.id}
             toWarehouseId={platform.fbaWarehouseId}
             sourceName={source.name}
+            windowDays={windowDays}
             canCreate={can("inventory.create")}
           />
         )}

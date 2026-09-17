@@ -28,14 +28,17 @@ const BOM = String.fromCharCode(0xfeff); // so Excel reads the Arabic titles
  * holds). The result leaves as a shipment file for Send to Amazon and/or a DRAFT transfer
  * to the FBA warehouse — confirmed by a person once the boxes actually leave.
  */
-export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName, canCreate }: {
-  rows: FbaPlanRow[]; fromWarehouseId: string; toWarehouseId: string; sourceName: string; canCreate: boolean;
+export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName, windowDays, canCreate }: {
+  rows: FbaPlanRow[]; fromWarehouseId: string; toWarehouseId: string; sourceName: string; windowDays: number; canCreate: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [qty, setQty] = useState<Record<string, number>>(() => Object.fromEntries(rows.map((r) => [r.itemId, r.sendQty])));
   const chosen = rows.filter((r) => (qty[r.itemId] ?? 0) > 0);
   const units = chosen.reduce((s, r) => s + qty[r.itemId], 0);
+  const amazonOnHand = rows.reduce((s, r) => s + r.fbaAvailable, 0);
+  const systemOnHand = rows.reduce((s, r) => s + r.sourceOnHand, 0);
+  const salesInWindow = rows.reduce((s, r) => s + r.soldAtAmazon, 0);
 
   const download = () => {
     const csv = toCsv(["Merchant SKU", "ASIN", "Title", "Quantity"],
@@ -76,17 +79,24 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
         </div>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مخزون Amazon الحالي</span><div className="font-semibold tabular-nums">{int(amazonOnHand)} وحدة</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مخزون النظام في «{sourceName}»</span><div className="font-semibold tabular-nums">{int(systemOnHand)} وحدة</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مبيعات Amazon آخر {int(windowDays)} يوم</span><div className="font-semibold tabular-nums">{int(salesInWindow)} وحدة</div></div>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="text-start">الصنف</TableHead>
+              <TableHead className="text-start whitespace-nowrap">مبيعات آخر {int(windowDays)} يوم</TableHead>
               <TableHead className="text-start">بيع/يوم</TableHead>
               <TableHead className="text-start">متاح في أمازون</TableHead>
               <TableHead className="text-start">في الطريق</TableHead>
               <TableHead className="text-start">يكفّي (يوم)</TableHead>
               <TableHead className="text-start">المطلوب</TableHead>
-              <TableHead className="text-start whitespace-nowrap">عندك في «{sourceName}»</TableHead>
+              <TableHead className="text-start whitespace-nowrap">في النظام «{sourceName}»</TableHead>
               <TableHead className="text-start">هتبعت</TableHead>
               <TableHead className="text-start">الحالة</TableHead>
             </TableRow>
@@ -100,6 +110,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
                     <div className="truncate font-medium" title={r.name}>{r.name}</div>
                     <div className="font-mono text-[11px] text-muted-foreground">{r.sku ?? r.code}{r.asin ? ` · ${r.asin}` : ""}</div>
                   </TableCell>
+                  <TableCell className="tabular-nums">{int(r.soldAtAmazon)}</TableCell>
                   <TableCell className="tabular-nums">{dec(r.velocity)}</TableCell>
                   <TableCell className="tabular-nums">{int(r.fbaAvailable)}</TableCell>
                   <TableCell className="tabular-nums">{int(r.fbaInbound)}</TableCell>
