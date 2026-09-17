@@ -9,7 +9,19 @@
 #   bash scripts/deploy.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-DC() { ( cd docker && docker compose --profile app "$@" ); }
+
+# The application containers already receive this file through Compose's `env_file`,
+# but the host-side preflight and Compose interpolation need it too. Loading it once
+# makes all three phases validate and use the exact same deployment configuration.
+if [ ! -f .env ]; then
+  echo "❌ missing .env — deployment secrets must be supplied on the host."
+  exit 1
+fi
+set -a
+. ./.env
+set +a
+
+DC() { ( cd docker && docker compose --env-file ../.env --profile app "$@" ); }
 
 echo "▶ 1/7  production environment preflight…"
 npm run env:production:check
