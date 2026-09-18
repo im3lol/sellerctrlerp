@@ -39,6 +39,12 @@ export function ReportGenerator() {
   const run = () => {
     if (!report) return;
     const qs = reportQuery(report.dates, from, to);
+    // A party statement cannot be generated without knowing which party. Opening its
+    // own screen preserves the selected dates and lets the user choose that party first.
+    if (report.party) {
+      router.push(`${report.view}${qs ? `?${qs}` : ""}`);
+      return;
+    }
     const fmt = format === "excel" && report.excel ? "excel" : "pdf";
     // Log the download so it appears in the re-download list, then refresh it.
     recordReportDownloadAction({ reportKey: report.key, label: report.label, format: fmt, params: qs })
@@ -121,7 +127,7 @@ export function ReportGenerator() {
         )}
 
         {/* 4 — format */}
-        {report && (
+        {report && !report.party && (
           <div>
             <Step n={report.dates === "none" ? 3 : 4} title="اختر الصيغة" done />
             <div className="flex flex-wrap gap-3">
@@ -151,9 +157,10 @@ export function ReportGenerator() {
         {report && (
           <div className="border-t pt-5">
             <Button onClick={run} size="lg" className="gap-2">
-              <Icon name={format === "excel" ? "Download" : "FileText"} className="size-4" />
-              استخراج «{report.label}» {format === "excel" ? "Excel" : "PDF"}
+              <Icon name={report.party ? "ArrowLeft" : format === "excel" ? "Download" : "FileText"} className="size-4" />
+              {report.party ? `اختيار ${report.party === "customer" ? "العميل" : "المورّد"} ثم استخراج «${report.label}»` : `استخراج «${report.label}» ${format === "excel" ? "Excel" : "PDF"}`}
             </Button>
+            {report.party && <p className="mt-2 text-xs text-muted-foreground">اختَر الطرف أولاً، ثم صدّر كشفه Excel أو PDF بنفس الفترة.</p>}
           </div>
         )}
       </CardContent>

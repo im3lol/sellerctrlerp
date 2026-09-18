@@ -24,7 +24,10 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
   const { code } = await params;
   const back = `/platforms/${code.toLowerCase()}`;
 
-  return loadErpPage("sales.view", async ({ orgId }) => {
+  return loadErpPage("sales.view", async ({ orgId, can }) => {
+    // Marketplace health is useful to sales users too, but FBA balances/audits are
+    // inventory data and must never be disclosed without inventory.view.
+    const canViewInventory = can("inventory.view");
     const [platform] = await db.select({ name: salesPlatforms.name, integrationType: salesPlatforms.integrationType, fbaWarehouseId: salesPlatforms.defaultWarehouseId })
       .from(salesPlatforms)
       .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase())))
@@ -56,30 +59,30 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
       n(db.execute(sql`SELECT count(*)::int n FROM sales_returns WHERE organization_id = ${orgId} AND status = 'DRAFT' AND channel = 'AMAZON'`)),
       n(db.execute(sql`SELECT count(*)::int n FROM fba_reimbursements WHERE organization_id = ${orgId} AND status = 'PENDING'`)),
       n(db.execute(sql`SELECT count(*)::int n FROM platform_offers WHERE organization_id = ${orgId} AND channel = 'AMAZON' AND is_winner = false`)),
-      db.select({ withDiff: inventoryAudits.withDiff, lost: inventoryAudits.lost, damaged: inventoryAudits.damaged, at: inventoryAudits.createdAt })
+      canViewInventory ? db.select({ withDiff: inventoryAudits.withDiff, lost: inventoryAudits.lost, damaged: inventoryAudits.damaged, at: inventoryAudits.createdAt })
         .from(inventoryAudits)
         .where(and(eq(inventoryAudits.organizationId, orgId), eq(inventoryAudits.provider, "amazon"), eq(inventoryAudits.status, "OK")))
-        .orderBy(desc(inventoryAudits.createdAt)).limit(1),
-      (async () => {
+        .orderBy(desc(inventoryAudits.createdAt)).limit(1) : Promise.resolve([]),
+      canViewInventory ? (async () => {
         const [source] = await getFbaSources(orgId);
         if (!platform.fbaWarehouseId || !source) return 0;
         const { rows } = await getFbaPlanInputs(orgId, platform.fbaWarehouseId, source.id, 30);
         return planFbaShipment(rows, { windowDays: 30, transitDays: 14, coverDays: 30 })
           .filter((r) => r.status === "out" || r.status === "critical").length;
-      })(),
+      })() : Promise.resolve(0),
     ]);
 
     const checks: Check[] = [
       { icon: "PackageX", title: "طلبات بمنتج مش معروف", count: unmatched, ok: "كل طلبات أمازون متربطة بأصنافها", bad: "طلبات مستنية تربط الـSKU بصنف عشان تتسجّل", href: "/sales/orders/unmatched", action: "اربط الأصناف" },
       { icon: "RefreshCwOff", title: "مزامنات واقفة", count: failedSyncs, ok: "كل أنواع المزامنة آخر مرة نجحت", bad: "نوع مزامنة آخر محاولة ليه فشلت — افتح صفحة المنصة وشوف السبب", href: back, action: "صفحة أمازون" },
       { icon: "FileClock", title: "حركات تسوية مش مترحّلة", count: unposted, ok: "كل التسويات المفرج عنها مترحّلة للحسابات", bad: "حركات من كشف أمازون لسه ماتسجّلتش في الحسابات", href: `${back}/statements`, action: "كشف أمازون" },
-      { icon: "Truck", title: "أصناف محتاجة شحن لأمازون", count: fbaNeeds, ok: "المخزون عند أمازون مكفّي", bad: "أصناف خلصت أو هتخلص قبل ما شحنة توصل", href: `${back}/fba-plan`, action: "خطة الشحن" },
+      ...(canViewInventory ? [{ icon: "Truck", title: "أصناف محتاجة شحن لأمازون", count: fbaNeeds, ok: "المخزون عند أمازون مكفّي", bad: "أصناف خلصت أو هتخلص قبل ما شحنة توصل", href: `${back}/fba-plan`, action: "خطة الشحن" }] : []),
       { icon: "Trophy", title: "خسرت الـBuy Box", count: lostBuyBox, ok: "كسبان الـBuy Box على كل اللي بتراقبه", bad: "بائع تاني واخد الـBuy Box — راجع السعر", href: `${back}/buy-box`, action: "مراقبة Buy Box", tone: "warn" },
       { icon: "Undo2", title: "مرتجعات مستنية قرارك", count: returns, ok: "مفيش مرتجعات معلّقة", bad: "مرتجعات أمازون مستنية تقرر استلمتها ولا لأ", href: "/sales/marketplace-returns", action: "المرتجعات" },
       { icon: "HandCoins", title: "تعويضات مستنية تسجيل", count: reimbursements, ok: "كل تعويضات أمازون متسجّلة", bad: "تعويضات من أمازون لسه ماتسجّلتش", href: "/sales/marketplace-reimbursements", action: "التعويضات", tone: "warn" },
-      audit
+      ...(canViewInventory ? [audit
         ? { icon: "ClipboardCheck", title: "فروق مخزون FBA (آخر تدقيق)", count: audit.withDiff, ok: "مخزون أمازون مطابق للنظام", bad: `فرق بين أمازون والنظام${audit.lost + audit.damaged > 0 ? ` — منها ${int(audit.lost + audit.damaged)} مفقود/تالف` : ""}`, href: "/inventory/reconciliation", action: "المطابقة" }
-        : { icon: "ClipboardCheck", title: "تدقيق مخزون FBA", count: 1, ok: "", bad: "ماعملتش تدقيق لسه — شغّله من صفحة أمازون", href: back, action: "تدقيق المخزون" },
+        : { icon: "ClipboardCheck", title: "تدقيق مخزون FBA", count: 1, ok: "", bad: "ماعملتش تدقيق لسه — شغّله من صفحة أمازون", href: back, action: "تدقيق المخزون" }] : []),
     ];
     const open = checks.filter((c) => c.count > 0).length;
 

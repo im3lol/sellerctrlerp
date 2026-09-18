@@ -47,7 +47,14 @@ export async function changePasswordAction(currentPassword: string, newPassword:
   const newHash = await bcrypt.hash(newPassword, BCRYPT_COST);
   await db.transaction(async (tx) => {
     await tx.insert(passwordHistory).values({ userId: user.id, passwordHash: user.passwordHash });
-    await tx.update(users).set({ passwordHash: newHash, passwordChangedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, user.id));
+    // A changed password must invalidate every JWT issued with the old credential.
+    // The current browser is redirected to sign in again on its next server render too.
+    await tx.update(users).set({
+      passwordHash: newHash,
+      passwordChangedAt: new Date(),
+      sessionVersion: sql`${users.sessionVersion} + 1`,
+      updatedAt: new Date(),
+    }).where(eq(users.id, user.id));
     // Prune history to the last PW_HISTORY_KEEP.
     const keep = await tx.select({ id: passwordHistory.id }).from(passwordHistory)
       .where(eq(passwordHistory.userId, user.id)).orderBy(desc(passwordHistory.createdAt)).limit(PW_HISTORY_KEEP);
@@ -55,6 +62,7 @@ export async function changePasswordAction(currentPassword: string, newPassword:
     const all = await tx.select({ id: passwordHistory.id }).from(passwordHistory).where(eq(passwordHistory.userId, user.id));
     for (const row of all) if (!keepIds.has(row.id)) await tx.delete(passwordHistory).where(eq(passwordHistory.id, row.id));
   });
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 

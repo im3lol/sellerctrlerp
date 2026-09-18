@@ -48,4 +48,9 @@ describe("REPORT_MODULES", () => {
     const wrong = reports.filter((r) => r.excel && !r.excel.startsWith("/api/")).map((r) => `${r.label} → ${r.excel}`);
     expect(wrong).toEqual([]);
   });
+
+  it("marks party statements so the report center asks for a party before exporting", () => {
+    const statements = reports.filter((r) => r.key === "customer-statement" || r.key === "supplier-statement");
+    expect(statements.map((r) => r.party)).toEqual(["customer", "supplier"]);
+  });
 });

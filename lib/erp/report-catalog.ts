@@ -23,6 +23,8 @@ export type CatalogReport = {
    */
   print?: string | null;
   dates: ReportDates;
+  /** Statements need a particular customer/supplier before a file can be generated. */
+  party?: "customer" | "supplier";
 };
 
 export type ReportModule = { key: string; label: string; icon: string; reports: CatalogReport[] };
@@ -43,8 +45,8 @@ export const REPORT_MODULES: ReportModule[] = [
       { key: "fx", label: "إعادة تقييم العملات", view: "/reports/fx-revaluation", excel: "/api/erp/reports/fx-revaluation/export", print: "/erp/reports/fx-revaluation/print", dates: "none" },
       // Both statements have a print view and no Excel route. They were missing from
       // the catalogue entirely, so the report switcher couldn't reach them.
-      { key: "customer-statement", label: "كشف حساب العميل", view: "/accounting/customer-statement", excel: "/api/erp/accounting/party-statement/export", print: "/erp/accounting/customer-statement/print", dates: "range" },
-      { key: "supplier-statement", label: "كشف حساب المورّد", view: "/accounting/supplier-statement", excel: "/api/erp/accounting/party-statement/export", print: "/erp/accounting/supplier-statement/print", dates: "range" },
+      { key: "customer-statement", label: "كشف حساب العميل", view: "/accounting/customer-statement", excel: "/api/erp/accounting/party-statement/export", print: "/erp/accounting/customer-statement/print", dates: "range", party: "customer" },
+      { key: "supplier-statement", label: "كشف حساب المورّد", view: "/accounting/supplier-statement", excel: "/api/erp/accounting/party-statement/export", print: "/erp/accounting/supplier-statement/print", dates: "range", party: "supplier" },
     ],
   },
   {
