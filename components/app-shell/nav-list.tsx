@@ -71,6 +71,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
             }
             return [
               { label: "لوحة أمازون", href, icon: "Store", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
+              { label: "صحة أمازون", href: `${href}/health`, icon: "HeartPulse", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
               { label: "مراقبة Buy Box", href: `${href}/buy-box`, icon: "Trophy", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
               { label: "خطة FBA", href: `${href}/fba-plan`, icon: "Boxes", capability: "erp.inventory.view" as Capability, group: "أدوات أمازون" },
               { label: "مزامنة أمازون", href: `${href}/import`, icon: "RefreshCw", capability: "erp.sales.view" as Capability, group: "المزامنة والتسويات" },

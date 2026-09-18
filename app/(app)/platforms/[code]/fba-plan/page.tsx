@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { and, asc, eq, isNotNull, notInArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, warehouses } from "@/db/schema";
 import { loadErpPage } from "@/lib/erp/org";
-import { getFbaPlanInputs } from "@/lib/erp/fba-plan-data";
+import { getFbaPlanInputs, getFbaSources } from "@/lib/erp/fba-plan-data";
 import { planFbaShipment } from "@/lib/erp/fba-plan";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,17 +60,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
     );
     if (!platform.fbaWarehouseId) return note("حدّد مخزن المنصة (مخزن أمازون FBA) من إعدادات المنصة الأول.", { label: "إعدادات المنصة", href: `${back}/settings` });
 
-    // Where a shipment can leave from: my own warehouses — not Amazon's, not another
-    // platform's, not the quarantine area.
-    const platformWarehouses = (await db.select({ id: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
-      .where(and(eq(salesPlatforms.organizationId, orgId), isNotNull(salesPlatforms.defaultWarehouseId))))
-      .map((r) => r.id!);
-    const sources = await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses)
-      .where(and(
-        eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true), eq(warehouses.isQuarantine, false),
-        notInArray(warehouses.id, platformWarehouses),
-      ))
-      .orderBy(asc(warehouses.nameAr));
+    const sources = await getFbaSources(orgId);
     const source = sources.find((w) => w.id === sp.source) ?? sources[0];
     if (!source) return note("مفيش مخزن تاني تبعت منه — ضيف مخزنك الأول.", { label: "المخازن", href: "/inventory/warehouses" });
 

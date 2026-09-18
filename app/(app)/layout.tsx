@@ -49,12 +49,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} />
+      {/* Chrome stays off paper: printing any page (window.print) gives just its content. */}
+      <div className="contents print:hidden">
+        <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} />
+      </div>
       {/* overflow-x-CLIP, not hidden: `hidden` computes overflow-y to `auto`, which makes
           this div a scroll container — and that silently broke the topbar's `sticky top-0`
           (it scrolled away with the page). `clip` contains a stray wide child just the same
           without creating a scrollport, so the header sticks again. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+        <div className="contents print:hidden">
         <Topbar
           user={{
             name: user.name,
@@ -70,6 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           platforms={platforms}
           navHidden={navHidden}
         />
+        </div>
         {org?.isSandbox && <SandboxBanner realOrgId={activeOrg.orgs.find((o) => !o.isSandbox)?.id ?? null} />}
         {user.role === "system_admin" && activeOrg.org && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">

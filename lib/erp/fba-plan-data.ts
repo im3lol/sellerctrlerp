@@ -1,6 +1,6 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { inventoryAudits } from "@/db/schema";
+import { inventoryAudits, salesPlatforms, warehouses } from "@/db/schema";
 import type { FbaPlanInput } from "@/lib/erp/fba-plan";
 
 /**
@@ -63,4 +63,18 @@ export async function getFbaPlanInputs(
       soldAtAmazon: Number(r.sold), sourceOnHand: Number(r.source_on_hand),
     })),
   };
+}
+
+/** Where a shipment can leave from: my own warehouses — not Amazon's, not another
+ *  platform's, not the quarantine area. Call inside the org's RLS scope. */
+export async function getFbaSources(orgId: string): Promise<{ id: string; name: string }[]> {
+  const platformWarehouses = (await db.select({ id: salesPlatforms.defaultWarehouseId }).from(salesPlatforms)
+    .where(and(eq(salesPlatforms.organizationId, orgId), isNotNull(salesPlatforms.defaultWarehouseId))))
+    .map((r) => r.id!);
+  return db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses)
+    .where(and(
+      eq(warehouses.organizationId, orgId), eq(warehouses.isActive, true), eq(warehouses.isQuarantine, false),
+      platformWarehouses.length ? notInArray(warehouses.id, platformWarehouses) : undefined,
+    ))
+    .orderBy(asc(warehouses.nameAr));
 }

@@ -50,6 +50,21 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
     URL.revokeObjectURL(url);
   };
 
+  const excel = async () => {
+    const XLSX = await import("xlsx"); // loaded on click — keeps the page bundle light
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["الصنف", "SKU", "ASIN", `مبيعات آخر ${windowDays} يوم`, "بيع/يوم", "متاح في أمازون", "في الطريق", "يكفّي (يوم)", "المطلوب", `في «${sourceName}»`, "هتبعت", "الحالة"],
+      ...rows.map((r) => [r.name, r.sku ?? r.code, r.asin ?? "", r.soldAtAmazon, Math.round(r.velocity * 10) / 10, r.fbaAvailable, r.fbaInbound,
+        Math.round(r.daysOfCover * 10) / 10, r.suggestedQty, Math.floor(r.sourceOnHand), qty[r.itemId] ?? 0, STATUS[r.status].label]),
+      ["الإجمالي", "", "", salesInWindow, "", amazonOnHand, "", "", "", systemOnHand, units, ""],
+    ]);
+    ws["!cols"] = [36, 16, 14, 14, 10, 14, 12, 12, 10, 14, 10, 22].map((wch) => ({ wch }));
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, "خطة شحن FBA");
+    XLSX.writeFile(wb, `fba-plan-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const transfer = () => start(async () => {
     const r = await createStockTransferAction({
       date: new Date().toISOString().slice(0, 10),
@@ -65,7 +80,13 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
         <span className="font-medium">{int(chosen.length)} صنف · {int(units)} وحدة</span>
-        <div className="ms-auto flex flex-wrap gap-2">
+        <div className="ms-auto flex flex-wrap gap-2 print:hidden">
+          <Button size="sm" variant="outline" onClick={excel}>
+            <Icon name="FileSpreadsheet" className="size-4" />Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => window.print()}>
+            <Icon name="Printer" className="size-4" />طباعة
+          </Button>
           <Button size="sm" variant="outline" disabled={chosen.length === 0} onClick={download}
             title="SKU وكمية لكل صنف — للرفع أو النسخ في Send to Amazon">
             <Icon name="Download" className="size-4" />ملف الشحنة (CSV)
