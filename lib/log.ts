@@ -8,7 +8,7 @@ type Level = "error" | "warn" | "info";
 
 // Optional external error sinks. Both channels are
 // fire-and-forget so a failure alerts the owner instead of only sitting in `docker logs`:
-//   • Telegram  — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (instant push to the phone)
+//   • Telegram  — configured in /admin/integrations (instant push to the phone)
 //   • Generic   — set ERROR_WEBHOOK_URL (Slack/Teams/any compatible webhook; receives JSON)
 // Unset → no-op. Never throws, never blocks the request.
 //
@@ -19,24 +19,26 @@ type Level = "error" | "warn" | "info";
 // collapsing every tenant into a single event-name bucket and silencing all but the first.
 const lastAlert = new Map<string, number>();
 function forward(level: Level, event: string, line: string, throttleKey: string): void {
-  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-  const tgChat = process.env.TELEGRAM_CHAT_ID;
   const url = process.env.ERROR_WEBHOOK_URL;
-  if (!url && !(tgToken && tgChat)) return;
+  // Telegram configuration is resolved asynchronously from the encrypted platform
+  // settings; do not skip it just because no legacy environment fallback exists.
 
   const now = Date.now();
   const prev = lastAlert.get(throttleKey);
   if (prev && now - prev < 60_000) return;
   lastAlert.set(throttleKey, now);
 
-  if (tgToken && tgChat) {
+  void (async () => {
+    const { getTelegramConfig } = await import("@/lib/saas/telegram");
+    const { botToken, alertChatId } = await getTelegramConfig();
+    if (!botToken || !alertChatId) return;
     const text = `🔴 SellerCtrl [${level}] ${event}\n${line.slice(0, 3500)}`;
-    void fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: tgChat, text, disable_web_page_preview: true }),
-    }).catch(() => {});
-  }
+      body: JSON.stringify({ chat_id: alertChatId, text, disable_web_page_preview: true }),
+    });
+  })().catch(() => {});
   if (url) {
     void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: line })
       .catch(() => {}); // alerting must never break the app

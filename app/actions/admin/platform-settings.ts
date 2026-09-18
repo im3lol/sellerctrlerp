@@ -6,10 +6,12 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { db } from "@/lib/db";
 import { platformSettings, platformIntegrations, platformCredentials, aiCaptures } from "@/db/schema";
 import { requireCapability } from "@/lib/session";
-import { encryptSecret } from "@/lib/crypto";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { isAiModel } from "@/lib/erp/ai-bill";
 import { connectorConfigured } from "@/lib/saas/connector-configured";
 import { sendEmail } from "@/lib/erp/email";
+import { bustTelegramConfig, getTelegramConfig } from "@/lib/saas/telegram";
+import { tg, webhookSecretForToken } from "@/lib/erp/telegram";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
@@ -170,6 +172,94 @@ export async function testEmailSettingsAction(): Promise<Res> {
   } catch {
     return { error: "تعذّر الإرسال. راجع بيانات SMTP أو كلمة مرور التطبيق." };
   }
+}
+
+type TelegramAdmin = {
+  hasBotToken: boolean;
+  hasAlertChatId: boolean;
+  botUsername: string | null;
+  importedFromEnv: boolean;
+};
+
+/**
+ * Show Telegram state without ever serializing its token/chat id to the browser.
+ * Existing self-hosted env values are imported once, encrypted, on the first admin view;
+ * this is intentionally automatic so a running installation needs no re-entry.
+ */
+export async function getTelegramSettingsAdmin(): Promise<TelegramAdmin> {
+  await requireCapability("employee.manage");
+  let importedFromEnv = false;
+  let [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  const set: Record<string, unknown> = { id: SINGLETON, updatedAt: new Date() };
+  if (!row?.telegramBotToken && process.env.TELEGRAM_BOT_TOKEN) {
+    set.telegramBotToken = encryptSecret(process.env.TELEGRAM_BOT_TOKEN);
+    importedFromEnv = true;
+  }
+  if (!row?.telegramAlertChatId && process.env.TELEGRAM_CHAT_ID) {
+    set.telegramAlertChatId = encryptSecret(process.env.TELEGRAM_CHAT_ID);
+    importedFromEnv = true;
+  }
+  if (importedFromEnv) {
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    bustTelegramConfig();
+    [row] = await withPlatformScope(() => db.select().from(platformSettings).limit(1));
+  }
+
+  const botToken = row?.telegramBotToken ? decryptSecret(row.telegramBotToken) : "";
+  let botUsername: string | null = null;
+  // `getMe` is a short, read-only confirmation. Failure is deliberately non-fatal: the
+  // form still lets the owner save/correct settings.
+  if (botToken) {
+    const info = await tg("getMe", {});
+    botUsername = (info?.result as { username?: string } | undefined)?.username ?? null;
+  }
+  return { hasBotToken: !!botToken, hasAlertChatId: !!(row?.telegramAlertChatId && decryptSecret(row.telegramAlertChatId)), botUsername, importedFromEnv };
+}
+
+/** Save encrypted Telegram bot settings. Blank inputs preserve already-saved values. */
+export async function saveTelegramSettingsAction(input: { botToken?: string; alertChatId?: string }): Promise<Res> {
+  await requireCapability("employee.manage");
+  try {
+    const set: Record<string, unknown> = { id: SINGLETON, updatedAt: new Date() };
+    if (input.botToken?.trim()) set.telegramBotToken = encryptSecret(input.botToken.trim());
+    if (input.alertChatId?.trim()) set.telegramAlertChatId = encryptSecret(input.alertChatId.trim());
+    await withPlatformScope(() => db.insert(platformSettings).values(set).onConflictDoUpdate({ target: platformSettings.id, set }));
+    bustTelegramConfig();
+    revalidatePath("/admin/integrations");
+    return { ok: true };
+  } catch (e) {
+    console.error("[telegram-settings] save failed:", e);
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ إعدادات تليجرام" };
+  }
+}
+
+/** Send an explicit test only to the stored owner alert chat. */
+export async function testTelegramSettingsAction(): Promise<Res> {
+  await requireCapability("employee.manage");
+  const cfg = await getTelegramConfig();
+  if (!cfg.botToken || !cfg.alertChatId) return { error: "أكمل حفظ بوت تليجرام ومعرّف محادثة التنبيهات أولًا" };
+  const sent = await tg("sendMessage", {
+    chat_id: cfg.alertChatId,
+    text: "✅ SellerCtrl: تم اختبار ربط تليجرام من لوحة الإدارة بنجاح.",
+    disable_web_page_preview: true,
+  });
+  return sent?.ok ? { ok: true } : { error: "تعذّر إرسال الاختبار. تأكد أن الحساب بدأ محادثة مع البوت ومعرّف المحادثة صحيح." };
+}
+
+/** Register the secure inbound webhook using the saved bot token and public APP_URL. */
+export async function configureTelegramWebhookAction(): Promise<Res> {
+  await requireCapability("employee.manage");
+  const cfg = await getTelegramConfig();
+  if (!cfg.botToken) return { error: "احفظ رمز البوت أولًا" };
+  const base = (process.env.APP_URL || "").replace(/\/$/, "");
+  if (!base.startsWith("https://")) return { error: "يلزم APP_URL عام وآمن يبدأ بـ https:// لتفعيل Webhook تليجرام" };
+  const result = await tg("setWebhook", {
+    url: `${base}/api/telegram/webhook`,
+    secret_token: webhookSecretForToken(cfg.botToken),
+    allowed_updates: ["message", "callback_query"],
+    drop_pending_updates: false,
+  });
+  return result?.ok ? { ok: true } : { error: "تعذّرت تهيئة Webhook. راجع اتصال السيرفر بعنوان التطبيق العام ثم حاول مرة أخرى." };
 }
 
 /** Owner reads the AI config — the key is never returned, only whether it's set. */

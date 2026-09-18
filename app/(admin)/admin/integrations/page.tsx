@@ -1,11 +1,12 @@
 import { PageHeader } from "@/components/page-header";
-import { getXpaySettingsAdmin, getEmailSettingsAdmin, getIntegrationSettingsAdmin, getAiSettingsAdmin } from "@/app/actions/admin/platform-settings";
+import { getXpaySettingsAdmin, getEmailSettingsAdmin, getIntegrationSettingsAdmin, getAiSettingsAdmin, getTelegramSettingsAdmin } from "@/app/actions/admin/platform-settings";
 import { AiSettingsForm } from "@/components/admin/ai-settings-form";
 import { registeredConnectors } from "@/lib/erp/marketplace/registry";
 import { IntegrationCard } from "@/components/admin/integration-card";
 import { SettingsTile } from "@/components/admin/settings-tile";
 import { XpaySettingsForm } from "@/components/admin/xpay-settings-form";
 import { EmailSettingsForm } from "@/components/admin/email-settings-form";
+import { TelegramSettingsForm } from "@/components/admin/telegram-settings-form";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,12 @@ export default async function IntegrationsPage() {
   // Every registered connector that declares config fields shows a tile — click to connect.
   // A new connector appears automatically with no page change.
   const connectors = registeredConnectors().filter((c) => c.configFields?.length);
-  const [initials, xpay, email, ai] = await Promise.all([
+  const [initials, xpay, email, ai, telegram] = await Promise.all([
     Promise.all(connectors.map((c) => getIntegrationSettingsAdmin(c.code))),
     getXpaySettingsAdmin(),
     getEmailSettingsAdmin(),
     getAiSettingsAdmin(),
+    getTelegramSettingsAdmin(),
   ]);
   const appUrl = process.env.APP_URL ?? "";
   return (
@@ -43,6 +45,10 @@ export default async function IntegrationsPage() {
           <SettingsTile label="البريد الإلكتروني (SMTP)" icon="Mail" brandCls="bg-sky-500/15 text-sky-600" configured={email.hasPass}
             dialogTitle="البريد الإلكتروني (SMTP)" dialogDescription="خادم SMTP لرسائل الترحيب والإيصالات والتذكيرات.">
             <EmailSettingsForm initial={email} />
+          </SettingsTile>
+          <SettingsTile label="تليجرام والتنبيهات" icon="Send" brandCls="bg-cyan-500/15 text-cyan-600" configured={telegram.hasBotToken && telegram.hasAlertChatId}
+            dialogTitle="تليجرام والتنبيهات" dialogDescription="بوت واحد للتنبيهات التشغيلية وموافقات الفريق.">
+            <TelegramSettingsForm initial={telegram} appUrl={appUrl} />
           </SettingsTile>
           <SettingsTile label="الذكاء الاصطناعي (قراءة الفواتير)" icon="Sparkles" brandCls="bg-violet-500/15 text-violet-600" configured={ai.hasKey && !!ai.model}
             dialogTitle="الذكاء الاصطناعي" dialogDescription="مفتاح Anthropic والموديل والحد الشهري لكل شركة.">

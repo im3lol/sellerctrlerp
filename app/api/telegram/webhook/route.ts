@@ -23,7 +23,7 @@ type Update = {
  * decideApproval as the button in the app — permission and separation of duties included.
  */
 export async function POST(req: Request) {
-  if (!telegramEnabled() || !secretEquals(req.headers.get("x-telegram-bot-api-secret-token") ?? "", webhookSecret())) {
+  if (!(await telegramEnabled()) || !secretEquals(req.headers.get("x-telegram-bot-api-secret-token") ?? "", await webhookSecret())) {
     return new Response("forbidden", { status: 403 });
   }
   const u = (await req.json().catch(() => null)) as Update | null;
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 async function link(chat: { id: number; type: string }, payload: string) {
   const reply = (text: string) => tg("sendMessage", { chat_id: chat.id, text });
   if (chat.type !== "private") return reply("اربط حسابك من محادثة خاصة مع البوت.");
-  const memberId = verifyLinkPayload(payload);
+  const memberId = await verifyLinkPayload(payload);
   if (!memberId) return reply("الرابط ده انتهى أو مش صحيح — افتح ملفك الشخصي في SellerCtrl ودوس «اربط تليجرام» تاني.");
   const done = await withPlatformScope(() => db.update(organizationMembers).set({ telegramChatId: String(chat.id) })
     .where(and(eq(organizationMembers.id, memberId), eq(organizationMembers.isActive, true)))

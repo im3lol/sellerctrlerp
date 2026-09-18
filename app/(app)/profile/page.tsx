@@ -22,11 +22,13 @@ export default async function ProfilePage() {
 
   // Telegram: approval requests and decisions reach this member on their phone.
   const { org } = await getActiveOrg();
-  const [member] = org && telegramEnabled()
+  const enabled = await telegramEnabled();
+  const [member] = org && enabled
     ? await withOrgScope(org.id, false, () => db.select({ id: organizationMembers.id, chatId: organizationMembers.telegramChatId })
         .from(organizationMembers).where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.userId, user.id))).limit(1))
     : [];
   const bot = member && !member.chatId ? await botUsername() : null;
+  const telegramLink = member && !member.chatId && bot ? await linkPayload(member.id) : null;
 
   return (
     <div>
@@ -61,9 +63,9 @@ export default async function ProfilePage() {
               <span className="flex items-center gap-2"><Icon name="Send" className="size-4" />تليجرام مربوط ✓</span>
               <button type="submit" className="text-xs text-muted-foreground hover:text-destructive">فك الربط</button>
             </form>
-          ) : member && bot ? (
-            <a href={`https://t.me/${bot}?start=${linkPayload(member.id)}`} target="_blank" rel="noopener noreferrer"
-              title="الرابط صالح ١٥ دقيقة"
+          ) : member && bot && telegramLink ? (
+            <a href={`https://t.me/${bot}?start=${telegramLink}`} target="_blank" rel="noopener noreferrer"
+              title="الرابط صالح 15 دقيقة"
               className="flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent">
               <Icon name="Send" className="size-4" />
               اربط تليجرام — توصلك الموافقات على موبايلك

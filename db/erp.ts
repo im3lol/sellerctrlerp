@@ -3430,6 +3430,10 @@ export const platformSettings = pgTable("platform_settings", {
   smtpPass: text("smtp_pass"),                        // encryptSecret() ciphertext
   smtpFrom: text("smtp_from"),                        // From address, e.g. info@sellerctrl.com
   smtpFromName: text("smtp_from_name"),               // display name, e.g. SellerCtrl
+  // Telegram bot for platform alerts and approval messages. Both values are encrypted;
+  // the server environment remains a bootstrap / emergency fallback only.
+  telegramBotToken: text("telegram_bot_token"),
+  telegramAlertChatId: text("telegram_alert_chat_id"),
   // AI bill reading (lib/erp/ai-reader.ts). No model = the feature is off. Key = encryptSecret() ciphertext.
   aiApiKey: text("ai_api_key"),
   aiModel: text("ai_model"),
