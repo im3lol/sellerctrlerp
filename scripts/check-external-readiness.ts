@@ -3,8 +3,8 @@
  * values — so it is safe in CI, a terminal recording, or a support session.
  *
  * `npm run ops:external:check` reports gaps without failing.
- * `npm run ops:external:check -- --strict` returns non-zero until all launch services
- * (except the user-configurable SMTP panel) are configured and the public health URL is up.
+ * `npm run ops:external:check -- --strict` returns non-zero until the self-hosted
+ * on-call alert path and the app health URL are both ready.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -39,9 +39,7 @@ async function main() {
   const smtpEnv = complete(["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"]);
   result("SMTP", smtpEnv, smtpEnv ? "env fallback configured" : "configure env or /admin/integrations");
 
-  checks.push(result("Sentry", complete(["SENTRY_DSN"]), "set SENTRY_DSN to receive redacted server errors"));
   checks.push(result("On-call alerts", complete(["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]), "Telegram bot + chat"));
-  checks.push(result("Offsite backups", complete(["OFFSITE_S3_BUCKET", "OFFSITE_S3_ENDPOINT", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]), "R2/S3 upload credentials"));
 
   const appUrl = process.env.APP_URL?.replace(/\/$/, "");
   if (!appUrl || noNetwork) {
@@ -56,7 +54,7 @@ async function main() {
     }
   }
 
-  console.log("\nSMTP may be configured encrypted in /admin/integrations, so it is intentionally not a strict blocker here.");
+  console.log("\nSMTP may be configured encrypted in /admin/integrations, so it is intentionally not a strict blocker here. Offsite backups are optional; local encrypted backups remain active.");
   if (strict && checks.some((ok) => !ok)) process.exitCode = 1;
 }
 

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { saveEmailSettingsAction } from "@/app/actions/admin/platform-settings";
+import { saveEmailSettingsAction, testEmailSettingsAction } from "@/app/actions/admin/platform-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,16 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
       else toast.error(r.error);
     } catch (e) {
       toast.error("تعذّر الحفظ: " + (e instanceof Error ? e.message : "خطأ غير متوقع"));
+    }
+  });
+
+  const test = () => start(async () => {
+    try {
+      const r = await testEmailSettingsAction();
+      if ("ok" in r) toast.success("تم إرسال رسالة اختبار إلى بريد حسابك");
+      else toast.error(r.error);
+    } catch {
+      toast.error("تعذّر إرسال رسالة الاختبار");
     }
   });
 
@@ -64,7 +74,10 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
         </div>
         <p className="text-xs text-muted-foreground">المنفذ ٤٦٥ = SSL، و٥٨٧ = STARTTLS. مع Gmail استخدم «كلمة مرور تطبيق».</p>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={test} disabled={pending || !initial.hasPass}>
+            اختبار الإرسال
+          </Button>
           <Button onClick={save} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
           </Button>

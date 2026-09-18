@@ -9,6 +9,7 @@ import { requireCapability } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
 import { isAiModel } from "@/lib/erp/ai-bill";
 import { connectorConfigured } from "@/lib/saas/connector-configured";
+import { sendEmail } from "@/lib/erp/email";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
@@ -151,6 +152,23 @@ export async function saveEmailSettingsAction(input: { host?: string; port?: num
   } catch (e) {
     console.error("[email-settings] save failed:", e);
     return { error: e instanceof Error ? e.message : "تعذّر حفظ الإعدادات" };
+  }
+}
+
+/** Send a safe SMTP smoke test only to the signed-in platform administrator. */
+export async function testEmailSettingsAction(): Promise<Res> {
+  const user = await requireCapability("employee.manage");
+  if (!user.email) return { error: "ليس لحسابك بريد إلكتروني لاستقبال رسالة الاختبار" };
+  try {
+    const sent = await sendEmail({
+      to: user.email,
+      subject: "SellerCtrl — اختبار البريد الإلكتروني",
+      text: "تم الاتصال بخادم البريد بنجاح. هذه رسالة اختبار من SellerCtrl.",
+      html: "<p>تم الاتصال بخادم البريد بنجاح.</p><p>هذه رسالة اختبار من <strong>SellerCtrl</strong>.</p>",
+    });
+    return sent ? { ok: true } : { error: "تعذّر الإرسال. راجع بيانات SMTP أو كلمة مرور التطبيق." };
+  } catch {
+    return { error: "تعذّر الإرسال. راجع بيانات SMTP أو كلمة مرور التطبيق." };
   }
 }
 
