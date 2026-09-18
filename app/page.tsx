@@ -138,7 +138,7 @@ export default async function Home() {
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
             منصة متكاملة تجمع المحاسبة والمخزون ودورة البيع والشراء وتكامل منصات البيع —
-            مصمّمة خصيصاً لبائعي أمازون ونون والعلامات التجارية.
+            مصمّمة خصيصاً لبائعي أمازون والعلامات التجارية — ونون قريبًا.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {/* Self-serve signup is open (owner, 2026-09-17): the trial is the main path, a

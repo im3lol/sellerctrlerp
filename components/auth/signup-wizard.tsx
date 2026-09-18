@@ -100,14 +100,14 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
             <p className="text-sm text-muted-foreground">ابدأ تجربتك المجانية {TRIAL_DAYS} يوماً — بدون بطاقة ائتمان.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2"><Label>اسم الشركة *</Label><Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="شركتك" /></div>
-            <div className="space-y-1.5"><Label>اسم المسؤول *</Label><Input value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="الاسم الكامل" /></div>
-            <div className="space-y-1.5"><Label>البريد الإلكتروني *</Label><Input type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" /></div>
-            <div className="space-y-1.5"><Label>رقم الهاتف</Label><Input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
-            <div className="space-y-1.5"><Label>الرقم الضريبي</Label><Input value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="اختياري" /></div>
-            <div className="space-y-1.5 sm:col-span-2"><Label>العنوان</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="اختياري" /></div>
-            <div className="space-y-1.5"><Label>كلمة المرور *</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
-            <div className="space-y-1.5"><Label>تأكيد كلمة المرور *</Label><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-company">اسم الشركة *</Label><Input id="su-company" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="شركتك" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-name">اسم المسؤول *</Label><Input id="su-name" autoComplete="name" value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="الاسم الكامل" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-email">البريد الإلكتروني *</Label><Input id="su-email" autoComplete="email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-phone">رقم الهاتف</Label><Input id="su-phone" autoComplete="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-tax">الرقم الضريبي</Label><Input id="su-tax" value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="اختياري" /></div>
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-address">العنوان</Label><Input id="su-address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="اختياري" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-password">كلمة المرور *</Label><Input id="su-password" autoComplete="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-confirm">تأكيد كلمة المرور *</Label><Input id="su-confirm" autoComplete="new-password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           </div>
         </div>
       )}
@@ -164,14 +164,14 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                 <button type="button" onClick={() => setPlanId(null)} className="text-xs text-muted-foreground hover:underline">أو ابدأ بتجربة مجانية</button>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label>الدورة</Label>
-                  <select className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value as "MONTHLY" | "ANNUAL")}>
+                <div className="space-y-1.5"><Label htmlFor="su-interval">الدورة</Label>
+                  <select id="su-interval" className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value as "MONTHLY" | "ANNUAL")}>
                     <option value="MONTHLY">شهري — {egp(selectedPlan.priceMonthly)} ج.م</option>
                     <option value="ANNUAL">سنوي — {egp(selectedPlan.priceAnnual)} ج.م</option>
                   </select>
                 </div>
-                <div className="space-y-1.5"><Label>طريقة الدفع</Label>
-                  <select className={selectCls} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                <div className="space-y-1.5"><Label htmlFor="su-paymethod">طريقة الدفع</Label>
+                  <select id="su-paymethod" className={selectCls} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
                     {PAYMENT_METHODS.filter((m) => m.enabled && m.key !== "XPAY").map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </select>
                 </div>
@@ -187,8 +187,8 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label>رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>
-                <Input value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="رقم التحويل من إنستا باي أو البنك" />
+                <Label htmlFor="su-payref">رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>
+                <Input id="su-payref" value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="رقم التحويل من إنستا باي أو البنك" />
               </div>
               <p className="text-xs text-muted-foreground">تبدأ التجربة فوراً، ويُفعّل اشتراكك بعد مراجعة الدفع.</p>
             </div>
