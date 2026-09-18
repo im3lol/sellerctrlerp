@@ -15,6 +15,8 @@ import { PrintTrigger } from "@/components/erp/print-trigger";
 import { Icon } from "@/components/icon";
 import { exitImpersonationAction } from "@/app/actions/admin/impersonate";
 import { SandboxBanner } from "@/components/erp/sandbox-controls";
+import { deletionDueAt } from "@/lib/erp/org-deletion";
+import Link from "next/link";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   //    the layout renders outside any page's loadErpPage scope).
   //  - navHidden: sections the owner chose not to show. Display only — the pages stay
   //    reachable by direct link for anyone whose permissions allow them.
-  const [enabledModules, access, platforms, navHidden] = await Promise.all([
+  const [enabledModules, access, platforms, orgRow] = await Promise.all([
     user.role === "system_admin" ? Promise.resolve([...ALL_MODULES])
       : org ? getEnabledModules(org.id).then((m) => [...m]) : Promise.resolve([]),
     org ? getMemberAccess(org.id, user) : Promise.resolve({ role: null, permissions: new Set<string>() }),
@@ -41,10 +43,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           .where(and(eq(salesPlatforms.organizationId, org.id), eq(salesPlatforms.isActive, true)))
           .orderBy(asc(salesPlatforms.name)))
       : Promise.resolve([] as { id: string; name: string; code: string }[]),
-    org ? db.select({ hidden: organizations.navHidden }).from(organizations)
-        .where(eq(organizations.id, org.id)).limit(1).then((r) => r[0]?.hidden ?? [])
-      : Promise.resolve([] as string[]),
+    org ? db.select({ hidden: organizations.navHidden, deletion: organizations.deletionRequestedAt }).from(organizations)
+        .where(eq(organizations.id, org.id)).limit(1).then((r) => r[0] ?? null)
+      : Promise.resolve(null),
   ]);
+  const navHidden = orgRow?.hidden ?? [];
   const erpPermissions = [...access.permissions];
 
   return (
@@ -75,6 +78,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           navHidden={navHidden}
         />
         </div>
+        {orgRow?.deletion && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive md:px-6">
+            <span>الشركة دي هتتمسح نهائيًا يوم {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
+            <Link href="/settings/organization" className="underline">إلغاء الطلب</Link>
+          </div>
+        )}
         {org?.isSandbox && <SandboxBanner realOrgId={activeOrg.orgs.find((o) => !o.isSandbox)?.id ?? null} />}
         {user.role === "system_admin" && activeOrg.org && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">

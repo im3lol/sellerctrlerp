@@ -52,6 +52,8 @@ export const users = pgTable(
     // Login brute-force lockout: consecutive failed attempts; account frozen until
     // lockedUntil. Both cleared on a successful sign-in. (Audit#15)
     failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+    // Bumped by «اخرج من كل الأجهزة» / an admin password reset — invalidates every JWT issued before.
+    sessionVersion: integer("session_version").notNull().default(0),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     hiredAt: timestamp("hired_at", { withTimezone: true }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

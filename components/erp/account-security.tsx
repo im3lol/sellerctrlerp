@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { changePasswordAction, beginMfaSetupAction, enableMfaAction, disableMfaAction } from "@/app/actions/account";
+import { changePasswordAction, beginMfaSetupAction, enableMfaAction, disableMfaAction, signOutEverywhereAction } from "@/app/actions/account";
 import { validatePassword, PASSWORD_RULE_AR } from "@/lib/auth/password-policy";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,19 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
               <Button variant="destructive" onClick={disable} disabled={pending || !disablePw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}إيقاف المصادقة الثنائية</Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>الأجهزة المسجّل دخولها</CardTitle>
+          <CardDescription>نسيت حسابك مفتوح على جهاز تاني، أو شاكك إن حد دخل بيه؟ ده بيقفل كل الجلسات — الجهاز ده كمان — وهتحتاج تسجّل دخول تاني.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={signOutEverywhereAction}
+            onSubmit={(e) => { if (!window.confirm("هتخرج من كل الأجهزة، والجهاز ده كمان. تكمل؟")) e.preventDefault(); }}>
+            <Button type="submit" variant="outline"><Icon name="LogOut" className="size-4" />اخرج من كل الأجهزة</Button>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { authenticator } from "otplib";
@@ -9,6 +9,7 @@ import QRCode from "qrcode";
 import { db } from "@/lib/db";
 import { users, passwordHistory } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { signOut } from "@/auth";
 import { validatePassword, BCRYPT_COST } from "@/lib/auth/password-policy";
 import { isErpLegacyHash, verifyErpPassword } from "@/lib/erp/password";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
@@ -55,6 +56,14 @@ export async function changePasswordAction(currentPassword: string, newPassword:
     for (const row of all) if (!keepIds.has(row.id)) await tx.delete(passwordHistory).where(eq(passwordHistory.id, row.id));
   });
   return { ok: true };
+}
+
+/** «اخرج من كل الأجهزة»: bump the session version (every JWT issued before is now dead —
+ *  lib/session.ts), then end this session too. */
+export async function signOutEverywhereAction(): Promise<void> {
+  const user = await requireUser();
+  await db.update(users).set({ sessionVersion: sql`${users.sessionVersion} + 1`, updatedAt: new Date() }).where(eq(users.id, user.id));
+  await signOut({ redirectTo: "/login" });
 }
 
 // ── MFA (TOTP) ──────────────────────────────────────────────────────────────

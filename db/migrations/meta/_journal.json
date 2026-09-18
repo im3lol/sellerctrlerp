@@ -1030,6 +1030,20 @@
       "when": 1789600000000,
       "tag": "0146_sandbox_org",
       "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1789700000000,
+      "tag": "0147_session_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1789800000000,
+      "tag": "0148_org_deletion",
+      "breakpoints": true
     }
   ]
 }

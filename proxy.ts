@@ -67,7 +67,7 @@ export default auth((req) => {
   // Already-authed users on the landing or a login page → go to the app. The
   // admin login is special: a system_admin lands in /admin; a signed-in tenant
   // user stays on it so they can authenticate as an admin instead.
-  if (isLoggedIn && (path === "/" || path.startsWith("/login") || path.startsWith("/signup"))) {
+  if (isLoggedIn && (path === "/" || path.startsWith("/login") || path.startsWith("/signup")) && !nextUrl.searchParams.has("expired")) {
     if (path === "/login/admin") {
       return role === "system_admin" ? Response.redirect(new URL("/admin", nextUrl)) : undefined;
     }

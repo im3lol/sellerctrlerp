@@ -1,9 +1,11 @@
 import "server-only";
+import { redisConnection, redisEnabled } from "@/lib/queue/redis";
 
-// Tiny in-process sliding-window rate limiter — no dependency, enough to blunt abuse on
-// the few unauthenticated endpoints (public signup). Per-container (the app runs as one
-// replica); if that ever changes, back it with Redis. Never throws.
+// Rate limiter for the unauthenticated endpoints (login, public signup). Backed by Redis so
+// the count survives a container restart/deploy and is shared if the app ever runs more
+// than one replica; falls back to an in-process window when Redis is off or slow. Never throws.
 const hits = new Map<string, number[]>();
+const REDIS_TIMEOUT_MS = 300;
 
 /**
  * Best available client IP. `x-forwarded-for` is caller-controlled — anyone can send their
@@ -18,9 +20,7 @@ export function clientIp(h: { get(name: string): string | null }): string {
   return (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
 }
 
-/** Returns true if this key is allowed to act now, false if it exceeded `max` actions
- *  within `windowMs`. Records the action when allowed. */
-export function rateLimit(key: string, max: number, windowMs: number): boolean {
+function memoryLimit(key: string, max: number, windowMs: number): boolean {
   const now = Date.now();
   const arr = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
   if (arr.length >= max) { hits.set(key, arr); return false; }
@@ -29,4 +29,29 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
   // Opportunistic cleanup so the map can't grow unbounded under a spray of distinct keys.
   if (hits.size > 5000) for (const [k, v] of hits) if (v.every((t) => now - t > windowMs)) hits.delete(k);
   return true;
+}
+
+/** Returns true if this key may act now, false once it has used `max` actions within
+ *  `windowMs`. Records the action when allowed. */
+export async function rateLimit(key: string, max: number, windowMs: number): Promise<boolean> {
+  if (!redisEnabled()) return memoryLimit(key, max, windowMs);
+  // ponytail: fixed window (a burst can straddle two windows → up to 2×max); a sorted-set
+  // sliding window if that ever matters for these limits.
+  const k = `rl:${key}:${Math.floor(Date.now() / windowMs)}`;
+  try {
+    const n = await Promise.race([
+      (async () => {
+        const r = redisConnection();
+        const count = await r.incr(k);
+        if (count === 1) await r.pexpire(k, windowMs);
+        return count;
+      })(),
+      // The shared connection queues commands forever while Redis is down — don't let a
+      // login hang on it.
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("redis timeout")), REDIS_TIMEOUT_MS)),
+    ]);
+    return n <= max;
+  } catch {
+    return memoryLimit(key, max, windowMs);
+  }
 }

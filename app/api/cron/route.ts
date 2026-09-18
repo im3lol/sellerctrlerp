@@ -19,6 +19,7 @@ import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics
 import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { pruneReportDownloads } from "@/lib/erp/report-downloads-core";
 import { getControlDivergences } from "@/lib/erp/control-reconciliation";
+import { purgeDueOrganizations } from "@/lib/erp/org-deletion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,12 @@ export async function GET(req: Request) {
   // Cross-org daily job (no active tenant) — platform scope so per-org reads/writes
   // for every organization bypass RLS.
   return withPlatformScope(async () => {
-  const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations);
+  // 0) Delete companies past their deletion grace period + expired demo companies — first,
+  //    so nothing below spends a backup or an email on them.
+  let purged = 0;
+  try { purged = await purgeDueOrganizations(); } catch (e) { log.error("cron.org_purge_failed", { err: e }); }
+  // Demo companies get no recurring docs, backups or digests.
+  const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations).where(eq(organizations.isSandbox, false));
   const now = new Date();
 
   // 1) Materialise due recurring expenses + journals as DRAFTs (regardless of email config).
@@ -226,6 +232,6 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });
+  return Response.json({ ok: true, orgs: orgs.length, purged, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });
   });
 }

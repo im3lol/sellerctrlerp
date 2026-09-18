@@ -7,7 +7,7 @@ import { isErpLegacyHash, verifyErpPassword } from "@/lib/erp/password";
 import { BCRYPT_COST, lockoutAfterFailure } from "@/lib/auth/password-policy";
 import { decryptSecret } from "@/lib/crypto";
 
-export type VerifiedUser = { id: string; name: string; email: string | null; role: string; avatarUrl: string | null };
+export type VerifiedUser = { id: string; name: string; email: string | null; role: string; avatarUrl: string | null; sessionVersion: number };
 type UserRow = typeof users.$inferSelect;
 
 /**
@@ -106,5 +106,5 @@ export async function verifyCredentials(rawIdentifier: string, password: string,
   if (user.failedLoginAttempts || user.lockedUntil) {
     await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
   }
-  return { id: user.id, name: user.name, email: user.email, role: user.role, avatarUrl: user.avatarUrl ?? null };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, avatarUrl: user.avatarUrl ?? null, sessionVersion: user.sessionVersion };
 }

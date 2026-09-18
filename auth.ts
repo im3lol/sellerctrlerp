@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { headers } = await import("next/headers");
         const { rateLimit, clientIp } = await import("@/lib/rate-limit");
         const ip = clientIp(await headers());
-        if (!rateLimit(`login:${ip}`, 30, 10 * 60_000)) return null;
+        if (!(await rateLimit(`login:${ip}`, 30, 10 * 60_000))) return null;
 
         const user = await verifyCredentials(
           String(creds?.email ?? ""),
@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           creds?.token != null ? String(creds.token) : undefined,
         );
         if (!user) return null;
-        return { id: user.id, name: user.name, email: user.email, role: user.role, image: user.avatarUrl ?? undefined };
+        return { id: user.id, name: user.name, email: user.email, role: user.role, image: user.avatarUrl ?? undefined, sv: user.sessionVersion };
       },
     }),
   ],

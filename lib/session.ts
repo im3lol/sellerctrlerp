@@ -29,6 +29,9 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (!session?.user?.id) return null;
   const [u] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
   if (!u || !u.isActive) return null;
+  // Revoked by «اخرج من كل الأجهزة» or an admin password reset. Tokens from before the
+  // column existed carry no version and count as 0, so the rollout logs nobody out.
+  if (((session.user as { sv?: number }).sv ?? 0) !== u.sessionVersion) return null;
   return {
     id: u.id,
     name: u.name,
@@ -43,7 +46,9 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 /** Like getCurrentUser but redirects to /login when unauthenticated. */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // `expired` tells the proxy not to bounce a still-present (but revoked/inactive) token
+  // straight back to /apps — that was a redirect loop.
+  if (!user) redirect("/login?expired=1");
   return user;
 }
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -100,6 +100,7 @@ export async function updateUserAction(_prev: ActionState, formData: FormData): 
     if (pwErr) return { error: pwErr };
     update.passwordHash = await bcrypt.hash(d.password, BCRYPT_COST);
     update.passwordChangedAt = new Date();
+    update.sessionVersion = sql`${users.sessionVersion} + 1`; // reset by an admin → sign the user out everywhere
   }
   await db.update(users).set(update).where(eq(users.id, d.userId));
   return { ok: true };

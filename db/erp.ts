@@ -96,6 +96,8 @@ export const organizations = pgTable(
     signupSource: text("signup_source"),
     // Demo company (lib/erp/sandbox.ts) — sample data, no billing, hidden from platform metrics.
     isSandbox: boolean("is_sandbox").notNull().default(false),
+    // Owner asked to delete the company; the cron deletes it DELETION_GRACE_DAYS later (lib/erp/org-deletion.ts).
+    deletionRequestedAt: ts("deletion_requested_at"),
     // A company's own Anthropic key (encryptSecret() ciphertext) and model — its AI reads run
     // on these instead of the platform's, outside the plan's monthly limit.
     aiApiKey: text("ai_api_key"),

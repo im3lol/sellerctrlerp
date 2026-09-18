@@ -18,6 +18,7 @@ export const authConfig = {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.name = user.name;
+        token.sv = (user as { sv?: number }).sv ?? 0; // session version at sign-in (lib/session.ts)
       }
       return token;
     },
@@ -25,6 +26,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        (session.user as { sv?: number }).sv = (token.sv as number | undefined) ?? 0;
       }
       return session;
     },

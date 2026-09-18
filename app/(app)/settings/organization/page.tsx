@@ -6,9 +6,11 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { SettingsForm, type OrgProfile } from "@/components/erp/settings-form";
 import { parseApprovalPolicy, parseStuckDays } from "@/lib/erp/approval-policy";
 import { parseReminderPolicy } from "@/lib/erp/reminders";
+import { OrgDeletionCard } from "@/components/erp/org-deletion";
+import { DELETION_GRACE_DAYS, deletionDueAt } from "@/lib/erp/org-deletion";
 
 export default async function OrganizationSettingsPage() {
-  return loadErpPage("settings.view", async ({ orgId, can }) => {
+  return loadErpPage("settings.view", async ({ orgId, can, role }) => {
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
 
     const profile: OrgProfile = {
@@ -33,6 +35,10 @@ export default async function OrganizationSettingsPage() {
       <div className="space-y-6">
         <ErpPageHeader icon="Building2" title="بيانات المنشأة" subtitle="الاسم والشعار وبيانات التواصل والإعدادات الضريبية" backHref="/settings" />
         <SettingsForm section="profile" profile={profile} config={null} accounts={[]} canEdit={can("settings.edit")} />
+        {role === "admin" && org && !org.isSandbox && (
+          <OrgDeletionCard orgName={org.nameAr} graceDays={DELETION_GRACE_DAYS}
+            dueAt={org.deletionRequestedAt ? deletionDueAt(new Date(org.deletionRequestedAt)).toISOString() : null} />
+        )}
       </div>
     );
   });

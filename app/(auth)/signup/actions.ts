@@ -59,7 +59,7 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
   const { headers } = await import("next/headers");
   const { rateLimit, clientIp } = await import("@/lib/rate-limit");
   const ip = clientIp(await headers());
-  if (!rateLimit(`signup:${ip}`, 5, 3_600_000)) return { error: "محاولات كثيرة — انتظر قليلاً ثم حاول مجددًا." };
+  if (!(await rateLimit(`signup:${ip}`, 5, 3_600_000))) return { error: "محاولات كثيرة — انتظر قليلاً ثم حاول مجددًا." };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
