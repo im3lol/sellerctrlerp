@@ -18,6 +18,7 @@
     "test:engine": "tsx --tsconfig tsconfig.script.json scripts/engine-check.ts",
     "deploy": "bash scripts/deploy.sh",
     "env:production:check": "tsx --tsconfig tsconfig.script.json scripts/check-production-env.ts",
+    "ops:external:check": "tsx --tsconfig tsconfig.script.json scripts/check-external-readiness.ts",
     "gen:secrets": "tsx --tsconfig tsconfig.script.json scripts/gen-secrets.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --tsconfig tsconfig.script.json scripts/apply-rls.ts 00-appuser.sql && drizzle-kit migrate",

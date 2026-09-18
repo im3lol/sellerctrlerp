@@ -1,4 +1,5 @@
 import "server-only";
+import { captureSentryError } from "@/lib/observability/sentry";
 
 // Minimal structured logger — one JSON line per event so a VPS log shipper (Loki,
 // CloudWatch, `docker logs | jq`) can parse + alert on it, and background-job failures
@@ -6,10 +7,11 @@ import "server-only";
 // or similar later, add the sink here behind an env flag — call sites don't change.
 type Level = "error" | "warn" | "info";
 
-// Optional external error sink — dep-free stand-in for Sentry. Two channels, both
+// Optional external error sinks. Three channels, all
 // fire-and-forget so a failure alerts the owner instead of only sitting in `docker logs`:
 //   • Telegram  — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (instant push to the phone)
-//   • Generic   — set ERROR_WEBHOOK_URL (Slack/Sentry/any webhook; receives the raw JSON)
+//   • Sentry    — set SENTRY_DSN (structured server errors, redacted before delivery)
+//   • Generic   — set ERROR_WEBHOOK_URL (Slack/Teams/any compatible webhook; receives JSON)
 // Unset → no-op. Never throws, never blocks the request.
 //
 // Throttle: at most one alert per distinct throttle key per minute, so an error LOOP (the
@@ -22,12 +24,15 @@ function forward(level: Level, event: string, line: string, throttleKey: string)
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
   const tgChat = process.env.TELEGRAM_CHAT_ID;
   const url = process.env.ERROR_WEBHOOK_URL;
-  if (!url && !(tgToken && tgChat)) return;
+  const sentry = process.env.SENTRY_DSN;
+  if (!url && !sentry && !(tgToken && tgChat)) return;
 
   const now = Date.now();
   const prev = lastAlert.get(throttleKey);
   if (prev && now - prev < 60_000) return;
   lastAlert.set(throttleKey, now);
+
+  if (sentry) captureSentryError({ event, line });
 
   if (tgToken && tgChat) {
     const text = `🔴 SellerCtrl [${level}] ${event}\n${line.slice(0, 3500)}`;
