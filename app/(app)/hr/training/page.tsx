@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { trainingCourses, trainingEnrollments, employees } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { TrainingManager } from "@/components/erp/hr-people-manager";
 import type { Enrollment } from "@/lib/erp/hr-people";
 
@@ -36,6 +37,7 @@ export default async function TrainingPage() {
           title="التدريب"
           subtitle="كورسات ومَن حضرها — والتكلفة على المقاعد المحجوزة"
           backHref="/hr"
+          action={<DatasetExport dataset="training-courses" />}
         />
         <TrainingManager
           courses={courseRows.map((c) => ({

@@ -1,10 +1,10 @@
 import "server-only";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   customers, suppliers, items, salesOrders, purchaseOrders, stockTransfers, salesInvoices, purchaseInvoices,
   posShifts, promotions, projects, timesheets, employees,
-  jobOpenings, jobApplicants, trainingCourses,
+  jobOpenings, jobApplicants, trainingCourses, attendance,
 } from "@/db/schema";
 
 // One place that describes every exportable dataset: its Arabic title, the module
@@ -39,6 +39,7 @@ const st = (s: string | null) => (s ? STATUS_AR[s] ?? s : "");
 const PROMO_TYPE: Record<string, string> = { PERCENT: "نسبة", AMOUNT: "مبلغ لكل قطعة", BUY_X_GET_Y: "اشترِ واحصل" };
 const PROJECT_STATUS: Record<string, string> = { DRAFT: "مسودة", ACTIVE: "شغّال", ON_HOLD: "متوقّف", DONE: "مقفول", CANCELLED: "ملغي" };
 const STAGE: Record<string, string> = { APPLIED: "قدّم", SCREENING: "فرز", INTERVIEW: "مقابلة", OFFER: "عرض", HIRED: "اتعيّن", REJECTED: "مرفوض" };
+const ATT_SOURCE: Record<string, string> = { MANUAL: "يدوي", CLOCK: "بصمة الموظف", IMPORT: "ملف جهاز" };
 const COURSE_STATUS: Record<string, string> = { PLANNED: "مخطّطة", RUNNING: "شغّالة", DONE: "خلصت", CANCELLED: "ملغية" };
 
 export const EXPORT_DATASETS: Record<string, ExportDataset> = {
@@ -215,9 +216,28 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
       return rows.map((c) => [c.code, c.nameAr, c.provider, c.startsAt, c.endsAt, num(c.hours), num(c.costPerSeat), c.seats, COURSE_STATUS[c.status] ?? c.status]);
     },
   },
+  attendance: {
+    title: "الحضور والانصراف (آخر 90 يوم)", module: "accounting.view",
+    headers: ["التاريخ", "الموظف", "الكود", "دخول", "خروج", "ساعات العمل", "استراحة (دقيقة)", "المصدر", "ملاحظات"],
+    colWidths: [12, 26, 12, 10, 10, 12, 14, 10, 28],
+    fetch: async (orgId) => {
+      const since = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+      const rows = await db.select({
+        date: attendance.workDate, name: employees.fullName, code: employees.employeeCode,
+        inAt: attendance.clockIn, outAt: attendance.clockOut, total: attendance.totalSeconds, brk: attendance.breakSeconds,
+        source: attendance.source, notes: attendance.notes,
+      }).from(attendance)
+        .leftJoin(employees, and(eq(employees.userId, attendance.userId), eq(employees.organizationId, orgId)))
+        .where(and(eq(attendance.organizationId, orgId), gte(attendance.workDate, since)))
+        .orderBy(desc(attendance.workDate));
+      const hm = (d: Date | null) => (d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: "Africa/Cairo", hour: "2-digit", minute: "2-digit" }) : "");
+      return rows.map((r) => [r.date, r.name, r.code, hm(r.inAt), hm(r.outAt), Math.round(r.total / 36) / 100, Math.round(r.brk / 60),
+        ATT_SOURCE[r.source] ?? r.source, r.notes]);
+    },
+  },
 };
 
 export const EXPORT_ORDER = [
   "items", "customers", "suppliers", "sales-orders", "purchase-orders", "stock-transfers", "sales-invoices", "purchase-invoices",
-  "pos-shifts", "promotions", "projects", "timesheets", "applicants", "training-courses",
+  "pos-shifts", "promotions", "projects", "timesheets", "applicants", "training-courses", "attendance",
 ] as const;

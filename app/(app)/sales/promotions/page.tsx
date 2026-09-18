@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { promotions, items, organizations } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { PromotionsManager } from "@/components/erp/promotions-manager";
 import type { Promotion } from "@/lib/erp/promotions";
 
@@ -39,6 +40,7 @@ export default async function PromotionsPage() {
           title="العروض ونقط الولاء"
           subtitle="خصومات بتشتغل لوحدها على الكاشير، ونقط العميل بيكسبها ويصرفها"
           backHref="/sales"
+          action={<DatasetExport dataset="promotions" />}
         />
         <PromotionsManager
           rows={rows.map((r) => ({

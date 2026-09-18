@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, users } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { AttendanceManager } from "@/components/erp/attendance-manager";
 
@@ -30,6 +31,7 @@ export default async function AttendancePage() {
           title="الحضور والانصراف"
           subtitle="ساعات العمل اللي الرواتب بالساعة بتتحسب منها"
           backHref="/hr"
+          action={<DatasetExport dataset="attendance" />}
         />
 
         {options.length === 0 && (

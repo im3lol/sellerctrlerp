@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { warehouses, accounts, customers, organizations, promotions } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { PosTerminal } from "@/components/erp/pos-terminal";
 
@@ -44,6 +45,7 @@ export default async function PosPage() {
           title="نقطة البيع"
           subtitle="بيع سريع بالباركود — كل بيعة فاتورة مرحّلة وسند قبض"
           backHref="/sales"
+          action={<DatasetExport dataset="pos-shifts" />}
         />
 
         {missing ? (

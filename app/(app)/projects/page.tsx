@@ -6,6 +6,7 @@ import {
   customers, employees, costCenters,
 } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { ProjectsManager } from "@/components/erp/projects-manager";
 import { projectSummaryAction } from "@/app/actions/erp/projects";
 import type { ProjectStatus } from "@/lib/erp/projects";
@@ -67,6 +68,7 @@ export default async function ProjectsPage() {
           icon="FolderKanban"
           title="المشاريع"
           subtitle="ميزانية مقابل فعلي، وساعات ومراحل — وفوترة بالمرحلة أو بالوقت"
+          action={<DatasetExport dataset="projects" />}
         />
         <ProjectsManager
           rows={rows.map((r) => {

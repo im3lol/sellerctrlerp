@@ -25,7 +25,8 @@ export function xlsxResponse(opts: {
   colWidths?: number[];
 }): Response {
   const { sheet, filename, headers, rows, totalRow, colWidths } = opts;
-  const aoa: Cell[][] = [headers, ...rows];
+  // An empty sheet reads like a broken export — say why it's empty instead.
+  const aoa: Cell[][] = [headers, ...(rows.length ? rows : [["لا توجد بيانات للفترة المحددة"]])];
   if (totalRow) aoa.push(totalRow);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = (colWidths ?? headers.map(() => 16)).map((wch) => ({ wch }));

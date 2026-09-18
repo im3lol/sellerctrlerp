@@ -3,6 +3,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { jobOpenings, jobApplicants, applicantInterviews, employees } from "@/db/schema";
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { DatasetExport } from "@/components/erp/dataset-export";
 import { RecruitmentManager } from "@/components/erp/hr-people-manager";
 import type { Stage } from "@/lib/erp/hr-people";
 
@@ -46,6 +47,7 @@ export default async function RecruitmentPage() {
           title="التوظيف"
           subtitle="وظائف مفتوحة ومسار المتقدّمين — من التقديم للتعيين"
           backHref="/hr"
+          action={<DatasetExport dataset="applicants" />}
         />
         <RecruitmentManager
           openings={openingRows.map((r) => ({

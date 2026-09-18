@@ -41,6 +41,9 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
                 ))}
               </tr>
             ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={ds.headers.length} className="border border-gray-300 px-2 py-6 text-center text-gray-500">لا توجد بيانات للفترة المحددة</td></tr>
+            )}
           </tbody>
         </table>
       </div>
