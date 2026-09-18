@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -239,7 +240,14 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
                 )}
               </>
             ) : tableRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر بيع بعد."}</div>
+              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div> : (
+              <EmptyState icon="ShoppingCart" title="لا توجد أوامر بيع بعد" description="طلبات أمازون بتنزل هنا لوحدها بعد المزامنة، أو اعمل أمر يدوي.">
+                <div className="flex flex-wrap justify-center gap-2">
+                  {canManage && <Button asChild size="sm"><Link href="/sales/orders/new">أمر بيع جديد</Link></Button>}
+                  <Button asChild size="sm" variant="outline"><Link href="/platforms">مزامنة أمازون</Link></Button>
+                </div>
+              </EmptyState>
+            )
             ) : (
               <>
                 <SalesOrdersTable rows={tableRows} canConfirm={canConfirm} canCreate={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />

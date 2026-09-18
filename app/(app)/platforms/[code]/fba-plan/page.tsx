@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { and, asc, eq, isNotNull, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, warehouses } from "@/db/schema";
@@ -42,16 +41,24 @@ export default async function FbaPlanPage({ params, searchParams }: {
       .leftJoin(warehouses, eq(warehouses.id, salesPlatforms.defaultWarehouseId))
       .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase())))
       .limit(1);
-    if (!platform || platform.integrationType !== "amazon") notFound();
-
+    const isAmazon = platform?.integrationType === "amazon";
     const header = (
-      <ErpPageHeader icon="Truck" title="خطة شحن FBA" backHref={back}
-        subtitle={`${platform.name} — تبعت إيه لأمازون قبل ما يخلص عندهم`} />
+      <ErpPageHeader icon="Truck" title="خطة شحن FBA" backHref={isAmazon ? back : "/platforms"}
+        subtitle={`${isAmazon ? platform.name : "أمازون"} — تبعت إيه لأمازون قبل ما يخلص عندهم`} />
     );
-    const note = (text: string) => (
-      <div className="space-y-6">{header}<p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">{text}</p></div>
+    const note = (text: string, cta?: { label: string; href: string }) => (
+      <div className="space-y-6">{header}
+        <div className="space-y-3 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <p>{text}</p>
+          {cta && <Button asChild size="sm"><Link href={cta.href}>{cta.label}</Link></Button>}
+        </div>
+      </div>
     );
-    if (!platform.fbaWarehouseId) return note("حدّد مخزن المنصة (مخزن أمازون FBA) من إعدادات المنصة الأول.");
+    if (!isAmazon) return note(
+      "خطة الشحن بتحسب من مبيعات ومخزون منصة أمازون — اربط حساب أمازون (أو ضيف منصة أمازون) من صفحة المنصات الأول، وبعد أول مزامنة الخطة هتظهر هنا.",
+      { label: "اربط أمازون", href: "/platforms" },
+    );
+    if (!platform.fbaWarehouseId) return note("حدّد مخزن المنصة (مخزن أمازون FBA) من إعدادات المنصة الأول.", { label: "إعدادات المنصة", href: `${back}/settings` });
 
     // Where a shipment can leave from: my own warehouses — not Amazon's, not another
     // platform's, not the quarantine area.
@@ -65,7 +72,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
       ))
       .orderBy(asc(warehouses.nameAr));
     const source = sources.find((w) => w.id === sp.source) ?? sources[0];
-    if (!source) return note("مفيش مخزن تاني تبعت منه — ضيف مخزنك الأول.");
+    if (!source) return note("مفيش مخزن تاني تبعت منه — ضيف مخزنك الأول.", { label: "المخازن", href: "/inventory/warehouses" });
 
     const { rows, auditAt } = await getFbaPlanInputs(orgId, platform.fbaWarehouseId, source.id, windowDays);
     const plan = planFbaShipment(rows, { windowDays, transitDays, coverDays });

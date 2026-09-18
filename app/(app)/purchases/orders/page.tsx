@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -218,7 +219,11 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
                 )}
               </>
             ) : rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد أوامر شراء بعد."}</div>
+              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div> : (
+              <EmptyState icon="ShoppingBag" title="لا توجد أوامر شراء بعد" description="الدورة: أمر شراء ← إذن استلام ← فاتورة المورد.">
+                {canManage && <Button asChild size="sm"><Link href="/purchases/orders/new">أمر شراء جديد</Link></Button>}
+              </EmptyState>
+            )
             ) : (
               <>
                 <PurchaseOrdersTable rows={tableRows} canConfirm={canConfirm} canCreate={canManage} />

@@ -5,7 +5,9 @@ import { withOrgScope } from "@/lib/db-scope";
 import {
   organizations, accounts, unitsOfMeasure, warehouses, items, customers, suppliers,
   stockMovements, documentPrefixes, salesPlatforms, journalEntries,
+  platformCredentials, unmatchedOrders, syncRuns, inventoryAudits,
 } from "@/db/schema";
+import { orgHasModule } from "@/lib/erp/entitlements";
 
 /**
  * Derived onboarding state — computed live from the org's real data, never stored.
@@ -23,6 +25,8 @@ export type SetupStatus = {
   opening: boolean;      // opening balances posted (essential — new companies mark it done)
   numbering: boolean;    // document prefixes customized (optional)
   platform: boolean;     // a sales platform exists (optional)
+  /** Amazon go-live steps — null when the org's plan has no marketplace module. */
+  amazon: { connected: boolean; skusLinked: boolean; firstSync: boolean; fbaAudited: boolean } | null;
   essentialDone: number;
   essentialTotal: number;
 };
@@ -48,6 +52,7 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     cnt(db.select({ n: sql<number>`count(*)` }).from(documentPrefixes).where(eq(documentPrefixes.organizationId, orgId))),
     cnt(db.select({ n: sql<number>`count(*)` }).from(salesPlatforms).where(eq(salesPlatforms.organizationId, orgId))),
   ]);
+  const amazon = await orgHasModule(orgId, "marketplace") ? await amazonSteps(orgId) : null;
 
   const s: SetupStatus = {
     basis: !!org?.fiscalYearStart,
@@ -63,6 +68,7 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
     opening: nOpeningStock > 0 || nOpeningJournal > 0,
     numbering: nPrefixes > 0,
     platform: nPlatforms > 0,
+    amazon,
     essentialDone: 0,
     essentialTotal: 9,
   };
@@ -73,4 +79,20 @@ export async function getSetupStatus(orgId: string): Promise<SetupStatus> {
   s.essentialDone = [s.basis, s.company, s.chart, s.units, s.warehouses, s.items, s.customers, s.suppliers, s.opening].filter(Boolean).length;
   return s;
  });
+}
+
+async function amazonSteps(orgId: string): Promise<NonNullable<SetupStatus["amazon"]>> {
+  const has = (q: Promise<unknown[]>) => q.then((r) => r.length > 0);
+  const [connected, pending, firstSync, fbaAudited] = await Promise.all([
+    has(db.select({ id: platformCredentials.id }).from(platformCredentials)
+      .where(and(eq(platformCredentials.organizationId, orgId), eq(platformCredentials.provider, "amazon"), eq(platformCredentials.needsReauth, false))).limit(1)),
+    has(db.select({ id: unmatchedOrders.id }).from(unmatchedOrders)
+      .where(and(eq(unmatchedOrders.organizationId, orgId), eq(unmatchedOrders.channel, "AMAZON"), eq(unmatchedOrders.status, "PENDING"))).limit(1)),
+    has(db.select({ id: syncRuns.id }).from(syncRuns)
+      .where(and(eq(syncRuns.organizationId, orgId), eq(syncRuns.provider, "amazon"), eq(syncRuns.status, "OK"))).limit(1)),
+    has(db.select({ id: inventoryAudits.id }).from(inventoryAudits)
+      .where(and(eq(inventoryAudits.organizationId, orgId), eq(inventoryAudits.provider, "amazon"), eq(inventoryAudits.status, "OK"))).limit(1)),
+  ]);
+  // Linked = connected and no Amazon order is parked waiting for an unknown SKU.
+  return { connected, skusLinked: connected && firstSync && !pending, firstSync, fbaAudited };
 }

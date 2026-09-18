@@ -8,7 +8,7 @@ import type { SetupStatus } from "@/lib/erp/setup-status";
 import { markSetupStepDoneAction } from "@/app/actions/erp/settings";
 
 type Step = {
-  key: keyof SetupStatus;
+  key: string;
   icon: string;
   title: string;
   desc: string;
@@ -37,12 +37,22 @@ const STEPS: Step[] = [
   { key: "platform", icon: "Store", title: "ربط منصة بيع", desc: "اربط أمازون أو أضف منصة يدوية — مبيعاتها ومدفوعاتها تتزامن أو تُستورد لعميلها ومخزنها.", ctas: [{ label: "المنصات", href: "/platforms" }], optional: true },
 ];
 
-function StepCard({ step, done, isNext }: { step: Step; done: boolean; isNext: boolean }) {
+type AmazonKey = keyof NonNullable<SetupStatus["amazon"]>;
+// Derived from real sync data only — no "mark done" circle, the step is done when Amazon says so.
+const AMAZON_STEPS: (Step & { key: AmazonKey })[] = [
+  { key: "connected", icon: "Link", title: "اربط حساب أمازون", desc: "من صفحة المنصات: «ربط أمازون» ووافق على الصلاحيات في Seller Central. لو الربط انتهى هتلاقيها هنا مش متعلّمة.", ctas: [{ label: "المنصات", href: "/platforms" }] },
+  { key: "firstSync", icon: "RefreshCw", title: "أول مزامنة", desc: "شغّل «مزامنة الآن» من صفحة أمازون — بتجيب المنتجات والطلبات لأول مرة.", ctas: [{ label: "المنصات", href: "/platforms" }] },
+  { key: "skusLinked", icon: "ListChecks", title: "اربط الـSKUs بالأصناف", desc: "أي طلب فيه SKU مش معروف بيستنى في «طلبات بمنتج غير معروف» — اربطه بصنفه وهيتسجّل لوحده.", ctas: [{ label: "طلبات بمنتج غير معروف", href: "/sales/orders/unmatched" }] },
+  { key: "fbaAudited", icon: "ClipboardCheck", title: "أول تدقيق مخزون FBA", desc: "قارن مخزون أمازون بمخزون النظام — بعدها خطة الشحن بتشتغل على أرقام أمازون الحقيقية.", ctas: [{ label: "مطابقة المخزون", href: "/inventory/reconciliation" }] },
+];
+
+function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boolean; isNext: boolean; manual?: boolean }) {
   return (
     <Card className={isNext ? "ring-1 ring-primary border-primary" : done ? "opacity-80" : ""}>
       <CardContent className="flex items-start gap-4 pt-6">
         {done
           ? <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600" />
+          : !manual ? <Circle className={`mt-0.5 size-6 shrink-0 ${isNext ? "text-primary" : "text-muted-foreground/40"}`} />
           : (
             <form action={markSetupStepDoneAction} className="shrink-0">
               <input type="hidden" name="key" value={step.key} />
@@ -77,7 +87,9 @@ function StepCard({ step, done, isNext }: { step: Step; done: boolean; isNext: b
 export function SetupChecklist({ status }: { status: SetupStatus }) {
   const essential = STEPS.filter((s) => !s.optional);
   const optional = STEPS.filter((s) => s.optional);
-  const next = essential.find((s) => !status[s.key]);
+  const next = essential.find((s) => !status[s.key as keyof SetupStatus]);
+  const amazon = status.amazon;
+  const nextAmazon = amazon && AMAZON_STEPS.find((s) => !amazon[s.key]);
   const pct = Math.round((status.essentialDone / status.essentialTotal) * 100);
 
   return (
@@ -98,12 +110,23 @@ export function SetupChecklist({ status }: { status: SetupStatus }) {
       </Card>
 
       <div className="space-y-3">
-        {essential.map((s) => <StepCard key={s.key} step={s} done={!!status[s.key]} isNext={s.key === next?.key} />)}
+        {essential.map((s) => <StepCard key={s.key} step={s} done={!!status[s.key as keyof SetupStatus]} isNext={s.key === next?.key} />)}
       </div>
+
+      {amazon && (
+        <>
+          <div className="pt-2 text-sm font-semibold text-muted-foreground">
+            أمازون — {AMAZON_STEPS.filter((s) => amazon[s.key]).length} من {AMAZON_STEPS.length}
+          </div>
+          <div className="space-y-3">
+            {AMAZON_STEPS.map((s) => <StepCard key={s.key} step={s} done={amazon[s.key]} isNext={s.key === nextAmazon?.key} manual={false} />)}
+          </div>
+        </>
+      )}
 
       <div className="pt-2 text-sm font-semibold text-muted-foreground">خطوات اختيارية</div>
       <div className="space-y-3">
-        {optional.map((s) => <StepCard key={s.key} step={s} done={!!status[s.key]} isNext={false} />)}
+        {optional.map((s) => <StepCard key={s.key} step={s} done={!!status[s.key as keyof SetupStatus]} isNext={false} />)}
       </div>
     </div>
   );

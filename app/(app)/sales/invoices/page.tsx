@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -158,7 +159,11 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
             </details>
 
             {tableRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
+              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div> : (
+              <EmptyState icon="Receipt" title="لا توجد فواتير بعد" description="الفاتورة بتطلع من أمر البيع بعد تأكيده وتسليمه.">
+                <Button asChild size="sm"><Link href="/sales/orders">أوامر البيع</Link></Button>
+              </EmptyState>
+            )
             ) : (
               <>
                 <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} canCollect={canCollect} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
