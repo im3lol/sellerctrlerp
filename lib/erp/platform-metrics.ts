@@ -80,7 +80,8 @@ export function computePlatformMetrics(now = new Date()): Promise<PlatformMetric
         planName: orgSubscriptions.planName,
       })
       .from(organizations)
-      .leftJoin(orgSubscriptions, eq(orgSubscriptions.organizationId, organizations.id));
+      .leftJoin(orgSubscriptions, eq(orgSubscriptions.organizationId, organizations.id))
+      .where(eq(organizations.isSandbox, false)); // demo companies aren't customers
 
     const [{ count: pendingRequests } = { count: 0 }] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -229,7 +230,7 @@ export function getOwnerAnalytics(now = new Date()): Promise<{
     const mv = summarizeMovements(recent.map((e) => ({ type: e.type, mrrDelta: e.mrrDelta })));
 
     const [{ signups = 0 } = {}] = await db
-      .select({ signups: sql<number>`count(*)::int` }).from(organizations).where(gte(organizations.createdAt, since));
+      .select({ signups: sql<number>`count(*)::int` }).from(organizations).where(and(gte(organizations.createdAt, since), eq(organizations.isSandbox, false)));
 
     const arpu = m.activeCount > 0 ? round2(m.mrr / m.activeCount) : 0;
     const conversionRate = m.orgCount > 0 ? round2((converted.size / m.orgCount) * 100) : 0;
@@ -279,7 +280,7 @@ export function getOwnerAlerts(now = new Date()): Promise<{ expiring7d: number; 
   return withPlatformScope(async () => {
     const m = await computePlatformMetrics(now);
     const since = new Date(now.getTime() - 7 * DAY);
-    const [{ signups = 0 } = {}] = await db.select({ signups: sql<number>`count(*)::int` }).from(organizations).where(gte(organizations.createdAt, since));
+    const [{ signups = 0 } = {}] = await db.select({ signups: sql<number>`count(*)::int` }).from(organizations).where(and(gte(organizations.createdAt, since), eq(organizations.isSandbox, false)));
     const [{ churned = 0 } = {}] = await db.select({ churned: sql<number>`count(*)::int` })
       .from(subscriptionEvents).where(and(gte(subscriptionEvents.at, since), inArray(subscriptionEvents.type, ["EXPIRED", "CANCELLED"])));
     return {

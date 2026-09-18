@@ -12,7 +12,7 @@ import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 
 export const ACTIVE_ORG_COOKIE = "erp_org";
 
-export type OrgSummary = { id: string; nameAr: string; nameEn: string };
+export type OrgSummary = { id: string; nameAr: string; nameEn: string; isSandbox: boolean };
 
 /** Organizations the user may access: all (system_admin) or active memberships.
  *  Cached per request — resolved on every ERP page via requireErpModule. */
@@ -23,12 +23,12 @@ export const getUserOrganizations = cache(async (user: SessionUser): Promise<Org
   return withPlatformScope(async () => {
     if (user.role === "system_admin") {
       return db
-        .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
+        .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn, isSandbox: organizations.isSandbox })
         .from(organizations)
         .orderBy(asc(organizations.createdAt));
     }
     return db
-      .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn })
+      .select({ id: organizations.id, nameAr: organizations.nameAr, nameEn: organizations.nameEn, isSandbox: organizations.isSandbox })
       .from(organizationMembers)
       .innerJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
       .where(and(eq(organizationMembers.userId, user.id), eq(organizationMembers.isActive, true)))

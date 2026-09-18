@@ -94,6 +94,8 @@ export const organizations = pgTable(
     printSettings: jsonb("print_settings").$type<import("../lib/erp/print-settings").PrintSettings>(),
     // Where this tenant came from at signup (utm_source or the referring host) — acquisition attribution.
     signupSource: text("signup_source"),
+    // Demo company (lib/erp/sandbox.ts) — sample data, no billing, hidden from platform metrics.
+    isSandbox: boolean("is_sandbox").notNull().default(false),
     // A company's own Anthropic key (encryptSecret() ciphertext) and model — its AI reads run
     // on these instead of the platform's, outside the plan's monthly limit.
     aiApiKey: text("ai_api_key"),

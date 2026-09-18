@@ -11,6 +11,7 @@ import { countPendingApprovals } from "@/lib/erp/approvals";
 import { launcherTiles } from "@/lib/launcher";
 import { Icon } from "@/components/icon";
 import { SubscriptionBanner } from "@/components/erp/subscription-banner";
+import { SandboxStartButton } from "@/components/erp/sandbox-controls";
 import { cn } from "@/lib/utils";
 
 const FEATURED_DESC: Record<string, string> = {
@@ -62,9 +63,11 @@ export default async function AppsPage() {
             <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? `، ${firstName}` : ""}</h1>
             <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}اختار الوحدة اللي هتشتغل عليها</p>
           </div>
-          <span className="hidden size-16 place-items-center rounded-2xl bg-primary/10 text-primary sm:grid">
-            <Icon name="LayoutGrid" className="size-8" />
-          </span>
+          {org && !org.isSandbox && user?.role !== "system_admin" ? <SandboxStartButton /> : (
+            <span className="hidden size-16 place-items-center rounded-2xl bg-primary/10 text-primary sm:grid">
+              <Icon name="LayoutGrid" className="size-8" />
+            </span>
+          )}
         </div>
       </div>
 

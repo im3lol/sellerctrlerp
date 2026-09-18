@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { withPlatformScope } from "@/lib/db-scope";
@@ -26,7 +26,7 @@ export default async function AnalyticsPage() {
     const sources = await db.select({
       source: sql<string>`coalesce(nullif(${organizations.signupSource}, ''), 'غير معروف')`,
       n: sql<number>`count(*)::int`,
-    }).from(organizations).groupBy(organizations.signupSource).orderBy(desc(sql`count(*)`)).limit(10);
+    }).from(organizations).where(eq(organizations.isSandbox, false)).groupBy(organizations.signupSource).orderBy(desc(sql`count(*)`)).limit(10);
     const srcTotal = Math.max(1, sources.reduce((s, r) => s + Number(r.n), 0));
 
     const kpis = [

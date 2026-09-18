@@ -14,6 +14,7 @@ import { SoundEffects } from "@/components/app-shell/sound-effects";
 import { PrintTrigger } from "@/components/erp/print-trigger";
 import { Icon } from "@/components/icon";
 import { exitImpersonationAction } from "@/app/actions/admin/impersonate";
+import { SandboxBanner } from "@/components/erp/sandbox-controls";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           platforms={platforms}
           navHidden={navHidden}
         />
+        {org?.isSandbox && <SandboxBanner realOrgId={activeOrg.orgs.find((o) => !o.isSandbox)?.id ?? null} />}
         {user.role === "system_admin" && activeOrg.org && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">
             <span className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">

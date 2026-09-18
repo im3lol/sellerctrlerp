@@ -1,5 +1,5 @@
 import { withPlatformScope } from "@/lib/db-scope";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { getCollectionsSummary } from "@/lib/erp/platform-metrics";
@@ -12,7 +12,7 @@ const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maxi
 
 export default async function CollectionsPage() {
   return withPlatformScope(async () => {
-    const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations).orderBy(asc(organizations.nameAr));
+    const orgs = await db.select({ id: organizations.id, name: organizations.nameAr }).from(organizations).where(eq(organizations.isSandbox, false)).orderBy(asc(organizations.nameAr));
     const s = await getCollectionsSummary();
 
     const stats = [

@@ -18,6 +18,7 @@ export default async function LicensingPage() {
       })
       .from(organizations)
       .leftJoin(orgSubscriptions, eq(orgSubscriptions.organizationId, organizations.id))
+      .where(eq(organizations.isSandbox, false)) // users' demo companies: no license to manage
       .orderBy(organizations.nameAr);
 
     // Per-org usage (members + storage) in one grouped query each.
