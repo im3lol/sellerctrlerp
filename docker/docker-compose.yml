@@ -71,8 +71,13 @@ services:
       mc anonymous set download local/sellerctrl &&
       mc mb --ignore-existing local/sellerctrl-private &&
       mc anonymous set none local/sellerctrl-private &&
+      cp /usr/bin/mc /toolbin/mc &&
       echo 'buckets ready';
       "
+    # Hands its static mc binary to the backup container (postgres image has none, and the
+    # dl.min.io download it used to fetch returns 410 Gone since 2026).
+    volumes:
+      - toolbin:/toolbin
 
   # DB web console — a full unauthenticated-to-the-network admin surface, so it is NOT
   # part of the default prod stack. Start it deliberately only when needed:
@@ -245,19 +250,24 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - dbbackups:/backups
+      - toolbin:/toolbin:ro
     depends_on:
       postgres:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     # $$ → literal $ for the container shell (compose would interpolate a single $).
-    # mc is a single static binary (no package install) that speaks S3/R2.
+    # mc (static, speaks S3/R2) comes from minio-init via the toolbin volume.
     command: >
-      sh -c '[ -x /usr/local/bin/mc ] || (wget -qO /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x /usr/local/bin/mc) || true;
+      sh -c 'export PATH=/toolbin:$$PATH;
       alert() { [ -n "$$TELEGRAM_BOT_TOKEN" ] && [ -n "$$TELEGRAM_CHAT_ID" ] && wget -qO- --post-data="chat_id=$$TELEGRAM_CHAT_ID&text=$$1" "https://api.telegram.org/bot$$TELEGRAM_BOT_TOKEN/sendMessage" >/dev/null 2>&1 || true; };
       while true; do
         f=/backups/sellerctrl-$$(date +%Y%m%d-%H%M%S).dump;
         if pg_dump -h postgres -U sellerctrl -Fc -Z9 --no-owner --no-privileges sellerctrl -f "$$f"; then
           echo "[backup] ok";
-          if [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ]; then
+          if [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ] && ! command -v mc >/dev/null; then
+            echo "[backup] offsite SKIPPED: mc missing"; alert "SellerCtrl_backup_offsite_SKIPPED_mc_missing";
+          elif [ -n "$$OFFSITE_S3_BUCKET" ] && [ -n "$$OFFSITE_S3_ENDPOINT" ]; then
             mc alias set offsite "$$OFFSITE_S3_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" >/dev/null 2>&1 && mc cp "$$f" "offsite/$$OFFSITE_S3_BUCKET/pg/" >/dev/null 2>&1 && echo "[backup] offsite ok" || { echo "[backup] offsite FAILED"; alert "SellerCtrl_backup_offsite_upload_FAILED"; };
           fi;
         else echo "[backup] FAILED"; alert "SellerCtrl_nightly_pg_dump_FAILED"; fi;
@@ -270,3 +280,4 @@ volumes:
   miniodata:
   redisdata:
   dbbackups:
+  toolbin:

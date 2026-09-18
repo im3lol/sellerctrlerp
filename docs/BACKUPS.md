@@ -51,9 +51,19 @@ Or use the wrapper (same flags): `DATABASE_URL=… ./scripts/backup/pg-restore.s
 After a restore, re-apply RLS: **`npm run db:rls`** (recreates the appuser role +
 policies; see `db/rls/CUTOVER.md`).
 
-> **Restore is tested.** A dump from the compose `backup` service was restored into a
-> scratch DB and verified (orgs / customers / GL lines all present) — the restore path
-> works, not just the backup path.
+### Restore drill (run monthly + before launch)
+
+```bash
+bash scripts/restore-drill.sh
+```
+Restores the newest dump from the `docker_dbbackups` volume into a throwaway postgres
+container and prints prod vs restored row counts for the core tables. Read-only on prod;
+the scratch container is removed. Fails if `pg_restore` errors or a non-empty prod table
+comes back empty. Last run 2026-09-18: 10/10 tables matched, restore took 11s.
+
+Offsite upload uses the `mc` binary that `minio-init` copies into the `toolbin` volume
+(the old dl.min.io download returns 410). If offsite is configured but `mc` is missing,
+the backup loop logs `offsite SKIPPED` and sends a Telegram alert.
 
 ### Point-in-time recovery (PITR) — optional, sub-day granularity
 
