@@ -128,8 +128,11 @@ export async function buildMatcher(orgId: string, orders: MarketplaceOrder[]) {
 
   const hit = (id: string) => ({ itemId: id, itemName: nameById.get(id) ?? null });
   return (code: string, altCode?: string): { itemId: string | null; itemName: string | null } => {
-    // Try the line's own code first (the seller SKU — unique), then altCode (ASIN — shared).
-    for (const c of [code, altCode]) {
+    // Amazon can legitimately reuse a seller SKU after an old listing is closed, while
+    // an ASIN now has exactly one owner per organization. Prefer altCode (ASIN) when
+    // present, then retain SKU/internal-code matching as a fallback for channels that
+    // do not provide an ASIN.
+    for (const c of [altCode, code]) {
       const n = normalizeCode(c || "");
       if (!n) continue;
       const direct = byItemCode.get(n);
