@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { modulesContaining } from "@/lib/active-module";
 import { sectionAllowed } from "@/lib/nav-access";
-import { Menu, LayoutGrid } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { Menu } from "lucide-react";
+import { Logo, LogoMark } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { AwesomeBar } from "@/components/app-shell/awesome-bar";
 import { AppLauncher } from "@/components/app-shell/app-launcher";
@@ -65,11 +65,11 @@ export function Topbar({
           already read; this is the one you start from. Same component as /apps. */}
       <Dialog open={appsOpen} onOpenChange={setAppsOpen}>
         <DialogTrigger
-          className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="group grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           aria-label="التطبيقات"
           title="التطبيقات"
         >
-          <LayoutGrid className="size-5" />
+          <LogoMark className="size-6 transition-transform group-hover:scale-105" />
         </DialogTrigger>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogTitle>التطبيقات</DialogTitle>
