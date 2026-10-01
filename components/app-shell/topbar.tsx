@@ -6,16 +6,14 @@ import { usePathname } from "next/navigation";
 import { modulesContaining } from "@/lib/active-module";
 import { sectionAllowed } from "@/lib/nav-access";
 import { Menu } from "lucide-react";
-import { Logo, LogoMark } from "@/components/brand/logo";
+import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { AwesomeBar } from "@/components/app-shell/awesome-bar";
-import { AppLauncher } from "@/components/app-shell/app-launcher";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Role } from "@/lib/rbac";
 
 export function Topbar({
@@ -36,7 +34,6 @@ export function Topbar({
   platforms?: { id: string; name: string; code: string }[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [appsOpen, setAppsOpen] = useState(false);
   // Same rule as the sidebar, so the phone's menu button appears exactly when there's a
   // module list to put in it.
   const perms = new Set(erpPermissions);
@@ -61,22 +58,10 @@ export function Topbar({
         </SheetContent>
       </Sheet>}
 
-      {/* The app grid, one click from anywhere — the sidebar is a map you have to
-          already read; this is the one you start from. Same component as /apps. */}
-      <Dialog open={appsOpen} onOpenChange={setAppsOpen}>
-        <DialogTrigger
-          className="group grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="التطبيقات"
-          title="التطبيقات"
-        >
-          <LogoMark className="size-6 transition-transform group-hover:scale-105" />
-        </DialogTrigger>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogTitle>التطبيقات</DialogTitle>
-          <AppLauncher erpPermissions={erpPermissions} modules={modules} navHidden={navHidden}
-            onNavigate={() => setAppsOpen(false)} />
-        </DialogContent>
-      </Dialog>
+      {/* Fixed identity mark — deliberately not an app-launcher button. */}
+      <div className="hidden shrink-0 select-none border-s border-border/70 ps-3 text-primary sm:block" aria-label="SellerCtrl">
+        <Logo className="text-lg" />
+      </div>
 
       {/* One box for pages AND records — see AwesomeBar for why there is only one. */}
       <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} />
