@@ -17,6 +17,7 @@
     "rls:leak": "tsx --tsconfig tsconfig.script.json scripts/rls-leak-check.ts",
     "test:engine": "tsx --tsconfig tsconfig.script.json scripts/engine-check.ts",
     "deploy": "bash scripts/deploy.sh",
+    "deploy:windows": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
     "env:production:check": "tsx --tsconfig tsconfig.script.json scripts/check-production-env.ts",
     "ops:external:check": "tsx --tsconfig tsconfig.script.json scripts/check-external-readiness.ts",
     "gen:secrets": "tsx --tsconfig tsconfig.script.json scripts/gen-secrets.ts",
