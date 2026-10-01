@@ -592,6 +592,10 @@ export const itemCodes = pgTable(
   (t) => [
     uniqueIndex("item_codes_unique").on(t.itemId, t.codeType, t.code),
     index("item_codes_org_norm_idx").on(t.organizationId, t.normalizedCode),
+    // An Amazon ASIN identifies one ERP product within a company. SKU/FNSKU are
+    // additional aliases on that same item, never separate products.
+    uniqueIndex("item_codes_org_asin_unique").on(t.organizationId, t.normalizedCode)
+      .where(sql`${t.codeType} = 'ASIN' and ${t.normalizedCode} is not null`),
   ],
 );
 

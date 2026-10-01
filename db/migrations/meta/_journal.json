@@ -1051,6 +1051,13 @@
       "when": 1789900000000,
       "tag": "0149_telegram_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1790000000000,
+      "tag": "0150_canonical_amazon_asins",
+      "breakpoints": true
     }
   ]
 }
