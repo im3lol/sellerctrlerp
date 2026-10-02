@@ -29,7 +29,7 @@ export function Logo({ className, variant = "blue" }: LogoProps) {
   const current = artwork[variant];
   return (
     <span className="inline-flex shrink-0 items-center justify-center">
-      <span dir="ltr" className={cn("relative block h-[1em] overflow-hidden", current.width, className)}>
+      <span dir="ltr" className={cn("relative block h-[1em] overflow-hidden", className)} style={{ width: current.width }}>
         <Image
           src={current.src}
           alt="SellerCtrl"
