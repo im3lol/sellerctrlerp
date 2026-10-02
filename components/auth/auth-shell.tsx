@@ -22,7 +22,7 @@ export function AuthShell({
       {/* Brand panel */}
       <div className="relative hidden flex-col justify-between bg-primary p-12 text-primary-foreground lg:flex">
         <Link href="/" title="الصفحة الرئيسية" className="w-fit transition-opacity hover:opacity-80">
-          <Logo className="text-4xl text-primary-foreground" />
+          <Logo className="text-4xl" surface="light" />
         </Link>
         <div className="space-y-5">
           <h2 className="text-3xl font-bold leading-tight">{heading}</h2>

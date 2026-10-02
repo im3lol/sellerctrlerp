@@ -29,7 +29,7 @@ export default async function SignupPage() {
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.4fr]">
       {/* Brand panel */}
       <div className="relative hidden flex-col justify-between bg-primary p-12 text-primary-foreground lg:flex">
-        <Logo className="text-4xl text-primary-foreground" />
+        <Logo className="text-4xl" surface="light" />
         <div className="space-y-5">
           <h2 className="text-3xl font-bold leading-tight">ابدأ إدارة تجارتك في دقائق</h2>
           <p className="text-primary-foreground/80">أنشئ حساب شركتك وجرّب النظام كاملاً مجاناً — المحاسبة والمخزون والمبيعات والمشتريات ومنصات البيع.</p>

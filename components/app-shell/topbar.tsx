@@ -48,7 +48,7 @@ export function Topbar({
         <SheetContent side="right" className="w-72 overflow-y-auto bg-sidebar p-0 text-sidebar-foreground">
           <SheetTitle className="sr-only">القائمة</SheetTitle>
           <Link href="/apps" onClick={() => setMenuOpen(false)} className="flex h-16 items-center px-6" aria-label="التطبيقات">
-            <Logo className="text-2xl text-sidebar-foreground" />
+            <Logo className="text-2xl" surface="light" />
           </Link>
           <div className="px-4 pb-3">
             <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} className="block" />
@@ -60,7 +60,7 @@ export function Topbar({
 
       {/* Fixed identity mark — deliberately not an app-launcher button. */}
       <div className="hidden shrink-0 select-none border-s border-border/70 ps-3 text-primary sm:block" aria-label="SellerCtrl">
-        <Logo className="text-lg" />
+        <Logo className="text-xl" />
       </div>
 
       {/* One box for pages AND records — see AwesomeBar for why there is only one. */}

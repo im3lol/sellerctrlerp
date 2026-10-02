@@ -316,7 +316,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 py-12 md:px-6">
           <div className="grid gap-8 md:grid-cols-4">
             <div className="space-y-3">
-              <Logo className="text-2xl text-primary-foreground" />
+              <Logo className="text-2xl" surface="light" />
               <p className="text-sm text-primary-foreground/70">
                 SellerCtrl — نظام ERP عربي موحّد لبائعي أمازون: محاسبة ومخزون وبيع وشراء وربط منصات في مكان واحد.
               </p>
@@ -397,7 +397,7 @@ function DashboardPreview() {
     <div className="flex" dir="rtl">
       {/* Sidebar — dark blue, right side in RTL (matches the live shell) */}
       <aside className="hidden w-52 shrink-0 flex-col bg-primary p-3 text-primary-foreground md:flex">
-        <div className="mb-4 px-2 pt-1"><Logo className="text-lg text-primary-foreground" /></div>
+        <div className="mb-4 px-2 pt-1"><Logo className="text-lg" surface="light" /></div>
         <nav className="space-y-0.5">
           {PREVIEW_NAV.map((it) => (
             <div key={it.label} className={cn("flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium", "active" in it && it.active ? "bg-white text-primary shadow-sm" : "text-primary-foreground/80")}>

@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="flex min-h-screen bg-muted/30">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-16 items-center gap-2 px-6">
-          <Logo className="text-2xl text-sidebar-foreground" />
+          <Logo className="text-2xl" surface="light" />
           <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-semibold">إدارة</span>
         </div>
         <AdminSidebar />

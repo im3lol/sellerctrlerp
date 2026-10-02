@@ -72,7 +72,7 @@ export default function XpayCheckoutPage() {
         <div className="relative flex flex-col justify-between gap-8 bg-primary p-8 text-primary-foreground">
           <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(120% 120% at 100% 0%, #ffffff55 0%, transparent 45%)" }} />
           <div className="relative">
-            <Logo className="text-2xl text-primary-foreground" />
+            <Logo className="text-2xl" surface="light" />
             <div className="mt-8 text-sm opacity-80">إتمام الاشتراك</div>
             <div className="mt-1 text-xl font-bold">{data ? `باقة ${data.planName}` : "…"}</div>
             <div className="mt-4 text-4xl font-black tabular-nums">{data ? egp(data.amount) : ""}</div>
