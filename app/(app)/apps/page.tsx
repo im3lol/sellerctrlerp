@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
@@ -10,7 +11,6 @@ import { withOrgScope } from "@/lib/db-scope";
 import { countPendingApprovals } from "@/lib/erp/approvals";
 import { launcherTiles } from "@/lib/launcher";
 import { Icon } from "@/components/icon";
-import { Logo } from "@/components/brand/logo";
 import { SubscriptionBanner } from "@/components/erp/subscription-banner";
 import { SandboxStartButton } from "@/components/erp/sandbox-controls";
 import { cn } from "@/lib/utils";
@@ -65,9 +65,16 @@ export default async function AppsPage() {
             <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}اختار الوحدة اللي هتشتغل عليها</p>
           </div>
           {org && !org.isSandbox && user?.role !== "system_admin" ? <SandboxStartButton /> : (
-            <span className="hidden select-none rounded-xl border border-primary/10 bg-white/40 px-4 py-3 text-primary dark:bg-background/20 sm:block" aria-label="SellerCtrl">
-              <Logo className="text-3xl" />
-            </span>
+            <div aria-hidden className="pointer-events-none hidden shrink-0 self-end sm:block">
+              <Image
+                src="/brand/mascot-welcome.png"
+                alt=""
+                width={1536}
+                height={1024}
+                sizes="(max-width: 1024px) 192px, 288px"
+                className="h-32 w-auto object-contain object-left-bottom md:h-44"
+              />
+            </div>
           )}
         </div>
       </div>
