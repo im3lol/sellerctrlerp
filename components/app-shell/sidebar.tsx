@@ -26,7 +26,7 @@ export function Sidebar({ role, erpPermissions, modules, platforms, navHidden }:
       {/* The logo goes home, and home is the app grid — the one screen that shows the
           whole system at once. Every system in this class does the same. */}
       <Link href="/apps" className="flex h-16 items-center gap-2 px-6" aria-label="التطبيقات">
-        <Logo className="text-2xl" surface="light" />
+        <Logo className="text-2xl" variant="white" />
       </Link>
       <NavList role={role} erpPermissions={erpPermissions} modules={modules} platforms={platforms} navHidden={navHidden} />
       <div className="border-t border-sidebar-border/40 p-4 text-xs text-sidebar-foreground/50">

@@ -48,7 +48,7 @@ export function Topbar({
         <SheetContent side="right" className="w-72 overflow-y-auto bg-sidebar p-0 text-sidebar-foreground">
           <SheetTitle className="sr-only">القائمة</SheetTitle>
           <Link href="/apps" onClick={() => setMenuOpen(false)} className="flex h-16 items-center px-6" aria-label="التطبيقات">
-            <Logo className="text-2xl" surface="light" />
+            <Logo className="text-2xl" variant="white" />
           </Link>
           <div className="px-4 pb-3">
             <AwesomeBar erpPermissions={erpPermissions} modules={modules} navHidden={navHidden} className="block" />
