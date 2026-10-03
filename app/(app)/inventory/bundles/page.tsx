@@ -1,4 +1,5 @@
 import { aliasedTable, asc, desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { itemComponents, stockAssemblies, items, warehouses } from "@/db/schema";
@@ -8,6 +9,7 @@ import { BundlesManager } from "@/components/erp/bundles-manager";
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function BundlesPage() {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const canManage = can("inventory.create");
 
@@ -44,7 +46,7 @@ export default async function BundlesPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Boxes" title="الحزم والمجموعات" subtitle="عرّف مكوّنات الحزمة وجمّعها إلى مخزون قابل للبيع" />
+        <ErpPageHeader icon="Boxes" title={t("الحزم والمجموعات")} subtitle={t("عرّف مكوّنات الحزمة وجمّعها إلى مخزون قابل للبيع")} />
         <BundlesManager bundles={bundles} warehouses={whList} assemblies={assemblies} canManage={canManage} />
       </div>
     );

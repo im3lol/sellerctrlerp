@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { leaveRequests } from "@/db/schema";
@@ -11,6 +12,7 @@ import { selectCls } from "@/lib/utils";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function LeaveReportPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const now = new Date();
@@ -43,21 +45,21 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
       .map(([employee, rec]) => ({ employee, rec, total: Object.values(rec).reduce((s, n) => s + n, 0) }))
       .sort((a, b) => b.total - a.total);
 
-    const colTotals = LEAVE_TYPES.map((t) => list.reduce((s, r) => s + (r.rec[t.value] ?? 0), 0));
+    const colTotals = LEAVE_TYPES.map((it) => list.reduce((s, r) => s + (r.rec[it.value] ?? 0), 0));
     const grandTotal = colTotals.reduce((s, n) => s + n, 0);
 
     return (
       <ReportShell
         reportKey="hr-leaves"
         icon="CalendarDays"
-        title="تقرير أرصدة الإجازات"
+        title={t("تقرير أرصدة الإجازات")}
         subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`}
         query={new URLSearchParams({ from, to }).toString()}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
           </>
         }
         kpis={[
@@ -66,29 +68,29 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
         ]}
       >
         <Card>
-          <CardHeader><CardTitle>الأيام المعتمدة لكل موظف</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("الأيام المعتمدة لكل موظف")}</CardTitle></CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد إجازات معتمدة في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد إجازات معتمدة في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead className="text-start">الموظف</TableHead>
-                  {LEAVE_TYPES.map((t) => <TableHead key={t.value} className="text-end">{t.label}</TableHead>)}
-                  <TableHead className="text-end">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الموظف")}</TableHead>
+                  {LEAVE_TYPES.map((it) => <TableHead key={it.value} className="text-end">{t(it.label)}</TableHead>)}
+                  <TableHead className="text-end">{t("الإجمالي")}</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {list.map((r) => (
                     <TableRow key={r.employee}>
                       <TableCell>{r.employee}</TableCell>
-                      {LEAVE_TYPES.map((t) => <TableCell key={t.value} className="text-end tabular-nums">{r.rec[t.value] ? r.rec[t.value] : "—"}</TableCell>)}
+                      {LEAVE_TYPES.map((it) => <TableCell key={it.value} className="text-end tabular-nums">{r.rec[it.value] ? r.rec[it.value] : "—"}</TableCell>)}
                       <TableCell className="text-end tabular-nums font-medium">{r.total}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell>الإجمالي</TableCell>
+                    <TableCell>{t("الإجمالي")}</TableCell>
                     {colTotals.map((n, i) => <TableCell key={i} className="text-end tabular-nums">{n || "—"}</TableCell>)}
                     <TableCell className="text-end tabular-nums">{grandTotal}</TableCell>
                   </TableRow>

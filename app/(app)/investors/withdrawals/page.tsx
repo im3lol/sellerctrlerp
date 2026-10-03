@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, investors, withdrawals } from "@/db/schema";
@@ -11,6 +12,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const dt = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
 
 export default async function WithdrawalsPage() {
+  const t = await getT();
   return loadErpPage("investors.view", async ({ orgId, can }) => {
     const [rows, people, cash] = await Promise.all([
       db.select({
@@ -33,7 +35,7 @@ export default async function WithdrawalsPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="Banknote" title="سحوبات المستثمرين"
+        <ErpPageHeader icon="Banknote" title={t("سحوبات المستثمرين")}
           subtitle={`أرباح مصروفة ${money(profit)} · سحب رأس مال ${money(capital)}`} backHref="/investors"
           action={can("accounting.post") ? (
             <InvestorTxnForm kind="withdrawal"
@@ -45,16 +47,16 @@ export default async function WithdrawalsPage() {
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">لا توجد سحوبات بعد.</p>
+              <p className="py-12 text-center text-sm text-muted-foreground">{t("لا توجد سحوبات بعد.")}</p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40 text-right">
                   <tr>
-                    <th className="p-3 font-medium">التاريخ</th>
-                    <th className="p-3 font-medium">المستثمر</th>
-                    <th className="p-3 font-medium">النوع</th>
-                    <th className="p-3 font-medium">صُرف من</th>
-                    <th className="p-3 text-left font-medium">المبلغ</th>
+                    <th className="p-3 font-medium">{t("التاريخ")}</th>
+                    <th className="p-3 font-medium">{t("المستثمر")}</th>
+                    <th className="p-3 font-medium">{t("النوع")}</th>
+                    <th className="p-3 font-medium">{t("صُرف من")}</th>
+                    <th className="p-3 text-left font-medium">{t("المبلغ")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -64,7 +66,7 @@ export default async function WithdrawalsPage() {
                       <td className="p-3">{r.investor}</td>
                       <td className="p-3">
                         <Badge variant={r.type === "capital" ? "destructive" : "secondary"}>
-                          {r.type === "capital" ? "سحب رأس مال" : "صرف أرباح"}
+                          {r.type === "capital" ? t("سحب رأس مال") : t("صرف أرباح")}
                         </Badge>
                       </td>
                       <td className="p-3 text-muted-foreground">{r.account ?? "—"}</td>

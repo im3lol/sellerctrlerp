@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -16,6 +17,7 @@ const fmt = (n: number) =>
 type Params = { params: Promise<{ id: string }> };
 
 export default async function BankAccountDetailPage({ params }: Params) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const { id } = await params;
     const canEdit = can("accounting.create");
@@ -106,7 +108,7 @@ export default async function BankAccountDetailPage({ params }: Params) {
         <ErpPageHeader
           icon="Landmark"
           title={ba.nameAr}
-          subtitle={[ba.bankName, ba.iban].filter(Boolean).join(" · ") || "كشف الحساب البنكي"}
+          subtitle={[ba.bankName, ba.iban].filter(Boolean).join(" · ") || t("كشف الحساب البنكي")}
           backHref="/accounting/banks"
           action={<PrintDocLink href={`/erp/accounting/banks/${id}/print`} />}
         />
@@ -121,10 +123,10 @@ export default async function BankAccountDetailPage({ params }: Params) {
               ? [{ label: `فرق التسوية${diff !== 0 ? " ⚠" : ""}`, value: fmt(Math.abs(diff)), cls: diff !== 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" }]
               : [{ label: "غير مسوّى",    value: String(unrec),   cls: unrec > 0 ? "text-amber-600 dark:text-amber-400" : "" }]
             ),
-          ].map((t, i) => (
+          ].map((it, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-              <p className="text-xs text-muted-foreground">{t.label}</p>
-              <p className={`mt-1 text-xl font-bold tabular-nums ${t.cls}`}>{t.value}</p>
+              <p className="text-xs text-muted-foreground">{t(it.label)}</p>
+              <p className={`mt-1 text-xl font-bold tabular-nums ${it.cls}`}>{it.value}</p>
             </div>
           ))}
         </div>
@@ -134,12 +136,12 @@ export default async function BankAccountDetailPage({ params }: Params) {
         {payouts.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>تحويلات المنصات</CardTitle>
-              <CardDescription>كل تسوية من أمازون أو نون قصاد الإيداع اللي بنفس المبلغ في الكشف (في حدود ٧ أيام). دوس «طابق» لما يكون هو فعلاً.</CardDescription>
+              <CardTitle>{t("تحويلات المنصات")}</CardTitle>
+              <CardDescription>{t("كل تسوية من أمازون أو نون قصاد الإيداع اللي بنفس المبلغ في الكشف (في حدود ٧ أيام). دوس «طابق» لما يكون هو فعلاً.")}</CardDescription>
             </CardHeader>
             <CardContent>
               {lines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">استورد كشف الحساب الأول — بعدها هنلاقي كل تحويل في الكشف.</p>
+                <p className="text-sm text-muted-foreground">{t("استورد كشف الحساب الأول — بعدها هنلاقي كل تحويل في الكشف.")}</p>
               ) : (
                 <div className="divide-y">
                   {payouts.map((p) => {
@@ -147,13 +149,13 @@ export default async function BankAccountDetailPage({ params }: Params) {
                     const line = dep ? lineById.get(dep.id) : undefined;
                     return (
                       <div key={p.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
-                        <span className="w-14 text-muted-foreground">{p.channel === "NOON" ? "نون" : "أمازون"}</span>
+                        <span className="w-14 text-muted-foreground">{p.channel === "NOON" ? t("نون") : t("أمازون")}</span>
                         <span className="font-mono text-xs" dir="ltr">{p.id}</span>
                         <span className="font-medium tabular-nums">{fmt(p.amount)}</span>
                         <span className="tabular-nums text-muted-foreground">{ymd(p.date)}</span>
                         <span className="ms-auto flex items-center gap-2">
                           {!line ? (
-                            <span className="text-amber-600 dark:text-amber-400">لسه ماظهرش في الكشف</span>
+                            <span className="text-amber-600 dark:text-amber-400">{t("لسه ماظهرش في الكشف")}</span>
                           ) : line.isReconciled ? (
                             <span className="text-emerald-600 dark:text-emerald-400">مطابق ✓ إيداع {ymd(line.date)}</span>
                           ) : (

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts } from "@/db/schema";
@@ -8,6 +9,7 @@ import { ReconciliationClient } from "@/components/erp/reconciliation-client";
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function ReconciliationPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const accountId = (await searchParams).account ?? "";
 
@@ -32,7 +34,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Landmark" title="مطابقة الحساب البنكي" subtitle="طابِق حركات الدفاتر مع كشف حساب البنك" backHref="/accounting" />
+        <ErpPageHeader icon="Landmark" title={t("مطابقة الحساب البنكي")} subtitle={t("طابِق حركات الدفاتر مع كشف حساب البنك")} backHref="/accounting" />
         <ReconciliationClient accounts={accounts_opt} selectedAccountId={accountId} lines={lines} />
       </div>
     );

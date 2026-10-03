@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -15,6 +16,7 @@ const fmt = (v: number) =>
 type Params = { params: Promise<{ year: string }> };
 
 export default async function BudgetReportPage({ params }: Params) {
+  const t = await getT();
   const year = parseInt((await params).year, 10);
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const yearStart = new Date(year, 0, 1);
@@ -82,31 +84,31 @@ export default async function BudgetReportPage({ params }: Params) {
         <ErpPageHeader
           icon="BarChart2"
           title={`تقرير الميزانية ${year}`}
-          subtitle="مقارنة الفعلي بالمخطط لكل حساب إيرادات ومصروفات"
+          subtitle={t("مقارنة الفعلي بالمخطط لكل حساب إيرادات ومصروفات")}
           backHref="/accounting/budget"
           action={
             <Button variant="outline" asChild>
-              <Link href={`/accounting/budget/${year}`}><Icon name="Edit" className="size-4" />تعديل الميزانية</Link>
+              <Link href={`/accounting/budget/${year}`}><Icon name="Edit" className="size-4" />{t("تعديل الميزانية")}</Link>
             </Button>
           }
         />
 
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <SummaryTile label="إيرادات مخطط" value={totRevBudget} color="text-success" />
-          <SummaryTile label="إيرادات فعلي" value={totRevActual} color="text-success" />
-          <SummaryTile label="مصروفات مخطط" value={totExpBudget} color="text-destructive" />
-          <SummaryTile label="مصروفات فعلي" value={totExpActual} color="text-destructive" />
+          <SummaryTile label={t("إيرادات مخطط")} value={totRevBudget} color="text-success" />
+          <SummaryTile label={t("إيرادات فعلي")} value={totRevActual} color="text-success" />
+          <SummaryTile label={t("مصروفات مخطط")} value={totExpBudget} color="text-destructive" />
+          <SummaryTile label={t("مصروفات فعلي")} value={totExpActual} color="text-destructive" />
         </div>
 
         {/* Net row */}
         <div className="grid grid-cols-2 gap-4">
-          <SummaryTile label="صافي مخطط" value={totRevBudget - totExpBudget} color={(totRevBudget - totExpBudget) >= 0 ? "text-success" : "text-destructive"} />
-          <SummaryTile label="صافي فعلي" value={totRevActual - totExpActual} color={(totRevActual - totExpActual) >= 0 ? "text-success" : "text-destructive"} />
+          <SummaryTile label={t("صافي مخطط")} value={totRevBudget - totExpBudget} color={(totRevBudget - totExpBudget) >= 0 ? "text-success" : "text-destructive"} />
+          <SummaryTile label={t("صافي فعلي")} value={totRevActual - totExpActual} color={(totRevActual - totExpActual) >= 0 ? "text-success" : "text-destructive"} />
         </div>
 
-        {revenues.length > 0 && <BudgetTable title="الإيرادات" rows={revenues} totalBudget={totRevBudget} totalActual={totRevActual} />}
-        {expenses.length > 0 && <BudgetTable title="المصروفات" rows={expenses} totalBudget={totExpBudget} totalActual={totExpActual} />}
+        {revenues.length > 0 && <BudgetTable title={t("الإيرادات")} rows={revenues} totalBudget={totRevBudget} totalActual={totRevActual} />}
+        {expenses.length > 0 && <BudgetTable title={t("المصروفات")} rows={expenses} totalBudget={totExpBudget} totalActual={totExpActual} />}
       </div>
     );
   });
@@ -122,7 +124,7 @@ function SummaryTile({ label, value, color }: { label: string; value: number; co
   );
 }
 
-function BudgetTable({
+async function BudgetTable({
   title,
   rows,
   totalBudget,
@@ -133,6 +135,7 @@ function BudgetTable({
   totalBudget: number;
   totalActual: number;
 }) {
+  const t = await getT();
   const totalVariance = totalActual - totalBudget;
   const totalPct = totalBudget !== 0 ? (totalActual / totalBudget) * 100 : null;
 
@@ -145,12 +148,12 @@ function BudgetTable({
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 text-start">الحساب</th>
-              <th className="px-4 py-2 text-end">الميزانية</th>
-              <th className="px-4 py-2 text-end">الفعلي</th>
-              <th className="px-4 py-2 text-end">الفرق</th>
-              <th className="px-4 py-2 text-end">النسبة</th>
-              <th className="px-4 py-2 text-end w-28">تحقق</th>
+              <th className="px-4 py-2 text-start">{t("الحساب")}</th>
+              <th className="px-4 py-2 text-end">{t("الميزانية")}</th>
+              <th className="px-4 py-2 text-end">{t("الفعلي")}</th>
+              <th className="px-4 py-2 text-end">{t("الفرق")}</th>
+              <th className="px-4 py-2 text-end">{t("النسبة")}</th>
+              <th className="px-4 py-2 text-end w-28">{t("تحقق")}</th>
             </tr>
           </thead>
           <tbody>
@@ -185,7 +188,7 @@ function BudgetTable({
           </tbody>
           <tfoot>
             <tr className="border-t-2 bg-muted/30 font-semibold">
-              <td className="px-4 py-2">الإجمالي</td>
+              <td className="px-4 py-2">{t("الإجمالي")}</td>
               <td className="px-4 py-2 text-end tabular-nums">{fmt(totalBudget)}</td>
               <td className="px-4 py-2 text-end tabular-nums">{fmt(totalActual)}</td>
               <td className={cn("px-4 py-2 text-end tabular-nums", totalVariance < 0 ? "text-destructive" : totalVariance > 0 ? "text-success" : "")}>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -25,6 +26,7 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ id: string }> };
 
 export default async function AssetDetailPage({ params }: Params) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const { id } = await params;
 
@@ -71,7 +73,7 @@ export default async function AssetDetailPage({ params }: Params) {
         <ErpPageHeader
           icon="Building2"
           title={a.nameAr}
-          subtitle={`${a.code} · ${CATEGORIES[a.category] ?? a.category}`}
+          subtitle={`${a.code} · ${t(CATEGORIES[a.category] ?? a.category)}`}
           backHref="/accounting/assets"
           action={<PrintDocLink href={`/erp/accounting/assets/${id}/print`} />}
         />
@@ -83,10 +85,10 @@ export default async function AssetDetailPage({ params }: Params) {
             { label: "الإهلاك المتراكم",     value: `${fmt(a.accumulatedDepreciation)} (${pct}%)` },
             { label: "القيمة الدفترية الصافية", value: fmt(a.netBookValue) },
             { label: "الإهلاك الشهري",       value: fmt(monthlyDeprec) },
-          ].map((t, i) => (
+          ].map((it, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-              <p className="text-xs text-muted-foreground">{t.label}</p>
-              <p className="mt-1 text-xl font-bold tabular-nums">{t.value}</p>
+              <p className="text-xs text-muted-foreground">{t(it.label)}</p>
+              <p className="mt-1 text-xl font-bold tabular-nums">{it.value}</p>
             </div>
           ))}
         </div>
@@ -94,7 +96,7 @@ export default async function AssetDetailPage({ params }: Params) {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Details */}
           <Card>
-            <CardHeader><CardTitle className="text-base">بيانات الأصل</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{t("بيانات الأصل")}</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
               {[
                 ["الحالة",          STATUS[a.status] ?? a.status],
@@ -133,9 +135,9 @@ export default async function AssetDetailPage({ params }: Params) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30 text-xs text-muted-foreground">
                     <tr className="[&>th]:p-2.5 [&>th]:text-start">
-                      <th>الفترة</th>
-                      <th className="text-end">المبلغ</th>
-                      <th className="text-center">قيد محاسبي</th>
+                      <th>{t("الفترة")}</th>
+                      <th className="text-end">{t("المبلغ")}</th>
+                      <th className="text-center">{t("قيد محاسبي")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -155,7 +157,7 @@ export default async function AssetDetailPage({ params }: Params) {
                   </tbody>
                   <tfoot className="border-t bg-muted/20 font-semibold">
                     <tr className="[&>td]:p-2.5">
-                      <td>الإجمالي</td>
+                      <td>{t("الإجمالي")}</td>
                       <td className="text-end tabular-nums">{fmt(deprecLines.reduce((s, l) => s + Number(l.amount), 0))}</td>
                       <td />
                     </tr>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules } from "@/lib/erp/entitlements";
@@ -48,12 +49,13 @@ const TONE: Record<Tone, string> = {
 };
 type Stat = { label: string; value: string; note?: string; tone?: Tone; href: string };
 
-function StatCard({ s }: { s: Stat }) {
+async function StatCard({ s }: { s: Stat }) {
+  const t = await getT();
   return (
     <Link href={s.href}>
       <Card className="h-full transition-colors hover:border-primary/50">
         <CardContent className="pt-6">
-          <div className="text-xs text-muted-foreground">{s.label}</div>
+          <div className="text-xs text-muted-foreground">{t(s.label)}</div>
           <div className="mt-1 text-xl font-bold tabular-nums">{s.value}</div>
           {s.note && <div className={cn("mt-1 text-xs text-muted-foreground", s.tone && TONE[s.tone])}>{s.note}</div>}
         </CardContent>
@@ -63,10 +65,11 @@ function StatCard({ s }: { s: Stat }) {
 }
 
 /** A small figure inside a card — the marketplace and stock-health grids. */
-function MiniStat({ s }: { s: Stat }) {
+async function MiniStat({ s }: { s: Stat }) {
+  const t = await getT();
   return (
     <Link href={s.href} className="rounded-xl border p-3 transition-colors hover:border-primary/50 hover:bg-accent/40">
-      <div className="text-xs text-muted-foreground">{s.label}</div>
+      <div className="text-xs text-muted-foreground">{t(s.label)}</div>
       <div className={cn("mt-1 text-lg font-bold tabular-nums", s.tone && TONE[s.tone])}>{s.value}</div>
       {s.note && <div className="text-xs text-muted-foreground">{s.note}</div>}
     </Link>
@@ -74,7 +77,8 @@ function MiniStat({ s }: { s: Stat }) {
 }
 
 /** A ranked list with a proportion bar. One hue on purpose: the bar shows size, not identity. */
-function RankList({ rows, empty }: { rows: { label: string; value: number; sub?: string }[]; empty: string }) {
+async function RankList({ rows, empty }: { rows: { label: string; value: number; sub?: string }[]; empty: string }) {
+  const t = await getT();
   const max = Math.max(0, ...rows.map((r) => r.value));
   if (!rows.length || max <= 0) return <p className="py-6 text-center text-sm text-muted-foreground">{empty}</p>;
   return (
@@ -82,7 +86,7 @@ function RankList({ rows, empty }: { rows: { label: string; value: number; sub?:
       {rows.map((r, i) => (
         <li key={i} className="space-y-1">
           <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="min-w-0 truncate" title={r.label}>{r.label}</span>
+            <span className="min-w-0 truncate" title={r.label}>{t(r.label)}</span>
             <span className="shrink-0 font-medium tabular-nums">{money(r.value)}</span>
           </div>
           <div className="h-1.5 rounded-full bg-muted">
@@ -106,6 +110,7 @@ const Section = ({ title }: { title: string }) => <h2 className="mb-3 text-sm fo
  * neither blank the page nor hold the rest back.
  */
 export default async function DashboardPage() {
+  const t = await getT();
   const user = await requireUser();
   const { org } = await getActiveOrg();
   const [enabled, access, sub] = await Promise.all([
@@ -175,7 +180,7 @@ export default async function DashboardPage() {
     ] : []),
     ...(seeMoney && ins ? [{
       label: "مجمل الربح", value: money(gross), href: "/sales/reports/profitability",
-      note: margin == null ? "بعد تكلفة البضاعة المباعة" : `هامش ${pct(margin)} من المبيعات قبل الضريبة`,
+      note: margin == null ? t("بعد تكلفة البضاعة المباعة") : `هامش ${pct(margin)} من المبيعات قبل الضريبة`,
       tone: gross < 0 ? "down" as const : undefined,
     }] : []),
     ...(seeMoney && ov ? [
@@ -215,9 +220,9 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">مرحباً، {user.name}</h1>
-          <p className="text-muted-foreground">{org?.nameAr ?? "الإدارة"} — نظرة على {monthLabel}</p>
+          <p className="text-muted-foreground">{org?.nameAr ?? t("الإدارة")} — نظرة على {monthLabel}</p>
         </div>
-        <Link href="/apps" className="text-sm text-primary hover:underline">كل التطبيقات ←</Link>
+        <Link href="/apps" className="text-sm text-primary hover:underline">{t("كل التطبيقات ←")}</Link>
       </div>
 
       <SubscriptionBanner sub={sub} />
@@ -231,8 +236,8 @@ export default async function DashboardPage() {
       {ovRes.failed && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="flex items-center justify-between gap-4 p-4 text-sm text-destructive">
-            <span>تعذّر تحميل المؤشرات دلوقتي — بياناتك سليمة، جرّب تحدّث الصفحة.</span>
-            <Link href="/dashboard" className="shrink-0 underline">تحديث</Link>
+            <span>{t("تعذّر تحميل المؤشرات دلوقتي — بياناتك سليمة، جرّب تحدّث الصفحة.")}</span>
+            <Link href="/dashboard" className="shrink-0 underline">{t("تحديث")}</Link>
           </CardContent>
         </Card>
       )}
@@ -240,8 +245,8 @@ export default async function DashboardPage() {
       {isEmpty && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-6">
-            <h2 className="text-lg font-bold">ابدأ باستخدام النظام 🚀</h2>
-            <p className="mt-1 text-sm text-muted-foreground">حسابك جاهز — خطوات سريعة تبدأ بيها إدارة تجارتك:</p>
+            <h2 className="text-lg font-bold">{t("ابدأ باستخدام النظام 🚀")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("حسابك جاهز — خطوات سريعة تبدأ بيها إدارة تجارتك:")}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {[
                 { t: "اربط حساب أمازون", d: "استورد طلباتك وتسوياتك تلقائيًا", href: "/platforms" },
@@ -254,18 +259,18 @@ export default async function DashboardPage() {
                 </Link>
               ))}
             </div>
-            <Link href="/setup" className="mt-4 inline-block text-sm text-primary hover:underline">أو اتبع دليل الإعداد الكامل ←</Link>
+            <Link href="/setup" className="mt-4 inline-block text-sm text-primary hover:underline">{t("أو اتبع دليل الإعداد الكامل ←")}</Link>
           </CardContent>
         </Card>
       )}
 
       {shortcuts.length > 0 && (
         <div>
-          <Section title="اختصارات" />
+          <Section title={t("اختصارات")} />
           <div className="flex flex-wrap gap-2">
             {shortcuts.map((s) => (
               <Link key={s.href} href={s.href} className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium transition-colors hover:border-primary hover:bg-accent">
-                <Icon name={s.icon} className="size-4 text-primary" />{s.label}
+                <Icon name={s.icon} className="size-4 text-primary" />{t(s.label)}
               </Link>
             ))}
           </div>
@@ -274,7 +279,7 @@ export default async function DashboardPage() {
 
       {pendingTiles.some((t) => t.count > 0) && (
         <div>
-          <Section title="بحاجة إلى إجراء" />
+          <Section title={t("بحاجة إلى إجراء")} />
           <NeedsAttention tiles={pendingTiles} />
         </div>
       )}
@@ -289,13 +294,13 @@ export default async function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           {seeSales && salesTrend.some((s) => s.value > 0) && (
             <Card>
-              <CardHeader><CardTitle>اتجاه المبيعات</CardTitle><CardDescription>الفواتير المُرحّلة يوميًا — آخر ٣٠ يوم.</CardDescription></CardHeader>
-              <CardContent><TrendChart data={salesTrend} valueLabel="المبيعات" money id="dashboard-sales" /></CardContent>
+              <CardHeader><CardTitle>{t("اتجاه المبيعات")}</CardTitle><CardDescription>{t("الفواتير المُرحّلة يوميًا — آخر ٣٠ يوم.")}</CardDescription></CardHeader>
+              <CardContent><TrendChart data={salesTrend} valueLabel={t("المبيعات")} money id="dashboard-sales" /></CardContent>
             </Card>
           )}
           {seeMoney && ov && ov.pnlTrend.some((m) => m.revenue || m.expense) && (
             <Card>
-              <CardHeader><CardTitle>الإيراد والمصروف</CardTitle><CardDescription>من القيود المُرحّلة — آخر ٦ شهور.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>{t("الإيراد والمصروف")}</CardTitle><CardDescription>{t("من القيود المُرحّلة — آخر ٦ شهور.")}</CardDescription></CardHeader>
               <CardContent>
                 <GroupedBarChart
                   data={ov.pnlTrend.map((m) => ({ label: m.label, revenue: m.revenue, expense: m.expense }))}
@@ -310,7 +315,7 @@ export default async function DashboardPage() {
       {seeSales && ins && (
         <div className="grid gap-4 lg:grid-cols-3">
           <Card>
-            <CardHeader><CardTitle>المبيعات حسب القناة</CardTitle><CardDescription>أوامر البيع المؤكدة هذا الشهر.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("المبيعات حسب القناة")}</CardTitle><CardDescription>{t("أوامر البيع المؤكدة هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
               <RankList
                 rows={ins.channels.map((c) => ({ label: CHANNEL[c.channel] ?? c.channel, value: c.value, sub: `${intl(c.orders)} طلب` }))}
@@ -319,13 +324,13 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>الأكثر مبيعًا</CardTitle><CardDescription>أعلى ٥ أصناف بقيمة الفواتير هذا الشهر.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("الأكثر مبيعًا")}</CardTitle><CardDescription>{t("أعلى ٥ أصناف بقيمة الفواتير هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
               <RankList rows={ins.topItems.map((t) => ({ label: t.name, value: t.value, sub: `${intl(t.qty)} قطعة` }))} empty="لسه مفيش مبيعات الشهر ده" />
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>أكبر العملاء</CardTitle><CardDescription>أعلى ٥ عملاء بقيمة الفواتير هذا الشهر.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("أكبر العملاء")}</CardTitle><CardDescription>{t("أعلى ٥ عملاء بقيمة الفواتير هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
               <RankList rows={ins.topCustomers.map((c) => ({ label: c.name, value: c.value, sub: `${intl(c.invoices)} فاتورة` }))} empty="لسه مفيش مبيعات الشهر ده" />
             </CardContent>
@@ -338,8 +343,8 @@ export default async function DashboardPage() {
           {showMkt && ins && (
             <Card>
               <CardHeader>
-                <CardTitle>المنصات</CardTitle>
-                <CardDescription>تسويات أمازون ونون المُفرَج عنها — آخر ٣٠ يوم.</CardDescription>
+                <CardTitle>{t("المنصات")}</CardTitle>
+                <CardDescription>{t("تسويات أمازون ونون المُفرَج عنها — آخر ٣٠ يوم.")}</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3">
                 <MiniStat s={{ label: "مبيعات المنتجات", value: money(ins.mktSales), href: "/platforms" }} />
@@ -358,8 +363,8 @@ export default async function DashboardPage() {
           {seeStock && ov && (
             <Card>
               <CardHeader>
-                <CardTitle>صحة المخزون</CardTitle>
-                <CardDescription>حسب معدّل البيع آخر ٣٠ يوم — الأصناف اللي عليها طلب بس.</CardDescription>
+                <CardTitle>{t("صحة المخزون")}</CardTitle>
+                <CardDescription>{t("حسب معدّل البيع آخر ٣٠ يوم — الأصناف اللي عليها طلب بس.")}</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <MiniStat s={{ label: "نافد وعليه طلب", value: intl(stock.out), href: "/inventory/reorder", tone: stock.out > 0 ? "down" : undefined }} />
@@ -378,7 +383,7 @@ export default async function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           {seeSales && ov.recentSales.length > 0 && (
             <Card>
-              <CardHeader><CardTitle>آخر فواتير البيع</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("آخر فواتير البيع")}</CardTitle></CardHeader>
               <CardContent className="divide-y p-0 px-6 pb-4">
                 {ov.recentSales.map((r) => (
                   <Link key={r.number} href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">
@@ -393,7 +398,7 @@ export default async function DashboardPage() {
           )}
           {seePurch && ov.recentPurchases.length > 0 && (
             <Card>
-              <CardHeader><CardTitle>آخر فواتير الشراء</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("آخر فواتير الشراء")}</CardTitle></CardHeader>
               <CardContent className="divide-y p-0 px-6 pb-4">
                 {ov.recentPurchases.map((r) => (
                   <Link key={r.number} href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">

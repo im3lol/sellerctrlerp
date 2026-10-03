@@ -1,4 +1,5 @@
 import { and, asc, desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { recurringJournals, recurringJournalLines, accounts } from "@/db/schema";
@@ -8,6 +9,7 @@ import { RecurringJournalsManager } from "@/components/erp/recurring-journals-ma
 const ymd = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 export default async function RecurringJournalsPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const [tpls, lineRows, accList] = await Promise.all([
       db.select().from(recurringJournals).where(eq(recurringJournals.organizationId, orgId)).orderBy(desc(recurringJournals.isActive), asc(recurringJournals.nextRunDate)),
@@ -33,7 +35,7 @@ export default async function RecurringJournalsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BookText" title="القيود المتكررة" subtitle="قوالب تولّد قيداً كمسودة تلقائياً (استحقاقات، إهلاك مقدّم…)" backHref="/accounting/journal" />
+        <ErpPageHeader icon="BookText" title={t("القيود المتكررة")} subtitle={t("قوالب تولّد قيداً كمسودة تلقائياً (استحقاقات، إهلاك مقدّم…)")} backHref="/accounting/journal" />
         <RecurringJournalsManager items={items} accounts={accList} />
       </div>
     );

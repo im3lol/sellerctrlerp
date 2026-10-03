@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import {
@@ -14,6 +15,7 @@ import type { ProjectStatus } from "@/lib/erp/projects";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const [rows, summary] = await Promise.all([
       db.select({
@@ -66,8 +68,8 @@ export default async function ProjectsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="FolderKanban"
-          title="المشاريع"
-          subtitle="ميزانية مقابل فعلي، وساعات ومراحل — وفوترة بالمرحلة أو بالوقت"
+          title={t("المشاريع")}
+          subtitle={t("ميزانية مقابل فعلي، وساعات ومراحل — وفوترة بالمرحلة أو بالوقت")}
           action={<DatasetExport dataset="projects" />}
         />
         <ProjectsManager

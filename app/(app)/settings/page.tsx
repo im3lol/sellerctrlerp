@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { SETTINGS_GROUPS } from "@/lib/erp/settings-nav";
 
 /** The settings directory: every settings destination, grouped, with a one-line description. */
 export default async function ErpSettingsPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ can }) => {
     const groups = SETTINGS_GROUPS
       .map((g) => ({ ...g, items: g.items.filter((it) => !it.capability || can(it.capability as Parameters<typeof can>[0])) }))
@@ -14,7 +16,7 @@ export default async function ErpSettingsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Settings" title="الإعدادات" subtitle="كل إعدادات المنشأة والنظام في مكان واحد" />
+        <ErpPageHeader icon="Settings" title={t("الإعدادات")} subtitle={t("كل إعدادات المنشأة والنظام في مكان واحد")} />
         {groups.map((g) => (
           <Card key={g.heading}>
             <CardHeader>
@@ -29,7 +31,7 @@ export default async function ErpSettingsPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 text-sm font-medium">
-                        {it.label}
+                        {t(it.label)}
                         {it.external && <Icon name="ArrowUpLeft" className="size-3 text-muted-foreground" />}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{it.desc}</p>

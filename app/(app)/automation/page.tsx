@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { automationRules, automationRuns, orgSubscriptions, plans } from "@/db/schema";
@@ -18,6 +19,7 @@ const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const when = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
 export default async function AutomationPage() {
+  const t = await getT();
   return loadErpPage("automation.manage", async ({ orgId }) => {
     const rules = await db.select().from(automationRules)
       .where(eq(automationRules.organizationId, orgId)).orderBy(desc(automationRules.createdAt));
@@ -34,10 +36,10 @@ export default async function AutomationPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Workflow" title="الأتمتة"
-          subtitle="لما يحصل حدث على مستند، ولو شروطه اتحققت، السيستم ينفّذ اللي تحدده — لوحده"
+        <ErpPageHeader icon="Workflow" title={t("الأتمتة")}
+          subtitle={t("لما يحصل حدث على مستند، ولو شروطه اتحققت، السيستم ينفّذ اللي تحدده — لوحده")}
           action={full ? undefined : (
-            <Button asChild><Link href="/automation/new"><Icon name="Plus" className="size-4" />قاعدة جديدة</Link></Button>
+            <Button asChild><Link href="/automation/new"><Icon name="Plus" className="size-4" />{t("قاعدة جديدة")}</Link></Button>
           )} />
 
         <p className="text-sm text-muted-foreground">
@@ -80,8 +82,8 @@ export default async function AutomationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">وصفات جاهزة</CardTitle>
-            <CardDescription>قواعد شائعة تتفعّل بضغطة، وتقدر تعدّلها بعدها.</CardDescription>
+            <CardTitle className="text-base">{t("وصفات جاهزة")}</CardTitle>
+            <CardDescription>{t("قواعد شائعة تتفعّل بضغطة، وتقدر تعدّلها بعدها.")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TEMPLATES.map((t) => (
@@ -98,20 +100,20 @@ export default async function AutomationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">آخر مرات التشغيل</CardTitle>
+            <CardTitle className="text-base">{t("آخر مرات التشغيل")}</CardTitle>
           </CardHeader>
           <CardContent>
             {runs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لسه مفيش قاعدة اشتغلت.</p>
+              <p className="text-sm text-muted-foreground">{t("لسه مفيش قاعدة اشتغلت.")}</p>
             ) : (
               <div className="overflow-x-auto rounded-xl border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الوقت</TableHead>
-                      <TableHead className="text-start">القاعدة</TableHead>
-                      <TableHead className="text-start">المستند</TableHead>
-                      <TableHead className="text-start">اللي حصل</TableHead>
+                      <TableHead className="text-start">{t("الوقت")}</TableHead>
+                      <TableHead className="text-start">{t("القاعدة")}</TableHead>
+                      <TableHead className="text-start">{t("المستند")}</TableHead>
+                      <TableHead className="text-start">{t("اللي حصل")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -123,12 +125,12 @@ export default async function AutomationPage() {
                           <TableCell className="text-sm">{x.rule}</TableCell>
                           <TableCell className="text-sm">
                             {def && x.number
-                              ? <Link href={`${def.path}/${encodeURIComponent(x.number)}`} className="text-primary hover:underline">{def.label} {x.number}</Link>
+                              ? <Link href={`${def.path}/${encodeURIComponent(x.number)}`} className="text-primary hover:underline">{t(def.label)} {x.number}</Link>
                               : `${def?.label ?? x.entity} ${x.number ?? ""}`}
                             <div className="text-xs text-muted-foreground">{isEvent(x.event) ? EVENT_LABEL[x.event] : x.event}</div>
                           </TableCell>
                           <TableCell className="text-xs">
-                            <Badge variant={x.status === "DONE" ? "outline" : "destructive"} className="mb-1">{x.status === "DONE" ? "تم" : "فيه فشل"}</Badge>
+                            <Badge variant={x.status === "DONE" ? "outline" : "destructive"} className="mb-1">{x.status === "DONE" ? t("تم") : t("فيه فشل")}</Badge>
                             {(x.detail ?? []).map((l, i) => <div key={i}>{l}</div>)}
                           </TableCell>
                         </TableRow>

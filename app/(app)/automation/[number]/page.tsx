@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { automationRules, organizationMembers, users } from "@/db/schema";
@@ -12,6 +13,7 @@ import { AutomationEditor } from "@/components/erp/automation-editor";
 export const dynamic = "force-dynamic";
 
 export default async function AutomationRulePage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("automation.manage", async ({ orgId }) => {
     const isNew = raw === "new";
@@ -30,7 +32,7 @@ export default async function AutomationRulePage({ params }: { params: Promise<{
       <div className="space-y-6">
         <ErpPageHeader icon="Workflow" backHref="/automation"
           title={rule ? rule.name : "قاعدة أتمتة جديدة"}
-          subtitle="لما ← لو ← اعمل" />
+          subtitle={t("لما ← لو ← اعمل")} />
         <AutomationEditor
           rule={rule ? { id: rule.id, name: rule.name, enabled: rule.enabled, spec: maskSpec(rule.spec as RuleSpec) } : null}
           members={members.map((m) => ({ id: m.id, name: m.name ?? "—", role: erpRoleLabels[m.role] ?? m.role }))}

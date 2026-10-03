@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -31,6 +32,7 @@ type SP = { from?: string; to?: string };
  * Transfer rows.
  */
 export default async function PlatformPayoutsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
+  const t = await getT();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const channel = code.toUpperCase();
@@ -105,9 +107,9 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
         <ErpPageHeader
           icon="Wallet"
           title={`محفظة ومدفوعات ${platform.name}`}
-          subtitle="ما لم تُحوّله المنصّة بعد مقابل ما أودعته في البنك — من التسويات"
+          subtitle={t("ما لم تُحوّله المنصّة بعد مقابل ما أودعته في البنك — من التسويات")}
           backHref={`/platforms/${code}`}
-          action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />كشوف التسويات</Link></Button>}
+          action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />{t("كشوف التسويات")}</Link></Button>}
         />
 
         {/* Noon has no settlement API → record its payouts by hand. Gated to NOON because
@@ -120,9 +122,9 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
         <Card>
           <CardContent className="pt-6">
             <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
-              <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
-              <Button type="submit">عرض</Button>
+              <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
+              <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
+              <Button type="submit">{t("عرض")}</Button>
             </form>
           </CardContent>
         </Card>
@@ -148,7 +150,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                 <>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border p-4">
-                      <div className="text-sm text-muted-foreground">في النظام (دفتر المحفظة)</div>
+                      <div className="text-sm text-muted-foreground">{t("في النظام (دفتر المحفظة)")}</div>
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(walletBalance)}</div>
                     </div>
                     <div className="rounded-xl border p-4">
@@ -159,12 +161,12 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                       </div>
                     </div>
                     <div className={`rounded-xl border p-4 ${gap !== null && !matched ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
-                      <div className="text-sm text-muted-foreground">الفرق</div>
+                      <div className="text-sm text-muted-foreground">{t("الفرق")}</div>
                       <div className={`mt-1 text-2xl font-bold tabular-nums ${gap === null ? "" : matched ? "text-emerald-600" : "text-amber-600"}`}>
                         {gap === null ? "—" : money(gap)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {gap === null ? "عملات متعددة — قارن كل عملة على حدة" : matched ? "مطابق" : "يحتاج مراجعة"}
+                        {gap === null ? t("عملات متعددة — قارن كل عملة على حدة") : matched ? t("مطابق") : t("يحتاج مراجعة")}
                       </div>
                     </div>
                   </div>
@@ -173,9 +175,9 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                     <div className="mt-3 overflow-x-auto">
                       <Table>
                         <TableHeader><TableRow>
-                          <TableHead className="text-start">العملة</TableHead>
-                          <TableHead className="text-start">رصيد أول المدة</TableHead>
-                          <TableHead className="text-start">الرصيد الحالي</TableHead>
+                          <TableHead className="text-start">{t("العملة")}</TableHead>
+                          <TableHead className="text-start">{t("رصيد أول المدة")}</TableHead>
+                          <TableHead className="text-start">{t("الرصيد الحالي")}</TableHead>
                         </TableRow></TableHeader>
                         <TableBody>
                           {reported.map((r) => (
@@ -203,25 +205,25 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">رصيد المحفظة الآن (لم يُحوَّل بعد)</div><div className="text-2xl font-bold tabular-nums">{money(walletBalance)}</div><div className="text-xs text-muted-foreground">رصيد حالي — لا يتأثر بفلتر التاريخ</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المُحوَّل للبنك (خلال الفترة)</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalDisbursed)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد التحويلات (خلال الفترة)</div><div className="text-2xl font-bold tabular-nums">{disbursements.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("رصيد المحفظة الآن (لم يُحوَّل بعد)")}</div><div className="text-2xl font-bold tabular-nums">{money(walletBalance)}</div><div className="text-xs text-muted-foreground">{t("رصيد حالي — لا يتأثر بفلتر التاريخ")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي المُحوَّل للبنك (خلال الفترة)")}</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalDisbursed)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عدد التحويلات (خلال الفترة)")}</div><div className="text-2xl font-bold tabular-nums">{disbursements.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
         </div>
 
         <Card>
           <CardContent className="pt-6">
             {!wallet?.gl ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد محفظة مرتبطة بهذه المنصّة. جهّز المنصّة تلقائيًا لإنشاء بنك التسويات.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد محفظة مرتبطة بهذه المنصّة. جهّز المنصّة تلقائيًا لإنشاء بنك التسويات.")}</div>
             ) : disbursements.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد تحويلات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد تحويلات في هذه الفترة.")}</div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">رقم التسوية</TableHead>
-                      <TableHead className="text-start">المبلغ المُحوَّل</TableHead>
+                      <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{t("رقم التسوية")}</TableHead>
+                      <TableHead className="text-start">{t("المبلغ المُحوَّل")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

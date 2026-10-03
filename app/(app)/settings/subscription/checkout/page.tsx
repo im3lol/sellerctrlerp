@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Zap, Lock, ArrowRight } from "lucide-react";
@@ -17,6 +18,7 @@ type Checkout = { confirm: (o: Record<string, unknown>) => Promise<{ type: "succ
 type Stashed = { clientSecret: string; publishableKey: string; planName: string; amount: number; interval: string };
 
 export default function XpayCheckoutPage() {
+  const t = useT();
   const router = useRouter();
   const [data, setData] = useState<Stashed | null>(null);
   const [email, setEmail] = useState("");
@@ -54,7 +56,7 @@ export default function XpayCheckoutPage() {
         toast.success("تم الدفع بنجاح ✅");
         router.replace("/settings/subscription?xpay=paid");
       } else {
-        setErr(r.error?.message ?? "فشل الدفع — تحقق من بيانات البطاقة");
+        setErr(r.error?.message ?? t("فشل الدفع — تحقق من بيانات البطاقة"));
         setPaying(false);
       }
     } catch (e) {
@@ -63,7 +65,7 @@ export default function XpayCheckoutPage() {
     }
   };
 
-  const intervalLabel = data?.interval === "ANNUAL" ? "سنوي" : "شهري";
+  const intervalLabel = data?.interval === "ANNUAL" ? t("سنوي") : t("شهري");
 
   return (
     <div className="mx-auto max-w-4xl py-4">
@@ -73,30 +75,30 @@ export default function XpayCheckoutPage() {
           <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(120% 120% at 100% 0%, #ffffff55 0%, transparent 45%)" }} />
           <div className="relative">
             <Logo className="text-2xl" variant="white" />
-            <div className="mt-8 text-sm opacity-80">إتمام الاشتراك</div>
+            <div className="mt-8 text-sm opacity-80">{t("إتمام الاشتراك")}</div>
             <div className="mt-1 text-xl font-bold">{data ? `باقة ${data.planName}` : "…"}</div>
             <div className="mt-4 text-4xl font-black tabular-nums">{data ? egp(data.amount) : ""}</div>
             <div className="text-sm opacity-80">{data ? `اشتراك ${intervalLabel}` : ""}</div>
           </div>
           <ul className="relative space-y-3 text-sm">
-            <li className="flex items-center gap-2"><Zap className="size-4" />تفعيل فوري بعد الدفع</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="size-4" />دفع آمن ومشفّر عبر xpay</li>
-            <li className="flex items-center gap-2"><Lock className="size-4" />بياناتك البنكية لا تُخزَّن عندنا</li>
+            <li className="flex items-center gap-2"><Zap className="size-4" />{t("تفعيل فوري بعد الدفع")}</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="size-4" />{t("دفع آمن ومشفّر عبر xpay")}</li>
+            <li className="flex items-center gap-2"><Lock className="size-4" />{t("بياناتك البنكية لا تُخزَّن عندنا")}</li>
           </ul>
         </div>
 
         {/* Payment panel */}
         <div className="space-y-5 bg-card p-8">
-          <h1 className="text-lg font-bold">بيانات الدفع</h1>
+          <h1 className="text-lg font-bold">{t("بيانات الدفع")}</h1>
           <div className="space-y-1.5">
-            <Label htmlFor="email">البريد الإلكتروني <span className="text-muted-foreground">(لإيصال الدفع)</span></Label>
+            <Label htmlFor="email">{t("البريد الإلكتروني")} <span className="text-muted-foreground">{t("(لإيصال الدفع)")}</span></Label>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" dir="ltr" />
           </div>
 
           <div className="space-y-1.5">
-            <Label>بيانات البطاقة</Label>
+            <Label>{t("بيانات البطاقة")}</Label>
             <div className="min-h-[3rem] rounded-xl border p-3">
-              {mounting && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />جارٍ تحميل نموذج الدفع الآمن…</div>}
+              {mounting && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل نموذج الدفع الآمن…")}</div>}
               <div id="payment-element" />
             </div>
           </div>
@@ -111,7 +113,7 @@ export default function XpayCheckoutPage() {
           <button type="button" onClick={() => router.replace("/settings/subscription")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             <ArrowRight className="size-4" />الرجوع للباقات
           </button>
-          <div className="pt-2 text-center text-xs text-muted-foreground">مدعوم بأمان من xpay · وضع اختبار عند استخدام مفاتيح test</div>
+          <div className="pt-2 text-center text-xs text-muted-foreground">{t("مدعوم بأمان من xpay · وضع اختبار عند استخدام مفاتيح test")}</div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -27,6 +28,7 @@ const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
  * now actually use, so this page and the balance sheet cannot disagree.
  */
 export default async function InvestorsPage() {
+  const t = await getT();
   return loadErpPage("investors.view", async ({ orgId, permissions }) => {
     const [names, active, distDraft, investCount, profitPaid, owners, balances] = await Promise.all([
       db.select({ id: investors.id, name: investors.fullName, code: investors.code })
@@ -65,7 +67,7 @@ export default async function InvestorsPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="Coins" title="المستثمرون" subtitle="رأس المال، نسب الملكية، وتوزيعات الأرباح"
+        <ErpPageHeader icon="Coins" title={t("المستثمرون")} subtitle={t("رأس المال، نسب الملكية، وتوزيعات الأرباح")}
           action={<AcademyLink module="investors" />} />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -73,7 +75,7 @@ export default async function InvestorsPage() {
             <Card key={k.label}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <Icon name={k.icon} className="size-4 text-muted-foreground" />
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">{k.int ? intf(k.value) : money(k.value)}</div>
@@ -87,14 +89,14 @@ export default async function InvestorsPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>نسب الملكية</CardTitle>
-              <CardDescription>محسوبة من صافي رأس المال لكل مستثمر (المساهمات − سحوبات رأس المال).</CardDescription>
+              <CardTitle>{t("نسب الملكية")}</CardTitle>
+              <CardDescription>{t("محسوبة من صافي رأس المال لكل مستثمر (المساهمات − سحوبات رأس المال).")}</CardDescription>
             </CardHeader>
             <CardContent>
               {owners.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   لا يوجد رأس مال مستثمَر بعد — سجّل مساهمة من{" "}
-                  <Link href="/investors/investments" className="text-primary underline">مساهمات رأس المال</Link>.
+                  <Link href="/investors/investments" className="text-primary underline">{t("مساهمات رأس المال")}</Link>.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -116,15 +118,15 @@ export default async function InvestorsPage() {
 
           <Card className="flex flex-col justify-center">
             <CardContent className="space-y-4 py-8 text-center">
-              <div className="text-sm text-muted-foreground">رأس المال المستثمَر</div>
+              <div className="text-sm text-muted-foreground">{t("رأس المال المستثمَر")}</div>
               <div className="text-4xl font-bold tabular-nums">{money(capital)}</div>
               <div className="flex justify-center gap-6 pt-2 text-sm">
                 <div>
-                  <div className="text-muted-foreground">مستحق لم يُصرف</div>
+                  <div className="text-muted-foreground">{t("مستحق لم يُصرف")}</div>
                   <div className={cn("font-semibold tabular-nums", payable > 0 && "text-amber-600")}>{money(payable)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">أرباح مصروفة</div>
+                  <div className="text-muted-foreground">{t("أرباح مصروفة")}</div>
                   <div className="font-semibold tabular-nums">{money(Number(profitPaid[0]?.v ?? 0))}</div>
                 </div>
               </div>
@@ -134,7 +136,7 @@ export default async function InvestorsPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="المستثمرون" permissions={permissions} counts={counts} />
+        <ModuleWorkspace heading={t("المستثمرون")} permissions={permissions} counts={counts} />
       </div>
     );
   });

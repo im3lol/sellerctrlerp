@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -36,6 +37,7 @@ export default async function DashboardPage({ params, searchParams }: {
   params: Promise<{ number: string }>;
   searchParams: Promise<{ edit?: string }>;
 }) {
+  const t = await getT();
   const raw = (await params).number;
   const { edit } = await searchParams;
 
@@ -98,11 +100,11 @@ export default async function DashboardPage({ params, searchParams }: {
         <ErpPageHeader
           icon="LayoutDashboard"
           title={board.nameAr}
-          subtitle={board.isShared ? "لوحة مشتركة مع الفريق" : "لوحة خاصة بيك"}
+          subtitle={board.isShared ? t("لوحة مشتركة مع الفريق") : t("لوحة خاصة بيك")}
           backHref="/reports/dashboards"
           action={mine && !editing ? (
             <Button asChild variant="outline">
-              <Link href={`/reports/dashboards/${encodeURIComponent(board.number)}?edit=1`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+              <Link href={`/reports/dashboards/${encodeURIComponent(board.number)}?edit=1`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
             </Button>
           ) : undefined}
         />
@@ -122,20 +124,20 @@ export default async function DashboardPage({ params, searchParams }: {
           )
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
-            {tiles.map((t, i) => (
-              <Card key={`${t.reportId}-${i}`} className={cn(t.wide && "lg:col-span-2")}>
+            {tiles.map((it, i) => (
+              <Card key={`${it.reportId}-${i}`} className={cn(it.wide && "lg:col-span-2")}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <CardTitle className="truncate text-base">{t.title}</CardTitle>
-                      {t.result && (
+                      <CardTitle className="truncate text-base">{it.title}</CardTitle>
+                      {it.result && (
                         <CardDescription>
-                          {t.source} · {int(t.result.matched)} {t.result.grouped ? "مجموعة" : "صف"}
+                          {it.source} · {int(it.result.matched)} {it.result.grouped ? t("مجموعة") : t("صف")}
                         </CardDescription>
                       )}
                     </div>
-                    {t.result && (
-                      <Link href={`/reports/builder?r=${t.reportId}`} title="افتحه في باني التقارير"
+                    {it.result && (
+                      <Link href={`/reports/builder?r=${it.reportId}`} title={t("افتحه في باني التقارير")}
                         className="text-muted-foreground hover:text-primary">
                         <Icon name="ExternalLink" className="size-4" />
                       </Link>
@@ -143,34 +145,34 @@ export default async function DashboardPage({ params, searchParams }: {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {!t.result ? (
-                    <p className="text-sm text-muted-foreground">{t.note}</p>
+                  {!it.result ? (
+                    <p className="text-sm text-muted-foreground">{it.note}</p>
                   ) : (
                     <>
-                      {t.result.totals.length > 0 && (
+                      {it.result.totals.length > 0 && (
                         <div className="flex flex-wrap gap-4">
-                          {t.result.totals.map((x, k) => (
+                          {it.result.totals.map((x, k) => (
                             <div key={k}>
-                              <div className="text-xs text-muted-foreground">{x.label}</div>
+                              <div className="text-xs text-muted-foreground">{t(x.label)}</div>
                               <div className="text-lg font-bold tabular-nums">{fmt(x.value)}</div>
                             </div>
                           ))}
                         </div>
                       )}
-                      {t.result.rows.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">مفيش صفوف بالشروط دي.</p>
-                      ) : t.chart && t.result.grouped ? (
-                        <ReportChart result={{ ...t.result, rows: t.result.rows.slice(0, CHART_ROWS) }} kind={t.chart} id={`w${i}`} />
+                      {it.result.rows.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">{t("مفيش صفوف بالشروط دي.")}</p>
+                      ) : it.chart && it.result.grouped ? (
+                        <ReportChart result={{ ...it.result, rows: it.result.rows.slice(0, CHART_ROWS) }} kind={it.chart} id={`w${i}`} />
                       ) : (
                         <div className="overflow-x-auto rounded-xl border">
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                {t.result.headers.map((h, k) => <TableHead key={k} className="whitespace-nowrap text-start">{h}</TableHead>)}
+                                {it.result.headers.map((h, k) => <TableHead key={k} className="whitespace-nowrap text-start">{h}</TableHead>)}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {t.result.rows.slice(0, PREVIEW_ROWS).map((row, k) => (
+                              {it.result.rows.slice(0, PREVIEW_ROWS).map((row, k) => (
                                 <TableRow key={k}>
                                   {row.map((c, j) => (
                                     <TableCell key={j} className={typeof c === "number" ? "tabular-nums" : ""}>{fmt(c)}</TableCell>
@@ -181,9 +183,9 @@ export default async function DashboardPage({ params, searchParams }: {
                           </Table>
                         </div>
                       )}
-                      {!t.chart && t.result.rows.length > PREVIEW_ROWS && (
+                      {!it.chart && it.result.rows.length > PREVIEW_ROWS && (
                         <p className="text-xs text-muted-foreground">
-                          و{int(t.result.rows.length - PREVIEW_ROWS)} كمان — <Link href={`/reports/builder?r=${t.reportId}`} className="text-primary underline">شوف الكل</Link>
+                          و{int(it.result.rows.length - PREVIEW_ROWS)} كمان — <Link href={`/reports/builder?r=${it.reportId}`} className="text-primary underline">{t("شوف الكل")}</Link>
                         </p>
                       )}
                     </>

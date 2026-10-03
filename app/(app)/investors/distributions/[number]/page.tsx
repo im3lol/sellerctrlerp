@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -15,6 +16,7 @@ const pct = (n: number) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFract
 const dt = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
 
 export default async function DistributionDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("investors.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, profitDistributions,
@@ -53,9 +55,9 @@ export default async function DistributionDetailPage({ params }: { params: Promi
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي الربح الموزَّع</div><div className="text-2xl font-bold tabular-nums">{money(header)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مجموع الحصص</div><div className={`text-2xl font-bold tabular-nums ${drift !== 0 ? "text-destructive" : ""}`}>{money(sum)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">الحالة</div><div className="mt-2"><Badge variant={dist.status === "POSTED" ? "default" : "secondary"}>{dist.status === "POSTED" ? "مُرحّل" : "مسودة"}</Badge></div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي الربح الموزَّع")}</div><div className="text-2xl font-bold tabular-nums">{money(header)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("مجموع الحصص")}</div><div className={`text-2xl font-bold tabular-nums ${drift !== 0 ? "text-destructive" : ""}`}>{money(sum)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("الحالة")}</div><div className="mt-2"><Badge variant={dist.status === "POSTED" ? "default" : "secondary"}>{dist.status === "POSTED" ? t("مُرحّل") : t("مسودة")}</Badge></div></CardContent></Card>
         </div>
 
         {drift !== 0 && (
@@ -65,15 +67,15 @@ export default async function DistributionDetailPage({ params }: { params: Promi
         )}
 
         <Card>
-          <CardHeader><CardTitle className="text-base">حصص المستثمرين</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("حصص المستثمرين")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40 text-right">
                 <tr>
-                  <th className="p-3 font-medium">المستثمر</th>
-                  <th className="p-3 font-medium">نسبة الملكية</th>
-                  <th className="p-3 font-medium">الحالة</th>
-                  <th className="p-3 text-left font-medium">الحصة</th>
+                  <th className="p-3 font-medium">{t("المستثمر")}</th>
+                  <th className="p-3 font-medium">{t("نسبة الملكية")}</th>
+                  <th className="p-3 font-medium">{t("الحالة")}</th>
+                  <th className="p-3 text-left font-medium">{t("الحصة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -81,14 +83,14 @@ export default async function DistributionDetailPage({ params }: { params: Promi
                   <tr key={r.id} className="border-b last:border-0">
                     <td className="p-3">{r.investor}<span className="mr-2 text-xs text-muted-foreground">{r.code}</span></td>
                     <td className="p-3 tabular-nums text-muted-foreground">{pct(Number(r.percent))}</td>
-                    <td className="p-3"><Badge variant="secondary">{r.status === "PENDING" ? "مستحقة" : r.status}</Badge></td>
+                    <td className="p-3"><Badge variant="secondary">{r.status === "PENDING" ? t("مستحقة") : r.status}</Badge></td>
                     <td className="p-3 text-left font-semibold tabular-nums">{money(Number(r.share))}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t bg-muted/40">
                 <tr>
-                  <td className="p-3 font-semibold" colSpan={3}>الإجمالي</td>
+                  <td className="p-3 font-semibold" colSpan={3}>{t("الإجمالي")}</td>
                   <td className="p-3 text-left font-bold tabular-nums">{money(sum)}</td>
                 </tr>
               </tfoot>
@@ -99,7 +101,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
         {dist.status === "POSTED" && (
           <p className="text-sm text-muted-foreground">
             تم ترحيل القيد: أرباح موزّعة (3103) مدين · أرباح مستحقة للمستثمرين (2104) دائن. يُصرف المستحق لكل مستثمر من{" "}
-            <a href="/investors/withdrawals" className="text-primary underline">السحوبات</a>.
+            <a href="/investors/withdrawals" className="text-primary underline">{t("السحوبات")}</a>.
           </p>
         )}
       </div>

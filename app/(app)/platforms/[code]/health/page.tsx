@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, inventoryAudits } from "@/db/schema";
@@ -21,6 +22,7 @@ type Check = { icon: string; title: string; count: number; ok: string; bad: stri
  * its own screen, as a count with the link that fixes it. Read-only.
  */
 export default async function AmazonHealthPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = await getT();
   const { code } = await params;
   const back = `/platforms/${code.toLowerCase()}`;
 
@@ -33,15 +35,15 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
       .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase())))
       .limit(1);
     const header = (
-      <ErpPageHeader icon="HeartPulse" title="صحة أمازون" backHref={platform ? back : "/platforms"}
-        subtitle="كل اللي محتاج منك حاجة في أمازون النهارده — في صفحة واحدة" />
+      <ErpPageHeader icon="HeartPulse" title={t("صحة أمازون")} backHref={platform ? back : "/platforms"}
+        subtitle={t("كل اللي محتاج منك حاجة في أمازون النهارده — في صفحة واحدة")} />
     );
     if (platform?.integrationType !== "amazon") {
       return (
         <div className="space-y-6">{header}
           <div className="space-y-3 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            <p>الصفحة دي لمنصة أمازون — اربط حسابك الأول من صفحة المنصات.</p>
-            <Button asChild size="sm"><Link href="/platforms">اربط أمازون</Link></Button>
+            <p>{t("الصفحة دي لمنصة أمازون — اربط حسابك الأول من صفحة المنصات.")}</p>
+            <Button asChild size="sm"><Link href="/platforms">{t("اربط أمازون")}</Link></Button>
           </div>
         </div>
       );
@@ -92,7 +94,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
         <div className={cn("flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium",
           open === 0 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300")}>
           <Icon name={open === 0 ? "CircleCheck" : "TriangleAlert"} className="size-5 shrink-0" />
-          {open === 0 ? "كله تمام — مفيش حاجة مستنياك في أمازون." : `${int(open)} من ${int(checks.length)} محتاجين منك حاجة.`}
+          {open === 0 ? t("كله تمام — مفيش حاجة مستنياك في أمازون.") : `${int(open)} من ${int(checks.length)} محتاجين منك حاجة.`}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {checks.map((c) => {

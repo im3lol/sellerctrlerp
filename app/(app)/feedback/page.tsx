@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
@@ -27,6 +28,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
  * one company must never read another's complaints.
  */
 export default async function FeedbackPage() {
+  const t = await getT();
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
   if (!org) redirect("/apps");
@@ -38,14 +40,14 @@ export default async function FeedbackPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
-      <ErpPageHeader icon="MessageSquarePlus" title="اقتراح أو شكوى"
-        subtitle="قول لنا إيه اللي ناقص أو إيه اللي مضايقك — بنقرا كل حاجة" />
+      <ErpPageHeader icon="MessageSquarePlus" title={t("اقتراح أو شكوى")}
+        subtitle={t("قول لنا إيه اللي ناقص أو إيه اللي مضايقك — بنقرا كل حاجة")} />
 
       <FeedbackForm />
 
       {mine.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">اللي بعتّوه قبل كده</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">{t("اللي بعتّوه قبل كده")}</h2>
           {mine.map((f) => {
             const s = STATUS[f.status] ?? STATUS.open;
             return (
@@ -58,14 +60,14 @@ export default async function FeedbackPage() {
                       <span className="font-medium">{f.subject}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={s.variant}>{s.label}</Badge>
+                      <Badge variant={s.variant}>{t(s.label)}</Badge>
                       <span className="text-xs text-muted-foreground">{fmt(f.createdAt)}</span>
                     </div>
                   </div>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">{f.message}</p>
                   {f.reply && (
                     <div className="rounded-lg border-r-2 border-primary bg-muted/50 p-3">
-                      <div className="mb-1 text-xs font-medium text-primary">ردّنا</div>
+                      <div className="mb-1 text-xs font-medium text-primary">{t("ردّنا")}</div>
                       <p className="whitespace-pre-wrap text-sm">{f.reply}</p>
                     </div>
                   )}

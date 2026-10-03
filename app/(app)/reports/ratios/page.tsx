@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ const ratio = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
 const pctv = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : "—");
 
 export default async function RatiosReportPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const balances = await accountBalances({ orgId });
 
@@ -54,41 +56,41 @@ export default async function RatiosReportPage() {
       <ReportShell
         reportKey="ratios"
         icon="Activity"
-        title="المؤشرات المالية"
-        subtitle="نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية"
+        title={t("المؤشرات المالية")}
+        subtitle={t("نسب السيولة والربحية والملاءة من أرصدة الأستاذ الحالية")}
         permissions={permissions}
       >
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">السيولة</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("السيولة")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="النسبة الجارية" value={ratio(currentRatio)} hint="أصول متداولة ÷ خصوم متداولة" tone={currentRatio >= 1 ? "text-emerald-600" : "text-destructive"} />
-            <Metric label="النسبة السريعة" value={ratio(quickRatio)} hint="بدون المخزون" />
-            <Metric label="رأس المال العامل" value={fmt(workingCapital)} tone={workingCapital >= 0 ? "" : "text-destructive"} />
-            <Metric label="النقدية والبنك" value={fmt(cash)} />
+            <Metric label={t("النسبة الجارية")} value={ratio(currentRatio)} hint={t("أصول متداولة ÷ خصوم متداولة")} tone={currentRatio >= 1 ? "text-emerald-600" : "text-destructive"} />
+            <Metric label={t("النسبة السريعة")} value={ratio(quickRatio)} hint={t("بدون المخزون")} />
+            <Metric label={t("رأس المال العامل")} value={fmt(workingCapital)} tone={workingCapital >= 0 ? "" : "text-destructive"} />
+            <Metric label={t("النقدية والبنك")} value={fmt(cash)} />
           </div>
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">الربحية</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("الربحية")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="هامش الربح الإجمالي" value={pctv(grossMargin)} hint={`إجمالي ${fmt(grossProfit)}`} tone={grossProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
-            <Metric label="هامش الربح الصافي" value={pctv(netMargin)} hint={`صافي ${fmt(netProfit)}`} tone={netProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
-            <Metric label="الإيراد" value={fmt(revenue)} />
-            <Metric label="المصروفات التشغيلية" value={fmt(opex)} />
+            <Metric label={t("هامش الربح الإجمالي")} value={pctv(grossMargin)} hint={`إجمالي ${fmt(grossProfit)}`} tone={grossProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
+            <Metric label={t("هامش الربح الصافي")} value={pctv(netMargin)} hint={`صافي ${fmt(netProfit)}`} tone={netProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
+            <Metric label={t("الإيراد")} value={fmt(revenue)} />
+            <Metric label={t("المصروفات التشغيلية")} value={fmt(opex)} />
           </div>
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">الكفاءة والملاءة</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("الكفاءة والملاءة")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="متوسط تحصيل الذمم (يوم)" value={ratio(dso)} hint="DSO — ذمم مدينة ÷ متوسط البيع اليومي" />
-            <Metric label="متوسط سداد الموردين (يوم)" value={ratio(dpo)} hint="DPO" />
-            <Metric label="معدّل دوران المخزون" value={ratio(invTurnover)} hint="تكلفة المبيعات ÷ المخزون" />
-            <Metric label="الدين إلى حقوق الملكية" value={ratio(debtToEquity)} hint="إجمالي الخصوم ÷ حقوق الملكية" tone={debtToEquity <= 2 ? "" : "text-amber-600"} />
+            <Metric label={t("متوسط تحصيل الذمم (يوم)")} value={ratio(dso)} hint={t("DSO — ذمم مدينة ÷ متوسط البيع اليومي")} />
+            <Metric label={t("متوسط سداد الموردين (يوم)")} value={ratio(dpo)} hint="DPO" />
+            <Metric label={t("معدّل دوران المخزون")} value={ratio(invTurnover)} hint={t("تكلفة المبيعات ÷ المخزون")} />
+            <Metric label={t("الدين إلى حقوق الملكية")} value={ratio(debtToEquity)} hint={t("إجمالي الخصوم ÷ حقوق الملكية")} tone={debtToEquity <= 2 ? "" : "text-amber-600"} />
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">المؤشرات محسوبة من أرصدة الأستاذ الحالية؛ نسب النشاط (DSO/DPO/الدوران) تفترض الأرصدة الجارية معدّلاً سنوياً — للإرشاد لا للتقارير الرسمية.</p>
+        <p className="text-xs text-muted-foreground">{t("المؤشرات محسوبة من أرصدة الأستاذ الحالية؛ نسب النشاط (DSO/DPO/الدوران) تفترض الأرصدة الجارية معدّلاً سنوياً — للإرشاد لا للتقارير الرسمية.")}</p>
       </ReportShell>
     );
   });

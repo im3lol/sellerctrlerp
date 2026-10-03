@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBudgets, accounts } from "@/db/schema";
@@ -8,6 +9,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 type Params = { params: Promise<{ year: string }> };
 
 export default async function BudgetEntryPage({ params }: Params) {
+  const t = await getT();
   const year = parseInt((await params).year, 10);
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canEdit = can("accounting.create");
@@ -47,7 +49,7 @@ export default async function BudgetEntryPage({ params }: Params) {
         <ErpPageHeader
           icon="Target"
           title={`ميزانية ${year}`}
-          subtitle="ادخل الميزانية التقديرية لكل حساب إيرادات ومصروفات"
+          subtitle={t("ادخل الميزانية التقديرية لكل حساب إيرادات ومصروفات")}
           backHref="/accounting/budget"
         />
         <BudgetEntryClient year={year} rows={rows} canEdit={canEdit} />

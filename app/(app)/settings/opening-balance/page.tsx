@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines, salesPlatforms, platformCredentials } from "@/db/schema";
@@ -14,6 +15,7 @@ import { OpeningBalanceEditor } from "@/components/erp/opening-balance-editor";
  * stock adjustments, which is why onboarding stalled for every real customer.
  */
 export default async function OpeningBalancePage() {
+  const t = await getT();
   return loadErpPage("accounting.create", async ({ orgId }) => {
     // Accounts/customers/suppliers stay client-side (bounded); items are searched
     // server-side (the catalog can be tens of thousands of rows).
@@ -85,8 +87,8 @@ export default async function OpeningBalancePage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="Upload" title="الأرصدة الافتتاحية"
-          subtitle="أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية" backHref="/settings" />
+        <ErpPageHeader icon="Upload" title={t("الأرصدة الافتتاحية")}
+          subtitle={t("أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية")} backHref="/settings" />
 
         {custs.length + supps.length + itms.length === 0 && (
           <Card>

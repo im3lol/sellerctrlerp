@@ -118,32 +118,32 @@ export default async function AppsPage() {
       <section>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("الوحدات")}</h2>
         <div data-tour="app-launcher" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {tiles.map((t) => (
+          {tiles.map((it) => (
             <div
-              key={t.href}
+              key={it.href}
               className="group relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
             >
               {/* The whole card opens the module; its quick links sit above this layer. */}
-              <Link href={t.href} aria-label={t.label} className="absolute inset-0 rounded-2xl" />
+              <Link href={it.href} aria-label={it.label} className="absolute inset-0 rounded-2xl" />
               <div className="flex items-center gap-3">
-                <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-105", t.color)}>
-                  <Icon name={t.icon} className="size-6" />
+                <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-105", it.color)}>
+                  <Icon name={it.icon} className="size-6" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{t.label}</span>
-                  {t.pages > 0 && <span className="block text-xs text-muted-foreground">{n(t.pages)} صفحة</span>}
+                  <span className="block truncate font-semibold">{t(it.label)}</span>
+                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{n(it.pages)} صفحة</span>}
                 </span>
                 <Icon name="ArrowLeft" className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:-translate-x-0.5 group-hover:opacity-100" />
               </div>
-              {t.links.length > 0 && (
+              {it.links.length > 0 && (
                 <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
-                  {t.links.map((l) => (
+                  {it.links.map((l) => (
                     <Link
                       key={l.href}
                       href={l.href}
                       className="rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                     >
-                      {l.label}
+                      {t(l.label)}
                     </Link>
                   ))}
                 </div>

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
@@ -10,6 +11,7 @@ import { OrgDeletionCard } from "@/components/erp/org-deletion";
 import { DELETION_GRACE_DAYS, deletionDueAt } from "@/lib/erp/org-deletion";
 
 export default async function OrganizationSettingsPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId, can, role }) => {
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
 
@@ -33,7 +35,7 @@ export default async function OrganizationSettingsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Building2" title="بيانات المنشأة" subtitle="الاسم والشعار وبيانات التواصل والإعدادات الضريبية" backHref="/settings" />
+        <ErpPageHeader icon="Building2" title={t("بيانات المنشأة")} subtitle={t("الاسم والشعار وبيانات التواصل والإعدادات الضريبية")} backHref="/settings" />
         <SettingsForm section="profile" profile={profile} config={null} accounts={[]} canEdit={can("settings.edit")} />
         {role === "admin" && org && !org.isSandbox && (
           <OrgDeletionCard orgName={org.nameAr} graceDays={DELETION_GRACE_DAYS}

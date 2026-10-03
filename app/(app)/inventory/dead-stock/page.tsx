@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ const DAYS = [30, 60, 90, 180, 365];
 type Row = { code: string | null; name: string | null; qty: number; val: number; sold: number; last: string | null };
 
 export default async function DeadStockPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const days = DAYS.includes(Number(sp.days)) ? Number(sp.days) : 90;
@@ -72,19 +74,19 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
       <ReportShell
         reportKey="inv-dead"
         icon="PackageX"
-        title="المخزون الراكد وبطيء الحركة"
-        subtitle="رأس المال المحبوس في بضاعة لا تتحرك"
+        title={t("المخزون الراكد وبطيء الحركة")}
+        subtitle={t("رأس المال المحبوس في بضاعة لا تتحرك")}
         query={filterQs.toString()}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="فترة القياس">
+            <ReportField label={t("فترة القياس")}>
               <select name="days" defaultValue={String(days)} className={filterFieldCls}>
                 {DAYS.map((d) => <option key={d} value={d}>آخر {d} يوم</option>)}
               </select>
             </ReportField>
-            <ReportField label="بحث">
-              <Input name="q" defaultValue={q} placeholder="الكود أو الاسم" />
+            <ReportField label={t("بحث")}>
+              <Input name="q" defaultValue={q} placeholder={t("الكود أو الاسم")} />
             </ReportField>
           </>
         }
@@ -96,23 +98,23 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
       >
         <Card>
           <CardHeader>
-            <CardTitle>الأصناف المتوفّرة مرتّبة حسب الركود</CardTitle>
-            <CardDescription>«راكد» = لا مبيعات خلال الفترة · «بطيء» = المخزون يكفي أكثر من فترة كاملة بمعدّل البيع الحالي.</CardDescription>
+            <CardTitle>{t("الأصناف المتوفّرة مرتّبة حسب الركود")}</CardTitle>
+            <CardDescription>{t("«راكد» = لا مبيعات خلال الفترة · «بطيء» = المخزون يكفي أكثر من فترة كاملة بمعدّل البيع الحالي.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد مخزون متوفّر مطابق.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا يوجد مخزون متوفّر مطابق.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">المتوفّر</TableHead>
-                    <TableHead className="text-end">قيمة المخزون</TableHead>
-                    <TableHead className="text-end">مباع (الفترة)</TableHead>
-                    <TableHead className="text-end">آخر بيع</TableHead>
-                    <TableHead className="text-end">تغطية (يوم)</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("المتوفّر")}</TableHead>
+                    <TableHead className="text-end">{t("قيمة المخزون")}</TableHead>
+                    <TableHead className="text-end">{t("مباع (الفترة)")}</TableHead>
+                    <TableHead className="text-end">{t("آخر بيع")}</TableHead>
+                    <TableHead className="text-end">{t("تغطية (يوم)")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

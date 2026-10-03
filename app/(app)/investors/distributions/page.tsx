@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -13,6 +14,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 const dt = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
 
 export default async function DistributionsPage() {
+  const t = await getT();
   return loadErpPage("investors.view", async ({ orgId, can }) => {
     const [rows, balances] = await Promise.all([
       db.select({
@@ -34,23 +36,23 @@ export default async function DistributionsPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="PieChart" title="توزيعات الأرباح" subtitle={`${rows.length} توزيع`} backHref="/investors"
+        <ErpPageHeader icon="PieChart" title={t("توزيعات الأرباح")} subtitle={`${rows.length} توزيع`} backHref="/investors"
           action={can("investors.edit") ? <DistributionForm suggestedProfit={Math.round(netProfit * 100) / 100} /> : undefined}
         />
 
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">لا توجد توزيعات بعد.</p>
+              <p className="py-12 text-center text-sm text-muted-foreground">{t("لا توجد توزيعات بعد.")}</p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40 text-right">
                   <tr>
-                    <th className="p-3 font-medium">الفترة</th>
-                    <th className="p-3 font-medium">التاريخ</th>
-                    <th className="p-3 font-medium">الحصص</th>
-                    <th className="p-3 font-medium">الحالة</th>
-                    <th className="p-3 text-left font-medium">إجمالي الربح</th>
+                    <th className="p-3 font-medium">{t("الفترة")}</th>
+                    <th className="p-3 font-medium">{t("التاريخ")}</th>
+                    <th className="p-3 font-medium">{t("الحصص")}</th>
+                    <th className="p-3 font-medium">{t("الحالة")}</th>
+                    <th className="p-3 text-left font-medium">{t("إجمالي الربح")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -66,7 +68,7 @@ export default async function DistributionsPage() {
                       <td className="p-3 tabular-nums text-muted-foreground">{Number(r.shares)}</td>
                       <td className="p-3">
                         <Badge variant={r.status === "POSTED" ? "default" : "secondary"}>
-                          {r.status === "POSTED" ? "مُرحّل" : "مسودة"}
+                          {r.status === "POSTED" ? t("مُرحّل") : t("مسودة")}
                         </Badge>
                       </td>
                       <td className="p-3 text-left font-semibold tabular-nums">{money(Number(r.totalProfit))}</td>

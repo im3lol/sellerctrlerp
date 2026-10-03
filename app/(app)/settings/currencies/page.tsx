@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { currencies, exchangeRates } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { CurrenciesManager } from "@/components/erp/currencies-manager";
 
 export default async function CurrenciesPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId }) => {
     const [currencyRows, rateRows] = await Promise.all([
       db
@@ -39,8 +41,8 @@ export default async function CurrenciesPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="BadgeDollarSign"
-          title="العملات وأسعار الصرف"
-          subtitle="حدّد العملات المستخدمة وأدخل أسعار الصرف اليومية."
+          title={t("العملات وأسعار الصرف")}
+          subtitle={t("حدّد العملات المستخدمة وأدخل أسعار الصرف اليومية.")}
           backHref="/settings"
         />
         <CurrenciesManager currencies={currencyRows} rates={rateRows} />

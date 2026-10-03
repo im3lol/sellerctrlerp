@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -9,6 +10,7 @@ import { JournalEntryForm, type JournalEntryInitial } from "@/components/erp/jou
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function EditJournalEntryPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("accounting.create", async ({ orgId }) => {
     const [entry] = await db.select().from(journalEntries)
@@ -36,7 +38,7 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BookText" title={`تعديل قيد ${entry.number}`} subtitle="مسودة — عدّل البنود مع الحفاظ على التوازن ثم احفظ" backHref={`/accounting/journal/${encodeURIComponent(entry.number)}`} />
+        <ErpPageHeader icon="BookText" title={`تعديل قيد ${entry.number}`} subtitle={t("مسودة — عدّل البنود مع الحفاظ على التوازن ثم احفظ")} backHref={`/accounting/journal/${encodeURIComponent(entry.number)}`} />
         <JournalEntryForm accounts={accountList} costCenters={centerList} initial={initial} />
       </div>
     );

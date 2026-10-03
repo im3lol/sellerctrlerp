@@ -50,9 +50,13 @@ for (const file of files) {
   src = src.replace(/>([^<>{}\n]*[؀-ۿ][^<>{}\n]*)</g, (_m, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return _m;
+    // `a > 0 ? "x" : a < 0` reads like >text< to the regex — real JSX text holds no quotes or ternary.
+    if (trimmed.includes('"') || /\s\?\s.*:/.test(trimmed)) return _m;
     const [, lead = "", , trail = ""] = text.match(/^(\s*)([\S\s]*?)(\s*)$/) ?? [];
     wrapped++;
-    return `>${lead}{t(${JSON.stringify(trimmed)})}${trail}<`;
+    // JSX decodes entities in text but not inside a JS string — decode before it becomes the key.
+    const decoded = trimmed.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    return `>${lead}{t(${JSON.stringify(decoded)})}${trail}<`;
   });
 
   // 3) ternary + fallback literals — only Arabic, only plain (no braces / interpolation).

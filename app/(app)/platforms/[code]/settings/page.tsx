@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { getConnection } from "@/lib/erp/marketplace/connection";
 
 /** إعدادات المنصة — الصفحة المخصصة بدل الـ dialog المزدحم القديم. */
 export default async function PlatformSettingsPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = await getT();
   const code = decodeURIComponent((await params).code).toUpperCase();
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [[platform], whRows, bankRows] = await Promise.all([
@@ -50,7 +52,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
         <ErpPageHeader
           icon="Settings"
           title={`إعدادات ${platform.name}`}
-          subtitle="الهوية · المزامنة · المعالجة التلقائية · الربط المحاسبي"
+          subtitle={t("الهوية · المزامنة · المعالجة التلقائية · الربط المحاسبي")}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
         <PlatformSettingsForm platform={platform} warehouses={whRows} bankAccounts={bankRows} autoSync={!!conn?.autoSync} connected={!!conn?.connected} />

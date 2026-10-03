@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { apiKeys } from "@/db/schema";
@@ -10,6 +11,7 @@ import { ApiKeysManager } from "@/components/erp/api-keys-manager";
 const dt = (d: unknown) => (d ? new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "");
 
 export default async function ApiKeysPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId }) => {
     const rows = await db.select().from(apiKeys).where(eq(apiKeys.organizationId, orgId)).orderBy(desc(apiKeys.createdAt));
     const now = Date.now();
@@ -22,16 +24,16 @@ export default async function ApiKeysPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="KeyRound" title="مفاتيح الـ API" subtitle="اربط أنظمتك الخارجية بالبيانات عبر REST API" backHref="/settings" />
+        <ErpPageHeader icon="KeyRound" title={t("مفاتيح الـ API")} subtitle={t("اربط أنظمتك الخارجية بالبيانات عبر REST API")} backHref="/settings" />
         <ApiKeysManager keys={keys} />
         <Card>
-          <CardHeader><CardTitle className="text-base">نقاط النهاية المتاحة</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("نقاط النهاية المتاحة")}</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p className="text-muted-foreground">أرسل المفتاح في الترويسة <code dir="ltr">Authorization: Bearer &lt;key&gt;</code> أو <code dir="ltr">x-api-key</code>.</p>
+            <p className="text-muted-foreground">{t("أرسل المفتاح في الترويسة")} <code dir="ltr">Authorization: Bearer &lt;key&gt;</code> {t("أو")} <code dir="ltr">x-api-key</code>.</p>
             <ul className="space-y-1 font-mono text-xs" dir="ltr">
-              <li><Badge>GET</Badge> /api/v1/items — الأصناف (كود، اسم، سعر البيع، حد الطلب)</li>
-              <li><Badge>GET</Badge> /api/v1/stock — الأرصدة (المتوفّر + القيمة لكل صنف)</li>
-              <li><Badge variant="secondary">POST</Badge> /api/v1/sales-orders — إنشاء أمر بيع مسودة (customer + lines بالـ code أو id)</li>
+              <li><Badge>GET</Badge> {t("/api/v1/items — الأصناف (كود، اسم، سعر البيع، حد الطلب)")}</li>
+              <li><Badge>GET</Badge> {t("/api/v1/stock — الأرصدة (المتوفّر + القيمة لكل صنف)")}</li>
+              <li><Badge variant="secondary">POST</Badge> {t("/api/v1/sales-orders — إنشاء أمر بيع مسودة (customer + lines بالـ code أو id)")}</li>
             </ul>
           </CardContent>
         </Card>

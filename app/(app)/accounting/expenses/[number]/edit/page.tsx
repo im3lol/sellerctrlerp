@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -8,6 +9,7 @@ import { ExpenseForm, type ExpenseInitial } from "@/components/erp/expense-form"
 import { docNumberParam } from "@/lib/erp/doc-route";
 
 export default async function EditExpensePage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("accounting.create", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, expenses,
@@ -37,7 +39,7 @@ export default async function EditExpensePage({ params }: { params: Promise<{ nu
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Wallet" title={`تعديل مصروف ${exp.number}`} subtitle="مسودة — عدّل بيانات المصروف ثم احفظ" backHref="/accounting/expenses" />
+        <ErpPageHeader icon="Wallet" title={`تعديل مصروف ${exp.number}`} subtitle={t("مسودة — عدّل بيانات المصروف ثم احفظ")} backHref="/accounting/expenses" />
         <ExpenseForm expenseAccounts={expenseAccs} cashAccounts={cashAccs}
           projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${p.nameAr}` }))} initial={initial} />
       </div>

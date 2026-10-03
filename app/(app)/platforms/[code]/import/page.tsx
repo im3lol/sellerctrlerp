@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -18,6 +19,7 @@ import { getConnector } from "@/lib/erp/marketplace/registry";
 export default async function PlatformImportPage({
   params, searchParams,
 }: { params: Promise<{ code: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const t = await getT();
   const { code: codeParam } = await params;
   const { tab } = await searchParams;
   return loadErpPage("sales.create", async ({ orgId }) => {
@@ -59,17 +61,17 @@ export default async function PlatformImportPage({
         <ErpPageHeader
           icon="Upload"
           title={`استيراد — ${platform.name}`}
-          subtitle="استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة"
+          subtitle={t("استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة")}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
 
         {isAmazon ? (
           <Tabs defaultValue={defaultTab}>
             <TabsList>
-              <TabsTrigger value="orders">مبيعات</TabsTrigger>
-              <TabsTrigger value="settlement">تسويات (مرتجعات + مدفوعات + عمولات)</TabsTrigger>
-              <TabsTrigger value="inventory">مخزون</TabsTrigger>
-              <TabsTrigger value="removals">إزالات</TabsTrigger>
+              <TabsTrigger value="orders">{t("مبيعات")}</TabsTrigger>
+              <TabsTrigger value="settlement">{t("تسويات (مرتجعات + مدفوعات + عمولات)")}</TabsTrigger>
+              <TabsTrigger value="inventory">{t("مخزون")}</TabsTrigger>
+              <TabsTrigger value="removals">{t("إزالات")}</TabsTrigger>
             </TabsList>
             <TabsContent value="orders"><AmazonImport /></TabsContent>
             <TabsContent value="settlement"><SettlementImport code={platform.code} rows={settlementRows} unpostedReleased={unpostedReleased} /></TabsContent>
@@ -79,12 +81,12 @@ export default async function PlatformImportPage({
         ) : (
           <Tabs defaultValue={defaultTab}>
             <TabsList>
-              {showPayouts && <TabsTrigger value="payouts">التسويات (مدفوعات + عمولات)</TabsTrigger>}
-              <TabsTrigger value="orders">مبيعات</TabsTrigger>
-              <TabsTrigger value="payments">مدفوعات</TabsTrigger>
-              <TabsTrigger value="returns">مرتجعات</TabsTrigger>
-              <TabsTrigger value="inventory">مخزون</TabsTrigger>
-              <TabsTrigger value="removals">إزالات</TabsTrigger>
+              {showPayouts && <TabsTrigger value="payouts">{t("التسويات (مدفوعات + عمولات)")}</TabsTrigger>}
+              <TabsTrigger value="orders">{t("مبيعات")}</TabsTrigger>
+              <TabsTrigger value="payments">{t("مدفوعات")}</TabsTrigger>
+              <TabsTrigger value="returns">{t("مرتجعات")}</TabsTrigger>
+              <TabsTrigger value="inventory">{t("مخزون")}</TabsTrigger>
+              <TabsTrigger value="removals">{t("إزالات")}</TabsTrigger>
             </TabsList>
             {showPayouts && (
               <TabsContent value="payouts">

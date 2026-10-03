@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { fiscalPeriods } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PeriodsManager } from "@/components/erp/periods-manager";
 
 export default async function PeriodsPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const rows = await db
       .select({
@@ -21,7 +23,7 @@ export default async function PeriodsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Lock" title="إقفال الفترات المالية" subtitle={`${rows.length} فترة`} />
+        <ErpPageHeader icon="Lock" title={t("إقفال الفترات المالية")} subtitle={`${rows.length} فترة`} />
         <PeriodsManager periods={rows} canManage={can("accounting.create")} />
       </div>
     );

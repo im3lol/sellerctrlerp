@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
@@ -17,6 +18,7 @@ export default async function IncomeStatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
@@ -70,14 +72,14 @@ export default async function IncomeStatementPage({
       <ReportShell
         reportKey="income-statement"
         icon="TrendingUp"
-        title="قائمة الدخل"
+        title={t("قائمة الدخل")}
         subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
         query={query}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
           </>
         }
         kpis={[
@@ -87,15 +89,15 @@ export default async function IncomeStatementPage({
           { op: "=" },
           { label: "صافي الربح", value: fmt(netProfit), tone: netProfit >= 0 ? "profit" : "loss" },
         ]}
-        chartTitle={monthlyNet.some((m) => m.value !== 0) ? "صافي الربح الشهري — آخر ١٢ شهرًا" : undefined}
+        chartTitle={monthlyNet.some((m) => m.value !== 0) ? t("صافي الربح الشهري — آخر ١٢ شهرًا") : undefined}
         chart={monthlyNet.some((m) => m.value !== 0)
-          ? <BarChart data={monthlyNet} valueLabel="الصافي" money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
+          ? <BarChart data={monthlyNet} valueLabel={t("الصافي")} money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
           : undefined}
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>الإيرادات</CardTitle>
+              <CardTitle>{t("الإيرادات")}</CardTitle>
               <CardDescription>إجمالي {fmt(totalRevenue)}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -105,7 +107,7 @@ export default async function IncomeStatementPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>المصروفات</CardTitle>
+              <CardTitle>{t("المصروفات")}</CardTitle>
               <CardDescription>إجمالي {fmt(totalExpense)}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -119,7 +121,7 @@ export default async function IncomeStatementPage({
   });
 }
 
-function StatementTable({
+async function StatementTable({
   rows,
   empty,
   totalLabel,
@@ -130,6 +132,7 @@ function StatementTable({
   totalLabel: string;
   total: number;
 }) {
+  const t = await getT();
   if (rows.length === 0) {
     return <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground">{empty}</div>;
   }
@@ -137,9 +140,9 @@ function StatementTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="text-start">الكود</TableHead>
-          <TableHead className="text-start">الحساب</TableHead>
-          <TableHead className="text-start">المبلغ</TableHead>
+          <TableHead className="text-start">{t("الكود")}</TableHead>
+          <TableHead className="text-start">{t("الحساب")}</TableHead>
+          <TableHead className="text-start">{t("المبلغ")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

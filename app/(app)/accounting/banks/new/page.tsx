@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -13,6 +14,7 @@ import { upsertBankAccountAction } from "@/app/actions/erp/bank-accounts";
 import { FormCombobox } from "@/components/erp/form-combobox";
 
 export default async function NewBankAccountPage() {
+  const t = await getT();
   return loadErpPage("accounting.create", async ({ orgId }) => {
     const glAccounts = await db
       .select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr })
@@ -38,50 +40,50 @@ export default async function NewBankAccountPage() {
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="Landmark"
-          title="حساب بنكي جديد"
+          title={t("حساب بنكي جديد")}
           backHref="/accounting/banks"
         />
 
         <Card className="max-w-xl">
           <CardHeader>
-            <CardTitle className="text-base">بيانات الحساب البنكي</CardTitle>
+            <CardTitle className="text-base">{t("بيانات الحساب البنكي")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={create} className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="nameAr">اسم الحساب *</Label>
-                <Input id="nameAr" name="nameAr" required placeholder="مثال: البنك الأهلي — الحساب الرئيسي" />
+                <Label htmlFor="nameAr">{t("اسم الحساب *")}</Label>
+                <Input id="nameAr" name="nameAr" required placeholder={t("مثال: البنك الأهلي — الحساب الرئيسي")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="bankName">اسم البنك</Label>
-                  <Input id="bankName" name="bankName" placeholder="البنك الأهلي السعودي" />
+                  <Label htmlFor="bankName">{t("اسم البنك")}</Label>
+                  <Input id="bankName" name="bankName" placeholder={t("البنك الأهلي السعودي")} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="accountNumber">رقم الحساب</Label>
+                  <Label htmlFor="accountNumber">{t("رقم الحساب")}</Label>
                   <Input id="accountNumber" name="accountNumber" dir="ltr" />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="iban">رقم الآيبان IBAN</Label>
+                <Label htmlFor="iban">{t("رقم الآيبان IBAN")}</Label>
                 <Input id="iban" name="iban" dir="ltr" placeholder="SA…" />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="glAccountId">حساب الأستاذ المرتبط</Label>
+                <Label htmlFor="glAccountId">{t("حساب الأستاذ المرتبط")}</Label>
                 <FormCombobox
                   name="glAccountId"
-                  placeholder="ابحث عن حساب…"
+                  placeholder={t("ابحث عن حساب…")}
                   options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="notes">ملاحظات</Label>
+                <Label htmlFor="notes">{t("ملاحظات")}</Label>
                 <Input id="notes" name="notes" />
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit">حفظ</Button>
+                <Button type="submit">{t("حفظ")}</Button>
                 <Button type="button" variant="ghost" asChild>
-                  <Link href="/accounting/banks">إلغاء</Link>
+                  <Link href="/accounting/banks">{t("إلغاء")}</Link>
                 </Button>
               </div>
             </form>

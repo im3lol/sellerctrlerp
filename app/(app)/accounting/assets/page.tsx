@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -27,6 +28,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 type SP = { q?: string; category?: string; status?: string };
 
 export default async function FixedAssetsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canEdit = can("accounting.create");
     const sp = await searchParams;
@@ -57,8 +59,8 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="Building2"
-          title="الأصول الثابتة"
-          subtitle="تتبّع الأصول الثابتة وحساب الإهلاك الشهري"
+          title={t("الأصول الثابتة")}
+          subtitle={t("تتبّع الأصول الثابتة وحساب الإهلاك الشهري")}
           backHref="/accounting"
           action={
             canEdit ? (
@@ -85,40 +87,40 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
             { label: "إجمالي الإهلاك",     value: fmt(summary.totalAccum), cls: "text-amber-600 dark:text-amber-400" },
             { label: "صافي القيمة الدفترية", value: fmt(summary.totalNBV),  cls: "text-primary" },
             { label: "الأصول النشطة",      value: String(summary.active),  cls: "text-emerald-600 dark:text-emerald-400" },
-          ].map((t, i) => (
+          ].map((it, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-              <p className="text-xs text-muted-foreground">{t.label}</p>
-              <p className={`mt-1 text-xl font-bold tabular-nums ${t.cls}`}>{t.value}</p>
+              <p className="text-xs text-muted-foreground">{t(it.label)}</p>
+              <p className={`mt-1 text-xl font-bold tabular-nums ${it.cls}`}>{it.value}</p>
             </div>
           ))}
         </div>
 
         <FilterBar active={hasFilters} clearHref="/accounting/assets">
           <div className="space-y-2">
-            <Label htmlFor="q">بحث</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder="الكود أو الاسم" className="min-w-56" />
+            <Label htmlFor="q">{t("بحث")}</Label>
+            <Input id="q" name="q" defaultValue={q} placeholder={t("الكود أو الاسم")} className="min-w-56" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="category">التصنيف</Label>
+            <Label htmlFor="category">{t("التصنيف")}</Label>
             <select id="category" name="category" defaultValue={category} className={`${filterFieldCls} min-w-36`}>
-              <option value="">الكل</option>
-              {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              <option value="">{t("الكل")}</option>
+              {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="status">الحالة</Label>
+            <Label htmlFor="status">{t("الحالة")}</Label>
             <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-36`}>
-              <option value="">الكل</option>
-              {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              <option value="">{t("الكل")}</option>
+              {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{t(v.label)}</option>)}
             </select>
           </div>
         </FilterBar>
 
         {assets.length === 0 ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-            {hasFilters ? "لا توجد أصول مطابقة للتصفية." : (
+            {hasFilters ? t("لا توجد أصول مطابقة للتصفية.") : (
               <>لا توجد أصول مضافة.{" "}
-              {canEdit && <Link href="/accounting/assets/new" className="text-primary underline underline-offset-2">إضافة أصل</Link>}</>
+              {canEdit && <Link href="/accounting/assets/new" className="text-primary underline underline-offset-2">{t("إضافة أصل")}</Link>}</>
             )}
           </div>
         ) : (
@@ -126,14 +128,14 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
             <table className="w-full text-sm">
               <thead className="bg-muted/30 text-xs text-muted-foreground">
                 <tr className="[&>th]:p-3 [&>th]:text-start">
-                  <th>الكود</th>
-                  <th>الاسم</th>
-                  <th>التصنيف</th>
-                  <th>تاريخ الشراء</th>
-                  <th className="text-end">تكلفة الشراء</th>
-                  <th className="text-end">الإهلاك المتراكم</th>
-                  <th className="text-end">الق. الدفترية</th>
-                  <th>الحالة</th>
+                  <th>{t("الكود")}</th>
+                  <th>{t("الاسم")}</th>
+                  <th>{t("التصنيف")}</th>
+                  <th>{t("تاريخ الشراء")}</th>
+                  <th className="text-end">{t("تكلفة الشراء")}</th>
+                  <th className="text-end">{t("الإهلاك المتراكم")}</th>
+                  <th className="text-end">{t("الق. الدفترية")}</th>
+                  <th>{t("الحالة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +150,7 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
                         <Link href={`/accounting/assets/${a.id}`} className="text-primary hover:underline">{a.code}</Link>
                       </td>
                       <td className="font-medium">{a.nameAr}</td>
-                      <td className="text-muted-foreground">{CATEGORIES[a.category] ?? a.category}</td>
+                      <td className="text-muted-foreground">{t(CATEGORIES[a.category] ?? a.category)}</td>
                       <td className="text-xs text-muted-foreground">{dt(a.purchaseDate)}</td>
                       <td className="text-end tabular-nums">{fmt(Number(a.purchaseCost))}</td>
                       <td className="text-end tabular-nums text-amber-700 dark:text-amber-400">
@@ -157,7 +159,7 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
                       </td>
                       <td className="text-end tabular-nums font-semibold">{fmt(Number(a.netBookValue))}</td>
                       <td>
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{t(st.label)}</span>
                       </td>
                     </tr>
                   );

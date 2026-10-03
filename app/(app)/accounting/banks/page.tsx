@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -18,6 +19,7 @@ const fmt = (n: number) =>
 type SP = { q?: string; active?: string };
 
 export default async function BankAccountsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();
@@ -77,8 +79,8 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="Landmark"
-          title="الحسابات البنكية"
-          subtitle="إدارة الحسابات البنكية وتسوية الكشوفات"
+          title={t("الحسابات البنكية")}
+          subtitle={t("إدارة الحسابات البنكية وتسوية الكشوفات")}
           backHref="/accounting"
           action={
             canEdit ? (
@@ -93,29 +95,29 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
         />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الحسابات</div><div className="text-2xl font-bold tabular-nums">{rows.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي أرصدة الكشوف</div><div className={`text-2xl font-bold tabular-nums ${totalBalance < 0 ? "text-destructive" : ""}`}>{fmt(totalBalance)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">حسابات نشطة</div><div className="text-2xl font-bold tabular-nums">{rows.filter((r) => r.isActive).length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عدد الحسابات")}</div><div className="text-2xl font-bold tabular-nums">{rows.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي أرصدة الكشوف")}</div><div className={`text-2xl font-bold tabular-nums ${totalBalance < 0 ? "text-destructive" : ""}`}>{fmt(totalBalance)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("حسابات نشطة")}</div><div className="text-2xl font-bold tabular-nums">{rows.filter((r) => r.isActive).length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
         </div>
 
         <FilterBar active={hasFilters} clearHref="/accounting/banks">
           <div className="space-y-2">
-            <Label htmlFor="q">بحث</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder="اسم الحساب أو البنك" className="min-w-56" />
+            <Label htmlFor="q">{t("بحث")}</Label>
+            <Input id="q" name="q" defaultValue={q} placeholder={t("اسم الحساب أو البنك")} className="min-w-56" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="active">الحالة</Label>
+            <Label htmlFor="active">{t("الحالة")}</Label>
             <select id="active" name="active" defaultValue={active} className={`${filterFieldCls} min-w-32`}>
-              <option value="">الكل</option>
-              <option value="1">نشط</option>
-              <option value="0">غير نشط</option>
+              <option value="">{t("الكل")}</option>
+              <option value="1">{t("نشط")}</option>
+              <option value="0">{t("غير نشط")}</option>
             </select>
           </div>
         </FilterBar>
 
         {rows.length === 0 ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-            {hasFilters ? "لا توجد حسابات مطابقة للتصفية." : (
+            {hasFilters ? t("لا توجد حسابات مطابقة للتصفية.") : (
               <>لا توجد حسابات بنكية مضافة بعد.{" "}
               {canEdit && (
                 <Link href="/accounting/banks/new" className="text-primary underline underline-offset-2">

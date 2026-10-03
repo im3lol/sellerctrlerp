@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -32,6 +33,7 @@ type SP = { page?: string; q?: string };
 
 /** تعويضات أمازون FBA — سجل قراءة فقط لما دفعته أمازون عن الفقد/التلف. */
 export default async function PlatformReimbursementsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
+  const t = await getT();
   const code = decodeURIComponent((await params).code).toUpperCase();
   const sp = await searchParams;
   const fQ = one(sp.q).trim();
@@ -72,10 +74,10 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
           <CardContent className="pt-6">
             <form className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="q">بحث (SKU / رقم الطلب / رقم التعويض / السبب)</Label>
-                <input id="q" name="q" defaultValue={fQ} placeholder="اكتب للبحث…" className={selectCls} />
+                <Label htmlFor="q">{t("بحث (SKU / رقم الطلب / رقم التعويض / السبب)")}</Label>
+                <input id="q" name="q" defaultValue={fQ} placeholder={t("اكتب للبحث…")} className={selectCls} />
               </div>
-              <Button type="submit">بحث</Button>
+              <Button type="submit">{t("بحث")}</Button>
             </form>
           </CardContent>
         </Card>
@@ -90,14 +92,14 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
               <Table>
                 <TableHeader className="sticky top-0 bg-background">
                   <TableRow>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">رقم التعويض</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">السبب</TableHead>
-                    <TableHead className="text-start">نقدًا</TableHead>
-                    <TableHead className="text-start">كمخزون</TableHead>
-                    <TableHead className="text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">رقم الطلب</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("رقم التعويض")}</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("السبب")}</TableHead>
+                    <TableHead className="text-start">{t("نقدًا")}</TableHead>
+                    <TableHead className="text-start">{t("كمخزون")}</TableHead>
+                    <TableHead className="text-start">{t("المبلغ")}</TableHead>
+                    <TableHead className="text-start">{t("رقم الطلب")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -116,7 +118,7 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
                 </TableBody>
               </Table>
             </div>
-            <Pagination page={page} pages={pages} total={total} unit="تعويض" basePath={`/platforms/${platform.code.toLowerCase()}/reimbursements`} params={{ q: fQ }} />
+            <Pagination page={page} pages={pages} total={total} unit={t("تعويض")} basePath={`/platforms/${platform.code.toLowerCase()}/reimbursements`} params={{ q: fQ }} />
           </>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, receiptVouchers, salesReturns } from "@/db/schema";
@@ -26,6 +27,7 @@ type TxRow = {
 };
 
 export default async function CustomerStatementPage({ searchParams }: Params) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
@@ -156,9 +158,9 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
     const closingBalance = runBalance;
 
     const typeBadge = (type: TxRow["type"]) => {
-      if (type === "invoice") return <Badge variant="secondary">فاتورة</Badge>;
-      if (type === "receipt") return <Badge variant="default" className="bg-emerald-600">قبض</Badge>;
-      return <Badge variant="outline" className="border-amber-500 text-amber-600">مرتجع</Badge>;
+      if (type === "invoice") return <Badge variant="secondary">{t("فاتورة")}</Badge>;
+      if (type === "receipt") return <Badge variant="default" className="bg-emerald-600">{t("قبض")}</Badge>;
+      return <Badge variant="outline" className="border-amber-500 text-amber-600">{t("مرتجع")}</Badge>;
     };
 
 
@@ -166,18 +168,18 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
       <ReportShell
         reportKey="customer-statement"
         icon="ScrollText"
-        title="كشف حساب العميل"
-        subtitle="فواتير ومقبوضات ومرتجعات عميل خلال فترة"
+        title={t("كشف حساب العميل")}
+        subtitle={t("فواتير ومقبوضات ومرتجعات عميل خلال فترة")}
         query={selectedId ? new URLSearchParams({ customerId: selectedId, from: fromISO, to: toISO }).toString() : ""}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="العميل">
-              <FormCombobox name="customerId" defaultValue={selectedId} placeholder="ابحث…"
+            <ReportField label={t("العميل")}>
+              <FormCombobox name="customerId" defaultValue={selectedId} placeholder={t("ابحث…")}
                 options={custRows.map((c) => ({ id: c.id, label: c.nameAr }))} />
             </ReportField>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
           </>
         }
         kpis={selectedId ? [
@@ -187,7 +189,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
           { op: "−" as const },
           { label: "إجمالي المقبوضات", value: money(txRows.reduce((s, r) => s + r.credit, 0), currency), tone: "profit" as const },
           { op: "=" as const },
-          { label: closingBalance >= 0 ? "الرصيد المستحق" : "رصيد زائد (دائن)",
+          { label: closingBalance >= 0 ? t("الرصيد المستحق") : t("رصيد زائد (دائن)"),
             value: money(Math.abs(closingBalance), currency),
             tone: closingBalance > 0 ? "loss" as const : "profit" as const },
         ] : undefined}
@@ -218,13 +220,13 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
                     <table className="w-full text-sm">
                       <thead className="bg-muted/30 text-xs text-muted-foreground">
                         <tr className="[&>th]:p-3 [&>th]:text-start">
-                          <th>التاريخ</th>
-                          <th>المستند</th>
-                          <th>البيان</th>
-                          <th>النوع</th>
-                          <th className="text-end">مدين</th>
-                          <th className="text-end">دائن</th>
-                          <th className="text-end">الرصيد</th>
+                          <th>{t("التاريخ")}</th>
+                          <th>{t("المستند")}</th>
+                          <th>{t("البيان")}</th>
+                          <th>{t("النوع")}</th>
+                          <th className="text-end">{t("مدين")}</th>
+                          <th className="text-end">{t("دائن")}</th>
+                          <th className="text-end">{t("الرصيد")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -232,7 +234,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
                         <tr className="border-t bg-muted/10 font-medium [&>td]:p-3">
                           <td className="text-xs text-muted-foreground">{fromISO}</td>
                           <td>—</td>
-                          <td>رصيد افتتاحي</td>
+                          <td>{t("رصيد افتتاحي")}</td>
                           <td />
                           <td className="text-end tabular-nums">{openingBalance > 0 ? fmt(openingBalance) : "—"}</td>
                           <td className="text-end tabular-nums">{openingBalance < 0 ? fmt(-openingBalance) : "—"}</td>
@@ -257,11 +259,11 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
                         ))}
                         {/* Closing balance row */}
                         <tr className="border-t-2 bg-muted/20 font-bold [&>td]:p-3">
-                          <td colSpan={4}>الرصيد الختامي</td>
+                          <td colSpan={4}>{t("الرصيد الختامي")}</td>
                           <td className="text-end tabular-nums">{fmt(txRows.reduce((s, r) => s + r.debit, 0))}</td>
                           <td className="text-end tabular-nums">{fmt(txRows.reduce((s, r) => s + r.credit, 0))}</td>
                           <td className={`text-end tabular-nums ${closingBalance > 0 ? "text-red-700 dark:text-red-400" : closingBalance < 0 ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                            {fmt(closingBalance)} {closingBalance > 0 ? "(مدين)" : closingBalance < 0 ? "(دائن)" : ""}
+                            {fmt(closingBalance)} {closingBalance > 0 ? t("(مدين)") : closingBalance < 0 ? t("(دائن)") : ""}
                           </td>
                         </tr>
                       </tbody>

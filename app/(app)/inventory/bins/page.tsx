@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, warehouses } from "@/db/schema";
@@ -7,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BinsManager } from "@/components/erp/bins-manager";
 
 export default async function BinsPage() {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const [whList, itemList] = await Promise.all([
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr })
@@ -21,14 +23,14 @@ export default async function BinsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Grid3x3"
-          title="مواقع التخزين"
-          subtitle="فين تلاقي الصنف جوّه المخزن — الأرصدة بتفضل على مستوى المستودع"
+          title={t("مواقع التخزين")}
+          subtitle={t("فين تلاقي الصنف جوّه المخزن — الأرصدة بتفضل على مستوى المستودع")}
           backHref="/inventory"
         />
 
         {whList.length === 0 ? (
           <Card><CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">مفيش مستودعات مفعّلة — أضف مستودع الأول.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش مستودعات مفعّلة — أضف مستودع الأول.")}</p>
           </CardContent></Card>
         ) : (
           <BinsManager

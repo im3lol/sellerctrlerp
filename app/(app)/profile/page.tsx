@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/session";
+import { getT } from "@/lib/i18n/server";
 import { ROLE_LABELS_AR, type Role } from "@/lib/rbac";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { telegramEnabled, linkPayload, botUsername } from "@/lib/erp/telegram";
 import { unlinkTelegramAction } from "@/app/actions/erp/telegram";
 
 export default async function ProfilePage() {
+  const t = await getT();
   const user = await requireUser();
   const init = user.name.split(" ").slice(0, 2).map((p) => p[0]).join("");
 
@@ -32,7 +34,7 @@ export default async function ProfilePage() {
 
   return (
     <div>
-      <PageHeader title="الملف الشخصي" description="إدارة بياناتك الشخصية" />
+      <PageHeader title={t("الملف الشخصي")} description={t("إدارة بياناتك الشخصية")} />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="flex flex-col items-center gap-3 p-6 text-center">
           <Avatar className="size-24">
@@ -43,7 +45,7 @@ export default async function ProfilePage() {
             <p className="text-lg font-bold">{user.name}</p>
             <p className="text-sm text-muted-foreground" dir="ltr">{user.email}</p>
           </div>
-          <Badge variant="secondary">{ROLE_LABELS_AR[user.role as Role]}</Badge>
+          <Badge variant="secondary">{t(ROLE_LABELS_AR[user.role as Role])}</Badge>
           {user.title && <p className="text-sm text-muted-foreground">{user.title}</p>}
 
           <ClockButton />
@@ -60,12 +62,12 @@ export default async function ProfilePage() {
 
           {member?.chatId ? (
             <form action={unlinkTelegramAction} className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
-              <span className="flex items-center gap-2"><Icon name="Send" className="size-4" />تليجرام مربوط ✓</span>
-              <button type="submit" className="text-xs text-muted-foreground hover:text-destructive">فك الربط</button>
+              <span className="flex items-center gap-2"><Icon name="Send" className="size-4" />{t("تليجرام مربوط ✓")}</span>
+              <button type="submit" className="text-xs text-muted-foreground hover:text-destructive">{t("فك الربط")}</button>
             </form>
           ) : member && bot && telegramLink ? (
             <a href={`https://t.me/${bot}?start=${telegramLink}`} target="_blank" rel="noopener noreferrer"
-              title="الرابط صالح 15 دقيقة"
+              title={t("الرابط صالح 15 دقيقة")}
               className="flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent">
               <Icon name="Send" className="size-4" />
               اربط تليجرام — توصلك الموافقات على موبايلك
@@ -74,7 +76,7 @@ export default async function ProfilePage() {
         </Card>
 
         <Card className="p-6 lg:col-span-2">
-          <h2 className="mb-4 font-semibold">تعديل البيانات</h2>
+          <h2 className="mb-4 font-semibold">{t("تعديل البيانات")}</h2>
           <ProfileForm name={user.name} email={user.email} />
         </Card>
       </div>

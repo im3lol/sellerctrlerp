@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -27,13 +29,13 @@ export default function AppError({
         <AlertTriangle className="size-7" />
       </div>
       <div className="space-y-1">
-        <h2 className="text-lg font-bold">تعذّر عرض هذه الصفحة</h2>
-        <p className="text-sm text-muted-foreground">حدث خطأ أثناء تحميل البيانات. حاول مرة أخرى، فإن تكرّر فراجع المدخلات.</p>
+        <h2 className="text-lg font-bold">{t("تعذّر عرض هذه الصفحة")}</h2>
+        <p className="text-sm text-muted-foreground">{t("حدث خطأ أثناء تحميل البيانات. حاول مرة أخرى، فإن تكرّر فراجع المدخلات.")}</p>
         {error.digest && <p className="font-mono text-xs text-muted-foreground/60">{error.digest}</p>}
       </div>
       <div className="flex gap-2">
-        <Button onClick={reset}>إعادة المحاولة</Button>
-        <Button variant="outline" asChild><Link href="/apps">التطبيقات</Link></Button>
+        <Button onClick={reset}>{t("إعادة المحاولة")}</Button>
+        <Button variant="outline" asChild><Link href="/apps">{t("التطبيقات")}</Link></Button>
       </div>
     </div>
   );

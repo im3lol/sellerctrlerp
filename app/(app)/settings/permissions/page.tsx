@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, ne } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
@@ -37,6 +38,7 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function PermissionsPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId, can: erpCan }) => {
     const user = await requireUser();
     // Org admins (users.create) manage their own org's members via invite; only the
@@ -74,29 +76,29 @@ export default async function PermissionsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ShieldCheck" title="صلاحيات المستخدمين" subtitle="تعيين أدوار الأعضاء ومعرفة تفاصيل ما يسمح به كل دور" backHref="/settings" />
+        <ErpPageHeader icon="ShieldCheck" title={t("صلاحيات المستخدمين")} subtitle={t("تعيين أدوار الأعضاء ومعرفة تفاصيل ما يسمح به كل دور")} backHref="/settings" />
 
         <PermissionsMembers members={members} nonMembers={nonMembers} roleOptions={roleOptions} roleLabels={ROLE_LABELS} canManage={canManage} rolePerms={rolePerms} catalog={groups} />
 
         <Card>
           <CardHeader>
-            <CardTitle>مصفوفة الصلاحيات التفصيلية</CardTitle>
-            <CardDescription>ما يسمح به كل دور بالضبط، مقسّماً حسب الموديول والإجراء. ✓ = مسموح.</CardDescription>
+            <CardTitle>{t("مصفوفة الصلاحيات التفصيلية")}</CardTitle>
+            <CardDescription>{t("ما يسمح به كل دور بالضبط، مقسّماً حسب الموديول والإجراء. ✓ = مسموح.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs">
                   <tr className="[&>th]:whitespace-nowrap [&>th]:p-2.5 [&>th]:text-start">
-                    <th className="min-w-40">الصلاحية</th>
-                    {MATRIX_ROLES.map((r) => <th key={r} className="text-center">{ROLE_LABELS[r] ?? r}</th>)}
+                    <th className="min-w-40">{t("الصلاحية")}</th>
+                    {MATRIX_ROLES.map((r) => <th key={r} className="text-center">{t(ROLE_LABELS[r] ?? r)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {groups.map((g) => (
                     <Fragment key={g.key}>
                       <tr className="bg-muted/20">
-                        <td colSpan={MATRIX_ROLES.length + 1} className="p-2 ps-3 text-xs font-bold text-primary">{g.label}</td>
+                        <td colSpan={MATRIX_ROLES.length + 1} className="p-2 ps-3 text-xs font-bold text-primary">{t(g.label)}</td>
                       </tr>
                       {g.perms.map((p) => (
                         <tr key={p.key} className="border-t [&>td]:p-2.5">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -26,6 +27,7 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
  * drafts → «جولة تجهيز»).
  */
 export default async function PickListsPage({ searchParams }: { searchParams: Promise<{ n?: string }> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const number = ((await searchParams).n ?? "").trim();
 
@@ -66,7 +68,7 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
             title={`جولة تجهيز ${pl.number}`}
             subtitle={`${pl.warehouse ?? "—"} · ${dt(pl.date)} · ${n(deliveries.length)} إذن · ${n(groups.length)} صنف`}
             backHref="/inventory/pick-lists"
-            action={<Badge variant={st.variant}>{st.label}</Badge>}
+            action={<Badge variant={st.variant}>{t(st.label)}</Badge>}
           />
           <PickListSheet
             pickListId={pl.id} open={pl.status === "OPEN"} groups={groups} deliveries={deliveries}
@@ -91,25 +93,25 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
       <div className="space-y-6">
         <ErpPageHeader
           icon="ScanLine"
-          title="جولات التجهيز"
-          subtitle="جمّع أذون صرف كتير في لفّة واحدة على المخزن — من «أذون الصرف» حدّد المسودات ودوس «جولة تجهيز»."
+          title={t("جولات التجهيز")}
+          subtitle={t("جمّع أذون صرف كتير في لفّة واحدة على المخزن — من «أذون الصرف» حدّد المسودات ودوس «جولة تجهيز».")}
           backHref="/inventory"
-          action={<Button asChild variant="outline"><Link href="/sales/deliveries?status=DRAFT">أذون الصرف المسودة</Link></Button>}
+          action={<Button asChild variant="outline"><Link href="/sales/deliveries?status=DRAFT">{t("أذون الصرف المسودة")}</Link></Button>}
         />
         <Card>
           <CardContent className="p-0">
             {list.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">لسه مفيش جولات — ابدأ من «أذون الصرف».</div>
+              <div className="py-12 text-center text-muted-foreground">{t("لسه مفيش جولات — ابدأ من «أذون الصرف».")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المخزن</TableHead>
-                    <TableHead className="text-start">الأذون</TableHead>
-                    <TableHead className="text-start">الأصناف</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المخزن")}</TableHead>
+                    <TableHead className="text-start">{t("الأذون")}</TableHead>
+                    <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -122,7 +124,7 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
                         <TableCell>{r.warehouse ?? "—"}</TableCell>
                         <TableCell className="tabular-nums">{n(r.deliveries)}</TableCell>
                         <TableCell className="tabular-nums">{n(r.itemCount)}</TableCell>
-                        <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                        <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                       </TableRow>
                     );
                   })}

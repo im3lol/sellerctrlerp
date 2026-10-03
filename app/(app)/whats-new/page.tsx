@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/session";
+import { getT } from "@/lib/i18n/server";
 import { listChangelog, KIND_LABELS, type ChangelogEntry } from "@/lib/erp/changelog";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,13 +26,14 @@ const KIND_STYLE: Record<string, string> = {
  * not tenant data.
  */
 export default async function WhatsNewPage() {
+  const t = await getT();
   await requireUser();
   const entries = await listChangelog();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
-      <ErpPageHeader icon="Sparkles" title="آخر التحديثات"
-        subtitle="كل حاجة جديدة في النظام — الأحدث الأول" />
+      <ErpPageHeader icon="Sparkles" title={t("آخر التحديثات")}
+        subtitle={t("كل حاجة جديدة في النظام — الأحدث الأول")} />
 
       {entries.length === 0 ? (
         <Card>
@@ -48,15 +50,16 @@ export default async function WhatsNewPage() {
   );
 }
 
-function Entry({ entry }: { entry: ChangelogEntry }) {
+async function Entry({ entry }: { entry: ChangelogEntry }) {
+  const t = await getT();
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">
         <div className="flex flex-wrap items-center gap-2">
           <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", KIND_STYLE[entry.kind])}>
-            {KIND_LABELS[entry.kind]}
+            {t(KIND_LABELS[entry.kind])}
           </span>
-          {entry.module && <Badge variant="outline">{MODULE_LABELS[entry.module] ?? entry.module}</Badge>}
+          {entry.module && <Badge variant="outline">{t(MODULE_LABELS[entry.module] ?? entry.module)}</Badge>}
           <span className="text-xs text-muted-foreground">{fmt(entry.releasedAt)}</span>
         </div>
         <h2 className="text-lg font-semibold">{entry.title}</h2>

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, max, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { items, platformOffers, salesPlatforms } from "@/db/schema";
@@ -16,6 +17,7 @@ const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const when = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
 export default async function BuyBoxPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = await getT();
   const { code } = await params;
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [platform] = await db.select({ name: salesPlatforms.name, code: salesPlatforms.code, integrationType: salesPlatforms.integrationType })
@@ -41,14 +43,14 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Trophy" title="مراقبة الـBuy Box" backHref={`/platforms/${code.toLowerCase()}`}
+        <ErpPageHeader icon="Trophy" title={t("مراقبة الـBuy Box")} backHref={`/platforms/${code.toLowerCase()}`}
           subtitle={`${platform.name} — مين معاه الـBuy Box على كل منتج ليك، وبأي سعر`}
           action={<BuyBoxRefresh code={platform.code} />} />
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">خسرت الـBuy Box</div><div className="text-2xl font-bold tabular-nums text-destructive">{int(lost)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">معاك</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{int(won)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">مفيش Buy Box ظاهر</div><div className="text-2xl font-bold tabular-nums">{int(none)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t("خسرت الـBuy Box")}</div><div className="text-2xl font-bold tabular-nums text-destructive">{int(lost)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t("معاك")}</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{int(won)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t("مفيش Buy Box ظاهر")}</div><div className="text-2xl font-bold tabular-nums">{int(none)}</div></CardContent></Card>
         </div>
 
         {rows.length === 0 ? (
@@ -61,13 +63,13 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">سعري</TableHead>
-                    <TableHead className="text-start">سعر الـBuy Box</TableHead>
-                    <TableHead className="text-start">الفرق</TableHead>
-                    <TableHead className="text-start">أقل سعر</TableHead>
-                    <TableHead className="text-start">البائعين</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("سعري")}</TableHead>
+                    <TableHead className="text-start">{t("سعر الـBuy Box")}</TableHead>
+                    <TableHead className="text-start">{t("الفرق")}</TableHead>
+                    <TableHead className="text-start">{t("أقل سعر")}</TableHead>
+                    <TableHead className="text-start">{t("البائعين")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -87,9 +89,9 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
                         <TableCell className="tabular-nums">{money(r.lowestPrice)}</TableCell>
                         <TableCell className="tabular-nums">{int(r.offerCount)}</TableCell>
                         <TableCell>
-                          {r.isWinner === true ? <Badge variant="outline" className="border-emerald-500 text-emerald-600">معاك</Badge>
+                          {r.isWinner === true ? <Badge variant="outline" className="border-emerald-500 text-emerald-600">{t("معاك")}</Badge>
                             : r.isWinner === false ? <Badge variant="destructive">خسرته{r.lostSince ? ` من ${when(r.lostSince)}` : ""}</Badge>
-                              : <Badge variant="secondary">مفيش Buy Box</Badge>}
+                              : <Badge variant="secondary">{t("مفيش Buy Box")}</Badge>}
                         </TableCell>
                       </TableRow>
                     );

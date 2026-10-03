@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
@@ -21,6 +22,7 @@ import Link from "next/link";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = await getT();
   const user = await requireUser();
   // Read on the server so a collapsed rail renders collapsed on the first paint.
   const navCollapsed = (await cookies()).get(NAV_COLLAPSED_COOKIE)?.value === "1";
@@ -84,7 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {orgRow?.deletion && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive md:px-6">
             <span>الشركة دي هتتمسح نهائيًا يوم {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
-            <Link href="/settings/organization" className="underline">إلغاء الطلب</Link>
+            <Link href="/settings/organization" className="underline">{t("إلغاء الطلب")}</Link>
           </div>
         )}
         {org?.isSandbox && <SandboxBanner realOrgId={activeOrg.orgs.find((o) => !o.isSandbox)?.id ?? null} />}

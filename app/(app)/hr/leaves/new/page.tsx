@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, organizations, holidays } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { LeaveRequestForm } from "@/components/erp/leave-request-form";
 
 export default async function NewLeaveRequestPage() {
+  const t = await getT();
   return loadErpPage("hr.create", async ({ orgId }) => {
     const [emps, org, holis] = await Promise.all([
       db.select({ id: employees.id, fullName: employees.fullName, code: employees.employeeCode }).from(employees)
@@ -13,11 +15,11 @@ export default async function NewLeaveRequestPage() {
       db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ date: holidays.date }).from(holidays).where(eq(holidays.organizationId, orgId)),
     ]);
-    const empOptions = emps.map((e) => ({ id: e.id, label: e.fullName || e.code || "موظف" }));
+    const empOptions = emps.map((e) => ({ id: e.id, label: e.fullName || e.code || t("موظف") }));
     const holidayDates = holis.map((h) => new Date(h.date).toISOString().slice(0, 10));
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarDays" title="طلب إجازة جديد" subtitle="طلب إجازة موظف — يُعتمد أو يُرفض" backHref="/hr/leaves" />
+        <ErpPageHeader icon="CalendarDays" title={t("طلب إجازة جديد")} subtitle={t("طلب إجازة موظف — يُعتمد أو يُرفض")} backHref="/hr/leaves" />
         <LeaveRequestForm employees={empOptions} orgName={org[0]?.nameAr ?? "—"} holidays={holidayDates} />
       </div>
     );

@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount, type AccountBalance } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +14,7 @@ export default async function BalanceSheetPage({
 }: {
   searchParams: Promise<{ to?: string }>;
 }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const to = sp.to || iso(new Date());
@@ -47,24 +49,24 @@ export default async function BalanceSheetPage({
       <ReportShell
         reportKey="balance-sheet"
         icon="Scale"
-        title="الميزانية العمومية"
+        title={t("الميزانية العمومية")}
         subtitle={`كما في ${to} — من القيود المُرحّلة`}
         query={`to=${to}`}
         permissions={permissions}
-        filters={<ReportField label="كما في تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>}
+        filters={<ReportField label={t("كما في تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>}
         kpis={[
           { label: "إجمالي الأصول", value: fmt(totalAssets) },
           { op: "=" },
           { label: "إجمالي الخصوم", value: fmt(totalLiabilities) },
           { op: "+" },
           { label: "حقوق الملكية", value: fmt(totalEquity), tone: totalEquity >= 0 ? "profit" : "loss",
-            hint: balanced ? "متوازنة" : "غير متوازنة" },
+            hint: balanced ? t("متوازنة") : t("غير متوازنة") },
         ]}
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>الأصول</CardTitle>
+              <CardTitle>{t("الأصول")}</CardTitle>
               <CardDescription>إجمالي {fmt(totalAssets)}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -75,7 +77,7 @@ export default async function BalanceSheetPage({
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>الخصوم</CardTitle>
+                <CardTitle>{t("الخصوم")}</CardTitle>
                 <CardDescription>إجمالي {fmt(totalLiabilities)}</CardDescription>
               </CardHeader>
               <CardContent>
@@ -85,7 +87,7 @@ export default async function BalanceSheetPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>حقوق الملكية</CardTitle>
+                <CardTitle>{t("حقوق الملكية")}</CardTitle>
                 <CardDescription>إجمالي {fmt(totalEquity)}</CardDescription>
               </CardHeader>
               <CardContent>
@@ -101,7 +103,7 @@ export default async function BalanceSheetPage({
 
             <Card>
               <CardContent className="flex items-center justify-between py-5">
-                <div className="font-semibold">إجمالي الخصوم وحقوق الملكية</div>
+                <div className="font-semibold">{t("إجمالي الخصوم وحقوق الملكية")}</div>
                 <span className="text-xl font-bold">{fmt(totalLiabEquity)}</span>
               </CardContent>
             </Card>
@@ -120,7 +122,7 @@ export default async function BalanceSheetPage({
 
 type Row = Pick<AccountBalance, "code" | "nameAr"> & { amount: number };
 
-function BsTable({
+async function BsTable({
   rows,
   empty,
   totalLabel,
@@ -133,6 +135,7 @@ function BsTable({
   total: number;
   extra?: { label: string; amount: number };
 }) {
+  const t = await getT();
   if (rows.length === 0 && !extra) {
     return <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground">{empty}</div>;
   }
@@ -140,9 +143,9 @@ function BsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="text-start">الكود</TableHead>
-          <TableHead className="text-start">الحساب</TableHead>
-          <TableHead className="text-start">المبلغ</TableHead>
+          <TableHead className="text-start">{t("الكود")}</TableHead>
+          <TableHead className="text-start">{t("الحساب")}</TableHead>
+          <TableHead className="text-start">{t("المبلغ")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -156,7 +159,7 @@ function BsTable({
         {extra && (
           <TableRow>
             <TableCell className="font-mono">—</TableCell>
-            <TableCell>{extra.label}</TableCell>
+            <TableCell>{t(extra.label)}</TableCell>
             <TableCell>{fmt(extra.amount)}</TableCell>
           </TableRow>
         )}

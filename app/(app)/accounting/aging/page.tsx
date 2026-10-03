@@ -1,4 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices, customers, suppliers } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { AgingReport } from "@/components/erp/aging-report";
 
 export default async function AgingPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -58,7 +60,7 @@ export default async function AgingPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarClock" title="تحليل الديون المتأخرة (Aging)" subtitle="مستحقات العملاء والموردين مجمّعة حسب فترة التأخير" />
+        <ErpPageHeader icon="CalendarClock" title={t("تحليل الديون المتأخرة (Aging)")} subtitle={t("مستحقات العملاء والموردين مجمّعة حسب فترة التأخير")} />
         <AgingReport arRows={arRows} apRows={apRows} today={today} />
       </div>
     );

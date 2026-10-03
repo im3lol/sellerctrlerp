@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { CsvImportClient } from "@/components/erp/csv-import-client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Icon } from "@/components/icon";
 import { EXPORT_DATASETS, EXPORT_ORDER } from "@/lib/erp/export-datasets";
 
 export default async function ImportExportPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ can }) => {
     const exportable = EXPORT_ORDER.filter((k) => can(EXPORT_DATASETS[k].module));
 
@@ -13,29 +15,29 @@ export default async function ImportExportPage() {
       <div className="space-y-8">
         <ErpPageHeader
           icon="ArrowRightLeft"
-          title="الاستيراد والتصدير"
-          subtitle="استيراد البيانات عبر CSV بقوالب جاهزة، وتصدير أي جدول إلى Excel أو PDF"
+          title={t("الاستيراد والتصدير")}
+          subtitle={t("استيراد البيانات عبر CSV بقوالب جاهزة، وتصدير أي جدول إلى Excel أو PDF")}
         />
 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <Icon name="Upload" className="size-5 text-primary" />
-            <h2 className="text-lg font-semibold">الاستيراد</h2>
+            <h2 className="text-lg font-semibold">{t("الاستيراد")}</h2>
           </div>
-          <p className="text-sm text-muted-foreground">حمّل القالب، املأه، ثم ارفعه. الموجود (بنفس الكود) يُحدَّث دون المساس بالأرصدة.</p>
+          <p className="text-sm text-muted-foreground">{t("حمّل القالب، املأه، ثم ارفعه. الموجود (بنفس الكود) يُحدَّث دون المساس بالأرصدة.")}</p>
           <CsvImportClient />
         </section>
 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <Icon name="Download" className="size-5 text-primary" />
-            <h2 className="text-lg font-semibold">التصدير</h2>
+            <h2 className="text-lg font-semibold">{t("التصدير")}</h2>
           </div>
-          <p className="text-sm text-muted-foreground">صدّر أي جدول إلى Excel (‎.xlsx‎) أو PDF (عبر الطباعة). البيانات كاملة حسب صلاحياتك.</p>
+          <p className="text-sm text-muted-foreground">{t("صدّر أي جدول إلى Excel (‎.xlsx‎) أو PDF (عبر الطباعة). البيانات كاملة حسب صلاحياتك.")}</p>
           <Card>
             <CardContent className="divide-y p-0">
               {exportable.length === 0 ? (
-                <div className="px-4 py-8 text-center text-sm text-muted-foreground">لا توجد بيانات متاحة للتصدير بصلاحياتك.</div>
+                <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t("لا توجد بيانات متاحة للتصدير بصلاحياتك.")}</div>
               ) : (
                 exportable.map((k) => {
                   const ds = EXPORT_DATASETS[k];

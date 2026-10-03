@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { inventoryAudits, inventoryAuditLines, fbaReimbursements } from "@/db/schema";
@@ -26,6 +27,7 @@ const ORDER = sql`CASE ${inventoryAuditLines.status} WHEN 'LOST' THEN 0 WHEN 'DA
 type SP = { page?: string; status?: string; q?: string };
 
 export default async function InventoryReconciliationPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   const sp = await searchParams;
   const fStatus = one(sp.status);
   const fQ = one(sp.q).trim();
@@ -68,7 +70,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardCheck" title="تدقيق مخزون FBA" subtitle="مطابقة كميات أمازون مع النظام — قراءة فقط، لا يغيّر المخزون" backHref="/inventory/stock"
+        <ErpPageHeader icon="ClipboardCheck" title={t("تدقيق مخزون FBA")} subtitle={t("مطابقة كميات أمازون مع النظام — قراءة فقط، لا يغيّر المخزون")} backHref="/inventory/stock"
           action={hasQtyDiff && canAdjust ? <AuditAdjustmentButton /> : undefined} />
 
         {!audit ? (
@@ -84,23 +86,23 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
               <CardContent className="pt-6">
                 <form className="grid items-end gap-3 sm:grid-cols-[1fr_auto_auto]">
                   <div className="space-y-1.5">
-                    <Label htmlFor="q">بحث (SKU / ASIN / الاسم)</Label>
-                    <input id="q" name="q" defaultValue={fQ} placeholder="اكتب كود أو ASIN أو اسم…" className={selectCls} />
+                    <Label htmlFor="q">{t("بحث (SKU / ASIN / الاسم)")}</Label>
+                    <input id="q" name="q" defaultValue={fQ} placeholder={t("اكتب كود أو ASIN أو اسم…")} className={selectCls} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="status">الحالة</Label>
+                    <Label htmlFor="status">{t("الحالة")}</Label>
                     <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                      <option value="">كل الحالات</option>
-                      {STATUS_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      <option value="">{t("كل الحالات")}</option>
+                      {STATUS_OPTS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
                     </select>
                   </div>
-                  <Button type="submit">تطبيق</Button>
+                  <Button type="submit">{t("تطبيق")}</Button>
                 </form>
               </CardContent>
             </Card>
 
             <div className="max-h-[70vh] overflow-auto rounded-xl border"><AuditLinesTable rows={lines} reimbursedSkus={reimbursedSkus} /></div>
-            <Pagination page={page} pages={pages} total={total} unit="صنف" basePath="/inventory/reconciliation" params={{ status: fStatus, q: fQ }} />
+            <Pagination page={page} pages={pages} total={total} unit={t("صنف")} basePath="/inventory/reconciliation" params={{ status: fStatus, q: fQ }} />
           </>
         )}
       </div>

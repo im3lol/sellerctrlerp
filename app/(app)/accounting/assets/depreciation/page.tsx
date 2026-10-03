@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { postMonthlyDepreciationAction } from "@/app/actions/erp/fixed-assets";
 import { Icon } from "@/components/icon";
 
 export default function PostDepreciationPage() {
+  const t = useT();
   const now = new Date();
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -21,12 +23,12 @@ export default function PostDepreciationPage() {
       const res = await postMonthlyDepreciationAction({ year, month });
       if (res.ok) {
         const msg = res.count === 0
-          ? "لا توجد أصول تستحق إهلاكًا في هذه الفترة (أو تم ترحيلها مسبقًا)."
+          ? t("لا توجد أصول تستحق إهلاكًا في هذه الفترة (أو تم ترحيلها مسبقًا).")
           : `تم ترحيل إهلاك ${res.count} أصل بنجاح.`;
         setResult(msg);
         toast.success(msg);
       } else {
-        toast.error(res.error ?? "تعذّر الترحيل");
+        toast.error(res.error ?? t("تعذّر الترحيل"));
       }
     });
   }
@@ -40,17 +42,17 @@ export default function PostDepreciationPage() {
     <div className="space-y-6" dir="rtl">
       <ErpPageHeader
         icon="CalendarCheck"
-        title="ترحيل الإهلاك الشهري"
-        subtitle="يُحسب الإهلاك بطريقة القسط الثابت لكل الأصول النشطة"
+        title={t("ترحيل الإهلاك الشهري")}
+        subtitle={t("يُحسب الإهلاك بطريقة القسط الثابت لكل الأصول النشطة")}
         backHref="/accounting/assets"
       />
 
       <Card className="max-w-md">
-        <CardHeader><CardTitle className="text-base">اختر الفترة</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("اختر الفترة")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>السنة</Label>
+              <Label>{t("السنة")}</Label>
               <select
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
@@ -62,14 +64,14 @@ export default function PostDepreciationPage() {
               </select>
             </div>
             <div className="space-y-1">
-              <Label>الشهر</Label>
+              <Label>{t("الشهر")}</Label>
               <select
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
               >
                 {months.map((m, i) => (
-                  <option key={i + 1} value={i + 1}>{m}</option>
+                  <option key={i + 1} value={i + 1}>{t(m)}</option>
                 ))}
               </select>
             </div>

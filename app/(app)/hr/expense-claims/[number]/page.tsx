@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -18,6 +19,7 @@ const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { y
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function ExpenseClaimDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, expenseClaims,
@@ -45,10 +47,10 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
         <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
           isAdmin={role === "admin" || role === "super_admin"} />
         <Card>
-          <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود المصروف</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></CardHeader>
+          <CardHeader className="flex-row items-center justify-between"><CardTitle>{t("بنود المصروف")}</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? t("معتمد") : t("مسودة")}</Badge></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead className="text-start">البند</TableHead><TableHead className="text-start">وصف</TableHead><TableHead className="text-end">المبلغ</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="text-start">{t("البند")}</TableHead><TableHead className="text-start">{t("وصف")}</TableHead><TableHead className="text-end">{t("المبلغ")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {lines.map((l, i) => (
                   <TableRow key={i}>
