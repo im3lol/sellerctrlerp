@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { changePasswordAction, beginMfaSetupAction, enableMfaAction, disableMfaAction, signOutEverywhereAction } from "@/app/actions/account";
 import { validatePassword, PASSWORD_RULE_AR } from "@/lib/auth/password-policy";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 
 export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled: boolean; passwordChangedAt: string | null }) {
+  const t = useT();
   const [pending, start] = useTransition();
 
   // ── Change password ──
@@ -60,13 +62,13 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
       {/* Change password */}
       <Card>
         <CardHeader>
-          <CardTitle>تغيير كلمة المرور</CardTitle>
+          <CardTitle>{t("تغيير كلمة المرور")}</CardTitle>
           <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>آخر تغيير قبل {daysSinceChange} يوم{expiringSoon ? " — يُنصح بالتغيير (تنتهي كل 365 يوم)" : ""}.</span>}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1.5"><Label>كلمة المرور الحالية</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>كلمة المرور الجديدة</Label><Input type="password" dir="ltr" value={nw} onChange={(e) => setNw(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
-          <div className="space-y-1.5"><Label>تأكيد كلمة المرور الجديدة</Label><Input type="password" dir="ltr" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("كلمة المرور الحالية")}</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={nw} onChange={(e) => setNw(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
+          <div className="space-y-1.5"><Label>{t("تأكيد كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           <Button onClick={changePassword} disabled={pending || !cur || !nw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}تغيير كلمة المرور</Button>
         </CardContent>
       </Card>
@@ -74,13 +76,13 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
       {/* MFA */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">المصادقة الثنائية (2FA) {enabled ? <Badge className="bg-emerald-600">مفعّلة</Badge> : <Badge variant="secondary">غير مفعّلة</Badge>}</CardTitle>
-          <CardDescription>طبقة حماية إضافية عبر رمز مؤقّت من تطبيق مصادقة (Google Authenticator / Authy).</CardDescription>
+          <CardTitle className="flex items-center gap-2">المصادقة الثنائية (2FA) {enabled ? <Badge className="bg-emerald-600">{t("مفعّلة")}</Badge> : <Badge variant="secondary">{t("غير مفعّلة")}</Badge>}</CardTitle>
+          <CardDescription>{t("طبقة حماية إضافية عبر رمز مؤقّت من تطبيق مصادقة (Google Authenticator / Authy).")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {backup && (
             <div className="rounded-xl border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-              <div className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-400">رموز احتياطية — احفظها في مكان آمن (تظهر مرة واحدة)</div>
+              <div className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-400">{t("رموز احتياطية — احفظها في مكان آمن (تظهر مرة واحدة)")}</div>
               <div className="grid grid-cols-2 gap-1 font-mono text-sm" dir="ltr">{backup.map((c) => <span key={c}>{c}</span>)}</div>
             </div>
           )}
@@ -91,21 +93,21 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
 
           {!enabled && setup && (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">امسح رمز QR بتطبيق المصادقة، ثم أدخل الرمز المكوّن من 6 أرقام للتأكيد.</p>
+              <p className="text-sm text-muted-foreground">{t("امسح رمز QR بتطبيق المصادقة، ثم أدخل الرمز المكوّن من 6 أرقام للتأكيد.")}</p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={setup.qrDataUrl} alt="QR" className="size-44 rounded-lg border bg-white p-1" />
-              <p className="text-xs text-muted-foreground">أو أدخل السر يدويًا: <span className="font-mono" dir="ltr">{setup.secret}</span></p>
+              <p className="text-xs text-muted-foreground">{t("أو أدخل السر يدويًا:")} <span className="font-mono" dir="ltr">{setup.secret}</span></p>
               <div className="flex items-end gap-2">
-                <div className="space-y-1.5"><Label>رمز التأكيد</Label><Input dir="ltr" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className="w-40" /></div>
+                <div className="space-y-1.5"><Label>{t("رمز التأكيد")}</Label><Input dir="ltr" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className="w-40" /></div>
                 <Button onClick={confirmEnable} disabled={pending || code.length < 6}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}تأكيد وتفعيل</Button>
-                <Button variant="ghost" onClick={() => setSetup(null)}>إلغاء</Button>
+                <Button variant="ghost" onClick={() => setSetup(null)}>{t("إلغاء")}</Button>
               </div>
             </div>
           )}
 
           {enabled && (
             <div className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1.5"><Label>لإيقافها، أدخل كلمة مرورك</Label><Input type="password" dir="ltr" value={disablePw} onChange={(e) => setDisablePw(e.target.value)} className="w-56" /></div>
+              <div className="space-y-1.5"><Label>{t("لإيقافها، أدخل كلمة مرورك")}</Label><Input type="password" dir="ltr" value={disablePw} onChange={(e) => setDisablePw(e.target.value)} className="w-56" /></div>
               <Button variant="destructive" onClick={disable} disabled={pending || !disablePw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}إيقاف المصادقة الثنائية</Button>
             </div>
           )}
@@ -114,13 +116,13 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
 
       <Card>
         <CardHeader>
-          <CardTitle>الأجهزة المسجّل دخولها</CardTitle>
-          <CardDescription>نسيت حسابك مفتوح على جهاز تاني، أو شاكك إن حد دخل بيه؟ ده بيقفل كل الجلسات — الجهاز ده كمان — وهتحتاج تسجّل دخول تاني.</CardDescription>
+          <CardTitle>{t("الأجهزة المسجّل دخولها")}</CardTitle>
+          <CardDescription>{t("نسيت حسابك مفتوح على جهاز تاني، أو شاكك إن حد دخل بيه؟ ده بيقفل كل الجلسات — الجهاز ده كمان — وهتحتاج تسجّل دخول تاني.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={signOutEverywhereAction}
             onSubmit={(e) => { if (!window.confirm("هتخرج من كل الأجهزة، والجهاز ده كمان. تكمل؟")) e.preventDefault(); }}>
-            <Button type="submit" variant="outline"><Icon name="LogOut" className="size-4" />اخرج من كل الأجهزة</Button>
+            <Button type="submit" variant="outline"><Icon name="LogOut" className="size-4" />{t("اخرج من كل الأجهزة")}</Button>
           </form>
         </CardContent>
       </Card>

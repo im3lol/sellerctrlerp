@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ export function StockRowActions({
   canManage: boolean;
   dest?: string; // navigate here after a successful action (e.g. from a detail page)
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status !== "DRAFT") return null;
@@ -51,10 +53,10 @@ export function StockRowActions({
       </Button>
       {isTransfer && (
         <Button asChild size="sm" variant="outline">
-          <Link href={`/inventory/transfers/${encodeURIComponent(docNumber)}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={`/inventory/transfers/${encodeURIComponent(docNumber)}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
       )}
-      <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
+      <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")}
         onClick={() => run(
           { title: "حذف المسودة", description: `سيتم حذف مسودة ${label} نهائياً.`, confirmText: "حذف", danger: true },
           () => isTransfer ? deleteStockTransferAction(docId) : deleteStockAdjustmentAction(docId), "تم حذف المسودة")}>

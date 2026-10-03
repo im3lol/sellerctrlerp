@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkReceiptVouchersAction, type ReceiptVouchersFilter } from "@/app/actions/erp/receipts";
 import { bulkPaymentVouchersAction } from "@/app/actions/erp/payments";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function VouchersTable({ rows, canManage, type, total, filter }: { rows: VoucherRow[]; canManage: boolean; type: "receipt" | "payment"; total: number; filter: VouchersFilter }) {
+  const t = useT();
   const sel = useSelection(total);
   const isReceipt = type === "receipt";
   const partyLabel = isReceipt ? "العميل" : "المورد";
@@ -43,16 +45,16 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} />
               </TableHead>
             )}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
             <TableHead className="text-start">{partyLabel}</TableHead>
-            <TableHead className="text-start">الفاتورة</TableHead>
-            <TableHead className="text-start">الطريقة</TableHead>
-            <TableHead className="text-start">المبلغ</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+            <TableHead className="text-start">{t("الطريقة")}</TableHead>
+            <TableHead className="text-start">{t("المبلغ")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -62,7 +64,7 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && (
                   <TableCell>
-                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}
+                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}
                   </TableCell>
                 )}
                 <TableCell className="font-mono"><Link href={`${detailBase}/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link></TableCell>

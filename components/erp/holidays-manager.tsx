@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createHolidayAction, deleteHolidayAction, bulkDeleteHolidaysAction } from "@/app/actions/erp/holidays";
@@ -16,6 +17,7 @@ type Holiday = { id: string; date: string; nameAr: string };
 const dt = (d: string) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -43,12 +45,12 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
     <div className="space-y-6">
       {canManage && (
         <Card>
-          <CardHeader><CardTitle>إضافة عطلة</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("إضافة عطلة")}</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label htmlFor="hdate">التاريخ</Label><Input id="hdate" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-48" /></div>
-              <div className="space-y-2 min-w-56 flex-1"><Label htmlFor="hname">اسم العطلة</Label><Input id="hname" value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="مثال: عيد الفطر" /></div>
-              <Button onClick={add} disabled={pending}><Icon name="Plus" className="size-4" />إضافة</Button>
+              <div className="space-y-2"><Label htmlFor="hdate">{t("التاريخ")}</Label><Input id="hdate" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-48" /></div>
+              <div className="space-y-2 min-w-56 flex-1"><Label htmlFor="hname">{t("اسم العطلة")}</Label><Input id="hname" value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder={t("مثال: عيد الفطر")} /></div>
+              <Button onClick={add} disabled={pending}><Icon name="Plus" className="size-4" />{t("إضافة")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -56,23 +58,23 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
       <Card>
         <CardContent className="p-0">
           {holidays.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد عطلات مُسجّلة.</div>
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد عطلات مُسجّلة.")}</div>
           ) : (
             <>
             {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteHolidaysAction} onDone={sel.clear} entity="إجازة" />}
             <Table>
               <TableHeader><TableRow>
-                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
-                <TableHead className="text-start">التاريخ</TableHead><TableHead className="text-start">العطلة</TableHead>
+                {canManage && <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
+                <TableHead className="text-start">{t("التاريخ")}</TableHead><TableHead className="text-start">{t("العطلة")}</TableHead>
                 {canManage && <TableHead className="w-10" />}
               </TableRow></TableHeader>
               <TableBody>
                 {holidays.map((h) => (
                   <TableRow key={h.id} data-state={sel.has(h.id) ? "selected" : undefined}>
-                    {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(h.id)} onChange={() => sel.toggle(h.id)} /></TableCell>}
+                    {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(h.id)} onChange={() => sel.toggle(h.id)} /></TableCell>}
                     <TableCell className="tabular-nums">{dt(h.date)}</TableCell>
                     <TableCell>{h.nameAr}</TableCell>
-                    {canManage && <TableCell><Button variant="ghost" size="icon" disabled={pending} aria-label="حذف" onClick={() => remove(h.id)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></TableCell>}
+                    {canManage && <TableCell><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")} onClick={() => remove(h.id)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

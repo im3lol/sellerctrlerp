@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ export type ReturnRow = {
 };
 
 export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: ReturnRow[]; canConfirm: boolean; canCreate: boolean }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -62,10 +64,10 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
       {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{int(sel.size)} محدّد</span>
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setSel(new Set())}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setSel(new Set())}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
-            {canConfirm && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")} title="يرحّل كل مرتجع محدّد حسب حالته (التالف لا يرجع مخزون قابل للبيع)"><Icon name="Check" className="size-4" />تأكيد المحدّد</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")} title={t("يرحّل كل مرتجع محدّد حسب حالته (التالف لا يرجع مخزون قابل للبيع)")}><Icon name="Check" className="size-4" />{t("تأكيد المحدّد")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
@@ -73,15 +75,15 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
         <Table>
           <TableHeader>
             <TableRow>
-              {canAct && <TableHead className="w-10">{draftIds.length > 0 && <Checkbox checked={allSel} onCheckedChange={toggleAll} aria-label="تحديد كل المسودات" />}</TableHead>}
-              <TableHead className="text-start">الرقم</TableHead>
-              <TableHead className="text-start">التاريخ</TableHead>
-              <TableHead className="text-start">العميل / المصدر</TableHead>
-              <TableHead className="text-start">الأمر الأصلي</TableHead>
-              <TableHead className="text-start">السبب</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
-              <TableHead className="text-start">القيمة</TableHead>
-              <TableHead className="text-start">المستند</TableHead>
+              {canAct && <TableHead className="w-10">{draftIds.length > 0 && <Checkbox checked={allSel} onCheckedChange={toggleAll} aria-label={t("تحديد كل المسودات")} />}</TableHead>}
+              <TableHead className="text-start">{t("الرقم")}</TableHead>
+              <TableHead className="text-start">{t("التاريخ")}</TableHead>
+              <TableHead className="text-start">{t("العميل / المصدر")}</TableHead>
+              <TableHead className="text-start">{t("الأمر الأصلي")}</TableHead>
+              <TableHead className="text-start">{t("السبب")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
+              <TableHead className="text-start">{t("القيمة")}</TableHead>
+              <TableHead className="text-start">{t("المستند")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

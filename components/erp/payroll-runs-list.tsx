@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,11 +32,12 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive"> = {
 };
 
 export function PayrollRunsList({ runs }: { runs: Run[] }) {
+  const t = useT();
   if (runs.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
         <FileText className="mx-auto mb-3 h-8 w-8 opacity-40" />
-        <p className="text-sm">لا توجد مسيرات رواتب بعد</p>
+        <p className="text-sm">{t("لا توجد مسيرات رواتب بعد")}</p>
         <Link href="/hr/payroll/new" className="mt-2 inline-block text-sm text-primary hover:underline">
           إنشاء أول مسير
         </Link>
@@ -48,12 +50,12 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
       <table className="w-full text-sm">
         <thead className="bg-muted/30 text-xs text-muted-foreground">
           <tr className="[&>th]:p-3 [&>th]:text-start">
-            <th>رقم المسير</th>
-            <th>الفترة</th>
-            <th>إجمالي المرتبات</th>
-            <th>صافي المدفوعات</th>
-            <th>الحالة</th>
-            <th>تاريخ الترحيل</th>
+            <th>{t("رقم المسير")}</th>
+            <th>{t("الفترة")}</th>
+            <th>{t("إجمالي المرتبات")}</th>
+            <th>{t("صافي المدفوعات")}</th>
+            <th>{t("الحالة")}</th>
+            <th>{t("تاريخ الترحيل")}</th>
             <th></th>
           </tr>
         </thead>

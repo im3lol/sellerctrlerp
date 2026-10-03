@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -40,6 +41,7 @@ type SLine = { expenseAccountId: string; amount: number; description: string };
 export function CustodyManager({ employees, cashAccounts, expenseAccounts, canManage }: {
   employees: Option[]; cashAccounts: Option[]; expenseAccounts: Option[]; canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [settlements, setSettlements] = useState<Settlements>({});
@@ -125,15 +127,15 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
     <div className="space-y-6">
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">عهد مفتوحة</div>
+          <div className="text-sm text-muted-foreground">{t("عهد مفتوحة")}</div>
           <div className="text-2xl font-bold tabular-nums">{rows.filter((r) => r.status === "OPEN").length}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">رصيد في عهدة الموظفين</div>
+          <div className="text-sm text-muted-foreground">{t("رصيد في عهدة الموظفين")}</div>
           <div className="text-2xl font-bold tabular-nums">{money(openTotal)}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">عهد مقفولة</div>
+          <div className="text-sm text-muted-foreground">{t("عهد مقفولة")}</div>
           <div className="text-2xl font-bold tabular-nums">{rows.filter((r) => r.status === "SETTLED").length}</div>
         </CardContent></Card>
       </div>
@@ -141,36 +143,36 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>صرف عهدة</CardTitle>
-            <CardDescription>النقدية بتخرج دلوقتي، وبتفضل محمّلة على الموظف لحد ما يقدّم فواتيره أو يرجّع الباقي.</CardDescription>
+            <CardTitle>{t("صرف عهدة")}</CardTitle>
+            <CardDescription>{t("النقدية بتخرج دلوقتي، وبتفضل محمّلة على الموظف لحد ما يقدّم فواتيره أو يرجّع الباقي.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-2 sm:col-span-2">
-                <Label>الموظف</Label>
+                <Label>{t("الموظف")}</Label>
                 <CellCombobox
                   selectedLabel={employees.find((e) => e.id === issue.employeeId)?.label ?? ""}
                   options={employees} onSelect={(id) => setIssue((f) => ({ ...f, employeeId: id }))}
-                  placeholder="ابحث بالاسم…"
+                  placeholder={t("ابحث بالاسم…")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>من حساب</Label>
+                <Label>{t("من حساب")}</Label>
                 <CellCombobox
                   selectedLabel={cashAccounts.find((a) => a.id === issue.cashAccountId)?.label ?? ""}
                   options={cashAccounts} onSelect={(id) => setIssue((f) => ({ ...f, cashAccountId: id }))}
-                  placeholder="الخزينة/البنك…"
+                  placeholder={t("الخزينة/البنك…")}
                 />
               </div>
-              <div className="space-y-2"><Label>التاريخ</Label>
+              <div className="space-y-2"><Label>{t("التاريخ")}</Label>
                 <Input type="date" value={issue.date} onChange={(e) => setIssue((f) => ({ ...f, date: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>المبلغ</Label>
+              <div className="space-y-2"><Label>{t("المبلغ")}</Label>
                 <Input type="number" step="0.01" min="0" value={issue.amount} onChange={(e) => setIssue((f) => ({ ...f, amount: e.target.value }))} /></div>
             </div>
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="min-w-60 flex-1 space-y-2"><Label>الغرض</Label>
-                <Input value={issue.purpose} onChange={(e) => setIssue((f) => ({ ...f, purpose: e.target.value }))} placeholder="مثال: مصاريف شحن ونقل" /></div>
-              <Button onClick={submitIssue} disabled={pending}><Icon name="HandCoins" className="size-4" />اصرف</Button>
+              <div className="min-w-60 flex-1 space-y-2"><Label>{t("الغرض")}</Label>
+                <Input value={issue.purpose} onChange={(e) => setIssue((f) => ({ ...f, purpose: e.target.value }))} placeholder={t("مثال: مصاريف شحن ونقل")} /></div>
+              <Button onClick={submitIssue} disabled={pending}><Icon name="HandCoins" className="size-4" />{t("اصرف")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -187,8 +189,8 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                 </CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={submitSettle} disabled={pending}><Icon name="Check" className="size-4" />سجّل</Button>
-                <Button size="sm" variant="outline" onClick={() => setSettling(null)}>إلغاء</Button>
+                <Button size="sm" onClick={submitSettle} disabled={pending}><Icon name="Check" className="size-4" />{t("سجّل")}</Button>
+                <Button size="sm" variant="outline" onClick={() => setSettling(null)}>{t("إلغاء")}</Button>
               </div>
             </div>
           </CardHeader>
@@ -197,9 +199,9 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">حساب المصروف</TableHead>
-                    <TableHead className="w-32 text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">البيان</TableHead>
+                    <TableHead className="text-start">{t("حساب المصروف")}</TableHead>
+                    <TableHead className="w-32 text-start">{t("المبلغ")}</TableHead>
+                    <TableHead className="text-start">{t("البيان")}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -211,7 +213,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                           selectedLabel={expenseAccounts.find((a) => a.id === l.expenseAccountId)?.label ?? ""}
                           options={expenseAccounts}
                           onSelect={(id) => setSLines((ls) => ls.map((x, k) => (k === i ? { ...x, expenseAccountId: id } : x)))}
-                          placeholder="ابحث عن الحساب…"
+                          placeholder={t("ابحث عن الحساب…")}
                         />
                       </TableCell>
                       <TableCell>
@@ -221,10 +223,10 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                       <TableCell>
                         <Input value={l.description}
                           onChange={(e) => setSLines((ls) => ls.map((x, k) => (k === i ? { ...x, description: e.target.value } : x)))}
-                          placeholder="اختياري" />
+                          placeholder={t("اختياري")} />
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" aria-label="حذف"
+                        <Button size="icon" variant="ghost" aria-label={t("حذف")}
                           onClick={() => setSLines((ls) => ls.filter((_, k) => k !== i))}>
                           <Icon name="Trash2" className="size-4 text-destructive" />
                         </Button>
@@ -238,7 +240,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
               <Button size="sm" variant="outline" onClick={() => setSLines((ls) => [...ls, { expenseAccountId: "", amount: 0, description: "" }])}>
                 <Icon name="Plus" className="size-4" />سطر
               </Button>
-              <div className="space-y-2"><Label>نقدية مرتجعة</Label>
+              <div className="space-y-2"><Label>{t("نقدية مرتجعة")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-32" value={returned} onChange={(e) => setReturned(e.target.value)} placeholder="0" /></div>
               <span className="text-sm text-muted-foreground">
                 إجمالي التسوية {money(settlementTotal(sLines, Number(returned) || 0))} من {money(settling.left)}
@@ -250,24 +252,24 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
 
       <Card>
         <CardHeader>
-          <CardTitle>العُهد</CardTitle>
+          <CardTitle>{t("العُهد")}</CardTitle>
           <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} عهدة`}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground">مفيش عهد مسجّلة.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش عهد مسجّلة.")}</p>
           ) : (
             <div className="rounded-xl border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">الموظف</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المبلغ</TableHead>
-                    <TableHead className="text-start">المُسوّى</TableHead>
-                    <TableHead className="text-start">المتبقّي</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("الموظف")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المبلغ")}</TableHead>
+                    <TableHead className="text-start">{t("المُسوّى")}</TableHead>
+                    <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     {canManage && <TableHead className="w-40" />}
                   </TableRow>
                 </TableHeader>
@@ -293,9 +295,9 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                         <TableCell className="flex gap-1">
                           {r.status === "OPEN" && (
                             <>
-                              <Button size="sm" variant="outline" onClick={() => openSettle(r)}>تسوية</Button>
+                              <Button size="sm" variant="outline" onClick={() => openSettle(r)}>{t("تسوية")}</Button>
                               {r.settled === 0 && (
-                                <Button size="icon" variant="ghost" aria-label="إلغاء" onClick={() => cancel(r)}>
+                                <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => cancel(r)}>
                                   <Icon name="Ban" className="size-4 text-destructive" />
                                 </Button>
                               )}

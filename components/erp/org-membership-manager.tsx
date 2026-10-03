@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { addUserToOrgAction, removeUserFromOrgAction } from "@/app/actions/erp/members";
@@ -16,6 +17,7 @@ const ROLE_AR: Record<string, string> = {
 export function OrgMembershipManager({
   userId, orgName, currentRole,
 }: { userId: string; orgName: string; currentRole: string | null }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [role, setRole] = useState(currentRole && currentRole !== "super_admin" ? currentRole : "viewer");
 
@@ -31,7 +33,7 @@ export function OrgMembershipManager({
   });
 
   if (currentRole === "super_admin") {
-    return <p className="py-2 text-center text-sm text-muted-foreground">مدير نظام — وصول كامل لكل المؤسسات.</p>;
+    return <p className="py-2 text-center text-sm text-muted-foreground">{t("مدير نظام — وصول كامل لكل المؤسسات.")}</p>;
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveOrgAiKeyAction, removeOrgAiKeyAction } from "@/app/actions/erp/ai-settings";
@@ -13,6 +14,7 @@ import { confirm } from "@/components/erp/confirm";
 import { selectCls } from "@/lib/utils";
 
 export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean; model: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [apiKey, setApiKey] = useState("");
@@ -41,19 +43,19 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="org-ai-key">مفتاح Anthropic API</Label>
+        <Label htmlFor="org-ai-key">{t("مفتاح Anthropic API")}</Label>
         <Input id="org-ai-key" type="password" dir="ltr" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
           placeholder={hasKey ? "••••••••  (محفوظ — سيبه فاضي عشان يفضل)" : "sk-ant-…"} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="org-ai-model">الموديل</Label>
+        <Label htmlFor="org-ai-model">{t("الموديل")}</Label>
         <select id="org-ai-model" className={`${selectCls} w-72`} value={model} onChange={(e) => setModel(e.target.value)}>
           {AI_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={save} disabled={pending || (!hasKey && !apiKey.trim())}><Icon name="Check" className="size-4" />حفظ</Button>
-        {hasKey && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={remove}><Icon name="Trash2" className="size-4" />شيل المفتاح</Button>}
+        <Button onClick={save} disabled={pending || (!hasKey && !apiKey.trim())}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+        {hasKey && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={remove}><Icon name="Trash2" className="size-4" />{t("شيل المفتاح")}</Button>}
       </div>
     </div>
   );

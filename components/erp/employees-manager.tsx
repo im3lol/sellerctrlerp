@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { UserCog, Plus, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ function EmployeeDialog({
   member: Member;
   onClose: () => void;
 }) {
+  const t = useT();
   const emp = member.employee;
   const isStandalone = !member.userId;
   const [pending, startTransition] = useTransition();
@@ -82,19 +84,19 @@ function EmployeeDialog({
       <div className="grid gap-4">
         {isStandalone && (
           <div className="space-y-1.5">
-            <Label>اسم الموظف</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="الاسم الكامل" />
-            <p className="text-xs text-muted-foreground">موظف على كشف الرواتب فقط — بدون حساب دخول للنظام.</p>
+            <Label>{t("اسم الموظف")}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("الاسم الكامل")} />
+            <p className="text-xs text-muted-foreground">{t("موظف على كشف الرواتب فقط — بدون حساب دخول للنظام.")}</p>
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>نوع الراتب</Label>
+            <Label>{t("نوع الراتب")}</Label>
             <Select value={payType} onValueChange={(v) => setPayType(v as "MONTHLY" | "HOURLY")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="MONTHLY">شهري (ثابت)</SelectItem>
-                <SelectItem value="HOURLY">بالساعة</SelectItem>
+                <SelectItem value="MONTHLY">{t("شهري (ثابت)")}</SelectItem>
+                <SelectItem value="HOURLY">{t("بالساعة")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -106,27 +108,27 @@ function EmployeeDialog({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label>البدلات الشهرية</Label>
+            <Label>{t("البدلات الشهرية")}</Label>
             <Input type="number" min="0" step="0.01" value={allowances} onChange={(e) => setAllowances(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>الاستقطاعات الشهرية</Label>
+            <Label>{t("الاستقطاعات الشهرية")}</Label>
             <Input type="number" min="0" step="0.01" value={deductions} onChange={(e) => setDeductions(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>نسبة الضريبة %</Label>
+            <Label>{t("نسبة الضريبة %")}</Label>
             <Input type="number" min="0" max="100" step="0.1" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>المسمى الوظيفي</Label>
-            <Input value={position} onChange={(e) => setPosition(e.target.value)} placeholder="محاسب، مدير..." />
+            <Label>{t("المسمى الوظيفي")}</Label>
+            <Input value={position} onChange={(e) => setPosition(e.target.value)} placeholder={t("محاسب، مدير...")} />
           </div>
           <div className="space-y-1.5">
-            <Label>القسم</Label>
-            <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="المالية، المبيعات..." />
+            <Label>{t("القسم")}</Label>
+            <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder={t("المالية، المبيعات...")} />
           </div>
         </div>
 
@@ -134,7 +136,7 @@ function EmployeeDialog({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button>
       </DialogFooter>
     </DialogContent>
@@ -142,6 +144,7 @@ function EmployeeDialog({
 }
 
 export function EmployeesManager({ members }: { members: Member[]; orgId: string }) {
+  const t = useT();
   const [editing, setEditing] = useState<Member | null>(null);
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
@@ -167,23 +170,23 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
         <p className="max-w-2xl text-sm text-muted-foreground">
           كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. أو أضف موظفاً على كشف الرواتب فقط دون حساب دخول للنظام.
         </p>
-        <Button onClick={addStandalone}><Plus className="me-1 size-4" />موظف بدون حساب</Button>
+        <Button onClick={addStandalone}><Plus className="me-1 size-4" />{t("موظف بدون حساب")}</Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">مسجّلون / الأعضاء</div><div className="text-lg font-bold tabular-nums">{registered} / {members.length}</div></div>
-        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">نشطون</div><div className="text-lg font-bold tabular-nums">{activeCount}</div></div>
-        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">إجمالي الأساسي+البدلات (نشط)</div><div className="text-lg font-bold tabular-nums">{money(monthlyBasic)}</div></div>
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">{t("مسجّلون / الأعضاء")}</div><div className="text-lg font-bold tabular-nums">{registered} / {members.length}</div></div>
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">{t("نشطون")}</div><div className="text-lg font-bold tabular-nums">{activeCount}</div></div>
+        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">{t("إجمالي الأساسي+البدلات (نشط)")}</div><div className="text-lg font-bold tabular-nums">{money(monthlyBasic)}</div></div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالاسم أو البريد أو القسم…" className="max-w-xs" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("بحث بالاسم أو البريد أو القسم…")} className="max-w-xs" />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm">
-          <option value="">الكل</option>
-          <option value="active">نشط</option>
-          <option value="inactive">موقوف</option>
-          <option value="unregistered">غير مسجّل</option>
+          <option value="">{t("الكل")}</option>
+          <option value="active">{t("نشط")}</option>
+          <option value="inactive">{t("موقوف")}</option>
+          <option value="unregistered">{t("غير مسجّل")}</option>
         </select>
         {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} نتيجة</span>}
       </div>
@@ -192,12 +195,12 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr className="[&>th]:p-3 [&>th]:text-start">
-              <th>الموظف</th>
-              <th>نوع الراتب</th>
-              <th>الراتب الأساسي</th>
-              <th>البدلات</th>
-              <th>الاستقطاعات</th>
-              <th>الحالة</th>
+              <th>{t("الموظف")}</th>
+              <th>{t("نوع الراتب")}</th>
+              <th>{t("الراتب الأساسي")}</th>
+              <th>{t("البدلات")}</th>
+              <th>{t("الاستقطاعات")}</th>
+              <th>{t("الحالة")}</th>
               <th></th>
             </tr>
           </thead>
@@ -228,7 +231,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
                         {emp.isActive ? "نشط" : "موقوف"}
                       </Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">غير مسجّل</span>
+                      <span className="text-xs text-muted-foreground">{t("غير مسجّل")}</span>
                     )}
                   </td>
                   <td>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, FileText, CheckCircle2, Truck, ReceiptText } from "lucide-react";
@@ -44,6 +45,7 @@ export function PlatformSettingsForm({
   platform: Platform; warehouses: Option[]; bankAccounts: Option[];
   autoSync: boolean; connected: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [autoSync, setAutoSync] = useState(initialAutoSync);
@@ -98,12 +100,12 @@ export function PlatformSettingsForm({
       {connected && (
         <Card>
           <CardHeader>
-            <CardTitle>المزامنة التلقائية</CardTitle>
-            <CardDescription>الطلبات الجديدة تدخل النظام تلقائيًا خلال دقائق (وإشعار في الجرس)، والمنتجات الجديدة تُكتشف يوميًا.</CardDescription>
+            <CardTitle>{t("المزامنة التلقائية")}</CardTitle>
+            <CardDescription>{t("الطلبات الجديدة تدخل النظام تلقائيًا خلال دقائق (وإشعار في الجرس)، والمنتجات الجديدة تُكتشف يوميًا.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
-              <div className="text-sm font-medium">تفعيل المزامنة التلقائية المجدولة</div>
+              <div className="text-sm font-medium">{t("تفعيل المزامنة التلقائية المجدولة")}</div>
               <Switch checked={autoSync} onCheckedChange={toggleAutoSync} disabled={autoSyncPending} />
             </div>
           </CardContent>
@@ -113,23 +115,23 @@ export function PlatformSettingsForm({
       {/* ١ — الهوية */}
       <Card>
         <CardHeader>
-          <CardTitle>الهوية</CardTitle>
-          <CardDescription>اسم المنصة وكودها ونوع ملف الاستيراد اليدوي.</CardDescription>
+          <CardTitle>{t("الهوية")}</CardTitle>
+          <CardDescription>{t("اسم المنصة وكودها ونوع ملف الاستيراد اليدوي.")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="pname">اسم المنصة</Label>
+            <Label htmlFor="pname">{t("اسم المنصة")}</Label>
             <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>الكود</Label>
+            <Label>{t("الكود")}</Label>
             <Input value={platform.code} disabled className="font-mono" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ptype">نوع التكامل</Label>
+            <Label htmlFor="ptype">{t("نوع التكامل")}</Label>
             <select id="ptype" className={selectCls} value={integrationType} onChange={(e) => setIntegrationType(e.target.value)}>
-              <option value="generic">عام (CSV بربط أعمدة)</option>
-              <option value="amazon">أمازون (محلّل مخصص)</option>
+              <option value="generic">{t("عام (CSV بربط أعمدة)")}</option>
+              <option value="amazon">{t("أمازون (محلّل مخصص)")}</option>
             </select>
           </div>
         </CardContent>
@@ -138,8 +140,8 @@ export function PlatformSettingsForm({
       {/* ٢ — مصادر المزامنة */}
       <Card>
         <CardHeader>
-          <CardTitle>مصادر المزامنة</CardTitle>
-          <CardDescription>ما يسحبه زر «مزامنة الآن» والمزامنة التلقائية لهذه المنصة.</CardDescription>
+          <CardTitle>{t("مصادر المزامنة")}</CardTitle>
+          <CardDescription>{t("ما يسحبه زر «مزامنة الآن» والمزامنة التلقائية لهذه المنصة.")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1">
           {SOURCES.map((s) => (
@@ -152,12 +154,12 @@ export function PlatformSettingsForm({
             </div>
           ))}
           <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="psync">وضع مزامنة المنتجات</Label>
+            <Label htmlFor="psync">{t("وضع مزامنة المنتجات")}</Label>
             <select id="psync" className={selectCls} value={productSyncMode} onChange={(e) => setProductSyncMode(e.target.value)}>
-              <option value="create">ربط بالـASIN + إنشاء الجديد (كامل)</option>
-              <option value="link">ربط بالـASIN فقط (إثراء البيانات)</option>
+              <option value="create">{t("ربط بالـASIN + إنشاء الجديد (كامل)")}</option>
+              <option value="link">{t("ربط بالـASIN فقط (إثراء البيانات)")}</option>
             </select>
-            <p className="text-xs text-muted-foreground">الربط يتم فقط لو الـASIN مضاف في أكواد الصنف عندك. «ربط فقط»: يكمّل بيانات المطابق ويتجاهل غير المطابق. «ربط + إنشاء»: ينشئ صنفًا كاملًا لغير المطابق.</p>
+            <p className="text-xs text-muted-foreground">{t("الربط يتم فقط لو الـASIN مضاف في أكواد الصنف عندك. «ربط فقط»: يكمّل بيانات المطابق ويتجاهل غير المطابق. «ربط + إنشاء»: ينشئ صنفًا كاملًا لغير المطابق.")}</p>
           </div>
         </CardContent>
       </Card>
@@ -165,8 +167,8 @@ export function PlatformSettingsForm({
       {/* ٣ — المعالجة التلقائية */}
       <Card>
         <CardHeader>
-          <CardTitle>المعالجة التلقائية للأوردر</CardTitle>
-          <CardDescription>لأي مرحلة يمرّ الطلب المتزامن تلقائيًا — كل مستوى يشمل ما قبله.</CardDescription>
+          <CardTitle>{t("المعالجة التلقائية للأوردر")}</CardTitle>
+          <CardDescription>{t("لأي مرحلة يمرّ الطلب المتزامن تلقائيًا — كل مستوى يشمل ما قبله.")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
@@ -184,11 +186,11 @@ export function PlatformSettingsForm({
               );
             })}
           </div>
-          <p className="text-xs text-muted-foreground">لو المخزون غير متوفر وقت الصرف، يُحفظ إذن الصرف كمسودة ويصلك إشعار «بانتظار توفّر المخزون» — بدون أي حركة سالبة، ويُستكمل تلقائيًا أول ما المخزون يتوفر.</p>
+          <p className="text-xs text-muted-foreground">{t("لو المخزون غير متوفر وقت الصرف، يُحفظ إذن الصرف كمسودة ويصلك إشعار «بانتظار توفّر المخزون» — بدون أي حركة سالبة، ويُستكمل تلقائيًا أول ما المخزون يتوفر.")}</p>
           <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
             <div>
-              <div className="text-sm font-medium">الترحيل التلقائي للتسويات</div>
-              <div className="text-xs text-muted-foreground">مفعّل: التسويات المسحوبة تُرحّل للقيود تلقائيًا. مُطفأ (الافتراضي): تُسحب وتنتظر مراجعتك ثم تضغط «ترحيل» يدويًا.</div>
+              <div className="text-sm font-medium">{t("الترحيل التلقائي للتسويات")}</div>
+              <div className="text-xs text-muted-foreground">{t("مفعّل: التسويات المسحوبة تُرحّل للقيود تلقائيًا. مُطفأ (الافتراضي): تُسحب وتنتظر مراجعتك ثم تضغط «ترحيل» يدويًا.")}</div>
             </div>
             <Switch checked={autoPostSettlements} onCheckedChange={setAutoPostSettlements} />
           </div>
@@ -196,8 +198,8 @@ export function PlatformSettingsForm({
               default: the order imports at the price the buyer paid, no tax line. */}
           <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5">
             <div>
-              <div className="text-sm font-medium">أسعار المنصة شاملة ض.ق.م</div>
-              <div className="text-xs text-muted-foreground">مُطفأ (الافتراضي): الأوامر تنزل بسعرها كامل ومفيش ضريبة تُرحَّل. مفعّل: تُستخرج الضريبة من السعر وتُرحَّل على «ضريبة المخرجات» — الإجمالي ما يتغيّرش في الحالتين. التغيير يسري على الأوامر الجديدة بس.</div>
+              <div className="text-sm font-medium">{t("أسعار المنصة شاملة ض.ق.م")}</div>
+              <div className="text-xs text-muted-foreground">{t("مُطفأ (الافتراضي): الأوامر تنزل بسعرها كامل ومفيش ضريبة تُرحَّل. مفعّل: تُستخرج الضريبة من السعر وتُرحَّل على «ضريبة المخرجات» — الإجمالي ما يتغيّرش في الحالتين. التغيير يسري على الأوامر الجديدة بس.")}</div>
             </div>
             <Switch checked={pricesIncludeVat} onCheckedChange={setPricesIncludeVat} />
           </div>
@@ -207,32 +209,32 @@ export function PlatformSettingsForm({
       {/* ٤ — الربط المحاسبي */}
       <Card>
         <CardHeader>
-          <CardTitle>الربط المحاسبي</CardTitle>
-          <CardDescription>أين تُسجَّل حركات هذه المنصة: المخزن والبنك والعميل.</CardDescription>
+          <CardTitle>{t("الربط المحاسبي")}</CardTitle>
+          <CardDescription>{t("أين تُسجَّل حركات هذه المنصة: المخزن والبنك والعميل.")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>المخزن الافتراضي</Label>
+            <Label>{t("المخزن الافتراضي")}</Label>
             <ComboboxBase
               displayValue={whOptions.find((o) => o.id === warehouseId)?.label ?? ""}
               options={whOptions}
               onPick={(o) => setWarehouseId(o.id)}
-              placeholder="ابحث عن مخزن…"
+              placeholder={t("ابحث عن مخزن…")}
             />
           </div>
           <div className="space-y-2">
-            <Label>الحساب البنكي للتسويات</Label>
+            <Label>{t("الحساب البنكي للتسويات")}</Label>
             <ComboboxBase
               displayValue={bankOptions.find((o) => o.id === bankAccountId)?.label ?? ""}
               options={bankOptions}
               onPick={(o) => setBankAccountId(o.id)}
-              placeholder="ابحث عن حساب…"
+              placeholder={t("ابحث عن حساب…")}
             />
           </div>
           <div className="space-y-2">
-            <Label>عميل المنصة</Label>
+            <Label>{t("عميل المنصة")}</Label>
             <Input value={platform.customerName ?? "—"} disabled />
-            <p className="text-xs text-muted-foreground">تُسجَّل مبيعات المنصة باسم هذا العميل.</p>
+            <p className="text-xs text-muted-foreground">{t("تُسجَّل مبيعات المنصة باسم هذا العميل.")}</p>
           </div>
         </CardContent>
       </Card>

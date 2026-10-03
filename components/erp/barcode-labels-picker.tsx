@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Trash2, Printer, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ function itemCodes(it: ItemSearchResult): PrintCode[] {
 type Row = { itemId: string; label: string; qty: number; codes: PrintCode[]; sel: number };
 
 export function BarcodeLabelsPicker() {
+  const t = useT();
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const { printers, printer, setPrinter, qzOk } = useQzPrinters(true);
@@ -60,7 +62,7 @@ export function BarcodeLabelsPicker() {
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="space-y-2">
-          <Label>أضف صنفاً</Label>
+          <Label>{t("أضف صنفاً")}</Label>
           <ItemPicker selectedLabel="" onSelect={add} />
         </div>
 
@@ -69,9 +71,9 @@ export function BarcodeLabelsPicker() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكود</TableHead>
-                  <TableHead className="w-32 text-start">عدد الملصقات</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكود")}</TableHead>
+                  <TableHead className="w-32 text-start">{t("عدد الملصقات")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -85,7 +87,7 @@ export function BarcodeLabelsPicker() {
                       </select>
                     </TableCell>
                     <TableCell><Input type="number" step="1" min="1" max="500" value={r.qty} onChange={(e) => patch(i, { qty: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                    <TableCell><Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -103,7 +105,7 @@ export function BarcodeLabelsPicker() {
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة الملصقات
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">طباعة مباشرة عبر QZ Tray — ملصق 50×25 مم.</p>
+        <p className="text-xs text-muted-foreground">{t("طباعة مباشرة عبر QZ Tray — ملصق 50×25 مم.")}</p>
       </CardContent>
     </Card>
   );

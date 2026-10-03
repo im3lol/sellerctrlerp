@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -36,6 +37,7 @@ const CHART_ICON: Record<ChartKind, string> = { bar: "ChartColumn", trend: "Char
  * that was not already open.
  */
 export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: DatasetOption[]; saved: SavedReportRow[]; initialId?: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   // Opened from a dashboard tile: start on that saved report.
@@ -87,8 +89,8 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
       {saved.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>تقارير محفوظة</CardTitle>
-            <CardDescription>المحفوظ هو السؤال مش الإجابة — الأرقام بتتقرا من جديد كل مرة.</CardDescription>
+            <CardTitle>{t("تقارير محفوظة")}</CardTitle>
+            <CardDescription>{t("المحفوظ هو السؤال مش الإجابة — الأرقام بتتقرا من جديد كل مرة.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -98,9 +100,9 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                     {r.nameAr}
                   </button>
                   <span className="text-xs text-muted-foreground">({r.datasetTitle})</span>
-                  {r.isShared && <Badge variant="outline" className="text-xs">مشترك</Badge>}
+                  {r.isShared && <Badge variant="outline" className="text-xs">{t("مشترك")}</Badge>}
                   {r.mine && (
-                    <Button size="icon" variant="ghost" aria-label="مسح" onClick={() => void (async () => {
+                    <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => void (async () => {
                       const go = await confirm({
                         danger: true, title: `تمسح «${r.nameAr}»؟`,
                         description: "التقرير بس اللي هيتمسح — البيانات نفسها مش بتتأثر.",
@@ -125,7 +127,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
       <Card>
         <CardHeader>
-          <CardTitle>ابنِ تقرير</CardTitle>
+          <CardTitle>{t("ابنِ تقرير")}</CardTitle>
           <CardDescription>
             اختار البيانات، حدّد الأعمدة، حطّ الشروط، وجمّع. كل حاجة بتقرأ بس — مفيش أي كتابة.
           </CardDescription>
@@ -133,38 +135,38 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
-              <Label>البيانات</Label>
+              <Label>{t("البيانات")}</Label>
               <select className={`${selectCls} w-56`} value={dataset} onChange={(e) => pickDataset(e.target.value)}>
                 {datasets.map((d) => <option key={d.key} value={d.key}>{d.title}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>تجميع حسب</Label>
+              <Label>{t("تجميع حسب")}</Label>
               <select className={`${selectCls} w-48`} value={spec.groupBy ?? ""}
                 onChange={(e) => {
                   const g = e.target.value === "" ? null : Number(e.target.value);
                   // A pivot hangs off the grouping, and never on the same column.
                   setSpec((s) => ({ ...s, groupBy: g, pivotBy: g == null || s.pivotBy === g ? null : s.pivotBy }));
                 }}>
-                <option value="">بدون تجميع</option>
+                <option value="">{t("بدون تجميع")}</option>
                 {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
               </select>
             </div>
             {spec.groupBy != null && (
               <>
                 <div className="space-y-2">
-                  <Label>وأعمدة حسب (محوري)</Label>
+                  <Label>{t("وأعمدة حسب (محوري)")}</Label>
                   <select className={`${selectCls} w-48`} value={spec.pivotBy ?? ""}
                     onChange={(e) => setSpec((s) => ({ ...s, pivotBy: e.target.value === "" ? null : Number(e.target.value) }))}>
-                    <option value="">بدون</option>
+                    <option value="">{t("بدون")}</option>
                     {headers.map((h, i) => (i === spec.groupBy ? null : <option key={i} value={i}>{h}</option>))}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>التواريخ</Label>
+                  <Label>{t("التواريخ")}</Label>
                   <select className={`${selectCls} w-32`} value={spec.dateBucket ?? ""}
                     onChange={(e) => setSpec((s) => ({ ...s, dateBucket: (e.target.value || null) as DateBucket | null }))}>
-                    <option value="">زي ما هي</option>
+                    <option value="">{t("زي ما هي")}</option>
                     {(Object.keys(DATE_BUCKET_LABEL) as DateBucket[]).map((k) => (
                       <option key={k} value={k}>{DATE_BUCKET_LABEL[k]}</option>
                     ))}
@@ -173,8 +175,8 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               </>
             )}
             <div className="space-y-2">
-              <Label>أقصى عدد صفوف</Label>
-              <Input type="number" step="1" min="0" className="w-32 tabular-nums" placeholder="الكل"
+              <Label>{t("أقصى عدد صفوف")}</Label>
+              <Input type="number" step="1" min="0" className="w-32 tabular-nums" placeholder={t("الكل")}
                 value={spec.limit ?? ""}
                 onChange={(e) => setSpec((s) => ({ ...s, limit: e.target.value === "" ? undefined : Number(e.target.value) }))} />
             </div>
@@ -196,7 +198,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
           {spec.groupBy == null && (
             <div className="space-y-2">
-              <Label>الأعمدة {spec.columns.length === 0 && <span className="text-xs text-muted-foreground">(مفيش اختيار = كل الأعمدة)</span>}</Label>
+              <Label>الأعمدة {spec.columns.length === 0 && <span className="text-xs text-muted-foreground">{t("(مفيش اختيار = كل الأعمدة)")}</span>}</Label>
               <div className="flex flex-wrap gap-2">
                 {headers.map((h, i) => (
                   <Button key={i} size="sm" variant={spec.columns.includes(i) ? "default" : "outline"}
@@ -210,14 +212,14 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label>الشروط</Label>
+              <Label>{t("الشروط")}</Label>
               <Button size="sm" variant="outline" disabled={spec.filters.length >= 10}
                 onClick={() => setSpec((s) => ({ ...s, filters: [...s.filters, { column: 0, op: "contains", value: "" }] }))}>
                 <Icon name="Plus" className="size-4" />شرط
               </Button>
             </div>
             {spec.filters.length === 0 ? (
-              <p className="text-xs text-muted-foreground">مفيش شروط — التقرير هيرجّع كل الصفوف.</p>
+              <p className="text-xs text-muted-foreground">{t("مفيش شروط — التقرير هيرجّع كل الصفوف.")}</p>
             ) : spec.filters.map((f, i) => (
               <div key={i} className="flex flex-wrap items-center gap-2">
                 <select className={`${selectCls} w-44`} value={f.column}
@@ -231,14 +233,14 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   ))}
                 </select>
                 {!NO_VALUE.includes(f.op) && (
-                  <Input className="w-40" value={f.value ?? ""} placeholder="القيمة"
+                  <Input className="w-40" value={f.value ?? ""} placeholder={t("القيمة")}
                     onChange={(e) => setFilter(i, { value: e.target.value })} />
                 )}
                 {f.op === "between" && (
-                  <Input className="w-40" value={f.value2 ?? ""} placeholder="إلى"
+                  <Input className="w-40" value={f.value2 ?? ""} placeholder={t("إلى")}
                     onChange={(e) => setFilter(i, { value2: e.target.value })} />
                 )}
-                <Button size="icon" variant="ghost" aria-label="شيل الشرط"
+                <Button size="icon" variant="ghost" aria-label={t("شيل الشرط")}
                   onClick={() => setSpec((s) => ({ ...s, filters: s.filters.filter((_, k) => k !== i) }))}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
@@ -248,7 +250,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label>الإجماليات</Label>
+              <Label>{t("الإجماليات")}</Label>
               <Button size="sm" variant="outline" disabled={spec.aggregates.length >= 8}
                 onClick={() => setSpec((s) => ({ ...s, aggregates: [...s.aggregates, { column: 0, agg: "sum" }] }))}>
                 <Icon name="Plus" className="size-4" />إجمالي
@@ -266,7 +268,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   onChange={(e) => setSpec((s) => ({ ...s, aggregates: s.aggregates.map((x, k) => (k === i ? { ...x, column: Number(e.target.value) } : x)) }))}>
                   {headers.map((h, k) => <option key={k} value={k}>{h}</option>)}
                 </select>
-                <Button size="icon" variant="ghost" aria-label="شيل"
+                <Button size="icon" variant="ghost" aria-label={t("شيل")}
                   onClick={() => setSpec((s) => ({ ...s, aggregates: s.aggregates.filter((_, k) => k !== i) }))}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
@@ -288,7 +290,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-lg border p-0.5" role="group" aria-label="طريقة العرض">
+                <div className="flex rounded-lg border p-0.5" role="group" aria-label={t("طريقة العرض")}>
                   {([null, "bar", "trend", "donut"] as (ChartKind | null)[]).map((k) => (
                     <Button key={k ?? "table"} size="sm" variant={(spec.chart ?? null) === k ? "default" : "ghost"}
                       disabled={k != null && !result.grouped}
@@ -309,7 +311,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
           <CardContent className="space-y-4">
             {savingAs && (
               <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                <div className="space-y-2"><Label>اسم التقرير</Label>
+                <div className="space-y-2"><Label>{t("اسم التقرير")}</Label>
                   <Input className="w-64" value={savingAs.nameAr} autoFocus
                     onChange={(e) => setSavingAs((v) => (v ? { ...v, nameAr: e.target.value } : v))} /></div>
                 <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
@@ -327,7 +329,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   })}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
-                <Button variant="ghost" onClick={() => setSavingAs(null)}>رجوع</Button>
+                <Button variant="ghost" onClick={() => setSavingAs(null)}>{t("رجوع")}</Button>
               </div>
             )}
 
@@ -349,7 +351,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
             )}
 
             {result.rows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">مفيش صفوف بالشروط دي.</p>
+              <p className="text-sm text-muted-foreground">{t("مفيش صفوف بالشروط دي.")}</p>
             ) : (
               <div className="overflow-x-auto rounded-xl border">
                 <Table>

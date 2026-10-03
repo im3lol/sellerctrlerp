@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Check, Loader2, PackagePlus } from "lucide-react";
@@ -19,6 +20,7 @@ const dt = (s: string) => new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateSt
  * "تمّت المعالجة" dismisses it now.
  */
 export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد طلبات بمنتجات غير معرَّفة — كله متطابق ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد طلبات بمنتجات غير معرَّفة — كله متطابق ✓")}</CardContent></Card>;
   }
 
   return (

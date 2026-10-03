@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getSupplierItemsAction, saveSupplierItemsAction, type SupplierItemRow } from "@/app/actions/erp/supplier-items";
@@ -34,6 +35,7 @@ const toDraft = (r: SupplierItemRow): Draft => ({
  * reorder and a new purchase order reach for first.
  */
 export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canEdit: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<Draft[]>([]);
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
@@ -86,7 +88,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
       <CardHeader>
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>الموردون</CardTitle>
+            <CardTitle>{t("الموردون")}</CardTitle>
             <CardDescription>
               بتشتري الصنف ده من مين وبكام. أوامر الشراء المؤكدة بتحدّث السعر لوحدها، و«المفضّل» هو اللي إعادة الطلب
               وأمر الشراء الجديد بيختاروه الأول، بمدة توريده وأقل كمية بيبيعها.
@@ -106,19 +108,19 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">لسه مفيش موردين للصنف ده — أول أمر شراء يتأكد هيضيف مورده هنا.</p>
+          <p className="text-sm text-muted-foreground">{t("لسه مفيش موردين للصنف ده — أول أمر شراء يتأكد هيضيف مورده هنا.")}</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">المورد</TableHead>
-                  <TableHead className="text-start">كود المورد</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">أقل كمية</TableHead>
-                  <TableHead className="text-start">التوريد (يوم)</TableHead>
-                  <TableHead className="text-start">مفضّل</TableHead>
-                  <TableHead className="text-start">آخر طلب</TableHead>
+                  <TableHead className="text-start">{t("المورد")}</TableHead>
+                  <TableHead className="text-start">{t("كود المورد")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("أقل كمية")}</TableHead>
+                  <TableHead className="text-start">{t("التوريد (يوم)")}</TableHead>
+                  <TableHead className="text-start">{t("مفضّل")}</TableHead>
+                  <TableHead className="text-start">{t("آخر طلب")}</TableHead>
                   {canEdit && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
@@ -131,7 +133,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
                           selectedLabel={options.find((o) => o.id === r.supplierId)?.label ?? r.supplierName}
                           options={options.filter((o) => o.id === r.supplierId || !rows.some((x) => x.supplierId === o.id))}
                           onSelect={(id, label) => patch(r.key, { supplierId: id, supplierName: label })}
-                          placeholder="اختر المورد…"
+                          placeholder={t("اختر المورد…")}
                         />
                       ) : (
                         <span className="font-medium">{r.supplierName || "—"}</span>
@@ -164,7 +166,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{when(r.lastOrderedAt)}</TableCell>
                     {canEdit && (
                       <TableCell>
-                        <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => remove(r.key)}>
+                        <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(r.key)}>
                           <Icon name="Trash2" className="size-4 text-destructive" />
                         </Button>
                       </TableCell>

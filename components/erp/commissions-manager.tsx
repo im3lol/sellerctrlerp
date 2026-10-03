@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import {
   getCommissionReportAction, saveCommissionRuleAction, deleteCommissionRuleAction,
@@ -34,6 +35,7 @@ const monthStart = () => {
  * on the payroll run.
  */
 export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage: boolean }) {
+  const t = useT();
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [report, setReport] = useState<CommissionReport | null>(null);
@@ -89,7 +91,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>قواعد العمولة</CardTitle>
+            <CardTitle>{t("قواعد العمولة")}</CardTitle>
             <CardDescription>
               «على المُحصَّل» بتحسب العمولة لما العميل يدفع فعلاً — وده الصح تجارياً، لأن عمولة على
               فاتورة مش متحصّلة فلوس خارجة على بيعة ما تمّتش. سيب المندوب فاضي عشان تعمل قاعدة افتراضية للكل.
@@ -98,21 +100,21 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-2 sm:col-span-2">
-                <Label>المندوب</Label>
+                <Label>{t("المندوب")}</Label>
                 <CellCombobox
                   selectedLabel={reps.find((r) => r.id === form.employeeId)?.label ?? ""}
                   options={reps} onSelect={(id) => setForm((f) => ({ ...f, employeeId: id }))}
-                  placeholder="الكل (قاعدة افتراضية)"
+                  placeholder={t("الكل (قاعدة افتراضية)")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>الأساس</Label>
+                <Label>{t("الأساس")}</Label>
                 <select className={selectCls} value={form.basis} onChange={(e) => setForm((f) => ({ ...f, basis: e.target.value as Basis }))}>
-                  <option value="COLLECTED">على المُحصَّل</option>
-                  <option value="INVOICED">على المفوتر</option>
+                  <option value="COLLECTED">{t("على المُحصَّل")}</option>
+                  <option value="INVOICED">{t("على المفوتر")}</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label>النسبة %</Label>
+              <div className="space-y-2"><Label>{t("النسبة %")}</Label>
                 <Input type="number" step="0.01" min="0" max="100" value={form.percent}
                   onChange={(e) => setForm((f) => ({ ...f, percent: e.target.value }))} placeholder="5" /></div>
               <div className="flex items-end">
@@ -132,10 +134,10 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">الأساس</TableHead>
-                      <TableHead className="text-start">النسبة</TableHead>
-                      <TableHead className="text-start">السريان</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس")}</TableHead>
+                      <TableHead className="text-start">{t("النسبة")}</TableHead>
+                      <TableHead className="text-start">{t("السريان")}</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -144,8 +146,8 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">
                           {r.repName}
-                          {!r.employeeId && <Badge className="ms-2" variant="secondary">افتراضية</Badge>}
-                          {!r.isActive && <Badge className="ms-2" variant="outline">موقوفة</Badge>}
+                          {!r.employeeId && <Badge className="ms-2" variant="secondary">{t("افتراضية")}</Badge>}
+                          {!r.isActive && <Badge className="ms-2" variant="outline">{t("موقوفة")}</Badge>}
                         </TableCell>
                         <TableCell>{BASIS_LABEL[r.basis as Basis] ?? r.basis}</TableCell>
                         <TableCell className="tabular-nums">{r.percent}%</TableCell>
@@ -153,7 +155,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                           {r.validFrom || r.validTo ? `${r.validFrom ?? "—"} ← ${r.validTo ?? "—"}` : "دائمة"}
                         </TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => removeRule(r.id, r.repName)}>
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => removeRule(r.id, r.repName)}>
                             <Icon name="Trash2" className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -171,7 +173,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>المستحق</CardTitle>
+              <CardTitle>{t("المستحق")}</CardTitle>
               <CardDescription>
                 {loading ? "جارٍ الحساب…" : `${report?.rows.length ?? 0} حركة · إجمالي ${money(grand)}`}
               </CardDescription>
@@ -193,10 +195,10 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">الأساس المحسوب عليه</TableHead>
-                      <TableHead className="text-start">عدد الحركات</TableHead>
-                      <TableHead className="text-start">العمولة</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس المحسوب عليه")}</TableHead>
+                      <TableHead className="text-start">{t("عدد الحركات")}</TableHead>
+                      <TableHead className="text-start">{t("العمولة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -211,7 +213,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={3}>الإجمالي</TableCell>
+                      <TableCell colSpan={3}>{t("الإجمالي")}</TableCell>
                       <TableCell className="tabular-nums">{money(grand)}</TableCell>
                     </TableRow>
                   </TableFooter>
@@ -222,13 +224,13 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">المستند</TableHead>
-                      <TableHead className="text-start">العميل</TableHead>
-                      <TableHead className="text-start">الأساس</TableHead>
-                      <TableHead className="text-start">النسبة</TableHead>
-                      <TableHead className="text-start">العمولة</TableHead>
+                      <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("المستند")}</TableHead>
+                      <TableHead className="text-start">{t("العميل")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس")}</TableHead>
+                      <TableHead className="text-start">{t("النسبة")}</TableHead>
+                      <TableHead className="text-start">{t("العمولة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

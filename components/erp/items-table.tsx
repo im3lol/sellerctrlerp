@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ const money = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-la
 const int = (n: number) => Number(n).toLocaleString("ar-EG-u-nu-latn");
 
 export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; total: number; canDelete: boolean; filter: ItemsFilter }) {
+  const t = useT();
   const router = useRouter();
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [allPages, setAllPages] = useState(false);
@@ -55,7 +57,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
           {!allPages && allOnPage && hasMorePages && (
             <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد كل الـ{int(total)} صنف في كل الصفحات</button>
           )}
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={clearAll}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={clearAll}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -66,11 +68,11 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>حذف {int(count)} صنف؟</AlertDialogTitle>
-                  <AlertDialogDescription>لا يمكن التراجع. الأصناف المرتبطة بحركات أو أوامر لن تُحذف وسيتم تجاهلها.</AlertDialogDescription>
+                  <AlertDialogDescription>{t("لا يمكن التراجع. الأصناف المرتبطة بحركات أو أوامر لن تُحذف وسيتم تجاهلها.")}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction onClick={del} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                  <AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel>
+                  <AlertDialogAction onClick={del} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("حذف")}</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -83,16 +85,16 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
           <TableRow>
             {canDelete && (
               <TableHead className="w-10">
-                <input type="checkbox" aria-label="تحديد كل الصفحة" className="size-4 rounded border-input" checked={allPages || allOnPage} ref={(el) => { if (el) el.indeterminate = !allPages && !allOnPage && pageIds.some((id) => sel.has(id)); }} onChange={togglePage} />
+                <input type="checkbox" aria-label={t("تحديد كل الصفحة")} className="size-4 rounded border-input" checked={allPages || allOnPage} ref={(el) => { if (el) el.indeterminate = !allPages && !allOnPage && pageIds.some((id) => sel.has(id)); }} onChange={togglePage} />
               </TableHead>
             )}
-            <TableHead className="text-start w-14">الصورة</TableHead>
-            <TableHead className="text-start">الكود</TableHead>
-            <TableHead className="text-start">الاسم</TableHead>
-            <TableHead className="text-start">الأكواد</TableHead>
-            <TableHead className="text-start">المخزون</TableHead>
-            <TableHead className="text-start">سعر البيع</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="text-start w-14">{t("الصورة")}</TableHead>
+            <TableHead className="text-start">{t("الكود")}</TableHead>
+            <TableHead className="text-start">{t("الاسم")}</TableHead>
+            <TableHead className="text-start">{t("الأكواد")}</TableHead>
+            <TableHead className="text-start">{t("المخزون")}</TableHead>
+            <TableHead className="text-start">{t("سعر البيع")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -102,7 +104,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
               <TableRow key={r.id} data-state={checked ? "selected" : undefined}>
                 {canDelete && (
                   <TableCell>
-                    <input type="checkbox" aria-label="تحديد" className="size-4 rounded border-input" checked={checked} disabled={allPages} onChange={() => toggle(r.id)} />
+                    <input type="checkbox" aria-label={t("تحديد")} className="size-4 rounded border-input" checked={checked} disabled={allPages} onChange={() => toggle(r.id)} />
                   </TableCell>
                 )}
                 <TableCell>
@@ -119,13 +121,13 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                     <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>
                     {Number(r.childCount) > 0
                       ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />أب · {int(r.childCount)}</Badge>
-                      : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">تنويعة</Badge> : null}
+                      : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">{t("تنويعة")}</Badge> : null}
                   </div>
                 </TableCell>
                 <TableCell>{Number(r.codeCount) > 0 ? <Badge variant="secondary">{int(r.codeCount)}</Badge> : "—"}</TableCell>
                 <TableCell>
                   {r.onHand <= 0
-                    ? <span className="font-semibold text-destructive">نفد</span>
+                    ? <span className="font-semibold text-destructive">{t("نفد")}</span>
                     : r.minStock > 0 && r.onHand <= r.minStock
                       ? <span className="font-semibold text-amber-600" title={`حد إعادة الطلب ${int(r.minStock)}`}>{int(r.onHand)} · منخفض</span>
                       : <span className="tabular-nums">{int(r.onHand)}</span>}

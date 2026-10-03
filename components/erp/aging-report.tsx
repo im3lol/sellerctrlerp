@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/lib/i18n/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type InvoiceRow = {
@@ -50,6 +51,7 @@ function AgingTable({
   today: Date;
   title: string;
 }) {
+  const t = useT();
   const enriched = rows.map((r) => {
     const days = daysPastDue(r.dueDate, today);
     return { ...r, days, bucket: bucketOf(days) };
@@ -88,7 +90,7 @@ function AgingTable({
 
       {/* Grand total */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-4 py-3">
-        <span className="font-semibold">إجمالي المستحقات</span>
+        <span className="font-semibold">{t("إجمالي المستحقات")}</span>
         <span className="text-xl font-bold tabular-nums">{fmt(grandTotal)}</span>
       </div>
 
@@ -98,12 +100,12 @@ function AgingTable({
           <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr className="[&>th]:p-3 [&>th]:text-start">
               <th>{title}</th>
-              <th>رقم الفاتورة</th>
-              <th>تاريخ الفاتورة</th>
-              <th>تاريخ الاستحقاق</th>
-              <th>إجمالي الفاتورة</th>
-              <th>المتبقي</th>
-              <th>التأخير</th>
+              <th>{t("رقم الفاتورة")}</th>
+              <th>{t("تاريخ الفاتورة")}</th>
+              <th>{t("تاريخ الاستحقاق")}</th>
+              <th>{t("إجمالي الفاتورة")}</th>
+              <th>{t("المتبقي")}</th>
+              <th>{t("التأخير")}</th>
             </tr>
           </thead>
           <tbody>
@@ -143,6 +145,7 @@ export function AgingReport({
   apRows: InvoiceRow[];
   today: Date;
 }) {
+  const t = useT();
   return (
     <Tabs defaultValue="ar" dir="rtl">
       <TabsList>
@@ -161,10 +164,10 @@ export function AgingReport({
       </TabsList>
 
       <TabsContent value="ar" className="mt-4">
-        <AgingTable rows={arRows} today={today} title="العميل" />
+        <AgingTable rows={arRows} today={today} title={t("العميل")} />
       </TabsContent>
       <TabsContent value="ap" className="mt-4">
-        <AgingTable rows={apRows} today={today} title="المورد" />
+        <AgingTable rows={apRows} today={today} title={t("المورد")} />
       </TabsContent>
     </Tabs>
   );

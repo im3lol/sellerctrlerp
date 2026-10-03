@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => ke
 type Mapping = { sku: string; disposed: string; returned: string };
 
 export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse }: { platformId: string; platformName: string; hasWarehouse: boolean }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
@@ -83,11 +85,11 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
     <Card>
       <CardHeader>
         <CardTitle>الإزالات والإتلاف — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير الإزالة (Removal Order/Shipment Detail). الوحدات المُتلَفة (Disposed) تُسجَّل كخسارة مخزون عبر تسوية (مسودة) في مخزن المنصة؛ الوحدات المُرتجَعة للبائع تُعرَض للحصر فقط. لا تؤكّد التسوية لو سبق وطابقت المخزون بالدفتر (تجنبًا للتكرار).</CardDescription>
+        <CardDescription>{t("ارفع تقرير الإزالة (Removal Order/Shipment Detail). الوحدات المُتلَفة (Disposed) تُسجَّل كخسارة مخزون عبر تسوية (مسودة) في مخزن المنصة؛ الوحدات المُرتجَعة للبائع تُعرَض للحصر فقط. لا تؤكّد التسوية لو سبق وطابقت المخزون بالدفتر (تجنبًا للتكرار).")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {!hasWarehouse && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">اضبط المخزن الافتراضي للمنصة أولًا قبل تسجيل الإتلاف.</div>
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{t("اضبط المخزن الافتراضي للمنصة أولًا قبل تسجيل الإتلاف.")}</div>
         )}
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
@@ -98,12 +100,12 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3">
-              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
-              <ColumnMapSelect label="كمية الإتلاف (Disposed)" {...mapProps("disposed")} optional />
-              <ColumnMapSelect label="كمية الإرجاع للبائع (Shipped)" {...mapProps("returned")} optional />
+              <ColumnMapSelect label={t("كود الصنف / SKU")} {...mapProps("sku")} />
+              <ColumnMapSelect label={t("كمية الإتلاف (Disposed)")} {...mapProps("disposed")} optional />
+              <ColumnMapSelect label={t("كمية الإرجاع للبائع (Shipped)")} {...mapProps("returned")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>جاهز: <b>{int(removals.length)}</b> سطر</> : "اربط الصنف وعمود إتلاف أو إرجاع."}</span>
+              <span>{ready ? <>{t("جاهز:")} <b>{int(removals.length)}</b> {t("سطر")}</> : "اربط الصنف وعمود إتلاف أو إرجاع."}</span>
               <Button onClick={run} disabled={pending || !ready || removals.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}استيراد</Button>
             </div>
           </>
@@ -111,10 +113,10 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>إجمالي المُتلَف: <b>{int(result.totalDisposed)}</b> · المُرتجَع للبائع: <b>{int(result.totalReturned)}</b> وحدة.</div>
-            <div>طوبق <b>{int(result.matchedItems)}</b> صنف · تم إتلاف <b>{int(result.matchedDisposedUnits)}</b> وحدة (خسارة).</div>
+            <div>{t("إجمالي المُتلَف:")} <b>{int(result.totalDisposed)}</b> {t("· المُرتجَع للبائع:")} <b>{int(result.totalReturned)}</b> {t("وحدة.")}</div>
+            <div>{t("طوبق")} <b>{int(result.matchedItems)}</b> {t("صنف · تم إتلاف")} <b>{int(result.matchedDisposedUnits)}</b> {t("وحدة (خسارة).")}</div>
             {result.adjustmentId && (
-              <div>📝 <Link href={`/inventory/adjustments/${encodeURIComponent(result.adjustmentNumber ?? result.adjustmentId!)}`} className="text-primary underline">تسوية الإتلاف (مسودة)</Link> — راجعها وأكّدها لترحيل الخسارة.</div>
+              <div>📝 <Link href={`/inventory/adjustments/${encodeURIComponent(result.adjustmentNumber ?? result.adjustmentId!)}`} className="text-primary underline">{t("تسوية الإتلاف (مسودة)")}</Link> {t("— راجعها وأكّدها لترحيل الخسارة.")}</div>
             )}
             {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} SKU غير مربوط: <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
           </div>

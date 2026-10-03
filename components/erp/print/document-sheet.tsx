@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 
 /**
@@ -92,10 +93,11 @@ export type DocumentSheetProps = {
 const initials = (name: string | null | undefined) =>
   (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
-export function DocumentSheet({
+export async function DocumentSheet({
   org, title, number, meta = [], parties = [], columns: allColumns = [], rows: allRows = [],
   totals = [], balance, note, signatures = [], watermark, hiddenColumns = [], footerText, backHref,
 }: DocumentSheetProps) {
+  const t = await getT();
   const visible = allColumns.map((c, i) => (hiddenColumns.includes(c.label) ? -1 : i)).filter((i) => i >= 0);
   const columns = visible.map((i) => allColumns[i]);
   const rows = visible.length === allColumns.length ? allRows : allRows.map((r) => visible.map((i) => r[i]));
@@ -174,7 +176,7 @@ export function DocumentSheet({
               <div style={{ fontSize: 11, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
                 {org?.address && <div>{org.address}</div>}
                 {org?.phone && <div dir="ltr" style={{ textAlign: "start" }}>{org.phone}</div>}
-                {org?.taxNumber && <div>الرقم الضريبي: <span dir="ltr">{org.taxNumber}</span></div>}
+                {org?.taxNumber && <div>{t("الرقم الضريبي:")} <span dir="ltr">{org.taxNumber}</span></div>}
               </div>
             </div>
           </div>
@@ -182,7 +184,7 @@ export function DocumentSheet({
           <div style={{ textAlign: "end" }}>
             <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
             <div style={{ marginTop: 8, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
-              <div>رقم المستند <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
+              <div>{t("رقم المستند")} <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
               {meta.map((m) => (
                 <div key={m.label}>{m.label} <b style={{ color: T.ink }}>{m.value}</b></div>
               ))}

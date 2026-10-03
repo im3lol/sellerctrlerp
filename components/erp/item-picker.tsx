@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { createPortal } from "react-dom";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { ItemThumb } from "@/components/erp/item-thumb";
@@ -21,6 +22,7 @@ export function ItemPicker({
   onSelect: (item: ItemSearchResult) => void;
   placeholder?: string;
 }) {
+  const t = useT();
   const [q, setQ] = useState(selectedLabel ?? "");
   // The picked row carries image + code; the parent only knows an id, so keep it here.
   const [picked, setPicked] = useState<{ name: string; code?: string | null; image?: string | null } | null>(null);
@@ -83,7 +85,7 @@ export function ItemPicker({
             className="max-h-72 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg"
           >
             {results.length === 0 && pending ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">جارٍ البحث…</div>
+              <div className="px-3 py-2 text-sm text-muted-foreground">{t("جارٍ البحث…")}</div>
             ) : (
               results.map((it) => (
                 <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">

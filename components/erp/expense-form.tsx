@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createExpenseAction, updateExpenseAction } from "@/app/actions/erp/expenses";
@@ -16,6 +17,7 @@ export type ExpenseInitial = { id: string; expenseAccountId: string; cashAccount
 export type ProjectOption = { id: string; label: string };
 
 export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], initial }: { expenseAccounts: Account[]; cashAccounts: Account[]; projects?: ProjectOption[]; initial?: ExpenseInitial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -56,7 +58,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
     <Card>
       <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>بند المصروف</Label>
+          <Label>{t("بند المصروف")}</Label>
           <CellCombobox
             selectedLabel={expLabelById.get(expenseAccountId) ?? ""}
             options={expOptions}
@@ -66,12 +68,12 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
         </div>
 
         <div className="space-y-2">
-          <Label>المبلغ</Label>
+          <Label>{t("المبلغ")}</Label>
           <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label>الدفع من (نقدية / بنك)</Label>
+          <Label>{t("الدفع من (نقدية / بنك)")}</Label>
           <CellCombobox
             selectedLabel={cashLabelById.get(cashAccountId) ?? ""}
             options={cashOptions}
@@ -81,38 +83,38 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
         </div>
 
         <div className="space-y-2">
-          <Label>التاريخ</Label>
+          <Label>{t("التاريخ")}</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label>طريقة الدفع</Label>
+          <Label>{t("طريقة الدفع")}</Label>
           <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
-            <option value="CASH">نقدي</option>
-            <option value="BANK">تحويل بنكي</option>
-            <option value="CARD">بطاقة</option>
-            <option value="CHEQUE">شيك</option>
+            <option value="CASH">{t("نقدي")}</option>
+            <option value="BANK">{t("تحويل بنكي")}</option>
+            <option value="CARD">{t("بطاقة")}</option>
+            <option value="CHEQUE">{t("شيك")}</option>
           </select>
         </div>
 
         <div className="space-y-2">
-          <Label>المستفيد (اختياري)</Label>
-          <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="لمن صُرف المبلغ" />
+          <Label>{t("المستفيد (اختياري)")}</Label>
+          <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={t("لمن صُرف المبلغ")} />
         </div>
 
         <div className="space-y-2">
-          <Label>المرجع (اختياري)</Label>
-          <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم شيك / تحويل / فاتورة" />
+          <Label>{t("المرجع (اختياري)")}</Label>
+          <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t("رقم شيك / تحويل / فاتورة")} />
         </div>
 
         {projects.length > 0 && (
           <div className="space-y-2">
-            <Label>المشروع (اختياري)</Label>
+            <Label>{t("المشروع (اختياري)")}</Label>
             <CellCombobox
               selectedLabel={projects.find((p) => p.id === projectId)?.label ?? ""}
               options={projects}
               onSelect={setProjectId}
-              placeholder="حمّل المصروف على مشروع"
+              placeholder={t("حمّل المصروف على مشروع")}
             />
             {projectId && (
               <button type="button" className="text-xs text-muted-foreground underline"
@@ -124,7 +126,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
         )}
 
         <div className="space-y-2">
-          <Label>ملاحظات</Label>
+          <Label>{t("ملاحظات")}</Label>
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 

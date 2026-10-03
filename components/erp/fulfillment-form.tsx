@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
@@ -33,6 +34,7 @@ export function FulfillmentForm({
   dest: string;
   channel?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
   const [pending, start] = useTransition();
@@ -75,10 +77,10 @@ export function FulfillmentForm({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">الصنف</TableHead>
-              <TableHead className="text-start">المطلوب</TableHead>
+              <TableHead className="text-start">{t("الصنف")}</TableHead>
+              <TableHead className="text-start">{t("المطلوب")}</TableHead>
               <TableHead className="text-start">{isDelivery ? "مُسلّم سابقاً" : "مُستلم سابقاً"}</TableHead>
-              <TableHead className="text-start">المتبقّي</TableHead>
+              <TableHead className="text-start">{t("المتبقّي")}</TableHead>
               <TableHead className="text-start w-36">{isDelivery ? "تسليم الآن" : "استلام الآن"}</TableHead>
             </TableRow>
           </TableHeader>
@@ -115,7 +117,7 @@ export function FulfillmentForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => router.push(dest)}>إلغاء</Button>
+          <Button variant="outline" onClick={() => router.push(dest)}>{t("إلغاء")}</Button>
           <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن الصرف" : "حفظ إذن الاستلام"}</Button>
         </div>
       </CardContent>

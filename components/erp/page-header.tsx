@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/icon";
 
@@ -16,13 +19,14 @@ export function ErpPageHeader({
   backHref?: string;
   action?: ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-4">
       {backHref && (
         <Link
           href={backHref}
           className="flex size-9 items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          aria-label="رجوع"
+          aria-label={t("رجوع")}
         >
           <Icon name="ChevronRight" className="size-5" />
         </Link>

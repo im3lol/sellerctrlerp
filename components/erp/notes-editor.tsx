@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Bold, Italic, List } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function NotesEditor({
   rows?: number;
   id?: string;
 }) {
+  const t = useT();
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Put the caret back where the writer left it: a toolbar that steals focus and drops
@@ -65,16 +67,16 @@ export function NotesEditor({
   return (
     <div className="rounded-md border focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
       <div className="flex items-center gap-0.5 border-b px-1 py-0.5">
-        <Button type="button" size="icon" variant="ghost" className={tool} title="عريض" aria-label="عريض" onClick={() => wrap("**")}>
+        <Button type="button" size="icon" variant="ghost" className={tool} title={t("عريض")} aria-label={t("عريض")} onClick={() => wrap("**")}>
           <Bold className="size-3.5" />
         </Button>
-        <Button type="button" size="icon" variant="ghost" className={tool} title="مائل" aria-label="مائل" onClick={() => wrap("*")}>
+        <Button type="button" size="icon" variant="ghost" className={tool} title={t("مائل")} aria-label={t("مائل")} onClick={() => wrap("*")}>
           <Italic className="size-3.5" />
         </Button>
-        <Button type="button" size="icon" variant="ghost" className={tool} title="نقطة" aria-label="نقطة" onClick={bullet}>
+        <Button type="button" size="icon" variant="ghost" className={tool} title={t("نقطة")} aria-label={t("نقطة")} onClick={bullet}>
           <List className="size-3.5" />
         </Button>
-        <span className="ms-auto pe-2 text-[11px] text-muted-foreground">**عريض** · *مائل* · - نقطة</span>
+        <span className="ms-auto pe-2 text-[11px] text-muted-foreground">{t("**عريض** · *مائل* · - نقطة")}</span>
       </div>
       <Textarea
         id={id}

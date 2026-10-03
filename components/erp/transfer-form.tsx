@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createStockTransferAction, updateStockTransferAction } from "@/app/actions/erp/stock-transfers";
@@ -35,6 +36,7 @@ export function TransferForm({
   stock: Stock[];
   initial?: TransferInitial;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -107,40 +109,40 @@ export function TransferForm({
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>بيانات التحويل</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("بيانات التحويل")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="date">تاريخ التحويل</Label>
+            <Label htmlFor="date">{t("تاريخ التحويل")}</Label>
             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="notes">ملاحظات</Label>
-            <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" />
+            <Label htmlFor="notes">{t("ملاحظات")}</Label>
+            <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>الأصناف</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("الأصناف")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-1">
-              <Label htmlFor="barcode">باركود / مسح سريع</Label>
+              <Label htmlFor="barcode">{t("باركود / مسح سريع")}</Label>
               <Input
                 id="barcode"
                 value={barcode}
                 disabled={scanning}
-                placeholder="امسح الباركود ثم Enter…"
+                placeholder={t("امسح الباركود ثم Enter…")}
                 onChange={(e) => setBarcode(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onScan(barcode); } }}
                 className="w-64"
               />
             </div>
-            <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />إضافة سطر</Button>
+            <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />{t("إضافة سطر")}</Button>
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
@@ -148,11 +150,11 @@ export function TransferForm({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
-                  <TableHead className="min-w-56 text-start">اسم الصنف</TableHead>
-                  <TableHead className="text-start">من مستودع</TableHead>
-                  <TableHead className="text-start">إلى مستودع</TableHead>
-                  <TableHead className="text-start">المتاح</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
+                  <TableHead className="min-w-56 text-start">{t("اسم الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("من مستودع")}</TableHead>
+                  <TableHead className="text-start">{t("إلى مستودع")}</TableHead>
+                  <TableHead className="text-start">{t("المتاح")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
                   <TableHead className="w-10" />
                   <TableHead className="w-8" />
                 </TableRow>
@@ -167,21 +169,21 @@ export function TransferForm({
                     return (
                       <>
                         <TableCell>
-                          <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                          <ItemPicker selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
                             onSelect={(it) => updateLine(l.id, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                         </TableCell>
                         <TableCell>
-                          <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder="من…"
+                          <CellCombobox selectedLabel={whLabel(l.fromWh)} options={whOptions} placeholder={t("من…")}
                             onSelect={(id) => updateLine(l.id, { fromWh: id })} />
                         </TableCell>
                         <TableCell>
-                          <CellCombobox selectedLabel={whLabel(l.toWh)} options={whOptions} placeholder="إلى…"
+                          <CellCombobox selectedLabel={whLabel(l.toWh)} options={whOptions} placeholder={t("إلى…")}
                             onSelect={(id) => updateLine(l.id, { toWh: id })} />
                         </TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? q(avail) : "—"}</div></TableCell>
                         <TableCell><Input type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.id, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                         <TableCell>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label="حذف"><Icon name="Trash2" className="size-4 text-destructive" /></Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label={t("حذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
                         </TableCell>
                       </>
                     );

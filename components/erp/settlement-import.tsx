@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { previewAmazonSettlementAction, runAmazonSettlementAction, postAmazonSettlementsAction, reverseAmazonSettlementAction, setAmazonGoLiveAction, type SettlementPreview } from "@/app/actions/erp/amazon-settlement";
@@ -24,6 +25,7 @@ export type SettlementRow = { id: string; type: string; orderId: string | null; 
 // isAmazon=false (e.g. Shopify) hides the Amazon-only cards (Go-Live wallet + XLSX
 // upload) and routes post/reverse to this channel. label names the marketplace in copy.
 export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmazon = true, label = "أمازون" }: { code?: string; rows?: SettlementRow[]; unpostedReleased?: number; isAmazon?: boolean; label?: string }) {
+  const t = useT();
   const router = useRouter();
   const channel = (code ?? "AMAZON").toUpperCase();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +131,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       {isAmazon && (
       <Card>
         <CardHeader>
-          <CardTitle>بدء الربط المحاسبي (Go-Live)</CardTitle>
+          <CardTitle>{t("بدء الربط المحاسبي (Go-Live)")}</CardTitle>
           <CardDescription>
             حدّد تاريخ بدء المحاسبة على أمازون + رصيد أمازون المتاح وقت التشغيل. المعاملات الأقدم من التاريخ
             تُعتبر تاريخية (لا تُرحّل — يغطّيها الرصيد الافتتاحي)، فلا تظهر محفظة أمازون سالبة بسبب تحويلات
@@ -139,11 +141,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <Label htmlFor="goLiveDate">تاريخ بدء الربط</Label>
+              <Label htmlFor="goLiveDate">{t("تاريخ بدء الربط")}</Label>
               <Input id="goLiveDate" type="date" value={goLiveDate} onChange={(e) => setGoLiveDate(e.target.value)} className="w-44" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="walletBalance">رصيد أمازون المتاح وقت التشغيل</Label>
+              <Label htmlFor="walletBalance">{t("رصيد أمازون المتاح وقت التشغيل")}</Label>
               <Input id="walletBalance" type="number" step="0.01" min="0" value={walletBalance} onChange={(e) => setWalletBalance(e.target.value)} placeholder="0.00" dir="ltr" className="w-44" />
             </div>
             <Button onClick={saveGoLive} disabled={savingGoLive} variant="outline">
@@ -177,7 +179,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
                 ترحيل المعاملات المسحوبة ({unpostedReleased})
               </Button>
             )}
-            <Button onClick={reversePosting} disabled={reversing} variant="outline" title="يعكس قيود التسوية المرحّلة ويعيد الأرصدة، ثم أعد الترحيل ليُبنى على مستوى كل طلب">
+            <Button onClick={reversePosting} disabled={reversing} variant="outline" title={t("يعكس قيود التسوية المرحّلة ويعيد الأرصدة، ثم أعد الترحيل ليُبنى على مستوى كل طلب")}>
               {reversing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Undo2" className="size-4" />}
               عكس ترحيل التسوية
             </Button>
@@ -188,11 +190,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">النوع</TableHead>
-                    <TableHead className="text-start">الطلب / SKU</TableHead>
-                    <TableHead className="w-32 text-start">الإجمالي</TableHead>
-                    <TableHead className="w-28 text-start">الحالة</TableHead>
-                    <TableHead className="w-24 text-start">الترحيل</TableHead>
+                    <TableHead className="text-start">{t("النوع")}</TableHead>
+                    <TableHead className="text-start">{t("الطلب / SKU")}</TableHead>
+                    <TableHead className="w-32 text-start">{t("الإجمالي")}</TableHead>
+                    <TableHead className="w-28 text-start">{t("الحالة")}</TableHead>
+                    <TableHead className="w-24 text-start">{t("الترحيل")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -207,7 +209,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
                         <Badge variant={r.status === "Released" ? "default" : "outline"}>{r.status === "Released" ? "مُفرج عنها" : "مؤجّلة"}</Badge>
                       </TableCell>
                       <TableCell>
-                        {r.posted ? <Badge className="bg-emerald-600">مُرحّلة</Badge> : <Badge variant="secondary">غير مُرحّلة</Badge>}
+                        {r.posted ? <Badge className="bg-emerald-600">{t("مُرحّلة")}</Badge> : <Badge variant="secondary">{t("غير مُرحّلة")}</Badge>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -222,11 +224,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       {isAmazon && (
       <Card>
         <CardHeader>
-          <CardTitle>استيراد يدوي من ملف (اختياري)</CardTitle>
+          <CardTitle>{t("استيراد يدوي من ملف (اختياري)")}</CardTitle>
           <CardDescription>
             بديل للسحب التلقائي: ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب
-            ويُرحّل قيداً محاسبياً مجمّعاً للمعاملات <b>المُفرج عنها</b> فقط. الإيراد يُعترف به مرة عند فاتورة البيع؛
-            التسوية <b>تُحصّل ذمم أمازون</b> فقط، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
+            ويُرحّل قيداً محاسبياً مجمّعاً للمعاملات <b>{t("المُفرج عنها")}</b> فقط. الإيراد يُعترف به مرة عند فاتورة البيع؛
+            التسوية <b>{t("تُحصّل ذمم أمازون")}</b> فقط، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
             كل صف <b>Refund</b> يُنشئ دورة مرتجع كاملة. المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر.
           </CardDescription>
         </CardHeader>
@@ -270,15 +272,15 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       {gl && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">القيد المحاسبي المجمّع (المُفرج عنها)</CardTitle>
-            <CardDescription>معاينة الحركة قبل الترحيل — القيد متوازن.</CardDescription>
+            <CardTitle className="text-base">{t("القيد المحاسبي المجمّع (المُفرج عنها)")}</CardTitle>
+            <CardDescription>{t("معاينة الحركة قبل الترحيل — القيد متوازن.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Row label="تحصيل ذمم أمازون (دائن)" value={gl.receivable} tone="pos" />
-              <Row label="رسوم أمازون — عمولة + FBA (مدين)" value={gl.fees} tone="neg" />
-              <Row label="تحويلات إلى البنك (مدين)" value={gl.bank} tone="pos" />
-              <Row label="صافي رصيد أمازون الوسيط" value={gl.clearing} tone={gl.clearing >= 0 ? "pos" : "neg"} />
+              <Row label={t("تحصيل ذمم أمازون (دائن)")} value={gl.receivable} tone="pos" />
+              <Row label={t("رسوم أمازون — عمولة + FBA (مدين)")} value={gl.fees} tone="neg" />
+              <Row label={t("تحويلات إلى البنك (مدين)")} value={gl.bank} tone="pos" />
+              <Row label={t("صافي رصيد أمازون الوسيط")} value={gl.clearing} tone={gl.clearing >= 0 ? "pos" : "neg"} />
             </div>
           </CardContent>
         </Card>

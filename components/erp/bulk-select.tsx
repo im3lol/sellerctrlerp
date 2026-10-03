@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2, Loader2 } from "lucide-react";
@@ -59,6 +60,7 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر", all }:
   entity?: string;
   all?: AllPagesState;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const active = !!all?.active;
@@ -79,7 +81,7 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر", all }:
       {all && !active && all.canOffer && (
         <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
       )}
-      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>إلغاء التحديد</button>
+      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>{t("إلغاء التحديد")}</button>
       <div className="ms-auto">
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -90,11 +92,11 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر", all }:
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>حذف {int(count)} {entity}؟</AlertDialogTitle>
-              <AlertDialogDescription>لا يمكن التراجع. أي عنصر مرتبط بحركات أو مُرحّل لن يُحذف وسيتم تجاهله.</AlertDialogDescription>
+              <AlertDialogDescription>{t("لا يمكن التراجع. أي عنصر مرتبط بحركات أو مُرحّل لن يُحذف وسيتم تجاهله.")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={run} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+              <AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel>
+              <AlertDialogAction onClick={run} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("حذف")}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -122,6 +124,7 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
   all?: AllPagesState;
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, start] = useTransition();
   const [ask, setAsk] = useState<BulkOp<T> | null>(null);
   const active = !!all?.active;
@@ -143,7 +146,7 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
       {all && !active && all.canOffer && (
         <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
       )}
-      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>إلغاء التحديد</button>
+      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>{t("إلغاء التحديد")}</button>
       <div className="ms-auto flex flex-wrap gap-2">
         {ops.map((o) => (
           <Button key={o.op} size="sm" variant={o.danger ? "ghost" : "outline"} disabled={pending} onClick={() => setAsk(o)}>
@@ -155,10 +158,10 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{ask?.label} {int(count)} {entity}؟</AlertDialogTitle>
-            <AlertDialogDescription>الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.</AlertDialogDescription>
+            <AlertDialogDescription>{t("الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>تراجع</AlertDialogCancel>
+            <AlertDialogCancel>{t("تراجع")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => ask && run(ask)} className={ask?.danger ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}>{ask?.label}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

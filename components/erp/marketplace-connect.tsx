@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ChangeEvent } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { Plug, PlugZap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,6 +36,7 @@ export function MarketplaceConnect({
    *  admin panel" note instead of a broken connect button (Amazon/Shopify). */
   oauthReady?: boolean;
 }) {
+  const t = useT();
   const needsCredential = !!credentialKind;
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
@@ -80,9 +82,9 @@ export function MarketplaceConnect({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">مربوط</Badge>{conn.realtime && <Badge variant="secondary" title="طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية">التحديث الفوري مفعّل ⚡</Badge>}</CardTitle>
+              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
-                {justConnected && <span className="text-emerald-600">تم الربط بنجاح. </span>}
+                {justConnected && <span className="text-emerald-600">{t("تم الربط بنجاح.")} </span>}
                 السوق: {market?.name ?? conn.marketplaceId ?? "—"} · معرّف البائع: <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> · آخر مزامنة: {dt(conn.lastSyncAt)}
               </CardDescription>
             </div>
@@ -103,7 +105,7 @@ export function MarketplaceConnect({
                 </Button>
               ) : (
                 <Button asChild size="sm" variant="destructive">
-                  <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
+                  <a href={reconnectHref}><Plug className="size-4" />{t("إعادة ربط الحساب")}</a>
                 </Button>
               )}
             </div>
@@ -122,7 +124,7 @@ export function MarketplaceConnect({
       {credentialKind === "noon" ? (
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">ملف اعتماد نون (JSON)</label>
+            <label className="text-sm font-medium">{t("ملف اعتماد نون (JSON)")}</label>
             <p className="text-xs text-muted-foreground">
               من <span dir="ltr">access.noon.partners</span> ← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.
             </p>
@@ -138,8 +140,8 @@ export function MarketplaceConnect({
         </CardContent>
       ) : credentialKind === "woo" ? (
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">من متجرك: WooCommerce ← الإعدادات ← متقدّم ← REST API ← «إضافة مفتاح» (صلاحية قراءة)، ثم الصق الرابط والمفاتيح هنا.</p>
-          <div className="space-y-1.5"><label className="text-sm font-medium">رابط المتجر</label>
+          <p className="text-xs text-muted-foreground">{t("من متجرك: WooCommerce ← الإعدادات ← متقدّم ← REST API ← «إضافة مفتاح» (صلاحية قراءة)، ثم الصق الرابط والمفاتيح هنا.")}</p>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("رابط المتجر")}</label>
             <input value={f.storeUrl} onChange={setFld("storeUrl")} dir="ltr" placeholder="https://mystore.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Key</label>
             <input value={f.consumerKey} onChange={setFld("consumerKey")} dir="ltr" placeholder="ck_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
@@ -151,7 +153,7 @@ export function MarketplaceConnect({
         </CardContent>
       ) : credentialKind === "jumia" ? (
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">من Vendor Center ← Settings ← Integration: انسخ الـUserID والـAPI Key وعنوان الواجهة (API Host) لدولتك، ثم الصقها هنا.</p>
+          <p className="text-xs text-muted-foreground">{t("من Vendor Center ← Settings ← Integration: انسخ الـUserID والـAPI Key وعنوان الواجهة (API Host) لدولتك، ثم الصقها هنا.")}</p>
           <div className="space-y-1.5"><label className="text-sm font-medium">UserID</label>
             <input value={f.userId} onChange={setFld("userId")} dir="ltr" placeholder="seller@email.com" autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">API Key</label>
@@ -172,7 +174,7 @@ export function MarketplaceConnect({
       ) : needsShop ? (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">دومين المتجر</label>
+            <label className="text-sm font-medium">{t("دومين المتجر")}</label>
             <input
               value={shop} onChange={(e) => setShop(e.target.value)} dir="ltr" placeholder="store.myshopify.com"
               className="block h-9 w-64 rounded-md border bg-background px-3 text-sm"
@@ -196,7 +198,7 @@ export function MarketplaceConnect({
       ) : (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">السوق</label>
+            <label className="text-sm font-medium">{t("السوق")}</label>
             <select value={mp} onChange={(e) => setMp(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm">
               {marketplaces.map((m) => <option key={m.code} value={m.code}>{m.name} ({m.code})</option>)}
             </select>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { saveSupplierAction } from "@/app/actions/erp/suppliers";
 import { saveCustomerAction } from "@/app/actions/erp/customers";
@@ -36,6 +37,7 @@ export function QuickCreateParty({
   initialName?: string;
   onCreated: (party: NewParty) => void;
 }) {
+  const t = useT();
   const isSupplier = kind === "supplier";
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
@@ -71,7 +73,7 @@ export function QuickCreateParty({
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>الاسم</Label>
+            <Label>{t("الاسم")}</Label>
             <Input
               autoFocus
               value={name}
@@ -81,7 +83,7 @@ export function QuickCreateParty({
             />
           </div>
           <div className="space-y-2">
-            <Label>الهاتف <span className="text-xs text-muted-foreground">(اختياري)</span></Label>
+            <Label>{t("الهاتف")} <span className="text-xs text-muted-foreground">{t("(اختياري)")}</span></Label>
             <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -92,7 +94,7 @@ export function QuickCreateParty({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>إلغاء</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>{t("إلغاء")}</Button>
           <Button onClick={submit} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ واختيار"}</Button>
         </DialogFooter>
       </DialogContent>

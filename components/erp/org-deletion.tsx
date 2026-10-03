@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { requestOrgDeletionAction, cancelOrgDeletionAction } from "@/app/actions/erp/org-deletion";
@@ -13,6 +14,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("ar-EG-u-nu-latn",
 
 /** Owner-only danger zone: request (or cancel) deleting the whole company. */
 export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string; dueAt: string | null; graceDays: number }) {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState("");
   const [pending, start] = useTransition();
@@ -27,7 +29,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
   return (
     <Card className="border-destructive/40">
       <CardHeader>
-        <CardTitle className="text-destructive">حذف الشركة</CardTitle>
+        <CardTitle className="text-destructive">{t("حذف الشركة")}</CardTitle>
         <CardDescription>
           بيمسح كل بيانات الشركة نهائيًا — المستندات والحسابات والمخزون والأعضاء. الحذف بيتم بعد {graceDays} يوم من الطلب، وتقدر تلغيه في أي وقت قبلها.
           نزّل نسخة من بياناتك الأول من «النسخ الاحتياطي».
@@ -37,7 +39,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
         {dueAt ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-destructive">الشركة هتتمسح يوم {day(dueAt)}.</p>
-            <Button variant="outline" disabled={pending} onClick={() => run(cancelOrgDeletionAction, "اتلغى طلب الحذف")}>إلغاء طلب الحذف</Button>
+            <Button variant="outline" disabled={pending} onClick={() => run(cancelOrgDeletionAction, "اتلغى طلب الحذف")}>{t("إلغاء طلب الحذف")}</Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-end gap-3">

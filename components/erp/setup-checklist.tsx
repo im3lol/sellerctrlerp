@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,7 +47,8 @@ const AMAZON_STEPS: (Step & { key: AmazonKey })[] = [
   { key: "fbaAudited", icon: "ClipboardCheck", title: "أول تدقيق مخزون FBA", desc: "قارن مخزون أمازون بمخزون النظام — بعدها خطة الشحن بتشتغل على أرقام أمازون الحقيقية.", ctas: [{ label: "مطابقة المخزون", href: "/inventory/reconciliation" }] },
 ];
 
-function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boolean; isNext: boolean; manual?: boolean }) {
+async function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boolean; isNext: boolean; manual?: boolean }) {
+  const t = await getT();
   return (
     <Card className={isNext ? "ring-1 ring-primary border-primary" : done ? "opacity-80" : ""}>
       <CardContent className="flex items-start gap-4 pt-6">
@@ -56,7 +58,7 @@ function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boo
           : (
             <form action={markSetupStepDoneAction} className="shrink-0">
               <input type="hidden" name="key" value={step.key} />
-              <button type="submit" title="اضغط لتمييز الخطوة كمكتملة" className="group mt-0.5 grid place-items-center rounded-full">
+              <button type="submit" title={t("اضغط لتمييز الخطوة كمكتملة")} className="group mt-0.5 grid place-items-center rounded-full">
                 <Circle className={`size-6 group-hover:hidden ${isNext ? "text-primary" : "text-muted-foreground/40"}`} />
                 <CheckCircle2 className="hidden size-6 text-emerald-600 group-hover:block" />
               </button>
@@ -66,8 +68,8 @@ function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boo
           <div className="flex flex-wrap items-center gap-2">
             <Icon name={step.icon} className="size-4 text-muted-foreground" />
             <span className="font-semibold">{step.title}</span>
-            {step.optional && <Badge variant="secondary">اختياري</Badge>}
-            {isNext && <Badge>الخطوة التالية</Badge>}
+            {step.optional && <Badge variant="secondary">{t("اختياري")}</Badge>}
+            {isNext && <Badge>{t("الخطوة التالية")}</Badge>}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{step.desc}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -84,7 +86,8 @@ function StepCard({ step, done, isNext, manual = true }: { step: Step; done: boo
 }
 
 /** Server component: the full checklist, driven entirely by derived SetupStatus. */
-export function SetupChecklist({ status }: { status: SetupStatus }) {
+export async function SetupChecklist({ status }: { status: SetupStatus }) {
+  const t = await getT();
   const essential = STEPS.filter((s) => !s.optional);
   const optional = STEPS.filter((s) => s.optional);
   const next = essential.find((s) => !status[s.key as keyof SetupStatus]);
@@ -124,7 +127,7 @@ export function SetupChecklist({ status }: { status: SetupStatus }) {
         </>
       )}
 
-      <div className="pt-2 text-sm font-semibold text-muted-foreground">خطوات اختيارية</div>
+      <div className="pt-2 text-sm font-semibold text-muted-foreground">{t("خطوات اختيارية")}</div>
       <div className="space-y-3">
         {optional.map((s) => <StepCard key={s.key} step={s} done={!!status[s.key as keyof SetupStatus]} isNext={false} />)}
       </div>

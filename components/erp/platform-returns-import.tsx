@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => ke
 type Mapping = { order: string; sku: string; qty: string; date: string };
 
 export function PlatformReturnsImport({ platformId, platformName }: { platformId: string; platformName: string }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
@@ -83,7 +85,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     <Card>
       <CardHeader>
         <CardTitle>استيراد المرتجعات — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ <b>مسودّة</b> مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.</CardDescription>
+        <CardDescription>{t("ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ")} <b>{t("مسودّة")}</b> {t("مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
@@ -95,13 +97,13 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-4">
-              <ColumnMapSelect label="رقم الطلب" {...mapProps("order")} />
-              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
-              <ColumnMapSelect label="الكمية المرتجعة" {...mapProps("qty")} />
-              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
+              <ColumnMapSelect label={t("رقم الطلب")} {...mapProps("order")} />
+              <ColumnMapSelect label={t("كود الصنف / SKU")} {...mapProps("sku")} />
+              <ColumnMapSelect label={t("الكمية المرتجعة")} {...mapProps("qty")} />
+              <ColumnMapSelect label={t("التاريخ")} {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>جاهز: <b>{int(returns.length)}</b> مرتجع</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
+              <span>{ready ? <>{t("جاهز:")} <b>{int(returns.length)}</b> {t("مرتجع")}</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
               <Button onClick={run} disabled={pending || !ready || returns.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}استيراد {returns.length > 0 ? `(${int(returns.length)})` : ""}</Button>
             </div>
           </>
@@ -109,8 +111,8 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <Link href="/sales/returns" className="underline">سجل المرتجعات</Link>.</div>
-            {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{int(result.skippedDuplicate)}</b> مرتجع مكرر.</div>}
+            <div>{t("✅ تم إنشاء")} <b>{int(result.created)}</b> {t("مسودّة مرتجع — راجعها وأكّدها من")} <Link href="/sales/returns" className="underline">{t("سجل المرتجعات")}</Link>.</div>
+            {result.skippedDuplicate > 0 && <div>{t("↷ تخطّي")} <b>{int(result.skippedDuplicate)}</b> {t("مرتجع مكرر.")}</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">
                 لم تُعالَج: {result.noOrder > 0 && <span>{int(result.noOrder)} بلا أمر مطابق · </span>}

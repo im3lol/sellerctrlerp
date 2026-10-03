@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ const lineTotal = (l: Line, vatRate: number, applyVat: boolean) =>
 export type QuotationInitial = { id: string; number: string; customerId: string; date: string; validUntil: string; notes: string; applyVat: boolean; discountAmount: number; lines: Line[] };
 
 export function QuotationForm({ customers, items, orgName, vatRate, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; initial?: QuotationInitial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -103,23 +105,23 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات عرض السعر</CardTitle>
+          <CardTitle>{t("بيانات عرض السعر")}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ العرض"}</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${encodeURIComponent(initial!.number)}` : "/sales/quotations")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${encodeURIComponent(initial!.number)}` : "/sales/quotations")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <div className="space-y-2"><Label>الشركة</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
+          <div className="space-y-2"><Label>{t("الشركة")}</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
           <div className="space-y-2">
-            <Label>العميل</Label>
+            <Label>{t("العميل")}</Label>
             <CellCombobox
               selectedLabel={custLabel.get(customerId) ?? ""}
               options={custOptions}
               onSelect={setCustomerId}
-              placeholder="ابحث عن العميل…"
+              placeholder={t("ابحث عن العميل…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
               createLabel="إضافة عميل"
             />
@@ -131,28 +133,28 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               onCreated={(p: NewParty) => { setNewCustomers((xs) => [...xs, p]); setCustomerId(p.id); }}
             />
           </div>
-          <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>صالح حتى</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("التاريخ")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("صالح حتى")}</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></div>
           <div className="space-y-2">
-            <Label>الضريبة</Label>
+            <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
               {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
             </label>
           </div>
-          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
+          <div className="space-y-2"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow>
               <TableHead className="w-8" />
-              <TableHead className="w-14 text-start">صورة</TableHead>
-              <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
-              <TableHead className="w-24 text-start">الكمية</TableHead>
-              <TableHead className="w-32 text-start">السعر</TableHead>
-              <TableHead className="w-32 text-start">خصم</TableHead>
-              <TableHead className="w-28 text-start">الإجمالي</TableHead>
+              <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+              <TableHead className="w-72 min-w-64 text-start">{t("الصنف")}</TableHead>
+              <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+              <TableHead className="w-32 text-start">{t("السعر")}</TableHead>
+              <TableHead className="w-32 text-start">{t("خصم")}</TableHead>
+              <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
               <TableHead className="w-10" />
               <TableHead className="w-8" />
             </TableRow></TableHeader>
@@ -173,26 +175,26 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
                     <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
                     <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                     <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>
                 )}
               />
             </TableBody>
           </Table>
         </div>
-        <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
+        <Button variant="outline" onClick={addLine}><Plus className="size-4" />{t("إضافة بند")}</Button>
 
         <div className="flex justify-between gap-4 text-sm">
           <div className="space-y-2 sm:w-1/2">
-            <Label htmlFor="qt-notes">ملاحظات</Label>
-            <NotesEditor id="qt-notes" value={notes} onChange={setNotes} placeholder="شروط العرض، مدة التوريد…" />
+            <Label htmlFor="qt-notes">{t("ملاحظات")}</Label>
+            <NotesEditor id="qt-notes" value={notes} onChange={setNotes} placeholder={t("شروط العرض، مدة التوريد…")} />
           </div>
           <div className="flex flex-col items-end gap-1">
-            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-            <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-            <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+            <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
+            <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
             <div className="flex items-center gap-2">
-              <Label htmlFor="qt-disc" className="whitespace-nowrap">خصم على الإجمالي</Label>
+              <Label htmlFor="qt-disc" className="whitespace-nowrap">{t("خصم على الإجمالي")}</Label>
               <Input id="qt-disc" type="number" min={0} step="0.01" className="h-8 w-28 text-start"
                 value={headerDiscount || ""} onChange={(e) => setHeaderDiscount(Math.max(0, Number(e.target.value) || 0))} />
             </div>

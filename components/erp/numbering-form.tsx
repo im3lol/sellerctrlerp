@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ function Row({ docKey, label, initial, canEdit }: { docKey: string; label: strin
 }
 
 export function NumberingForm({ overrides, canEdit }: { overrides: Record<string, string>; canEdit: boolean }) {
+  const t = useT();
   const [state, action] = useActionState<ActionState, FormData>(saveDocumentPrefixesAction, {});
   useEffect(() => {
     if (state.ok) toast.success("تم حفظ بادئات الترقيم");
@@ -53,9 +55,9 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
     <form action={action}>
       <Card>
         <CardHeader>
-          <CardTitle>بادئات ترقيم المستندات</CardTitle>
+          <CardTitle>{t("بادئات ترقيم المستندات")}</CardTitle>
           <CardDescription>
-            كل مستند رقمه <span dir="ltr" className="tabular-nums">البادئة-السنة-الرقم</span>. اترك الخانة فارغة لاستخدام الافتراضي.
+            كل مستند رقمه <span dir="ltr" className="tabular-nums">{t("البادئة-السنة-الرقم")}</span>. اترك الخانة فارغة لاستخدام الافتراضي.
             تغيير البادئة يبدأ ترقيمًا جديدًا لها ولا يغيّر أرقام المستندات القديمة.
           </CardDescription>
         </CardHeader>

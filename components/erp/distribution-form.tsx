@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { createDistributionAction, confirmDistributionAction, deleteDistribution
 
 /** Draft a distribution. Shares are allocated server-side from each investor's net capital. */
 export function DistributionForm({ suggestedProfit }: { suggestedProfit: number }) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -32,20 +34,20 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
     });
   }
 
-  if (!open) return <Button size="sm" onClick={() => setOpen(true)}>توزيع أرباح جديد</Button>;
+  if (!open) return <Button size="sm" onClick={() => setOpen(true)}>{t("توزيع أرباح جديد")}</Button>;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">توزيع أرباح جديد</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{t("توزيع أرباح جديد")}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="periodName">اسم الفترة *</Label>
+              <Label htmlFor="periodName">{t("اسم الفترة *")}</Label>
               <Input id="periodName" name="periodName" required defaultValue={`أرباح ${year}`} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="totalProfit">إجمالي الربح الموزَّع *</Label>
+              <Label htmlFor="totalProfit">{t("إجمالي الربح الموزَّع *")}</Label>
               <Input id="totalProfit" name="totalProfit" type="number" step="0.01" required defaultValue={suggestedProfit > 0 ? suggestedProfit : undefined} />
               {suggestedProfit > 0 && (
                 <p className="text-xs text-muted-foreground">صافي ربح السنة حتى الآن: {suggestedProfit.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</p>
@@ -54,15 +56,15 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <Label htmlFor="periodStart">بداية الفترة *</Label>
+              <Label htmlFor="periodStart">{t("بداية الفترة *")}</Label>
               <Input id="periodStart" name="periodStart" type="date" required defaultValue={`${year}-01-01`} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="periodEnd">نهاية الفترة *</Label>
+              <Label htmlFor="periodEnd">{t("نهاية الفترة *")}</Label>
               <Input id="periodEnd" name="periodEnd" type="date" required defaultValue={`${year}-12-31`} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="distributionDate">تاريخ التوزيع *</Label>
+              <Label htmlFor="distributionDate">{t("تاريخ التوزيع *")}</Label>
               <Input id="distributionDate" name="distributionDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
             </div>
           </div>
@@ -70,8 +72,8 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
             تُحسب حصة كل مستثمر تلقائيًا من نسبة ملكيته (صافي رأس ماله)، بالقرش — ولا يُرحَّل أي قيد حتى تأكيد التوزيع.
           </p>
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>إنشاء مسودة</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button type="submit" size="sm" disabled={pending}>{t("إنشاء مسودة")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
           </div>
         </form>
       </CardContent>
@@ -81,6 +83,7 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
 
 /** Confirm (post) or delete a DRAFT distribution. */
 export function DistributionActions({ id, status }: { id: string; status: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (status !== "DRAFT") return null;
@@ -91,12 +94,12 @@ export function DistributionActions({ id, status }: { id: string; status: string
         const res = await confirmDistributionAction(id);
         if (res.ok) { toast.success("تم ترحيل التوزيع"); router.refresh(); }
         else toast.error(res.error ?? "تعذّر الترحيل");
-      })}>تأكيد وترحيل</Button>
+      })}>{t("تأكيد وترحيل")}</Button>
       <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => {
         const res = await deleteDistributionAction(id);
         if (res.ok) { toast.success("تم حذف المسودة"); router.refresh(); }
         else toast.error(res.error ?? "تعذّر الحذف");
-      })}>حذف</Button>
+      })}>{t("حذف")}</Button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShoppingCart, Check, X, Loader2 } from "lucide-react";
@@ -12,6 +13,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Bottom-left progress card for the background sales (orders) sync. Polls the
  *  latest ORDERS sync_run; closing keeps the server job running. */
 export function OrdersProgress({ code, label = "المنصة", open, onClose }: { code: string; label?: string; open: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [st, setSt] = useState<OrdersStatus>({ phase: "running" });
   const [timedOut, setTimedOut] = useState(false);
@@ -46,8 +48,8 @@ export function OrdersProgress({ code, label = "المنصة", open, onClose }: 
   return (
     <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-semibold"><ShoppingCart className={`size-4 ${running ? "animate-pulse" : ""}`} />سحب المبيعات</div>
-        <button onClick={close} aria-label="إغلاق" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+        <div className="flex items-center gap-2 font-semibold"><ShoppingCart className={`size-4 ${running ? "animate-pulse" : ""}`} />{t("سحب المبيعات")}</div>
+        <button onClick={close} aria-label={t("إغلاق")} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -62,13 +64,13 @@ export function OrdersProgress({ code, label = "المنصة", open, onClose }: 
         </span>
         <div className="min-w-0 flex-1">
           {running && !timedOut && <span>جاري سحب الطلبات من {label}… (قد يستغرق دقائق حسب معدّل المنصة)</span>}
-          {running && timedOut && <span className="text-muted-foreground">السحب لسه شغّال في الخلفية. <Link href="/sales/orders" className="text-primary hover:underline">افتح الطلبات</Link> لمتابعة الجديد.</span>}
-          {st.phase === "done" && <span className="text-muted-foreground">تم سحب <b>{st.created ?? 0}</b> أمر بيع. <Link href="/sales/orders" className="text-primary hover:underline">افتح الطلبات</Link></span>}
+          {running && timedOut && <span className="text-muted-foreground">{t("السحب لسه شغّال في الخلفية.")} <Link href="/sales/orders" className="text-primary hover:underline">{t("افتح الطلبات")}</Link> {t("لمتابعة الجديد.")}</span>}
+          {st.phase === "done" && <span className="text-muted-foreground">{t("تم سحب")} <b>{st.created ?? 0}</b> {t("أمر بيع.")} <Link href="/sales/orders" className="text-primary hover:underline">{t("افتح الطلبات")}</Link></span>}
           {st.phase === "error" && <span className="text-destructive">{st.error ?? "فشل سحب المبيعات"}</span>}
         </div>
       </div>
 
-      <div className="mt-2 text-center text-xs text-muted-foreground">تقدر تقفل النافذة والسحب يكمل في الخلفية.</div>
+      <div className="mt-2 text-center text-xs text-muted-foreground">{t("تقدر تقفل النافذة والسحب يكمل في الخلفية.")}</div>
     </div>
   );
 }

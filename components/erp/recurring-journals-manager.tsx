@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const nl = (): EditLine => ({ accountId: "", debit: "", credit: "", description: "" });
 
 function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Account[]; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -52,39 +54,39 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
       <DialogHeader><DialogTitle>{rj ? "تعديل قيد متكرر" : "قيد متكرر جديد"}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>اسم القالب</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="استحقاق الإيجار الشهري" /></div>
-          <div className="space-y-1.5"><Label>الوصف (بيان القيد)</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="اختياري" /></div>
+          <div className="space-y-1.5"><Label>{t("اسم القالب")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("استحقاق الإيجار الشهري")} /></div>
+          <div className="space-y-1.5"><Label>{t("الوصف (بيان القيد)")}</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("اختياري")} /></div>
           <div className="space-y-1.5">
-            <Label>التكرار</Label>
+            <Label>{t("التكرار")}</Label>
             <select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
               {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5"><Label>أول تنفيذ</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("أول تنفيذ")}</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
-            <TableHeader><TableRow><TableHead className="text-start">الحساب</TableHead><TableHead className="w-28 text-start">مدين</TableHead><TableHead className="w-28 text-start">دائن</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead className="text-start">{t("الحساب")}</TableHead><TableHead className="w-28 text-start">{t("مدين")}</TableHead><TableHead className="w-28 text-start">{t("دائن")}</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {lines.map((l, i) => (
                 <TableRow key={i}>
-                  <TableCell><CellCombobox selectedLabel={label(l.accountId)} options={opts} onSelect={(id) => setLine(i, { accountId: id })} placeholder="ابحث عن الحساب…" /></TableCell>
+                  <TableCell><CellCombobox selectedLabel={label(l.accountId)} options={opts} onSelect={(id) => setLine(i, { accountId: id })} placeholder={t("ابحث عن الحساب…")} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.debit} onChange={(e) => setLine(i, { debit: e.target.value, credit: e.target.value ? "" : l.credit })} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.credit} onChange={(e) => setLine(i, { credit: e.target.value, debit: e.target.value ? "" : l.debit })} /></TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => setLines((ls) => (ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls))} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => setLines((ls) => (ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls))} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
         <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, nl()])}><Plus className="size-4" />إضافة بند</Button>
+          <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, nl()])}><Plus className="size-4" />{t("إضافة بند")}</Button>
           <span className={`text-sm font-medium ${balanced ? "text-emerald-600" : "text-destructive"}`}>مدين {fmt(totDr)} · دائن {fmt(totCr)} {balanced ? "· متوازن ✓" : "· غير متوازن"}</span>
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button onClick={save} disabled={pending || !balanced || !name.trim()}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
       </DialogFooter>
     </DialogContent>
@@ -92,6 +94,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
 }
 
 export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; accounts: Account[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; rj: RJ | null }>({ open: false, rj: null });
@@ -107,23 +110,23 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
           <span className="text-sm text-muted-foreground">{items.length} قالب — يولّد قيداً كمسودة تلقائياً في موعده</span>
-          <Button size="sm" onClick={() => setDialog({ open: true, rj: null })}><Plus className="size-4" />قالب جديد</Button>
+          <Button size="sm" onClick={() => setDialog({ open: true, rj: null })}><Plus className="size-4" />{t("قالب جديد")}</Button>
         </div>
         <>
         <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringJournalsAction} onDone={sel.clear} entity="قالب" />
         <Table>
           <TableHeader><TableRow>
-            <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
-            <TableHead className="text-start">الاسم</TableHead><TableHead className="text-start">التكرار</TableHead>
-            <TableHead className="text-start">التنفيذ القادم</TableHead><TableHead className="text-start">البنود</TableHead>
-            <TableHead className="text-start">الحالة</TableHead><TableHead className="text-start">إجراءات</TableHead>
+            <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
+            <TableHead className="text-start">{t("الاسم")}</TableHead><TableHead className="text-start">{t("التكرار")}</TableHead>
+            <TableHead className="text-start">{t("التنفيذ القادم")}</TableHead><TableHead className="text-start">{t("البنود")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead><TableHead className="text-start">{t("إجراءات")}</TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">لا توجد قوالب — أنشئ أول قالب.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">{t("لا توجد قوالب — أنشئ أول قالب.")}</TableCell></TableRow>
             ) : items.map((r) => (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                <TableCell><SelectBox label="تحديد" checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
+                <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.name}</TableCell>
                 <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
@@ -131,9 +134,9 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
                 <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rj: r })} aria-label="تعديل"><Pencil className="size-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rj: r })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
                     <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
-                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -150,8 +153,8 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
         {confirmDel && (
           <DialogContent dir="rtl">
             <DialogHeader><DialogTitle>حذف القالب «{confirmDel.name}»؟</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">القيود التي وُلّدت بالفعل لا تتأثر.</p>
-            <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>إلغاء</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>حذف</Button></DialogFooter>
+            <p className="text-sm text-muted-foreground">{t("القيود التي وُلّدت بالفعل لا تتأثر.")}</p>
+            <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button></DialogFooter>
           </DialogContent>
         )}
       </Dialog>

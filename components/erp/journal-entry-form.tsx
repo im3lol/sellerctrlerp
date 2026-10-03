@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createManualEntryAction, updateManualEntryAction } from "@/app/actions/erp/journal";
@@ -29,6 +30,7 @@ export function JournalEntryForm({
   costCenters: Option[];
   initial?: JournalEntryInitial;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -105,37 +107,37 @@ export function JournalEntryForm({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>بيانات القيد</CardTitle>
+          <CardTitle>{t("بيانات القيد")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="date">التاريخ</Label>
+            <Label htmlFor="date">{t("التاريخ")}</Label>
             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="desc">البيان</Label>
-            <Input id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف القيد" />
+            <Label htmlFor="desc">{t("البيان")}</Label>
+            <Input id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("وصف القيد")} />
           </div>
           <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="ref">المرجع (اختياري)</Label>
-            <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم مستند / مرجع" />
+            <Label htmlFor="ref">{t("المرجع (اختياري)")}</Label>
+            <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t("رقم مستند / مرجع")} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>البنود</CardTitle>
+          <CardTitle>{t("البنود")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الحساب</TableHead>
-                <TableHead className="text-start">البيان</TableHead>
-                <TableHead className="text-start w-32">مدين</TableHead>
-                <TableHead className="text-start w-32">دائن</TableHead>
-                {costCenters.length > 0 && <TableHead className="text-start">مركز التكلفة</TableHead>}
+                <TableHead className="text-start">{t("الحساب")}</TableHead>
+                <TableHead className="text-start">{t("البيان")}</TableHead>
+                <TableHead className="text-start w-32">{t("مدين")}</TableHead>
+                <TableHead className="text-start w-32">{t("دائن")}</TableHead>
+                {costCenters.length > 0 && <TableHead className="text-start">{t("مركز التكلفة")}</TableHead>}
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -147,11 +149,11 @@ export function JournalEntryForm({
                       selectedLabel={accountLabel.get(l.accountId) ?? ""}
                       options={accountOptions}
                       onSelect={(id) => update(i, { accountId: id })}
-                      placeholder="ابحث عن الحساب…"
+                      placeholder={t("ابحث عن الحساب…")}
                     />
                   </TableCell>
                   <TableCell>
-                    <Input value={l.description} onChange={(e) => update(i, { description: e.target.value })} placeholder="بيان" />
+                    <Input value={l.description} onChange={(e) => update(i, { description: e.target.value })} placeholder={t("بيان")} />
                   </TableCell>
                   <TableCell>
                     <Input
@@ -177,7 +179,7 @@ export function JournalEntryForm({
                         selectedLabel={costCenterLabel.get(l.costCenterId) ?? ""}
                         options={costCenterOptions}
                         onSelect={(id) => update(i, { costCenterId: id })}
-                        placeholder="— اختياري —"
+                        placeholder={t("— اختياري —")}
                       />
                     </TableCell>
                   )}
@@ -191,7 +193,7 @@ export function JournalEntryForm({
             </TableBody>
             <TableFooter>
               <TableRow className="font-bold">
-                <TableCell colSpan={2}>الإجمالي</TableCell>
+                <TableCell colSpan={2}>{t("الإجمالي")}</TableCell>
                 <TableCell>{fmt(totals.debit)}</TableCell>
                 <TableCell>{fmt(totals.credit)}</TableCell>
                 <TableCell colSpan={costCenters.length > 0 ? 2 : 1}>

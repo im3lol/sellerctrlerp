@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import {
   listCountsAction, generateCountAction, getCountAction, saveCountAction,
@@ -39,6 +40,7 @@ const STATUS: Record<string, { label: string; tone: "secondary" | "outline" | "d
 export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
   warehouses: Option[]; canManage: boolean; canPost: boolean;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<ListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, start] = useTransition();
@@ -160,16 +162,16 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                     <Icon name="Upload" className="size-4" />رحّل الفروق
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>رجوع</Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-6 text-sm">
-            <div><div className="text-muted-foreground">اتعدّ</div><div className="font-bold tabular-nums">{live.counted} / {live.total}</div></div>
-            <div><div className="text-muted-foreground">مطابق</div><div className="font-bold tabular-nums">{live.matched}</div></div>
-            <div><div className="text-muted-foreground">الدقة</div><div className="font-bold tabular-nums">{live.accuracy == null ? "—" : `${live.accuracy}%`}</div></div>
-            <div><div className="text-muted-foreground">عجز</div><div className="font-bold tabular-nums text-destructive">{money(live.shortageValue)}</div></div>
-            <div><div className="text-muted-foreground">زيادة</div><div className="font-bold tabular-nums text-emerald-600">{money(live.surplusValue)}</div></div>
+            <div><div className="text-muted-foreground">{t("اتعدّ")}</div><div className="font-bold tabular-nums">{live.counted} / {live.total}</div></div>
+            <div><div className="text-muted-foreground">{t("مطابق")}</div><div className="font-bold tabular-nums">{live.matched}</div></div>
+            <div><div className="text-muted-foreground">{t("الدقة")}</div><div className="font-bold tabular-nums">{live.accuracy == null ? "—" : `${live.accuracy}%`}</div></div>
+            <div><div className="text-muted-foreground">{t("عجز")}</div><div className="font-bold tabular-nums text-destructive">{money(live.shortageValue)}</div></div>
+            <div><div className="text-muted-foreground">{t("زيادة")}</div><div className="font-bold tabular-nums text-emerald-600">{money(live.surplusValue)}</div></div>
             <label className="ms-auto flex cursor-pointer items-center gap-2">
               <input type="checkbox" className="size-4 rounded border-input" checked={blind} onChange={(e) => setBlind(e.target.checked)} />
               جرد أعمى (إخفاء رصيد الدفاتر)
@@ -179,7 +181,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
 
         <Card>
           <CardHeader>
-            <CardTitle>ورقة العدّ</CardTitle>
+            <CardTitle>{t("ورقة العدّ")}</CardTitle>
             <CardDescription>
               الجرد الأعمى بيخفي رصيد الدفاتر أثناء العدّ — اللي بيشوف الرقم المتوقّع بيلاقيه.
             </CardDescription>
@@ -189,11 +191,11 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الموقع</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    {!blind && <TableHead className="text-start">الدفاتر</TableHead>}
-                    <TableHead className="w-32 text-start">المعدود</TableHead>
-                    {!blind && <TableHead className="text-start">الفرق</TableHead>}
+                    <TableHead className="text-start">{t("الموقع")}</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    {!blind && <TableHead className="text-start">{t("الدفاتر")}</TableHead>}
+                    <TableHead className="w-32 text-start">{t("المعدود")}</TableHead>
+                    {!blind && <TableHead className="text-start">{t("الفرق")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -239,7 +241,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>ورقة جرد جديدة</CardTitle>
+            <CardTitle>{t("ورقة جرد جديدة")}</CardTitle>
             <CardDescription>
               «بالقيمة» بتختار الأصناف اللي الخطأ فيها بيكلّف أكتر · «بالحركة» بتختار اللي بتتحرّك كتير فالخطأ بيتسلّل ليها.
               الصنف اللي معدّش قبل كده بييجي الأول دايماً.
@@ -248,22 +250,22 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-2">
-                <Label>المستودع</Label>
+                <Label>{t("المستودع")}</Label>
                 <select className={`${selectCls} w-52`} value={gen.warehouseId} onChange={(e) => setGen((g) => ({ ...g, warehouseId: e.target.value }))}>
                   {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>الاختيار</Label>
+                <Label>{t("الاختيار")}</Label>
                 <select className={`${selectCls} w-40`} value={gen.method} onChange={(e) => setGen((g) => ({ ...g, method: e.target.value }))}>
-                  <option value="VALUE">بالقيمة</option>
-                  <option value="MOVEMENT">بالحركة</option>
+                  <option value="VALUE">{t("بالقيمة")}</option>
+                  <option value="MOVEMENT">{t("بالحركة")}</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label>عدد الأصناف</Label>
+              <div className="space-y-2"><Label>{t("عدد الأصناف")}</Label>
                 <Input type="number" min="1" max="500" className="w-28" value={gen.limit}
                   onChange={(e) => setGen((g) => ({ ...g, limit: e.target.value }))} /></div>
-              <Button onClick={generate} disabled={pending}><Icon name="Plus" className="size-4" />اطلع الورقة</Button>
+              <Button onClick={generate} disabled={pending}><Icon name="Plus" className="size-4" />{t("اطلع الورقة")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -271,7 +273,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>الجرد الدوري</CardTitle>
+          <CardTitle>{t("الجرد الدوري")}</CardTitle>
           <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} ورقة`}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -284,11 +286,11 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المستودع</TableHead>
-                    <TableHead className="text-start">أصناف</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المستودع")}</TableHead>
+                    <TableHead className="text-start">{t("أصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-28" />
                   </TableRow>
                 </TableHeader>
@@ -301,9 +303,9 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                       <TableCell className="tabular-nums">{r.lines}</TableCell>
                       <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
                       <TableCell className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => openSession(r.id)}>افتح</Button>
+                        <Button size="sm" variant="outline" onClick={() => openSession(r.id)}>{t("افتح")}</Button>
                         {canManage && r.status !== "POSTED" && r.status !== "CANCELLED" && (
-                          <Button size="icon" variant="ghost" aria-label="إلغاء" onClick={() => cancel(r)}>
+                          <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => cancel(r)}>
                             <Icon name="Ban" className="size-4 text-destructive" />
                           </Button>
                         )}

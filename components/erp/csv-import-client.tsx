@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { importCustomersCSV, importItemsCSV, importSuppliersCSV, type ImportResult } from "@/app/actions/erp/csv-import";
 import { importSalesOrdersCSV, importPurchaseOrdersCSV, importStockTransfersCSV } from "@/app/actions/erp/doc-import";
@@ -57,6 +58,7 @@ function ResultBadge({ result }: { result: ImportResult }) {
 }
 
 function DocResultBadge({ result }: { result: DocImportResult }) {
+  const t = useT();
   return (
     <div className="mt-4 space-y-2">
       <div className="flex gap-4 text-sm">
@@ -82,6 +84,7 @@ function ImportPane<R>({
   renderResult: (r: R) => React.ReactNode;
   draftNote?: string;
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<R | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -134,7 +137,7 @@ function ImportPane<R>({
         onClick={() => fileRef.current?.click()}
       >
         <Icon name="Upload" className="size-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">اسحب ملف CSV هنا أو انقر للاختيار</p>
+        <p className="text-sm text-muted-foreground">{t("اسحب ملف CSV هنا أو انقر للاختيار")}</p>
         <p className="text-xs text-muted-foreground">UTF-8</p>
       </div>
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
@@ -155,67 +158,68 @@ const docProps = { successCount: (r: DocImportResult) => r.created, renderResult
 const DRAFT_NOTE = "تُنشأ المستندات كمسودات فقط — راجعها ثم أكّدها يدويًا حتى تُرحَّل للمخزون والمحاسبة. صفوف بنفس «ref» تُجمَّع في مستند واحد.";
 
 export function CsvImportClient() {
+  const t = useT();
   return (
     <Tabs defaultValue="customers">
       <TabsList className="flex-wrap">
-        <TabsTrigger value="customers">العملاء</TabsTrigger>
-        <TabsTrigger value="suppliers">الموردون</TabsTrigger>
-        <TabsTrigger value="items">الأصناف</TabsTrigger>
-        <TabsTrigger value="sales-orders">أوامر البيع</TabsTrigger>
-        <TabsTrigger value="purchase-orders">أوامر الشراء</TabsTrigger>
-        <TabsTrigger value="transfers">التحويلات</TabsTrigger>
+        <TabsTrigger value="customers">{t("العملاء")}</TabsTrigger>
+        <TabsTrigger value="suppliers">{t("الموردون")}</TabsTrigger>
+        <TabsTrigger value="items">{t("الأصناف")}</TabsTrigger>
+        <TabsTrigger value="sales-orders">{t("أوامر البيع")}</TabsTrigger>
+        <TabsTrigger value="purchase-orders">{t("أوامر الشراء")}</TabsTrigger>
+        <TabsTrigger value="transfers">{t("التحويلات")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="customers">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد العملاء</CardTitle><CardDescription>الأعمدة: code, nameAr, phone, email, creditLimit, paymentTerms</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد العملاء")}</CardTitle><CardDescription>{t("الأعمدة: code, nameAr, phone, email, creditLimit, paymentTerms")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...masterProps} description="استيراد أو تحديث بيانات العملاء. الموجود (بنفس الكود) سيتم تحديثه." template={CUSTOMER_TEMPLATE} templateName="customers-template.csv" onImport={importCustomersCSV} />
+            <ImportPane {...masterProps} description={t("استيراد أو تحديث بيانات العملاء. الموجود (بنفس الكود) سيتم تحديثه.")} template={CUSTOMER_TEMPLATE} templateName="customers-template.csv" onImport={importCustomersCSV} />
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="suppliers">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد الموردين</CardTitle><CardDescription>الأعمدة: code, nameAr, phone, email, address, paymentTerms</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد الموردين")}</CardTitle><CardDescription>{t("الأعمدة: code, nameAr, phone, email, address, paymentTerms")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...masterProps} description="استيراد أو تحديث بيانات الموردين. الموجود (بنفس الكود) سيتم تحديثه دون المساس بالأرصدة." template={SUPPLIERS_TEMPLATE} templateName="suppliers-template.csv" onImport={importSuppliersCSV} />
+            <ImportPane {...masterProps} description={t("استيراد أو تحديث بيانات الموردين. الموجود (بنفس الكود) سيتم تحديثه دون المساس بالأرصدة.")} template={SUPPLIERS_TEMPLATE} templateName="suppliers-template.csv" onImport={importSuppliersCSV} />
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="items">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد الأصناف</CardTitle><CardDescription>الأعمدة: code, nameAr, nameEn, sellPrice, minStock, description, isActive</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد الأصناف")}</CardTitle><CardDescription>{t("الأعمدة: code, nameAr, nameEn, sellPrice, minStock, description, isActive")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...masterProps} description="استيراد أو تحديث بيانات الأصناف. الموجود (بنفس الكود) سيتم تحديثه دون المساس بأرصدة المخزون." template={ITEMS_TEMPLATE} templateName="items-template.csv" onImport={importItemsCSV} />
+            <ImportPane {...masterProps} description={t("استيراد أو تحديث بيانات الأصناف. الموجود (بنفس الكود) سيتم تحديثه دون المساس بأرصدة المخزون.")} template={ITEMS_TEMPLATE} templateName="items-template.csv" onImport={importItemsCSV} />
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="sales-orders">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد أوامر البيع (مسودات)</CardTitle><CardDescription>الأعمدة: ref, date, customer, item, quantity, unitPrice — العميل والصنف بالكود</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد أوامر البيع (مسودات)")}</CardTitle><CardDescription>{t("الأعمدة: ref, date, customer, item, quantity, unitPrice — العميل والصنف بالكود")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description="ينشئ أوامر بيع مسودة من ملف CSV. صفوف بنفس المرجع = أمر واحد بعدة بنود." template={SALES_ORDER_TEMPLATE} templateName="sales-orders-template.csv" onImport={importSalesOrdersCSV} />
+            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description={t("ينشئ أوامر بيع مسودة من ملف CSV. صفوف بنفس المرجع = أمر واحد بعدة بنود.")} template={SALES_ORDER_TEMPLATE} templateName="sales-orders-template.csv" onImport={importSalesOrdersCSV} />
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="purchase-orders">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد أوامر الشراء (مسودات)</CardTitle><CardDescription>الأعمدة: ref, date, supplier, warehouse, item, quantity, unitPrice — المورد/الصنف بالكود، المستودع بالكود أو الاسم</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد أوامر الشراء (مسودات)")}</CardTitle><CardDescription>{t("الأعمدة: ref, date, supplier, warehouse, item, quantity, unitPrice — المورد/الصنف بالكود، المستودع بالكود أو الاسم")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description="ينشئ أوامر شراء مسودة من ملف CSV. صفوف بنفس المرجع = أمر واحد بعدة بنود." template={PURCHASE_ORDER_TEMPLATE} templateName="purchase-orders-template.csv" onImport={importPurchaseOrdersCSV} />
+            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description={t("ينشئ أوامر شراء مسودة من ملف CSV. صفوف بنفس المرجع = أمر واحد بعدة بنود.")} template={PURCHASE_ORDER_TEMPLATE} templateName="purchase-orders-template.csv" onImport={importPurchaseOrdersCSV} />
           </CardContent>
         </Card>
       </TabsContent>
 
       <TabsContent value="transfers">
         <Card className="mt-4">
-          <CardHeader><CardTitle>استيراد التحويلات المخزنية (مسودات)</CardTitle><CardDescription>الأعمدة: ref, date, item, quantity, fromWarehouse, toWarehouse, notes — الصنف بالكود، المستودعات بالكود أو الاسم</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("استيراد التحويلات المخزنية (مسودات)")}</CardTitle><CardDescription>{t("الأعمدة: ref, date, item, quantity, fromWarehouse, toWarehouse, notes — الصنف بالكود، المستودعات بالكود أو الاسم")}</CardDescription></CardHeader>
           <CardContent>
-            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description="ينشئ تحويلات مخزنية مسودة من ملف CSV. صفوف بنفس المرجع = تحويل واحد بعدة بنود." template={TRANSFER_TEMPLATE} templateName="transfers-template.csv" onImport={importStockTransfersCSV} />
+            <ImportPane {...docProps} draftNote={DRAFT_NOTE} description={t("ينشئ تحويلات مخزنية مسودة من ملف CSV. صفوف بنفس المرجع = تحويل واحد بعدة بنود.")} template={TRANSFER_TEMPLATE} templateName="transfers-template.csv" onImport={importStockTransfersCSV} />
           </CardContent>
         </Card>
       </TabsContent>

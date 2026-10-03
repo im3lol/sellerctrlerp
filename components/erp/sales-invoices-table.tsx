@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ type ReturnRow = { id: string; number: string; date: Date; total: string | null;
 type Row = { id: string; number: string; date: Date; customer: string | null; order?: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; canCollect: boolean; total: number; filter: SalesInvoicesFilter }) {
+  const t = useT();
   const canAct = canPost || canCreate || canCollect;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -62,25 +64,25 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
           {!allPages && allSelected && total > pageIds.length && (
             <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
           )}
-          {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
+          {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>}
           <div className="ms-auto flex gap-2">
-            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title="ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد"><Icon name="HandCoins" className="size-4" />تحصيل</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title={t("ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد")}><Icon name="HandCoins" className="size-4" />{t("تحصيل")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">العميل</TableHead>
-            <TableHead className="text-start">أمر البيع</TableHead>
-            <TableHead className="text-start">الإجمالي</TableHead>
-            <TableHead className="text-start">المتبقّي</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("العميل")}</TableHead>
+            <TableHead className="text-start">{t("أمر البيع")}</TableHead>
+            <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+            <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -90,7 +92,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -99,7 +101,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                   <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <SalesInvoiceRowMenu id={r.id} number={r.number} status={r.status} canPost={canPost} canManage={canCreate} />
                   </TableCell>

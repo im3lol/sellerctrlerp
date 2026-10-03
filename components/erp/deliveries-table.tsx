@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ type ReturnRow = { id: string; number: string; date: Date; qty: number; status: 
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, shortIds = [] }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: DeliveriesFilter; shortIds?: string[] }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -79,26 +81,26 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
           {!allPages && allSelected && total > rows.length && (
             <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
           )}
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
-            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCreate && hasDraft && !allPages && <Button size="sm" variant="outline" disabled={pending} onClick={pickRound} title="تجمّع الأذون المسودة المحدّدة في لفّة تجهيز واحدة على المخزن"><Icon name="ScanLine" className="size-4" />جولة تجهيز</Button>}
-            {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-            {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
-            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCreate && hasDraft && !allPages && <Button size="sm" variant="outline" disabled={pending} onClick={pickRound} title={t("تجمّع الأذون المسودة المحدّدة في لفّة تجهيز واحدة على المخزن")}><Icon name="ScanLine" className="size-4" />{t("جولة تجهيز")}</Button>}
+            {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title={t("ينشئ فاتورة مسودة لكل إذن مؤكّد")}><Icon name="FileText" className="size-4" />{t("تحويل لفاتورة")}</Button>}
+            {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title={t("عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة")}><Icon name="Undo2" className="size-4" />{t("إلغاء")}</Button>}
+            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">العميل</TableHead>
-            <TableHead className="text-start">أمر البيع</TableHead>
-            <TableHead className="text-start">الفاتورة</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("العميل")}</TableHead>
+            <TableHead className="text-start">{t("أمر البيع")}</TableHead>
+            <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -108,7 +110,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -116,7 +118,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                   <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title="المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)">نقص مخزون</Badge>}{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title={t("المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)")}>{t("نقص مخزون")}</Badge>}{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <DeliveryRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
                   </TableCell>

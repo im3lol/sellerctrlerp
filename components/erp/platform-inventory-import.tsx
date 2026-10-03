@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
@@ -16,6 +17,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "da
 }
 
 export function PlatformInventoryImport({ platformId, platformName, hasWarehouse }: { platformId: string; platformName: string; hasWarehouse: boolean }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
@@ -49,11 +51,11 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
     <Card>
       <CardHeader>
         <CardTitle>مطابقة المخزون — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير دفتر مخزون أمازون (Inventory Ledger). نحسب الرصيد لكل SKU ونطابقه بمخزون المنصة، ثم يمكنك إنشاء تسوية لضبط الفروق.</CardDescription>
+        <CardDescription>{t("ارفع تقرير دفتر مخزون أمازون (Inventory Ledger). نحسب الرصيد لكل SKU ونطابقه بمخزون المنصة، ثم يمكنك إنشاء تسوية لضبط الفروق.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {!hasWarehouse && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">اضبط المخزن الافتراضي للمنصة أولًا (من تعديل المنصة) قبل مطابقة المخزون.</div>
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{t("اضبط المخزن الافتراضي للمنصة أولًا (من تعديل المنصة) قبل مطابقة المخزون.")}</div>
         )}
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
@@ -66,21 +68,21 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
         {result?.ok && (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <Stat label="أصناف في الملف" value={int(result.totalSkus)} />
-              <Stat label="إجمالي الوحدات" value={int(result.totalUnits)} />
-              <Stat label="مطابَقة بأصناف" value={int(result.matched)} />
-              <Stat label="غير مربوطة" value={int(result.unmatched)} tone={result.unmatched > 0 ? "danger" : undefined} />
-              <Stat label="بها فروق" value={int(result.withDiff)} tone={result.withDiff > 0 ? "danger" : undefined} />
+              <Stat label={t("أصناف في الملف")} value={int(result.totalSkus)} />
+              <Stat label={t("إجمالي الوحدات")} value={int(result.totalUnits)} />
+              <Stat label={t("مطابَقة بأصناف")} value={int(result.matched)} />
+              <Stat label={t("غير مربوطة")} value={int(result.unmatched)} tone={result.unmatched > 0 ? "danger" : undefined} />
+              <Stat label={t("بها فروق")} value={int(result.withDiff)} tone={result.withDiff > 0 ? "danger" : undefined} />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>المخزن: <b>{result.warehouseName}</b>. التسوية تضبط رصيد النظام = رصيد أمازون للأصناف المطابَقة.</span>
+              <span>{t("المخزن:")} <b>{result.warehouseName}</b>{t(". التسوية تضبط رصيد النظام = رصيد أمازون للأصناف المطابَقة.")}</span>
               <Button onClick={apply} disabled={applying || result.withDiff === 0}>{applying && <Loader2 className="size-4 animate-spin" />}إنشاء تسوية ({int(result.withDiff)})</Button>
             </div>
 
             {result.rows.length > 0 && (
               <div className="max-h-96 overflow-y-auto rounded-xl border">
                 <Table>
-                  <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-start">أمازون</TableHead><TableHead className="text-start">النظام</TableHead><TableHead className="text-start">الفرق</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="text-start">{t("أمازون")}</TableHead><TableHead className="text-start">{t("النظام")}</TableHead><TableHead className="text-start">{t("الفرق")}</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {result.rows.map((r) => (
                       <TableRow key={r.itemId}>

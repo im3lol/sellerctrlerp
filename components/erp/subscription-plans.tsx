@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, Copy, MessageCircle, CreditCard } from "lucide-react";
@@ -25,6 +26,7 @@ const effMonthly = (p: PlanCard, annual: boolean) => (annual ? Math.round(p.pric
 const discountPct = (p: PlanCard) => (p.priceMonthly > 0 ? Math.round((1 - p.priceAnnual / (p.priceMonthly * 12)) * 100) : 0);
 
 function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { plan: PlanCard; account: Account; interval: "MONTHLY" | "ANNUAL"; xpayEnabled: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const methods = PAYMENT_METHODS.filter((m) => m.enabled && (m.key !== "XPAY" || xpayEnabled));
@@ -78,7 +80,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
       </DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label>طريقة الدفع</Label>
+          <Label>{t("طريقة الدفع")}</Label>
           <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
             {methods.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
           </select>
@@ -96,16 +98,16 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
         </div>
 
         {isXpay ? (
-          <p className="text-xs text-muted-foreground">سنحوّلك إلى صفحة دفع xpay الآمنة لإكمال الدفع بالبطاقة أو المحفظة أو فوري — ويُفعَّل اشتراكك تلقائيًا بعد الدفع.</p>
+          <p className="text-xs text-muted-foreground">{t("سنحوّلك إلى صفحة دفع xpay الآمنة لإكمال الدفع بالبطاقة أو المحفظة أو فوري — ويُفعَّل اشتراكك تلقائيًا بعد الدفع.")}</p>
         ) : (
           <div className="space-y-1.5">
-            <Label>رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم التحويل من إنستا باي أو المحفظة" />
+            <Label>{t("رقم/مرجع عملية الدفع")} <span className="text-muted-foreground">{t("(اختياري)")}</span></Label>
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t("رقم التحويل من إنستا باي أو المحفظة")} />
           </div>
         )}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         {isXpay ? (
           <Button onClick={submit} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
@@ -123,6 +125,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
 }
 
 export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPending, account, xpayEnabled, xpayResult }: { plans: PlanCard[]; currentPlanId: string | null; canSubscribe: boolean; hasPending: boolean; account: Account; xpayEnabled: boolean; xpayResult?: string }) {
+  const t = useT();
   const router = useRouter();
   const [chosen, setChosen] = useState<PlanCard | null>(null);
   const [annual, setAnnual] = useState(false);
@@ -137,7 +140,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
     router.refresh();
   }, [xpayResult, router]);
 
-  if (plans.length === 0) return <p className="text-sm text-muted-foreground">لا توجد باقات متاحة حالياً — تواصل مع الدعم.</p>;
+  if (plans.length === 0) return <p className="text-sm text-muted-foreground">{t("لا توجد باقات متاحة حالياً — تواصل مع الدعم.")}</p>;
   const topPct = Math.max(0, ...plans.map(discountPct));
 
   return (
@@ -145,7 +148,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
       {/* Monthly / annual toggle */}
       <div className="mb-5 flex justify-center">
         <div className="inline-flex items-center rounded-full border bg-card p-1 text-sm">
-          <button type="button" onClick={() => setAnnual(false)} className={`rounded-full px-5 py-1.5 font-medium transition ${!annual ? "bg-primary text-primary-foreground" : ""}`}>شهري</button>
+          <button type="button" onClick={() => setAnnual(false)} className={`rounded-full px-5 py-1.5 font-medium transition ${!annual ? "bg-primary text-primary-foreground" : ""}`}>{t("شهري")}</button>
           <button type="button" onClick={() => setAnnual(true)} className={`flex items-center gap-1.5 rounded-full px-5 py-1.5 font-medium transition ${annual ? "bg-primary text-primary-foreground" : ""}`}>
             سنوي
             <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${annual ? "bg-primary-foreground/20" : "bg-emerald-500/15 text-emerald-600"}`}>وفّر حتى {topPct}%</span>
@@ -163,9 +166,9 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
               <CardContent className="space-y-3 pt-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold">{p.name}</h3>
-                  {isCurrent && <Badge>باقتك الحالية</Badge>}
+                  {isCurrent && <Badge>{t("باقتك الحالية")}</Badge>}
                 </div>
-                <div className="text-2xl font-bold tabular-nums">{egp(eff)}<span className="text-sm font-normal text-muted-foreground"> / شهر</span></div>
+                <div className="text-2xl font-bold tabular-nums">{egp(eff)}<span className="text-sm font-normal text-muted-foreground"> {t("/ شهر")}</span></div>
                 {annual
                   ? <div className="flex flex-wrap items-center gap-2 text-xs"><s className="text-muted-foreground tabular-nums">{egp(p.priceMonthly)}</s><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">وفّر {pct}%</span><span className="text-muted-foreground">يُدفع {egp(p.priceAnnual)} سنوياً</span></div>
                   : <div className="text-xs text-muted-foreground">أو {egp(p.priceAnnual)} سنوياً — وفّر {pct}%</div>}
@@ -184,8 +187,8 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
           );
         })}
       </div>
-      {!canSubscribe && <p className="mt-3 text-sm text-muted-foreground">صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك.</p>}
-      {hasPending && <p className="mt-3 text-sm text-amber-600">لديك طلب قيد المراجعة — لا يمكن إرسال طلب جديد حتى تتم مراجعته.</p>}
+      {!canSubscribe && <p className="mt-3 text-sm text-muted-foreground">{t("صلاحية مدير المؤسسة مطلوبة لطلب الاشتراك.")}</p>}
+      {hasPending && <p className="mt-3 text-sm text-amber-600">{t("لديك طلب قيد المراجعة — لا يمكن إرسال طلب جديد حتى تتم مراجعته.")}</p>}
       <Dialog open={!!chosen} onOpenChange={(o) => !o && setChosen(null)}>
         {chosen && <SubscribeDialog plan={chosen} account={account} interval={annual ? "ANNUAL" : "MONTHLY"} xpayEnabled={xpayEnabled} onClose={() => setChosen(null)} />}
       </Dialog>

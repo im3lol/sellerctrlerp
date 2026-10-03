@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { scanItemAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { isNativeApp, scanBarcode } from "@/lib/native";
@@ -15,6 +16,7 @@ import { Icon } from "@/components/icon";
  * the same resolve path.
  */
 export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => void }) {
+  const t = useT();
   const [code, setCode] = useState("");
   const [pending, start] = useTransition();
   const [native, setNative] = useState(false);
@@ -60,12 +62,12 @@ export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => vo
           disabled={pending}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); resolve(code); } }}
-          placeholder="امسح الباركود أو اكتب الكود ثم Enter…"
+          placeholder={t("امسح الباركود أو اكتب الكود ثم Enter…")}
           className="ps-9"
         />
       </div>
       {native && (
-        <button type="button" onClick={camera} disabled={pending} aria-label="مسح بالكاميرا"
+        <button type="button" onClick={camera} disabled={pending} aria-label={t("مسح بالكاميرا")}
           className="grid size-9 shrink-0 place-items-center rounded-md border bg-primary text-primary-foreground disabled:opacity-50">
           <Icon name="Camera" className="size-4" />
         </button>

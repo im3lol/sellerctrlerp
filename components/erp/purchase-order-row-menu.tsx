@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ export function PurchaseOrderRowMenu({
   orderId: string; number: string; status: string; canManage: boolean;
   poNeedsApproval?: boolean; poApproved?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -42,14 +44,14 @@ export function PurchaseOrderRowMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" variant="ghost" disabled={pending} aria-label="إجراءات">
+        <Button size="icon" variant="ghost" disabled={pending} aria-label={t("إجراءات")}>
           <Icon name="MoreVertical" className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}`}><Icon name="Eye" className="size-4" />فتح</Link></DropdownMenuItem>
-        <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}/print`} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />طباعة</Link></DropdownMenuItem>
-        <DropdownMenuItem asChild><a href={`/api/erp/purchases/orders/export?numbers=${encoded}`}><Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel</a></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}`}><Icon name="Eye" className="size-4" />{t("فتح")}</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href={`/purchases/orders/${encoded}/print`} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />{t("طباعة")}</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><a href={`/api/erp/purchases/orders/export?numbers=${encoded}`}><Icon name="FileSpreadsheet" className="size-4" />{t("تنزيل Excel")}</a></DropdownMenuItem>
 
         {canManage && status === "DRAFT" && (
           <>
@@ -63,7 +65,7 @@ export function PurchaseOrderRowMenu({
                 <Icon name="Check" className="size-4" />تأكيد
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
               <Icon name="X" className="size-4" />إلغاء
             </DropdownMenuItem>
@@ -82,14 +84,14 @@ export function PurchaseOrderRowMenu({
         {canManage && status === "PARTIALLY_RECEIVED" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />متابعة الاستلام</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />{t("متابعة الاستلام")}</Link></DropdownMenuItem>
           </>
         )}
 
         {canManage && status === "CONFIRMED" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />إنشاء إذن استلام</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />{t("إنشاء إذن استلام")}</Link></DropdownMenuItem>
             <DropdownMenuItem onClick={() => run(() => revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
               <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
             </DropdownMenuItem>

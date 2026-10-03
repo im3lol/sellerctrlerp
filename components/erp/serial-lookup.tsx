@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { findSerialAction } from "@/app/actions/erp/serials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ const tone = (s: string) =>
  * a number read off a label finds the same unit as one pasted from a spreadsheet.
  */
 export function SerialLookup() {
+  const t = useT();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [pending, start] = useTransition();
@@ -38,8 +40,8 @@ export function SerialLookup() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>ابحث برقم تسلسلي</CardTitle>
-          <CardDescription>البحث بيتجاهل الشرطات والمسافات وحالة الحروف — امسح الباركود أو اكتبه.</CardDescription>
+          <CardTitle>{t("ابحث برقم تسلسلي")}</CardTitle>
+          <CardDescription>{t("البحث بيتجاهل الشرطات والمسافات وحالة الحروف — امسح الباركود أو اكتبه.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -60,7 +62,7 @@ export function SerialLookup() {
       {hits !== null && (
         <Card>
           <CardHeader>
-            <CardTitle>النتيجة</CardTitle>
+            <CardTitle>{t("النتيجة")}</CardTitle>
             <CardDescription>{hits.length ? `${hits.length} قطعة` : "مفيش قطعة بالرقم ده"}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,14 +75,14 @@ export function SerialLookup() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الرقم</TableHead>
-                      <TableHead className="text-start">الصنف</TableHead>
-                      <TableHead className="text-start">الحالة</TableHead>
-                      <TableHead className="text-start">المخزن</TableHead>
-                      <TableHead className="text-start">دخل بإذن</TableHead>
-                      <TableHead className="text-start">خرج بإذن</TableHead>
-                      <TableHead className="text-start">العميل</TableHead>
-                      <TableHead className="text-start">التواريخ</TableHead>
+                      <TableHead className="text-start">{t("الرقم")}</TableHead>
+                      <TableHead className="text-start">{t("الصنف")}</TableHead>
+                      <TableHead className="text-start">{t("الحالة")}</TableHead>
+                      <TableHead className="text-start">{t("المخزن")}</TableHead>
+                      <TableHead className="text-start">{t("دخل بإذن")}</TableHead>
+                      <TableHead className="text-start">{t("خرج بإذن")}</TableHead>
+                      <TableHead className="text-start">{t("العميل")}</TableHead>
+                      <TableHead className="text-start">{t("التواريخ")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

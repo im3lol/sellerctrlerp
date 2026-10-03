@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getT } from "@/lib/i18n/server";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -40,39 +41,41 @@ function duration(start: Date, end: Date | null): string {
   return s < 60 ? `${s} ث` : `${Math.floor(s / 60)} د ${s % 60} ث`;
 }
 
-function StatusBadge({ status, failed }: { status: string; failed: number }) {
+async function StatusBadge({ status, failed }: { status: string; failed: number }) {
+  const t = await getT();
   // OK with failures is a partial run: most of it landed, some didn't. It used to show
   // the same green "done" as a clean run, and the failure count wasn't on screen at all.
-  if (status === "OK" && failed > 0) return <Badge className="bg-amber-500">جزئية</Badge>;
-  if (status === "OK") return <Badge className="bg-emerald-600">تمت</Badge>;
-  if (status === "RUNNING") return <Badge variant="secondary">جارية</Badge>;
-  return <Badge variant="destructive">فشلت</Badge>;
+  if (status === "OK" && failed > 0) return <Badge className="bg-amber-500">{t("جزئية")}</Badge>;
+  if (status === "OK") return <Badge className="bg-emerald-600">{t("تمت")}</Badge>;
+  if (status === "RUNNING") return <Badge variant="secondary">{t("جارية")}</Badge>;
+  return <Badge variant="destructive">{t("فشلت")}</Badge>;
 }
 
-export function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
+export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
+  const t = await getT();
   return (
     <Card>
       <CardHeader>
-        <CardTitle>سجل المزامنات</CardTitle>
+        <CardTitle>{t("سجل المزامنات")}</CardTitle>
         <CardDescription>آخر {rows.length} تشغيلة — النوع والنتيجة والعدادات ومدة التنفيذ.</CardDescription>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-8 text-center text-muted-foreground">لا توجد مزامنات بعد.</div>
+          <div className="rounded-xl border border-dashed py-8 text-center text-muted-foreground">{t("لا توجد مزامنات بعد.")}</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>النوع</TableHead>
-                <TableHead>الحالة</TableHead>
-                <TableHead>معالج</TableHead>
-                <TableHead>جديد</TableHead>
-                <TableHead>محدّث</TableHead>
-                <TableHead>فشل</TableHead>
-                <TableHead>طلبات API</TableHead>
-                <TableHead>المدة</TableHead>
-                <TableHead>بدأت في</TableHead>
-                <TableHead>الخطأ</TableHead>
+                <TableHead>{t("النوع")}</TableHead>
+                <TableHead>{t("الحالة")}</TableHead>
+                <TableHead>{t("معالج")}</TableHead>
+                <TableHead>{t("جديد")}</TableHead>
+                <TableHead>{t("محدّث")}</TableHead>
+                <TableHead>{t("فشل")}</TableHead>
+                <TableHead>{t("طلبات API")}</TableHead>
+                <TableHead>{t("المدة")}</TableHead>
+                <TableHead>{t("بدأت في")}</TableHead>
+                <TableHead>{t("الخطأ")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

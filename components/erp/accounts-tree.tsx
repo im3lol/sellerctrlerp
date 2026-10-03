@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function AccountDialog({
   open: boolean; onOpenChange: (o: boolean) => void;
   editing: Account | null; presetParent: string | null; accounts: Account[];
 }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveAccountAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -63,40 +65,40 @@ function AccountDialog({
         <form action={formAction} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{editing ? "تعديل حساب" : "حساب جديد"}</DialogTitle>
-            <DialogDescription>حساب ضمن دليل حسابات المؤسسة النشطة.</DialogDescription>
+            <DialogDescription>{t("حساب ضمن دليل حسابات المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="a-code">الكود</Label><Input id="a-code" name="code" defaultValue={editing?.code} required /></div>
-            <div className="space-y-2"><Label htmlFor="a-name">الاسم</Label><Input id="a-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
+            <div className="space-y-2"><Label htmlFor="a-code">{t("الكود")}</Label><Input id="a-code" name="code" defaultValue={editing?.code} required /></div>
+            <div className="space-y-2"><Label htmlFor="a-name">{t("الاسم")}</Label><Input id="a-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
             <div className="space-y-2">
-              <Label htmlFor="a-parent">الحساب الأب</Label>
+              <Label htmlFor="a-parent">{t("الحساب الأب")}</Label>
               <select id="a-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
-                <option value="">— حساب رئيسي —</option>
+                <option value="">{t("— حساب رئيسي —")}</option>
                 {parentOptions.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="a-type">النوع</Label>
+              <Label htmlFor="a-type">{t("النوع")}</Label>
               <select id="a-type" name="type" defaultValue={editing?.type ?? "ASSET"} className={selectCls}>
-                <option value="ASSET">أصول</option>
-                <option value="LIABILITY">خصوم</option>
-                <option value="EQUITY">حقوق ملكية</option>
-                <option value="REVENUE">إيرادات</option>
-                <option value="EXPENSE">مصروفات</option>
+                <option value="ASSET">{t("أصول")}</option>
+                <option value="LIABILITY">{t("خصوم")}</option>
+                <option value="EQUITY">{t("حقوق ملكية")}</option>
+                <option value="REVENUE">{t("إيرادات")}</option>
+                <option value="EXPENSE">{t("مصروفات")}</option>
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="a-nb">الطبيعة</Label>
+              <Label htmlFor="a-nb">{t("الطبيعة")}</Label>
               <select id="a-nb" name="normalBalance" defaultValue={editing?.normalBalance ?? "DEBIT"} className={selectCls}>
-                <option value="DEBIT">مدين</option>
-                <option value="CREDIT">دائن</option>
+                <option value="DEBIT">{t("مدين")}</option>
+                <option value="CREDIT">{t("دائن")}</option>
               </select>
             </div>
           </div>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isLeaf" defaultChecked={editing ? editing.isLeaf : true} />حساب تفصيلي (يقبل القيود)</label>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />نشط</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isLeaf" defaultChecked={editing ? editing.isLeaf : true} />{t("حساب تفصيلي (يقبل القيود)")}</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />{t("نشط")}</label>
           </div>
           <DialogFooter><SubmitBtn /></DialogFooter>
         </form>
@@ -114,6 +116,7 @@ export function AccountsTree({
   balances: Record<string, number>;
   canManage: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [presetParent, setPresetParent] = useState<string | null>(null);
@@ -172,7 +175,7 @@ export function AccountsTree({
         <div className="group flex items-center gap-2 border-b py-2 pe-3 text-sm hover:bg-muted/40"
           style={{ paddingInlineStart: depth * 22 + 8 }}>
           {hasKids ? (
-            <button onClick={() => toggle(a.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label="طيّ">
+            <button onClick={() => toggle(a.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label={t("طيّ")}>
               <Icon name={isOpen ? "ChevronDown" : "ChevronLeft"} className="size-4" />
             </button>
           ) : (
@@ -181,30 +184,30 @@ export function AccountsTree({
           <Icon name={hasKids ? "Folder" : "FileText"} className={cn("size-4 shrink-0", hasKids ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{a.code}</span>
           {a.isLeaf ? (
-            <Link href={`/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title="عرض دفتر الأستاذ">
+            <Link href={`/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title={t("عرض دفتر الأستاذ")}>
               {a.nameAr}
             </Link>
           ) : (
             <button onClick={() => toggle(a.id)} className="text-start font-semibold hover:underline">{a.nameAr}</button>
           )}
-          {!a.isActive && <Badge variant="secondary">معطّل</Badge>}
+          {!a.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
 
           <div className="ms-auto flex items-center gap-2">
             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {a.isLeaf && (
-                <Button asChild variant="ghost" size="icon" className="size-7" aria-label="دفتر الأستاذ">
+                <Button asChild variant="ghost" size="icon" className="size-7" aria-label={t("دفتر الأستاذ")}>
                   <Link href={`/accounting/ledger?account=${a.id}`}><Icon name="BookOpen" className="size-3.5" /></Link>
                 </Button>
               )}
               {canManage && (
                 <>
-                  <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(a.id)} aria-label="حساب فرعي"><Plus className="size-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(a)} aria-label="تعديل"><Pencil className="size-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(a.id)} aria-label={t("حساب فرعي")}><Plus className="size-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(a)} aria-label={t("تعديل")}><Pencil className="size-3.5" /></Button>
                   <AlertDialog>
-                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label="حذف"><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
+                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                     <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>حذف الحساب «{a.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.</AlertDialogDescription></AlertDialogHeader>
-                      <AlertDialogFooter><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>حذف</AlertDialogAction></AlertDialogFooter>
+                      <AlertDialogHeader><AlertDialogTitle>حذف الحساب «{a.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
                 </>
@@ -221,17 +224,17 @@ export function AccountsTree({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>دليل الحسابات</CardTitle><CardDescription>اضغط على اسم الحساب لعرض دفتر أستاذه. الرصيد مجمّع من القيود المُرحّلة.</CardDescription></div>
+        <div><CardTitle>{t("دليل الحسابات")}</CardTitle><CardDescription>{t("اضغط على اسم الحساب لعرض دفتر أستاذه. الرصيد مجمّع من القيود المُرحّلة.")}</CardDescription></div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={expandAll}>توسيع الكل</Button>
-          <Button variant="outline" size="sm" onClick={collapseAll}>طيّ الكل</Button>
-          {canManage && <Button onClick={() => openCreate(null)}><Plus className="size-4" />حساب جديد</Button>}
+          <Button variant="outline" size="sm" onClick={expandAll}>{t("توسيع الكل")}</Button>
+          <Button variant="outline" size="sm" onClick={collapseAll}>{t("طيّ الكل")}</Button>
+          {canManage && <Button onClick={() => openCreate(null)}><Plus className="size-4" />{t("حساب جديد")}</Button>}
         </div>
       </CardHeader>
       <CardContent>
         {roots.length === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-            <p>لا توجد حسابات بعد.</p>
+            <p>{t("لا توجد حسابات بعد.")}</p>
             {canManage && (
               <Button onClick={initialize} disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}

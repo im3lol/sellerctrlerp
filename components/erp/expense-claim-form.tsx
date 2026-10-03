@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const newLine = (): Line => ({ expenseAccountId: "", amount: 0, description: "" });
 
 export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { expenseAccounts: Account[]; cashAccounts: Account[]; orgName: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -53,40 +55,40 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات المطالبة</CardTitle>
+          <CardTitle>{t("بيانات المطالبة")}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المطالبة</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/hr/expense-claims")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/hr/expense-claims")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <div className="space-y-2"><Label>الشركة</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
-          <div className="space-y-2"><Label>الموظف</Label><Input value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} placeholder="اسم الموظف" /></div>
-          <div className="space-y-2"><Label>التعويض من</Label><CellCombobox selectedLabel={cashLabel.get(cashAccountId) ?? ""} options={cashOptions} onSelect={setCashAccountId} placeholder="نقدية / بنك…" /></div>
-          <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("الشركة")}</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div></div>
+          <div className="space-y-2"><Label>{t("الموظف")}</Label><Input value={employeeName} onChange={(e) => setEmployeeName(e.target.value)} placeholder={t("اسم الموظف")} /></div>
+          <div className="space-y-2"><Label>{t("التعويض من")}</Label><CellCombobox selectedLabel={cashLabel.get(cashAccountId) ?? ""} options={cashOptions} onSelect={setCashAccountId} placeholder={t("نقدية / بنك…")} /></div>
+          <div className="space-y-2"><Label>{t("التاريخ")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
-            <TableHeader><TableRow><TableHead className="text-start">بند المصروف</TableHead><TableHead className="w-32 text-start">المبلغ</TableHead><TableHead className="text-start">وصف</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead className="text-start">{t("بند المصروف")}</TableHead><TableHead className="w-32 text-start">{t("المبلغ")}</TableHead><TableHead className="text-start">{t("وصف")}</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {lines.map((l, i) => (
                 <TableRow key={i}>
-                  <TableCell><CellCombobox selectedLabel={expLabelById(l.expenseAccountId)} options={expOptions} onSelect={(id) => setLine(i, { expenseAccountId: id })} placeholder="ابحث عن بند…" /></TableCell>
+                  <TableCell><CellCombobox selectedLabel={expLabelById(l.expenseAccountId)} options={expOptions} onSelect={(id) => setLine(i, { expenseAccountId: id })} placeholder={t("ابحث عن بند…")} /></TableCell>
                   <TableCell><Input type="number" step="0.01" min="0" value={l.amount} onChange={(e) => setLine(i, { amount: Number(e.target.value) })} /></TableCell>
-                  <TableCell><Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="اختياري" /></TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                  <TableCell><Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder={t("اختياري")} /></TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-        <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
+        <Button variant="outline" onClick={addLine}><Plus className="size-4" />{t("إضافة بند")}</Button>
 
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-2 sm:w-1/2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+          <div className="space-y-2 sm:w-1/2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
           <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
         </div>
       </CardContent>

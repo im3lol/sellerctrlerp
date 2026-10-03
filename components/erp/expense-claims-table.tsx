@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkExpenseClaimsAction } from "@/app/actions/erp/expense-claims";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,6 +15,7 @@ const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { m
 
 // Only DRAFT claims are selectable — bulkExpenseClaimsAction skips ineligible rows.
 export function ExpenseClaimsTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
+  const t = useT();
   const sel = useSelection();
   const pageIds = rows.map((r) => r.id);
   const showSelect = canApprove || canCreate;
@@ -27,17 +29,17 @@ export function ExpenseClaimsTable({ rows, canApprove, canCreate }: { rows: Row[
       {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkExpenseClaimsAction} onDone={sel.clear} entity="مطالبة" />}
       <Table>
         <TableHeader><TableRow>
-          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" /></TableHead>}
-          <TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">التاريخ</TableHead>
-          <TableHead className="text-start">الموظف</TableHead><TableHead className="text-end">الإجمالي</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>{showSelect && <TableHead className="text-start">إجراءات</TableHead>}
+          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} /></TableHead>}
+          <TableHead className="text-start">{t("الرقم")}</TableHead><TableHead className="text-start">{t("التاريخ")}</TableHead>
+          <TableHead className="text-start">{t("الموظف")}</TableHead><TableHead className="text-end">{t("الإجمالي")}</TableHead>
+          <TableHead className="text-start">{t("الحالة")}</TableHead>{showSelect && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
             const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
-                {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}</TableCell>}
+                {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}</TableCell>}
                 <TableCell><Link href={`/hr/expense-claims/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.employee}</TableCell>

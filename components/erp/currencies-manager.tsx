@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Star, Plus, Power } from "lucide-react";
@@ -46,6 +47,7 @@ const PRESETS = [
 ];
 
 function CurrencyDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [usePreset, setUsePreset] = useState(true);
@@ -81,10 +83,10 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>إضافة عملة</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t("إضافة عملة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label>اختر من القائمة</Label>
+          <Label>{t("اختر من القائمة")}</Label>
           <Select value={preset} onValueChange={(v) => { setPreset(v); setUsePreset(true); }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -96,12 +98,12 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="flex-1 border-t" />أو أدخل يدويًا<div className="flex-1 border-t" />
+          <div className="flex-1 border-t" />{t("أو أدخل يدويًا")}<div className="flex-1 border-t" />
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label>الكود (ISO)</Label>
+            <Label>{t("الكود (ISO)")}</Label>
             <Input
               value={code}
               onChange={(e) => { setCode(e.target.value.toUpperCase()); setUsePreset(false); }}
@@ -110,11 +112,11 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5 col-span-2">
-            <Label>الاسم بالعربية</Label>
+            <Label>{t("الاسم بالعربية")}</Label>
             <Input
               value={nameAr}
               onChange={(e) => { setNameAr(e.target.value); setUsePreset(false); }}
-              placeholder="دولار أمريكي"
+              placeholder={t("دولار أمريكي")}
             />
           </div>
         </div>
@@ -128,7 +130,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
               step="0.000001"
               value={currentRate}
               onChange={(e) => setCurrentRate(e.target.value)}
-              placeholder="مثال: 3.75"
+              placeholder={t("مثال: 3.75")}
             />
           </div>
         )}
@@ -141,13 +143,13 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setIsBase(e.target.checked)}
             className="size-4"
           />
-          <Label htmlFor="isBase">هذه هي العملة الأساسية للمنظومة</Label>
+          <Label htmlFor="isBase">{t("هذه هي العملة الأساسية للمنظومة")}</Label>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "إضافة"}</Button>
       </DialogFooter>
     </DialogContent>
@@ -156,6 +158,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
 
 function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currency[]; baseCurrency?: Currency; onClose: () => void }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const nonBase = currencies.filter((c) => !c.isBase && c.isActive);
   const [currCode, setCurrCode] = useState(nonBase[0]?.code ?? "");
@@ -178,14 +181,14 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
 
   return (
     <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>تحديث سعر الصرف</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t("تحديث سعر الصرف")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         {nonBase.length === 0
-          ? <p className="text-sm text-muted-foreground">أضف عملات أجنبية أولًا.</p>
+          ? <p className="text-sm text-muted-foreground">{t("أضف عملات أجنبية أولًا.")}</p>
           : (
             <>
               <div className="space-y-1.5">
-                <Label>العملة</Label>
+                <Label>{t("العملة")}</Label>
                 <Select value={currCode} onValueChange={setCurrCode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -197,7 +200,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>التاريخ</Label>
+                  <Label>{t("التاريخ")}</Label>
                   <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
@@ -218,7 +221,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         {nonBase.length > 0 && (
           <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button>
         )}
@@ -234,6 +237,7 @@ export function CurrenciesManager({
   currencies: Currency[];
   rates: Rate[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
@@ -247,7 +251,7 @@ export function CurrenciesManager({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle>العملات</CardTitle>
+            <CardTitle>{t("العملات")}</CardTitle>
             <CardDescription>
               العملة الأساسية هي وحدة القياس في دفتر الأستاذ — تُستخدم في كل القيود المحاسبية.
               العملات الأخرى تُحوَّل إليها بسعر الصرف عند الترحيل.
@@ -267,11 +271,11 @@ export function CurrenciesManager({
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 text-xs text-muted-foreground">
                   <tr className="[&>th]:p-3 [&>th]:text-start">
-                    <th>الكود</th>
-                    <th>الاسم</th>
-                    <th>الرمز</th>
-                    <th>السعر الحالي</th>
-                    <th>الحالة</th>
+                    <th>{t("الكود")}</th>
+                    <th>{t("الاسم")}</th>
+                    <th>{t("الرمز")}</th>
+                    <th>{t("السعر الحالي")}</th>
+                    <th>{t("الحالة")}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -326,7 +330,7 @@ export function CurrenciesManager({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle>سجل أسعار الصرف</CardTitle>
+            <CardTitle>{t("سجل أسعار الصرف")}</CardTitle>
             <CardDescription>
               يُحفظ السعر بالتاريخ لضمان دقة التحويل في الفواتير التاريخية.
               آخر سعر مُدخَّل يُعتمد للترحيل.
@@ -346,8 +350,8 @@ export function CurrenciesManager({
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 text-xs text-muted-foreground">
                   <tr className="[&>th]:p-3 [&>th]:text-start">
-                    <th>العملة</th>
-                    <th>التاريخ</th>
+                    <th>{t("العملة")}</th>
+                    <th>{t("التاريخ")}</th>
                     <th>السعر (1 وحدة = ؟ {baseCurrency?.code ?? ""})</th>
                   </tr>
                 </thead>

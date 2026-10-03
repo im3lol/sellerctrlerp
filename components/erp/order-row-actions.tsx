@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ export function OrderRowActions({
   poNeedsApproval?: boolean;
   poApproved?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status === "INVOICED") return null;
@@ -112,7 +114,7 @@ export function OrderRowActions({
         )}
         {/* Drafts are freely editable (no stock/GL yet). */}
         <Button asChild size="sm" variant="outline" disabled={pending}>
-          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { toast } from "sonner";
 import { previewAmazonCodeLinkAction, previewMarketplaceListingsAction, saveAmazonCodeLinksAction, createItemsFromSkusAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
@@ -16,6 +17,7 @@ type Preview = { rows: SkuLinkRow[]; items: { id: string; label: string }[]; alr
 /** `amazonCode` set → live "verify links" mode: pull the seller's Amazon listings
  *  instead of an uploaded report. Omitted → the file-upload flow. */
 export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
+  const t = useT();
   const live = !!amazonCode;
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -128,7 +130,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
               <Badge className="bg-emerald-600">مربوطة سابقاً: {preview.alreadyLinked}</Badge>
               <Badge variant="destructive">غير مربوطة: {preview.rows.length}</Badge>
               {autoCount > 0 && <Badge variant="outline">مُقترح تلقائياً: {autoCount}</Badge>}
-              {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>}
+              {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">{t("→ العودة لاستيراد الطلبات")}</Link>}
             </div>
           )}
         </CardContent>
@@ -138,7 +140,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">أكواد بحاجة لربط ({preview.rows.length})</CardTitle>
-            <CardDescription>اختر الصنف المقابل لكل كود. اترك أي صف فارغاً لتجاهله الآن.</CardDescription>
+            <CardDescription>{t("اختر الصنف المقابل لكل كود. اترك أي صف فارغاً لتجاهله الآن.")}</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -146,8 +148,8 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                 <TableRow>
                   <TableHead className="text-start">SKU</TableHead>
                   <TableHead className="text-start">ASIN</TableHead>
-                  <TableHead className="text-start">المنتج (أمازون)</TableHead>
-                  <TableHead className="text-start min-w-64">الصنف في النظام</TableHead>
+                  <TableHead className="text-start">{t("المنتج (أمازون)")}</TableHead>
+                  <TableHead className="text-start min-w-64">{t("الصنف في النظام")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,11 +167,11 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                           selectedLabel={chosen[r.sku] ? labelById.get(chosen[r.sku]) ?? "" : ""}
                           options={preview.items}
                           onSelect={(id) => setChosen((c) => ({ ...c, [r.sku]: id }))}
-                          placeholder="ابحث عن الصنف…"
+                          placeholder={t("ابحث عن الصنف…")}
                         />
-                        {r.autoItemId && chosen[r.sku] === r.autoItemId && <Badge variant="outline" className="shrink-0 text-[10px]">تلقائي</Badge>}
+                        {r.autoItemId && chosen[r.sku] === r.autoItemId && <Badge variant="outline" className="shrink-0 text-[10px]">{t("تلقائي")}</Badge>}
                         {chosen[r.sku] ? (
-                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setChosen((c) => { const n = { ...c }; delete n[r.sku]; return n; })} aria-label="مسح">
+                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setChosen((c) => { const n = { ...c }; delete n[r.sku]; return n; })} aria-label={t("مسح")}>
                             <Icon name="X" className="size-3.5" />
                           </Button>
                         ) : (

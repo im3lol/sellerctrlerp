@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -51,6 +52,7 @@ export function DocumentActions({
   /** Icon-only trigger, no label/chevron — for a dense table row instead of a page header. */
   compact?: boolean;
 }) {
+  const t = useT();
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const visible = items.filter(Boolean);
   const hasBarcode = !!barcode?.rows.length;
@@ -83,7 +85,7 @@ export function DocumentActions({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {compact ? (
-              <Button size="icon" variant="ghost" aria-label="إجراءات">
+              <Button size="icon" variant="ghost" aria-label={t("إجراءات")}>
                 <Icon name="MoreVertical" className="size-4" />
               </Button>
             ) : (

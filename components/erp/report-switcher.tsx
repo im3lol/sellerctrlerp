@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export function ReportSwitcher({
   current: string;
   permissions: string[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
 
@@ -72,10 +74,10 @@ export function ReportSwitcher({
         <Icon name="ChevronDown" className="size-4 text-muted-foreground" />
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogTitle>كل التقارير</DialogTitle>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن تقرير…" autoFocus />
+        <DialogTitle>{t("كل التقارير")}</DialogTitle>
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ابحث عن تقرير…")} autoFocus />
         {total === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">مفيش تقرير بالاسم ده.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("مفيش تقرير بالاسم ده.")}</p>
         ) : (
           <div className="space-y-4">
             {groups.map((m) => (

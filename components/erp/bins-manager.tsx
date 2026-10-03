@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import {
   listBinsAction, saveBinAction, deleteBinAction, assignItemBinAction, unassignItemBinAction,
@@ -29,6 +30,7 @@ type Location = NonNullable<Awaited<ReturnType<typeof getItemLocationsAction>>["
 export function BinsManager({ warehouses, items, canEdit }: {
   warehouses: Option[]; items: Option[]; canEdit: boolean;
 }) {
+  const t = useT();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
   const [bins, setBins] = useState<BinRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +110,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>مواقع التخزين</CardTitle>
+              <CardTitle>{t("مواقع التخزين")}</CardTitle>
               <CardDescription>
                 {loading ? "جارٍ التحميل…" : `${bins.length} موقع`} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
               </CardDescription>
@@ -121,13 +123,13 @@ export function BinsManager({ warehouses, items, canEdit }: {
         <CardContent className="space-y-4">
           {canEdit && (
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label>الكود</Label>
+              <div className="space-y-2"><Label>{t("الكود")}</Label>
                 <Input className="w-36 font-mono" dir="ltr" value={form.code} placeholder="A-1-3"
                   onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} /></div>
-              <div className="min-w-48 flex-1 space-y-2"><Label>الوصف</Label>
-                <Input value={form.nameAr} placeholder="ممر A · رف ١ · الرف الثالث"
+              <div className="min-w-48 flex-1 space-y-2"><Label>{t("الوصف")}</Label>
+                <Input value={form.nameAr} placeholder={t("ممر A · رف ١ · الرف الثالث")}
                   onChange={(e) => setForm((f) => ({ ...f, nameAr: e.target.value }))} /></div>
-              <Button onClick={addBin} disabled={pending}><Icon name="Plus" className="size-4" />أضِف</Button>
+              <Button onClick={addBin} disabled={pending}><Icon name="Plus" className="size-4" />{t("أضِف")}</Button>
             </div>
           )}
 
@@ -140,10 +142,10 @@ export function BinsManager({ warehouses, items, canEdit }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">الوصف</TableHead>
-                    <TableHead className="text-start">أصناف</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("الوصف")}</TableHead>
+                    <TableHead className="text-start">{t("أصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     {canEdit && <TableHead className="w-10" />}
                   </TableRow>
                 </TableHeader>
@@ -153,10 +155,10 @@ export function BinsManager({ warehouses, items, canEdit }: {
                       <TableCell className="font-mono text-sm" dir="ltr">{b.code}</TableCell>
                       <TableCell className="text-muted-foreground">{b.nameAr ?? "—"}</TableCell>
                       <TableCell className="tabular-nums">{b.itemCount}</TableCell>
-                      <TableCell>{b.isActive ? <Badge variant="secondary">مفعّل</Badge> : <Badge variant="outline">موقوف</Badge>}</TableCell>
+                      <TableCell>{b.isActive ? <Badge variant="secondary">{t("مفعّل")}</Badge> : <Badge variant="outline">{t("موقوف")}</Badge>}</TableCell>
                       {canEdit && (
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => removeBin(b)}>
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => removeBin(b)}>
                             <Icon name="Trash2" className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -173,24 +175,24 @@ export function BinsManager({ warehouses, items, canEdit }: {
       {canEdit && bins.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>تسجيل مكان صنف</CardTitle>
-            <CardDescription>الصنف ممكن يكون في أكتر من موقع — «الأساسي» هو اللي بيتمشي عليه الأول.</CardDescription>
+            <CardTitle>{t("تسجيل مكان صنف")}</CardTitle>
+            <CardDescription>{t("الصنف ممكن يكون في أكتر من موقع — «الأساسي» هو اللي بيتمشي عليه الأول.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-64 flex-1 space-y-2">
-                <Label>الصنف</Label>
+                <Label>{t("الصنف")}</Label>
                 <CellCombobox
                   selectedLabel={items.find((i) => i.id === assign.itemId)?.label ?? ""}
                   options={items} onSelect={(id) => setAssign((a) => ({ ...a, itemId: id }))}
-                  placeholder="ابحث عن الصنف…"
+                  placeholder={t("ابحث عن الصنف…")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>الموقع</Label>
+                <Label>{t("الموقع")}</Label>
                 <select className={`${selectCls} w-40`} value={assign.binId}
                   onChange={(e) => setAssign((a) => ({ ...a, binId: e.target.value }))}>
-                  <option value="">اختر…</option>
+                  <option value="">{t("اختر…")}</option>
                   {bins.map((b) => <option key={b.id} value={b.id}>{b.code}</option>)}
                 </select>
               </div>
@@ -199,7 +201,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
                   onChange={(e) => setAssign((a) => ({ ...a, isPrimary: e.target.checked }))} />
                 أساسي
               </label>
-              <Button onClick={putAway} disabled={pending}><Icon name="Check" className="size-4" />سجّل</Button>
+              <Button onClick={putAway} disabled={pending}><Icon name="Check" className="size-4" />{t("سجّل")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -207,27 +209,27 @@ export function BinsManager({ warehouses, items, canEdit }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>الصنف ده مكانه فين؟</CardTitle>
-          <CardDescription>كل المواقع اللي الصنف متسجّل فيها، الأساسي الأول.</CardDescription>
+          <CardTitle>{t("الصنف ده مكانه فين؟")}</CardTitle>
+          <CardDescription>{t("كل المواقع اللي الصنف متسجّل فيها، الأساسي الأول.")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="max-w-md">
             <CellCombobox
               selectedLabel={items.find((i) => i.id === lookupItem)?.label ?? ""}
-              options={items} onSelect={lookup} placeholder="ابحث عن الصنف…"
+              options={items} onSelect={lookup} placeholder={t("ابحث عن الصنف…")}
             />
           </div>
           {locations && (
             locations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">الصنف ده مالوش موقع مسجّل — هيتاخد وقت في الدور عليه.</p>
+              <p className="text-sm text-muted-foreground">{t("الصنف ده مالوش موقع مسجّل — هيتاخد وقت في الدور عليه.")}</p>
             ) : (
               <div className="rounded-xl border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الموقع</TableHead>
-                      <TableHead className="text-start">الوصف</TableHead>
-                      <TableHead className="text-start">المستودع</TableHead>
+                      <TableHead className="text-start">{t("الموقع")}</TableHead>
+                      <TableHead className="text-start">{t("الوصف")}</TableHead>
+                      <TableHead className="text-start">{t("المستودع")}</TableHead>
                       {canEdit && <TableHead className="w-10" />}
                     </TableRow>
                   </TableHeader>
@@ -236,13 +238,13 @@ export function BinsManager({ warehouses, items, canEdit }: {
                       <TableRow key={l.binId}>
                         <TableCell className="font-mono text-sm" dir="ltr">
                           {l.code}
-                          {l.isPrimary && <Badge className="ms-2" variant="secondary">أساسي</Badge>}
+                          {l.isPrimary && <Badge className="ms-2" variant="secondary">{t("أساسي")}</Badge>}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{l.nameAr ?? "—"}</TableCell>
                         <TableCell>{l.warehouseName}</TableCell>
                         {canEdit && (
                           <TableCell>
-                            <Button size="icon" variant="ghost" aria-label="إلغاء" onClick={() => unassign(l.binId)}>
+                            <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => unassign(l.binId)}>
                               <Icon name="X" className="size-4 text-destructive" />
                             </Button>
                           </TableCell>

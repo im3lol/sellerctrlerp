@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ export function JournalEntryActions({
   canDelete: boolean;
   editHref?: string; // set by the detail page only for an editable (DRAFT, manual) entry
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirmReverse, setConfirmReverse] = useState(false);
@@ -50,7 +52,7 @@ export function JournalEntryActions({
       )}
       {status === "DRAFT" && canDelete && editHref && (
         <Button variant="outline" asChild>
-          <Link href={editHref}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={editHref}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
       )}
       {status === "DRAFT" && canDelete && (

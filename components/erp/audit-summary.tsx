@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getT } from "@/lib/i18n/server";
 
 // Shared rendering for the FBA Inventory Audit — used by the full reconciliation
 // screen and the compact card on the platform page. Read-only: display only.
@@ -34,15 +35,16 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "da
 }
 
 /** The six summary stats. */
-export function AuditStats({ audit }: { audit: AuditHeader }) {
+export async function AuditStats({ audit }: { audit: AuditHeader }) {
+  const t = await getT();
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      <Stat label="إجمالي الأصناف" value={int(audit.totalSkus)} />
-      <Stat label="مطابَقة بأصناف" value={int(audit.matched)} />
-      <Stat label="غير مربوطة" value={int(audit.unmatched)} tone={audit.unmatched > 0 ? "danger" : undefined} />
-      <Stat label="بها فروق" value={int(audit.withDiff)} tone={audit.withDiff > 0 ? "danger" : undefined} />
-      <Stat label="مفقود" value={int(audit.lost)} tone={audit.lost > 0 ? "danger" : undefined} />
-      <Stat label="تالف" value={int(audit.damaged)} tone={audit.damaged > 0 ? "danger" : undefined} />
+      <Stat label={t("إجمالي الأصناف")} value={int(audit.totalSkus)} />
+      <Stat label={t("مطابَقة بأصناف")} value={int(audit.matched)} />
+      <Stat label={t("غير مربوطة")} value={int(audit.unmatched)} tone={audit.unmatched > 0 ? "danger" : undefined} />
+      <Stat label={t("بها فروق")} value={int(audit.withDiff)} tone={audit.withDiff > 0 ? "danger" : undefined} />
+      <Stat label={t("مفقود")} value={int(audit.lost)} tone={audit.lost > 0 ? "danger" : undefined} />
+      <Stat label={t("تالف")} value={int(audit.damaged)} tone={audit.damaged > 0 ? "danger" : undefined} />
     </div>
   );
 }
@@ -50,21 +52,22 @@ export function AuditStats({ audit }: { audit: AuditHeader }) {
 /** The audit lines table (rows are pre-sorted by the caller: problems first).
  *  `reimbursedSkus`: SKUs Amazon already reimbursed — lost/damaged rows get a
  *  "تم التعويض" badge instead of leaving the operator to chase them manually. */
-export function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; reimbursedSkus?: Set<string> }) {
+export async function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; reimbursedSkus?: Set<string> }) {
+  const t = await getT();
   return (
     <Table>
       <TableHeader className="sticky top-0 bg-background">
         <TableRow>
-          <TableHead className="text-start min-w-[220px]">الصنف</TableHead>
-          <TableHead className="text-start">النظام</TableHead>
-          <TableHead className="text-start">أمازون</TableHead>
-          <TableHead className="text-start">متاح</TableHead>
-          <TableHead className="text-start">محجوز</TableHead>
-          <TableHead className="text-start">استلام</TableHead>
-          <TableHead className="text-start">تالف</TableHead>
-          <TableHead className="text-start">منتهي</TableHead>
-          <TableHead className="text-start">الفرق</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>
+          <TableHead className="text-start min-w-[220px]">{t("الصنف")}</TableHead>
+          <TableHead className="text-start">{t("النظام")}</TableHead>
+          <TableHead className="text-start">{t("أمازون")}</TableHead>
+          <TableHead className="text-start">{t("متاح")}</TableHead>
+          <TableHead className="text-start">{t("محجوز")}</TableHead>
+          <TableHead className="text-start">{t("استلام")}</TableHead>
+          <TableHead className="text-start">{t("تالف")}</TableHead>
+          <TableHead className="text-start">{t("منتهي")}</TableHead>
+          <TableHead className="text-start">{t("الفرق")}</TableHead>
+          <TableHead className="text-start">{t("الحالة")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -90,8 +93,8 @@ export function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLine[]; r
                 <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>
                 {(l.status === "LOST" || l.status === "DAMAGED") && reimbursedSkus && (
                   reimbursedSkus.has(l.code)
-                    ? <span className="ms-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">تم التعويض</span>
-                    : <span className="ms-1 inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">بانتظار التعويض</span>
+                    ? <span className="ms-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">{t("تم التعويض")}</span>
+                    : <span className="ms-1 inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("بانتظار التعويض")}</span>
                 )}
               </TableCell>
             </TableRow>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
@@ -23,6 +24,7 @@ const initial = (flags: Flags): Step[] => [
 ].filter(Boolean) as Step[];
 
 export function SyncProgress({ code, label = "المنصة", flags, auditInventory = false, open, onClose }: { code: string; label?: string; flags: Flags; auditInventory?: boolean; open: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
@@ -130,7 +132,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
         </div>
         {/* Always closable: the full product sync runs server-side and keeps
             going after the popup closes. */}
-        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="إغلاق"><X className="size-4" /></button>
+        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label={t("إغلاق")}><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -155,7 +157,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
         ))}
       </ul>
 
-      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">اكتملت المزامنة — راجع النتائج بالأعلى.</div>}
+      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">{t("اكتملت المزامنة — راجع النتائج بالأعلى.")}</div>}
     </div>
   );
 }

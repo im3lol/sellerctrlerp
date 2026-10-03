@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { approveExpenseClaimAction, deleteExpenseClaimAction } from "@/app/actions/erp/expense-claims";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
 export function ExpenseClaimRowActions({ id, status, canManage }: { id: string; status: string; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status !== "DRAFT") return null;
@@ -17,8 +19,8 @@ export function ExpenseClaimRowActions({ id, status, canManage }: { id: string; 
 
   return (
     <div className="flex gap-1">
-      <Button size="sm" disabled={pending} onClick={() => run(() => approveExpenseClaimAction(id), "تم اعتماد وترحيل المطالبة")}><Icon name="Check" className="size-4" />اعتماد وترحيل</Button>
-      <Button size="icon" variant="ghost" disabled={pending} aria-label="حذف" onClick={() => run(() => deleteExpenseClaimAction(id), "تم الحذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
+      <Button size="sm" disabled={pending} onClick={() => run(() => approveExpenseClaimAction(id), "تم اعتماد وترحيل المطالبة")}><Icon name="Check" className="size-4" />{t("اعتماد وترحيل")}</Button>
+      <Button size="icon" variant="ghost" disabled={pending} aria-label={t("حذف")} onClick={() => run(() => deleteExpenseClaimAction(id), "تم الحذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
     </div>
   );
 }

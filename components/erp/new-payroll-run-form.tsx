@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createPayrollRunAction } from "@/app/actions/erp/payroll";
 
 export function NewPayrollRunForm() {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
@@ -41,26 +43,26 @@ export function NewPayrollRunForm() {
     <div className="max-w-lg space-y-5 rounded-xl border bg-card p-6" dir="rtl">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>بداية الفترة</Label>
+          <Label>{t("بداية الفترة")}</Label>
           <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>نهاية الفترة</Label>
+          <Label>{t("نهاية الفترة")}</Label>
           <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label>تاريخ الصرف المتوقّع</Label>
+        <Label>{t("تاريخ الصرف المتوقّع")}</Label>
         <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
       </div>
 
       <div className="space-y-1.5">
-        <Label>ملاحظات (اختياري)</Label>
+        <Label>{t("ملاحظات (اختياري)")}</Label>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="مرتبات شهر يناير 2026..."
+          placeholder={t("مرتبات شهر يناير 2026...")}
           rows={2}
         />
       </div>
@@ -68,7 +70,7 @@ export function NewPayrollRunForm() {
       {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()}>إلغاء</Button>
+        <Button variant="outline" onClick={() => router.back()}>{t("إلغاء")}</Button>
         <Button onClick={submit} disabled={pending}>
           {pending ? "جارٍ الإنشاء…" : "إنشاء المسير"}
         </Button>

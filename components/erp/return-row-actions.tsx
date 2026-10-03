@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmSalesReturnAction, deleteSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -19,6 +20,7 @@ export function ReturnRowActions({
   status: string;
   canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status !== "DRAFT") return null;
@@ -37,7 +39,7 @@ export function ReturnRowActions({
         onClick={() => run(() => isSales ? confirmSalesReturnAction(returnId) : confirmPurchaseReturnAction(returnId), "تم تأكيد المرتجع وترحيله")}>
         <Icon name="Check" className="size-4" />تأكيد
       </Button>
-      <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
+      <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")}
         onClick={() => run(() => isSales ? deleteSalesReturnAction(returnId) : deletePurchaseReturnAction(returnId), "تم حذف المسودة")}>
         <Icon name="Trash2" className="size-4 text-destructive" />
       </Button>

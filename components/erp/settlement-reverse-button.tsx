@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { reverseAmazonSettlementAction } from "@/app/actions/erp/amazon-settlement";
@@ -10,6 +11,7 @@ import { confirm } from "@/components/erp/confirm";
 
 /** Reverse the GL posting of ONE settlement (not the whole channel history). */
 export function SettlementReverseButton({ channel, settlementId }: { channel: string; settlementId: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = () => void (async () => {
@@ -21,7 +23,7 @@ export function SettlementReverseButton({ channel, settlementId }: { channel: st
     });
   })();
   return (
-    <Button size="sm" variant="ghost" disabled={pending} onClick={run} title="عكس ترحيل هذه التسوية فقط">
+    <Button size="sm" variant="ghost" disabled={pending} onClick={run} title={t("عكس ترحيل هذه التسوية فقط")}>
       <Icon name="Undo2" className="size-4 text-destructive" />عكس
     </Button>
   );

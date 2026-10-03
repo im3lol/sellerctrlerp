@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import JsBarcode from "jsbarcode";
 import { toast } from "sonner";
 import { Printer, Loader2, Trash2, RotateCcw } from "lucide-react";
@@ -99,14 +100,15 @@ export async function qzPrint(printer: string, jobs: { itemName: string; value: 
 }
 
 export function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: boolean | null; printers: string[]; printer: string; setPrinter: (p: string) => void }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">الطابعة</label>
+      <label className="text-sm font-medium">{t("الطابعة")}</label>
       {qzOk === false ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.</p>
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">{t("تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.")}</p>
       ) : (
         <select className={selectCls} value={printer} onChange={(e) => setPrinter(e.target.value)} disabled={qzOk === null}>
-          {qzOk === null && <option>جاري الاتصال بـ QZ Tray…</option>}
+          {qzOk === null && <option>{t("جاري الاتصال بـ QZ Tray…")}</option>}
           {printers.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       )}
@@ -136,6 +138,7 @@ function LabelPreview({ itemName, value }: { itemName: string; value: string }) 
  * via QZ Tray. Used on the item detail page.
  */
 export function BarcodePrintButton({ itemName, codes }: { itemName: string; codes: PrintCode[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(0);
   const [copies, setCopies] = useState(1);
@@ -168,18 +171,18 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>طباعة باركود — {itemName}</DialogTitle>
-            <DialogDescription>ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.</DialogDescription>
+            <DialogDescription>{t("ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">الكود</label>
+              <label className="text-sm font-medium">{t("الكود")}</label>
               <select className={selectCls} value={sel} onChange={(e) => setSel(Number(e.target.value))}>
                 {codes.map((c, i) => <option key={i} value={i}>{c.label} — {c.value}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">عدد الملصقات</label>
+              <label className="text-sm font-medium">{t("عدد الملصقات")}</label>
               <input type="number" min={1} max={100} value={copies} onChange={(e) => setCopies(Math.max(1, Math.trunc(Number(e.target.value) || 1)))} className="block h-9 w-full rounded-md border bg-background px-3 text-sm" dir="ltr" />
             </div>
           </div>
@@ -187,7 +190,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
           <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">معاينة الملصق</label>
+            <label className="text-sm font-medium">{t("معاينة الملصق")}</label>
             <LabelPreview itemName={itemName} value={value} />
           </div>
 
@@ -225,6 +228,7 @@ export function BulkBarcodePrintButton({
   onOpenChange?: (v: boolean) => void;
   hideTrigger?: boolean;
 }) {
+  const t = useT();
   const [openSelf, setOpenSelf] = useState(false);
   const open = openProp ?? openSelf;
   const setOpen = onOpenChange ?? setOpenSelf;
@@ -274,14 +278,14 @@ export function BulkBarcodePrintButton({
         <DialogContent dir="rtl" className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>طباعة باركود — {docTitle}</DialogTitle>
-            <DialogDescription>ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.</DialogDescription>
+            <DialogDescription>{t("ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">الكود لكل الأصناف</label>
+              <label className="text-sm font-medium">{t("الكود لكل الأصناف")}</label>
               <select className={selectCls} defaultValue="" onChange={(e) => { if (e.target.value) applyGlobal(e.target.value); }}>
-                <option value="">— اختر ثم عدّل أي صنف —</option>
+                <option value="">{t("— اختر ثم عدّل أي صنف —")}</option>
                 {codeLabels.map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
@@ -292,9 +296,9 @@ export function BulkBarcodePrintButton({
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/60 text-xs">
                 <tr>
-                  <th className="p-2 text-start font-medium">الصنف</th>
-                  <th className="p-2 text-start font-medium">الكود</th>
-                  <th className="w-24 p-2 text-start font-medium">عدد الملصقات</th>
+                  <th className="p-2 text-start font-medium">{t("الصنف")}</th>
+                  <th className="p-2 text-start font-medium">{t("الكود")}</th>
+                  <th className="w-24 p-2 text-start font-medium">{t("عدد الملصقات")}</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -325,7 +329,7 @@ export function BulkBarcodePrintButton({
 
           {preview && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">معاينة (أول صنف)</label>
+              <label className="text-sm font-medium">{t("معاينة (أول صنف)")}</label>
               <LabelPreview itemName={preview.itemName} value={preview.codes[preview.sel].value} />
             </div>
           )}

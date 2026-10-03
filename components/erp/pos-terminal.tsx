@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import {
   getMyShiftAction, openShiftAction, ringSaleAction, closeShiftAction, type ShiftState,
@@ -42,6 +43,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   defaultCustomerId: string | null; vatRate: number;
   promotions: Promotion[]; loyalty: LoyaltyProgram;
 }) {
+  const t = useT();
   const [state, setState] = useState<ShiftState | null>(null);
   const [pending, start] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
@@ -228,7 +230,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
     return (
       <Card>
         <CardHeader>
-          <CardTitle>افتح وردية</CardTitle>
+          <CardTitle>{t("افتح وردية")}</CardTitle>
           <CardDescription>
             الوردية بتربط كل بيعة بالكاشير والدرج، وفي الآخر بتقارن اللي في الدرج باللي الدفاتر بتقوله.
           </CardDescription>
@@ -236,20 +238,20 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
-              <Label>المخزن</Label>
+              <Label>{t("المخزن")}</Label>
               <select className={`${selectCls} w-48`} value={openForm.warehouseId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, warehouseId: e.target.value }))}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>الخزينة</Label>
+              <Label>{t("الخزينة")}</Label>
               <select className={`${selectCls} w-56`} value={openForm.cashAccountId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, cashAccountId: e.target.value }))}>
                 {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><Label>رصيد افتتاحي في الدرج</Label>
+            <div className="space-y-2"><Label>{t("رصيد افتتاحي في الدرج")}</Label>
               <Input type="number" step="0.01" min="0" className="w-32" value={openForm.float}
                 onChange={(e) => setOpenForm((f) => ({ ...f, float: e.target.value }))} /></div>
             <Button onClick={openShift} disabled={pending || !openForm.warehouseId || !openForm.cashAccountId}>
@@ -276,8 +278,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             <div>
               <CardTitle className="flex items-center gap-2">
                 وردية {state.shift.number}
-                {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />بدون نت</Badge>}
-                {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />بيزامن</Badge>}
+                {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />{t("بدون نت")}</Badge>}
+                {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />{t("بيزامن")}</Badge>}
               </CardTitle>
               <CardDescription>
                 {state.sales.length + unsettled} بيعة · إجمالي {money((r?.totalSales ?? 0) + queued.sales)} · كاش في الدرج (متوقّع) {money(expectedCash)}
@@ -292,7 +294,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         {closing && (
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label>الكاش المعدود في الدرج</Label>
+              <div className="space-y-2"><Label>{t("الكاش المعدود في الدرج")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-40" value={counted} autoFocus
                   onChange={(e) => setCounted(e.target.value)} /></div>
               <Button onClick={close} disabled={pending || counted === "" || unsettled > 0}>
@@ -315,30 +317,30 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>السلة</CardTitle>
-            <CardDescription>امسح الباركود أو اكتب الكود واضغط Enter.</CardDescription>
+            <CardTitle>{t("السلة")}</CardTitle>
+            <CardDescription>{t("امسح الباركود أو اكتب الكود واضغط Enter.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
               ref={scanRef} autoFocus dir="ltr" className="font-mono text-lg"
-              placeholder="امسح الباركود…"
+              placeholder={t("امسح الباركود…")}
               value={scan}
               onChange={(e) => setScan(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addScanned(); } }}
             />
 
             {cart.length === 0 ? (
-              <p className="text-sm text-muted-foreground">السلة فاضية.</p>
+              <p className="text-sm text-muted-foreground">{t("السلة فاضية.")}</p>
             ) : (
               <div className="rounded-xl border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الصنف</TableHead>
-                      <TableHead className="w-24 text-start">الكمية</TableHead>
-                      <TableHead className="w-28 text-start">السعر</TableHead>
-                      <TableHead className="w-28 text-start">خصم</TableHead>
-                      <TableHead className="text-start">الإجمالي</TableHead>
+                      <TableHead className="text-start">{t("الصنف")}</TableHead>
+                      <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                      <TableHead className="w-28 text-start">{t("السعر")}</TableHead>
+                      <TableHead className="w-28 text-start">{t("خصم")}</TableHead>
+                      <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -365,7 +367,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                           {money(l.quantity * l.unitPrice - (promo.lines[i]?.discount ?? l.discount ?? 0))}
                         </TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف"
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")}
                             onClick={() => setCart((c) => c.filter((_, k) => k !== i))}>
                             <Icon name="X" className="size-4 text-destructive" />
                           </Button>
@@ -381,27 +383,27 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
         <Card>
           <CardHeader>
-            <CardTitle>الدفع</CardTitle>
-            <CardDescription>الفكة كاش بس — البطاقة مفيهاش فكة.</CardDescription>
+            <CardTitle>{t("الدفع")}</CardTitle>
+            <CardDescription>{t("الفكة كاش بس — البطاقة مفيهاش فكة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>العميل</Label>
+              <Label>{t("العميل")}</Label>
               <CellCombobox
                 selectedLabel={customers.find((c) => c.id === customerId)?.label ?? ""}
-                options={customers} onSelect={setCustomerId} placeholder="عميل نقدي…"
+                options={customers} onSelect={setCustomerId} placeholder={t("عميل نقدي…")}
               />
             </div>
 
             {canRedeem && customerId && (
               <div className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">رصيد النقط</span>
+                  <span className="text-muted-foreground">{t("رصيد النقط")}</span>
                   <span className="font-medium tabular-nums">{points} نقطة · {money(pointsValue(points, loyalty))}</span>
                 </div>
                 {maxRedeemable(points, beforePoints, loyalty) > 0 && (
                   <div className="flex gap-2">
-                    <Input type="number" step="1" min="0" className="tabular-nums" placeholder="استبدل نقط"
+                    <Input type="number" step="1" min="0" className="tabular-nums" placeholder={t("استبدل نقط")}
                       value={redeem} onChange={(e) => setRedeem(e.target.value)} />
                     <Button size="sm" variant="outline"
                       onClick={() => setRedeem(String(maxRedeemable(points, beforePoints, loyalty)))}>
@@ -416,8 +418,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             )}
 
             <div className="space-y-1 rounded-lg border p-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="tabular-nums">{money(totals.subtotal)}</span></div>
-              {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الخصم</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("الإجمالي")}</span><span className="tabular-nums">{money(totals.subtotal)}</span></div>
+              {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{t("الخصم")}</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
               {promo.applied.map((a) => (
                 <div key={a.promotionId} className="flex justify-between text-emerald-600">
                   <span>{a.nameAr}</span><span className="tabular-nums">−{money(a.amount)}</span>
@@ -429,7 +431,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                 </div>
               )}
               {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">ضريبة {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
-              <div className="flex justify-between border-t pt-1 text-base font-bold"><span>المطلوب</span><span className="tabular-nums">{money(totals.total)}</span></div>
+              <div className="flex justify-between border-t pt-1 text-base font-bold"><span>{t("المطلوب")}</span><span className="tabular-nums">{money(totals.total)}</span></div>
             </div>
 
             {vatRate > 0 && (
@@ -450,7 +452,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                     placeholder="0"
                     onChange={(e) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, amount: Number(e.target.value) || 0 } : x)))} />
                   {payments.length > 1 && (
-                    <Button size="icon" variant="ghost" aria-label="حذف"
+                    <Button size="icon" variant="ghost" aria-label={t("حذف")}
                       onClick={() => setPayments((ps) => ps.filter((_, k) => k !== i))}>
                       <Icon name="X" className="size-4 text-destructive" />
                     </Button>
@@ -488,7 +490,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           <CardHeader>
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div>
-                <CardTitle>بيعات لسه ما اترحّلتش</CardTitle>
+                <CardTitle>{t("بيعات لسه ما اترحّلتش")}</CardTitle>
                 <CardDescription>
                   الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.
                 </CardDescription>
@@ -507,10 +509,10 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">وقت البيع</TableHead>
-                    <TableHead className="text-start">الأصناف</TableHead>
-                    <TableHead className="text-start">الإجمالي</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("وقت البيع")}</TableHead>
+                    <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-40" />
                   </TableRow>
                 </TableHeader>
@@ -525,7 +527,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                       <TableCell>
                         {x.status === "FAILED"
                           ? <span className="text-sm text-destructive">{x.error}</span>
-                          : <Badge variant="outline">في الطابور</Badge>}
+                          : <Badge variant="outline">{t("في الطابور")}</Badge>}
                       </TableCell>
                       <TableCell>
                         {x.status === "FAILED" && (
@@ -533,7 +535,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                             <Button size="sm" variant="outline" onClick={() => { q.retry(x.clientRef); void q.sync().then(() => load()); }}>
                               أعِد المحاولة
                             </Button>
-                            <Button size="sm" variant="ghost" aria-label="إلغاء" onClick={() => void (async () => {
+                            <Button size="sm" variant="ghost" aria-label={t("إلغاء")} onClick={() => void (async () => {
                               const go = await confirm({
                                 danger: true,
                                 title: "تلغي البيعة دي نهائياً؟",
@@ -559,7 +561,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       {state.sales.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>مبيعات الوردية</CardTitle>
+            <CardTitle>{t("مبيعات الوردية")}</CardTitle>
             <CardDescription>{state.sales.length} فاتورة</CardDescription>
           </CardHeader>
           <CardContent>
@@ -567,9 +569,9 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الفاتورة</TableHead>
-                    <TableHead className="text-start">الدفع</TableHead>
-                    <TableHead className="text-start">الإجمالي</TableHead>
+                    <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+                    <TableHead className="text-start">{t("الدفع")}</TableHead>
+                    <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

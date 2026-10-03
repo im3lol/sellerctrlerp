@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { PackageCheck, PackageX, XCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  * Never a revenue reversal — a removal isn't a customer return.
  */
 export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemovalRow[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -32,13 +34,13 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد أوامر سحب بانتظار المراجعة ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد أوامر سحب بانتظار المراجعة ✓")}</CardContent></Card>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>تسوية مخزون مسودّة</b> يراجعها المحاسب ويرحّلها.
+        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>{t("تسوية مخزون مسودّة")}</b> يراجعها المحاسب ويرحّلها.
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;

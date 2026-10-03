@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
   /** Cash/bank leaf accounts — which one received the sale proceeds. */
   cashAccounts?: CashAccountOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -43,8 +45,8 @@ export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
     return (
       <Card className="border-dashed">
         <CardContent className="p-5">
-          <p className="mb-3 text-sm text-muted-foreground">هل تريد استبعاد هذا الأصل (بيع / خردة / تلف)؟</p>
-          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>تسجيل الاستبعاد</Button>
+          <p className="mb-3 text-sm text-muted-foreground">{t("هل تريد استبعاد هذا الأصل (بيع / خردة / تلف)؟")}</p>
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>{t("تسجيل الاستبعاد")}</Button>
         </CardContent>
       </Card>
     );
@@ -56,27 +58,27 @@ export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="disposalDate">تاريخ الاستبعاد *</Label>
+            <Label htmlFor="disposalDate">{t("تاريخ الاستبعاد *")}</Label>
             <Input id="disposalDate" name="disposalDate" type="date" defaultValue={today} required />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="disposalProceeds">متحصّلات البيع (إن وُجدت)</Label>
+            <Label htmlFor="disposalProceeds">{t("متحصّلات البيع (إن وُجدت)")}</Label>
             <Input id="disposalProceeds" name="disposalProceeds" type="number" step="0.01" min="0" placeholder="0.00" />
           </div>
           {cashAccounts.length > 0 && (
             <div className="space-y-1">
-              <Label htmlFor="proceedsAccountId">حساب استلام المتحصّلات</Label>
-              <FormCombobox name="proceedsAccountId" options={cashAccounts} placeholder="النقدية / البنك… (مطلوب عند وجود متحصّلات)" />
-              <p className="text-xs text-muted-foreground">يُرحَّل قيد الاستبعاد: النقدية ومجمع الإهلاك مدينان، وحساب الأصل دائن، والفرق ربح أو خسارة.</p>
+              <Label htmlFor="proceedsAccountId">{t("حساب استلام المتحصّلات")}</Label>
+              <FormCombobox name="proceedsAccountId" options={cashAccounts} placeholder={t("النقدية / البنك… (مطلوب عند وجود متحصّلات)")} />
+              <p className="text-xs text-muted-foreground">{t("يُرحَّل قيد الاستبعاد: النقدية ومجمع الإهلاك مدينان، وحساب الأصل دائن، والفرق ربح أو خسارة.")}</p>
             </div>
           )}
           <div className="space-y-1">
-            <Label htmlFor="notes">سبب الاستبعاد</Label>
-            <Input id="notes" name="notes" placeholder="بيع / خردة / تلف…" />
+            <Label htmlFor="notes">{t("سبب الاستبعاد")}</Label>
+            <Input id="notes" name="notes" placeholder={t("بيع / خردة / تلف…")} />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" variant="destructive" size="sm" disabled={pending}>تأكيد الاستبعاد</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button type="submit" variant="destructive" size="sm" disabled={pending}>{t("تأكيد الاستبعاد")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
           </div>
         </form>
       </CardContent>
