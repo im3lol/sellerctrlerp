@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "rls:check": "tsx --tsconfig tsconfig.script.json scripts/rls-unscoped-check.ts",
+    "i18n:report": "tsx --tsconfig tsconfig.script.json scripts/i18n-report.ts",
     "db:rls": "tsx --tsconfig tsconfig.script.json scripts/apply-rls.ts",
     "rls:leak": "tsx --tsconfig tsconfig.script.json scripts/rls-leak-check.ts",
     "test:engine": "tsx --tsconfig tsconfig.script.json scripts/engine-check.ts",

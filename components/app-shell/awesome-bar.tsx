@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, CornerDownLeft } from "lucide-react";
 import { Icon } from "@/components/icon";
+import { useT } from "@/lib/i18n/client";
 import { Input } from "@/components/ui/input";
 import { NAV, type NavItem } from "@/components/app-shell/nav-config";
 import { quickSearchAction, type QuickHit } from "@/app/actions/erp/quick-search";
@@ -36,6 +37,7 @@ export function AwesomeBar({
   /** Overrides the topbar placement — the mobile drawer shows the same box full width. */
   className?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -121,7 +123,7 @@ export function AwesomeBar({
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); } }}
-          placeholder="ابحث عن صفحة أو صنف أو عميل…  /"
+          placeholder={`${t("ابحث عن صفحة أو صنف أو عميل…")}  /`}
           className="bg-muted/50 pr-9"
           aria-label="بحث"
         />

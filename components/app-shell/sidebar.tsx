@@ -9,6 +9,7 @@ import { Logo, LogoMark } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type { Role } from "@/lib/rbac";
 
 /** Remembered in a cookie, not localStorage: the server renders the rail at the right
@@ -24,6 +25,7 @@ export function Sidebar({ role, erpPermissions, modules, platforms, navHidden, d
   // no module (the dashboard, your profile) has no list of siblings to show.
   // Only modules this member can actually see count — otherwise a hidden or unsubscribed
   // module claims the page and the rail renders empty.
+  const t = useT();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
   const perms = new Set(erpPermissions);
@@ -40,15 +42,15 @@ export function Sidebar({ role, erpPermissions, modules, platforms, navHidden, d
       {/* The logo goes home, and home is the app grid — the one screen that shows the
           whole system at once. Every system in this class does the same. */}
       <div className={cn("flex items-center", collapsed ? "flex-col gap-1 px-2 py-3" : "h-16 gap-2 px-6")}>
-        <Link href="/apps" className="flex items-center" aria-label="التطبيقات">
+        <Link href="/apps" className="flex items-center" aria-label={t("كل التطبيقات")}>
           {collapsed ? <LogoMark className="text-2xl" variant="white" /> : <Logo className="text-2xl" variant="white" />}
         </Link>
         <button
           type="button"
           onClick={toggle}
-          aria-label={collapsed ? "توسيع القائمة" : "تصغير القائمة"}
+          aria-label={collapsed ? t("توسيع القائمة") : t("تصغير القائمة")}
           aria-expanded={!collapsed}
-          title={collapsed ? "توسيع القائمة" : "تصغير القائمة — أيقونات بس"}
+          title={collapsed ? t("توسيع القائمة") : t("تصغير القائمة — أيقونات بس")}
           className={cn(
             "rounded-lg p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
             collapsed ? "" : "ms-auto",

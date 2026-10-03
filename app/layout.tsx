@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { thmanyah } from "./fonts";
 import { Providers } from "./providers";
 import { marketingUrl } from "@/lib/marketing-url";
+import { getLocale } from "@/lib/i18n/server";
+import { dirOf } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,15 +40,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The document's language and direction come from the signed-in person's choice, so an
+  // English user gets a left-to-right app without a second set of layouts.
+  const locale = await getLocale();
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning className={`${thmanyah.variable} h-full antialiased`}>
+    <html lang={locale} dir={dirOf(locale)} suppressHydrationWarning className={`${thmanyah.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground font-sans">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

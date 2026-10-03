@@ -54,6 +54,8 @@ export const users = pgTable(
     failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
     // Bumped by «اخرج من كل الأجهزة» / an admin password reset — invalidates every JWT issued before.
     sessionVersion: integer("session_version").notNull().default(0),
+    // Interface language (lib/i18n): "ar" | "en".
+    locale: text("locale").notNull().default("ar"),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     hiredAt: timestamp("hired_at", { withTimezone: true }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
