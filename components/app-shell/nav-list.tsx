@@ -49,7 +49,7 @@ function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked — the sidebar still works, it just forgets */ }
 }
 
-export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void }) {
+export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate, collapsed }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void; collapsed?: boolean }) {
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
@@ -171,6 +171,39 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
   const pinned = pins
     .map((h) => allItems.find((x) => x.item.href === h && x.heading === current.heading))
     .filter((x): x is { item: NavItem; heading: string } => !!x);
+
+  // Collapsed rail: icons only, one flat column — a 72px rail has no room for the
+  // module heading, its groups or their chevrons, and nesting them would just make a
+  // list you cannot read. The label lives in the tooltip; everything stays one click away.
+  if (collapsed) {
+    const railItems = shown.flatMap((s) => visibleItems(s, role, erpPerms));
+    const rail = (href: string, icon: string, label: string, active: boolean, key?: string) => (
+      <Link
+        key={key ?? href}
+        href={href}
+        onClick={onNavigate}
+        title={label}
+        aria-label={label}
+        className={cn(
+          "flex items-center justify-center rounded-xl p-2.5 transition-colors",
+          active ? "bg-sidebar-foreground text-sidebar shadow-sm" : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        )}
+      >
+        <Icon name={icon} className="size-[18px] shrink-0" />
+      </Link>
+    );
+    return (
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+        {rail("/apps", "LayoutGrid", "كل التطبيقات", false)}
+        <div className="mx-2 my-2 border-t border-sidebar-border/40" />
+        {shown.map((section) =>
+          section.href && section.icon
+            ? rail(section.href, section.icon, section.heading ?? "", isActive(pathname, section.href, true), `h:${section.heading}`)
+            : null)}
+        {railItems.map((item) => rail(item.href, item.icon, item.label, isActive(pathname, item.href, item.exact)))}
+      </nav>
+    );
+  }
 
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
