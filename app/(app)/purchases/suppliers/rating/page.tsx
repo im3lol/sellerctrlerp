@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -19,6 +20,7 @@ const tone = (v: number | null) =>
   v == null ? "text-muted-foreground" : v >= 85 ? "text-emerald-600" : v >= 60 ? "text-amber-600" : "text-destructive";
 
 export default async function SupplierRatingPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     // Delivery + quality, from confirmed receipts joined back to their order's promise.
     const receiptRows = await db
@@ -90,18 +92,18 @@ export default async function SupplierRatingPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Star"
-          title="تقييم الموردين"
-          subtitle="محسوب من أوامر الشراء والاستلامات والفواتير — مفيش أي إدخال بيانات إضافي"
+          title={t("تقييم الموردين")}
+          subtitle={t("محسوب من أوامر الشراء والاستلامات والفواتير — مفيش أي إدخال بيانات إضافي")}
           backHref="/purchases/suppliers"
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>كيف بيتحسب</CardTitle>
+            <CardTitle>{t("كيف بيتحسب")}</CardTitle>
             <CardDescription>
-              <b>الالتزام بالمواعيد (٤٠٪)</b> من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·{" "}
-              <b>الجودة (٣٥٪)</b> من الكمية المرفوضة عند الاستلام ·{" "}
-              <b>الالتزام بالسعر (٢٥٪)</b> من فرق سعر الفاتورة عن سعر الأمر.
+              <b>{t("الالتزام بالمواعيد (٤٠٪)")}</b> من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·{" "}
+              <b>{t("الجودة (٣٥٪)")}</b> من الكمية المرفوضة عند الاستلام ·{" "}
+              <b>{t("الالتزام بالسعر (٢٥٪)")}</b> من فرق سعر الفاتورة عن سعر الأمر.
               البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات
               بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.
             </CardDescription>
@@ -118,7 +120,7 @@ export default async function SupplierRatingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>الترتيب</CardTitle>
+            <CardTitle>{t("الترتيب")}</CardTitle>
             <CardDescription>{scores.length ? `${scores.length} مورّد` : "مفيش بيانات كفاية بعد"}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -131,15 +133,15 @@ export default async function SupplierRatingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المورّد</TableHead>
-                      <TableHead className="text-start">التقدير</TableHead>
-                      <TableHead className="text-start">الإجمالي</TableHead>
-                      <TableHead className="text-start">المواعيد</TableHead>
-                      <TableHead className="text-start">الجودة</TableHead>
-                      <TableHead className="text-start">السعر</TableHead>
-                      <TableHead className="text-start">متوسط التأخير</TableHead>
-                      <TableHead className="text-start">نسبة الرفض</TableHead>
-                      <TableHead className="text-start">العيّنة</TableHead>
+                      <TableHead className="text-start">{t("المورّد")}</TableHead>
+                      <TableHead className="text-start">{t("التقدير")}</TableHead>
+                      <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+                      <TableHead className="text-start">{t("المواعيد")}</TableHead>
+                      <TableHead className="text-start">{t("الجودة")}</TableHead>
+                      <TableHead className="text-start">{t("السعر")}</TableHead>
+                      <TableHead className="text-start">{t("متوسط التأخير")}</TableHead>
+                      <TableHead className="text-start">{t("نسبة الرفض")}</TableHead>
+                      <TableHead className="text-start">{t("العيّنة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -154,7 +156,7 @@ export default async function SupplierRatingPage() {
                           </TableCell>
                           <TableCell>
                             {label ? <Badge variant={label === "ضعيف" ? "destructive" : "secondary"}>{label}</Badge>
-                                   : <span className="text-xs text-muted-foreground">عيّنة صغيرة</span>}
+                                   : <span className="text-xs text-muted-foreground">{t("عيّنة صغيرة")}</span>}
                           </TableCell>
                           <TableCell className={`font-bold tabular-nums ${tone(s.overall)}`}>{n1(s.overall)}</TableCell>
                           <TableCell className={`tabular-nums ${tone(s.onTime)}`}>{n1(s.onTime)}</TableCell>

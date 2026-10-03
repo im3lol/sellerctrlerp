@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createReceiptVoucherAction } from "@/app/actions/erp/receipts";
@@ -32,6 +33,7 @@ export function VoucherForm({
   defaultPartyId?: string;
   defaultInvoiceId?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -65,7 +67,7 @@ export function VoucherForm({
     if (inv) setAmount(String(inv.balanceDue));
   };
 
-  const partyLabel = isReceipt ? "العميل" : "المورد";
+  const partyLabel = isReceipt ? t("العميل") : t("المورد");
   const dest = isReceipt ? "/sales/receipts" : "/purchases/payments";
 
   const submit = () =>
@@ -78,20 +80,20 @@ export function VoucherForm({
         ? await createReceiptVoucherAction({ ...base, customerId: partyId, salesInvoiceId: invoiceId || undefined })
         : await createPaymentVoucherAction({ ...base, supplierId: partyId, purchaseInvoiceId: invoiceId || undefined });
       if (r.ok) {
-        toast.success((isReceipt ? "تم حفظ سند القبض" : "تم حفظ سند الصرف") + " (مسودة) — راجِعه ثم أكّده للترحيل");
+        toast.success((isReceipt ? t("تم حفظ سند القبض") : t("تم حفظ سند الصرف")) + " (مسودة) — راجِعه ثم أكّده للترحيل");
         // Land ON the voucher, not on the list: «تأكيد» is the next step and it lives
         // on the document. Dropping the user in a list leaves the draft unposted.
         router.push(r.number ? `${dest}/${encodeURIComponent(r.number)}` : dest);
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر الحفظ");
+        toast.error(r.error ?? t("تعذّر الحفظ"));
       }
     });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isReceipt ? "سند قبض جديد" : "سند صرف جديد"}</CardTitle>
+        <CardTitle>{isReceipt ? t("سند قبض جديد") : t("سند صرف جديد")}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -105,9 +107,9 @@ export function VoucherForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="invoice">الفاتورة (اختياري)</Label>
+          <Label htmlFor="invoice">{t("الفاتورة (اختياري)")}</Label>
           <select id="invoice" className={selectCls} value={invoiceId} onChange={(e) => pickInvoice(e.target.value)} disabled={!partyId}>
-            <option value="">— دفعة تحت الحساب —</option>
+            <option value="">{t("— دفعة تحت الحساب —")}</option>
             {partyInvoices.map((i) => (
               <option key={i.id} value={i.id}>{i.number} (متبقّي {i.balanceDue.toLocaleString("ar-EG-u-nu-latn")})</option>
             ))}
@@ -115,47 +117,47 @@ export function VoucherForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="amount">المبلغ</Label>
+          <Label htmlFor="amount">{t("المبلغ")}</Label>
           <Input id="amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="cash">حساب النقدية / البنك</Label>
+          <Label htmlFor="cash">{t("حساب النقدية / البنك")}</Label>
           <CellCombobox
             selectedLabel={cashLabelById.get(cashAccountId) ?? ""}
             options={cashOptions}
             onSelect={(id) => setCashAccountId(id)}
-            placeholder={cashAccounts.length === 0 ? "لا توجد حسابات نقدية" : "ابحث عن الحساب…"}
+            placeholder={cashAccounts.length === 0 ? t("لا توجد حسابات نقدية") : t("ابحث عن الحساب…")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="date">التاريخ</Label>
+          <Label htmlFor="date">{t("التاريخ")}</Label>
           <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="method">طريقة الدفع</Label>
+          <Label htmlFor="method">{t("طريقة الدفع")}</Label>
           <select id="method" className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
-            <option value="CASH">نقدي</option>
-            <option value="BANK">تحويل بنكي</option>
-            <option value="CARD">بطاقة</option>
-            <option value="CHEQUE">شيك</option>
+            <option value="CASH">{t("نقدي")}</option>
+            <option value="BANK">{t("تحويل بنكي")}</option>
+            <option value="CARD">{t("بطاقة")}</option>
+            <option value="CHEQUE">{t("شيك")}</option>
           </select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ref">المرجع (اختياري)</Label>
-          <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم شيك / تحويل" />
+          <Label htmlFor="ref">{t("المرجع (اختياري)")}</Label>
+          <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t("رقم شيك / تحويل")} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="notes">ملاحظات</Label>
+          <Label htmlFor="notes">{t("ملاحظات")}</Label>
           <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
         <div className="sm:col-span-2 flex justify-end">
-          <Button disabled={pending} onClick={submit}>{isReceipt ? "تسجيل القبض" : "تسجيل الصرف"}</Button>
+          <Button disabled={pending} onClick={submit}>{isReceipt ? t("تسجيل القبض") : t("تسجيل الصرف")}</Button>
         </div>
       </CardContent>
     </Card>

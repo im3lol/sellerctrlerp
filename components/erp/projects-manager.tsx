@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -54,6 +55,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
   customers: Option[]; employees: Option[]; costCenters: Option[];
   canManage: boolean; canBill: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<string | null>(rows[0]?.id ?? null);
@@ -73,7 +75,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(good); router.refresh(); }
-      else toast.error(r.error ?? "تعذّرت العملية");
+      else toast.error(r.error ?? t("تعذّرت العملية"));
     });
 
   const blank = { nameAr: "", customerId: "", managerEmployeeId: "", status: "DRAFT" as ProjectStatus, startDate: today(), endDate: "", budget: "", defaultBillRate: "", costCenterId: "" };
@@ -84,7 +86,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>المشاريع</CardTitle>
+              <CardTitle>{t("المشاريع")}</CardTitle>
               <CardDescription>
                 المشروع بُعد تكلفة زي مركز التكلفة — المصروف اللي بتحطّ عليه اسم المشروع بيوصله لوحده،
                 والفواتير اللي عليه بتبقى إيراده.
@@ -101,51 +103,51 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
           {form && (
             <div className="space-y-3 rounded-xl border p-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-2 sm:col-span-2"><Label>الاسم</Label>
-                  <Input value={form.nameAr} autoFocus placeholder="تجهيز فرع المعادي"
+                <div className="space-y-2 sm:col-span-2"><Label>{t("الاسم")}</Label>
+                  <Input value={form.nameAr} autoFocus placeholder={t("تجهيز فرع المعادي")}
                     onChange={(e) => setForm((f) => (f ? { ...f, nameAr: e.target.value } : f))} /></div>
                 <div className="space-y-2">
-                  <Label>العميل</Label>
+                  <Label>{t("العميل")}</Label>
                   <CellCombobox
                     selectedLabel={customers.find((c) => c.id === form.customerId)?.label ?? ""}
                     options={customers} onSelect={(id) => setForm((f) => (f ? { ...f, customerId: id } : f))}
-                    placeholder="مشروع داخلي؟ سيبه فاضي"
+                    placeholder={t("مشروع داخلي؟ سيبه فاضي")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>مدير المشروع</Label>
+                  <Label>{t("مدير المشروع")}</Label>
                   <CellCombobox
                     selectedLabel={employees.find((e) => e.id === form.managerEmployeeId)?.label ?? ""}
                     options={employees} onSelect={(id) => setForm((f) => (f ? { ...f, managerEmployeeId: id } : f))}
-                    placeholder="اختياري"
+                    placeholder={t("اختياري")}
                   />
                 </div>
-                <div className="space-y-2"><Label>الميزانية</Label>
+                <div className="space-y-2"><Label>{t("الميزانية")}</Label>
                   <Input type="number" step="0.01" min="0" value={form.budget}
                     onChange={(e) => setForm((f) => (f ? { ...f, budget: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>سعر الساعة للعميل</Label>
+                <div className="space-y-2"><Label>{t("سعر الساعة للعميل")}</Label>
                   <Input type="number" step="0.01" min="0" value={form.defaultBillRate}
                     onChange={(e) => setForm((f) => (f ? { ...f, defaultBillRate: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>من</Label>
+                <div className="space-y-2"><Label>{t("من")}</Label>
                   <Input type="date" value={form.startDate}
                     onChange={(e) => setForm((f) => (f ? { ...f, startDate: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>إلى</Label>
+                <div className="space-y-2"><Label>{t("إلى")}</Label>
                   <Input type="date" value={form.endDate}
                     onChange={(e) => setForm((f) => (f ? { ...f, endDate: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>الحالة</Label>
+                <div className="space-y-2"><Label>{t("الحالة")}</Label>
                   <select className={selectCls} value={form.status}
                     onChange={(e) => setForm((f) => (f ? { ...f, status: e.target.value as ProjectStatus } : f))}>
                     {(Object.keys(PROJECT_STATUS_LABEL) as ProjectStatus[]).map((k) => (
-                      <option key={k} value={k}>{PROJECT_STATUS_LABEL[k]}</option>
+                      <option key={k} value={k}>{t(PROJECT_STATUS_LABEL[k])}</option>
                     ))}
                   </select></div>
                 {costCenters.length > 0 && (
                   <div className="space-y-2">
-                    <Label>مركز التكلفة</Label>
+                    <Label>{t("مركز التكلفة")}</Label>
                     <CellCombobox
                       selectedLabel={costCenters.find((c) => c.id === form.costCenterId)?.label ?? ""}
                       options={costCenters} onSelect={(id) => setForm((f) => (f ? { ...f, costCenterId: id } : f))}
-                      placeholder="اختياري"
+                      placeholder={t("اختياري")}
                     />
                   </div>
                 )}
@@ -165,25 +167,25 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   }, "اتحفظ")}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
-                <Button variant="ghost" onClick={() => setForm(null)}>رجوع</Button>
+                <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           )}
 
           {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش مشاريع.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش مشاريع.")}</p>
           ) : (
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">المشروع</TableHead>
-                    <TableHead className="text-start">الميزانية</TableHead>
-                    <TableHead className="text-start">المصروف</TableHead>
-                    <TableHead className="text-start">المفوتر</TableHead>
-                    <TableHead className="text-start">التقدّم</TableHead>
-                    <TableHead className="text-start">الوضع</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("المشروع")}</TableHead>
+                    <TableHead className="text-start">{t("الميزانية")}</TableHead>
+                    <TableHead className="text-start">{t("المصروف")}</TableHead>
+                    <TableHead className="text-start">{t("المفوتر")}</TableHead>
+                    <TableHead className="text-start">{t("التقدّم")}</TableHead>
+                    <TableHead className="text-start">{t("الوضع")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -194,7 +196,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell>
                         <div className="font-medium">{r.nameAr}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.customerName ?? "داخلي"}{r.managerName && ` · ${r.managerName}`}
+                          {r.customerName ?? t("داخلي")}{r.managerName && ` · ${r.managerName}`}
                         </div>
                       </TableCell>
                       <TableCell className="tabular-nums">{money(r.budget)}</TableCell>
@@ -202,7 +204,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell className="tabular-nums">{money(r.invoiced)}</TableCell>
                       <TableCell className="tabular-nums">{r.progress}٪</TableCell>
                       <TableCell className="text-sm">
-                        <Badge variant="outline">{PROJECT_STATUS_LABEL[r.status]}</Badge>
+                        <Badge variant="outline">{t(PROJECT_STATUS_LABEL[r.status])}</Badge>
                         <div className={`mt-1 text-xs ${r.overBudget || r.headingOver ? "text-destructive" : "text-muted-foreground"}`}>
                           {r.verdict}
                         </div>
@@ -220,31 +222,31 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
         <>
           <div className="grid gap-4 sm:grid-cols-4">
             <Card><CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">متبقّي من الميزانية</div>
+              <div className="text-sm text-muted-foreground">{t("متبقّي من الميزانية")}</div>
               <div className={`text-2xl font-bold tabular-nums ${project.budget - project.spent < 0 ? "text-destructive" : ""}`}>
                 {money(project.budget - project.spent)}
               </div>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">هامش المشروع</div>
+              <div className="text-sm text-muted-foreground">{t("هامش المشروع")}</div>
               <div className={`text-2xl font-bold tabular-nums ${project.invoiced - project.spent < 0 ? "text-destructive" : ""}`}>
                 {money(project.invoiced - project.spent)}
               </div>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">ساعات العمل</div>
+              <div className="text-sm text-muted-foreground">{t("ساعات العمل")}</div>
               <div className="text-2xl font-bold tabular-nums">{num(labor.hours)}</div>
               <div className="text-xs text-muted-foreground">بتكلفة {money(labor.cost)}</div>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">جاهز للفوترة</div>
+              <div className="text-sm text-muted-foreground">{t("جاهز للفوترة")}</div>
               <div className="text-2xl font-bold tabular-nums">{money(bill.total)}</div>
               {canBill && bill.total > 0 && (
                 <Button size="sm" className="mt-2" disabled={pending || !project.customerId}
                   onClick={() => void (async () => {
                     const go = await confirm({
                       title: "تعمل فاتورة للمشروع؟",
-                      description: `${bill.lines.map((l) => `${l.label}: ${money(l.amount)}`).join("\n")}\n\nالإجمالي ${money(bill.total)}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني.`,
+                      description: `${bill.lines.map((l) => `${t(l.label)}: ${money(l.amount)}`).join("\n")}\n\nالإجمالي ${money(bill.total)}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني.`,
                       confirmText: "اعمل الفاتورة", cancelText: "رجوع",
                     });
                     if (go) run(() => billProjectAction(project.id), "اتعملت الفاتورة");
@@ -253,7 +255,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                 </Button>
               )}
               {!project.customerId && bill.total > 0 && (
-                <div className="mt-1 text-xs text-muted-foreground">مشروع داخلي — مفيش عميل نفوتره</div>
+                <div className="mt-1 text-xs text-muted-foreground">{t("مشروع داخلي — مفيش عميل نفوتره")}</div>
               )}
             </CardContent></Card>
           </div>
@@ -277,23 +279,23 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <CardContent className="space-y-4">
               {phaseForm && (
                 <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                  <div className="w-56 space-y-2"><Label>الاسم</Label>
+                  <div className="w-56 space-y-2"><Label>{t("الاسم")}</Label>
                     <Input value={phaseForm.nameAr} autoFocus
                       onChange={(e) => setPhaseForm((f) => (f ? { ...f, nameAr: e.target.value } : f))} /></div>
-                  <div className="space-y-2"><Label>الحالة</Label>
+                  <div className="space-y-2"><Label>{t("الحالة")}</Label>
                     <select className={`${selectCls} w-32`} value={phaseForm.status}
                       onChange={(e) => setPhaseForm((f) => (f ? { ...f, status: e.target.value as PhaseRow["status"] } : f))}>
-                      <option value="PENDING">مستنية</option>
-                      <option value="IN_PROGRESS">شغّالة</option>
-                      <option value="DONE">خلصت</option>
+                      <option value="PENDING">{t("مستنية")}</option>
+                      <option value="IN_PROGRESS">{t("شغّالة")}</option>
+                      <option value="DONE">{t("خلصت")}</option>
                     </select></div>
-                  <div className="space-y-2"><Label>ميزانيتها</Label>
+                  <div className="space-y-2"><Label>{t("ميزانيتها")}</Label>
                     <Input type="number" step="0.01" min="0" className="w-32" value={phaseForm.budget}
                       onChange={(e) => setPhaseForm((f) => (f ? { ...f, budget: e.target.value } : f))} /></div>
-                  <div className="space-y-2"><Label>تتفوتر بكام</Label>
+                  <div className="space-y-2"><Label>{t("تتفوتر بكام")}</Label>
                     <Input type="number" step="0.01" min="0" className="w-32" value={phaseForm.billAmount}
                       onChange={(e) => setPhaseForm((f) => (f ? { ...f, billAmount: e.target.value } : f))} /></div>
-                  <div className="space-y-2"><Label>موعد التسليم</Label>
+                  <div className="space-y-2"><Label>{t("موعد التسليم")}</Label>
                     <Input type="date" className="w-40" value={phaseForm.plannedEnd}
                       onChange={(e) => setPhaseForm((f) => (f ? { ...f, plannedEnd: e.target.value } : f))} /></div>
                   <Button disabled={pending || !phaseForm.nameAr.trim()}
@@ -309,21 +311,21 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                     }, "اتحفظت")}>
                     <Icon name="Check" className="size-4" />احفظ
                   </Button>
-                  <Button variant="ghost" onClick={() => setPhaseForm(null)}>رجوع</Button>
+                  <Button variant="ghost" onClick={() => setPhaseForm(null)}>{t("رجوع")}</Button>
                 </div>
               )}
 
               {myPhases.length === 0 ? (
-                <p className="text-sm text-muted-foreground">مفيش مراحل. من غيرها التقدّم بيفضل تقدير.</p>
+                <p className="text-sm text-muted-foreground">{t("مفيش مراحل. من غيرها التقدّم بيفضل تقدير.")}</p>
               ) : (
                 <div className="rounded-xl border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-start">المرحلة</TableHead>
-                        <TableHead className="text-start">الحالة</TableHead>
-                        <TableHead className="text-start">الميزانية</TableHead>
-                        <TableHead className="text-start">الفوترة</TableHead>
+                        <TableHead className="text-start">{t("المرحلة")}</TableHead>
+                        <TableHead className="text-start">{t("الحالة")}</TableHead>
+                        <TableHead className="text-start">{t("الميزانية")}</TableHead>
+                        <TableHead className="text-start">{t("الفوترة")}</TableHead>
                         <TableHead className="w-24" />
                       </TableRow>
                     </TableHeader>
@@ -334,19 +336,19 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                           <TableCell>
                             <Badge className={p.status === "DONE" ? "bg-emerald-600" : p.status === "IN_PROGRESS" ? "bg-amber-600" : undefined}
                               variant={p.status === "PENDING" ? "outline" : undefined}>
-                              {p.status === "DONE" ? "خلصت" : p.status === "IN_PROGRESS" ? "شغّالة" : "مستنية"}
+                              {p.status === "DONE" ? t("خلصت") : p.status === "IN_PROGRESS" ? t("شغّالة") : t("مستنية")}
                             </Badge>
                           </TableCell>
                           <TableCell className="tabular-nums">{money(p.budget)}</TableCell>
                           <TableCell className="tabular-nums">
-                            {p.billAmount === 0 ? <span className="text-xs text-muted-foreground">مش مرحلة فوترة</span>
+                            {p.billAmount === 0 ? <span className="text-xs text-muted-foreground">{t("مش مرحلة فوترة")}</span>
                               : p.invoicedAt ? <span className="text-xs text-emerald-600">اتفوترت — {money(p.billAmount)}</span>
                               : money(p.billAmount)}
                           </TableCell>
                           <TableCell>
                             {canManage && (
                               <div className="flex gap-1">
-                                <Button size="icon" variant="ghost" aria-label="تعديل" onClick={() => setPhaseForm({
+                                <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => setPhaseForm({
                                   id: p.id, projectId: p.projectId, nameAr: p.nameAr, status: p.status,
                                   budget: String(p.budget), billAmount: String(p.billAmount),
                                   plannedEnd: p.plannedEnd ?? "",
@@ -354,7 +356,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                                   <Icon name="Edit" className="size-4" />
                                 </Button>
                                 {!p.invoicedAt && (
-                                  <Button size="icon" variant="ghost" aria-label="مسح"
+                                  <Button size="icon" variant="ghost" aria-label={t("مسح")}
                                     onClick={() => run(() => deletePhaseAction(p.id), "اتمسحت")}>
                                     <Icon name="Trash2" className="size-4 text-destructive" />
                                   </Button>
@@ -375,7 +377,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <Card>
               <CardHeader>
                 <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                  <CardTitle>المهام</CardTitle>
+                  <CardTitle>{t("المهام")}</CardTitle>
                   {canManage && (
                     <Button size="sm" variant="outline"
                       onClick={() => setTaskForm({ projectId: project.id, phaseId: "", nameAr: "", assignedTo: "", status: "PENDING", plannedHours: "", dueDate: "" })}>
@@ -387,23 +389,23 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
               <CardContent className="space-y-3">
                 {taskForm && (
                   <div className="space-y-2 rounded-lg border p-3">
-                    <Input value={taskForm.nameAr} autoFocus placeholder="اسم المهمة"
+                    <Input value={taskForm.nameAr} autoFocus placeholder={t("اسم المهمة")}
                       onChange={(e) => setTaskForm((f) => (f ? { ...f, nameAr: e.target.value } : f))} />
                     <div className="flex flex-wrap gap-2">
                       <div className="w-44">
                         <CellCombobox
                           selectedLabel={employees.find((e) => e.id === taskForm.assignedTo)?.label ?? ""}
                           options={employees} onSelect={(id) => setTaskForm((f) => (f ? { ...f, assignedTo: id } : f))}
-                          placeholder="مين مسؤول"
+                          placeholder={t("مين مسؤول")}
                         />
                       </div>
                       <select className={`${selectCls} w-32`} value={taskForm.status}
                         onChange={(e) => setTaskForm((f) => (f ? { ...f, status: e.target.value as TaskRow["status"] } : f))}>
                         {(Object.keys(TASK_STATUS) as TaskRow["status"][]).map((k) => (
-                          <option key={k} value={k}>{TASK_STATUS[k]}</option>
+                          <option key={k} value={k}>{t(TASK_STATUS[k])}</option>
                         ))}
                       </select>
-                      <Input type="number" step="0.5" min="0" className="w-28" placeholder="ساعات"
+                      <Input type="number" step="0.5" min="0" className="w-28" placeholder={t("ساعات")}
                         value={taskForm.plannedHours}
                         onChange={(e) => setTaskForm((f) => (f ? { ...f, plannedHours: e.target.value } : f))} />
                       <Input type="date" className="w-40" value={taskForm.dueDate}
@@ -421,26 +423,26 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                         }, "اتحفظت")}>
                         <Icon name="Check" className="size-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setTaskForm(null)}>رجوع</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setTaskForm(null)}>{t("رجوع")}</Button>
                     </div>
                   </div>
                 )}
                 {myTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">مفيش مهام.</p>
-                ) : myTasks.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">{t("مفيش مهام.")}</p>
+                ) : myTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
                     <div>
-                      <div className="font-medium">{t.nameAr}</div>
+                      <div className="font-medium">{task.nameAr}</div>
                       <div className="text-xs text-muted-foreground">
-                        {t.assignedName ?? "مش متكلّف حد"}{t.plannedHours > 0 && ` · ${num(t.plannedHours)} ساعة`}{t.dueDate && ` · ${t.dueDate}`}
+                        {task.assignedName ?? t("مش متكلّف حد")}{task.plannedHours > 0 && ` · ${num(task.plannedHours)} ساعة`}{task.dueDate && ` · ${task.dueDate}`}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={t.status === "DONE" ? undefined : "outline"} className={t.status === "DONE" ? "bg-emerald-600" : undefined}>
-                        {TASK_STATUS[t.status]}
+                      <Badge variant={task.status === "DONE" ? undefined : "outline"} className={task.status === "DONE" ? "bg-emerald-600" : undefined}>
+                        {t(TASK_STATUS[task.status])}
                       </Badge>
                       {canManage && (
-                        <Button size="icon" variant="ghost" aria-label="مسح" onClick={() => run(() => deleteTaskAction(t.id), "اتمسحت")}>
+                        <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => run(() => deleteTaskAction(task.id), "اتمسحت")}>
                           <Icon name="Trash2" className="size-4 text-destructive" />
                         </Button>
                       )}
@@ -454,8 +456,8 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
               <CardHeader>
                 <div className="flex w-full flex-wrap items-center justify-between gap-3">
                   <div>
-                    <CardTitle>ساعات العمل</CardTitle>
-                    <CardDescription>تكلفة الساعة غير سعرها للعميل — خلط الاتنين بيدّي هامش مش موجود.</CardDescription>
+                    <CardTitle>{t("ساعات العمل")}</CardTitle>
+                    <CardDescription>{t("تكلفة الساعة غير سعرها للعميل — خلط الاتنين بيدّي هامش مش موجود.")}</CardDescription>
                   </div>
                   {canManage && (
                     <Button size="sm" variant="outline"
@@ -473,16 +475,16 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                         <CellCombobox
                           selectedLabel={employees.find((e) => e.id === sheetForm.employeeId)?.label ?? ""}
                           options={employees} onSelect={(id) => setSheetForm((f) => (f ? { ...f, employeeId: id } : f))}
-                          placeholder="الموظف"
+                          placeholder={t("الموظف")}
                         />
                       </div>
                       <Input type="date" className="w-40" value={sheetForm.workDate}
                         onChange={(e) => setSheetForm((f) => (f ? { ...f, workDate: e.target.value } : f))} />
-                      <Input type="number" step="0.5" min="0" className="w-24" placeholder="ساعات" value={sheetForm.hours}
+                      <Input type="number" step="0.5" min="0" className="w-24" placeholder={t("ساعات")} value={sheetForm.hours}
                         onChange={(e) => setSheetForm((f) => (f ? { ...f, hours: e.target.value } : f))} />
-                      <Input type="number" step="0.01" min="0" className="w-28" placeholder="تكلفة/ساعة" value={sheetForm.costRate}
+                      <Input type="number" step="0.01" min="0" className="w-28" placeholder={t("تكلفة/ساعة")} value={sheetForm.costRate}
                         onChange={(e) => setSheetForm((f) => (f ? { ...f, costRate: e.target.value } : f))} />
-                      <Input type="number" step="0.01" min="0" className="w-28" placeholder="سعر/ساعة" value={sheetForm.billRate}
+                      <Input type="number" step="0.01" min="0" className="w-28" placeholder={t("سعر/ساعة")} value={sheetForm.billRate}
                         onChange={(e) => setSheetForm((f) => (f ? { ...f, billRate: e.target.value } : f))} />
                       <label className="flex cursor-pointer items-center gap-2 text-sm">
                         <input type="checkbox" className="size-4 rounded border-input" checked={sheetForm.billable}
@@ -504,22 +506,22 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                         }, "اتسجّلت")}>
                         <Icon name="Check" className="size-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setSheetForm(null)}>خلاص</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSheetForm(null)}>{t("خلاص")}</Button>
                     </div>
                   </div>
                 )}
                 {mySheets.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">مفيش ساعات مسجّلة.</p>
+                  <p className="text-sm text-muted-foreground">{t("مفيش ساعات مسجّلة.")}</p>
                 ) : (
                   <div className="rounded-xl border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-start">التاريخ</TableHead>
-                          <TableHead className="text-start">الموظف</TableHead>
-                          <TableHead className="text-start">ساعات</TableHead>
-                          <TableHead className="text-start">تكلفة</TableHead>
-                          <TableHead className="text-start">الفوترة</TableHead>
+                          <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                          <TableHead className="text-start">{t("الموظف")}</TableHead>
+                          <TableHead className="text-start">{t("ساعات")}</TableHead>
+                          <TableHead className="text-start">{t("تكلفة")}</TableHead>
+                          <TableHead className="text-start">{t("الفوترة")}</TableHead>
                           <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
@@ -531,13 +533,13 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                             <TableCell className="tabular-nums">{num(s.hours)}</TableCell>
                             <TableCell className="tabular-nums">{money(s.hours * s.costRate)}</TableCell>
                             <TableCell className="text-xs">
-                              {!s.billable ? <span className="text-muted-foreground">مش بتتفوتر</span>
-                                : s.invoicedAt ? <span className="text-emerald-600">اتفوترت</span>
+                              {!s.billable ? <span className="text-muted-foreground">{t("مش بتتفوتر")}</span>
+                                : s.invoicedAt ? <span className="text-emerald-600">{t("اتفوترت")}</span>
                                 : money(s.hours * s.billRate)}
                             </TableCell>
                             <TableCell>
                               {canManage && !s.invoicedAt && (
-                                <Button size="icon" variant="ghost" aria-label="مسح"
+                                <Button size="icon" variant="ghost" aria-label={t("مسح")}
                                   onClick={() => run(() => deleteTimesheetAction(s.id), "اتمسحت")}>
                                   <Icon name="Trash2" className="size-4 text-destructive" />
                                 </Button>

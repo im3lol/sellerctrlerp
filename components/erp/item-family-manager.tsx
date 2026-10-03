@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export function ItemFamilyManager({
   head: FamilyMember | null;
   variations: FamilyMember[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [picked, setPicked] = useState<{ id: string; label: string } | null>(null);
@@ -41,14 +43,14 @@ export function ItemFamilyManager({
     start(async () => {
       const r = await setItemParentAction(picked.id, currentItemId, variation);
       if (r.ok) { toast.success("تم ربط التنويعة"); setPicked(null); setVariation(""); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الربط");
+      else toast.error(r.error ?? t("تعذّر الربط"));
     });
   };
   const unlink = (childId: string) =>
     start(async () => {
       const r = await setItemParentAction(childId, null);
       if (r.ok) { toast.success("تم فك الربط"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر فك الربط");
+      else toast.error(r.error ?? t("تعذّر فك الربط"));
     });
 
   const rows = head ? [head, ...variations] : [];
@@ -57,19 +59,19 @@ export function ItemFamilyManager({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>التنويعات / عائلة المنتج</CardTitle>
-        <CardDescription>المنتج الأب وكل التنويعات المرتبطة به — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.</CardDescription>
+        <CardTitle>{t("التنويعات / عائلة المنتج")}</CardTitle>
+        <CardDescription>{t("المنتج الأب وكل التنويعات المرتبطة به — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {rows.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="text-start">التنويعة</TableHead>
-                <TableHead className="text-start">الأكواد</TableHead>
-                <TableHead className="text-start">السعر</TableHead>
-                <TableHead className="text-start">المتوفّر</TableHead>
+                <TableHead className="text-start">{t("الصنف")}</TableHead>
+                <TableHead className="text-start">{t("التنويعة")}</TableHead>
+                <TableHead className="text-start">{t("الأكواد")}</TableHead>
+                <TableHead className="text-start">{t("السعر")}</TableHead>
+                <TableHead className="text-start">{t("المتوفّر")}</TableHead>
                 {canEdit && <TableHead className="text-start"></TableHead>}
               </TableRow>
             </TableHeader>
@@ -87,7 +89,7 @@ export function ItemFamilyManager({
                             : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                         </div>
                         <div className="min-w-0">
-                          {m.isHead && <Badge variant="secondary" className="mb-0.5 block w-fit">أب</Badge>}
+                          {m.isHead && <Badge variant="secondary" className="mb-0.5 block w-fit">{t("أب")}</Badge>}
                           {isCurrent ? (
                             <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
                           ) : (
@@ -126,22 +128,22 @@ export function ItemFamilyManager({
             </TableBody>
           </Table>
         ) : (
-          <p className="text-sm text-muted-foreground">لا توجد تنويعات مرتبطة بعد. اربط صنفاً كتنويعة أدناه.</p>
+          <p className="text-sm text-muted-foreground">{t("لا توجد تنويعات مرتبطة بعد. اربط صنفاً كتنويعة أدناه.")}</p>
         )}
 
         {showAdd && (
           <div className="rounded-xl border bg-muted/20 p-3">
-            <div className="mb-2 text-sm font-medium">ربط تنويعة جديدة</div>
+            <div className="mb-2 text-sm font-medium">{t("ربط تنويعة جديدة")}</div>
             {picked ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex-1 text-sm">التنويعة: <span className="font-medium">{picked.label}</span></span>
-                <Input value={variation} onChange={(e) => setVariation(e.target.value)} placeholder="قيمة التنويعة (مثال: أحمر - L)" className="w-48" />
+                <span className="flex-1 text-sm">{t("التنويعة:")} <span className="font-medium">{t(picked.label)}</span></span>
+                <Input value={variation} onChange={(e) => setVariation(e.target.value)} placeholder={t("قيمة التنويعة (مثال: أحمر - L)")} className="w-48" />
                 <Button type="button" size="sm" disabled={pending} onClick={link}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}ربط</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => { setPicked(null); setVariation(""); }}>إلغاء</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setPicked(null); setVariation(""); }}>{t("إلغاء")}</Button>
               </div>
             ) : (
               <ItemCombobox
-                placeholder="ابحث عن الصنف لربطه كتنويعة…"
+                placeholder={t("ابحث عن الصنف لربطه كتنويعة…")}
                 onSelect={(it) => {
                   if (it.id === currentItemId) { toast.error("لا يمكن ربط الصنف بنفسه"); return; }
                   setPicked({ id: it.id, label: `${it.code} — ${it.name}` });

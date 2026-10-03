@@ -9,6 +9,7 @@ import { can, type Role, type Capability } from "@/lib/rbac";
 import { activeModule } from "@/lib/active-module";
 import { sectionAllowed } from "@/lib/nav-access";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -49,7 +50,8 @@ function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked — the sidebar still works, it just forgets */ }
 }
 
-export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void }) {
+export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate, collapsed }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void; collapsed?: boolean }) {
+  const t = useT();
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
   const router = useRouter();
@@ -172,6 +174,39 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
     .map((h) => allItems.find((x) => x.item.href === h && x.heading === current.heading))
     .filter((x): x is { item: NavItem; heading: string } => !!x);
 
+  // Collapsed rail: icons only, one flat column — a 72px rail has no room for the
+  // module heading, its groups or their chevrons, and nesting them would just make a
+  // list you cannot read. The label lives in the tooltip; everything stays one click away.
+  if (collapsed) {
+    const railItems = shown.flatMap((s) => visibleItems(s, role, erpPerms));
+    const rail = (href: string, icon: string, label: string, active: boolean, key?: string) => (
+      <Link
+        key={key ?? href}
+        href={href}
+        onClick={onNavigate}
+        title={label}
+        aria-label={label}
+        className={cn(
+          "flex items-center justify-center rounded-xl p-2.5 transition-colors",
+          active ? "bg-sidebar-foreground text-sidebar shadow-sm" : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        )}
+      >
+        <Icon name={icon} className="size-[18px] shrink-0" />
+      </Link>
+    );
+    return (
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+        {rail("/apps", "LayoutGrid", t("كل التطبيقات"), false)}
+        <div className="mx-2 my-2 border-t border-sidebar-border/40" />
+        {shown.map((section) =>
+          section.href && section.icon
+            ? rail(section.href, section.icon, t(section.heading ?? ""), isActive(pathname, section.href, true), `h:${section.heading}`)
+            : null)}
+        {railItems.map((item) => rail(item.href, item.icon, t(item.label), isActive(pathname, item.href, item.exact)))}
+      </nav>
+    );
+  }
+
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       {/* The way back. In module scope this is the most important row on the screen —
@@ -182,13 +217,13 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
         className="mb-2 flex items-center gap-2 rounded-xl border border-sidebar-border/50 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <Icon name="LayoutGrid" className="size-[18px] shrink-0" />
-        <span className="flex-1 text-start">كل التطبيقات</span>
+        <span className="flex-1 text-start">{t("كل التطبيقات")}</span>
         <Icon name="ChevronLeft" className="size-4 shrink-0 opacity-60" />
       </Link>
 
       {pinned.length > 0 && (
         <div className="space-y-1 pb-2">
-          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">المثبّتة</div>
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">{t("المثبّتة")}</div>
           {pinned.map(({ item }) => (
             <NavLink key={item.href} item={item} active={isActive(pathname, item.href, item.exact)}
               onNavigate={onNavigate} pinned onTogglePin={togglePin} />
@@ -249,7 +284,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
               )}
             >
               {section.icon && <Icon name={section.icon} className="size-[18px] shrink-0" />}
-              <span className="flex-1 text-start">{section.heading}</span>
+              <span className="flex-1 text-start">{t(section.heading)}</span>
               {items.length > 0 && chevron}
             </button>
 
@@ -277,7 +312,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
                         aria-expanded={gOpen}
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/70"
                       >
-                        <span className="flex-1 text-start">{g}</span>
+                        <span className="flex-1 text-start">{t(g)}</span>
                         <Icon name="ChevronDown" className={cn("size-3.5 shrink-0 transition-transform", gOpen ? "rotate-180" : "")} />
                       </button>
                       {gOpen && (
@@ -309,6 +344,7 @@ function NavLink({
   pinned?: boolean;
   onTogglePin?: (href: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="group/nav relative">
       <Link
@@ -323,7 +359,7 @@ function NavLink({
         )}
       >
         <Icon name={item.icon} className="size-[18px] shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
       </Link>
       {onTogglePin && (
         // Visible on hover, and always once pinned — otherwise unpinning means
@@ -331,8 +367,8 @@ function NavLink({
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); onTogglePin(item.href); }}
-          aria-label={pinned ? "إلغاء التثبيت" : "تثبيت"}
-          title={pinned ? "إلغاء التثبيت" : "تثبيت في الأعلى"}
+          aria-label={pinned ? t("إلغاء التثبيت") : t("تثبيت")}
+          title={pinned ? t("إلغاء التثبيت") : t("تثبيت في الأعلى")}
           className={cn(
             "absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 backdrop-blur-sm transition-opacity",
             active ? "bg-sidebar-foreground text-sidebar hover:bg-sidebar/20" : "bg-sidebar text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground",

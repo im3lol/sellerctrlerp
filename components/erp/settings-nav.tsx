@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icon";
 import type { SettingsGroup } from "@/lib/erp/settings-nav";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
  * horizontal scrollable chip row (labels only — descriptions live on /settings).
  */
 export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
+  const t = useT();
   const pathname = usePathname();
   const active = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
@@ -18,9 +20,9 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
     <>
       {/* Mobile: chips */}
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:hidden">
-        <Chip href="/settings" label="الرئيسية" icon="Settings" active={pathname === "/settings"} />
+        <Chip href="/settings" label={t("الرئيسية")} icon="Settings" active={pathname === "/settings"} />
         {groups.flatMap((g) => g.items).map((it) => (
-          <Chip key={it.href} href={it.href} label={it.label} icon={it.icon} active={active(it.href)} />
+          <Chip key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={active(it.href)} />
         ))}
       </div>
 
@@ -52,7 +54,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
                       )}
                     >
                       <Icon name={it.icon} className="size-4 shrink-0" />
-                      <span className="flex-1 truncate">{it.label}</span>
+                      <span className="flex-1 truncate">{t(it.label)}</span>
                       {it.external && <Icon name="ArrowUpLeft" className="size-3 shrink-0 text-muted-foreground" />}
                     </Link>
                   );

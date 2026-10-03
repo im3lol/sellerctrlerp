@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
@@ -33,8 +34,9 @@ export function FulfillmentForm({
   dest: string;
   channel?: string;
 }) {
+  const t = useT();
   const router = useRouter();
-  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
+  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? t("كود نون") : "";
   const [pending, start] = useTransition();
   const [qtys, setQtys] = useState<Record<string, string>>(
     Object.fromEntries(lines.map((l) => [l.itemId, String(l.remaining)])),
@@ -55,31 +57,31 @@ export function FulfillmentForm({
         : await createReceiptFromOrderAction(orderId, picks);
       if (r.ok) {
         // Both are now drafts: land on the new document to confirm.
-        toast.success(isDelivery ? "تم حفظ إذن الصرف (مسودة) — أكّده لترحيله" : "تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
+        toast.success(isDelivery ? t("تم حفظ إذن الصرف (مسودة) — أكّده لترحيله") : t("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله"));
         const newId = "id" in r ? (r as { id?: string }).id : undefined;
         const base = isDelivery ? "/sales/deliveries" : "/purchases/receipts";
         router.push(newId ? `${base}/${newId}` : dest);
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر التنفيذ");
+        toast.error(r.error ?? t("تعذّر التنفيذ"));
       }
     });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isDelivery ? "تسليم أصناف" : "استلام أصناف"}</CardTitle>
-        <CardDescription>أدخل الكمية {isDelivery ? "المسلّمة" : "المستلمة"} الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).</CardDescription>
+        <CardTitle>{isDelivery ? t("تسليم أصناف") : t("استلام أصناف")}</CardTitle>
+        <CardDescription>أدخل الكمية {isDelivery ? t("المسلّمة") : t("المستلمة")} الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">الصنف</TableHead>
-              <TableHead className="text-start">المطلوب</TableHead>
-              <TableHead className="text-start">{isDelivery ? "مُسلّم سابقاً" : "مُستلم سابقاً"}</TableHead>
-              <TableHead className="text-start">المتبقّي</TableHead>
-              <TableHead className="text-start w-36">{isDelivery ? "تسليم الآن" : "استلام الآن"}</TableHead>
+              <TableHead className="text-start">{t("الصنف")}</TableHead>
+              <TableHead className="text-start">{t("المطلوب")}</TableHead>
+              <TableHead className="text-start">{isDelivery ? t("مُسلّم سابقاً") : t("مُستلم سابقاً")}</TableHead>
+              <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+              <TableHead className="text-start w-36">{isDelivery ? t("تسليم الآن") : t("استلام الآن")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -115,8 +117,8 @@ export function FulfillmentForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => router.push(dest)}>إلغاء</Button>
-          <Button disabled={pending} onClick={submit}>{isDelivery ? "حفظ إذن الصرف" : "حفظ إذن الاستلام"}</Button>
+          <Button variant="outline" onClick={() => router.push(dest)}>{t("إلغاء")}</Button>
+          <Button disabled={pending} onClick={submit}>{isDelivery ? t("حفظ إذن الصرف") : t("حفظ إذن الاستلام")}</Button>
         </div>
       </CardContent>
     </Card>

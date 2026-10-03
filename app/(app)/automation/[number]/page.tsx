@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { automationRules, organizationMembers, users } from "@/db/schema";
 import { loadErpPage } from "@/lib/erp/org";
+import { docNumberParam } from "@/lib/erp/doc-route";
 import { erpRoleLabels } from "@/lib/erp/permissions";
 import { maskSpec, type RuleSpec } from "@/lib/erp/automation/model";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -10,12 +11,15 @@ import { AutomationEditor } from "@/components/erp/automation-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function AutomationRulePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function AutomationRulePage({ params }: { params: Promise<{ number: string }> }) {
+  const raw = (await params).number;
   return loadErpPage("automation.manage", async ({ orgId }) => {
-    const [rule] = id === "new" ? [] : await db.select().from(automationRules)
-      .where(and(eq(automationRules.id, id), eq(automationRules.organizationId, orgId))).limit(1);
-    if (id !== "new" && !rule) notFound();
+    const isNew = raw === "new";
+    const number = isNew ? null : await docNumberParam(raw, orgId, automationRules,
+      { id: automationRules.id, number: automationRules.number, organizationId: automationRules.organizationId }, "/automation");
+    const [rule] = number === null ? [] : await db.select().from(automationRules)
+      .where(and(eq(automationRules.number, number), eq(automationRules.organizationId, orgId))).limit(1);
+    if (!isNew && !rule) notFound();
 
     const members = await db.select({ id: organizationMembers.userId, name: users.name, role: organizationMembers.role })
       .from(organizationMembers).innerJoin(users, eq(users.id, organizationMembers.userId))

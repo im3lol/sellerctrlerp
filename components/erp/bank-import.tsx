@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -14,6 +15,7 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
 
 /** Upload the bank's own statement file — see what was read, then save it. */
 export function BankImport({ bankAccountId }: { bankAccountId: string }) {
+  const t = useT();
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -35,7 +37,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>استيراد كشف الحساب</CardTitle>
+        <CardTitle>{t("استيراد كشف الحساب")}</CardTitle>
         <CardDescription>
           ارفع ملف الكشف زي ما البنك بيطلّعه (Excel أو CSV). بنعرف الأعمدة من عناوينها، وبتشوف اللي اتقرا قبل ما يتحفظ،
           والحركة اللي اتسجلت قبل كده مابتتكررش.
@@ -58,10 +60,10 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-start font-medium">التاريخ</th>
-                      <th className="px-3 py-2 text-start font-medium">البيان</th>
-                      <th className="px-3 py-2 text-start font-medium">وارد</th>
-                      <th className="px-3 py-2 text-start font-medium">صادر</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("التاريخ")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("البيان")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("وارد")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("صادر")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">

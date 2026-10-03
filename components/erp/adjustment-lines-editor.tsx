@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
@@ -30,6 +31,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const qf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: EditorLine[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [edits, setEdits] = useState<Record<string, { actual: string; unitCost: string }>>(
@@ -57,7 +59,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
       lines: rows.map((x) => ({ lineId: x.lineId, actual: x.actual, unitCost: Number(edits[x.lineId]?.unitCost) > 0 ? Number(edits[x.lineId].unitCost) : undefined })),
     });
     if (r.ok) { toast.success("تم حفظ الكميات — التسوية ما زالت مسودة حتى التأكيد"); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   const inputCls = "h-8 w-24 rounded-md border bg-background px-2 text-sm tabular-nums";
@@ -68,13 +70,13 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
         <TableHeader>
           <TableRow>
             <TableHead className="w-8" />
-            <TableHead className="text-start">الصنف</TableHead>
-            <TableHead className="text-start">المخزن</TableHead>
-            <TableHead className="text-start" title="الرصيد الحالي بالنظام في هذا المخزن">الكمية بالنظام</TableHead>
-            <TableHead className="text-start" title="الكمية المعدودة فعليًا — عدّلها بعد الجرد">الكمية الفعلية</TableHead>
-            <TableHead className="text-start">الفرق</TableHead>
-            <TableHead className="text-start" title="تُملأ تلقائيًا: متوسط تكلفة المخزن، وإن كان صفرًا فمتوسط كل المخازن، ثم آخر تكلفة شراء">التكلفة</TableHead>
-            <TableHead className="text-start">القيمة التقديرية</TableHead>
+            <TableHead className="text-start">{t("الصنف")}</TableHead>
+            <TableHead className="text-start">{t("المخزن")}</TableHead>
+            <TableHead className="text-start" title={t("الرصيد الحالي بالنظام في هذا المخزن")}>{t("الكمية بالنظام")}</TableHead>
+            <TableHead className="text-start" title={t("الكمية المعدودة فعليًا — عدّلها بعد الجرد")}>{t("الكمية الفعلية")}</TableHead>
+            <TableHead className="text-start">{t("الفرق")}</TableHead>
+            <TableHead className="text-start" title={t("تُملأ تلقائيًا: متوسط تكلفة المخزن، وإن كان صفرًا فمتوسط كل المخازن، ثم آخر تكلفة شراء")}>{t("التكلفة")}</TableHead>
+            <TableHead className="text-start">{t("القيمة التقديرية")}</TableHead>
             <TableHead className="w-8" />
           </TableRow>
         </TableHeader>
@@ -102,7 +104,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
                   <input
                     type="number" min="0" step="any" dir="ltr"
                     className={inputCls}
-                    placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : "أدخل التكلفة"}
+                    placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : t("أدخل التكلفة")}
                     value={edits[r.lineId]?.unitCost ?? ""}
                     onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], unitCost: e.target.value } }))}
                   />
@@ -114,13 +116,13 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
         </TableBody>
         <TableFooter>
           <TableRow className="font-bold">
-            <TableCell colSpan={6}>الإجمالي التقديري</TableCell>
+            <TableCell colSpan={6}>{t("الإجمالي التقديري")}</TableCell>
             <TableCell className="tabular-nums">{fmt(total)}</TableCell>
           </TableRow>
         </TableFooter>
       </Table>
       <div className="flex items-center justify-end gap-2">
-        <span className="text-xs text-muted-foreground">التعديلات لا تُرحّل — التسوية تظل مسودة حتى الضغط على «تأكيد».</span>
+        <span className="text-xs text-muted-foreground">{t("التعديلات لا تُرحّل — التسوية تظل مسودة حتى الضغط على «تأكيد».")}</span>
         <Button onClick={save} disabled={pending || hasInvalid}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}حفظ الكميات
         </Button>

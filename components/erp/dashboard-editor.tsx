@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,12 +19,13 @@ type ReportOption = { id: string; nameAr: string; datasetTitle: string; isShared
 
 /** A new dashboard starts as a name; its reports go in on its own page. */
 export function NewDashboardButton() {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState<string | null>(null);
 
   if (name == null) {
-    return <Button onClick={() => setName("")}><Icon name="Plus" className="size-4" />لوحة جديدة</Button>;
+    return <Button onClick={() => setName("")}><Icon name="Plus" className="size-4" />{t("لوحة جديدة")}</Button>;
   }
   return (
     <form className="flex flex-wrap items-center gap-2"
@@ -31,28 +33,29 @@ export function NewDashboardButton() {
         e.preventDefault();
         start(async () => {
           const r = await saveDashboardAction({ nameAr: name, widgets: [] });
-          if (!r.ok || !r.id) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
-          router.push(`/reports/dashboards/${r.id}?edit=1`);
+          if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر الإنشاء")); return; }
+          router.push(`/reports/dashboards/${encodeURIComponent(r.number)}?edit=1`);
         });
       }}>
-      <Input className="w-64" autoFocus placeholder="اسم اللوحة" value={name} onChange={(e) => setName(e.target.value)} />
-      <Button type="submit" disabled={pending || !name.trim()}><Icon name="Check" className="size-4" />أنشئ</Button>
-      <Button type="button" variant="ghost" onClick={() => setName(null)}>رجوع</Button>
+      <Input className="w-64" autoFocus placeholder={t("اسم اللوحة")} value={name} onChange={(e) => setName(e.target.value)} />
+      <Button type="submit" disabled={pending || !name.trim()}><Icon name="Check" className="size-4" />{t("أنشئ")}</Button>
+      <Button type="button" variant="ghost" onClick={() => setName(null)}>{t("رجوع")}</Button>
     </form>
   );
 }
 
 export function DashboardEditor({ dashboard, reports }: {
-  dashboard: { id: string; nameAr: string; isShared: boolean; widgets: Widget[] };
+  dashboard: { id: string; number: string; nameAr: string; isShared: boolean; widgets: Widget[] };
   reports: ReportOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [nameAr, setName] = useState(dashboard.nameAr);
   const [isShared, setShared] = useState(dashboard.isShared);
   const [widgets, setWidgets] = useState<Widget[]>(dashboard.widgets);
   const [pick, setPick] = useState("");
-  const view = `/reports/dashboards/${dashboard.id}`;
+  const view = `/reports/dashboards/${encodeURIComponent(dashboard.number)}`;
 
   const report = (id: string) => reports.find((r) => r.id === id);
   // A private report on a shared dashboard shows only to its owner — say so before saving.
@@ -68,7 +71,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
   const save = () => start(async () => {
     const r = await saveDashboardAction({ id: dashboard.id, nameAr, isShared, widgets });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
     toast.success("اتحفظت");
     router.push(view);
     router.refresh();
@@ -83,7 +86,7 @@ export function DashboardEditor({ dashboard, reports }: {
     if (!go) return;
     start(async () => {
       const r = await deleteDashboardAction(dashboard.id);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر المسح"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر المسح")); return; }
       toast.success("اتمسحت");
       router.push("/reports/dashboards");
     });
@@ -92,13 +95,13 @@ export function DashboardEditor({ dashboard, reports }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>تعديل اللوحة</CardTitle>
-        <CardDescription>كل مربّع في اللوحة تقرير محفوظ من باني التقارير — بالرسم اللي اتحفظ بيه.</CardDescription>
+        <CardTitle>{t("تعديل اللوحة")}</CardTitle>
+        <CardDescription>{t("كل مربّع في اللوحة تقرير محفوظ من باني التقارير — بالرسم اللي اتحفظ بيه.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
-            <Label>الاسم</Label>
+            <Label>{t("الاسم")}</Label>
             <Input className="w-64" value={nameAr} onChange={(e) => setName(e.target.value)} />
           </div>
           <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
@@ -110,14 +113,14 @@ export function DashboardEditor({ dashboard, reports }: {
 
         {reports.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            مفيش تقارير محفوظة لسه — ابنِ واحد من <Link href="/reports/builder" className="text-primary underline">باني التقارير</Link> واحفظه.
+            مفيش تقارير محفوظة لسه — ابنِ واحد من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> واحفظه.
           </p>
         ) : (
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-2">
-              <Label>ضيف تقرير محفوظ</Label>
+              <Label>{t("ضيف تقرير محفوظ")}</Label>
               <select className={`${selectCls} w-72`} value={pick} onChange={(e) => setPick(e.target.value)}>
-                <option value="">اختار…</option>
+                <option value="">{t("اختار…")}</option>
                 {reports.map((r) => <option key={r.id} value={r.id}>{r.nameAr} ({r.datasetTitle})</option>)}
               </select>
             </div>
@@ -132,18 +135,18 @@ export function DashboardEditor({ dashboard, reports }: {
           <ol className="space-y-2">
             {widgets.map((w, i) => (
               <li key={`${w.reportId}-${i}`} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                <span className="flex-1 truncate">{report(w.reportId)?.nameAr ?? "تقرير مش متاح"}</span>
+                <span className="flex-1 truncate">{report(w.reportId)?.nameAr ?? t("تقرير مش متاح")}</span>
                 <Button size="sm" variant={w.wide ? "default" : "outline"}
                   onClick={() => setWidgets((ws) => ws.map((x, k) => (k === i ? { ...x, wide: !x.wide } : x)))}>
-                  {w.wide ? "عرض كامل" : "نص عرض"}
+                  {w.wide ? t("عرض كامل") : t("نص عرض")}
                 </Button>
-                <Button size="icon" variant="ghost" aria-label="لفوق" disabled={i === 0} onClick={() => move(i, -1)}>
+                <Button size="icon" variant="ghost" aria-label={t("لفوق")} disabled={i === 0} onClick={() => move(i, -1)}>
                   <Icon name="ArrowUp" className="size-4" />
                 </Button>
-                <Button size="icon" variant="ghost" aria-label="لتحت" disabled={i === widgets.length - 1} onClick={() => move(i, 1)}>
+                <Button size="icon" variant="ghost" aria-label={t("لتحت")} disabled={i === widgets.length - 1} onClick={() => move(i, 1)}>
                   <Icon name="ArrowDown" className="size-4" />
                 </Button>
-                <Button size="icon" variant="ghost" aria-label="شيل" onClick={() => setWidgets((ws) => ws.filter((_, k) => k !== i))}>
+                <Button size="icon" variant="ghost" aria-label={t("شيل")} onClick={() => setWidgets((ws) => ws.filter((_, k) => k !== i))}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
               </li>
@@ -158,8 +161,8 @@ export function DashboardEditor({ dashboard, reports }: {
         )}
 
         <div className="flex flex-wrap gap-2">
-          <Button disabled={pending || !nameAr.trim()} onClick={save}><Icon name="Check" className="size-4" />احفظ</Button>
-          <Button variant="ghost" onClick={() => router.push(view)}>رجوع</Button>
+          <Button disabled={pending || !nameAr.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("احفظ")}</Button>
+          <Button variant="ghost" onClick={() => router.push(view)}>{t("رجوع")}</Button>
           <Button variant="ghost" className="ms-auto text-destructive" disabled={pending} onClick={remove}>
             <Icon name="Trash2" className="size-4" />امسح اللوحة
           </Button>

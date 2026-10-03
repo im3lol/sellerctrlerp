@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ const CHANNEL_STATUS: Record<string, { label: string; variant: "default" | "seco
 const DELIVERING = new Set(["CONFIRMED", "PARTIALLY_DELIVERED", "DELIVERED", "INVOICED"]);
 
 export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: SalesOrdersFilter }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -59,13 +61,13 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
   const bulk = (op: "confirm" | "cancel" | "delete" | "deliver") => {
-    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : op === "deliver" ? "تحويل لإذن صرف" : "حذف";
+    const verb = op === "confirm" ? t("تأكيد") : op === "cancel" ? t("إلغاء") : op === "deliver" ? t("تحويل لإذن صرف") : t("حذف");
     void (async () => {
       if (!(await confirm({ title: `${verb} ${int(count)} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
         const r = await bulkSalesOrdersAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} أمر`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -78,24 +80,24 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
           {!allPages && allSelected && total > ids.length && (
             <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
           )}
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
-            {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCreate && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title="ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية"><Icon name="Truck" className="size-4" />تحويل لإذن صرف</Button>}
-            {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />إلغاء</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCreate && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("deliver")} title={t("ينشئ إذن صرف مسودة لكل أمر مؤكّد بالكمية المتبقية")}><Icon name="Truck" className="size-4" />{t("تحويل لإذن صرف")}</Button>}
+            {canConfirm && <Button size="sm" variant="outline" disabled={pending} onClick={() => bulk("cancel")}><Icon name="X" className="size-4" />{t("إلغاء")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => bulk("delete")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">العميل</TableHead>
-            <TableHead className="text-start">الإجمالي</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("العميل")}</TableHead>
+            <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -108,13 +110,13 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
                       <div className="mt-0.5 flex items-center gap-1">
-                        {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
-                        {r.fulfillmentType && <Badge variant="outline" className="text-[10px]" title="قناة التنفيذ">{r.fulfillmentType}</Badge>}
+                        {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{t(CHANNEL_LABEL[r.channel])}</Badge>}
+                        {r.fulfillmentType && <Badge variant="outline" className="text-[10px]" title={t("قناة التنفيذ")}>{r.fulfillmentType}</Badge>}
                         {r.channelStatus && CHANNEL_STATUS[r.channelStatus] && (
                           <Badge variant={CHANNEL_STATUS[r.channelStatus].variant} className={`text-[10px] ${CHANNEL_STATUS[r.channelStatus].cls ?? ""}`}>
                             {CHANNEL_STATUS[r.channelStatus].label}
@@ -129,7 +131,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div>
+                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div>
                       {showBar && (
                         <div className="flex items-center gap-2">
                           <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
@@ -154,7 +156,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { promotions, items, organizations } from "@/db/schema";
@@ -8,6 +9,7 @@ import { PromotionsManager } from "@/components/erp/promotions-manager";
 import type { Promotion } from "@/lib/erp/promotions";
 
 export default async function PromotionsPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [rows, itemList, org] = await Promise.all([
       db.select({
@@ -37,8 +39,8 @@ export default async function PromotionsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="BadgePercent"
-          title="العروض ونقط الولاء"
-          subtitle="خصومات بتشتغل لوحدها على الكاشير، ونقط العميل بيكسبها ويصرفها"
+          title={t("العروض ونقط الولاء")}
+          subtitle={t("خصومات بتشتغل لوحدها على الكاشير، ونقط العميل بيكسبها ويصرفها")}
           backHref="/sales"
           action={<DatasetExport dataset="promotions" />}
         />

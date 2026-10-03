@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, items, organizations, salesQuotations, salesQuotationLines } from "@/db/schema";
@@ -10,6 +11,7 @@ export default async function NewSalesOrderPage({
 }: {
   searchParams: Promise<{ customerId?: string; fromQuotation?: string }>;
 }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
     const [custList, itemList, org] = await Promise.all([
@@ -44,7 +46,7 @@ export default async function NewSalesOrderPage({
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title="أمر بيع جديد" subtitle={initialLines ? "معبّأ من عرض السعر — راجِع وأكمل" : "التزام بيع — يُحوّل لفاتورة لاحقاً"} backHref="/sales/orders" />
+        <ErpPageHeader icon="ClipboardList" title={t("أمر بيع جديد")} subtitle={initialLines ? t("معبّأ من عرض السعر — راجِع وأكمل") : t("التزام بيع — يُحوّل لفاتورة لاحقاً")} backHref="/sales/orders" />
         <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} defaultCustomerId={defaultCustomerId} channelCustomerId={channelCustomerId} initialLines={initialLines} />
       </div>
     );

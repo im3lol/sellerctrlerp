@@ -1,4 +1,5 @@
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesOrders, salesInvoices, salesQuotations, deliveryNotes } from "@/db/schema";
@@ -24,6 +25,7 @@ const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
  * note on /erp/purchases for the reasoning.
  */
 export default async function ErpSalesPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const today = new Date();
 
@@ -76,7 +78,7 @@ export default async function ErpSalesPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="ShoppingCart" title="المبيعات" subtitle="نظرة عامة على دورة البيع والعملاء"
+        <ErpPageHeader icon="ShoppingCart" title={t("المبيعات")} subtitle={t("نظرة عامة على دورة البيع والعملاء")}
           action={<AcademyLink module="sales" />} />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -84,7 +86,7 @@ export default async function ErpSalesPage() {
             <Card key={k.label}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <Icon name={k.icon} className="size-4 text-muted-foreground" />
                 </div>
                 <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>
@@ -100,12 +102,12 @@ export default async function ErpSalesPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>أكبر العملاء</CardTitle>
+              <CardTitle>{t("أكبر العملاء")}</CardTitle>
               <CardDescription>صافي المبيعات (بدون ضريبة) من الفواتير المُرحّلة — {ranked.from} → {ranked.to}.</CardDescription>
             </CardHeader>
             <CardContent>
               {top.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">لا توجد مبيعات مُرحّلة في الفترة.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد مبيعات مُرحّلة في الفترة.")}</p>
               ) : (
                 <div className="space-y-3">
                   {top.map((r) => (
@@ -126,15 +128,15 @@ export default async function ErpSalesPage() {
 
           <Card className="flex flex-col justify-center">
             <CardContent className="space-y-4 py-8 text-center">
-              <div className="text-sm text-muted-foreground">إجمالي مبيعات السنة</div>
+              <div className="text-sm text-muted-foreground">{t("إجمالي مبيعات السنة")}</div>
               <div className="text-4xl font-bold tabular-nums">{money(ranked.total)}</div>
               <div className="flex justify-center gap-6 pt-2 text-sm">
                 <div>
-                  <div className="text-muted-foreground">مستحق على العملاء</div>
+                  <div className="text-muted-foreground">{t("مستحق على العملاء")}</div>
                   <div className="font-semibold tabular-nums">{money(ar)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">عملاء</div>
+                  <div className="text-muted-foreground">{t("عملاء")}</div>
                   <div className="font-semibold tabular-nums">{intf(cnt(custCount))}</div>
                 </div>
               </div>
@@ -144,7 +146,7 @@ export default async function ErpSalesPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="المبيعات" permissions={permissions} counts={counts}
+        <ModuleWorkspace heading={t("المبيعات")} permissions={permissions} counts={counts}
           actions={[{ label: "أمر بيع جديد", href: "/sales/orders/new", icon: "Plus" }, { label: "فاتورة بيع جديدة", href: "/sales/invoices/new", icon: "Plus" }]} />
       </div>
     );

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -25,6 +26,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 const METHOD: Record<string, string> = { value: "حسب القيمة", qty: "حسب الكمية", weight: "حسب الوزن" };
 
 export default async function LandedCostDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.create", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -69,31 +71,31 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(v.date)}</Field>
-          <Field label="طريقة التوزيع">{METHOD[v.method] ?? v.method}</Field>
-          <Field label="الإجمالي">{fmt(v.totalAmount)} ج.م</Field>
-          <Field label="الشحن">{fmt(v.shipping)}</Field>
-          <Field label="الجمارك">{fmt(v.customs)}</Field>
-          <Field label="التأمين">{fmt(v.insurance)}</Field>
-          <Field label="أخرى">{fmt(v.other)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(v.date)}</Field>
+          <Field label={t("طريقة التوزيع")}>{t(METHOD[v.method] ?? v.method)}</Field>
+          <Field label={t("الإجمالي")}>{fmt(v.totalAmount)} ج.م</Field>
+          <Field label={t("الشحن")}>{fmt(v.shipping)}</Field>
+          <Field label={t("الجمارك")}>{fmt(v.customs)}</Field>
+          <Field label={t("التأمين")}>{fmt(v.insurance)}</Field>
+          <Field label={t("أخرى")}>{fmt(v.other)}</Field>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>توزيع التكاليف</CardTitle>
-            <CardDescription>ما حُمِّل على كل بند من إذون الاستلام المشمولة.</CardDescription>
+            <CardTitle>{t("توزيع التكاليف")}</CardTitle>
+            <CardDescription>{t("ما حُمِّل على كل بند من إذون الاستلام المشمولة.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الإذن</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">المستودع</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">شحن/وحدة</TableHead>
-                  <TableHead className="text-start">المحمَّل</TableHead>
+                  <TableHead className="text-start">{t("الإذن")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("المستودع")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>
+                  <TableHead className="text-start">{t("المحمَّل")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

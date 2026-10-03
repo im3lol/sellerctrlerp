@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmSalesReturnAction, deleteSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -18,6 +19,7 @@ import { selectCls } from "@/lib/utils";
 export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }: {
   id: string; defaultDisposition: string | null; warehouses: { id: string; name: string }[]; dest: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   // "SELLABLE" | "DAMAGED". Anything stored that isn't SELLABLE starts as damaged.
@@ -30,7 +32,7 @@ export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }:
       damagedWarehouseId: cond === "DAMAGED" && dest2 ? dest2 : null,
     });
     if (r.ok) { toast.success("تم تأكيد المرتجع وترحيله"); router.push(dest); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الترحيل");
+    else toast.error(r.error ?? t("تعذّر الترحيل"));
   });
 
   const doDelete = () => void (async () => {
@@ -38,24 +40,24 @@ export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }:
     start(async () => {
       const r = await deleteSalesReturnAction(id);
       if (r.ok) { toast.success("تم حذف المرتجع"); router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
   })();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select value={cond} onChange={(e) => setCond(e.target.value as "SELLABLE" | "DAMAGED")} className={`${selectCls} h-9 w-40`} aria-label="حالة البضاعة المرتجعة">
-        <option value="SELLABLE">قابل للبيع</option>
-        <option value="DAMAGED">تالف / غير قابل للبيع</option>
+      <select value={cond} onChange={(e) => setCond(e.target.value as "SELLABLE" | "DAMAGED")} className={`${selectCls} h-9 w-40`} aria-label={t("حالة البضاعة المرتجعة")}>
+        <option value="SELLABLE">{t("قابل للبيع")}</option>
+        <option value="DAMAGED">{t("تالف / غير قابل للبيع")}</option>
       </select>
       {cond === "DAMAGED" && (
-        <select value={dest2} onChange={(e) => setDest2(e.target.value)} className={`${selectCls} h-9 w-44`} aria-label="وجهة البضاعة التالفة">
-          <option value="">شطب (خسارة)</option>
+        <select value={dest2} onChange={(e) => setDest2(e.target.value)} className={`${selectCls} h-9 w-44`} aria-label={t("وجهة البضاعة التالفة")}>
+          <option value="">{t("شطب (خسارة)")}</option>
           {warehouses.map((w) => <option key={w.id} value={w.id}>مخزن: {w.name}</option>)}
         </select>
       )}
-      <Button size="sm" disabled={pending} onClick={doConfirm}><Icon name="Check" className="size-4" />تأكيد المرتجع</Button>
-      <Button size="sm" variant="ghost" disabled={pending} onClick={doDelete}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>
+      <Button size="sm" disabled={pending} onClick={doConfirm}><Icon name="Check" className="size-4" />{t("تأكيد المرتجع")}</Button>
+      <Button size="sm" variant="ghost" disabled={pending} onClick={doDelete}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>
     </div>
   );
 }

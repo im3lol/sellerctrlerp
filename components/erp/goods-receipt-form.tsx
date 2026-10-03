@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export function GoodsReceiptForm({
   warehouses: Warehouse[];
   openOrders: OpenOrder[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
@@ -53,7 +55,7 @@ export function GoodsReceiptForm({
     if (!id) return;
     startLoad(async () => {
       const r = await getReceivableOrderLinesAction(id);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر استدعاء الأمر")); return; }
       if (r.lines.length === 0) { toast.message("تم استلام كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
       setLines(r.lines.map((l) => ({
@@ -88,7 +90,7 @@ export function GoodsReceiptForm({
         toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
         router.push(r.number ? `/purchases/receipts/${encodeURIComponent(r.number)}` : "/purchases/receipts");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -96,10 +98,10 @@ export function GoodsReceiptForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات إذن الاستلام</CardTitle>
+          <CardTitle>{t("بيانات إذن الاستلام")}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الاستلام</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/receipts")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/receipts")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
@@ -107,34 +109,34 @@ export function GoodsReceiptForm({
         {/* Section 1 — البيانات */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label>المورد</Label>
+            <Label>{t("المورد")}</Label>
             <CellCombobox
               selectedLabel={supplierLabelById.get(supplierId) ?? ""}
               options={supplierOptions}
               onSelect={(id) => onSupplier(id)}
-              placeholder="ابحث عن المورد…"
+              placeholder={t("ابحث عن المورد…")}
             />
           </div>
-          <div className="space-y-2"><Label>تاريخ الاستلام</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ الاستلام")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         {/* Recall an open purchase order for the chosen supplier */}
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>استدعاء أمر شراء</Label>
+            <Label>{t("استدعاء أمر شراء")}</Label>
             <select className={selectCls} value={orderId} disabled={!supplierId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{supplierId ? "— اختر أمراً مفتوحاً —" : "اختر المورد أولاً"}</option>
+              <option value="">{supplierId ? t("— اختر أمراً مفتوحاً —") : t("اختر المورد أولاً")}</option>
               {supplierOrders.map((o) => <option key={o.id} value={o.id}>{o.number} — {o.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
-            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />جارٍ تحميل بنود الأمر…</span>
-              : supplierId && supplierOrders.length === 0 ? "لا توجد أوامر شراء مفتوحة لهذا المورد."
-              : "تنزل أصناف الأمر المتبقّية (غير المستلمة) في الجدول."}
+            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الأمر…")}</span>
+              : supplierId && supplierOrders.length === 0 ? t("لا توجد أوامر شراء مفتوحة لهذا المورد.")
+              : t("تنزل أصناف الأمر المتبقّية (غير المستلمة) في الجدول.")}
           </div>
         </div>
 
@@ -143,20 +145,20 @@ export function GoodsReceiptForm({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-14 text-start">صورة</TableHead>
-                <TableHead className="text-start">المنتج</TableHead>
-                <TableHead className="w-44 text-start">مخزن الاستلام</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-28 text-start">الكمية المستلمة</TableHead>
-                <TableHead className="w-28 text-start">الكمية المرفوضة</TableHead>
-                <TableHead className="w-32 text-start">رقم التشغيلة</TableHead>
-                <TableHead className="w-36 text-start">تاريخ الصلاحية</TableHead>
+                <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                <TableHead className="text-start">{t("المنتج")}</TableHead>
+                <TableHead className="w-44 text-start">{t("مخزن الاستلام")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-28 text-start">{t("المخزون الحالي")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الكمية المستلمة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الكمية المرفوضة")}</TableHead>
+                <TableHead className="w-32 text-start">{t("رقم التشغيلة")}</TableHead>
+                <TableHead className="w-36 text-start">{t("تاريخ الصلاحية")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">{t("اختر المورد ثم استدعِ أمر شراء لعرض الأصناف.")}</TableCell></TableRow>
               ) : (
                 <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.itemId}>
@@ -171,7 +173,7 @@ export function GoodsReceiptForm({
                     <TableCell className="tabular-nums text-muted-foreground">{qtyf(l.stockByWarehouse[l.warehouseId] ?? 0)}</TableCell>
                     <TableCell><Input type="number" step="1" min="0" max={l.remaining} value={l.received} onChange={(e) => setLine(l.itemId, { received: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                     <TableCell><Input type="number" step="1" min="0" value={l.rejected} onChange={(e) => setLine(l.itemId, { rejected: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                    <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder="اختياري" /> : <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>{l.isPerishable ? <Input value={l.batchNo} onChange={(e) => setLine(l.itemId, { batchNo: e.target.value })} placeholder={t("اختياري")} /> : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{l.isPerishable ? <Input type="date" value={l.expiryDate} onChange={(e) => setLine(l.itemId, { expiryDate: e.target.value })} /> : <span className="text-muted-foreground">—</span>}</TableCell>
                   </TableRow>
                 ))} />
@@ -186,8 +188,8 @@ export function GoodsReceiptForm({
               تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على هذا الإذن.
             </p>
             <div className="flex justify-end gap-6 text-sm">
-              <div>إجمالي المستلم: <span className="font-medium">{qtyf(totalReceived)}</span></div>
-              <div>إجمالي المرفوض: <span className="font-medium">{qtyf(totalRejected)}</span></div>
+              <div>{t("إجمالي المستلم:")} <span className="font-medium">{qtyf(totalReceived)}</span></div>
+              <div>{t("إجمالي المرفوض:")} <span className="font-medium">{qtyf(totalRejected)}</span></div>
             </div>
           </>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,8 +28,9 @@ export function InvoiceReturnForm({
   backHref: string;
   lines: ReturnLine[];
 }) {
-  const docLabel = type === "receipt" ? "إذن استلام" : type === "delivery" ? "إذن صرف" : "فاتورة";
-  const qtyLabel = type === "receipt" ? "المستلم" : type === "delivery" ? "المُسلّم" : "المفوتر";
+  const t = useT();
+  const docLabel = type === "receipt" ? t("إذن استلام") : type === "delivery" ? t("إذن صرف") : t("فاتورة");
+  const qtyLabel = type === "receipt" ? t("المستلم") : type === "delivery" ? t("المُسلّم") : t("المفوتر");
   const salesSide = type === "sales" || type === "delivery";
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -56,7 +58,7 @@ export function InvoiceReturnForm({
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
         router.push(`/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
+      } else toast.error(r.error ?? t("تعذّر حفظ المرتجع"));
     });
   };
 
@@ -67,25 +69,25 @@ export function InvoiceReturnForm({
           <CardTitle>مرتجع من {docLabel} {invoiceNumber}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المرتجع</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="space-y-2"><Label>تاريخ المرتجع</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ المرتجع")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
+                <TableHead className="text-start">{t("الصنف")}</TableHead>
                 <TableHead className="w-24 text-start">{qtyLabel}</TableHead>
-                <TableHead className="w-24 text-start">المرتجع سابقاً</TableHead>
-                <TableHead className="w-24 text-start">المتبقّي</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-32 text-start">كمية المرتجع</TableHead>
+                <TableHead className="w-24 text-start">{t("المرتجع سابقاً")}</TableHead>
+                <TableHead className="w-24 text-start">{t("المتبقّي")}</TableHead>
+                <TableHead className="w-28 text-start">{t("السعر")}</TableHead>
+                <TableHead className="w-32 text-start">{t("كمية المرتجع")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { HandCoins, Loader2, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  * loss it compensates (a return not received / a disposed removal) when we can match it.
  */
 export function MarketplaceReimbursementsClient({ initial }: { initial: ReimbursementRow[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -31,13 +33,13 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تعويضات بانتظار التسجيل ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد تعويضات بانتظار التسجيل ✓")}</CardContent></Card>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>قيد يومية مسودّة</b> (مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.
+        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>{t("قيد يومية مسودّة")}</b> (مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;

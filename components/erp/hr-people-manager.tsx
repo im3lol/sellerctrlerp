@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -56,13 +57,14 @@ const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFraction
 const today = () => new Date().toISOString().slice(0, 10);
 
 const useRun = () => {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, good: string, after?: () => void) =>
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(good); after?.(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّرت العملية");
+      else toast.error(r.error ?? t("تعذّرت العملية"));
     });
   return { pending, run };
 };
@@ -76,6 +78,7 @@ const OPENING_STATUS: Record<OpeningRow["status"], string> = {
 export function RecruitmentManager({ openings, applicants, employees, canManage }: {
   openings: OpeningRow[]; applicants: ApplicantRow[]; employees: Option[]; canManage: boolean;
 }) {
+  const t = useT();
   const { pending, run } = useRun();
   const [openingForm, setOpeningForm] = useState<Partial<OpeningRow> & { open?: boolean } | null>(null);
   const [selected, setSelected] = useState<string | null>(openings[0]?.id ?? null);
@@ -93,8 +96,8 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>الوظائف المفتوحة</CardTitle>
-              <CardDescription>الوظيفة اللي عليها متقدّمين بتتقفل، مبتتمسحش — دي سجلّ مين اتفكّر فيه.</CardDescription>
+              <CardTitle>{t("الوظائف المفتوحة")}</CardTitle>
+              <CardDescription>{t("الوظيفة اللي عليها متقدّمين بتتقفل، مبتتمسحش — دي سجلّ مين اتفكّر فيه.")}</CardDescription>
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setOpeningForm({ titleAr: "", headcount: 1, status: "OPEN", salaryFrom: 0, salaryTo: 0 })}>
@@ -106,26 +109,26 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
         <CardContent className="space-y-4">
           {openingForm && (
             <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-              <div className="w-56 space-y-2"><Label>المسمّى</Label>
+              <div className="w-56 space-y-2"><Label>{t("المسمّى")}</Label>
                 <Input value={openingForm.titleAr ?? ""} autoFocus
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, titleAr: e.target.value }))} /></div>
-              <div className="w-40 space-y-2"><Label>القسم</Label>
+              <div className="w-40 space-y-2"><Label>{t("القسم")}</Label>
                 <Input value={openingForm.department ?? ""}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, department: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>العدد</Label>
+              <div className="space-y-2"><Label>{t("العدد")}</Label>
                 <Input type="number" step="1" min="1" className="w-20" value={openingForm.headcount ?? 1}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, headcount: Number(e.target.value) || 1 }))} /></div>
-              <div className="space-y-2"><Label>الراتب من</Label>
+              <div className="space-y-2"><Label>{t("الراتب من")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-28" value={openingForm.salaryFrom ?? 0}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, salaryFrom: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label>إلى</Label>
+              <div className="space-y-2"><Label>{t("إلى")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-28" value={openingForm.salaryTo ?? 0}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, salaryTo: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label>الحالة</Label>
+              <div className="space-y-2"><Label>{t("الحالة")}</Label>
                 <select className={`${selectCls} w-32`} value={openingForm.status ?? "OPEN"}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, status: e.target.value as OpeningRow["status"] }))}>
                   {(Object.keys(OPENING_STATUS) as OpeningRow["status"][]).map((k) => (
-                    <option key={k} value={k}>{OPENING_STATUS[k]}</option>
+                    <option key={k} value={k}>{t(OPENING_STATUS[k])}</option>
                   ))}
                 </select></div>
               <Button disabled={pending || !openingForm.titleAr?.trim()}
@@ -137,23 +140,23 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 }), "اتحفظت", () => setOpeningForm(null))}>
                 <Icon name="Check" className="size-4" />احفظ
               </Button>
-              <Button variant="ghost" onClick={() => setOpeningForm(null)}>رجوع</Button>
+              <Button variant="ghost" onClick={() => setOpeningForm(null)}>{t("رجوع")}</Button>
             </div>
           )}
 
           {openings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش وظائف مفتوحة.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش وظائف مفتوحة.")}</p>
           ) : (
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">المسمّى</TableHead>
-                    <TableHead className="text-start">العدد</TableHead>
-                    <TableHead className="text-start">الراتب</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
-                    <TableHead className="text-start">متقدّمين</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("المسمّى")}</TableHead>
+                    <TableHead className="text-start">{t("العدد")}</TableHead>
+                    <TableHead className="text-start">{t("الراتب")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
+                    <TableHead className="text-start">{t("متقدّمين")}</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
@@ -170,16 +173,16 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                       <TableCell className="text-sm tabular-nums">
                         {o.salaryFrom > 0 || o.salaryTo > 0 ? `${money(o.salaryFrom)} — ${money(o.salaryTo)}` : "—"}
                       </TableCell>
-                      <TableCell><Badge variant="outline">{OPENING_STATUS[o.status]}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{t(OPENING_STATUS[o.status])}</Badge></TableCell>
                       <TableCell className="tabular-nums">{applicants.filter((a) => a.openingId === o.id).length}</TableCell>
                       <TableCell>
                         {canManage && (
                           <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" aria-label="تعديل"
+                            <Button size="icon" variant="ghost" aria-label={t("تعديل")}
                               onClick={(e) => { e.stopPropagation(); setOpeningForm(o); }}>
                               <Icon name="Edit" className="size-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" aria-label="مسح"
+                            <Button size="icon" variant="ghost" aria-label={t("مسح")}
                               onClick={(e) => { e.stopPropagation(); run(() => deleteOpeningAction(o.id), "اتمسحت"); }}>
                               <Icon name="Trash2" className="size-4 text-destructive" />
                             </Button>
@@ -200,7 +203,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
           <CardHeader>
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div>
-                <CardTitle>المتقدّمون</CardTitle>
+                <CardTitle>{t("المتقدّمون")}</CardTitle>
                 <CardDescription>
                   {f.active} في المسار
                   {f.hireRate != null && ` · نسبة التعيين ${f.hireRate}٪`}
@@ -218,19 +221,19 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
           <CardContent className="space-y-4">
             {applicantForm && (
               <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                <div className="w-48 space-y-2"><Label>الاسم</Label>
+                <div className="w-48 space-y-2"><Label>{t("الاسم")}</Label>
                   <Input value={applicantForm.fullName} autoFocus
                     onChange={(e) => setApplicantForm((v) => (v ? { ...v, fullName: e.target.value } : v))} /></div>
-                <div className="w-36 space-y-2"><Label>الهاتف</Label>
+                <div className="w-36 space-y-2"><Label>{t("الهاتف")}</Label>
                   <Input value={applicantForm.phone} dir="ltr"
                     onChange={(e) => setApplicantForm((v) => (v ? { ...v, phone: e.target.value } : v))} /></div>
-                <div className="w-48 space-y-2"><Label>البريد</Label>
+                <div className="w-48 space-y-2"><Label>{t("البريد")}</Label>
                   <Input value={applicantForm.email} dir="ltr"
                     onChange={(e) => setApplicantForm((v) => (v ? { ...v, email: e.target.value } : v))} /></div>
-                <div className="w-32 space-y-2"><Label>المصدر</Label>
-                  <Input value={applicantForm.source} placeholder="ترشيح، إعلان…"
+                <div className="w-32 space-y-2"><Label>{t("المصدر")}</Label>
+                  <Input value={applicantForm.source} placeholder={t("ترشيح، إعلان…")}
                     onChange={(e) => setApplicantForm((v) => (v ? { ...v, source: e.target.value } : v))} /></div>
-                <div className="space-y-2"><Label>الراتب المتوقّع</Label>
+                <div className="space-y-2"><Label>{t("الراتب المتوقّع")}</Label>
                   <Input type="number" step="0.01" min="0" className="w-28" value={applicantForm.expectedSalary}
                     onChange={(e) => setApplicantForm((v) => (v ? { ...v, expectedSalary: e.target.value } : v))} /></div>
                 <Button disabled={pending || !applicantForm.fullName.trim()}
@@ -242,24 +245,24 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                   }), "اتسجّل", () => setApplicantForm(null))}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
-                <Button variant="ghost" onClick={() => setApplicantForm(null)}>رجوع</Button>
+                <Button variant="ghost" onClick={() => setApplicantForm(null)}>{t("رجوع")}</Button>
               </div>
             )}
 
             <div className="flex flex-wrap gap-2">
               {PIPELINE.map((s) => (
-                <Badge key={s} variant="outline">{STAGE_LABEL[s]}: {f.counts[s]}</Badge>
+                <Badge key={s} variant="outline">{t(STAGE_LABEL[s])}: {f.counts[s]}</Badge>
               ))}
               <Badge variant="outline">{STAGE_LABEL.REJECTED}: {f.counts.REJECTED}</Badge>
               {mine.length > 0 && (
                 <Button size="sm" variant="outline" className="ms-auto" onClick={() => setBoard((b) => !b)}>
-                  <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? "قائمة" : "كانبان"}
+                  <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? t("قائمة") : t("كانبان")}
                 </Button>
               )}
             </div>
 
             {mine.length === 0 ? (
-              <p className="text-sm text-muted-foreground">مفيش متقدّمين على الوظيفة دي.</p>
+              <p className="text-sm text-muted-foreground">{t("مفيش متقدّمين على الوظيفة دي.")}</p>
             ) : board ? (
               // Same rule as the stage dropdown (canMoveTo), same action — only dragged.
               <KanbanBoard
@@ -268,7 +271,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 readOnly={!canManage}
                 why={(from, to) => canMoveTo(from as Stage, to as Stage)}
                 move={(id, _from, to) => moveApplicantAction(id, to as Stage)}
-                askBefore={(_from, to) => (to === "REJECTED" ? "رفض المتقدّم؟" : null)}
+                askBefore={(_from, to) => (to === "REJECTED" ? t("رفض المتقدّم؟") : null)}
               />
             ) : mine.map((a) => (
               <div key={a.id} className="space-y-3 rounded-xl border p-4">
@@ -283,14 +286,14 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className={a.stage === "HIRED" ? "bg-emerald-600" : a.stage === "REJECTED" ? "bg-destructive" : undefined}
                       variant={a.stage === "HIRED" || a.stage === "REJECTED" ? undefined : "outline"}>
-                      {STAGE_LABEL[a.stage]}
+                      {t(STAGE_LABEL[a.stage])}
                     </Badge>
                     {canManage && a.stage !== "HIRED" && (
                       <>
                         <select className={`${selectCls} w-32`} value={a.stage}
                           onChange={(e) => run(() => moveApplicantAction(a.id, e.target.value as Stage), "اتحرّك")}>
                           {(Object.keys(STAGE_LABEL) as Stage[]).map((s) => (
-                            <option key={s} value={s}>{STAGE_LABEL[s]}</option>
+                            <option key={s} value={s}>{t(STAGE_LABEL[s])}</option>
                           ))}
                         </select>
                         <Button size="sm" variant="outline" onClick={() => setInterviewFor(interviewFor === a.id ? null : a.id)}>
@@ -304,12 +307,12 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 {canManage && !a.employeeId && (a.stage === "OFFER" || a.stage === "HIRED") && (
                   <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
                     <div className="w-56 space-y-2">
-                      <Label>اربطه بسجل الموظف</Label>
+                      <Label>{t("اربطه بسجل الموظف")}</Label>
                       <CellCombobox
                         selectedLabel=""
                         options={employees}
                         onSelect={(id) => run(() => linkApplicantEmployeeAction(a.id, id), "اترابط")}
-                        placeholder="اختر الموظف بعد ما تسجّله"
+                        placeholder={t("اختر الموظف بعد ما تسجّله")}
                       />
                     </div>
                     <p className="pb-2 text-xs text-muted-foreground">
@@ -320,24 +323,24 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
 
                 {interviewFor === a.id && (
                   <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                    <div className="w-44 space-y-2"><Label>المقابِل</Label>
+                    <div className="w-44 space-y-2"><Label>{t("المقابِل")}</Label>
                       <CellCombobox
                         selectedLabel={employees.find((e) => e.id === interview.interviewerId)?.label ?? ""}
                         options={employees} onSelect={(id) => setInterview((v) => ({ ...v, interviewerId: id }))}
-                        placeholder="اختياري"
+                        placeholder={t("اختياري")}
                       />
                     </div>
-                    <div className="space-y-2"><Label>الموعد</Label>
+                    <div className="space-y-2"><Label>{t("الموعد")}</Label>
                       <Input type="datetime-local" className="w-52" value={interview.scheduledAt}
                         onChange={(e) => setInterview((v) => ({ ...v, scheduledAt: e.target.value }))} /></div>
-                    <div className="space-y-2"><Label>النتيجة</Label>
+                    <div className="space-y-2"><Label>{t("النتيجة")}</Label>
                       <select className={`${selectCls} w-28`} value={interview.outcome}
                         onChange={(e) => setInterview((v) => ({ ...v, outcome: e.target.value }))}>
-                        <option value="PENDING">مستنية</option>
-                        <option value="PASS">نجح</option>
-                        <option value="FAIL">مرفوض</option>
+                        <option value="PENDING">{t("مستنية")}</option>
+                        <option value="PASS">{t("نجح")}</option>
+                        <option value="FAIL">{t("مرفوض")}</option>
                       </select></div>
-                    <div className="space-y-2"><Label>التقييم /٥</Label>
+                    <div className="space-y-2"><Label>{t("التقييم /٥")}</Label>
                       <Input type="number" step="1" min="0" max="5" className="w-20" value={interview.rating}
                         onChange={(e) => setInterview((v) => ({ ...v, rating: e.target.value }))} /></div>
                     <Button disabled={pending}
@@ -358,7 +361,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                       <div key={i.id} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span className="tabular-nums">{i.at}</span>
                         <span>{i.interviewerName ?? "—"}</span>
-                        <Badge variant="outline">{i.outcome === "PASS" ? "نجح" : i.outcome === "FAIL" ? "مرفوض" : "مستنية"}</Badge>
+                        <Badge variant="outline">{i.outcome === "PASS" ? t("نجح") : i.outcome === "FAIL" ? t("مرفوض") : t("مستنية")}</Badge>
                         {i.rating != null && <span>{i.rating}/٥</span>}
                       </div>
                     ))}
@@ -384,6 +387,7 @@ const DEFAULT_CRITERIA = ["جودة الشغل", "الالتزام بالموا�
 export function PerformanceManager({ reviews, employees, canManage }: {
   reviews: ReviewRow[]; employees: Option[]; canManage: boolean;
 }) {
+  const t = useT();
   const { pending, run } = useRun();
   const [form, setForm] = useState<{
     id?: string; employeeId: string; reviewerId: string; periodFrom: string; periodTo: string;
@@ -409,7 +413,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>تقييمات الأداء</CardTitle>
+              <CardTitle>{t("تقييمات الأداء")}</CardTitle>
               <CardDescription>
                 الدرجة موزونة بأهمية كل بند. والتقييم اللي الموظف وقّع عليه بيتقفل — دي ورقة محضر، مش مسودة.
               </CardDescription>
@@ -426,32 +430,32 @@ export function PerformanceManager({ reviews, employees, canManage }: {
             <div className="space-y-3 rounded-xl border p-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label>الموظف</Label>
+                  <Label>{t("الموظف")}</Label>
                   <CellCombobox
                     selectedLabel={employees.find((e) => e.id === form.employeeId)?.label ?? ""}
                     options={employees} onSelect={(id) => setForm((f) => (f ? { ...f, employeeId: id } : f))}
-                    placeholder="اختر…"
+                    placeholder={t("اختر…")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>المقيّم</Label>
+                  <Label>{t("المقيّم")}</Label>
                   <CellCombobox
                     selectedLabel={employees.find((e) => e.id === form.reviewerId)?.label ?? ""}
                     options={employees} onSelect={(id) => setForm((f) => (f ? { ...f, reviewerId: id } : f))}
-                    placeholder="اختياري"
+                    placeholder={t("اختياري")}
                   />
                 </div>
-                <div className="space-y-2"><Label>من</Label>
+                <div className="space-y-2"><Label>{t("من")}</Label>
                   <Input type="date" value={form.periodFrom}
                     onChange={(e) => setForm((f) => (f ? { ...f, periodFrom: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>إلى</Label>
+                <div className="space-y-2"><Label>{t("إلى")}</Label>
                   <Input type="date" value={form.periodTo}
                     onChange={(e) => setForm((f) => (f ? { ...f, periodTo: e.target.value } : f))} /></div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label>البنود</Label>
+                  <Label>{t("البنود")}</Label>
                   <Button size="sm" variant="outline"
                     onClick={() => setForm((f) => (f ? { ...f, scores: [...f.scores, { criterion: "", weight: "1", score: "3" }] } : f))}>
                     <Icon name="Plus" className="size-4" />بند
@@ -464,13 +468,13 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                 </div>
                 {form.scores.map((s, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2">
-                    <Input className="w-56" value={s.criterion} placeholder="البند"
+                    <Input className="w-56" value={s.criterion} placeholder={t("البند")}
                       onChange={(e) => setForm((f) => (f ? { ...f, scores: f.scores.map((x, k) => (k === i ? { ...x, criterion: e.target.value } : x)) } : f))} />
-                    <Input type="number" step="0.5" min="0" className="w-24" value={s.weight} placeholder="الوزن"
+                    <Input type="number" step="0.5" min="0" className="w-24" value={s.weight} placeholder={t("الوزن")}
                       onChange={(e) => setForm((f) => (f ? { ...f, scores: f.scores.map((x, k) => (k === i ? { ...x, weight: e.target.value } : x)) } : f))} />
-                    <Input type="number" step="0.5" min="0" max="5" className="w-24" value={s.score} placeholder="/٥"
+                    <Input type="number" step="0.5" min="0" max="5" className="w-24" value={s.score} placeholder={t("/٥")}
                       onChange={(e) => setForm((f) => (f ? { ...f, scores: f.scores.map((x, k) => (k === i ? { ...x, score: e.target.value } : x)) } : f))} />
-                    <Button size="icon" variant="ghost" aria-label="شيل"
+                    <Button size="icon" variant="ghost" aria-label={t("شيل")}
                       onClick={() => setForm((f) => (f ? { ...f, scores: f.scores.filter((_, k) => k !== i) } : f))}>
                       <Icon name="X" className="size-4 text-destructive" />
                     </Button>
@@ -479,19 +483,19 @@ export function PerformanceManager({ reviews, employees, canManage }: {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><Label>نقاط القوة</Label>
+                <div className="space-y-2"><Label>{t("نقاط القوة")}</Label>
                   <Input value={form.strengths} onChange={(e) => setForm((f) => (f ? { ...f, strengths: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>محتاج تحسين</Label>
+                <div className="space-y-2"><Label>{t("محتاج تحسين")}</Label>
                   <Input value={form.improvements} onChange={(e) => setForm((f) => (f ? { ...f, improvements: e.target.value } : f))} /></div>
-                <div className="space-y-2"><Label>أهداف الفترة الجاية</Label>
+                <div className="space-y-2"><Label>{t("أهداف الفترة الجاية")}</Label>
                   <Input value={form.goals} onChange={(e) => setForm((f) => (f ? { ...f, goals: e.target.value } : f))} /></div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <select className={`${selectCls} w-40`} value={form.status}
                   onChange={(e) => setForm((f) => (f ? { ...f, status: e.target.value as ReviewRow["status"] } : f))}>
-                  <option value="DRAFT">مسودة</option>
-                  <option value="SUBMITTED">قدّمه للموظف</option>
+                  <option value="DRAFT">{t("مسودة")}</option>
+                  <option value="SUBMITTED">{t("قدّمه للموظف")}</option>
                 </select>
                 <Button disabled={pending || !form.employeeId}
                   onClick={() => run(() => saveReviewAction({
@@ -504,22 +508,22 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                   }), "اتحفظ", () => setForm(null))}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
-                <Button variant="ghost" onClick={() => setForm(null)}>رجوع</Button>
+                <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           )}
 
           {reviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش تقييمات.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش تقييمات.")}</p>
           ) : (
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الموظف</TableHead>
-                    <TableHead className="text-start">الفترة</TableHead>
-                    <TableHead className="text-start">الدرجة</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الموظف")}</TableHead>
+                    <TableHead className="text-start">{t("الفترة")}</TableHead>
+                    <TableHead className="text-start">{t("الدرجة")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-40" />
                   </TableRow>
                 </TableHeader>
@@ -538,7 +542,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                       <TableCell>
                         <Badge className={r.status === "ACKNOWLEDGED" ? "bg-emerald-600" : undefined}
                           variant={r.status === "ACKNOWLEDGED" ? undefined : "outline"}>
-                          {REVIEW_STATUS[r.status]}
+                          {t(REVIEW_STATUS[r.status])}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -557,7 +561,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                           )}
                           {canManage && r.status !== "ACKNOWLEDGED" && (
                             <>
-                              <Button size="icon" variant="ghost" aria-label="تعديل" onClick={() => setForm({
+                              <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => setForm({
                                 id: r.id, employeeId: r.employeeId, reviewerId: "",
                                 periodFrom: r.periodFrom, periodTo: r.periodTo, status: r.status,
                                 strengths: r.strengths ?? "", improvements: r.improvements ?? "", goals: r.goals ?? "",
@@ -565,7 +569,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                               })}>
                                 <Icon name="Edit" className="size-4" />
                               </Button>
-                              <Button size="icon" variant="ghost" aria-label="مسح"
+                              <Button size="icon" variant="ghost" aria-label={t("مسح")}
                                 onClick={() => run(() => deleteReviewAction(r.id), "اتمسح")}>
                                 <Icon name="Trash2" className="size-4 text-destructive" />
                               </Button>
@@ -597,6 +601,7 @@ const ENROLL_STATUS: Record<Enrollment["status"], string> = {
 export function TrainingManager({ courses, employees, canManage }: {
   courses: CourseRow[]; employees: Option[]; canManage: boolean;
 }) {
+  const t = useT();
   const { pending, run } = useRun();
   const [form, setForm] = useState<Partial<CourseRow> | null>(null);
   const [enrollFor, setEnrollFor] = useState<string | null>(null);
@@ -608,7 +613,7 @@ export function TrainingManager({ courses, employees, canManage }: {
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>الكورسات</CardTitle>
+              <CardTitle>{t("الكورسات")}</CardTitle>
               <CardDescription>
                 التكلفة بتتحسب على المقاعد المحجوزة، مش اللي اتمّوا — اللي ما حضرش اتدفع فيه برضه.
               </CardDescription>
@@ -623,32 +628,32 @@ export function TrainingManager({ courses, employees, canManage }: {
         <CardContent className="space-y-4">
           {form && (
             <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-              <div className="w-56 space-y-2"><Label>الاسم</Label>
+              <div className="w-56 space-y-2"><Label>{t("الاسم")}</Label>
                 <Input value={form.nameAr ?? ""} autoFocus
                   onChange={(e) => setForm((v) => ({ ...v!, nameAr: e.target.value }))} /></div>
-              <div className="w-40 space-y-2"><Label>الجهة</Label>
+              <div className="w-40 space-y-2"><Label>{t("الجهة")}</Label>
                 <Input value={form.provider ?? ""}
                   onChange={(e) => setForm((v) => ({ ...v!, provider: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>من</Label>
+              <div className="space-y-2"><Label>{t("من")}</Label>
                 <Input type="date" className="w-40" value={form.startsAt ?? ""}
                   onChange={(e) => setForm((v) => ({ ...v!, startsAt: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>إلى</Label>
+              <div className="space-y-2"><Label>{t("إلى")}</Label>
                 <Input type="date" className="w-40" value={form.endsAt ?? ""}
                   onChange={(e) => setForm((v) => ({ ...v!, endsAt: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>ساعات</Label>
+              <div className="space-y-2"><Label>{t("ساعات")}</Label>
                 <Input type="number" step="0.5" min="0" className="w-24" value={form.hours ?? 0}
                   onChange={(e) => setForm((v) => ({ ...v!, hours: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label>تكلفة المقعد</Label>
+              <div className="space-y-2"><Label>{t("تكلفة المقعد")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-28" value={form.costPerSeat ?? 0}
                   onChange={(e) => setForm((v) => ({ ...v!, costPerSeat: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label>المقاعد</Label>
+              <div className="space-y-2"><Label>{t("المقاعد")}</Label>
                 <Input type="number" step="1" min="0" className="w-24" value={form.seats ?? 0}
                   onChange={(e) => setForm((v) => ({ ...v!, seats: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label>الحالة</Label>
+              <div className="space-y-2"><Label>{t("الحالة")}</Label>
                 <select className={`${selectCls} w-32`} value={form.status ?? "PLANNED"}
                   onChange={(e) => setForm((v) => ({ ...v!, status: e.target.value as CourseRow["status"] }))}>
                   {(Object.keys(COURSE_STATUS) as CourseRow["status"][]).map((k) => (
-                    <option key={k} value={k}>{COURSE_STATUS[k]}</option>
+                    <option key={k} value={k}>{t(COURSE_STATUS[k])}</option>
                   ))}
                 </select></div>
               <Button disabled={pending || !form.nameAr?.trim()}
@@ -660,12 +665,12 @@ export function TrainingManager({ courses, employees, canManage }: {
                 }), "اتحفظ", () => setForm(null))}>
                 <Icon name="Check" className="size-4" />احفظ
               </Button>
-              <Button variant="ghost" onClick={() => setForm(null)}>رجوع</Button>
+              <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
             </div>
           )}
 
           {courses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش كورسات.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش كورسات.")}</p>
           ) : courses.map((c) => {
             const o = courseOutcome(c.enrollments, c.costPerSeat);
             return (
@@ -675,10 +680,10 @@ export function TrainingManager({ courses, employees, canManage }: {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs">{c.code}</span>
                       <span className="font-medium">{c.nameAr}</span>
-                      <Badge variant="outline">{COURSE_STATUS[c.status]}</Badge>
+                      <Badge variant="outline">{t(COURSE_STATUS[c.status])}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {c.provider ?? "داخلي"}
+                      {c.provider ?? t("داخلي")}
                       {c.hours > 0 && ` · ${num(c.hours)} ساعة`}
                       {c.startsAt && ` · ${c.startsAt}`}
                       {` · ${o.taken}${c.seats > 0 ? `/${c.seats}` : ""} مقعد`}
@@ -692,10 +697,10 @@ export function TrainingManager({ courses, employees, canManage }: {
                       <Button size="sm" variant="outline" onClick={() => { setEnrollFor(enrollFor === c.id ? null : c.id); setPicked([]); }}>
                         <Icon name="Plus" className="size-4" />سجّل موظفين
                       </Button>
-                      <Button size="icon" variant="ghost" aria-label="تعديل" onClick={() => setForm(c)}>
+                      <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => setForm(c)}>
                         <Icon name="Edit" className="size-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" aria-label="مسح" onClick={() => run(() => deleteCourseAction(c.id), "اتمسح")}>
+                      <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => run(() => deleteCourseAction(c.id), "اتمسح")}>
                         <Icon name="Trash2" className="size-4 text-destructive" />
                       </Button>
                     </div>
@@ -708,7 +713,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                       {employees.map((e) => (
                         <Button key={e.id} size="sm" variant={picked.includes(e.id) ? "default" : "outline"}
                           onClick={() => setPicked((p) => (p.includes(e.id) ? p.filter((x) => x !== e.id) : [...p, e.id]))}>
-                          {e.label}
+                          {t(e.label)}
                         </Button>
                       ))}
                     </div>
@@ -724,9 +729,9 @@ export function TrainingManager({ courses, employees, canManage }: {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-start">الموظف</TableHead>
-                          <TableHead className="text-start">الحالة</TableHead>
-                          <TableHead className="text-start">الدرجة</TableHead>
+                          <TableHead className="text-start">{t("الموظف")}</TableHead>
+                          <TableHead className="text-start">{t("الحالة")}</TableHead>
+                          <TableHead className="text-start">{t("الدرجة")}</TableHead>
                           <TableHead className="w-10" />
                         </TableRow>
                       </TableHeader>
@@ -739,15 +744,15 @@ export function TrainingManager({ courses, employees, canManage }: {
                                 <select className={`${selectCls} w-32`} value={e.status}
                                   onChange={(ev) => run(() => setEnrollmentStatusAction(e.id, ev.target.value as Enrollment["status"], e.score), "اتحدّثت")}>
                                   {(Object.keys(ENROLL_STATUS) as Enrollment["status"][]).map((k) => (
-                                    <option key={k} value={k}>{ENROLL_STATUS[k]}</option>
+                                    <option key={k} value={k}>{t(ENROLL_STATUS[k])}</option>
                                   ))}
                                 </select>
-                              ) : <Badge variant="outline">{ENROLL_STATUS[e.status]}</Badge>}
+                              ) : <Badge variant="outline">{t(ENROLL_STATUS[e.status])}</Badge>}
                             </TableCell>
                             <TableCell className="tabular-nums">{e.score == null ? "—" : num(e.score)}</TableCell>
                             <TableCell>
                               {canManage && (
-                                <Button size="icon" variant="ghost" aria-label="شيل"
+                                <Button size="icon" variant="ghost" aria-label={t("شيل")}
                                   onClick={() => run(() => unenrollAction(e.id), "اتشال")}>
                                   <Icon name="X" className="size-4 text-destructive" />
                                 </Button>

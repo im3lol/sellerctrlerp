@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
@@ -9,7 +10,7 @@ const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
  * params so page links preserve them. Renders just the count line when there is
  * a single page.
  */
-export function Pagination({
+export async function Pagination({
   page,
   pages,
   total,
@@ -24,6 +25,7 @@ export function Pagination({
   basePath: string;
   params?: Record<string, string | number | undefined>;
 }) {
+  const t = await getT();
   const href = (p: number) => {
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") sp.set(k, String(v));
@@ -40,10 +42,10 @@ export function Pagination({
       <span>صفحة {num(page)} من {num(pages)} · {num(total)} {unit}</span>
       <div className="flex gap-2">
         <Button asChild variant="outline" size="sm" disabled={page <= 1} className={page <= 1 ? "pointer-events-none opacity-50" : ""}>
-          <Link href={href(page - 1)}><Icon name="ChevronRight" className="size-4" />السابق</Link>
+          <Link href={href(page - 1)}><Icon name="ChevronRight" className="size-4" />{t("السابق")}</Link>
         </Button>
         <Button asChild variant="outline" size="sm" disabled={page >= pages} className={page >= pages ? "pointer-events-none opacity-50" : ""}>
-          <Link href={href(page + 1)}>التالي<Icon name="ChevronLeft" className="size-4" /></Link>
+          <Link href={href(page + 1)}>{t("التالي")}<Icon name="ChevronLeft" className="size-4" /></Link>
         </Button>
       </div>
     </div>

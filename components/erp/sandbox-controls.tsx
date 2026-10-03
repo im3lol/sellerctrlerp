@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createSandboxAction, deleteSandboxAction } from "@/app/actions/erp/sandbox";
@@ -10,6 +11,7 @@ import { Icon } from "@/components/icon";
 
 /** «جرّب بشركة تجريبية» — builds (or reopens) the demo company and switches to it. */
 export function SandboxStartButton({ variant = "outline" }: { variant?: "outline" | "default" }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const go = () => start(async () => {
@@ -20,15 +22,16 @@ export function SandboxStartButton({ variant = "outline" }: { variant?: "outline
   });
   return (
     <Button variant={variant} disabled={pending} onClick={go}
-      title="شركة منفصلة فيها بيانات أمازون وهمية — شركتك الحقيقية مش بتتلمس">
+      title={t("شركة منفصلة فيها بيانات أمازون وهمية — شركتك الحقيقية مش بتتلمس")}>
       <Icon name={pending ? "LoaderCircle" : "FlaskConical"} className={`size-4 ${pending ? "animate-spin" : ""}`} />
-      {pending ? "بنجهّز الشركة التجريبية… حوالي دقيقة" : "جرّب بشركة تجريبية"}
+      {pending ? t("بنجهّز الشركة التجريبية… حوالي دقيقة") : t("جرّب بشركة تجريبية")}
     </Button>
   );
 }
 
 /** Strip shown on every page while the demo company is the active one. */
 export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const back = () => start(async () => {
@@ -54,7 +57,7 @@ export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
       </span>
       <div className="flex gap-2">
         {realOrgId && (
-          <Button size="sm" variant="outline" disabled={pending} onClick={back}>ارجع لشركتي</Button>
+          <Button size="sm" variant="outline" disabled={pending} onClick={back}>{t("ارجع لشركتي")}</Button>
         )}
         <Button size="sm" variant="ghost" disabled={pending} onClick={remove}>
           <Icon name="Trash2" className="size-4" />امسح الشركة التجريبية

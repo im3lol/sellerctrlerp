@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { Upload, Download, ShoppingCart, Banknote, Boxes } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -27,6 +28,7 @@ function OptionCard({ href, download, onClick, icon, title, subtitle, disabled }
 export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
   code: string; isAmazon: boolean; open: boolean; onOpenChange: (o: boolean) => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<Choice>("choose");
   const base = `/platforms/${code}`;
   const paymentsTab = isAmazon ? "settlement" : "payments";
@@ -37,36 +39,36 @@ export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>
-              {mode === "choose" ? "استيراد أو تصدير" : mode === "import" ? "اختر نوع الاستيراد" : "اختر نوع التصدير"}
+              {mode === "choose" ? t("استيراد أو تصدير") : mode === "import" ? t("اختر نوع الاستيراد") : t("اختر نوع التصدير")}
             </DialogTitle>
             <DialogDescription>
-              {mode === "choose" ? "اختر ما تريد فعله لهذه المنصة." : "البيانات مرتبطة بعميل المنصة ومخزنها وحسابها البنكي."}
+              {mode === "choose" ? t("اختر ما تريد فعله لهذه المنصة.") : t("البيانات مرتبطة بعميل المنصة ومخزنها وحسابها البنكي.")}
             </DialogDescription>
           </DialogHeader>
 
           {mode === "choose" && (
             <div className="grid gap-3">
-              <OptionCard onClick={() => setMode("import")} icon={<Upload className="size-5" />} title="استيراد" subtitle="مبيعات · مدفوعات · مخزون" />
-              <OptionCard onClick={() => setMode("export")} icon={<Download className="size-5" />} title="تصدير" subtitle="تنزيل بيانات المنصة كملف Excel" />
+              <OptionCard onClick={() => setMode("import")} icon={<Upload className="size-5" />} title={t("استيراد")} subtitle={t("مبيعات · مدفوعات · مخزون")} />
+              <OptionCard onClick={() => setMode("export")} icon={<Download className="size-5" />} title={t("تصدير")} subtitle={t("تنزيل بيانات المنصة كملف Excel")} />
             </div>
           )}
 
           {mode === "import" && (
             <div className="grid gap-3">
-              <OptionCard href={`${base}/import?tab=orders`} onClick={close} icon={<ShoppingCart className="size-5" />} title="مبيعات" subtitle="استيراد أوامر البيع من ملف المنصة" />
-              <OptionCard href={`${base}/import?tab=${paymentsTab}`} onClick={close} icon={<Banknote className="size-5" />} title="مدفوعات" subtitle={isAmazon ? "من تقرير التسويات" : "سندات قبض على حساب المنصة البنكي"} />
-              <OptionCard href={`${base}/import?tab=inventory`} onClick={close} icon={<Boxes className="size-5" />} title="مخزون" subtitle="مطابقة مستويات المخزون" />
-              <OptionCard href={`${base}/import?tab=removals`} onClick={close} icon={<Boxes className="size-5" />} title="إزالات وإتلاف" subtitle="الوحدات المُتلَفة/المُرتجَعة من المخزن" />
-              <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">→ رجوع</button>
+              <OptionCard href={`${base}/import?tab=orders`} onClick={close} icon={<ShoppingCart className="size-5" />} title={t("مبيعات")} subtitle={t("استيراد أوامر البيع من ملف المنصة")} />
+              <OptionCard href={`${base}/import?tab=${paymentsTab}`} onClick={close} icon={<Banknote className="size-5" />} title={t("مدفوعات")} subtitle={isAmazon ? t("من تقرير التسويات") : t("سندات قبض على حساب المنصة البنكي")} />
+              <OptionCard href={`${base}/import?tab=inventory`} onClick={close} icon={<Boxes className="size-5" />} title={t("مخزون")} subtitle={t("مطابقة مستويات المخزون")} />
+              <OptionCard href={`${base}/import?tab=removals`} onClick={close} icon={<Boxes className="size-5" />} title={t("إزالات وإتلاف")} subtitle={t("الوحدات المُتلَفة/المُرتجَعة من المخزن")} />
+              <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">{t("→ رجوع")}</button>
             </div>
           )}
 
           {mode === "export" && (
             <div className="grid gap-3">
-              <OptionCard href={`/api/erp/platforms/${code}/orders/export`} download onClick={close} icon={<ShoppingCart className="size-5" />} title="مبيعات (Excel)" subtitle="تنزيل كل أوامر المنصة" />
-              <OptionCard icon={<Banknote className="size-5" />} title="مدفوعات (قريبًا)" subtitle="تصدير المدفوعات — قيد التطوير" disabled />
-              <OptionCard icon={<Boxes className="size-5" />} title="مخزون (قريبًا)" subtitle="تصدير المخزون — قيد التطوير" disabled />
-              <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">→ رجوع</button>
+              <OptionCard href={`/api/erp/platforms/${code}/orders/export`} download onClick={close} icon={<ShoppingCart className="size-5" />} title={t("مبيعات (Excel)")} subtitle={t("تنزيل كل أوامر المنصة")} />
+              <OptionCard icon={<Banknote className="size-5" />} title={t("مدفوعات (قريبًا)")} subtitle={t("تصدير المدفوعات — قيد التطوير")} disabled />
+              <OptionCard icon={<Boxes className="size-5" />} title={t("مخزون (قريبًا)")} subtitle={t("تصدير المخزون — قيد التطوير")} disabled />
+              <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">{t("→ رجوع")}</button>
             </div>
           )}
         </DialogContent>

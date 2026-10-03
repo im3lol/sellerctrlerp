@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
@@ -6,7 +7,7 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, organizations } from "@/db/schema";
-import { Sidebar } from "@/components/app-shell/sidebar";
+import { Sidebar, NAV_COLLAPSED_COOKIE } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
 import { LiveRefresh } from "@/components/app-shell/live-refresh";
@@ -21,6 +22,8 @@ import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  // Read on the server so a collapsed rail renders collapsed on the first paint.
+  const navCollapsed = (await cookies()).get(NAV_COLLAPSED_COOKIE)?.value === "1";
   const activeOrg = await getActiveOrg();
   const org = activeOrg.org;
 
@@ -54,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-muted/30">
       {/* Chrome stays off paper: printing any page (window.print) gives just its content. */}
       <div className="contents print:hidden">
-        <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} />
+        <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} defaultCollapsed={navCollapsed} />
       </div>
       {/* overflow-x-CLIP, not hidden: `hidden` computes overflow-y to `auto`, which makes
           this div a scroll container — and that silently broke the topbar's `sticky top-0`

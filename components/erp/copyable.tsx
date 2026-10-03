@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
 /** Inline text that copies to the clipboard on click, with a brief ✓ feedback. */
 export function Copyable({ text, className, children }: { text: string; className?: string; children?: React.ReactNode }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -19,7 +21,7 @@ export function Copyable({ text, className, children }: { text: string; classNam
     }
   };
   return (
-    <button type="button" onClick={copy} title="اضغط للنسخ" className={cn("inline-flex items-center gap-1.5 rounded transition-colors hover:text-primary", className)}>
+    <button type="button" onClick={copy} title={t("اضغط للنسخ")} className={cn("inline-flex items-center gap-1.5 rounded transition-colors hover:text-primary", className)}>
       {children ?? text}
       <Icon name={copied ? "Check" : "Copy"} className={cn("size-3.5", copied ? "text-emerald-600" : "text-muted-foreground")} />
     </button>

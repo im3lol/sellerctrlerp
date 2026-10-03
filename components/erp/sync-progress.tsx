@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
@@ -23,6 +24,7 @@ const initial = (flags: Flags): Step[] => [
 ].filter(Boolean) as Step[];
 
 export function SyncProgress({ code, label = "المنصة", flags, auditInventory = false, open, onClose }: { code: string; label?: string; flags: Flags; auditInventory?: boolean; open: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
@@ -47,7 +49,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     set(key, "running", `جاري السحب من ${label}…`);
     try {
       const r = await fn();
-      set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? "فشل"));
+      set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? t("فشل")));
     } catch {
       set(key, "error", "انقطع الاتصال — التقرير قد يكون كبيرًا ويحتاج وقتًا. جرّب مرة أخرى.");
     }
@@ -66,7 +68,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     const cur = await productsSyncStatusAction(code).catch(() => null);
     if (cur?.phase !== "running") { // done/error/idle/unreachable → start a fresh import
       const s = await syncProductsAction(code);
-      if (!s.ok) { set("products", "error", s.error ?? "فشل"); return; }
+      if (!s.ok) { set("products", "error", s.error ?? t("فشل")); return; }
     }
     for (let i = 0; i < 450; i++) { // ~30 min ceiling at 4s
       set("products", "running", `جاري السحب من ${label}… (السحب الكامل قد يستغرق عدة دقائق)`);
@@ -74,7 +76,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
       let st: ProductSyncStatus;
       try { st = await productsSyncStatusAction(code); } catch { continue; }
       if (st.phase === "done") { set("products", "done", productsDetail(st)); return; }
-      if (st.phase === "error") { set("products", "error", st.error ?? "فشل السحب"); return; }
+      if (st.phase === "error") { set("products", "error", st.error ?? t("فشل السحب")); return; }
       // running/idle → keep polling
     }
     set("products", "running", "لا تزال المزامنة شغّالة في الخلفية — حدّث الصفحة بعد قليل لرؤية النتيجة.");
@@ -87,7 +89,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
   async function runAudit() {
     set("inventory", "running", `تدقيق مخزون FBA…`);
     const s = await startInventoryAuditAction(code).catch(() => null);
-    if (!s?.ok) { set("inventory", "error", s?.error ?? "فشل بدء التدقيق"); return; }
+    if (!s?.ok) { set("inventory", "error", s?.error ?? t("فشل بدء التدقيق")); return; }
     if (!s.started) { set("inventory", "done", "اكتمل التدقيق — راجع كارت تدقيق المخزون"); return; } // inline fallback already ran
     await sleep(5000); // let the worker write its RUN row so we don't read a stale older audit
     for (let i = 0; i < 150; i++) { // ~10 min ceiling at 4s
@@ -98,7 +100,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
           (st.withDiff ?? 0) > 0 ? "/inventory/reconciliation" : undefined, "عرض الفروقات ←");
         return;
       }
-      if (st.phase === "error") { set("inventory", "error", st.error ?? "فشل التدقيق"); return; }
+      if (st.phase === "error") { set("inventory", "error", st.error ?? t("فشل التدقيق")); return; }
       await sleep(4000);
     }
     set("inventory", "running", "التدقيق لا يزال يعمل في الخلفية — حدّث الصفحة لاحقًا.");
@@ -130,7 +132,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
         </div>
         {/* Always closable: the full product sync runs server-side and keeps
             going after the popup closes. */}
-        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="إغلاق"><X className="size-4" /></button>
+        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label={t("إغلاق")}><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -147,15 +149,15 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
                 : s.icon}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">{s.label}</div>
+              <div className="flex items-center gap-1.5">{t(s.label)}</div>
               {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{s.detail}</div>}
-              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? "التفاصيل ←"}</Link>}
+              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? t("التفاصيل ←")}</Link>}
             </div>
           </li>
         ))}
       </ul>
 
-      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">اكتملت المزامنة — راجع النتائج بالأعلى.</div>}
+      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">{t("اكتملت المزامنة — راجع النتائج بالأعلى.")}</div>}
     </div>
   );
 }

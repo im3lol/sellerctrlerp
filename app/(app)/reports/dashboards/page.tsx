@@ -16,7 +16,7 @@ export default async function DashboardsPage() {
     const user = await requireUser();
     // The caller's own dashboards plus anything shared with the org.
     const rows = await db
-      .select({ id: dashboards.id, nameAr: dashboards.nameAr, widgets: dashboards.widgets, isShared: dashboards.isShared, createdBy: dashboards.createdBy })
+      .select({ id: dashboards.id, number: dashboards.number, nameAr: dashboards.nameAr, widgets: dashboards.widgets, isShared: dashboards.isShared, createdBy: dashboards.createdBy })
       .from(dashboards)
       .where(and(eq(dashboards.organizationId, orgId), or(eq(dashboards.isShared, true), eq(dashboards.createdBy, user.id))))
       .orderBy(asc(dashboards.nameAr));
@@ -38,7 +38,7 @@ export default async function DashboardsPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((d) => (
-              <Link key={d.id} href={`/reports/dashboards/${d.id}`}
+              <Link key={d.id} href={`/reports/dashboards/${encodeURIComponent(d.number)}`}
                 className="flex items-start gap-3 rounded-2xl border p-4 transition-colors hover:border-primary">
                 <Icon name="LayoutDashboard" className="mt-0.5 size-5 text-primary" />
                 <div className="min-w-0 flex-1">

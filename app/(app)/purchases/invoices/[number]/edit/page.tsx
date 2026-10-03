@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { UUID_RE } from "@/components/erp/document-detail";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export default async function EditPurchaseInvoicePage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.create", async ({ orgId }) => {
     const [inv] = await db.select().from(purchaseInvoices)
@@ -62,7 +64,7 @@ export default async function EditPurchaseInvoicePage({ params }: { params: Prom
         <ErpPageHeader
           icon="ReceiptText"
           title={`تعديل فاتورة ${inv.number}`}
-          subtitle="مسودة — طابِقها على فاتورة المورّد الفعلية قبل الترحيل"
+          subtitle={t("مسودة — طابِقها على فاتورة المورّد الفعلية قبل الترحيل")}
           backHref={`/purchases/invoices/${encodeURIComponent(inv.number)}`}
         />
         <PurchaseInvoiceEditForm

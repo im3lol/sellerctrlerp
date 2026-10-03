@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +25,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PaymentVoucherDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -59,23 +61,23 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
           title={`سند صرف ${pv.number}`}
           subtitle={`${sup?.name ?? "—"} · ${dt(pv.date)}`}
           backHref="/purchases/payments"
-          action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{st.label}</Badge><VoucherDetailActions id={pv.id} number={pv.number} type="payment" status={pv.status} canManage={can("purchases.pay")} /></div>}
+          action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{t(st.label)}</Badge><VoucherDetailActions id={pv.id} number={pv.number} type="payment" status={pv.status} canManage={can("purchases.pay")} /></div>}
         />
         <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
           isAdmin={role === "admin" || role === "super_admin"} />
 
         <Card>
-          <CardHeader><CardTitle>بيانات السند</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("بيانات السند")}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="المورد">{sup?.name ?? "—"}</Field>
-              <Field label="المبلغ"><span className="tabular-nums">{fmt(pv.amount)}</span></Field>
-              <Field label="طريقة السداد">{METHOD[pv.paymentMethod] ?? pv.paymentMethod}</Field>
-              <Field label="التاريخ">{dt(pv.date)}</Field>
-              <Field label="حساب النقدية/البنك">{acc ? `${acc.code} — ${acc.name}` : "—"}</Field>
-              <Field label="الفاتورة">{inv?.number ?? "تحت الحساب"}</Field>
-              {pv.reference && <Field label="المرجع">{pv.reference}</Field>}
-              {pv.notes && <Field label="ملاحظات">{pv.notes}</Field>}
+              <Field label={t("المورد")}>{sup?.name ?? "—"}</Field>
+              <Field label={t("المبلغ")}><span className="tabular-nums">{fmt(pv.amount)}</span></Field>
+              <Field label={t("طريقة السداد")}>{t(METHOD[pv.paymentMethod] ?? pv.paymentMethod)}</Field>
+              <Field label={t("التاريخ")}>{dt(pv.date)}</Field>
+              <Field label={t("حساب النقدية/البنك")}>{acc ? `${acc.code} — ${acc.name}` : "—"}</Field>
+              <Field label={t("الفاتورة")}>{inv?.number ?? t("تحت الحساب")}</Field>
+              {pv.reference && <Field label={t("المرجع")}>{pv.reference}</Field>}
+              {pv.notes && <Field label={t("ملاحظات")}>{pv.notes}</Field>}
             </div>
           </CardContent>
         </Card>

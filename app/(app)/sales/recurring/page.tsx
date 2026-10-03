@@ -1,4 +1,5 @@
 import { and, asc, desc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { recurringSalesInvoices, recurringSalesInvoiceLines, customers, items } from "@/db/schema";
@@ -9,6 +10,7 @@ const ymd = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : ""
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export default async function RecurringSalesInvoicesPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [tpls, lineRows, custList, itemList] = await Promise.all([
       db.select({ id: recurringSalesInvoices.id, customerId: recurringSalesInvoices.customerId, customer: customers.nameAr, frequency: recurringSalesInvoices.frequency, nextRunDate: recurringSalesInvoices.nextRunDate, isActive: recurringSalesInvoices.isActive, notes: recurringSalesInvoices.notes })
@@ -36,7 +38,7 @@ export default async function RecurringSalesInvoicesPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Repeat" title="الفواتير الدورية" subtitle="فوترة الاشتراكات — تولّد فاتورة بيع كمسودة تلقائياً في موعدها" backHref="/sales/invoices" />
+        <ErpPageHeader icon="Repeat" title={t("الفواتير الدورية")} subtitle={t("فوترة الاشتراكات — تولّد فاتورة بيع كمسودة تلقائياً في موعدها")} backHref="/sales/invoices" />
         <RecurringSalesInvoicesManager items={items_} customers={custList} itemsList={itemList} />
       </div>
     );

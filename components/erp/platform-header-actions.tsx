@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { toast } from "sonner";
 import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet, Image as ImageIcon, Barcode, Boxes, Warehouse } from "lucide-react";
@@ -29,6 +30,7 @@ export function PlatformHeaderActions({
 }: {
   code: string; label: string; platformId: string; isAmazon: boolean; connected: boolean; syncFlags: SyncFlags; hasOrderHistory: boolean; hasStartDate: boolean; canManage: boolean;
 }) {
+  const t = useT();
   const [syncOpen, setSyncOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [ioOpen, setIoOpen] = useState(false);       // import/export dialog
@@ -59,7 +61,7 @@ export function PlatformHeaderActions({
   const refreshFees = () => startFees(async () => {
     const r = await refreshAmazonFeesAction(code);
     if (r.ok) toast.success("بدأ تحديث رسوم أمازون — النتائج تظهر في تقرير الربحية خلال دقائق");
-    else toast.error(r.error ?? "تعذّر بدء التحديث");
+    else toast.error(r.error ?? t("تعذّر بدء التحديث"));
   });
 
   const pullOrders = () => startPull(async () => {
@@ -72,8 +74,8 @@ export function PlatformHeaderActions({
   // On-demand image sync: backfill images for items still missing one (Catalog API).
   const syncImages = () => startImages(async () => {
     const r = await startImagesSyncAction(code);
-    if (r.ok) toast.success(r.started ? "بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون" : "اكتملت مزامنة الصور — حدّث صفحة المنتجات");
-    else toast.error(r.error ?? "تعذّر بدء مزامنة الصور");
+    if (r.ok) toast.success(r.started ? t("بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون") : t("اكتملت مزامنة الصور — حدّث صفحة المنتجات"));
+    else toast.error(r.error ?? t("تعذّر بدء مزامنة الصور"));
   });
 
   // FNSKU backfill: Amazon's own barcode for the unit in its warehouse. Rides free on
@@ -81,8 +83,8 @@ export function PlatformHeaderActions({
   // import, whose report has no FNSKU column — needs this pass.
   const syncFbaCodes = () => startCodes(async () => {
     const r = await startFbaCodesSyncAction(code);
-    if (r.ok) toast.success(r.started ? "بدأت مزامنة أكواد FBA في الخلفية — يُضاف FNSKU للأصناف المُشحَنة عبر أمازون" : "اكتملت مزامنة أكواد FBA — افتح الصنف لرؤية الـFNSKU");
-    else toast.error(r.error ?? "تعذّر بدء مزامنة الأكواد");
+    if (r.ok) toast.success(r.started ? t("بدأت مزامنة أكواد FBA في الخلفية — يُضاف FNSKU للأصناف المُشحَنة عبر أمازون") : t("اكتملت مزامنة أكواد FBA — افتح الصنف لرؤية الـFNSKU"));
+    else toast.error(r.error ?? t("تعذّر بدء مزامنة الأكواد"));
   });
 
   // Start the chosen sync. If orders are selected with no go-live date yet: save the
@@ -99,7 +101,7 @@ export function PlatformHeaderActions({
       setStartSaved(true);
       const r = await startOrdersSyncAction(code, startDate);
       if (r.ok) setOrdersOpen(true);
-      else toast.error(r.error ?? "تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»");
+      else toast.error(r.error ?? t("تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»"));
       sel.orders = false; // the backfill owns orders this run
     }
     setChooseOpen(false);
@@ -120,7 +122,7 @@ export function PlatformHeaderActions({
       {hasTools && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline">أدوات<ChevronDown className="size-4" /></Button>
+            <Button variant="outline">{t("أدوات")}<ChevronDown className="size-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {connected && (
@@ -150,14 +152,14 @@ export function PlatformHeaderActions({
             )}
             {isAmazon && (
               <DropdownMenuItem asChild>
-                <Link href={`/platforms/${code}/reimbursements`}><HandCoins className="size-4" />التعويضات</Link>
+                <Link href={`/platforms/${code}/reimbursements`}><HandCoins className="size-4" />{t("التعويضات")}</Link>
               </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
-              <Link href={`/platforms/${code}/fees`}><Percent className="size-4" />مصاريف التسويات</Link>
+              <Link href={`/platforms/${code}/fees`}><Percent className="size-4" />{t("مصاريف التسويات")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={`/platforms/${code}/payouts`}><Wallet className="size-4" />المحفظة والمدفوعات</Link>
+              <Link href={`/platforms/${code}/payouts`}><Wallet className="size-4" />{t("المحفظة والمدفوعات")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIoOpen(true)}>
               <ArrowRightLeft className="size-4" />استيراد / تصدير
@@ -178,7 +180,7 @@ export function PlatformHeaderActions({
 
       {canManage && (
         <Button asChild variant="outline">
-          <Link href={`/platforms/${code}/settings`}><Settings className="size-4" />الإعدادات</Link>
+          <Link href={`/platforms/${code}/settings`}><Settings className="size-4" />{t("الإعدادات")}</Link>
         </Button>
       )}
 
@@ -188,7 +190,7 @@ export function PlatformHeaderActions({
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>مزامنة {label}</DialogTitle>
-            <DialogDescription>اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.</DialogDescription>
+            <DialogDescription>{t("اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2.5">
             {([
@@ -204,14 +206,14 @@ export function PlatformHeaderActions({
                   disabled={!syncFlags[s.key]}
                   onChange={(e) => setChosen((c) => ({ ...c, [s.key]: e.target.checked }))}
                 />
-                <span className="flex items-center gap-2 text-sm font-medium">{s.icon}{s.label}</span>
+                <span className="flex items-center gap-2 text-sm font-medium">{s.icon}{t(s.label)}</span>
                 <span className="mr-auto text-xs text-muted-foreground">{syncFlags[s.key] ? s.desc : "موقوف من إعدادات المنصّة"}</span>
               </label>
             ))}
           </div>
           {chosen.orders && !hasStartDate && !startSaved && (
             <div className="space-y-1.5 rounded-lg border border-dashed p-3">
-              <label htmlFor="goLiveDate" className="text-sm font-medium">تاريخ بدء المحاسبة</label>
+              <label htmlFor="goLiveDate" className="text-sm font-medium">{t("تاريخ بدء المحاسبة")}</label>
               <p className="text-xs text-muted-foreground">من أي تاريخ نبدأ محاسبة مبيعات {label}؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.</p>
               <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
             </div>
@@ -228,11 +230,11 @@ export function PlatformHeaderActions({
       <Dialog open={pullOpen} onOpenChange={setPullOpen}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>سحب المبيعات</DialogTitle>
-            <DialogDescription>اترك التاريخ فارغًا لسحب طلبات اليوم فقط، أو ابدأ من تاريخ بدء الربط المحاسبي.</DialogDescription>
+            <DialogTitle>{t("سحب المبيعات")}</DialogTitle>
+            <DialogDescription>{t("اترك التاريخ فارغًا لسحب طلبات اليوم فقط، أو ابدأ من تاريخ بدء الربط المحاسبي.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
-            <label htmlFor="ordersSince" className="text-sm font-medium">من تاريخ</label>
+            <label htmlFor="ordersSince" className="text-sm font-medium">{t("من تاريخ")}</label>
             <input id="ordersSince" type="date" value={ordersSince} onChange={(e) => setOrdersSince(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
           </div>
           <DialogFooter>

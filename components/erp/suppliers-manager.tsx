@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ function SubmitBtn() {
 }
 
 function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Supplier | null }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveSupplierAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -43,16 +45,16 @@ function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مورد" : "مورد جديد"}</DialogTitle>
-            <DialogDescription>بيانات المورد للمؤسسة النشطة.</DialogDescription>
+            <DialogTitle>{editing ? t("تعديل مورد") : t("مورد جديد")}</DialogTitle>
+            <DialogDescription>{t("بيانات المورد للمؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="s-code">الكود</Label><Input id="s-code" name="code" defaultValue={editing?.code} placeholder="تلقائي إن تُرك فارغاً" /></div>
-            <div className="space-y-2"><Label htmlFor="s-name">الاسم</Label><Input id="s-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
-            <div className="space-y-2"><Label htmlFor="s-phone">الهاتف</Label><Input id="s-phone" name="phone" defaultValue={editing?.phone ?? ""} dir="ltr" /></div>
-            <div className="space-y-2"><Label htmlFor="s-terms">مدة السداد (يوم)</Label><Input id="s-terms" name="paymentTerms" type="number" defaultValue={editing?.paymentTerms ?? 30} /></div>
-            <div className="space-y-2 col-span-2"><Label htmlFor="s-email">البريد</Label><Input id="s-email" name="email" type="email" dir="ltr" /></div>
+            <div className="space-y-2"><Label htmlFor="s-code">{t("الكود")}</Label><Input id="s-code" name="code" defaultValue={editing?.code} placeholder={t("تلقائي إن تُرك فارغاً")} /></div>
+            <div className="space-y-2"><Label htmlFor="s-name">{t("الاسم")}</Label><Input id="s-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
+            <div className="space-y-2"><Label htmlFor="s-phone">{t("الهاتف")}</Label><Input id="s-phone" name="phone" defaultValue={editing?.phone ?? ""} dir="ltr" /></div>
+            <div className="space-y-2"><Label htmlFor="s-terms">{t("مدة السداد (يوم)")}</Label><Input id="s-terms" name="paymentTerms" type="number" defaultValue={editing?.paymentTerms ?? 30} /></div>
+            <div className="space-y-2 col-span-2"><Label htmlFor="s-email">{t("البريد")}</Label><Input id="s-email" name="email" type="email" dir="ltr" /></div>
           </div>
           <DialogFooter><SubmitBtn /></DialogFooter>
         </form>
@@ -62,6 +64,7 @@ function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
 }
 
 export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppliers: Supplier[]; canManage: boolean; title?: string; kpis?: React.ReactNode }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [pending, startTransition] = useTransition();
@@ -70,13 +73,13 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
 
   const remove = (s: Supplier) => startTransition(async () => {
     const r = await deleteSupplierAction(s.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const addBtn = (
     <div className="flex items-center gap-2">
       <ExportCsvButton action={exportSuppliersCsvAction} />
-      {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />مورد جديد</Button>}
+      {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />{t("مورد جديد")}</Button>}
     </div>
   );
 
@@ -86,31 +89,31 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
       {kpis}
       <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>الموردون</CardTitle><CardDescription>موردو المؤسسة النشطة وأرصدتهم.</CardDescription></div>
+        <div><CardTitle>{t("الموردون")}</CardTitle><CardDescription>{t("موردو المؤسسة النشطة وأرصدتهم.")}</CardDescription></div>
         {!title && addBtn}
       </CardHeader>
       <CardContent>
         {suppliers.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد موردون بعد.</div>
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا يوجد موردون بعد.")}</div>
         ) : (
           <>
           {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteSuppliersAction} onDone={sel.clear} entity="مورد" />}
           <Table>
             <TableHeader>
               <TableRow>
-                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
-                <TableHead className="text-start">الكود</TableHead>
-                <TableHead className="text-start">الاسم</TableHead>
-                <TableHead className="text-start">الهاتف</TableHead>
-                <TableHead className="text-start">الرصيد</TableHead>
-                <TableHead className="text-start">مدة السداد</TableHead>
-                {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                {canManage && <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
+                <TableHead className="text-start">{t("الكود")}</TableHead>
+                <TableHead className="text-start">{t("الاسم")}</TableHead>
+                <TableHead className="text-start">{t("الهاتف")}</TableHead>
+                <TableHead className="text-start">{t("الرصيد")}</TableHead>
+                <TableHead className="text-start">{t("مدة السداد")}</TableHead>
+                {canManage && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {suppliers.map((s) => (
                 <TableRow key={s.id} data-state={sel.has(s.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
+                  {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
                   <TableCell className="font-mono">{s.code}</TableCell>
                   <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{s.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
@@ -119,12 +122,12 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditing(s); setOpen(true); }} aria-label="تعديل"><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditing(s); setOpen(true); }} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
+                          <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>حذف المورد «{s.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>لا يمكن التراجع.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={() => remove(s)}>حذف</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogHeader><AlertDialogTitle>حذف المورد «{s.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(s)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { useT } from "@/lib/i18n/client";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -35,18 +36,19 @@ function settle(v: boolean) {
 }
 
 export function ConfirmHost() {
+  const t = useT();
   const s = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const o = s.opts;
   return (
     <AlertDialog open={s.open} onOpenChange={(open) => { if (!open) settle(false); }}>
       <AlertDialogContent size="sm" dir="rtl">
         <AlertDialogHeader>
-          <AlertDialogTitle>{o.title ?? "تأكيد الإجراء"}</AlertDialogTitle>
-          <AlertDialogDescription>{o.description ?? "هل تريد تنفيذ هذا الأمر؟"}</AlertDialogDescription>
+          <AlertDialogTitle>{o.title ?? t("تأكيد الإجراء")}</AlertDialogTitle>
+          <AlertDialogDescription>{o.description ?? t("هل تريد تنفيذ هذا الأمر؟")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => settle(false)}>{o.cancelText ?? "إلغاء"}</AlertDialogCancel>
-          <AlertDialogAction variant={o.danger ? "destructive" : "default"} onClick={() => settle(true)}>{o.confirmText ?? "تأكيد"}</AlertDialogAction>
+          <AlertDialogCancel onClick={() => settle(false)}>{o.cancelText ?? t("إلغاء")}</AlertDialogCancel>
+          <AlertDialogAction variant={o.danger ? "destructive" : "default"} onClick={() => settle(true)}>{o.confirmText ?? t("تأكيد")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, suppliers, warehouses } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { RfqManager } from "@/components/erp/rfq-manager";
 
 export default async function RfqsPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const [itemList, supList, whList] = await Promise.all([
       db.select({ id: items.id, code: items.code, nameAr: items.nameAr })
@@ -23,8 +25,8 @@ export default async function RfqsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="GitCompare"
-          title="طلبات عروض الأسعار"
-          subtitle="نفس السلة لكذا مورّد، وجدول واحد يقارن ردودهم"
+          title={t("طلبات عروض الأسعار")}
+          subtitle={t("نفس السلة لكذا مورّد، وجدول واحد يقارن ردودهم")}
           backHref="/purchases"
         />
         <RfqManager

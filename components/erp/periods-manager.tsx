@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setPeriodStatusAction, previewYearClosingAction, runYearClosingAction } from "@/app/actions/erp/periods";
@@ -30,6 +31,7 @@ function YearClosingDialog({
   period: Period;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<YearClosingPreview | null>(null);
@@ -51,7 +53,7 @@ function YearClosingDialog({
   function run() {
     startTransition(async () => {
       const res = await runYearClosingAction(period.id);
-      if (!res.ok) { toast.error(res.error ?? "فشل إقفال السنة"); return; }
+      if (!res.ok) { toast.error(res.error ?? t("فشل إقفال السنة")); return; }
       toast.success("تم إقفال السنة المالية وترحيل قيود الإقفال");
       onClose();
       router.refresh();
@@ -64,7 +66,7 @@ function YearClosingDialog({
         <DialogTitle>إقفال السنة المالية — {period.name}</DialogTitle>
       </DialogHeader>
 
-      {loading && <p className="py-6 text-center text-sm text-muted-foreground">جارٍ تحميل معاينة القيود…</p>}
+      {loading && <p className="py-6 text-center text-sm text-muted-foreground">{t("جارٍ تحميل معاينة القيود…")}</p>}
       {previewError && <p className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">{previewError}</p>}
 
       {preview && (
@@ -77,10 +79,10 @@ function YearClosingDialog({
           <div className="grid grid-cols-2 gap-4">
             {/* Revenues */}
             <div className="space-y-2">
-              <p className="text-sm font-medium">الإيرادات (ستُدان)</p>
+              <p className="text-sm font-medium">{t("الإيرادات (ستُدان)")}</p>
               <div className="overflow-hidden rounded-lg border text-xs">
                 {preview.revenues.length === 0
-                  ? <p className="p-3 text-muted-foreground">لا توجد</p>
+                  ? <p className="p-3 text-muted-foreground">{t("لا توجد")}</p>
                   : preview.revenues.map((r) => (
                     <div key={r.accountId} className="flex justify-between border-b p-2 last:border-0">
                       <span>{r.code} — {r.nameAr}</span>
@@ -89,7 +91,7 @@ function YearClosingDialog({
                   ))
                 }
                 <div className="flex justify-between bg-muted/30 p-2 font-semibold">
-                  <span>إجمالي الإيرادات</span>
+                  <span>{t("إجمالي الإيرادات")}</span>
                   <span className="font-mono">{fmt(preview.totalRevenue)}</span>
                 </div>
               </div>
@@ -97,10 +99,10 @@ function YearClosingDialog({
 
             {/* Expenses */}
             <div className="space-y-2">
-              <p className="text-sm font-medium">المصروفات (ستُقيَّد)</p>
+              <p className="text-sm font-medium">{t("المصروفات (ستُقيَّد)")}</p>
               <div className="overflow-hidden rounded-lg border text-xs">
                 {preview.expenses.length === 0
-                  ? <p className="p-3 text-muted-foreground">لا توجد</p>
+                  ? <p className="p-3 text-muted-foreground">{t("لا توجد")}</p>
                   : preview.expenses.map((e) => (
                     <div key={e.accountId} className="flex justify-between border-b p-2 last:border-0">
                       <span>{e.code} — {e.nameAr}</span>
@@ -109,7 +111,7 @@ function YearClosingDialog({
                   ))
                 }
                 <div className="flex justify-between bg-muted/30 p-2 font-semibold">
-                  <span>إجمالي المصروفات</span>
+                  <span>{t("إجمالي المصروفات")}</span>
                   <span className="font-mono">{fmt(preview.totalExpense)}</span>
                 </div>
               </div>
@@ -119,23 +121,23 @@ function YearClosingDialog({
           {/* Net result */}
           <div className={`flex items-center justify-between rounded-xl border p-4 ${preview.netIncome >= 0 ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20" : "border-destructive/20 bg-destructive/5"}`}>
             <span className="font-semibold">
-              {preview.netIncome >= 0 ? "صافي ربح → يُضاف لـ 3001 أرباح محتجزة" : "صافي خسارة → يُخصَم من 3001 أرباح محتجزة"}
+              {preview.netIncome >= 0 ? t("صافي ربح → يُضاف لـ 3001 أرباح محتجزة") : t("صافي خسارة → يُخصَم من 3001 أرباح محتجزة")}
             </span>
             <span className={`text-xl font-bold tabular-nums ${preview.netIncome >= 0 ? "text-emerald-700" : "text-destructive"}`}>
               {fmt(Math.abs(preview.netIncome))}
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground">⚠ هذا الإجراء لا يمكن التراجع عنه — الفترة ستُقفَل نهائيًا.</p>
+          <p className="text-xs text-muted-foreground">{t("⚠ هذا الإجراء لا يمكن التراجع عنه — الفترة ستُقفَل نهائيًا.")}</p>
         </div>
       )}
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         {preview && (
           <Button onClick={run} disabled={pending}>
             <Icon name="Lock" className="me-1.5 size-4" />
-            {pending ? "جارٍ الإقفال…" : "تأكيد إقفال السنة"}
+            {pending ? t("جارٍ الإقفال…") : t("تأكيد إقفال السنة")}
           </Button>
         )}
       </DialogFooter>
@@ -144,6 +146,7 @@ function YearClosingDialog({
 }
 
 export function PeriodsManager({ periods, canManage }: { periods: Period[]; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [closingPeriod, setClosingPeriod] = useState<Period | null>(null);
@@ -152,28 +155,28 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
     start(async () => {
       const r = await setPeriodStatusAction(id, status);
       if (r.ok) { toast.success("تم تحديث الفترة"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التحديث");
+      else toast.error(r.error ?? t("تعذّر التحديث"));
     });
 
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle>الفترات المالية</CardTitle>
-          <CardDescription>إقفال الفترة يمنع ترحيل أي قيد بتاريخ داخلها.</CardDescription>
+          <CardTitle>{t("الفترات المالية")}</CardTitle>
+          <CardDescription>{t("إقفال الفترة يمنع ترحيل أي قيد بتاريخ داخلها.")}</CardDescription>
         </CardHeader>
         <CardContent>
           {periods.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد فترات مالية.</div>
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد فترات مالية.")}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الفترة</TableHead>
-                  <TableHead className="text-start">من</TableHead>
-                  <TableHead className="text-start">إلى</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
-                  {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                  <TableHead className="text-start">{t("الفترة")}</TableHead>
+                  <TableHead className="text-start">{t("من")}</TableHead>
+                  <TableHead className="text-start">{t("إلى")}</TableHead>
+                  <TableHead className="text-start">{t("الحالة")}</TableHead>
+                  {canManage && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,7 +187,7 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>{dt(p.startDate)}</TableCell>
                       <TableCell>{dt(p.endDate)}</TableCell>
-                      <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                      <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">

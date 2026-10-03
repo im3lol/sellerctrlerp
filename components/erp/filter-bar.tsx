@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ export const filterFieldCls = "flex h-9 w-full rounded-md border border-input bg
  * shell adds the submit + clear buttons. Mirrors the journal page pattern so
  * every list page filters the same way.
  */
-export function FilterBar({
+export async function FilterBar({
   active,
   clearHref,
   children,
@@ -23,23 +24,24 @@ export function FilterBar({
   clearHref: string;
   children: ReactNode;
 }) {
+  const t = await getT();
   return (
     <Card>
       <details open={active} className="group">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-6 [&::-webkit-details-marker]:hidden">
           <div className="flex items-center gap-2">
             <Icon name="ListFilter" className="size-4 text-muted-foreground" />
-            <span className="font-semibold">تصفية</span>
-            {active && <Badge variant="secondary">مُفعّلة</Badge>}
+            <span className="font-semibold">{t("تصفية")}</span>
+            {active && <Badge variant="secondary">{t("مُفعّلة")}</Badge>}
           </div>
           <Icon name="ChevronDown" className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="px-6 pb-6">
           <form className="flex flex-wrap items-end gap-3">
             {children}
-            <Button type="submit"><Icon name="Search" className="size-4" />تصفية</Button>
+            <Button type="submit"><Icon name="Search" className="size-4" />{t("تصفية")}</Button>
             {active && (
-              <Button asChild variant="ghost"><Link href={clearHref}>مسح</Link></Button>
+              <Button asChild variant="ghost"><Link href={clearHref}>{t("مسح")}</Link></Button>
             )}
           </form>
         </div>

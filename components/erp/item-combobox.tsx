@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { Input } from "@/components/ui/input";
 
@@ -18,6 +19,7 @@ export function ItemCombobox({
   onSelect: (item: ItemSearchResult) => void;
   placeholder?: string;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ItemSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -57,12 +59,12 @@ export function ItemCombobox({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
-        placeholder={placeholder ?? "ابحث بالاسم أو الكود أو الباركود…"}
+        placeholder={placeholder ?? t("ابحث بالاسم أو الكود أو الباركود…")}
       />
       {open && (results.length > 0 || pending) && (
         <div className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover shadow-lg">
           {results.length === 0 && pending ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">جارٍ البحث…</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">{t("جارٍ البحث…")}</div>
           ) : (
             results.map((it) => (
               <button

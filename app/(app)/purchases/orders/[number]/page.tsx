@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -34,6 +35,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PurchaseOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -105,32 +107,32 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           isAdmin={role === "admin" || role === "super_admin"} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(po.date)}</Field>
-          <Field label="الشحن">{dfmt(po.shippingAmount)}</Field>
-          <Field label="الضريبة">{dfmt(po.taxAmount)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(po.date)}</Field>
+          <Field label={t("الشحن")}>{dfmt(po.shippingAmount)}</Field>
+          <Field label={t("الضريبة")}>{dfmt(po.taxAmount)}</Field>
           <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
           {isForeignDoc && (
-            <Field label="الإجمالي بالحسابات (EGP)">
+            <Field label={t("الإجمالي بالحسابات (EGP)")}>
               {fmt(po.totalAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
             </Field>
           )}
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الأمر.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">شحن/وحدة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

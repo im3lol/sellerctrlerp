@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
@@ -10,6 +11,7 @@ import { confirm } from "@/components/erp/confirm";
 /** Per-row "⋮" quick actions for the sales invoices list — same action set as
  *  SalesInvoiceDetailActions, minus the share/collect shortcuts, compacted. */
 export function SalesInvoiceRowMenu({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -19,7 +21,7 @@ export function SalesInvoiceRowMenu({ id, number, status, canPost, canManage }: 
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };

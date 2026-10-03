@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 export default async function EditQuotationPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("sales.create", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, salesQuotations,
@@ -37,7 +39,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle="مسودة — عدّل الأصناف والأسعار ثم احفظ" backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
+        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle={t("مسودة — عدّل الأصناف والأسعار ثم احفظ")} backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
         <QuotationForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
       </div>
     );

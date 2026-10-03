@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -20,6 +21,7 @@ const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل ب�
 type SP = { q?: string; status?: string; method?: string; from?: string; to?: string; page?: string };
 
 export default async function ReceiptsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.collect");
     const sp = await searchParams;
@@ -67,12 +69,12 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
       <div className="space-y-6">
         <ErpPageHeader
           icon="HandCoins"
-          title="سندات القبض"
+          title={t("سندات القبض")}
           subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} سند — محصّل (مرحّل) ${fmt(posted)}`}
           action={
             can("sales.collect") ? (
               <Button asChild>
-                <Link href="/sales/receipts/new"><Icon name="Plus" className="size-4" />سند قبض</Link>
+                <Link href="/sales/receipts/new"><Icon name="Plus" className="size-4" />{t("سند قبض")}</Link>
               </Button>
             ) : undefined
           }
@@ -80,44 +82,44 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
 
         <FilterBar active={hasFilters} clearHref="/sales/receipts">
           <div className="space-y-2">
-            <Label htmlFor="q">بحث</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder="رقم السند أو العميل" className="min-w-56" />
+            <Label htmlFor="q">{t("بحث")}</Label>
+            <Input id="q" name="q" defaultValue={q} placeholder={t("رقم السند أو العميل")} className="min-w-56" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="status">الحالة</Label>
+            <Label htmlFor="status">{t("الحالة")}</Label>
             <select id="status" name="status" defaultValue={status} className={`${filterFieldCls} min-w-32`}>
-              <option value="">الكل</option>
-              <option value="POSTED">مرحّل</option>
-              <option value="REVERSED">معكوس</option>
-              <option value="DRAFT">مسودة</option>
+              <option value="">{t("الكل")}</option>
+              <option value="POSTED">{t("مرحّل")}</option>
+              <option value="REVERSED">{t("معكوس")}</option>
+              <option value="DRAFT">{t("مسودة")}</option>
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="method">الطريقة</Label>
+            <Label htmlFor="method">{t("الطريقة")}</Label>
             <select id="method" name="method" defaultValue={method} className={`${filterFieldCls} min-w-32`}>
-              <option value="">الكل</option>
-              {Object.entries(METHOD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              <option value="">{t("الكل")}</option>
+              {Object.entries(METHOD).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="from">من</Label>
+            <Label htmlFor="from">{t("من")}</Label>
             <input id="from" name="from" type="date" defaultValue={from} className={filterFieldCls} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="to">إلى</Label>
+            <Label htmlFor="to">{t("إلى")}</Label>
             <input id="to" name="to" type="date" defaultValue={to} className={filterFieldCls} />
           </div>
         </FilterBar>
 
         <Card>
           <CardHeader>
-            <CardTitle>التحصيلات</CardTitle>
-            <CardDescription>سندات قبض من العملاء (Dr نقدية/بنك · Cr العملاء).</CardDescription>
+            <CardTitle>{t("التحصيلات")}</CardTitle>
+            <CardDescription>{t("سندات قبض من العملاء (Dr نقدية/بنك · Cr العملاء).")}</CardDescription>
           </CardHeader>
           <CardContent>
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                {hasFilters ? "لا توجد سندات مطابقة للتصفية." : "لا توجد سندات قبض بعد."}
+                {hasFilters ? t("لا توجد سندات مطابقة للتصفية.") : t("لا توجد سندات قبض بعد.")}
               </div>
             ) : (
               <>
@@ -128,7 +130,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
                   filter={{ q, status, method, from, to }}
                   rows={rows.map((r) => ({ id: r.id, number: r.number, date: r.date, party: r.customer, invoice: r.invoice, method: r.method, amount: r.amount, status: r.status }))}
                 />
-                <Pagination page={page} pages={pages} total={total} unit="سند" basePath="/sales/receipts" params={{ q, status, method, from, to }} />
+                <Pagination page={page} pages={pages} total={total} unit={t("سند")} basePath="/sales/receipts" params={{ q, status, method, from, to }} />
               </>
             )}
           </CardContent>

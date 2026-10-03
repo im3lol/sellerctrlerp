@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -20,6 +21,7 @@ export type BannerApproval = {
 
 /** Approve / reject, with the reason a rejection needs asked for inline — no dialog. */
 export function ApprovalDecision({ requestId, compact }: { requestId: string; compact?: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [rejecting, setRejecting] = useState(false);
@@ -27,18 +29,18 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
 
   const decide = (decision: "APPROVE" | "REJECT") => start(async () => {
     const r = await decideApprovalAction(requestId, decision, comment);
-    if (r.ok) { toast.success(decision === "APPROVE" ? "تم الاعتماد" : "تم الرفض"); setRejecting(false); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) { toast.success(decision === "APPROVE" ? t("تم الاعتماد") : t("تم الرفض")); setRejecting(false); router.refresh(); }
+    else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
 
   if (rejecting) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Input autoFocus value={comment} onChange={(e) => setComment(e.target.value)} placeholder="سبب الرفض — اللي طلب هيشوفه" className="h-8 min-w-56 flex-1 text-sm" />
+        <Input autoFocus value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("سبب الرفض — اللي طلب هيشوفه")} className="h-8 min-w-56 flex-1 text-sm" />
         <Button size="sm" variant="destructive" disabled={pending || !comment.trim()} onClick={() => decide("REJECT")}>
           {pending && <Loader2 className="size-4 animate-spin" />}رفض
         </Button>
-        <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRejecting(false)}>رجوع</Button>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRejecting(false)}>{t("رجوع")}</Button>
       </div>
     );
   }
@@ -47,7 +49,7 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
       <Button size={compact ? "sm" : "default"} disabled={pending} onClick={() => decide("APPROVE")}>
         {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}اعتماد
       </Button>
-      <Button size={compact ? "sm" : "default"} variant="outline" disabled={pending} onClick={() => setRejecting(true)}>رفض</Button>
+      <Button size={compact ? "sm" : "default"} variant="outline" disabled={pending} onClick={() => setRejecting(true)}>{t("رفض")}</Button>
     </div>
   );
 }
@@ -60,6 +62,7 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
 export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: {
   approval: BannerApproval | null; canDecide: boolean; currentUserId: string; isAdmin: boolean;
 }) {
+  const t = useT();
   if (!approval || approval.status === "CANCELLED") return null;
   const mine = approval.requestedBy === currentUserId;
 
@@ -69,7 +72,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
         <div className="flex items-start gap-2">
           <Icon name="Clock" className="mt-0.5 size-4 shrink-0" />
           <div>
-            <div className="font-semibold">مستني اعتماد المدير</div>
+            <div className="font-semibold">{t("مستني اعتماد المدير")}</div>
             <div>{approval.reason}</div>
             <div className="text-xs opacity-80">
               {approval.requestedByName ? `طلبه ${approval.requestedByName} · ` : ""}{ago(approval.requestedAt)}
@@ -92,13 +95,13 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
       <Icon name={approved ? "CheckCircle2" : "XCircle"} className="mt-0.5 size-4 shrink-0" />
       <div>
         <div className="font-semibold">
-          {approved ? "معتمد" : "مرفوض"}
+          {approved ? t("معتمد") : t("مرفوض")}
           {approval.decidedByName ? ` — ${approval.decidedByName}` : ""}
           {approval.decidedAt ? ` · ${ago(approval.decidedAt)}` : ""}
         </div>
         <div className="opacity-90">{approval.reason}</div>
         {approval.comment && <div className="mt-1">{approved ? approval.comment : `السبب: ${approval.comment}`}</div>}
-        {!approved && <div className="mt-1 text-xs opacity-80">عدّل المستند وأكّده تاني — هيتبعت للمدير من جديد.</div>}
+        {!approved && <div className="mt-1 text-xs opacity-80">{t("عدّل المستند وأكّده تاني — هيتبعت للمدير من جديد.")}</div>}
       </div>
     </div>
   );

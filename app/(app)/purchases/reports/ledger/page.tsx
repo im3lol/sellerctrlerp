@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { getPurchasesLedger } from "@/lib/erp/purchases-ledger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PurchasesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fSupplier = one(sp.supplier);
@@ -62,14 +64,14 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
       <ReportShell
         reportKey="purch-ledger"
         icon="BookOpen"
-        title="تقرير دفتر المشتريات"
+        title={t("تقرير دفتر المشتريات")}
         subtitle={`${totalRows} حركة`}
         query={filterQs().toString()}
         permissions={permissions}
       >
         <Card>
           <CardHeader>
-            <CardTitle>دفتر المشتريات (Ledger)</CardTitle>
+            <CardTitle>{t("دفتر المشتريات (Ledger)")}</CardTitle>
             <CardDescription>
               حصر شامل لكل حركات المشتريات — أوامر الشراء، إذون الاستلام، فواتير الشراء، والمرتجعات — مع تفصيل السعر والشحن والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر مورد أو نوع وثيقة أو فترة زمنية.
             </CardDescription>
@@ -81,34 +83,34 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…"
+                  <Label htmlFor="product">{t("المنتج (اسم أو كود)")}</Label>
+                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder={t("ابحث باسم الصنف أو الكود…")}
                     options={itemList.map((it) => ({ value: it.nameAr ?? it.code, hint: it.code }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="supplier">المورد (اسم أو كود)</Label>
-                  <LedgerCombobox name="supplier" defaultValue={fSupplier} placeholder="ابحث باسم المورد أو الكود…"
+                  <Label htmlFor="supplier">{t("المورد (اسم أو كود)")}</Label>
+                  <LedgerCombobox name="supplier" defaultValue={fSupplier} placeholder={t("ابحث باسم المورد أو الكود…")}
                     options={supList.map((s) => ({ value: s.nameAr ?? s.code, hint: s.code }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="type">نوع الوثيقة</Label>
+                  <Label htmlFor="type">{t("نوع الوثيقة")}</Label>
                   <select id="type" name="type" defaultValue={fType} className={selectCls}>
-                    <option value="">كل الأنواع</option>
-                    {DOC_TYPES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("كل الأنواع")}</option>
+                    {DOC_TYPES.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-5">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/purchases/reports/ledger">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/purchases/reports/ledger">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {totalRows === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                {hasFilters ? "لا توجد حركات مطابقة." : "لا توجد حركات مشتريات بعد."}
+                {hasFilters ? t("لا توجد حركات مطابقة.") : t("لا توجد حركات مشتريات بعد.")}
               </div>
             ) : (
               <>
@@ -117,10 +119,10 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { savePriceListAction, deletePriceListAction } from "@/app/actions/erp/price-lists";
@@ -46,6 +47,7 @@ export function PriceListsManager({
   items: Item[];
   canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -77,7 +79,7 @@ export function PriceListsManager({
         rows: draft.rows.map((r) => ({ itemId: r.itemId, price: r.price, minQuantity: r.minQuantity })),
       });
       if (r.ok) { toast.success("تم حفظ القائمة"); setDraft(null); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -95,7 +97,7 @@ export function PriceListsManager({
       start(async () => {
         const r = await deletePriceListAction(l.id);
         if (r.ok) { toast.success("تم الحذف"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -105,24 +107,24 @@ export function PriceListsManager({
         <CardHeader>
           <div className="flex w-full flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>{draft.id ? `تعديل ${draft.nameAr || "قائمة"}` : "قائمة أسعار جديدة"}</CardTitle>
-              <CardDescription>الأصناف اللي مش في القائمة بتاخد سعر البيع المسجّل على الصنف نفسه.</CardDescription>
+              <CardTitle>{draft.id ? `تعديل ${draft.nameAr || t("قائمة")}` : "قائمة أسعار جديدة"}</CardTitle>
+              <CardDescription>{t("الأصناف اللي مش في القائمة بتاخد سعر البيع المسجّل على الصنف نفسه.")}</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={pending}><Icon name="Check" className="size-4" />حفظ</Button>
-              <Button size="sm" variant="outline" onClick={() => setDraft(null)} disabled={pending}>إلغاء</Button>
+              <Button size="sm" onClick={save} disabled={pending}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+              <Button size="sm" variant="outline" onClick={() => setDraft(null)} disabled={pending}>{t("إلغاء")}</Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="space-y-2"><Label>الكود</Label>
+            <div className="space-y-2"><Label>{t("الكود")}</Label>
               <Input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="WHOLESALE" /></div>
-            <div className="space-y-2"><Label>الاسم</Label>
-              <Input value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} placeholder="أسعار الجملة" /></div>
-            <div className="space-y-2"><Label>سارية من</Label>
+            <div className="space-y-2"><Label>{t("الاسم")}</Label>
+              <Input value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} placeholder={t("أسعار الجملة")} /></div>
+            <div className="space-y-2"><Label>{t("سارية من")}</Label>
               <Input type="date" value={draft.validFrom} onChange={(e) => setDraft({ ...draft, validFrom: e.target.value })} /></div>
-            <div className="space-y-2"><Label>سارية حتى</Label>
+            <div className="space-y-2"><Label>{t("سارية حتى")}</Label>
               <Input type="date" value={draft.validTo} onChange={(e) => setDraft({ ...draft, validTo: e.target.value })} /></div>
           </div>
 
@@ -145,16 +147,16 @@ export function PriceListsManager({
           </div>
 
           {draft.rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش أصناف في القائمة — أضف صنف وسعره.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش أصناف في القائمة — أضف صنف وسعره.")}</p>
           ) : (
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="w-32 text-start">من كمية</TableHead>
-                    <TableHead className="w-32 text-start">السعر</TableHead>
-                    <TableHead className="w-32 text-start">سعر الصنف</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="w-32 text-start">{t("من كمية")}</TableHead>
+                    <TableHead className="w-32 text-start">{t("السعر")}</TableHead>
+                    <TableHead className="w-32 text-start">{t("سعر الصنف")}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -166,7 +168,7 @@ export function PriceListsManager({
                           selectedLabel={itemById.get(r.itemId) ? `${itemById.get(r.itemId)!.code} — ${itemById.get(r.itemId)!.nameAr}` : ""}
                           options={items.map((it) => ({ id: it.id, label: `${it.code} — ${it.nameAr}` }))}
                           onSelect={(id) => patchRow(i, { itemId: id })}
-                          placeholder="ابحث عن الصنف…"
+                          placeholder={t("ابحث عن الصنف…")}
                         />
                       </TableCell>
                       <TableCell>
@@ -181,7 +183,7 @@ export function PriceListsManager({
                         {itemById.get(r.itemId) ? money(itemById.get(r.itemId)!.sellPrice) : "—"}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => removeRow(i)}>
+                        <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => removeRow(i)}>
                           <Icon name="Trash2" className="size-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -201,7 +203,7 @@ export function PriceListsManager({
       <CardHeader>
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>قوائم الأسعار</CardTitle>
+            <CardTitle>{t("قوائم الأسعار")}</CardTitle>
             <CardDescription>{lists.length ? `${lists.length} قائمة` : "لسه مفيش قوائم"}</CardDescription>
           </div>
           {canManage && (
@@ -221,12 +223,12 @@ export function PriceListsManager({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الكود</TableHead>
-                  <TableHead className="text-start">الاسم</TableHead>
-                  <TableHead className="text-start">أصناف</TableHead>
-                  <TableHead className="text-start">عملاء</TableHead>
-                  <TableHead className="text-start">السريان</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
+                  <TableHead className="text-start">{t("الكود")}</TableHead>
+                  <TableHead className="text-start">{t("الاسم")}</TableHead>
+                  <TableHead className="text-start">{t("أصناف")}</TableHead>
+                  <TableHead className="text-start">{t("عملاء")}</TableHead>
+                  <TableHead className="text-start">{t("السريان")}</TableHead>
+                  <TableHead className="text-start">{t("الحالة")}</TableHead>
                   {canManage && <TableHead className="w-24" />}
                 </TableRow>
               </TableHeader>
@@ -241,15 +243,15 @@ export function PriceListsManager({
                       {l.validFrom || l.validTo ? `${l.validFrom || "—"} ← ${l.validTo || "—"}` : "دائمة"}
                     </TableCell>
                     <TableCell className="space-x-1 space-x-reverse">
-                      {l.isDefault && <Badge variant="secondary">افتراضية</Badge>}
-                      {!l.isActive && <Badge variant="outline">موقوفة</Badge>}
+                      {l.isDefault && <Badge variant="secondary">{t("افتراضية")}</Badge>}
+                      {!l.isActive && <Badge variant="outline">{t("موقوفة")}</Badge>}
                     </TableCell>
                     {canManage && (
                       <TableCell className="flex gap-1">
-                        <Button size="icon" variant="ghost" aria-label="تعديل" onClick={() => edit(l)}>
+                        <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => edit(l)}>
                           <Icon name="Edit" className="size-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => remove(l)}>
+                        <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(l)}>
                           <Icon name="Trash2" className="size-4 text-destructive" />
                         </Button>
                       </TableCell>

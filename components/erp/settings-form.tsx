@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ function SaveBtn({ label = "حفظ" }: { label?: string }) {
  * profile form is saved — an upload the user then abandons doesn't change the record.
  */
 function LogoField({ initial, disabled }: { initial: string | null; disabled: boolean }) {
+  const t = useT();
   const [url, setUrl] = useState(initial ?? "");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -58,7 +60,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
 
   return (
     <div className="space-y-2 sm:col-span-2">
-      <Label>شعار الشركة</Label>
+      <Label>{t("شعار الشركة")}</Label>
       <input type="hidden" name="logo" value={url} />
       <div className="flex items-center gap-3">
         {url ? (
@@ -74,7 +76,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
         <Button type="button" variant="outline" size="sm" disabled={disabled || busy}
           onClick={() => fileRef.current?.click()}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-          {busy ? "جارٍ الرفع…" : url ? "تغيير" : "رفع شعار"}
+          {busy ? t("جارٍ الرفع…") : url ? t("تغيير") : t("رفع شعار")}
         </Button>
         {url && (
           <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => setUrl("")}>
@@ -93,12 +95,13 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
 function AccountSelect({
   name, label, accounts, defaultValue, types,
 }: { name: string; label: string; accounts: AccountOption[]; defaultValue: string | null; types: string[] }) {
+  const t = useT();
   const options = accounts.filter((a) => types.includes(a.type));
   return (
     <div className="space-y-2">
       <Label htmlFor={`cfg-${name}`}>{label}</Label>
       <select id={`cfg-${name}`} name={name} defaultValue={defaultValue ?? ""} className={selectCls}>
-        <option value="">— بدون —</option>
+        <option value="">{t("— بدون —")}</option>
         {options.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
       </select>
     </div>
@@ -108,6 +111,7 @@ function AccountSelect({
 export function SettingsForm({
   profile, config, accounts, canEdit, section,
 }: { profile: OrgProfile; config: AccountingConfig; accounts: AccountOption[]; canEdit: boolean; section?: "profile" | "accounting" }) {
+  const t = useT();
   const [profileState, profileAction] = useActionState<ActionState, FormData>(saveOrgProfileAction, {});
   const [configState, configAction] = useActionState<ActionState, FormData>(saveAccountingConfigAction, {});
 
@@ -127,18 +131,18 @@ export function SettingsForm({
       {/* Organization profile */}
       {section !== "accounting" && <Card>
         <CardHeader>
-          <CardTitle>بيانات المنشأة</CardTitle>
-          <CardDescription>تظهر هذه البيانات في الفواتير والتقارير، وتُستخدم نسبة الضريبة كقيمة افتراضية.</CardDescription>
+          <CardTitle>{t("بيانات المنشأة")}</CardTitle>
+          <CardDescription>{t("تظهر هذه البيانات في الفواتير والتقارير، وتُستخدم نسبة الضريبة كقيمة افتراضية.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={profileAction} className="space-y-4">
             <fieldset disabled={!canEdit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2"><Label htmlFor="nameAr">اسم المنشأة</Label><Input id="nameAr" name="nameAr" defaultValue={profile.nameAr} required /></div>
-                <div className="space-y-2"><Label htmlFor="nameEn">الاسم (إنجليزي)</Label><Input id="nameEn" name="nameEn" defaultValue={profile.nameEn} /></div>
-                <div className="space-y-2"><Label htmlFor="legalName">الاسم القانوني</Label><Input id="legalName" name="legalName" defaultValue={profile.legalName ?? ""} /></div>
-                <div className="space-y-2"><Label htmlFor="taxNumber">الرقم الضريبي</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
-                <div className="space-y-2"><Label htmlFor="vatRate">نسبة ضريبة القيمة المضافة (%)</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
+                <div className="space-y-2"><Label htmlFor="nameAr">{t("اسم المنشأة")}</Label><Input id="nameAr" name="nameAr" defaultValue={profile.nameAr} required /></div>
+                <div className="space-y-2"><Label htmlFor="nameEn">{t("الاسم (إنجليزي)")}</Label><Input id="nameEn" name="nameEn" defaultValue={profile.nameEn} /></div>
+                <div className="space-y-2"><Label htmlFor="legalName">{t("الاسم القانوني")}</Label><Input id="legalName" name="legalName" defaultValue={profile.legalName ?? ""} /></div>
+                <div className="space-y-2"><Label htmlFor="taxNumber">{t("الرقم الضريبي")}</Label><Input id="taxNumber" name="taxNumber" defaultValue={profile.taxNumber ?? ""} dir="ltr" /></div>
+                <div className="space-y-2"><Label htmlFor="vatRate">{t("نسبة ضريبة القيمة المضافة (%)")}</Label><Input id="vatRate" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={profile.vatRate} dir="ltr" /></div>
                 {/* Manager approvals — one level, a threshold per document type. Off by
                     default: a company that never opens this sees no change at all. */}
                 <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
@@ -147,11 +151,11 @@ export function SettingsForm({
                     اعتمادات المدير — المستند اللي فوق الحد يستنى موافقة حد عنده صلاحية «الاعتماد» قبل ما يتأكد
                   </label>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div className="space-y-1"><Label htmlFor="apPurchaseOrder">أمر شراء فوق</Label><Input id="apPurchaseOrder" name="apPurchaseOrder" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.purchaseOrder || ""} dir="ltr" placeholder="0 = بدون" /></div>
-                    <div className="space-y-1"><Label htmlFor="apPayment">سند صرف فوق</Label><Input id="apPayment" name="apPayment" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.payment || ""} dir="ltr" placeholder="0 = بدون" /></div>
-                    <div className="space-y-1"><Label htmlFor="apExpense">مصروف أو مطالبة موظف فوق</Label><Input id="apExpense" name="apExpense" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.expense || ""} dir="ltr" placeholder="0 = بدون" /></div>
-                    <div className="space-y-1"><Label htmlFor="apStockWriteOff">بضاعة خارجة من المخزون (تسوية/إعدام) فوق</Label><Input id="apStockWriteOff" name="apStockWriteOff" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.stockWriteOff || ""} dir="ltr" placeholder="0 = بدون" /></div>
-                    <div className="space-y-1"><Label htmlFor="apSalesDiscountPct">خصم على أمر بيع فوق (%)</Label><Input id="apSalesDiscountPct" name="apSalesDiscountPct" type="number" step="0.1" min="0" max="100" defaultValue={profile.approvalPolicy.salesDiscountPct || ""} dir="ltr" placeholder="0 = بدون" /></div>
+                    <div className="space-y-1"><Label htmlFor="apPurchaseOrder">{t("أمر شراء فوق")}</Label><Input id="apPurchaseOrder" name="apPurchaseOrder" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.purchaseOrder || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
+                    <div className="space-y-1"><Label htmlFor="apPayment">{t("سند صرف فوق")}</Label><Input id="apPayment" name="apPayment" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.payment || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
+                    <div className="space-y-1"><Label htmlFor="apExpense">{t("مصروف أو مطالبة موظف فوق")}</Label><Input id="apExpense" name="apExpense" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.expense || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
+                    <div className="space-y-1"><Label htmlFor="apStockWriteOff">{t("بضاعة خارجة من المخزون (تسوية/إعدام) فوق")}</Label><Input id="apStockWriteOff" name="apStockWriteOff" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.stockWriteOff || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
+                    <div className="space-y-1"><Label htmlFor="apSalesDiscountPct">{t("خصم على أمر بيع فوق (%)")}</Label><Input id="apSalesDiscountPct" name="apSalesDiscountPct" type="number" step="0.1" min="0" max="100" defaultValue={profile.approvalPolicy.salesDiscountPct || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
                     <label className="flex cursor-pointer items-center gap-2 self-end pb-2 text-sm">
                       <input type="checkbox" name="apSalesBelowCost" className="size-4 rounded border-input" defaultChecked={profile.approvalPolicy.salesBelowCost} />
                       البيع بأقل من التكلفة
@@ -165,11 +169,11 @@ export function SettingsForm({
                 {/* «المتأخر» — after how many days an open document counts as stuck. Blank
                     keeps the default shown as the placeholder. */}
                 <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
-                  <div className="text-sm font-medium">المتأخر — بعد كام يوم المستند يعتبر واقف</div>
+                  <div className="text-sm font-medium">{t("المتأخر — بعد كام يوم المستند يعتبر واقف")}</div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {STUCK_RULES.map((r) => (
                       <div key={r.key} className="space-y-1">
-                        <Label htmlFor={`st_${r.key}`}>{r.label} (يوم)</Label>
+                        <Label htmlFor={`st_${r.key}`}>{t(r.label)} (يوم)</Label>
                         <Input id={`st_${r.key}`} name={`st_${r.key}`} type="number" min="0" max="365" step="1"
                           defaultValue={profile.stuckDays[r.key]} placeholder={String(r.def)} dir="ltr" />
                       </div>
@@ -188,7 +192,7 @@ export function SettingsForm({
                     فكّر العملاء بالفواتير المتأخرة بإيميل
                   </label>
                   <div className="space-y-1">
-                    <Label htmlFor="rmStages">بعد كام يوم من الاستحقاق (أرقام مفصولة بفاصلة)</Label>
+                    <Label htmlFor="rmStages">{t("بعد كام يوم من الاستحقاق (أرقام مفصولة بفاصلة)")}</Label>
                     <Input id="rmStages" name="rmStages" defaultValue={profile.reminders.stages.join(", ")} dir="ltr" className="max-w-xs" />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -202,7 +206,7 @@ export function SettingsForm({
                     subscription — both of those already deny access. This is the owner
                     saying "we don't use that", so ninety items stop being ninety. */}
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>الأقسام الظاهرة في القائمة</Label>
+                  <Label>{t("الأقسام الظاهرة في القائمة")}</Label>
                   <div className="grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-2 lg:grid-cols-3">
                     {HIDEABLE_SECTIONS.map((h) => (
                       <label key={h} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -220,7 +224,7 @@ export function SettingsForm({
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="purchaseVatCapitalised">ضريبة المشتريات</Label>
+                  <Label htmlFor="purchaseVatCapitalised">{t("ضريبة المشتريات")}</Label>
                   <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
                     <input id="purchaseVatCapitalised" name="purchaseVatCapitalised" type="checkbox" className="size-4 rounded border-input" defaultChecked={profile.purchaseVatCapitalised} />
                     تُحمَّل على تكلفة البضاعة
@@ -230,13 +234,13 @@ export function SettingsForm({
                     التغيير بيسري على المستندات الجديدة بس؛ اللي اتأكّد قبل كدا بيفضل بتكلفته.
                   </p>
                 </div>
-                <div className="space-y-2"><Label htmlFor="fiscalYearStart">بداية السنة المالية</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /><p className="text-xs text-muted-foreground">اليوم والشهر فقط (يتكرر كل سنة). فارغ = 1 يناير. <b>يحكم حدود كل فتراتك المحاسبية والإقفال السنوي</b> — ويُقفل التغيير بعد أول عملية محاسبية.</p></div>
-                <div className="space-y-2"><Label htmlFor="phone">الهاتف</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
-                <div className="space-y-2"><Label htmlFor="email">البريد الإلكتروني</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>
-                <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">العنوان</Label><Input id="address" name="address" defaultValue={profile.address ?? ""} /></div>
+                <div className="space-y-2"><Label htmlFor="fiscalYearStart">{t("بداية السنة المالية")}</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /><p className="text-xs text-muted-foreground">{t("اليوم والشهر فقط (يتكرر كل سنة). فارغ = 1 يناير.")} <b>{t("يحكم حدود كل فتراتك المحاسبية والإقفال السنوي")}</b> {t("— ويُقفل التغيير بعد أول عملية محاسبية.")}</p></div>
+                <div className="space-y-2"><Label htmlFor="phone">{t("الهاتف")}</Label><Input id="phone" name="phone" defaultValue={profile.phone ?? ""} dir="ltr" /></div>
+                <div className="space-y-2"><Label htmlFor="email">{t("البريد الإلكتروني")}</Label><Input id="email" name="email" type="email" defaultValue={profile.email ?? ""} dir="ltr" /></div>
+                <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">{t("العنوان")}</Label><Input id="address" name="address" defaultValue={profile.address ?? ""} /></div>
                 <LogoField initial={profile.logo} disabled={!canEdit} />
               </div>
-              {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ البيانات" /></div>}
+              {canEdit && <div className="flex justify-end"><SaveBtn label={t("حفظ البيانات")} /></div>}
             </fieldset>
           </form>
         </CardContent>
@@ -245,35 +249,35 @@ export function SettingsForm({
       {/* Default GL accounts */}
       {section !== "profile" && <Card>
         <CardHeader>
-          <CardTitle>الضبط المحاسبي الافتراضي</CardTitle>
-          <CardDescription>الحسابات التي تُرحَّل إليها المستندات تلقائياً (مدينون، دائنون، مبيعات، مخزون، تكلفة المبيعات، الضرائب).</CardDescription>
+          <CardTitle>{t("الضبط المحاسبي الافتراضي")}</CardTitle>
+          <CardDescription>{t("الحسابات التي تُرحَّل إليها المستندات تلقائياً (مدينون، دائنون، مبيعات، مخزون، تكلفة المبيعات، الضرائب).")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={configAction} className="space-y-4">
             <fieldset disabled={!canEdit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <AccountSelect name="receivableAccountId" label="حساب المدينين (عملاء)" accounts={accounts} defaultValue={cfg.receivableAccountId} types={["ASSET"]} />
-                <AccountSelect name="payableAccountId" label="حساب الدائنين (موردون)" accounts={accounts} defaultValue={cfg.payableAccountId} types={["LIABILITY"]} />
-                <AccountSelect name="cashAccountId" label="حساب النقدية" accounts={accounts} defaultValue={cfg.cashAccountId} types={["ASSET"]} />
-                <AccountSelect name="bankAccountId" label="حساب البنك" accounts={accounts} defaultValue={cfg.bankAccountId} types={["ASSET"]} />
-                <AccountSelect name="salesAccountId" label="حساب المبيعات" accounts={accounts} defaultValue={cfg.salesAccountId} types={["REVENUE"]} />
-                <AccountSelect name="purchaseAccountId" label="حساب المشتريات" accounts={accounts} defaultValue={cfg.purchaseAccountId} types={["EXPENSE", "ASSET"]} />
-                <AccountSelect name="inventoryAccountId" label="حساب المخزون" accounts={accounts} defaultValue={cfg.inventoryAccountId} types={["ASSET"]} />
-                <AccountSelect name="cogsAccountId" label="حساب تكلفة المبيعات" accounts={accounts} defaultValue={cfg.cogsAccountId} types={["EXPENSE"]} />
-                <AccountSelect name="outputTaxAccountId" label="ضريبة المخرجات (مبيعات)" accounts={accounts} defaultValue={cfg.outputTaxAccountId} types={["LIABILITY"]} />
-                <AccountSelect name="inputTaxAccountId" label="ضريبة المدخلات (مشتريات)" accounts={accounts} defaultValue={cfg.inputTaxAccountId} types={["ASSET"]} />
-                <AccountSelect name="grniAccountId" label="بضاعة مستلمة لم تُفوتر" accounts={accounts} defaultValue={cfg.grniAccountId} types={["LIABILITY"]} />
-                <AccountSelect name="salesReturnsAccountId" label="مردودات المبيعات" accounts={accounts} defaultValue={cfg.salesReturnsAccountId} types={["REVENUE"]} />
-                <AccountSelect name="inventorySurplusAccountId" label="فائض المخزون" accounts={accounts} defaultValue={cfg.inventorySurplusAccountId} types={["REVENUE"]} />
-                <AccountSelect name="inventoryDeficitAccountId" label="عجز وتالف المخزون" accounts={accounts} defaultValue={cfg.inventoryDeficitAccountId} types={["EXPENSE"]} />
-                <AccountSelect name="purchaseReturnVarianceAccountId" label="فروق أسعار مرتجعات الشراء" accounts={accounts} defaultValue={cfg.purchaseReturnVarianceAccountId} types={["EXPENSE"]} />
-                <AccountSelect name="openingEquityAccountId" label="حساب الأرصدة الافتتاحية" accounts={accounts} defaultValue={cfg.openingEquityAccountId} types={["EQUITY"]} />
-                <AccountSelect name="amazonClearingAccountId" label="رصيد أمازون الوسيط" accounts={accounts} defaultValue={cfg.amazonClearingAccountId} types={["ASSET"]} />
-                <AccountSelect name="amazonFeesAccountId" label="رسوم أمازون" accounts={accounts} defaultValue={cfg.amazonFeesAccountId} types={["EXPENSE"]} />
-                <AccountSelect name="assetDisposalGainAccountId" label="أرباح بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalGainAccountId} types={["REVENUE"]} />
-                <AccountSelect name="assetDisposalLossAccountId" label="خسائر بيع أصول ثابتة" accounts={accounts} defaultValue={cfg.assetDisposalLossAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="receivableAccountId" label={t("حساب المدينين (عملاء)")} accounts={accounts} defaultValue={cfg.receivableAccountId} types={["ASSET"]} />
+                <AccountSelect name="payableAccountId" label={t("حساب الدائنين (موردون)")} accounts={accounts} defaultValue={cfg.payableAccountId} types={["LIABILITY"]} />
+                <AccountSelect name="cashAccountId" label={t("حساب النقدية")} accounts={accounts} defaultValue={cfg.cashAccountId} types={["ASSET"]} />
+                <AccountSelect name="bankAccountId" label={t("حساب البنك")} accounts={accounts} defaultValue={cfg.bankAccountId} types={["ASSET"]} />
+                <AccountSelect name="salesAccountId" label={t("حساب المبيعات")} accounts={accounts} defaultValue={cfg.salesAccountId} types={["REVENUE"]} />
+                <AccountSelect name="purchaseAccountId" label={t("حساب المشتريات")} accounts={accounts} defaultValue={cfg.purchaseAccountId} types={["EXPENSE", "ASSET"]} />
+                <AccountSelect name="inventoryAccountId" label={t("حساب المخزون")} accounts={accounts} defaultValue={cfg.inventoryAccountId} types={["ASSET"]} />
+                <AccountSelect name="cogsAccountId" label={t("حساب تكلفة المبيعات")} accounts={accounts} defaultValue={cfg.cogsAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="outputTaxAccountId" label={t("ضريبة المخرجات (مبيعات)")} accounts={accounts} defaultValue={cfg.outputTaxAccountId} types={["LIABILITY"]} />
+                <AccountSelect name="inputTaxAccountId" label={t("ضريبة المدخلات (مشتريات)")} accounts={accounts} defaultValue={cfg.inputTaxAccountId} types={["ASSET"]} />
+                <AccountSelect name="grniAccountId" label={t("بضاعة مستلمة لم تُفوتر")} accounts={accounts} defaultValue={cfg.grniAccountId} types={["LIABILITY"]} />
+                <AccountSelect name="salesReturnsAccountId" label={t("مردودات المبيعات")} accounts={accounts} defaultValue={cfg.salesReturnsAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventorySurplusAccountId" label={t("فائض المخزون")} accounts={accounts} defaultValue={cfg.inventorySurplusAccountId} types={["REVENUE"]} />
+                <AccountSelect name="inventoryDeficitAccountId" label={t("عجز وتالف المخزون")} accounts={accounts} defaultValue={cfg.inventoryDeficitAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="purchaseReturnVarianceAccountId" label={t("فروق أسعار مرتجعات الشراء")} accounts={accounts} defaultValue={cfg.purchaseReturnVarianceAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="openingEquityAccountId" label={t("حساب الأرصدة الافتتاحية")} accounts={accounts} defaultValue={cfg.openingEquityAccountId} types={["EQUITY"]} />
+                <AccountSelect name="amazonClearingAccountId" label={t("رصيد أمازون الوسيط")} accounts={accounts} defaultValue={cfg.amazonClearingAccountId} types={["ASSET"]} />
+                <AccountSelect name="amazonFeesAccountId" label={t("رسوم أمازون")} accounts={accounts} defaultValue={cfg.amazonFeesAccountId} types={["EXPENSE"]} />
+                <AccountSelect name="assetDisposalGainAccountId" label={t("أرباح بيع أصول ثابتة")} accounts={accounts} defaultValue={cfg.assetDisposalGainAccountId} types={["REVENUE"]} />
+                <AccountSelect name="assetDisposalLossAccountId" label={t("خسائر بيع أصول ثابتة")} accounts={accounts} defaultValue={cfg.assetDisposalLossAccountId} types={["EXPENSE"]} />
               </div>
-              {canEdit && <div className="flex justify-end"><SaveBtn label="حفظ الضبط" /></div>}
+              {canEdit && <div className="flex justify-end"><SaveBtn label={t("حفظ الضبط")} /></div>}
             </fieldset>
           </form>
         </CardContent>

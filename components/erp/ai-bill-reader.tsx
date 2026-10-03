@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { readBillAction, billToInvoiceAction, billToExpenseAction, type ReadBillResult } from "@/app/actions/erp/ai-bills";
@@ -25,6 +26,7 @@ const KIND: Record<string, string> = { goods: "فاتورة بضاعة", service
 export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAccounts }: {
   canInvoice: boolean; canExpense: boolean; expenseAccounts: Account[]; cashAccounts: Account[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [file, setFile] = useState<File | null>(null);
@@ -40,7 +42,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
     fd.set("file", file);
     start(async () => {
       const r = await readBillAction(fd);
-      if (!r.ok) { toast.error(r.error ?? "تعذّرت القراءة"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّرت القراءة")); return; }
       setRes(r);
       setReceiptId(r.receipts?.[0]?.id ?? "");
     });
@@ -48,14 +50,14 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
 
   const toInvoice = () => start(async () => {
     const r = await billToInvoiceAction(res!.captureId!, receiptId);
-    if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر إنشاء الفاتورة"); return; }
+    if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء الفاتورة")); return; }
     toast.success(`فاتورة شراء مسودة ${r.number}${r.unmatched ? ` — ${r.unmatched} بند ماتطابقش، راجع أسعاره` : ""}`);
     router.push(`/purchases/invoices/${encodeURIComponent(r.number)}`);
   });
 
   const toExpense = () => start(async () => {
     const r = await billToExpenseAction(res!.captureId!, { expenseAccountId: expenseAcc!.id, cashAccountId: cashAcc });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر إنشاء المصروف"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر إنشاء المصروف")); return; }
     toast.success(`مصروف مسودة ${r.number ?? ""}`);
     router.push(r.number ? `/accounting/expenses/${encodeURIComponent(r.number)}/edit` : "/accounting/expenses");
   });
@@ -66,23 +68,23 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
   const invoiceCard = canInvoice && b && (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">فاتورة شراء من إذن الاستلام</CardTitle>
-        <CardDescription>بضاعة استلمتها: الفاتورة بتتعمل من الإذن، وأسعارها من فاتورة المورد. الكميات زي ما اتستلمت.</CardDescription>
+        <CardTitle className="text-base">{t("فاتورة شراء من إذن الاستلام")}</CardTitle>
+        <CardDescription>{t("بضاعة استلمتها: الفاتورة بتتعمل من الإذن، وأسعارها من فاتورة المورد. الكميات زي ما اتستلمت.")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-2">
         {!res?.supplier ? (
-          <p className="text-sm text-muted-foreground">المورد «{b.supplierName ?? "؟"}» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.</p>
+          <p className="text-sm text-muted-foreground">المورد «{b.supplierName ?? t("؟")}» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.</p>
         ) : (res.receipts ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">مفيش إذن استلام مفتوح لـ«{res.supplier.nameAr}» — استلم البضاعة الأول (أمر شراء ← إذن استلام).</p>
         ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="grn">إذن الاستلام</Label>
+              <Label htmlFor="grn">{t("إذن الاستلام")}</Label>
               <select id="grn" className={`${selectCls} w-64`} value={receiptId} onChange={(e) => setReceiptId(e.target.value)}>
                 {res.receipts!.map((r) => <option key={r.id} value={r.id}>{r.number} — {r.date}</option>)}
               </select>
             </div>
-            <Button disabled={pending || !receiptId} onClick={toInvoice}><Icon name="FileText" className="size-4" />اعمل فاتورة شراء مسودة</Button>
+            <Button disabled={pending || !receiptId} onClick={toInvoice}><Icon name="FileText" className="size-4" />{t("اعمل فاتورة شراء مسودة")}</Button>
           </>
         )}
       </CardContent>
@@ -92,18 +94,18 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
   const expenseCard = canExpense && b && (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">مصروف</CardTitle>
-        <CardDescription>خدمة أو إيصال (إيجار، كهربا، شحن، ضيافة…): مصروف مسودة بالمبلغ والتاريخ ورقم الفاتورة.</CardDescription>
+        <CardTitle className="text-base">{t("مصروف")}</CardTitle>
+        <CardDescription>{t("خدمة أو إيصال (إيجار، كهربا، شحن، ضيافة…): مصروف مسودة بالمبلغ والتاريخ ورقم الفاتورة.")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-2">
         <div className="w-72 space-y-2">
-          <Label>بند المصروف</Label>
-          <CellCombobox selectedLabel={expenseAcc?.label ?? ""} placeholder="اختار بند المصروف"
+          <Label>{t("بند المصروف")}</Label>
+          <CellCombobox selectedLabel={expenseAcc?.label ?? ""} placeholder={t("اختار بند المصروف")}
             options={expenseAccounts.map((a) => ({ id: a.id, label: label(a) }))}
             onSelect={(id, l) => setExpenseAcc({ id, label: l })} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="cash">اتدفع من</Label>
+          <Label htmlFor="cash">{t("اتدفع من")}</Label>
           <select id="cash" className={`${selectCls} w-56`} value={cashAcc} onChange={(e) => setCashAcc(e.target.value)}>
             {cashAccounts.map((a) => <option key={a.id} value={a.id}>{label(a)}</option>)}
           </select>
@@ -119,7 +121,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>ارفع الفاتورة</CardTitle>
+          <CardTitle>{t("ارفع الفاتورة")}</CardTitle>
           <CardDescription>
             PDF أو صورة واضحة. الملف ده بس هو اللي بيتبعت للذكاء الاصطناعي — مفيش أي بيانات تانية من حسابك —
             ومفيش أي مستند بيتعمل غير لما تدوس بنفسك.
@@ -139,19 +141,19 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">اللي اتقرا</CardTitle>
-              <Badge variant="outline">{KIND[b.kind] ?? b.kind}</Badge>
+              <CardTitle className="text-base">{t("اللي اتقرا")}</CardTitle>
+              <Badge variant="outline">{t(KIND[b.kind] ?? b.kind)}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><dt className="text-xs text-muted-foreground">المورد</dt><dd className="font-medium">
+              <div><dt className="text-xs text-muted-foreground">{t("المورد")}</dt><dd className="font-medium">
                 {b.supplierName ?? "—"}
-                {res?.supplier ? <span className="ms-1 text-xs text-emerald-600">✓ {res.supplier.nameAr}</span> : <span className="ms-1 text-xs text-amber-600">(مش عندك)</span>}
+                {res?.supplier ? <span className="ms-1 text-xs text-emerald-600">✓ {res.supplier.nameAr}</span> : <span className="ms-1 text-xs text-amber-600">{t("(مش عندك)")}</span>}
               </dd></div>
-              <div><dt className="text-xs text-muted-foreground">رقم الفاتورة</dt><dd className="font-mono">{b.invoiceNumber ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">التاريخ</dt><dd>{b.invoiceDate ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">الإجمالي</dt><dd className="font-bold tabular-nums">{num(b.total)} {b.currency ?? ""}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">{t("رقم الفاتورة")}</dt><dd className="font-mono">{b.invoiceNumber ?? "—"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">{t("التاريخ")}</dt><dd>{b.invoiceDate ?? "—"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">{t("الإجمالي")}</dt><dd className="font-bold tabular-nums">{num(b.total)} {b.currency ?? ""}</dd></div>
             </dl>
 
             {(res?.warnings ?? []).length > 0 && (
@@ -164,11 +166,11 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">البند</TableHead>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
-                    <TableHead className="text-start">السعر</TableHead>
-                    <TableHead className="text-start">الضريبة</TableHead>
+                    <TableHead className="text-start">{t("البند")}</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
+                    <TableHead className="text-start">{t("السعر")}</TableHead>
+                    <TableHead className="text-start">{t("الضريبة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

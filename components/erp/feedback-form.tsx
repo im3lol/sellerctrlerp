@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
@@ -18,6 +19,7 @@ const KINDS = [
 ] as const;
 
 export function FeedbackForm() {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [kind, setKind] = useState<"suggestion" | "complaint">("suggestion");
@@ -37,7 +39,7 @@ export function FeedbackForm() {
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="space-y-1.5">
-          <Label>النوع</Label>
+          <Label>{t("النوع")}</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {KINDS.map((k) => (
               <button key={k.value} type="button" onClick={() => setKind(k.value)}
@@ -45,7 +47,7 @@ export function FeedbackForm() {
                   "rounded-lg border p-3 text-right transition-colors",
                   kind === k.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                 )}>
-                <div className="text-sm font-medium">{k.label}</div>
+                <div className="text-sm font-medium">{t(k.label)}</div>
                 <div className="text-xs text-muted-foreground">{k.hint}</div>
               </button>
             ))}
@@ -53,15 +55,15 @@ export function FeedbackForm() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="subject">الموضوع</Label>
+          <Label htmlFor="subject">{t("الموضوع")}</Label>
           <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)}
-            placeholder="مثلاً: عايز أطبع الفاتورة بشعار الشركة" />
+            placeholder={t("مثلاً: عايز أطبع الفاتورة بشعار الشركة")} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="message">التفاصيل</Label>
+          <Label htmlFor="message">{t("التفاصيل")}</Label>
           <Textarea id="message" rows={6} value={message} onChange={(e) => setMessage(e.target.value)}
-            placeholder="اشرح المشكلة أو الفكرة — لو شكوى، قول لنا كنت بتعمل إيه بالظبط لما حصلت." />
+            placeholder={t("اشرح المشكلة أو الفكرة — لو شكوى، قول لنا كنت بتعمل إيه بالظبط لما حصلت.")} />
           <p className="text-xs text-muted-foreground">
             كل ما التفاصيل تزيد كل ما الرد يبقى أسرع وأدق.
           </p>

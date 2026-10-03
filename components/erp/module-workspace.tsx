@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NAV, type NavItem } from "@/components/app-shell/nav-config";
@@ -18,7 +19,7 @@ import { erpAllows } from "@/lib/nav-access";
  * settings-form.tsx already imports it), so a server component can read it directly.
  */
 
-export function ModuleWorkspace({
+export async function ModuleWorkspace({
   heading,
   permissions,
   /** Creation shortcuts — actions, not pages, so they aren't in the nav and stay explicit. */
@@ -31,6 +32,7 @@ export function ModuleWorkspace({
   actions?: { label: string; href: string; icon: string }[];
   counts?: Record<string, number>;
 }) {
+  const t = await getT();
   const perms = new Set(permissions);
   const section = NAV.find((s) => s.heading === heading);
   const items = (section?.items ?? []).filter((it) => erpAllows(it, perms));
@@ -54,7 +56,7 @@ export function ModuleWorkspace({
             <Link key={a.href} href={a.href}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
               <Icon name={a.icon} className="size-4" />
-              {a.label}
+              {t(a.label)}
             </Link>
           ))}
         </div>
@@ -77,7 +79,8 @@ export function ModuleWorkspace({
   );
 }
 
-function Tiles({ items, counts }: { items: NavItem[]; counts?: Record<string, number> }) {
+async function Tiles({ items, counts }: { items: NavItem[]; counts?: Record<string, number> }) {
+  const t = await getT();
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((it) => (
@@ -89,7 +92,7 @@ function Tiles({ items, counts }: { items: NavItem[]; counts?: Record<string, nu
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <Icon name={it.icon} className="size-4" />
           </span>
-          <span className="min-w-0 flex-1 truncate font-medium">{it.label}</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{t(it.label)}</span>
           {!!counts?.[it.href] && (
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
               {counts[it.href].toLocaleString("ar-EG-u-nu-latn")}

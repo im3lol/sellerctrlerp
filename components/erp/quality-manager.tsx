@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import {
   listInspectionsAction, decideInspectionAction, setItemInspectionAction,
@@ -30,6 +31,7 @@ const qf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionD
 export function QualityManager({ items, canDecide, canEdit }: {
   items: Option[]; canDecide: boolean; canEdit: boolean;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<InspectionRow[]>([]);
   const [stats, setStats] = useState<{ pending: number; pendingQty: number; decided: number; failRate: number | null } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
     setLoading(true);
     void listInspectionsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
       setStats(r.stats ?? null);
     });
@@ -80,15 +82,15 @@ export function QualityManager({ items, canDecide, canEdit }: {
           toast.success(r.transferNumber ? `تم الإفراج بتحويل ${r.transferNumber}` : "تم تسجيل القرار");
           setDeciding(null);
           load();
-        } else toast.error(r.error ?? "تعذّر التسجيل");
+        } else toast.error(r.error ?? t("تعذّر التسجيل"));
       });
     })();
 
   const flagItem = (itemId: string, requires: boolean) =>
     start(async () => {
       const r = await setItemInspectionAction(itemId, requires);
-      if (r.ok) { toast.success(requires ? "الصنف بقى تحت الفحص" : "اتشال من الفحص"); load(); }
-      else toast.error(r.error ?? "تعذّر التعديل");
+      if (r.ok) { toast.success(requires ? t("الصنف بقى تحت الفحص") : t("اتشال من الفحص")); load(); }
+      else toast.error(r.error ?? t("تعذّر التعديل"));
     });
 
   const pendingRows = rows.filter((r) => r.status === "PENDING");
@@ -98,19 +100,19 @@ export function QualityManager({ items, canDecide, canEdit }: {
     <div className="space-y-6">
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">في انتظار الفحص</div>
+          <div className="text-sm text-muted-foreground">{t("في انتظار الفحص")}</div>
           <div className="text-2xl font-bold tabular-nums">{stats?.pending ?? 0}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">كمية محجوزة</div>
+          <div className="text-sm text-muted-foreground">{t("كمية محجوزة")}</div>
           <div className="text-2xl font-bold tabular-nums">{qf(stats?.pendingQty ?? 0)}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">تم البتّ فيه</div>
+          <div className="text-sm text-muted-foreground">{t("تم البتّ فيه")}</div>
           <div className="text-2xl font-bold tabular-nums">{stats?.decided ?? 0}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground">نسبة الرفض</div>
+          <div className="text-sm text-muted-foreground">{t("نسبة الرفض")}</div>
           <div className={`text-2xl font-bold tabular-nums ${(stats?.failRate ?? 0) > 5 ? "text-destructive" : ""}`}>
             {stats?.failRate == null ? "—" : `${stats.failRate}%`}
           </div>
@@ -120,7 +122,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
       {canEdit && (
         <Card>
           <CardHeader>
-            <CardTitle>أصناف تحت الفحص</CardTitle>
+            <CardTitle>{t("أصناف تحت الفحص")}</CardTitle>
             <CardDescription>
               الصنف المعلَّم هنا بيدخل الحجر أول ما يُستلم، وما يبقاش متاح للبيع غير لما حد يقبله.
             </CardDescription>
@@ -128,23 +130,23 @@ export function QualityManager({ items, canDecide, canEdit }: {
           <CardContent className="space-y-3">
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-64 flex-1 space-y-2">
-                <Label>أضِف صنف</Label>
+                <Label>{t("أضِف صنف")}</Label>
                 <CellCombobox
                   selectedLabel={items.find((i) => i.id === itemToFlag)?.label ?? ""}
                   options={items.filter((i) => !i.requiresInspection).map((i) => ({ id: i.id, label: i.label }))}
                   onSelect={(id) => { setItemToFlag(id); flagItem(id, true); setItemToFlag(""); }}
-                  placeholder="ابحث عن الصنف…"
+                  placeholder={t("ابحث عن الصنف…")}
                 />
               </div>
             </div>
             {flagged.length === 0 ? (
-              <p className="text-sm text-muted-foreground">مفيش أصناف تحت الفحص — الاستلام بيروح للمخزن مباشرة.</p>
+              <p className="text-sm text-muted-foreground">{t("مفيش أصناف تحت الفحص — الاستلام بيروح للمخزن مباشرة.")}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {flagged.map((i) => (
                   <span key={i.id} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-sm">
-                    {i.label}
-                    <button type="button" aria-label="إزالة" className="text-muted-foreground hover:text-destructive"
+                    {t(i.label)}
+                    <button type="button" aria-label={t("إزالة")} className="text-muted-foreground hover:text-destructive"
                       onClick={() => flagItem(i.id, false)}>×</button>
                   </span>
                 ))}
@@ -165,14 +167,14 @@ export function QualityManager({ items, canDecide, canEdit }: {
                 </CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={decide} disabled={pending}><Icon name="Check" className="size-4" />سجّل</Button>
-                <Button size="sm" variant="outline" onClick={() => setDeciding(null)}>إلغاء</Button>
+                <Button size="sm" onClick={decide} disabled={pending}><Icon name="Check" className="size-4" />{t("سجّل")}</Button>
+                <Button size="sm" variant="outline" onClick={() => setDeciding(null)}>{t("إلغاء")}</Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label>مقبول</Label>
+              <div className="space-y-2"><Label>{t("مقبول")}</Label>
                 <Input type="number" step="any" min="0" className="w-32 tabular-nums" value={passed}
                   onChange={(e) => {
                     setPassed(e.target.value);
@@ -180,11 +182,11 @@ export function QualityManager({ items, canDecide, canEdit }: {
                     const rest = deciding.quantity - (Number(e.target.value) || 0);
                     setFailed(String(Math.max(0, Math.round(rest * 1e4) / 1e4)));
                   }} /></div>
-              <div className="space-y-2"><Label>مرفوض</Label>
+              <div className="space-y-2"><Label>{t("مرفوض")}</Label>
                 <Input type="number" step="any" min="0" className="w-32 tabular-nums" value={failed}
                   onChange={(e) => setFailed(e.target.value)} /></div>
-              <div className="min-w-60 flex-1 space-y-2"><Label>السبب</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="مثال: كسر في التغليف" /></div>
+              <div className="min-w-60 flex-1 space-y-2"><Label>{t("السبب")}</Label>
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("مثال: كسر في التغليف")} /></div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               المرفوض بيفضل في الحجر — رجّعه للمورّد بمرتجع شراء أو أعدمه بتسوية. الاتنين قرار لوحده،
@@ -196,8 +198,8 @@ export function QualityManager({ items, canDecide, canEdit }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>طابور الفحص</CardTitle>
-          <CardDescription>{loading ? "جارٍ التحميل…" : `${pendingRows.length} في الانتظار · ${rows.length} إجمالاً`}</CardDescription>
+          <CardTitle>{t("طابور الفحص")}</CardTitle>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : `${pendingRows.length} في الانتظار · ${rows.length} إجمالاً`}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
@@ -209,13 +211,13 @@ export function QualityManager({ items, canDecide, canEdit }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">الاستلام</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
-                    <TableHead className="text-start">مقبول / مرفوض</TableHead>
-                    <TableHead className="text-start">المقصد</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("الاستلام")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
+                    <TableHead className="text-start">{t("مقبول / مرفوض")}</TableHead>
+                    <TableHead className="text-start">{t("المقصد")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     {canDecide && <TableHead className="w-24" />}
                   </TableRow>
                 </TableHeader>
@@ -241,13 +243,13 @@ export function QualityManager({ items, canDecide, canEdit }: {
                       <TableCell className="text-xs text-muted-foreground">{r.targetName}</TableCell>
                       <TableCell>
                         <Badge variant={r.status === "PENDING" ? "outline" : "secondary"}>
-                          {r.status === "PENDING" ? "في الحجر" : "تم البتّ"}
+                          {r.status === "PENDING" ? t("في الحجر") : t("تم البتّ")}
                         </Badge>
                       </TableCell>
                       {canDecide && (
                         <TableCell>
                           {r.status === "PENDING" && (
-                            <Button size="sm" variant="outline" onClick={() => openDecision(r)}>افحص</Button>
+                            <Button size="sm" variant="outline" onClick={() => openDecision(r)}>{t("افحص")}</Button>
                           )}
                         </TableCell>
                       )}

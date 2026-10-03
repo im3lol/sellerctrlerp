@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
+import type { T } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -37,12 +39,12 @@ const blank = {
 };
 
 /** How the rule reads in one line — the shop owner should not have to decode the columns. */
-function describe(p: Promotion): string {
-  const on = p.itemId ? "على الصنف" : "على الفاتورة كلها";
+function describe(p: Promotion, t: T): string {
+  const on = p.itemId ? t("على الصنف") : t("على الفاتورة كلها");
   const min = p.minAmount > 0 ? ` فوق ${money(p.minAmount)}` : p.minQuantity > 0 ? ` من ${p.minQuantity} قطعة` : "";
   switch (p.type) {
     case "PERCENT": return `خصم ${p.value}٪ ${on}${min}`;
-    case "AMOUNT": return `خصم ${money(p.value)} ${p.itemId ? "لكل قطعة" : "على الفاتورة"}${min}`;
+    case "AMOUNT": return `خصم ${money(p.value)} ${p.itemId ? t("لكل قطعة") : t("على الفاتورة")}${min}`;
     case "BUY_X_GET_Y": return `اشترِ ${p.buyQty} تاخد ${p.getQty} ببلاش`;
   }
 }
@@ -51,6 +53,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
   rows: PromotionRow[]; items: ItemOption[]; loyalty: LoyaltyProgram;
   canManage: boolean; canEditSettings: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [form, setForm] = useState<typeof blank | null>(null);
@@ -73,7 +76,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         startsAt: form.startsAt || null, endsAt: form.endsAt || null,
         priority: Number(form.priority) || 0, isActive: form.isActive, notes: form.notes || null,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
       toast.success("اتحفظ");
       setForm(null);
       router.refresh();
@@ -91,7 +94,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
       start(async () => {
         const r = await deletePromotionAction(row.id);
         if (r.ok) { toast.success("اتمسح"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر المسح");
+        else toast.error(r.error ?? t("تعذّر المسح"));
       });
     })();
 
@@ -103,7 +106,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         minRedeem: Number(prog.minRedeem) || 0,
       });
       if (r.ok) { toast.success("اتحفظ"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   const earn = Number(prog.earnRate) || 0;
@@ -115,7 +118,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>العروض</CardTitle>
+              <CardTitle>{t("العروض")}</CardTitle>
               <CardDescription>
                 بتتطبّق لوحدها على نقطة البيع. السطر بياخد عرض واحد — الأكبر خصماً — والعروض مبتتجمّعش فوق بعض.
               </CardDescription>
@@ -132,56 +135,56 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
             <div className="space-y-4 rounded-xl border p-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>الاسم</Label>
-                  <Input value={form.nameAr} autoFocus placeholder="خصم رمضان"
+                  <Label>{t("الاسم")}</Label>
+                  <Input value={form.nameAr} autoFocus placeholder={t("خصم رمضان")}
                     onChange={(e) => set("nameAr", e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>النوع</Label>
+                  <Label>{t("النوع")}</Label>
                   <select className={selectCls} value={form.type} onChange={(e) => set("type", e.target.value)}>
-                    {(Object.keys(TYPE_LABEL) as Promotion["type"][]).map((t) => (
-                      <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                    {(Object.keys(TYPE_LABEL) as Promotion["type"][]).map((it) => (
+                      <option key={it} value={it}>{t(TYPE_LABEL[it])}</option>
                     ))}
                   </select>
                 </div>
                 {form.type !== "BUY_X_GET_Y" ? (
                   <div className="space-y-2">
-                    <Label>{form.type === "PERCENT" ? "النسبة ٪" : "المبلغ"}</Label>
+                    <Label>{form.type === "PERCENT" ? t("النسبة ٪") : t("المبلغ")}</Label>
                     <Input type="number" step="0.01" min="0" value={form.value} onChange={(e) => set("value", e.target.value)} />
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-2"><Label>يشتري</Label>
+                    <div className="space-y-2"><Label>{t("يشتري")}</Label>
                       <Input type="number" step="1" min="1" value={form.buyQty} onChange={(e) => set("buyQty", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>ياخد ببلاش</Label>
+                    <div className="space-y-2"><Label>{t("ياخد ببلاش")}</Label>
                       <Input type="number" step="1" min="1" value={form.getQty} onChange={(e) => set("getQty", e.target.value)} /></div>
                   </>
                 )}
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>الصنف</Label>
+                  <Label>{t("الصنف")}</Label>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <CellCombobox
                         selectedLabel={items.find((i) => i.id === form.itemId)?.label ?? ""}
                         options={items}
                         onSelect={(id) => set("itemId", id)}
-                        placeholder="سيبه فاضي = العرض على الفاتورة كلها"
+                        placeholder={t("سيبه فاضي = العرض على الفاتورة كلها")}
                       />
                     </div>
                     {form.itemId && (
-                      <Button size="icon" variant="ghost" aria-label="شيل الصنف" onClick={() => set("itemId", "")}>
+                      <Button size="icon" variant="ghost" aria-label={t("شيل الصنف")} onClick={() => set("itemId", "")}>
                         <Icon name="X" className="size-4" />
                       </Button>
                     )}
                   </div>
                 </div>
-                <div className="space-y-2"><Label>أقل كمية</Label>
+                <div className="space-y-2"><Label>{t("أقل كمية")}</Label>
                   <Input type="number" step="any" min="0" value={form.minQuantity} onChange={(e) => set("minQuantity", e.target.value)} /></div>
-                <div className="space-y-2"><Label>أقل مبلغ</Label>
+                <div className="space-y-2"><Label>{t("أقل مبلغ")}</Label>
                   <Input type="number" step="0.01" min="0" value={form.minAmount} onChange={(e) => set("minAmount", e.target.value)} /></div>
-                <div className="space-y-2"><Label>من تاريخ</Label>
+                <div className="space-y-2"><Label>{t("من تاريخ")}</Label>
                   <Input type="date" value={form.startsAt} onChange={(e) => set("startsAt", e.target.value)} /></div>
-                <div className="space-y-2"><Label>لتاريخ</Label>
+                <div className="space-y-2"><Label>{t("لتاريخ")}</Label>
                   <Input type="date" value={form.endsAt} onChange={(e) => set("endsAt", e.target.value)} /></div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -193,23 +196,23 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                 <Button onClick={save} disabled={pending || !form.nameAr.trim()}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
-                <Button variant="ghost" onClick={() => setForm(null)}>رجوع</Button>
+                <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           )}
 
           {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">مفيش عروض. العرض بيشتغل لوحده على الكاشير أول ما تعمله.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش عروض. العرض بيشتغل لوحده على الكاشير أول ما تعمله.")}</p>
           ) : (
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">العرض</TableHead>
-                    <TableHead className="text-start">على</TableHead>
-                    <TableHead className="text-start">المدة</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("العرض")}</TableHead>
+                    <TableHead className="text-start">{t("على")}</TableHead>
+                    <TableHead className="text-start">{t("المدة")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
@@ -219,21 +222,21 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                       <TableCell className="font-mono text-xs">{r.code}</TableCell>
                       <TableCell>
                         <div className="font-medium">{r.nameAr}</div>
-                        <div className="text-xs text-muted-foreground">{describe(r)}</div>
+                        <div className="text-xs text-muted-foreground">{describe(r, t)}</div>
                       </TableCell>
-                      <TableCell className="text-sm">{r.itemLabel ?? "الفاتورة كلها"}</TableCell>
+                      <TableCell className="text-sm">{r.itemLabel ?? t("الفاتورة كلها")}</TableCell>
                       <TableCell className="text-xs tabular-nums">
                         {r.startsAt || r.endsAt ? `${r.startsAt || "—"} ← ${r.endsAt || "—"}` : "دائم"}
                       </TableCell>
                       <TableCell>
-                        {!r.isActive ? <Badge variant="outline">موقوف</Badge>
-                          : live.has(r.id) ? <Badge className="bg-emerald-600">شغّال دلوقتي</Badge>
-                          : <Badge variant="outline">بره المدة</Badge>}
+                        {!r.isActive ? <Badge variant="outline">{t("موقوف")}</Badge>
+                          : live.has(r.id) ? <Badge className="bg-emerald-600">{t("شغّال دلوقتي")}</Badge>
+                          : <Badge variant="outline">{t("بره المدة")}</Badge>}
                       </TableCell>
                       <TableCell>
                         {canManage && (
                           <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" aria-label="تعديل" onClick={() => setForm({
+                            <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => setForm({
                               id: r.id, nameAr: r.nameAr, type: r.type, value: String(r.value),
                               itemId: r.itemId ?? "", minQuantity: String(r.minQuantity), minAmount: String(r.minAmount),
                               buyQty: String(r.buyQty), getQty: String(r.getQty),
@@ -242,7 +245,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                             })}>
                               <Icon name="Edit" className="size-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" aria-label="مسح" onClick={() => remove(r)}>
+                            <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => remove(r)}>
                               <Icon name="Trash2" className="size-4 text-destructive" />
                             </Button>
                           </div>
@@ -259,20 +262,20 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
 
       <Card>
         <CardHeader>
-          <CardTitle>نقط الولاء</CardTitle>
+          <CardTitle>{t("نقط الولاء")}</CardTitle>
           <CardDescription>
             العميل بيكسب نقط على كل بيعة، وبيصرفها كخصم على بيعة بعدين. صفر في الكسب = البرنامج مقفول.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-2"><Label>نقط لكل جنيه</Label>
+            <div className="space-y-2"><Label>{t("نقط لكل جنيه")}</Label>
               <Input type="number" step="0.01" min="0" className="w-32 tabular-nums" value={prog.earnRate}
                 disabled={!canEditSettings} onChange={(e) => setProg((p) => ({ ...p, earnRate: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>قيمة النقطة بالجنيه</Label>
+            <div className="space-y-2"><Label>{t("قيمة النقطة بالجنيه")}</Label>
               <Input type="number" step="0.01" min="0" className="w-32 tabular-nums" value={prog.redeemRate}
                 disabled={!canEditSettings} onChange={(e) => setProg((p) => ({ ...p, redeemRate: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>أقل رصيد للاستبدال</Label>
+            <div className="space-y-2"><Label>{t("أقل رصيد للاستبدال")}</Label>
               <Input type="number" step="1" min="0" className="w-32 tabular-nums" value={prog.minRedeem}
                 disabled={!canEditSettings} onChange={(e) => setProg((p) => ({ ...p, minRedeem: e.target.value }))} /></div>
             {canEditSettings && (

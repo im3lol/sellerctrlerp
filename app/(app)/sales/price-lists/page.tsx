@@ -1,4 +1,5 @@
 import { asc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { priceLists, priceListItems, items, customers } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PriceListsManager } from "@/components/erp/price-lists-manager";
 
 export default async function PriceListsPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [lists, rows, itemList, custCounts] = await Promise.all([
       db.select({
@@ -37,8 +39,8 @@ export default async function PriceListsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Tags"
-          title="قوائم الأسعار"
-          subtitle="سعر جملة وسعر تجزئة وأسعار موسم — والعميل بيشتري بالقائمة المربوط بيها"
+          title={t("قوائم الأسعار")}
+          subtitle={t("سعر جملة وسعر تجزئة وأسعار موسم — والعميل بيشتري بالقائمة المربوط بيها")}
           backHref="/sales"
         />
         <PriceListsManager

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ export type ReturnRow = {
 };
 
 export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: ReturnRow[]; canConfirm: boolean; canCreate: boolean }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -52,7 +54,7 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
       start(async () => {
         const r = await bulkSalesReturnsAction(op, ids);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} مرتجع`); setSel(new Set()); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -62,10 +64,10 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
       {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">{int(sel.size)} محدّد</span>
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setSel(new Set())}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setSel(new Set())}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
-            {canConfirm && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")} title="يرحّل كل مرتجع محدّد حسب حالته (التالف لا يرجع مخزون قابل للبيع)"><Icon name="Check" className="size-4" />تأكيد المحدّد</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")} title={t("يرحّل كل مرتجع محدّد حسب حالته (التالف لا يرجع مخزون قابل للبيع)")}><Icon name="Check" className="size-4" />{t("تأكيد المحدّد")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
@@ -73,15 +75,15 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
         <Table>
           <TableHeader>
             <TableRow>
-              {canAct && <TableHead className="w-10">{draftIds.length > 0 && <Checkbox checked={allSel} onCheckedChange={toggleAll} aria-label="تحديد كل المسودات" />}</TableHead>}
-              <TableHead className="text-start">الرقم</TableHead>
-              <TableHead className="text-start">التاريخ</TableHead>
-              <TableHead className="text-start">العميل / المصدر</TableHead>
-              <TableHead className="text-start">الأمر الأصلي</TableHead>
-              <TableHead className="text-start">السبب</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
-              <TableHead className="text-start">القيمة</TableHead>
-              <TableHead className="text-start">المستند</TableHead>
+              {canAct && <TableHead className="w-10">{draftIds.length > 0 && <Checkbox checked={allSel} onCheckedChange={toggleAll} aria-label={t("تحديد كل المسودات")} />}</TableHead>}
+              <TableHead className="text-start">{t("الرقم")}</TableHead>
+              <TableHead className="text-start">{t("التاريخ")}</TableHead>
+              <TableHead className="text-start">{t("العميل / المصدر")}</TableHead>
+              <TableHead className="text-start">{t("الأمر الأصلي")}</TableHead>
+              <TableHead className="text-start">{t("السبب")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
+              <TableHead className="text-start">{t("القيمة")}</TableHead>
+              <TableHead className="text-start">{t("المستند")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -95,13 +97,13 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell>
                   <div>{r.customer ?? "—"}</div>
-                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? (ORIGIN[r.channel] ?? r.channel) : "يدوي"}</Badge>
+                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? (ORIGIN[r.channel] ?? r.channel) : t("يدوي")}</Badge>
                 </TableCell>
                 <TableCell>{r.orderNumber ? <Link href={`/sales/orders/${encodeURIComponent(r.orderNumber)}`} className="text-primary hover:underline">{r.orderNumber}</Link> : "—"}</TableCell>
                 <TableCell className="max-w-[200px]"><div className="line-clamp-2 text-sm text-muted-foreground" title={r.reason ?? undefined}>{r.reason ?? "—"}</div></TableCell>
                 <TableCell>
                   {r.disposition
-                    ? <Badge variant="outline" className={unsellable(r.disposition) ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>{unsellable(r.disposition) ? "تالف / غير قابل للبيع" : "قابل للبيع"}</Badge>
+                    ? <Badge variant="outline" className={unsellable(r.disposition) ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>{unsellable(r.disposition) ? t("تالف / غير قابل للبيع") : t("قابل للبيع")}</Badge>
                     : <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell className="tabular-nums text-destructive">−{fmt(r.total)}</TableCell>

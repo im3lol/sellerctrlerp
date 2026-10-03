@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 import type { PrintOrg, PrintColumn } from "@/components/erp/print/document-sheet";
 
@@ -46,7 +47,8 @@ export type ReportSheetProps = {
 const initials = (name: string | null | undefined) =>
   (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
-export function ReportSheet({ org, title, period, filters = [], kpis = [], sections, note, backHref }: ReportSheetProps) {
+export async function ReportSheet({ org, title, period, filters = [], kpis = [], sections, note, backHref }: ReportSheetProps) {
+  const t = await getT();
   const printedAt = new Date().toLocaleString("ar-EG-u-nu-latn", { dateStyle: "long", timeStyle: "short" });
   return (
     <>
@@ -101,7 +103,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
               <div style={{ fontSize: 11, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
                 {org?.address && <div>{org.address}</div>}
                 {org?.phone && <div dir="ltr" style={{ textAlign: "start" }}>{org.phone}</div>}
-                {org?.taxNumber && <div>الرقم الضريبي: <span dir="ltr">{org.taxNumber}</span></div>}
+                {org?.taxNumber && <div>{t("الرقم الضريبي:")} <span dir="ltr">{org.taxNumber}</span></div>}
               </div>
             </div>
           </div>
@@ -110,9 +112,9 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
             <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
               {period && <div>{period}</div>}
-              <div>طُبع في <b style={{ color: T.ink }}>{printedAt}</b></div>
+              <div>{t("طُبع في")} <b style={{ color: T.ink }}>{printedAt}</b></div>
               {filters.map((f) => (
-                <div key={f.label}>{f.label}: <b style={{ color: T.ink }}>{f.value}</b></div>
+                <div key={f.label}>{t(f.label)}: <b style={{ color: T.ink }}>{f.value}</b></div>
               ))}
             </div>
           </div>
@@ -123,7 +125,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
           <div className="mb-6 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)}, 1fr)` }}>
             {kpis.map((k) => (
               <div key={k.label} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 9.5, color: T.muted }}>{k.label}</div>
+                <div style={{ fontSize: 9.5, color: T.muted }}>{t(k.label)}</div>
                 <div style={{
                   fontSize: 14, fontWeight: 800, marginTop: 2,
                   color: k.tone === "danger" ? T.danger : k.tone === "success" ? T.success : T.ink,
@@ -143,7 +145,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
               <thead>
                 <tr>
                   {s.columns.map((c) => (
-                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{c.label}</th>
+                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{t(c.label)}</th>
                   ))}
                 </tr>
               </thead>

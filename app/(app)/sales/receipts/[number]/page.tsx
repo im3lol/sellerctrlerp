@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +22,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function ReceiptVoucherDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -54,21 +56,21 @@ export default async function ReceiptVoucherDetailPage({ params }: { params: Pro
           title={`سند قبض ${rv.number}`}
           subtitle={`${cust?.name ?? "—"} · ${dt(rv.date)}`}
           backHref="/sales/receipts"
-          action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{st.label}</Badge><VoucherDetailActions id={rv.id} number={rv.number} type="receipt" status={rv.status} canManage={can("sales.collect")} /></div>}
+          action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{t(st.label)}</Badge><VoucherDetailActions id={rv.id} number={rv.number} type="receipt" status={rv.status} canManage={can("sales.collect")} /></div>}
         />
 
         <Card>
-          <CardHeader><CardTitle>بيانات السند</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("بيانات السند")}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="العميل">{cust?.name ?? "—"}</Field>
-              <Field label="المبلغ"><span className="tabular-nums">{fmt(rv.amount)}</span></Field>
-              <Field label="طريقة السداد">{METHOD[rv.paymentMethod] ?? rv.paymentMethod}</Field>
-              <Field label="التاريخ">{dt(rv.date)}</Field>
-              <Field label="حساب النقدية/البنك">{acc ? `${acc.code} — ${acc.name}` : "—"}</Field>
-              <Field label="الفاتورة">{inv?.number ?? "تحت الحساب"}</Field>
-              {rv.reference && <Field label="المرجع">{rv.reference}</Field>}
-              {rv.notes && <Field label="ملاحظات">{rv.notes}</Field>}
+              <Field label={t("العميل")}>{cust?.name ?? "—"}</Field>
+              <Field label={t("المبلغ")}><span className="tabular-nums">{fmt(rv.amount)}</span></Field>
+              <Field label={t("طريقة السداد")}>{t(METHOD[rv.paymentMethod] ?? rv.paymentMethod)}</Field>
+              <Field label={t("التاريخ")}>{dt(rv.date)}</Field>
+              <Field label={t("حساب النقدية/البنك")}>{acc ? `${acc.code} — ${acc.name}` : "—"}</Field>
+              <Field label={t("الفاتورة")}>{inv?.number ?? t("تحت الحساب")}</Field>
+              {rv.reference && <Field label={t("المرجع")}>{rv.reference}</Field>}
+              {rv.notes && <Field label={t("ملاحظات")}>{rv.notes}</Field>}
             </div>
           </CardContent>
         </Card>

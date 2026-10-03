@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -35,6 +36,7 @@ export function QuotationDetailActions({
   /** The customer link (/d/<token>): the customer reads the quote and accepts or rejects it there. */
   link?: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -44,7 +46,7 @@ export function QuotationDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -85,7 +87,7 @@ export function QuotationDetailActions({
     : status === "SENT" ? step("قبول العميل", "ThumbsUp", () => run(() => setQuotationStatusAction(id, "ACCEPTED"), "تم قبول العرض"))
     : status === "ACCEPTED" ? (
       <Button size="sm" asChild>
-        <Link href={`/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر بيع</Link>
+        <Link href={`/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />{t("تحويل لأمر بيع")}</Link>
       </Button>
     ) : undefined;
 

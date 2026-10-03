@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -29,6 +30,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PurchaseInvoiceDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -130,32 +132,32 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><div className="flex items-center gap-2"><Badge variant={st.variant}>{st.label}</Badge>{hasReturn && <Badge variant="destructive">مرتجع</Badge>}</div></Field>
-          <Field label="التاريخ">{dt(inv.date)}</Field>
-          {Number(inv.shippingAmount) > 0 && <Field label="الشحن">{fmt(inv.shippingAmount)}</Field>}
-          <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>
-          <Field label="المدفوع / المتبقّي">{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
+          <Field label={t("الحالة")}><div className="flex items-center gap-2"><Badge variant={st.variant}>{t(st.label)}</Badge>{hasReturn && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></Field>
+          <Field label={t("التاريخ")}>{dt(inv.date)}</Field>
+          {Number(inv.shippingAmount) > 0 && <Field label={t("الشحن")}>{fmt(inv.shippingAmount)}</Field>}
+          <Field label={t("الإجمالي")}>{fmt(inv.totalAmount)}</Field>
+          <Field label={t("المدفوع / المتبقّي")}>{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
           {inv.foreignAmount && inv.currencyCode && (
-            <Field label="بالعملة الأجنبية">{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
+            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
           )}
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الفاتورة.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الفاتورة.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">سعر الوحدة</TableHead>
-                  {anyShipping && <TableHead className="text-start">شحن/وحدة</TableHead>}
-                  {anyTax && <TableHead className="text-start">ضريبة/وحدة</TableHead>}
-                  {anyDiscount && <TableHead className="text-start">خصم/وحدة</TableHead>}
-                  {anyLanded && <TableHead className="text-start">تكاليف استيراد/وحدة</TableHead>}
-                  <TableHead className="text-start">تكلفة القطعة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("سعر الوحدة")}</TableHead>
+                  {anyShipping && <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>}
+                  {anyTax && <TableHead className="text-start">{t("ضريبة/وحدة")}</TableHead>}
+                  {anyDiscount && <TableHead className="text-start">{t("خصم/وحدة")}</TableHead>}
+                  {anyLanded && <TableHead className="text-start">{t("تكاليف استيراد/وحدة")}</TableHead>}
+                  <TableHead className="text-start">{t("تكلفة القطعة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,17 +182,17 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
             </Table>
 
             <div className="mt-4 flex flex-col items-end gap-1 text-sm">
-              <div>الإجمالي الفرعي: <span className="font-medium">{fmt(inv.subtotal)}</span></div>
-              <div>الخصم: <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
-              <div>الشحن: <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>
-              <div>الضريبة: <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
+              <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(inv.subtotal)}</span></div>
+              <div>{t("الخصم:")} <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
+              <div>{t("الشحن:")} <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>
+              <div>{t("الضريبة:")} <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
               <div className="text-base font-bold text-primary">إجمالي الفاتورة (المستحق للمورد): {fmt(inv.totalAmount)}</div>
               {/* The row totals include import costs, which this supplier is not owed -
                   so the column sum and the payable are deliberately different numbers. */}
               {anyLanded && (
                 <>
-                  <div className="text-amber-600">تكاليف استيراد محمَّلة: <span className="font-medium tabular-nums">{fmt(landedTotal)}</span></div>
-                  <div className="text-base font-bold">التكلفة الشاملة للبضاعة: <span className="tabular-nums">{fmt(costTotal)}</span></div>
+                  <div className="text-amber-600">{t("تكاليف استيراد محمَّلة:")} <span className="font-medium tabular-nums">{fmt(landedTotal)}</span></div>
+                  <div className="text-base font-bold">{t("التكلفة الشاملة للبضاعة:")} <span className="tabular-nums">{fmt(costTotal)}</span></div>
                 </>
               )}
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -24,6 +25,7 @@ export function SalesInvoiceDetailActions({
   /** The customer link (/d/<token>) — only for an invoice the customer may see. */
   link?: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -33,7 +35,7 @@ export function SalesInvoiceDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -72,7 +74,7 @@ export function SalesInvoiceDetailActions({
       </Button>
     ) : status !== "CANCELLED" && canCollect && hasBalance ? (
       <Button size="sm" asChild>
-        <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />تحصيل</Link>
+        <Link href={`/sales/receipts/new?invoice=${encodeURIComponent(number)}`}><Icon name="HandCoins" className="size-4" />{t("تحصيل")}</Link>
       </Button>
     ) : undefined;
 

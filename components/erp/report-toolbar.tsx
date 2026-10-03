@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/client";
 import { Icon } from "@/components/icon";
 
 /**
@@ -14,6 +15,7 @@ import { Icon } from "@/components/icon";
  * the button falls back to raw window.print() (legacy page-print).
  */
 export function ReportToolbar({ excel, printHref }: { excel?: string; printHref?: string }) {
+  const t = useT();
   return (
     <div className="no-print flex flex-wrap gap-2">
       {excel && (
@@ -23,7 +25,7 @@ export function ReportToolbar({ excel, printHref }: { excel?: string; printHref?
       )}
       {printHref ? (
         <Button asChild variant="outline">
-          <a href={printHref} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />طباعة / PDF</a>
+          <a href={printHref} target="_blank" rel="noopener"><Icon name="Printer" className="size-4" />{t("طباعة / PDF")}</a>
         </Button>
       ) : (
         <Button variant="outline" onClick={() => window.print()}>

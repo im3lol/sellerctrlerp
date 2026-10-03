@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { accounts, organizations, platformSettings } from "@/db/schema";
@@ -9,6 +10,7 @@ import { AiBillReader } from "@/components/erp/ai-bill-reader";
 export const dynamic = "force-dynamic";
 
 export default async function ReadBillPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     // Ready when the company brought its own key, or the owner has set a key and picked a model.
     const [org] = await db.select({ key: organizations.aiApiKey }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
@@ -26,15 +28,15 @@ export default async function ReadBillPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ScanText" title="قراءة فاتورة بالذكاء الاصطناعي" backHref="/purchases/invoices"
-          subtitle="ارفع فاتورة مورد أو إيصال — بتتقري وتتحوّل لمسودة تراجعها قبل ما تتسجل" />
+        <ErpPageHeader icon="ScanText" title={t("قراءة فاتورة بالذكاء الاصطناعي")} backHref="/purchases/invoices"
+          subtitle={t("ارفع فاتورة مورد أو إيصال — بتتقري وتتحوّل لمسودة تراجعها قبل ما تتسجل")} />
         {ready ? (
           <AiBillReader canInvoice={can("purchases.create")} canExpense={canExpense}
             expenseAccounts={expenseAccounts} cashAccounts={cashAccounts} />
         ) : (
           <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             قراءة الفواتير لسه مش مفعّلة على المنصة.
-            {can("settings.edit") && <> تقدر تشغّلها دلوقتي بمفتاح شركتك من <Link href="/settings/ai" className="text-primary underline">إعدادات الذكاء الاصطناعي</Link>.</>}
+            {can("settings.edit") && <> {t("تقدر تشغّلها دلوقتي بمفتاح شركتك من")} <Link href="/settings/ai" className="text-primary underline">{t("إعدادات الذكاء الاصطناعي")}</Link>.</>}
           </div>
         )}
       </div>

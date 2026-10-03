@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, currencies, deliveryNotes, exchangeRates, salesInvoices, organizations } from "@/db/schema";
@@ -8,6 +9,7 @@ import { SalesInvoiceFromDeliveryForm } from "@/components/erp/sales-invoice-fro
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function NewSalesInvoicePage() {
+  const t = await getT();
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [custRows, org, dns, billed, currRows, rateRows] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers)
@@ -45,7 +47,7 @@ export default async function NewSalesInvoicePage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ReceiptText" title="فاتورة بيع جديدة" subtitle="اختر العميل ثم استدعِ إذن صرف لفوترته" backHref="/sales/invoices" />
+        <ErpPageHeader icon="ReceiptText" title={t("فاتورة بيع جديدة")} subtitle={t("اختر العميل ثم استدعِ إذن صرف لفوترته")} backHref="/sales/invoices" />
         <SalesInvoiceFromDeliveryForm
           orgName={org[0]?.nameAr ?? "—"}
           customers={custRows}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ export function DeliveryForm({
   warehouses: Warehouse[];
   openOrders: OpenOrder[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
@@ -39,7 +41,7 @@ export function DeliveryForm({
   const [orderId, setOrderId] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [channel, setChannel] = useState("");
-  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
+  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? t("كود نون") : "";
 
   const customerOrders = useMemo(() => openOrders.filter((o) => o.customerId === customerId), [openOrders, customerId]);
   const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
@@ -54,7 +56,7 @@ export function DeliveryForm({
     if (!id) return;
     startLoad(async () => {
       const r = await getDeliverableOrderLinesAction(id);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر استدعاء الأمر")); return; }
       if (r.lines.length === 0) { toast.message("تم تسليم كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
       setChannel(r.channel ?? "");
@@ -81,7 +83,7 @@ export function DeliveryForm({
         toast.success("تم حفظ إذن الصرف (مسودة) — أكّده لترحيله");
         router.push(r.id ? `/sales/deliveries/${r.id}` : "/sales/deliveries");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -89,43 +91,43 @@ export function DeliveryForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات إذن الصرف</CardTitle>
+          <CardTitle>{t("بيانات إذن الصرف")}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ إذن الصرف</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/sales/deliveries")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/sales/deliveries")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label>العميل</Label>
+            <Label>{t("العميل")}</Label>
             <CellCombobox
               selectedLabel={customerLabelById.get(customerId) ?? ""}
               options={customerOptions}
               onSelect={(id) => onCustomer(id)}
-              placeholder="ابحث عن العميل…"
+              placeholder={t("ابحث عن العميل…")}
             />
           </div>
-          <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ التسليم")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>استدعاء أمر بيع</Label>
+            <Label>{t("استدعاء أمر بيع")}</Label>
             <select className={selectCls} value={orderId} disabled={!customerId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{customerId ? "— اختر أمراً مفتوحاً —" : "اختر العميل أولاً"}</option>
+              <option value="">{customerId ? t("— اختر أمراً مفتوحاً —") : t("اختر العميل أولاً")}</option>
               {customerOrders.map((o) => <option key={o.id} value={o.id}>{o.number} — {o.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
-            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />جارٍ تحميل بنود الأمر…</span>
-              : customerId && customerOrders.length === 0 ? "لا توجد أوامر بيع مفتوحة لهذا العميل."
-              : "تنزل أصناف الأمر المتبقّية (غير المسلّمة) في الجدول."}
+            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الأمر…")}</span>
+              : customerId && customerOrders.length === 0 ? t("لا توجد أوامر بيع مفتوحة لهذا العميل.")
+              : t("تنزل أصناف الأمر المتبقّية (غير المسلّمة) في الجدول.")}
           </div>
         </div>
 
@@ -133,16 +135,16 @@ export function DeliveryForm({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[22rem] text-start">المنتج</TableHead>
-                <TableHead className="w-44 text-start">مخزن الصرف</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-28 text-start">الكمية المسلّمة</TableHead>
+                <TableHead className="w-[22rem] text-start">{t("المنتج")}</TableHead>
+                <TableHead className="w-44 text-start">{t("مخزن الصرف")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-28 text-start">{t("المخزون الحالي")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الكمية المسلّمة")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">اختر العميل ثم استدعِ أمر بيع لعرض الأصناف.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">{t("اختر العميل ثم استدعِ أمر بيع لعرض الأصناف.")}</TableCell></TableRow>
               ) : (
                 <PaginatedTableRows rows={lines.map((l) => {
                   const stock = l.stockByWarehouse[l.warehouseId] ?? 0;
@@ -174,7 +176,7 @@ export function DeliveryForm({
 
         {lines.length > 0 && (
           <div className="flex justify-end text-sm">
-            <div>إجمالي المسلّم: <span className="font-medium">{qtyf(totalNow)}</span></div>
+            <div>{t("إجمالي المسلّم:")} <span className="font-medium">{qtyf(totalNow)}</span></div>
           </div>
         )}
       </CardContent>

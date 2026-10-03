@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveRuleAction, testRuleAction, type RuleTestResult } from "@/app/actions/erp/automation";
@@ -47,6 +48,7 @@ export function AutomationEditor({ rule, members, roles }: {
   members: Member[];
   roles: RoleOpt[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState(rule?.name ?? "");
@@ -74,7 +76,7 @@ export function AutomationEditor({ rule, members, roles }: {
 
   const save = () => start(async () => {
     const r = await saveRuleAction({ id: rule?.id, name, enabled, spec });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
     toast.success("اتحفظت");
     router.push("/automation");
     router.refresh();
@@ -87,33 +89,33 @@ export function AutomationEditor({ rule, members, roles }: {
       <Card>
         <CardContent className="flex flex-wrap items-end gap-4 pt-6">
           <div className="min-w-64 flex-1 space-y-2">
-            <Label htmlFor="rule-name">اسم القاعدة</Label>
-            <Input id="rule-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder="مثلاً: تنبيه أوامر البيع الكبيرة" />
+            <Label htmlFor="rule-name">{t("اسم القاعدة")}</Label>
+            <Input id="rule-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder={t("مثلاً: تنبيه أوامر البيع الكبيرة")} />
           </div>
           <label className="flex items-center gap-2 pb-2 text-sm">
             <Switch checked={enabled} onCheckedChange={setEnabled} />
-            {enabled ? "شغّالة" : "متوقفة"}
+            {enabled ? t("شغّالة") : t("متوقفة")}
           </label>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">لما</CardTitle>
-          <CardDescription>الحدث اللي يشغّل القاعدة.</CardDescription>
+          <CardTitle className="text-base">{t("لما")}</CardTitle>
+          <CardDescription>{t("الحدث اللي يشغّل القاعدة.")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
-            <Label>المستند</Label>
+            <Label>{t("المستند")}</Label>
             <select className={`${selectCls} w-52`} value={entity} onChange={(e) => changeEntity(e.target.value)}>
-              {Object.entries(DOCS).map(([k, d]) => <option key={k} value={k}>{d.label}</option>)}
+              {Object.entries(DOCS).map(([k, d]) => <option key={k} value={k}>{t(d.label)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label>الحدث</Label>
+            <Label>{t("الحدث")}</Label>
             <select className={`${selectCls} w-52`} value={spec.trigger.event}
               onChange={(e) => setSpec((s) => ({ ...s, trigger: { ...s.trigger, event: e.target.value as AutoEvent } }))}>
-              {(Object.keys(EVENT_LABEL) as AutoEvent[]).map((k) => <option key={k} value={k}>{EVENT_LABEL[k]}</option>)}
+              {(Object.keys(EVENT_LABEL) as AutoEvent[]).map((k) => <option key={k} value={k}>{t(EVENT_LABEL[k])}</option>)}
             </select>
           </div>
         </CardContent>
@@ -123,14 +125,14 @@ export function AutomationEditor({ rule, members, roles }: {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-base">لو</CardTitle>
-              <CardDescription>من غير شروط = كل {def?.label ?? "مستند"}.</CardDescription>
+              <CardTitle className="text-base">{t("لو")}</CardTitle>
+              <CardDescription>من غير شروط = كل {def?.label ?? t("مستند")}.</CardDescription>
             </div>
             {spec.conditions.length > 1 && (
               <select className={`${selectCls} w-40`} value={spec.match}
                 onChange={(e) => setSpec((s) => ({ ...s, match: e.target.value as "all" | "any" }))}>
-                <option value="all">كل الشروط</option>
-                <option value="any">أي شرط منهم</option>
+                <option value="all">{t("كل الشروط")}</option>
+                <option value="any">{t("أي شرط منهم")}</option>
               </select>
             )}
           </div>
@@ -146,17 +148,17 @@ export function AutomationEditor({ rule, members, roles }: {
                     const t = typeOf(e.target.value);
                     setCond(i, { field: e.target.value, op: OPS_FOR[t].includes(c.op) ? c.op : OPS_FOR[t][0] });
                   }}>
-                  {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  {fields.map((f) => <option key={f.key} value={f.key}>{t(f.label)}</option>)}
                 </select>
                 <select className={`${selectCls} w-44`} value={c.op} onChange={(e) => setCond(i, { op: e.target.value as Op })}>
-                  {OPS_FOR[type].map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
+                  {OPS_FOR[type].map((o) => <option key={o} value={o}>{t(OP_LABEL[o])}</option>)}
                 </select>
                 {!noValue && (
                   <Input className="w-48" dir={type === "text" ? undefined : "ltr"}
                     type={type === "number" ? "number" : type === "date" ? "date" : "text"}
                     value={c.value ?? ""} onChange={(e) => setCond(i, { value: e.target.value })} />
                 )}
-                <Button size="icon" variant="ghost" aria-label="شيل الشرط"
+                <Button size="icon" variant="ghost" aria-label={t("شيل الشرط")}
                   onClick={() => setSpec((s) => ({ ...s, conditions: s.conditions.filter((_, k) => k !== i) }))}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
@@ -172,7 +174,7 @@ export function AutomationEditor({ rule, members, roles }: {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">اعمل</CardTitle>
+          <CardTitle className="text-base">{t("اعمل")}</CardTitle>
           <CardDescription>
             في النصوص تقدر تستخدم: <span dir="ltr" className="font-mono text-xs">{PLACEHOLDERS.join(" ")}</span>
           </CardDescription>
@@ -181,8 +183,8 @@ export function AutomationEditor({ rule, members, roles }: {
           {spec.actions.map((a, i) => (
             <div key={i} className="space-y-3 rounded-xl border p-3">
               <div className="flex items-center justify-between gap-2">
-                <Badge variant="secondary">{ACTION_LABEL[a.type]}</Badge>
-                <Button size="icon" variant="ghost" aria-label="شيل الإجراء" onClick={() => removeAction(i)}>
+                <Badge variant="secondary">{t(ACTION_LABEL[a.type])}</Badge>
+                <Button size="icon" variant="ghost" aria-label={t("شيل الإجراء")} onClick={() => removeAction(i)}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
               </div>
@@ -199,7 +201,7 @@ export function AutomationEditor({ rule, members, roles }: {
                       <label key={r.value} className="flex items-center gap-2">
                         <input type="checkbox" className="size-4" checked={(a.to.roles ?? []).includes(r.value)}
                           onChange={() => setAction(i, { ...a, to: { ...a.to, roles: toggleIn(a.to.roles, r.value) } })} />
-                        كل «{r.label}»
+                        كل «{t(r.label)}»
                       </label>
                     ))}
                   </div>
@@ -216,35 +218,35 @@ export function AutomationEditor({ rule, members, roles }: {
                       </div>
                     </div>
                   )}
-                  <Textarea rows={2} maxLength={1000} value={a.message} placeholder="نص التنبيه"
+                  <Textarea rows={2} maxLength={1000} value={a.message} placeholder={t("نص التنبيه")}
                     onChange={(e) => setAction(i, { ...a, message: e.target.value })} />
-                  <p className="text-xs text-muted-foreground">بيوصل على تليجرام والإيميل لكل واحد رابط حسابه بيهم.</p>
+                  <p className="text-xs text-muted-foreground">{t("بيوصل على تليجرام والإيميل لكل واحد رابط حسابه بيهم.")}</p>
                 </>
               )}
 
               {a.type === "followUp" && (
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="space-y-1">
-                    <Label>المسؤول</Label>
+                    <Label>{t("المسؤول")}</Label>
                     <select className={`${selectCls} w-52`} value={a.assignee} onChange={(e) => setAction(i, { ...a, assignee: e.target.value })}>
-                      <option value="creator">صاحب المستند</option>
+                      <option value="creator">{t("صاحب المستند")}</option>
                       {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <Label>بعد (يوم)</Label>
+                    <Label>{t("بعد (يوم)")}</Label>
                     <Input type="number" min={0} max={365} className="w-24" value={a.inDays}
                       onChange={(e) => setAction(i, { ...a, inDays: Math.max(0, Math.min(365, Math.trunc(Number(e.target.value) || 0))) })} />
                   </div>
                   <div className="min-w-64 flex-1 space-y-1">
-                    <Label>المطلوب</Label>
+                    <Label>{t("المطلوب")}</Label>
                     <Input maxLength={500} value={a.summary} onChange={(e) => setAction(i, { ...a, summary: e.target.value })} />
                   </div>
                 </div>
               )}
 
               {a.type === "comment" && (
-                <Textarea rows={2} maxLength={2000} value={a.body} placeholder="التعليق اللي هيتكتب على المستند"
+                <Textarea rows={2} maxLength={2000} value={a.body} placeholder={t("التعليق اللي هيتكتب على المستند")}
                   onChange={(e) => setAction(i, { ...a, body: e.target.value })} />
               )}
 
@@ -257,10 +259,10 @@ export function AutomationEditor({ rule, members, roles }: {
                     <div className="flex flex-wrap items-center gap-2">
                       <Input dir="ltr" type="password" autoComplete="new-password" className="max-w-xs"
                         value={a.secret === SECRET_KEPT ? "" : (a.secret ?? "")}
-                        placeholder={a.secret === SECRET_KEPT ? "محفوظ — اكتب جديد لتغييره" : "مفتاح توقيع (اختياري)"}
+                        placeholder={a.secret === SECRET_KEPT ? t("محفوظ — اكتب جديد لتغييره") : t("مفتاح توقيع (اختياري)")}
                         onChange={(e) => setAction(i, { ...a, secret: e.target.value || (kept ? SECRET_KEPT : undefined) })} />
                       {a.secret === SECRET_KEPT && (
-                        <Button size="sm" variant="ghost" onClick={() => setAction(i, { type: "webhook", url: a.url })}>شيل المفتاح</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setAction(i, { type: "webhook", url: a.url })}>{t("شيل المفتاح")}</Button>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -278,18 +280,18 @@ export function AutomationEditor({ rule, members, roles }: {
               const t = e.target.value as Action["type"];
               if (t) setSpec((s) => ({ ...s, actions: [...s.actions, structuredClone(NEW_ACTION[t])] }));
             }}>
-            <option value="">+ ضيف إجراء…</option>
+            <option value="">{t("+ ضيف إجراء…")}</option>
             {(Object.keys(ACTION_LABEL) as Action["type"][])
-              .filter((t) => def?.chatter || (t !== "followUp" && t !== "comment"))
-              .map((t) => <option key={t} value={t}>{ACTION_LABEL[t]}</option>)}
+              .filter((it) => def?.chatter || (it !== "followUp" && it !== "comment"))
+              .map((it) => <option key={it} value={it}>{t(ACTION_LABEL[it])}</option>)}
           </select>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">جرّب على مستند</CardTitle>
-          <CardDescription>بيقولك القاعدة كانت هتعمل إيه على مستند حقيقي — من غير ما يبعت أو يكتب حاجة.</CardDescription>
+          <CardTitle className="text-base">{t("جرّب على مستند")}</CardTitle>
+          <CardDescription>{t("بيقولك القاعدة كانت هتعمل إيه على مستند حقيقي — من غير ما يبعت أو يكتب حاجة.")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -300,12 +302,12 @@ export function AutomationEditor({ rule, members, roles }: {
           </div>
           {test && (test.ok ? (
             <div className="space-y-2 rounded-lg border p-3 text-sm">
-              <div className="font-medium">{test.matched ? "✅ الشروط اتحققت — هيتنفّذ:" : "⏸ الشروط ماتحققتش — مش هيحصل حاجة."}</div>
+              <div className="font-medium">{test.matched ? t("✅ الشروط اتحققت — هيتنفّذ:") : t("⏸ الشروط ماتحققتش — مش هيحصل حاجة.")}</div>
               {test.matched && <ul className="list-disc space-y-1 ps-5">{(test.lines ?? []).map((l, k) => <li key={k}>{l}</li>)}</ul>}
               <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">بيانات المستند</summary>
+                <summary className="cursor-pointer">{t("بيانات المستند")}</summary>
                 <div className="mt-2 grid gap-1 sm:grid-cols-2">
-                  {fields.map((f) => <div key={f.key}>{f.label}: <b>{String(test.facts?.[f.key] ?? "—")}</b></div>)}
+                  {fields.map((f) => <div key={f.key}>{t(f.label)}: <b>{String(test.facts?.[f.key] ?? "—")}</b></div>)}
                 </div>
               </details>
             </div>
@@ -314,8 +316,8 @@ export function AutomationEditor({ rule, members, roles }: {
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Button disabled={pending || !name.trim()} onClick={save}><Icon name="Check" className="size-4" />حفظ</Button>
-        <Button variant="ghost" onClick={() => router.push("/automation")}>رجوع</Button>
+        <Button disabled={pending || !name.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+        <Button variant="ghost" onClick={() => router.push("/automation")}>{t("رجوع")}</Button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -16,6 +17,7 @@ const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { y
 const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export default async function RequisitionDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, materialRequests,
@@ -37,14 +39,14 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
           action={<div className="flex gap-2"><PrintDocLink href={`/purchases/requisitions/${encodeURIComponent(mr.number)}/print`} /><RequisitionRowActions id={mr.id} number={mr.number} status={mr.status} canManage={can("purchases.create")} /></div>} />
         <Card>
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>البنود المطلوبة</CardTitle>
+            <CardTitle>{t("البنود المطلوبة")}</CardTitle>
             <Badge variant={mr.status === "DRAFT" ? "secondary" : "default"}>
-              {mr.status === "ORDERED" ? "تم التحويل لأمر شراء" : mr.status === "APPROVED" ? "معتمد" : "مسودة"}
+              {mr.status === "ORDERED" ? t("تم التحويل لأمر شراء") : mr.status === "APPROVED" ? t("معتمد") : t("مسودة")}
             </Badge>
           </CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-end">الكمية</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="text-end">{t("الكمية")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 <PaginatedTableRows rows={lines.map((l, i) => (
                   <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>

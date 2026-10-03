@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, priceLists } from "@/db/schema";
@@ -13,6 +14,7 @@ const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
  * see the note on the supplier master for why.
  */
 export default async function CustomersPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const rows = await db.select({
       id: customers.id,
@@ -37,13 +39,13 @@ export default async function CustomersPage() {
 
     const kpis = (
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد العملاء</div><div className="text-2xl font-bold tabular-nums">{intl(rows.length)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المديونية (ذمم مدينة)</div><div className="text-2xl font-bold tabular-nums">{money(totalAr)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عملاء عليهم رصيد</div><div className="text-2xl font-bold tabular-nums">{intl(withBalance)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">تجاوزوا حد الائتمان</div><div className={`text-2xl font-bold tabular-nums ${overLimit > 0 ? "text-destructive" : ""}`}>{intl(overLimit)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عدد العملاء")}</div><div className="text-2xl font-bold tabular-nums">{intl(rows.length)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي المديونية (ذمم مدينة)")}</div><div className="text-2xl font-bold tabular-nums">{money(totalAr)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عملاء عليهم رصيد")}</div><div className="text-2xl font-bold tabular-nums">{intl(withBalance)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("تجاوزوا حد الائتمان")}</div><div className={`text-2xl font-bold tabular-nums ${overLimit > 0 ? "text-destructive" : ""}`}>{intl(overLimit)}</div></CardContent></Card>
       </div>
     );
 
-    return <CustomersManager customers={rows} canManage={can("sales.edit")} title="العملاء" kpis={kpis} priceLists={lists} />;
+    return <CustomersManager customers={rows} canManage={can("sales.edit")} title={t("العملاء")} kpis={kpis} priceLists={lists} />;
   });
 }

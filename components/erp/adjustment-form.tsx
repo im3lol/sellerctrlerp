@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
@@ -32,6 +33,7 @@ export function AdjustmentForm({
   warehouses: Option[];
   stock: Stock[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -99,48 +101,48 @@ export function AdjustmentForm({
       };
       const r = await createStockAdjustmentAction(payload);
       if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — راجِعها ثم أكّدها للترحيل"); router.push(r.number ? `/inventory/adjustments/${encodeURIComponent(r.number)}` : "/inventory/adjustments"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <Card>
-        <CardHeader><CardTitle>بيانات التسوية</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("بيانات التسوية")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="date">تاريخ التسوية</Label>
+            <Label htmlFor="date">{t("تاريخ التسوية")}</Label>
             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="reason">وصف / سبب التسوية</Label>
-            <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: فرق جرد فعلي / تالف / فاقد" />
+            <Label htmlFor="reason">{t("وصف / سبب التسوية")}</Label>
+            <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("مثال: فرق جرد فعلي / تالف / فاقد")} />
           </div>
         </CardContent>
       </Card>
 
       {/* Lines */}
       <Card>
-        <CardHeader><CardTitle>الأصناف</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("الأصناف")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-1">
-              <Label htmlFor="barcode">باركود / مسح سريع</Label>
+              <Label htmlFor="barcode">{t("باركود / مسح سريع")}</Label>
               <Input
                 id="barcode"
                 value={barcode}
                 disabled={scanning}
-                placeholder="امسح الباركود ثم Enter…"
+                placeholder={t("امسح الباركود ثم Enter…")}
                 onChange={(e) => setBarcode(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onScan(barcode); } }}
                 className="w-64"
               />
             </div>
-            <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />إضافة سطر</Button>
+            <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />{t("إضافة سطر")}</Button>
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
@@ -148,13 +150,13 @@ export function AdjustmentForm({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
-                  <TableHead className="min-w-56 text-start">اسم الصنف</TableHead>
-                  <TableHead className="text-start">المخزن</TableHead>
-                  <TableHead className="text-start">الكمية الحالية</TableHead>
-                  <TableHead className="text-start">التكلفة الحالية</TableHead>
-                  <TableHead className="text-start">الكمية الفعلية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الفرق</TableHead>
+                  <TableHead className="min-w-56 text-start">{t("اسم الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("المخزن")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية الحالية")}</TableHead>
+                  <TableHead className="text-start">{t("التكلفة الحالية")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية الفعلية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الفرق")}</TableHead>
                   <TableHead className="w-10" />
                   <TableHead className="w-8" />
                 </TableRow>
@@ -170,24 +172,24 @@ export function AdjustmentForm({
                     return (
                       <>
                         <TableCell>
-                          <ItemPicker selectedLabel={l.itemLabel} placeholder="ابحث بالاسم أو أي كود…"
+                          <ItemPicker selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
                             onSelect={(it) => updateLine(l.id, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                         </TableCell>
                         <TableCell>
-                          <CellCombobox selectedLabel={whLabel(l.warehouseId)} options={whOptions} placeholder="المستودع…"
+                          <CellCombobox selectedLabel={whLabel(l.warehouseId)} options={whOptions} placeholder={t("المستودع…")}
                             onSelect={(id) => updateLine(l.id, { warehouseId: id })} />
                         </TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></TableCell>
                         <TableCell><Input type="number" step="1" min="0" className="w-28" value={l.counted} onChange={(e) => updateLine(l.id, { counted: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                        <TableCell><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? "مطلوب" : "تلقائي"} /></TableCell>
+                        <TableCell><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? t("مطلوب") : t("تلقائي")} /></TableCell>
                         <TableCell>
                           <div className={`flex h-9 items-center px-2 text-sm font-bold ${!hasCount ? "text-muted-foreground" : delta > 0 ? "text-emerald-600" : delta < 0 ? "text-destructive" : ""}`}>
                             {hasCount ? `${delta > 0 ? "+" : ""}${q(delta)}` : "—"}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label="حذف"><Icon name="Trash2" className="size-4 text-destructive" /></Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label={t("حذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
                         </TableCell>
                       </>
                     );
@@ -198,7 +200,7 @@ export function AdjustmentForm({
           </div>
 
           <div className="flex justify-end">
-            <Button disabled={pending} onClick={submit}>حفظ التسوية (مسودة)</Button>
+            <Button disabled={pending} onClick={submit}>{t("حفظ التسوية (مسودة)")}</Button>
           </div>
         </CardContent>
       </Card>

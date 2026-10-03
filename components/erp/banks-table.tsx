@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ type Account = { id: string; code: string; nameAr: string };
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Account[]; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [nameAr, setNameAr] = useState(row.nameAr);
@@ -38,33 +40,33 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
     start(async () => {
       const r = await upsertBankAccountAction({ id: row.id, nameAr, bankName, accountNumber, iban, glAccountId: glAccountId || undefined });
       if (r.ok) { toast.success("تم تحديث الحساب البنكي"); onClose(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
-        <DialogTitle>تعديل حساب بنكي</DialogTitle>
-        <DialogDescription>اسم الحساب والبنك وربطه بحساب الأستاذ.</DialogDescription>
+        <DialogTitle>{t("تعديل حساب بنكي")}</DialogTitle>
+        <DialogDescription>{t("اسم الحساب والبنك وربطه بحساب الأستاذ.")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2"><Label>اسم الحساب</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} /></div>
-          <div className="space-y-2"><Label>اسم البنك</Label><Input value={bankName} onChange={(e) => setBankName(e.target.value)} /></div>
-          <div className="space-y-2"><Label>رقم الحساب</Label><Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("اسم الحساب")}</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("اسم البنك")}</Label><Input value={bankName} onChange={(e) => setBankName(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("رقم الحساب")}</Label><Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></div>
           <div className="space-y-2"><Label>IBAN</Label><Input value={iban} onChange={(e) => setIban(e.target.value)} className="font-mono" /></div>
         </div>
         <div className="space-y-2">
-          <Label>حساب الأستاذ (GL)</Label>
+          <Label>{t("حساب الأستاذ (GL)")}</Label>
           <select className={selectCls} value={glAccountId} onChange={(e) => setGlAccountId(e.target.value)}>
-            <option value="">— بدون —</option>
+            <option value="">{t("— بدون —")}</option>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
           </select>
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
       </DialogFooter>
     </DialogContent>
@@ -72,6 +74,7 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
 }
 
 export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accounts: Account[]; canEdit: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<BankRow | null>(null);
@@ -81,12 +84,12 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
 
   const toggle = (id: string) => start(async () => {
     const r = await toggleBankAccountActiveAction(id);
-    if (r.ok) router.refresh(); else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) router.refresh(); else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
   const del = (row: BankRow) => start(async () => {
     const r = await deleteBankAccountAction(row.id);
     if (r.ok) { toast.success("تم حذف الحساب البنكي"); setConfirmDel(null); router.refresh(); }
-    else { toast.error(r.error ?? "تعذّر الحذف"); setConfirmDel(null); }
+    else { toast.error(r.error ?? t("تعذّر الحذف")); setConfirmDel(null); }
   });
 
   return (
@@ -96,19 +99,19 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
         <Table>
           <TableHeader>
             <TableRow>
-              {canEdit && <TableHead className="w-10"><SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد الكل" /></TableHead>}
-              <TableHead className="text-start">الحساب</TableHead>
-              <TableHead className="text-start">رقم الحساب / IBAN</TableHead>
-              <TableHead className="text-start">حساب الأستاذ</TableHead>
-              <TableHead className="text-start">رصيد الكشف</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
-              <TableHead className="text-start">إجراءات</TableHead>
+              {canEdit && <TableHead className="w-10"><SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label={t("تحديد الكل")} /></TableHead>}
+              <TableHead className="text-start">{t("الحساب")}</TableHead>
+              <TableHead className="text-start">{t("رقم الحساب / IBAN")}</TableHead>
+              <TableHead className="text-start">{t("حساب الأستاذ")}</TableHead>
+              <TableHead className="text-start">{t("رصيد الكشف")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
+              <TableHead className="text-start">{t("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.id} data-state={canEdit && sel.has(r.id) ? "selected" : undefined}>
-                {canEdit && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" /></TableCell>}
+                {canEdit && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} /></TableCell>}
                 <TableCell>
                   <div className="font-medium">{r.nameAr}</div>
                   {r.bankName && <div className="text-xs text-muted-foreground">{r.bankName}</div>}
@@ -117,17 +120,17 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
                   <div>{r.accountNumber || "—"}</div>
                   {r.iban && <div className="font-mono">{r.iban}</div>}
                 </TableCell>
-                <TableCell className="text-xs">{r.glCode ? `${r.glCode} — ${r.glName}` : <span className="text-muted-foreground">غير مربوط</span>}</TableCell>
+                <TableCell className="text-xs">{r.glCode ? `${r.glCode} — ${r.glName}` : <span className="text-muted-foreground">{t("غير مربوط")}</span>}</TableCell>
                 <TableCell className={`tabular-nums ${r.balance < 0 ? "text-destructive" : ""}`}>{fmt(r.balance)}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "نشط" : "غير نشط"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("نشط") : t("غير نشط")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button asChild size="sm" variant="outline"><Link href={`/accounting/banks/${r.id}`}><FileText className="size-4" />الكشف</Link></Button>
+                    <Button asChild size="sm" variant="outline"><Link href={`/accounting/banks/${r.id}`}><FileText className="size-4" />{t("الكشف")}</Link></Button>
                     {canEdit && (
                       <>
-                        <Button size="icon" variant="ghost" onClick={() => setEditing(r)} aria-label="تعديل"><Pencil className="size-4" /></Button>
-                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
-                        <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditing(r)} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
+                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
+                        <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                       </>
                     )}
                   </div>
@@ -146,13 +149,13 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
         {confirmDel && (
           <DialogContent dir="rtl">
             <DialogHeader>
-              <DialogTitle>حذف الحساب البنكي</DialogTitle>
+              <DialogTitle>{t("حذف الحساب البنكي")}</DialogTitle>
               <DialogDescription>
                 سيتم حذف «{confirmDel.nameAr}» نهائيًا. إن كان مرتبطًا بحركات كشف أو منصات فسيُرفض الحذف ويُطلب منك إزالة الارتباط أولًا.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDel(null)}>إلغاء</Button>
+              <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>
               <Button variant="destructive" onClick={() => del(confirmDel)} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حذف</Button>
             </DialogFooter>
           </DialogContent>

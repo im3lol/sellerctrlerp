@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -97,6 +98,7 @@ export function KanbanBoard({ columns, cards, readOnly, why, move, askBefore }: 
 }
 
 function Lane({ col, count, hint, children }: { col: Column; count: number; hint: Hint; children: ReactNode }) {
+  const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
   return (
     <div
@@ -109,7 +111,7 @@ function Lane({ col, count, hint, children }: { col: Column; count: number; hint
       )}
     >
       <div className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold">
-        <span>{col.label}</span>
+        <span>{t(col.label)}</span>
         <span className="rounded-full bg-background px-2 text-xs tabular-nums text-muted-foreground">{count.toLocaleString("ar-EG-u-nu-latn")}</span>
       </div>
       <div className="flex max-h-[65vh] min-h-24 flex-col gap-2 overflow-y-auto px-2 pb-2">{children}</div>
@@ -150,6 +152,7 @@ function CardBody({ card, lifted, draggable }: { card: KanbanCard; lifted?: bool
 
 /** Sales or purchase orders on a board — the moves are lib/erp/kanban-moves.ts. */
 export function OrdersKanban({ kind, cards, canMove }: { kind: OrderKind; cards: KanbanCard[]; canMove: boolean }) {
+  const t = useT();
   return (
     <KanbanBoard
       columns={ORDER_COLUMNS[kind]}
@@ -158,8 +161,8 @@ export function OrdersKanban({ kind, cards, canMove }: { kind: OrderKind; cards:
       why={(from, to) => (orderMove(kind, from, to) ? null : "النقلة دي مش من اللوحة — بتحصل من المستند نفسه (إذن صرف أو استلام أو فاتورة)")}
       move={(id, from, to) => moveOrderAction(kind, id, from, to)}
       askBefore={(_from, to) =>
-        to === "CANCELLED" ? "إلغاء الأمر؟"
-        : kind === "sales" && to === "INVOICED" ? "هنعمل فاتورة بيع مسودة من الأمر ده — تكمل؟"
+        to === "CANCELLED" ? t("إلغاء الأمر؟")
+        : kind === "sales" && to === "INVOICED" ? t("هنعمل فاتورة بيع مسودة من الأمر ده — تكمل؟")
         : null}
     />
   );

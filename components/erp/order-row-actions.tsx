@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ export function OrderRowActions({
   poNeedsApproval?: boolean;
   poApproved?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status === "INVOICED") return null;
@@ -48,7 +50,7 @@ export function OrderRowActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -64,7 +66,7 @@ export function OrderRowActions({
       start(async () => {
         const r = await confirmSalesOrderAction(orderId);
         if (r.ok) { toast.success("تم تأكيد الأمر"); router.refresh(); return; }
-        if (!r.creditBlocked) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+        if (!r.creditBlocked) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
         const go = await confirm({
           danger: true,
           title: "تجاوز حد الائتمان",
@@ -78,7 +80,7 @@ export function OrderRowActions({
         start(async () => {
           const r2 = await confirmSalesOrderAction(orderId, { overrideCredit: true });
           if (r2.ok) { toast.success("تم تأكيد الأمر باعتماد مالي"); router.refresh(); }
-          else toast.error(r2.error ?? "تعذّر التنفيذ");
+          else toast.error(r2.error ?? t("تعذّر التنفيذ"));
         });
       });
     })();
@@ -87,7 +89,7 @@ export function OrderRowActions({
   if (status === "CANCELLED") {
     return (
       <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? "أمر البيع" : "أمر الشراء")}>
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? t("أمر البيع") : t("أمر الشراء"))}>
         <Icon name="Trash2" className="size-4 text-destructive" />حذف
       </Button>
     );
@@ -112,7 +114,7 @@ export function OrderRowActions({
         )}
         {/* Drafts are freely editable (no stock/GL yet). */}
         <Button asChild size="sm" variant="outline" disabled={pending}>
-          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
@@ -126,7 +128,7 @@ export function OrderRowActions({
   if (status === "PARTIALLY_DELIVERED" || status === "PARTIALLY_RECEIVED") {
     return (
       <Button size="sm" variant="outline" disabled={pending} onClick={() => router.push(fulfillPath)}>
-        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? "متابعة التسليم" : "متابعة الاستلام"}
+        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? t("متابعة التسليم") : t("متابعة الاستلام")}
       </Button>
     );
   }
@@ -154,7 +156,7 @@ export function OrderRowActions({
         )}
         <DropdownMenuItem onClick={() => router.push(fulfillPath)}>
           <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
-          {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}
+          {isSales ? t("إنشاء إذن صرف") : t("إنشاء إذن استلام")}
         </DropdownMenuItem>
         {/* Purchases have ONE cycle (أمر ← إذن استلام ← فاتورة) — the direct-to-invoice
             shortcut is sales-only, where no goods-receipt step exists. */}

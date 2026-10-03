@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ const qtyf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractio
  * each line will carry before anything is saved.
  */
 export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[]; receipts: Receipt[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
@@ -90,7 +92,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     if (!next.length) { setLines([]); return; }
     startLoad(async () => {
       const r = await getLandedCostBasisAction(next);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر تحميل بنود الإذون"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر تحميل بنود الإذون")); return; }
       setLines(r.lines);
     });
   };
@@ -112,7 +114,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
         toast.success("تم حفظ المستند (مسودة) — راجِعه ثم رحّله");
         router.push(r.number ? `/purchases/landed-costs/${encodeURIComponent(r.number)}` : "/purchases/landed-costs");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -121,36 +123,36 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
           <div>
-            <CardTitle>تكاليف استيراد جديدة</CardTitle>
-            <CardDescription>فاتورة الشحن/الجمارك بالجنيه المصري، تُوزَّع على إذون الاستلام وتُرفع تكلفة المخزون.</CardDescription>
+            <CardTitle>{t("تكاليف استيراد جديدة")}</CardTitle>
+            <CardDescription>{t("فاتورة الشحن/الجمارك بالجنيه المصري، تُوزَّع على إذون الاستلام وتُرفع تكلفة المخزون.")}</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={submit} disabled={pending || !lines.length}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المستند</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/landed-costs")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/landed-costs")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>المورّد</Label>
+            <Label>{t("المورّد")}</Label>
             <CellCombobox
               selectedLabel={suppliers.find((s) => s.id === supplierId)?.nameAr ?? ""}
               options={supplierOptions}
               onSelect={pickSupplier}
-              placeholder="ابحث باسم المورّد…"
+              placeholder={t("ابحث باسم المورّد…")}
             />
           </div>
-          <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+          <div className="space-y-2"><Label>{t("التاريخ")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
         </div>
 
         <div className="space-y-2 rounded-xl border bg-muted/30 p-4">
-          <Label className="text-sm font-semibold">إذون الاستلام المشمولة</Label>
+          <Label className="text-sm font-semibold">{t("إذون الاستلام المشمولة")}</Label>
           {!supplierId ? (
-            <p className="text-sm text-muted-foreground">اختر المورّد أولاً لعرض إذون استلامه المؤكّدة.</p>
+            <p className="text-sm text-muted-foreground">{t("اختر المورّد أولاً لعرض إذون استلامه المؤكّدة.")}</p>
           ) : !openReceipts.length && !picked.length ? (
-            <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكّدة لهذا المورّد — التكاليف تُحمَّل على بضاعة مستلَمة فقط.</p>
+            <p className="text-sm text-muted-foreground">{t("لا توجد إذون استلام مؤكّدة لهذا المورّد — التكاليف تُحمَّل على بضاعة مستلَمة فقط.")}</p>
           ) : (
             <div className="space-y-2">
               {/* A freight bill almost always covers several deliveries, so the list ticks:
@@ -161,7 +163,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                   className="max-w-xs"
                   value={receiptFilter}
                   onChange={(e) => setReceiptFilter(e.target.value)}
-                  placeholder="ابحث برقم الإذن أو التاريخ…"
+                  placeholder={t("ابحث برقم الإذن أو التاريخ…")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={() => setPickedAll(visibleReceipts.map((r) => r.id))}>
                   اختر الكل ({visibleReceipts.length})
@@ -176,7 +178,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
 
               <div className="max-h-56 overflow-y-auto rounded-xl border">
                 {visibleReceipts.length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">مفيش إذون مطابقة للبحث.</p>
+                  <p className="p-3 text-sm text-muted-foreground">{t("مفيش إذون مطابقة للبحث.")}</p>
                 ) : visibleReceipts.map((r) => (
                   <label
                     key={r.id}
@@ -206,33 +208,33 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
               )}
             </div>
           )}
-          {loading && <span className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />جارٍ تحميل البنود…</span>}
+          {loading && <span className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل البنود…")}</span>}
         </div>
 
         <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-semibold">قيمة التكاليف (بالجنيه المصري)</Label>
-            {total > 0 && <span className="text-sm text-muted-foreground">الإجمالي: <span className="font-medium">{fmt(total)} ج.م</span></span>}
+            <Label className="text-sm font-semibold">{t("قيمة التكاليف (بالجنيه المصري)")}</Label>
+            {total > 0 && <span className="text-sm text-muted-foreground">{t("الإجمالي:")} <span className="font-medium">{fmt(total)} ج.م</span></span>}
           </div>
           <div className="grid gap-3 sm:grid-cols-4">
-            <div className="space-y-1.5"><Label className="text-xs">الشحن</Label><Input type="number" step="0.01" min="0" value={charges.shipping} onChange={(e) => setCharges((c) => ({ ...c, shipping: e.target.value }))} placeholder="0" /></div>
-            <div className="space-y-1.5"><Label className="text-xs">الجمارك</Label><Input type="number" step="0.01" min="0" value={charges.customs} onChange={(e) => setCharges((c) => ({ ...c, customs: e.target.value }))} placeholder="0" /></div>
-            <div className="space-y-1.5"><Label className="text-xs">التأمين</Label><Input type="number" step="0.01" min="0" value={charges.insurance} onChange={(e) => setCharges((c) => ({ ...c, insurance: e.target.value }))} placeholder="0" /></div>
-            <div className="space-y-1.5"><Label className="text-xs">أخرى</Label><Input type="number" step="0.01" min="0" value={charges.other} onChange={(e) => setCharges((c) => ({ ...c, other: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("الشحن")}</Label><Input type="number" step="0.01" min="0" value={charges.shipping} onChange={(e) => setCharges((c) => ({ ...c, shipping: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("الجمارك")}</Label><Input type="number" step="0.01" min="0" value={charges.customs} onChange={(e) => setCharges((c) => ({ ...c, customs: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("التأمين")}</Label><Input type="number" step="0.01" min="0" value={charges.insurance} onChange={(e) => setCharges((c) => ({ ...c, insurance: e.target.value }))} placeholder="0" /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("أخرى")}</Label><Input type="number" step="0.01" min="0" value={charges.other} onChange={(e) => setCharges((c) => ({ ...c, other: e.target.value }))} placeholder="0" /></div>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">طريقة التوزيع</Label>
+              <Label className="text-xs">{t("طريقة التوزيع")}</Label>
               <select className={`${selectCls} min-w-40`} value={method} onChange={(e) => setMethod(e.target.value as "value" | "qty" | "weight")}>
-                <option value="value">حسب القيمة</option>
-                <option value="qty">حسب الكمية</option>
-                <option value="weight">حسب الوزن</option>
+                <option value="value">{t("حسب القيمة")}</option>
+                <option value="qty">{t("حسب الكمية")}</option>
+                <option value="weight">{t("حسب الوزن")}</option>
               </select>
             </div>
             {method === "weight" && (
               <div className="space-y-1.5">
-                <Label className="text-xs">سعر الكيلو</Label>
-                <Input type="number" step="0.01" min="0" className="w-32" value={pricePerKg} onChange={(e) => setPricePerKg(e.target.value)} placeholder="مثال: 800" />
+                <Label className="text-xs">{t("سعر الكيلو")}</Label>
+                <Input type="number" step="0.01" min="0" className="w-32" value={pricePerKg} onChange={(e) => setPricePerKg(e.target.value)} placeholder={t("مثال: 800")} />
               </div>
             )}
             {method === "weight" && (
@@ -246,14 +248,14 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الإذن</TableHead>
-                  <TableHead className="w-14 text-center">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">المستودع</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">المتاح الآن</TableHead>
-                  <TableHead className="text-start">شحن/وحدة</TableHead>
-                  <TableHead className="text-start">المحمَّل</TableHead>
+                  <TableHead className="text-start">{t("الإذن")}</TableHead>
+                  <TableHead className="w-14 text-center">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("المستودع")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("المتاح الآن")}</TableHead>
+                  <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>
+                  <TableHead className="text-start">{t("المحمَّل")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

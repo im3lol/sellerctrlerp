@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ const dt = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { y
 const STATUS_AR: Record<string, string> = { Pending: "قيد الانتظار → مسودة", Shipped: "مشحون → مؤكّد" };
 
 export function AmazonImport() {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -55,7 +57,7 @@ export function AmazonImport() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>استيراد طلبات أمازون</CardTitle>
+          <CardTitle>{t("استيراد طلبات أمازون")}</CardTitle>
           <CardDescription>
             ارفع تقرير الطلبات (Order Report) من Amazon Seller Central. كل طلب يُنشأ أمر بيع مستقل تحت عميل «أمازون مصر»
             ومخزن «أمازون FBA». الطلبات المشحونة → أمر مؤكّد + إذن صرف + فاتورة بيع تلقائياً؛ المعلّقة تبقى مسودة؛ والمعلّق الذي اكتمل يُحدَّث ويأخذ الدورة.
@@ -97,7 +99,7 @@ export function AmazonImport() {
 
       {result && (
         <Card>
-          <CardHeader><CardTitle className="text-base">نتيجة الاستيراد</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("نتيجة الاستيراد")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2 text-sm">
               <Badge className="bg-emerald-600">أوامر جديدة: {result.created}</Badge>
@@ -134,8 +136,8 @@ export function AmazonImport() {
                 <TableRow>
                   <TableHead className="text-start">SKU</TableHead>
                   <TableHead className="text-start">ASIN</TableHead>
-                  <TableHead className="text-start">المنتج</TableHead>
-                  <TableHead className="text-start">مثال طلب</TableHead>
+                  <TableHead className="text-start">{t("المنتج")}</TableHead>
+                  <TableHead className="text-start">{t("مثال طلب")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -151,7 +153,7 @@ export function AmazonImport() {
             </Table>
             <div className="mt-4">
               <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
-                <Link href="/sales/orders/import/link"><Icon name="Link" className="size-4" />اربط الأكواد بالأصناف</Link>
+                <Link href="/sales/orders/import/link"><Icon name="Link" className="size-4" />{t("اربط الأكواد بالأصناف")}</Link>
               </Button>
             </div>
           </CardContent>
@@ -167,11 +169,11 @@ export function AmazonImport() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">رقم الطلب</TableHead>
-                  <TableHead className="text-start">التاريخ</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
-                  <TableHead className="text-start">الأصناف</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("رقم الطلب")}</TableHead>
+                  <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                  <TableHead className="text-start">{t("الحالة")}</TableHead>
+                  <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -179,7 +181,7 @@ export function AmazonImport() {
                   <TableRow key={o.externalId}>
                     <TableCell className="font-mono text-xs" dir="ltr">{o.externalId}</TableCell>
                     <TableCell>{dt(o.date)}</TableCell>
-                    <TableCell><Badge variant={o.status === "Shipped" ? "default" : "secondary"}>{STATUS_AR[o.status] ?? o.status}</Badge></TableCell>
+                    <TableCell><Badge variant={o.status === "Shipped" ? "default" : "secondary"}>{t(STATUS_AR[o.status] ?? o.status)}</Badge></TableCell>
                     <TableCell className="max-w-[280px] whitespace-normal text-xs text-muted-foreground"><div className="line-clamp-2 leading-snug">{o.lines.map((l) => `${l.itemName ?? l.code} ×${l.qty}`).join("، ")}</div></TableCell>
                     <TableCell>{fmt(o.total)}</TableCell>
                   </TableRow>

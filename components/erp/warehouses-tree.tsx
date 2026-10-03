@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ function WarehouseDialog({
   open: boolean; onOpenChange: (o: boolean) => void;
   editing: Warehouse | null; presetParent: string | null; all: Warehouse[];
 }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveWarehouseAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -53,30 +55,30 @@ function WarehouseDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مخزن" : "مخزن جديد"}</DialogTitle>
-            <DialogDescription>مخزن رئيسي أو موقع فرعي (منطقة/رف/صندوق) ضمن المؤسسة النشطة.</DialogDescription>
+            <DialogTitle>{editing ? t("تعديل مخزن") : t("مخزن جديد")}</DialogTitle>
+            <DialogDescription>{t("مخزن رئيسي أو موقع فرعي (منطقة/رف/صندوق) ضمن المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="w-code">الكود</Label><Input id="w-code" name="code" defaultValue={editing?.code} required /></div>
-            <div className="space-y-2"><Label htmlFor="w-name">الاسم</Label><Input id="w-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
+            <div className="space-y-2"><Label htmlFor="w-code">{t("الكود")}</Label><Input id="w-code" name="code" defaultValue={editing?.code} required /></div>
+            <div className="space-y-2"><Label htmlFor="w-name">{t("الاسم")}</Label><Input id="w-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
             <div className="space-y-2">
-              <Label htmlFor="w-type">النوع / المستوى</Label>
+              <Label htmlFor="w-type">{t("النوع / المستوى")}</Label>
               <select id="w-type" name="type" defaultValue={defaultType} className={selectCls}>
-                {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{WAREHOUSE_TYPE_LABEL[t]}</option>)}
+                {WAREHOUSE_TYPES.map((it) => <option key={it} value={it}>{t(WAREHOUSE_TYPE_LABEL[it])}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="w-parent">المخزن الأب</Label>
+              <Label htmlFor="w-parent">{t("المخزن الأب")}</Label>
               <select id="w-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
-                <option value="">— مخزن رئيسي —</option>
+                <option value="">{t("— مخزن رئيسي —")}</option>
                 {parentOptions.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.nameAr}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><Label htmlFor="w-loc">الموقع</Label><Input id="w-loc" name="location" defaultValue={editing?.location ?? ""} /></div>
-            <div className="space-y-2"><Label htmlFor="w-mgr">المسؤول</Label><Input id="w-mgr" name="manager" defaultValue={editing?.manager ?? ""} /></div>
+            <div className="space-y-2"><Label htmlFor="w-loc">{t("الموقع")}</Label><Input id="w-loc" name="location" defaultValue={editing?.location ?? ""} /></div>
+            <div className="space-y-2"><Label htmlFor="w-mgr">{t("المسؤول")}</Label><Input id="w-mgr" name="manager" defaultValue={editing?.manager ?? ""} /></div>
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />نشط</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />{t("نشط")}</label>
           <DialogFooter><SubmitBtn /></DialogFooter>
         </form>
       </DialogContent>
@@ -85,6 +87,7 @@ function WarehouseDialog({
 }
 
 export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehouse[]; canManage: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [presetParent, setPresetParent] = useState<string | null>(null);
@@ -110,7 +113,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
   const openEdit = (w: Warehouse) => { setEditing(w); setPresetParent(null); setOpen(true); };
   const remove = (w: Warehouse) => startTransition(async () => {
     const r = await deleteWarehouseAction(w.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const onImportFile = (file: File) => startImport(async () => {
@@ -130,25 +133,25 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
       <div key={w.id}>
         <div className="group flex items-center gap-2 border-b py-2 pe-2 text-sm hover:bg-muted/40" style={{ paddingInlineStart: depth * 22 + 8 }}>
           {hasKids ? (
-            <button onClick={() => toggle(w.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label="طيّ">
+            <button onClick={() => toggle(w.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label={t("طيّ")}>
               <Icon name={isOpen ? "ChevronDown" : "ChevronLeft"} className="size-4" />
             </button>
           ) : <span className="inline-block size-5" />}
           <Icon name={w.type === "WAREHOUSE" ? "Warehouse" : hasKids ? "FolderTree" : "Box"} className={cn("size-4 shrink-0", w.type === "WAREHOUSE" ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{w.code}</span>
           <span className={cn(w.type === "WAREHOUSE" && "font-semibold")}>{w.nameAr}</span>
-          <Badge variant="outline">{WAREHOUSE_TYPE_LABEL[w.type] ?? w.type}</Badge>
+          <Badge variant="outline">{t(WAREHOUSE_TYPE_LABEL[w.type] ?? w.type)}</Badge>
           {w.location && <span className="text-xs text-muted-foreground">{w.location}</span>}
-          {!w.isActive && <Badge variant="secondary">معطّل</Badge>}
+          {!w.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
           {canManage && (
             <div className="ms-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(w.id)} aria-label="موقع فرعي"><Plus className="size-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(w)} aria-label="تعديل"><Pencil className="size-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(w.id)} aria-label={t("موقع فرعي")}><Plus className="size-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(w)} aria-label={t("تعديل")}><Pencil className="size-3.5" /></Button>
               <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label="حذف"><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
+                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>حذف «{w.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={() => remove(w)}>حذف</AlertDialogAction></AlertDialogFooter>
+                  <AlertDialogHeader><AlertDialogTitle>حذف «{w.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.")}</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(w)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             </div>
@@ -162,7 +165,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3">
-        <div><CardTitle>المخازن</CardTitle><CardDescription>هيكل هرمي: مخزن رئيسي ← منطقة ← رف ← صندوق. تصدير/استيراد CSV للإدارة بالجملة.</CardDescription></div>
+        <div><CardTitle>{t("المخازن")}</CardTitle><CardDescription>{t("هيكل هرمي: مخزن رئيسي ← منطقة ← رف ← صندوق. تصدير/استيراد CSV للإدارة بالجملة.")}</CardDescription></div>
         <div className="flex items-center gap-2">
           <ExportCsvButton action={exportWarehousesCsvAction} />
           {canManage && (
@@ -171,14 +174,14 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
               <Button variant="outline" size="sm" disabled={importing} onClick={() => fileRef.current?.click()}>
                 {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}استيراد CSV
               </Button>
-              <Button onClick={() => openCreate(null)}><Plus className="size-4" />مخزن جديد</Button>
+              <Button onClick={() => openCreate(null)}><Plus className="size-4" />{t("مخزن جديد")}</Button>
             </>
           )}
         </div>
       </CardHeader>
       <CardContent>
         {roots.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مخازن بعد. أنشئ أول مخزن رئيسي.</div>
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مخازن بعد. أنشئ أول مخزن رئيسي.")}</div>
         ) : (
           <div className="rounded-xl border">{roots.map((r) => renderNode(r, 0))}</div>
         )}

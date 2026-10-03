@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
   settings: Required<Pick<PrintSettings, "header" | "docs">>;
   canEdit: boolean;
 }) {
+  const t = useT();
   const [state, action] = useActionState<ActionState, FormData>(savePrintSettingsAction, {});
   useEffect(() => {
     if (state.ok) toast.success("تم حفظ إعدادات الطباعة");
@@ -89,14 +91,14 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>ترويسة المطبوعات</CardTitle>
-          <CardDescription>الشعار والاسم والبيانات التي تظهر أعلى كل وثيقة وتقرير مطبوع.</CardDescription>
+          <CardTitle>{t("ترويسة المطبوعات")}</CardTitle>
+          <CardDescription>{t("الشعار والاسم والبيانات التي تظهر أعلى كل وثيقة وتقرير مطبوع.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <fieldset disabled={!canEdit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>شعار الشركة</Label>
+                <Label>{t("شعار الشركة")}</Label>
                 <div className="flex items-center gap-3">
                   {logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -109,14 +111,14 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                     {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}تغيير الشعار
                   </Button>
                   {logoUrl && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setLogoUrl("")}><X className="size-4" />إزالة</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setLogoUrl("")}><X className="size-4" />{t("إزالة")}</Button>
                   )}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ps-name">الاسم على المطبوعات</Label>
+                <Label htmlFor="ps-name">{t("الاسم على المطبوعات")}</Label>
                 <Input id="ps-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={org.nameAr} />
-                <p className="text-xs text-muted-foreground">فارغ = اسم المنشأة المسجل. لا يغيّر اسم المنشأة داخل النظام.</p>
+                <p className="text-xs text-muted-foreground">{t("فارغ = اسم المنشأة المسجل. لا يغيّر اسم المنشأة داخل النظام.")}</p>
               </div>
             </div>
 
@@ -135,14 +137,14 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ps-footer">نص أسفل الوثيقة</Label>
+              <Label htmlFor="ps-footer">{t("نص أسفل الوثيقة")}</Label>
               <Textarea id="ps-footer" value={footerText} onChange={(e) => setFooterText(e.target.value)} rows={2}
-                placeholder="مثال: شكراً لتعاملكم معنا — البضاعة المباعة لا تُرد ولا تُستبدل بعد 14 يوماً" />
+                placeholder={t("مثال: شكراً لتعاملكم معنا — البضاعة المباعة لا تُرد ولا تُستبدل بعد 14 يوماً")} />
             </div>
 
             {/* Live letterhead preview — same structure as the printed sheet. */}
             <div className="rounded-xl border bg-white p-4 text-black" dir="rtl">
-              <div className="mb-1 text-[10px] font-medium text-muted-foreground">معاينة الترويسة</div>
+              <div className="mb-1 text-[10px] font-medium text-muted-foreground">{t("معاينة الترويسة")}</div>
               <div className="flex items-start justify-between gap-6">
                 <div className="flex items-start gap-3">
                   {showLogo && (logoUrl ? (
@@ -156,13 +158,13 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                     <div className="mt-0.5 space-y-0.5 text-[10px] leading-4 text-[#8a93a6]">
                       {showAddress && org.address && <div>{org.address}</div>}
                       {showPhone && org.phone && <div dir="ltr" className="text-start">{org.phone}</div>}
-                      {showTaxNumber && org.taxNumber && <div>الرقم الضريبي: <span dir="ltr">{org.taxNumber}</span></div>}
+                      {showTaxNumber && org.taxNumber && <div>{t("الرقم الضريبي:")} <span dir="ltr">{org.taxNumber}</span></div>}
                     </div>
                   </div>
                 </div>
                 <div className="text-end">
-                  <div className="text-lg font-extrabold text-[#1f2937]">فاتورة بيع</div>
-                  <div className="mt-1 text-[10px] text-[#8a93a6]">رقم المستند <b className="text-black" dir="ltr">SI-2026-0001</b></div>
+                  <div className="text-lg font-extrabold text-[#1f2937]">{t("فاتورة بيع")}</div>
+                  <div className="mt-1 text-[10px] text-[#8a93a6]">{t("رقم المستند")} <b className="text-black" dir="ltr">SI-2026-0001</b></div>
                 </div>
               </div>
             </div>
@@ -172,15 +174,15 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>أعمدة الوثائق</CardTitle>
-          <CardDescription>اختر الوثيقة ثم حدد الأعمدة التي تظهر عند طباعتها. الأعمدة الأساسية لا يمكن إخفاؤها.</CardDescription>
+          <CardTitle>{t("أعمدة الوثائق")}</CardTitle>
+          <CardDescription>{t("اختر الوثيقة ثم حدد الأعمدة التي تظهر عند طباعتها. الأعمدة الأساسية لا يمكن إخفاؤها.")}</CardDescription>
         </CardHeader>
         <CardContent>
           <fieldset disabled={!canEdit} className="space-y-4">
             <select value={docKey} onChange={(e) => setDocKey(e.target.value)} className={selectCls + " max-w-xs"}>
               {PRINT_DOC_REGISTRY.map((d) => {
                 const n = (docs[d.key] ?? []).length;
-                return <option key={d.key} value={d.key}>{d.label}{n > 0 ? ` (${n} مخفي)` : ""}</option>;
+                return <option key={d.key} value={d.key}>{t(d.label)}{n > 0 ? ` (${n} مخفي)` : ""}</option>;
               })}
             </select>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -189,7 +191,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                 return (
                   <label key={c.label} className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${c.locked ? "opacity-60" : "cursor-pointer"}`}>
                     <Checkbox checked={checked} disabled={c.locked} onCheckedChange={(v) => toggleColumn(c.label, v === true)} />
-                    {c.label === "#" ? "مسلسل (#)" : c.label}
+                    {c.label === "#" ? t("مسلسل (#)") : c.label}
                   </label>
                 );
               })}

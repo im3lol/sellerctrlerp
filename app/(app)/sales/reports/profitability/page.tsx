@@ -1,4 +1,5 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -25,6 +26,7 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 const SALE_REFS = ["DELIVERY", "SALES_INVOICE", "SALES_RETURN"];
 
 export default async function ProfitabilityReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -97,8 +99,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
       <ReportShell
         reportKey="sales-profit"
         icon="TrendingUp"
-        title="ربحية المنتجات"
-        subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف"
+        title={t("ربحية المنتجات")}
+        subtitle={t("الإيراد والتكلفة والربح الإجمالي لكل صنف")}
         query={qs.toString()}
         permissions={permissions}
         filtersRaw={
@@ -110,8 +112,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
             <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
               className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
               <span>
-                <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
-                <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
+                <span className="font-medium">{t("ربحية المنصة — بالطلب وبالمنتج")}</span>
+                <span className="ms-2 text-muted-foreground">{t("رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة")}</span>
               </span>
               <span className="text-muted-foreground">←</span>
             </a>
@@ -130,34 +132,34 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
             ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` }
             : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` },
         ]}
-        chartTitle={list.length > 0 ? "أعلى ٨ أصناف ربحًا" : undefined}
+        chartTitle={list.length > 0 ? t("أعلى ٨ أصناف ربحًا") : undefined}
         chart={list.length > 0 ? (
           <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: r.profit }))}
-            valueLabel="الربح" money height={240}
+            valueLabel={t("الربح")} money height={240}
             colors={list.slice(0, 8).map((r) => (r.profit >= 0 ? "#008300" : "#e34948"))} />
         ) : undefined}
       >
         <Card>
           <CardHeader>
-            <CardTitle>الربحية حسب الصنف</CardTitle>
+            <CardTitle>{t("الربحية حسب الصنف")}</CardTitle>
             <CardDescription>الفترة {from} إلى {to} — التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-start">#</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية</TableHead>
-                    <TableHead className="text-end">صافي الإيراد</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الربح</TableHead>
-                    <TableHead className="text-end">الهامش</TableHead>
-                    {hasFees && <TableHead className="text-end">رسوم أمازون الفعلية</TableHead>}
-                    {hasFees && <TableHead className="text-end">الصافي بعد الرسوم</TableHead>}
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية")}</TableHead>
+                    <TableHead className="text-end">{t("صافي الإيراد")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة")}</TableHead>
+                    <TableHead className="text-end">{t("الربح")}</TableHead>
+                    <TableHead className="text-end">{t("الهامش")}</TableHead>
+                    {hasFees && <TableHead className="text-end">{t("رسوم أمازون الفعلية")}</TableHead>}
+                    {hasFees && <TableHead className="text-end">{t("الصافي بعد الرسوم")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -181,7 +183,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>ربحية القطعة الواحدة</CardTitle>
+            <CardTitle>{t("ربحية القطعة الواحدة")}</CardTitle>
             <CardDescription>
               متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية.
               أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.
@@ -192,18 +194,18 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية</TableHead>
-                    <TableHead className="text-end">متوسط سعر البيع</TableHead>
-                    <TableHead className="text-end">التكلفة/وحدة</TableHead>
-                    <TableHead className="text-end">رسوم أمازون/وحدة</TableHead>
-                    <TableHead className="text-end">سعر التعادل</TableHead>
-                    <TableHead className="text-end">الفرق</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية")}</TableHead>
+                    <TableHead className="text-end">{t("متوسط سعر البيع")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة/وحدة")}</TableHead>
+                    <TableHead className="text-end">{t("رسوم أمازون/وحدة")}</TableHead>
+                    <TableHead className="text-end">{t("سعر التعادل")}</TableHead>
+                    <TableHead className="text-end">{t("الفرق")}</TableHead>
                     <TableHead className="text-end">السعر المقترح ({qtyf(targetMargin)}%)</TableHead>
                   </TableRow>
                 </TableHeader>

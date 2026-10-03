@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -40,6 +41,7 @@ const STATUS: Record<string, { label: string; tone: "secondary" | "outline" | "d
 export function RfqManager({ items, suppliers, warehouses, canManage }: {
   items: Option[]; suppliers: Option[]; warehouses: Option[]; canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<ListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
     setLoading(true);
     void listRfqsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
     });
   };
@@ -67,7 +69,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
 
   const openRfq = (id: string) =>
     void getRfqAction(id).then((r) => {
-      if (!r.ok || !r.detail) { toast.error(r.error ?? "تعذّر الفتح"); return; }
+      if (!r.ok || !r.detail) { toast.error(r.error ?? t("تعذّر الفتح")); return; }
       setOpen(r.detail);
       setCreating(false);
       setQuoting(null);
@@ -83,8 +85,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
         supplierIds: draft.supplierIds,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
-      toast.success(`تم حفظ ${r.number ?? "الطلب"}`);
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
+      toast.success(`تم حفظ ${r.number ?? t("الطلب")}`);
       setCreating(false);
       setDraft({ date: new Date().toISOString().slice(0, 10), dueDate: "", lines: [{ itemId: "", quantity: 1 }], supplierIds: [], notes: "" });
       load();
@@ -96,7 +98,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
     start(async () => {
       const r = await sendRfqAction(id);
       if (r.ok) { toast.success("الطلب مُرسل — سجّل عروض الموردين لما توصل"); load(); openRfq(id); }
-      else toast.error(r.error ?? "تعذّر الإرسال");
+      else toast.error(r.error ?? t("تعذّر الإرسال"));
     });
 
   const cancel = (row: ListRow) =>
@@ -106,7 +108,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       start(async () => {
         const r = await cancelRfqAction(row.id);
         if (r.ok) { toast.success("تم الإلغاء"); load(); setOpen(null); }
-        else toast.error(r.error ?? "تعذّر الإلغاء");
+        else toast.error(r.error ?? t("تعذّر الإلغاء"));
       });
     })();
 
@@ -131,8 +133,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         declined,
         prices: open.lines.map((l) => ({ rfqLineId: l.id, unitPrice: Number(quote.prices[l.id]) || 0 })),
       });
-      if (r.ok) { toast.success(declined ? "تم تسجيل الاعتذار" : "تم حفظ العرض"); setQuoting(null); openRfq(open.rfq.id); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      if (r.ok) { toast.success(declined ? t("تم تسجيل الاعتذار") : t("تم حفظ العرض")); setQuoting(null); openRfq(open.rfq.id); }
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -150,7 +152,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       start(async () => {
         const r = await awardRfqAction(open.rfq.id, rfqSupplierId, awardWarehouse);
         if (r.ok) { toast.success("تمت الترسية — راجع أمر الشراء"); router.push(r.orderId ? `/purchases/orders/${r.orderId}` : "/purchases/orders"); }
-        else toast.error(r.error ?? "تعذّر الترسية");
+        else toast.error(r.error ?? t("تعذّر الترسية"));
       });
     })();
 
@@ -178,7 +180,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     <Icon name="Send" className="size-4" />أرسل
                   </Button>
                 )}
-                <Button size="sm" variant="outline" onClick={() => setOpen(null)}>رجوع</Button>
+                <Button size="sm" variant="outline" onClick={() => setOpen(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           </CardHeader>
@@ -186,7 +188,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             <CardContent className="flex flex-wrap gap-6 text-sm">
               {c.recommendedId && (
                 <div>
-                  <div className="text-muted-foreground">الأفضل (عرض كامل)</div>
+                  <div className="text-muted-foreground">{t("الأفضل (عرض كامل)")}</div>
                   <div className="font-bold">
                     {c.suppliers.find((s) => s.id === c.recommendedId)?.supplierName} — {money(c.suppliers.find((s) => s.id === c.recommendedId)?.total ?? 0)}
                   </div>
@@ -194,13 +196,13 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
               )}
               {c.spread != null && c.spread > 0 && (
                 <div>
-                  <div className="text-muted-foreground">الفرق عن أغلى عرض كامل</div>
+                  <div className="text-muted-foreground">{t("الفرق عن أغلى عرض كامل")}</div>
                   <div className="font-bold text-emerald-600">{money(c.spread)}</div>
                 </div>
               )}
               {c.bestOfBreedTotal != null && (
                 <div>
-                  <div className="text-muted-foreground">لو أخدت كل صنف من الأرخص</div>
+                  <div className="text-muted-foreground">{t("لو أخدت كل صنف من الأرخص")}</div>
                   <div className="font-bold">{money(c.bestOfBreedTotal)}</div>
                 </div>
               )}
@@ -210,21 +212,21 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
 
         <Card>
           <CardHeader>
-            <CardTitle>جدول المقارنة</CardTitle>
-            <CardDescription>الأرخص في كل سطر معلَّم. العرض الناقص مكتوب عليه كده — إجماليه أقل لأنه مسعّرش كل حاجة.</CardDescription>
+            <CardTitle>{t("جدول المقارنة")}</CardTitle>
+            <CardDescription>{t("الأرخص في كل سطر معلَّم. العرض الناقص مكتوب عليه كده — إجماليه أقل لأنه مسعّرش كل حاجة.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-xl border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
                     {c.suppliers.map((s) => (
                       <TableHead key={s.id} className="text-start">
                         <div className="font-medium">{s.supplierName}</div>
                         <div className="text-xs font-normal text-muted-foreground">
-                          {s.status === "DECLINED" ? "اعتذر" : s.quotedLines === 0 ? "لسه مردّش" : s.complete ? "عرض كامل" : `ناقص (${s.quotedLines}/${open.lines.length})`}
+                          {s.status === "DECLINED" ? t("اعتذر") : s.quotedLines === 0 ? t("لسه مردّش") : s.complete ? t("عرض كامل") : `ناقص (${s.quotedLines}/${open.lines.length})`}
                         </div>
                       </TableHead>
                     ))}
@@ -250,16 +252,16 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/40 font-bold">
-                    <TableCell colSpan={2}>الإجمالي</TableCell>
+                    <TableCell colSpan={2}>{t("الإجمالي")}</TableCell>
                     {c.suppliers.map((s) => (
                       <TableCell key={s.id} className="tabular-nums">
                         {s.quotedLines === 0 ? "—" : money(s.total)}
-                        {s.rank === 1 && <Badge className="ms-2" variant="secondary">الأفضل</Badge>}
+                        {s.rank === 1 && <Badge className="ms-2" variant="secondary">{t("الأفضل")}</Badge>}
                       </TableCell>
                     ))}
                   </TableRow>
                   <TableRow>
-                    <TableCell colSpan={2} className="text-muted-foreground">التوريد / السداد</TableCell>
+                    <TableCell colSpan={2} className="text-muted-foreground">{t("التوريد / السداد")}</TableCell>
                     {c.suppliers.map((s) => (
                       <TableCell key={s.id} className="text-xs text-muted-foreground">
                         {s.leadDays != null ? `${s.leadDays} يوم` : "—"} · {s.paymentTermDays != null ? `${s.paymentTermDays} يوم سداد` : "—"}
@@ -271,9 +273,9 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                       <TableCell colSpan={2} />
                       {c.suppliers.map((s) => (
                         <TableCell key={s.id} className="space-y-1">
-                          {editable && <Button size="sm" variant="outline" onClick={() => startQuote(s.id)}>سجّل عرضه</Button>}
+                          {editable && <Button size="sm" variant="outline" onClick={() => startQuote(s.id)}>{t("سجّل عرضه")}</Button>}
                           {open.rfq.status !== "AWARDED" && s.complete && (
-                            <Button size="sm" onClick={() => award(s.id)} disabled={pending}>رسِّ عليه</Button>
+                            <Button size="sm" onClick={() => award(s.id)} disabled={pending}>{t("رسِّ عليه")}</Button>
                           )}
                         </TableCell>
                       ))}
@@ -285,10 +287,10 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             {canManage && open.rfq.status !== "AWARDED" && (
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <div className="space-y-2">
-                  <Label>المستودع المستلم (للترسية)</Label>
+                  <Label>{t("المستودع المستلم (للترسية)")}</Label>
                   <CellCombobox
                     selectedLabel={warehouses.find((w) => w.id === awardWarehouse)?.label ?? ""}
-                    options={warehouses} onSelect={setAwardWarehouse} placeholder="اختر المستودع…"
+                    options={warehouses} onSelect={setAwardWarehouse} placeholder={t("اختر المستودع…")}
                   />
                 </div>
               </div>
@@ -302,29 +304,29 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
               <div className="flex w-full flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle>عرض {c.suppliers.find((s) => s.id === quoting)?.supplierName}</CardTitle>
-                  <CardDescription>اكتب السعر لكل صنف. سيبه فاضي لو المورّد مسعّرش الصنف ده.</CardDescription>
+                  <CardDescription>{t("اكتب السعر لكل صنف. سيبه فاضي لو المورّد مسعّرش الصنف ده.")}</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => submitQuote(false)} disabled={pending}><Icon name="Check" className="size-4" />حفظ</Button>
-                  <Button size="sm" variant="outline" onClick={() => submitQuote(true)} disabled={pending}>اعتذر</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setQuoting(null)}>إغلاق</Button>
+                  <Button size="sm" onClick={() => submitQuote(false)} disabled={pending}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => submitQuote(true)} disabled={pending}>{t("اعتذر")}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setQuoting(null)}>{t("إغلاق")}</Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-4">
-                <div className="space-y-2"><Label>مدة التوريد (يوم)</Label>
+                <div className="space-y-2"><Label>{t("مدة التوريد (يوم)")}</Label>
                   <Input type="number" min="0" className="w-32" value={quote.leadDays} onChange={(e) => setQuote((q) => ({ ...q, leadDays: e.target.value }))} /></div>
-                <div className="space-y-2"><Label>مدة السداد (يوم)</Label>
+                <div className="space-y-2"><Label>{t("مدة السداد (يوم)")}</Label>
                   <Input type="number" min="0" className="w-32" value={quote.terms} onChange={(e) => setQuote((q) => ({ ...q, terms: e.target.value }))} /></div>
               </div>
               <div className="rounded-xl border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الصنف</TableHead>
-                      <TableHead className="text-start">الكمية</TableHead>
-                      <TableHead className="w-36 text-start">سعر الوحدة</TableHead>
+                      <TableHead className="text-start">{t("الصنف")}</TableHead>
+                      <TableHead className="text-start">{t("الكمية")}</TableHead>
+                      <TableHead className="w-36 text-start">{t("سعر الوحدة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -356,33 +358,33 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         <CardHeader>
           <div className="flex w-full flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>طلب عروض جديد</CardTitle>
-              <CardDescription>نفس السلة بتروح لكل المورّدين، فالمقارنة بتبقى عادلة.</CardDescription>
+              <CardTitle>{t("طلب عروض جديد")}</CardTitle>
+              <CardDescription>{t("نفس السلة بتروح لكل المورّدين، فالمقارنة بتبقى عادلة.")}</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={saveDraft} disabled={pending}><Icon name="Check" className="size-4" />حفظ</Button>
-              <Button size="sm" variant="outline" onClick={() => setCreating(false)}>إلغاء</Button>
+              <Button size="sm" onClick={saveDraft} disabled={pending}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+              <Button size="sm" variant="outline" onClick={() => setCreating(false)}>{t("إلغاء")}</Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="space-y-2"><Label>التاريخ</Label>
+            <div className="space-y-2"><Label>{t("التاريخ")}</Label>
               <Input type="date" value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>آخر موعد للردود</Label>
+            <div className="space-y-2"><Label>{t("آخر موعد للردود")}</Label>
               <Input type="date" value={draft.dueDate} onChange={(e) => setDraft((d) => ({ ...d, dueDate: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>ملاحظات</Label>
-              <Input value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} placeholder="اختياري" /></div>
+            <div className="space-y-2"><Label>{t("ملاحظات")}</Label>
+              <Input value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} placeholder={t("اختياري")} /></div>
           </div>
 
           <div className="space-y-2">
-            <Label>الموردون المدعوّون</Label>
+            <Label>{t("الموردون المدعوّون")}</Label>
             <div className="max-w-md">
               <CellCombobox
                 selectedLabel=""
                 options={suppliers.filter((s) => !draft.supplierIds.includes(s.id))}
                 onSelect={(id) => setDraft((d) => ({ ...d, supplierIds: [...d.supplierIds, id] }))}
-                placeholder={suppliers.length ? "أضِف مورّد…" : "مفيش موردين"}
+                placeholder={suppliers.length ? t("أضِف مورّد…") : t("مفيش موردين")}
               />
             </div>
             {draft.supplierIds.length > 0 && (
@@ -390,7 +392,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                 {draft.supplierIds.map((id) => (
                   <span key={id} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-sm">
                     {suppliers.find((s) => s.id === id)?.label ?? id}
-                    <button type="button" aria-label="إزالة" className="text-muted-foreground hover:text-destructive"
+                    <button type="button" aria-label={t("إزالة")} className="text-muted-foreground hover:text-destructive"
                       onClick={() => setDraft((d) => ({ ...d, supplierIds: d.supplierIds.filter((x) => x !== id) }))}>×</button>
                   </span>
                 ))}
@@ -402,8 +404,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="w-32 text-start">الكمية</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="w-32 text-start">{t("الكمية")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -415,7 +417,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                         selectedLabel={items.find((it) => it.id === l.itemId)?.label ?? ""}
                         options={items}
                         onSelect={(id) => setDraft((d) => ({ ...d, lines: d.lines.map((x, k) => (k === i ? { ...x, itemId: id } : x)) }))}
-                        placeholder="ابحث عن الصنف…"
+                        placeholder={t("ابحث عن الصنف…")}
                       />
                     </TableCell>
                     <TableCell>
@@ -423,7 +425,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                         onChange={(e) => setDraft((d) => ({ ...d, lines: d.lines.map((x, k) => (k === i ? { ...x, quantity: Number(e.target.value) || 0 } : x)) }))} />
                     </TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" aria-label="حذف"
+                      <Button size="icon" variant="ghost" aria-label={t("حذف")}
                         onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((_, k) => k !== i) }))}>
                         <Icon name="Trash2" className="size-4 text-destructive" />
                       </Button>
@@ -447,11 +449,11 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       <CardHeader>
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>طلبات عروض الأسعار</CardTitle>
-            <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} طلب`}</CardDescription>
+            <CardTitle>{t("طلبات عروض الأسعار")}</CardTitle>
+            <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} طلب`}</CardDescription>
           </div>
           {canManage && (
-            <Button size="sm" onClick={() => setCreating(true)}><Icon name="Plus" className="size-4" />طلب جديد</Button>
+            <Button size="sm" onClick={() => setCreating(true)}><Icon name="Plus" className="size-4" />{t("طلب جديد")}</Button>
           )}
         </div>
       </CardHeader>
@@ -465,11 +467,11 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الرقم</TableHead>
-                  <TableHead className="text-start">التاريخ</TableHead>
-                  <TableHead className="text-start">الأصناف</TableHead>
-                  <TableHead className="text-start">الردود</TableHead>
-                  <TableHead className="text-start">الحالة</TableHead>
+                  <TableHead className="text-start">{t("الرقم")}</TableHead>
+                  <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                  <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                  <TableHead className="text-start">{t("الردود")}</TableHead>
+                  <TableHead className="text-start">{t("الحالة")}</TableHead>
                   <TableHead className="w-32" />
                 </TableRow>
               </TableHeader>
@@ -482,9 +484,9 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     <TableCell className="tabular-nums">{r.quoted} / {r.invited}</TableCell>
                     <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
                     <TableCell className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => openRfq(r.id)}>افتح</Button>
+                      <Button size="sm" variant="outline" onClick={() => openRfq(r.id)}>{t("افتح")}</Button>
                       {canManage && r.status !== "AWARDED" && r.status !== "CANCELLED" && (
-                        <Button size="icon" variant="ghost" aria-label="إلغاء" onClick={() => cancel(r)}>
+                        <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => cancel(r)}>
                           <Icon name="Ban" className="size-4 text-destructive" />
                         </Button>
                       )}

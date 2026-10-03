@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { getAttachmentsAction, addAttachmentAction, deleteAttachmentAction, type AttachmentMeta } from "@/app/actions/erp/attachments";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ function fileIcon(mime: string) {
 }
 
 export function AttachmentsCard({ entityType, entityId, canManage }: { entityType: string; entityId: string; canManage: boolean }) {
+  const t = useT();
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
   const [loadPending, startLoad] = useTransition();
   const [uploadPending, startUpload] = useTransition();
@@ -88,7 +90,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>المرفقات</CardTitle>
+            <CardTitle>{t("المرفقات")}</CardTitle>
             <CardDescription>{attachments.length} ملف مرفق</CardDescription>
           </div>
           {canManage && (
@@ -123,7 +125,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
         )}
 
         {!loadPending && attachments.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">لا توجد مرفقات بعد.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{t("لا توجد مرفقات بعد.")}</p>
         )}
 
         {attachments.map((att) => (
@@ -134,24 +136,24 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
               <p className="text-xs text-muted-foreground">{formatSize(att.fileSize)} · {new Date(att.createdAt).toLocaleDateString("en-GB")}</p>
             </div>
             <div className="flex gap-1 shrink-0">
-              <Button size="icon" variant="ghost" className="size-8" onClick={() => download(att)} title="تحميل">
+              <Button size="icon" variant="ghost" className="size-8" onClick={() => download(att)} title={t("تحميل")}>
                 <Icon name="Download" className="size-4" />
               </Button>
               {canManage && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="size-8" disabled={deletePending} title="حذف">
+                    <Button size="icon" variant="ghost" className="size-8" disabled={deletePending} title={t("حذف")}>
                       <Icon name="Trash2" className="size-4 text-destructive" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>حذف «{att.fileName}»؟</AlertDialogTitle>
-                      <AlertDialogDescription>لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                      <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => remove(att.id)}>حذف</AlertDialogAction>
+                      <AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => remove(att.id)}>{t("حذف")}</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

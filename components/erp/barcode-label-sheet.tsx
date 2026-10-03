@@ -1,6 +1,7 @@
 "use client";
 
 import { code128Svg } from "@/lib/code128";
+import { useT } from "@/lib/i18n/client";
 
 export type LabelRow = { itemName: string; barcode: string; itemCode: string };
 
@@ -8,6 +9,7 @@ export type LabelRow = { itemName: string; barcode: string; itemCode: string };
  *  the print/back toolbar buttons actually work. Shared by the per-document and
  *  ad-hoc batch label pages. */
 export function BarcodeLabelSheet({ labels, title }: { labels: LabelRow[]; title: string }) {
+  const t = useT();
   return (
     <>
       <style>{`
@@ -31,13 +33,13 @@ export function BarcodeLabelSheet({ labels, title }: { labels: LabelRow[]; title
       `}</style>
 
       <div className="toolbar">
-        <button onClick={() => window.print()}>🖨 طباعة / حفظ PDF</button>
-        <button className="back" onClick={() => window.history.back()}>رجوع</button>
+        <button onClick={() => window.print()}>{t("🖨 طباعة / حفظ PDF")}</button>
+        <button className="back" onClick={() => window.history.back()}>{t("رجوع")}</button>
         <span className="info">{title} — {labels.length} ملصق</span>
       </div>
 
       {labels.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px", fontFamily: "sans-serif", color: "#888" }}>لا توجد بنود بباركود.</div>
+        <div style={{ textAlign: "center", padding: "40px", fontFamily: "sans-serif", color: "#888" }}>{t("لا توجد بنود بباركود.")}</div>
       ) : (
         labels.map((label, i) => (
           <div key={i} className="label">
