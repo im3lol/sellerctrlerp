@@ -9,6 +9,7 @@ import { automationRules, orgSubscriptions, plans } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { encryptSecret } from "@/lib/crypto";
 import { tryRecordAudit } from "@/lib/erp/audit";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   ACTION_LABEL, DOCS, EVENT_LABEL, SECRET_KEPT, TEMPLATES, fill, isEvent, matches, validateSpec,
   type Action, type Facts, type RuleSpec,
@@ -86,7 +87,7 @@ function secureActions(actions: Action[], previous: Action[] | undefined): Actio
   });
 }
 
-export async function saveRuleAction(input: { id?: string; name: string; enabled: boolean; spec: unknown }): Promise<ActionState & { id?: string }> {
+export async function saveRuleAction(input: { id?: string; name: string; enabled: boolean; spec: unknown }): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("automation.manage", "settings");
   if ("error" in auth) return auth;
   const name = (input.name ?? "").trim().slice(0, 120);
@@ -120,12 +121,13 @@ export async function saveRuleAction(input: { id?: string; name: string; enabled
       if (n >= limit) return { error: `باقتك بتسمح بـ${limit} قاعدة أتمتة — رقّي الباقة أو امسح قاعدة` };
     }
     const spec = { ...parsed.spec, actions: secureActions(parsed.spec.actions, undefined) };
+    const number = await nextDocumentNumber(db, auth.orgId, "AUT", new Date().getFullYear());
     const [row] = await db.insert(automationRules)
-      .values({ organizationId: auth.orgId, name, enabled: !!input.enabled, spec, createdBy: auth.userId })
-      .returning({ id: automationRules.id });
+      .values({ organizationId: auth.orgId, number, name, enabled: !!input.enabled, spec, createdBy: auth.userId })
+      .returning({ id: automationRules.id, number: automationRules.number });
     await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "AUTOMATION_RULE", entityId: row.id, summary: `قاعدة أتمتة جديدة «${name}»` });
     revalidatePath("/automation");
-    return { ok: true, id: row.id };
+    return { ok: true, id: row.id, number: row.number };
   });
 }
 
@@ -162,7 +164,7 @@ export async function deleteRuleAction(id: string): Promise<ActionState> {
 }
 
 /** Add a ready-made rule. The webhook recipe starts switched off — its URL is a placeholder. */
-export async function addTemplateAction(key: string): Promise<ActionState & { id?: string }> {
+export async function addTemplateAction(key: string): Promise<ActionState & { id?: string; number?: string }> {
   const t = TEMPLATES.find((x) => x.key === key);
   if (!t) return { error: "الوصفة مش موجودة" };
   const hasPlaceholder = t.spec.actions.some((a) => a.type === "webhook");

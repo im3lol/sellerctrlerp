@@ -33,8 +33,8 @@ export function NewDashboardButton() {
         e.preventDefault();
         start(async () => {
           const r = await saveDashboardAction({ nameAr: name, widgets: [] });
-          if (!r.ok || !r.id) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
-          router.push(`/reports/dashboards/${r.id}?edit=1`);
+          if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
+          router.push(`/reports/dashboards/${encodeURIComponent(r.number)}?edit=1`);
         });
       }}>
       <Input className="w-64" autoFocus placeholder={t("اسم اللوحة")} value={name} onChange={(e) => setName(e.target.value)} />
@@ -45,7 +45,7 @@ export function NewDashboardButton() {
 }
 
 export function DashboardEditor({ dashboard, reports }: {
-  dashboard: { id: string; nameAr: string; isShared: boolean; widgets: Widget[] };
+  dashboard: { id: string; number: string; nameAr: string; isShared: boolean; widgets: Widget[] };
   reports: ReportOption[];
 }) {
   const t = useT();
@@ -55,7 +55,7 @@ export function DashboardEditor({ dashboard, reports }: {
   const [isShared, setShared] = useState(dashboard.isShared);
   const [widgets, setWidgets] = useState<Widget[]>(dashboard.widgets);
   const [pick, setPick] = useState("");
-  const view = `/reports/dashboards/${dashboard.id}`;
+  const view = `/reports/dashboards/${encodeURIComponent(dashboard.number)}`;
 
   const report = (id: string) => reports.find((r) => r.id === id);
   // A private report on a shared dashboard shows only to its owner — say so before saving.

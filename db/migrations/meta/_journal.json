@@ -1065,6 +1065,13 @@
       "when": 1791000000000,
       "tag": "0151_user_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1792000000000,
+      "tag": "0152_rule_dashboard_numbers",
+      "breakpoints": true
     }
   ]
 }

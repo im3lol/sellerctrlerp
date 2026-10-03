@@ -47,10 +47,10 @@ export function AddTemplateButton({ templateKey, needsSetup }: { templateKey: st
   return (
     <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => {
       const r = await addTemplateAction(templateKey);
-      if (!r.ok || !r.id) { toast.error(r.error ?? "تعذّر الإضافة"); return; }
+      if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر الإضافة"); return; }
       if (needsSetup) {
         toast.success("اتضافت متوقفة — حط الرابط بتاعك وشغّلها");
-        router.push(`/automation/${r.id}`);
+        router.push(`/automation/${encodeURIComponent(r.number)}`);
       } else {
         toast.success("اتضافت وبقت شغّالة");
         router.refresh();

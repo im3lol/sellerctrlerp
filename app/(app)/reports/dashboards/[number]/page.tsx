@@ -4,6 +4,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { dashboards, savedReports } from "@/db/schema";
 import { loadErpPage } from "@/lib/erp/org";
+import { docNumberParam } from "@/lib/erp/doc-route";
 import { requireUser } from "@/lib/session";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
 import { runReport, type Cell, type ChartKind, type ReportResult } from "@/lib/erp/report-builder";
@@ -32,17 +33,20 @@ type Tile = {
 };
 
 export default async function DashboardPage({ params, searchParams }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ number: string }>;
   searchParams: Promise<{ edit?: string }>;
 }) {
-  const { id } = await params;
+  const raw = (await params).number;
   const { edit } = await searchParams;
 
   return loadErpPage("reports.view", async ({ orgId, can }) => {
     const user = await requireUser();
+    const number = await docNumberParam(raw, orgId, dashboards,
+      { id: dashboards.id, number: dashboards.number, organizationId: dashboards.organizationId },
+      "/reports/dashboards", edit === "1" ? "?edit=1" : "");
     const [board] = await db.select().from(dashboards)
       .where(and(
-        eq(dashboards.id, id), eq(dashboards.organizationId, orgId),
+        eq(dashboards.number, number), eq(dashboards.organizationId, orgId),
         or(eq(dashboards.isShared, true), eq(dashboards.createdBy, user.id)),
       )).limit(1);
     if (!board) notFound();
@@ -98,14 +102,14 @@ export default async function DashboardPage({ params, searchParams }: {
           backHref="/reports/dashboards"
           action={mine && !editing ? (
             <Button asChild variant="outline">
-              <Link href={`/reports/dashboards/${board.id}?edit=1`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+              <Link href={`/reports/dashboards/${encodeURIComponent(board.number)}?edit=1`}><Icon name="Pencil" className="size-4" />تعديل</Link>
             </Button>
           ) : undefined}
         />
 
         {editing && (
           <DashboardEditor
-            dashboard={{ id: board.id, nameAr: board.nameAr, isShared: board.isShared, widgets: board.widgets }}
+            dashboard={{ id: board.id, number: board.number, nameAr: board.nameAr, isShared: board.isShared, widgets: board.widgets }}
             reports={options}
           />
         )}

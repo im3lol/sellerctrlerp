@@ -7,6 +7,7 @@ import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { dashboards } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
+import { nextDocumentNumber } from "@/lib/erp/sequence";
 
 /**
  * A dashboard is a name and a list of saved-report ids. Nothing here reads business data:
@@ -22,7 +23,7 @@ const saveSchema = z.object({
     .max(12, "اللوحة تشيل ١٢ تقرير بالكتير").default([]),
 });
 
-export async function saveDashboardAction(input: z.input<typeof saveSchema>): Promise<ActionState & { id?: string }> {
+export async function saveDashboardAction(input: z.input<typeof saveSchema>): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("reports.view");
   if ("error" in auth) return auth;
   const parsed = saveSchema.safeParse(input);
@@ -31,7 +32,7 @@ export async function saveDashboardAction(input: z.input<typeof saveSchema>): Pr
 
   return withOrgScope(auth.orgId, false, async () => {
     if (d.id) {
-      const [existing] = await db.select({ createdBy: dashboards.createdBy }).from(dashboards)
+      const [existing] = await db.select({ createdBy: dashboards.createdBy, number: dashboards.number }).from(dashboards)
         .where(and(eq(dashboards.id, d.id), eq(dashboards.organizationId, auth.orgId))).limit(1);
       if (!existing) return { error: "اللوحة غير موجودة" };
       // A shared dashboard stays its builder's to change, like a shared report.
@@ -40,14 +41,16 @@ export async function saveDashboardAction(input: z.input<typeof saveSchema>): Pr
         .set({ nameAr: d.nameAr, isShared: d.isShared, widgets: d.widgets, updatedAt: new Date() })
         .where(eq(dashboards.id, d.id));
       revalidatePath("/reports/dashboards");
-      return { ok: true, id: d.id };
+      revalidatePath(`/reports/dashboards/${existing.number}`);
+      return { ok: true, id: d.id, number: existing.number };
     }
 
+    const number = await nextDocumentNumber(db, auth.orgId, "DSH", new Date().getFullYear());
     const [row] = await db.insert(dashboards).values({
-      organizationId: auth.orgId, nameAr: d.nameAr, isShared: d.isShared, widgets: d.widgets, createdBy: auth.userId,
-    }).returning({ id: dashboards.id });
+      organizationId: auth.orgId, number, nameAr: d.nameAr, isShared: d.isShared, widgets: d.widgets, createdBy: auth.userId,
+    }).returning({ id: dashboards.id, number: dashboards.number });
     revalidatePath("/reports/dashboards");
-    return { ok: true, id: row.id };
+    return { ok: true, id: row.id, number: row.number };
   });
 }
 
