@@ -50,7 +50,7 @@ function CenterDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مركز تكلفة" : "مركز تكلفة جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل مركز تكلفة") : t("مركز تكلفة جديد")}</DialogTitle>
             <DialogDescription>{t("مركز تكلفة ضمن هيكل المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -101,7 +101,7 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
   const openEdit = (c: CostCenter) => { setEditing(c); setPresetParent(null); setOpen(true); };
   const remove = (c: CostCenter) => startTransition(async () => {
     const r = await deleteCostCenterAction(c.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const renderNode = (c: CostCenter, depth: number): React.ReactNode => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { confirm } from "@/components/erp/confirm";
 
 /** Draft purchase invoice: post / delete. Posted: a "مرتجع" shortcut. */
 export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -23,7 +25,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -49,7 +51,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
           start(async () => {
             const r = await deleteCancelledDocumentAction("invoice", id);
             if (r.ok) { toast.success("تم حذف الفاتورة نهائياً"); router.push("/purchases/invoices"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
   }

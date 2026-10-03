@@ -72,10 +72,10 @@ export function TransfersTable({ rows, canConfirm, canCreate, total, filter }: {
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className="max-w-[200px] truncate text-muted-foreground">{r.notes ?? "—"}</TableCell>
-                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>
                 <TableCell>
                   <Link href={`/inventory/transfers/${encodeURIComponent(r.number)}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-                    {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
+                    {r.status === "DRAFT" ? t("مراجعة وتأكيد") : t("عرض")}<Icon name="ChevronLeft" className="size-4" />
                   </Link>
                 </TableCell>
               </TableRow>

@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -23,6 +24,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesInvoicesPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.create");
     const canPost = can("accounting.post");
@@ -110,23 +112,23 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
       <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title="فواتير البيع"
+          title={t("فواتير البيع")}
           subtitle={`${total} فاتورة`}
           action={canManage ? (
-            <Button asChild><Link href="/sales/invoices/new"><Icon name="Plus" className="size-4" />فاتورة بيع</Link></Button>
+            <Button asChild><Link href="/sales/invoices/new"><Icon name="Plus" className="size-4" />{t("فاتورة بيع")}</Link></Button>
           ) : undefined}
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">إجمالي القيمة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المُحصّل</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalValue - totalDue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المتبقّي (مستحق)</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalDue > 0 ? "text-amber-600" : ""}`}>{money(totalDue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("إجمالي القيمة")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("المُحصّل")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{money(totalValue - totalDue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("المتبقّي (مستحق)")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${totalDue > 0 ? "text-amber-600" : ""}`}>{money(totalDue)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>الفواتير</CardTitle>
-            <CardDescription>فواتير البيع تُحفظ مسودة ثم تُؤكَّد (تُرحّل محاسبياً). حدّد عدّة مسودات لتأكيدها أو حذفها دفعةً واحدة.</CardDescription>
+            <CardTitle>{t("الفواتير")}</CardTitle>
+            <CardDescription>{t("فواتير البيع تُحفظ مسودة ثم تُؤكَّد (تُرحّل محاسبياً). حدّد عدّة مسودات لتأكيدها أو حذفها دفعةً واحدة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
@@ -134,34 +136,34 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
-                <div className="space-y-1"><Label htmlFor="q">رقم الفاتورة</Label><Input id="q" name="q" defaultValue={q} placeholder="SI-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("رقم الفاتورة")}</Label><Input id="q" name="q" defaultValue={q} placeholder="SI-2026-..." /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customer">العميل</Label>
+                  <Label htmlFor="customer">{t("العميل")}</Label>
                   <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-5">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/invoices">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/invoices">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {tableRows.length === 0 ? (
-              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div> : (
-              <EmptyState icon="Receipt" title="لا توجد فواتير بعد" description="الفاتورة بتطلع من أمر البيع بعد تأكيده وتسليمه.">
-                <Button asChild size="sm"><Link href="/sales/orders">أوامر البيع</Link></Button>
+              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد نتائج مطابقة.")}</div> : (
+              <EmptyState icon="Receipt" title={t("لا توجد فواتير بعد")} description={t("الفاتورة بتطلع من أمر البيع بعد تأكيده وتسليمه.")}>
+                <Button asChild size="sm"><Link href="/sales/orders">{t("أوامر البيع")}</Link></Button>
               </EmptyState>
             )
             ) : (
@@ -171,10 +173,10 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

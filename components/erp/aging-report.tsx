@@ -77,7 +77,7 @@ function AgingTable({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {BUCKETS.map((b, i) => (
           <div key={i} className="rounded-xl border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">{b.label}</p>
+            <p className="text-xs text-muted-foreground">{t(b.label)}</p>
             <p className={`mt-1 text-lg font-bold tabular-nums ${i >= 3 ? "text-destructive" : ""}`}>
               {fmt(bucketTotals[i])}
             </p>
@@ -124,7 +124,7 @@ function AgingTable({
                 <td className="tabular-nums font-semibold">{fmt(r.balanceDue)}</td>
                 <td>
                   <Badge variant={BUCKET_VARIANT[r.bucket]}>
-                    {r.days <= 0 ? "لم تستحق" : `${r.days} يوم`}
+                    {r.days <= 0 ? t("لم تستحق") : `${r.days} يوم`}
                   </Badge>
                 </td>
               </tr>

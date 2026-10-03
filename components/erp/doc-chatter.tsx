@@ -105,10 +105,10 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
         ) : (
           <div className="space-y-3 rounded-xl border p-3">
             <div className="flex gap-1">
-              {(["comment", "followUp"] as const).map((t) => (
-                <button key={t} type="button" onClick={() => setTab(t)}
-                  className={cn("rounded-md px-3 py-1 text-sm", tab === t ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-                  {t === "comment" ? "تعليق" : "متابعة"}
+              {(["comment", "followUp"] as const).map((it) => (
+                <button key={it} type="button" onClick={() => setTab(it)}
+                  className={cn("rounded-md px-3 py-1 text-sm", tab === it ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+                  {it === "comment" ? t("تعليق") : t("متابعة")}
                 </button>
               ))}
             </div>
@@ -192,8 +192,8 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                     pending={pending} onDone={() => run(() => completeFollowUpAction(kind, e.f.id), "تمام ✓")} />
                 ) : (
                   <div className="flex items-start gap-3 ps-11 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="shrink-0">{ACTION_AR[e.a.action] ?? e.a.action}</Badge>
-                    <span className="min-w-0">{e.a.summary ?? "—"} · {when(e.a.createdAt)} · {e.a.userName ?? "تلقائي (النظام)"}</span>
+                    <Badge variant="outline" className="shrink-0">{t(ACTION_AR[e.a.action] ?? e.a.action)}</Badge>
+                    <span className="min-w-0">{e.a.summary ?? "—"} · {when(e.a.createdAt)} · {e.a.userName ?? t("تلقائي (النظام)")}</span>
                   </div>
                 )}
               </li>

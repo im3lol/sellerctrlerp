@@ -45,7 +45,7 @@ function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مورد" : "مورد جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل مورد") : t("مورد جديد")}</DialogTitle>
             <DialogDescription>{t("بيانات المورد للمؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -73,7 +73,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
 
   const remove = (s: Supplier) => startTransition(async () => {
     const r = await deleteSupplierAction(s.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const addBtn = (

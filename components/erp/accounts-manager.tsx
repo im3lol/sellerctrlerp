@@ -47,7 +47,7 @@ function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenC
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل حساب" : "حساب جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل حساب") : t("حساب جديد")}</DialogTitle>
             <DialogDescription>{t("حساب ضمن دليل حسابات المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -91,7 +91,7 @@ export function AccountsManager({ accounts, canManage }: { accounts: Account[]; 
 
   const remove = (a: Account) => startTransition(async () => {
     const r = await deleteAccountAction(a.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   return (
@@ -120,8 +120,8 @@ export function AccountsManager({ accounts, canManage }: { accounts: Account[]; 
                 <TableRow key={a.id} className={a.isLeaf ? "" : "bg-muted/30 font-semibold"}>
                   <TableCell className="font-mono">{a.code}</TableCell>
                   <TableCell>{a.nameAr}</TableCell>
-                  <TableCell><Badge variant="secondary">{TYPE_LABELS[a.type] ?? a.type}</Badge></TableCell>
-                  <TableCell>{a.normalBalance === "DEBIT" ? "مدين" : "دائن"}</TableCell>
+                  <TableCell><Badge variant="secondary">{t(TYPE_LABELS[a.type] ?? a.type)}</Badge></TableCell>
+                  <TableCell>{a.normalBalance === "DEBIT" ? t("مدين") : t("دائن")}</TableCell>
                   <TableCell>{a.isActive ? <span className="text-primary">{t("نشط")}</span> : <span className="text-muted-foreground">{t("معطّل")}</span>}</TableCell>
                   {canManage && (
                     <TableCell>

@@ -53,8 +53,8 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
     start(async () => {
       const body = { date, notes, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })) };
       const r = isEdit ? await updateMaterialRequestAction(initial!.id, body) : await createMaterialRequestAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ طلب المواد (مسودة)"); router.push(r.number ? `/purchases/requisitions/${encodeURIComponent(r.number)}` : "/purchases/requisitions"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      if (r.ok) { toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ طلب المواد (مسودة)")); router.push(r.number ? `/purchases/requisitions/${encodeURIComponent(r.number)}` : "/purchases/requisitions"); router.refresh(); }
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -64,7 +64,7 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات طلب المواد")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الطلب"}</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الطلب")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/requisitions/${encodeURIComponent(initial!.number)}` : "/purchases/requisitions")}>{t("إلغاء")}</Button>
           </div>
         </div>

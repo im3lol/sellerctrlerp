@@ -45,7 +45,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
     setLoading(true);
     void listBinsAction(warehouseId || undefined).then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setBins(r.bins ?? []);
     });
   };
@@ -58,7 +58,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
     start(async () => {
       const r = await saveBinAction({ warehouseId, code: form.code, nameAr: form.nameAr || null, isActive: true });
       if (r.ok) { toast.success("تم إضافة الموقع"); setForm({ code: "", nameAr: "" }); load(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -75,7 +75,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
       start(async () => {
         const r = await deleteBinAction(b.id);
         if (r.ok) { toast.success("تم الحذف"); load(); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -84,7 +84,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
     start(async () => {
       const r = await assignItemBinAction(assign);
       if (r.ok) { toast.success("تم تسجيل مكان الصنف"); load(); if (lookupItem === assign.itemId) lookup(assign.itemId); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -92,7 +92,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
     setLookupItem(itemId);
     if (!itemId) { setLocations(null); return; }
     void getItemLocationsAction(itemId).then((r) => {
-      if (!r.ok) { toast.error(r.error ?? "تعذّر البحث"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر البحث")); return; }
       setLocations(r.locations ?? []);
     });
   };
@@ -101,7 +101,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
     start(async () => {
       const r = await unassignItemBinAction(lookupItem, binId);
       if (r.ok) { toast.success("تم الإلغاء"); lookup(lookupItem); load(); }
-      else toast.error(r.error ?? "تعذّر الإلغاء");
+      else toast.error(r.error ?? t("تعذّر الإلغاء"));
     });
 
   return (
@@ -112,11 +112,11 @@ export function BinsManager({ warehouses, items, canEdit }: {
             <div>
               <CardTitle>{t("مواقع التخزين")}</CardTitle>
               <CardDescription>
-                {loading ? "جارٍ التحميل…" : `${bins.length} موقع`} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
+                {loading ? t("جارٍ التحميل…") : `${bins.length} موقع`} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
               </CardDescription>
             </div>
             <select className={`${selectCls} w-56`} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
             </select>
           </div>
         </CardHeader>

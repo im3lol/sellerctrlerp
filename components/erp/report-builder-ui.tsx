@@ -55,7 +55,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
   const run = (theDataset = dataset, theSpec = spec) =>
     start(async () => {
       const r = await runReportAction(theDataset, theSpec);
-      if (!r.ok || !r.result) { toast.error(r.error ?? "تعذّر تشغيل التقرير"); return; }
+      if (!r.ok || !r.result) { toast.error(r.error ?? t("تعذّر تشغيل التقرير")); return; }
       setResult(r.result);
     });
 
@@ -112,7 +112,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                       start(async () => {
                         const res = await deleteReportAction(r.id);
                         if (res.ok) { toast.success("اتمسح"); router.refresh(); }
-                        else toast.error(res.error ?? "تعذّر المسح");
+                        else toast.error(res.error ?? t("تعذّر المسح"));
                       });
                     })()}>
                       <Icon name="X" className="size-3 text-destructive" />
@@ -149,7 +149,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   setSpec((s) => ({ ...s, groupBy: g, pivotBy: g == null || s.pivotBy === g ? null : s.pivotBy }));
                 }}>
                 <option value="">{t("بدون تجميع")}</option>
-                {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                {headers.map((h, i) => <option key={i} value={i}>{t(h)}</option>)}
               </select>
             </div>
             {spec.groupBy != null && (
@@ -159,7 +159,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   <select className={`${selectCls} w-48`} value={spec.pivotBy ?? ""}
                     onChange={(e) => setSpec((s) => ({ ...s, pivotBy: e.target.value === "" ? null : Number(e.target.value) }))}>
                     <option value="">{t("بدون")}</option>
-                    {headers.map((h, i) => (i === spec.groupBy ? null : <option key={i} value={i}>{h}</option>))}
+                    {headers.map((h, i) => (i === spec.groupBy ? null : <option key={i} value={i}>{t(h)}</option>))}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -168,7 +168,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                     onChange={(e) => setSpec((s) => ({ ...s, dateBucket: (e.target.value || null) as DateBucket | null }))}>
                     <option value="">{t("زي ما هي")}</option>
                     {(Object.keys(DATE_BUCKET_LABEL) as DateBucket[]).map((k) => (
-                      <option key={k} value={k}>{DATE_BUCKET_LABEL[k]}</option>
+                      <option key={k} value={k}>{t(DATE_BUCKET_LABEL[k])}</option>
                     ))}
                   </select>
                 </div>
@@ -224,12 +224,12 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               <div key={i} className="flex flex-wrap items-center gap-2">
                 <select className={`${selectCls} w-44`} value={f.column}
                   onChange={(e) => setFilter(i, { column: Number(e.target.value) })}>
-                  {headers.map((h, k) => <option key={k} value={k}>{h}</option>)}
+                  {headers.map((h, k) => <option key={k} value={k}>{t(h)}</option>)}
                 </select>
                 <select className={`${selectCls} w-40`} value={f.op}
                   onChange={(e) => setFilter(i, { op: e.target.value as FilterOp })}>
                   {(Object.keys(FILTER_LABEL) as FilterOp[]).map((op) => (
-                    <option key={op} value={op}>{FILTER_LABEL[op]}</option>
+                    <option key={op} value={op}>{t(FILTER_LABEL[op])}</option>
                   ))}
                 </select>
                 {!NO_VALUE.includes(f.op) && (
@@ -261,12 +261,12 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 <select className={`${selectCls} w-40`} value={a.agg}
                   onChange={(e) => setSpec((s) => ({ ...s, aggregates: s.aggregates.map((x, k) => (k === i ? { ...x, agg: e.target.value as Aggregate } : x)) }))}>
                   {(Object.keys(AGGREGATE_LABEL) as Aggregate[]).map((k) => (
-                    <option key={k} value={k}>{AGGREGATE_LABEL[k]}</option>
+                    <option key={k} value={k}>{t(AGGREGATE_LABEL[k])}</option>
                   ))}
                 </select>
                 <select className={`${selectCls} w-44`} value={a.column}
                   onChange={(e) => setSpec((s) => ({ ...s, aggregates: s.aggregates.map((x, k) => (k === i ? { ...x, column: Number(e.target.value) } : x)) }))}>
-                  {headers.map((h, k) => <option key={k} value={k}>{h}</option>)}
+                  {headers.map((h, k) => <option key={k} value={k}>{t(h)}</option>)}
                 </select>
                 <Button size="icon" variant="ghost" aria-label={t("شيل")}
                   onClick={() => setSpec((s) => ({ ...s, aggregates: s.aggregates.filter((_, k) => k !== i) }))}>
@@ -285,7 +285,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               <div>
                 <CardTitle>{result.datasetTitle}</CardTitle>
                 <CardDescription>
-                  {result.matched} {result.grouped ? "مجموعة" : "صف"}
+                  {result.matched} {result.grouped ? t("مجموعة") : t("صف")}
                   {result.rows.length < result.matched && ` · معروض ${result.rows.length}`}
                 </CardDescription>
               </div>
@@ -294,10 +294,10 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   {([null, "bar", "trend", "donut"] as (ChartKind | null)[]).map((k) => (
                     <Button key={k ?? "table"} size="sm" variant={(spec.chart ?? null) === k ? "default" : "ghost"}
                       disabled={k != null && !result.grouped}
-                      title={k != null && !result.grouped ? "الرسم محتاج «تجميع حسب»" : undefined}
+                      title={k != null && !result.grouped ? t("الرسم محتاج «تجميع حسب»") : undefined}
                       onClick={() => setSpec((s) => ({ ...s, chart: k }))}>
                       <Icon name={k == null ? "Table2" : CHART_ICON[k]} className="size-4" />
-                      {k == null ? "جدول" : CHART_LABEL[k]}
+                      {k == null ? t("جدول") : CHART_LABEL[k]}
                     </Button>
                   ))}
                 </div>
@@ -325,7 +325,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                       id: savingAs.id, nameAr: savingAs.nameAr, dataset, spec, isShared: savingAs.isShared,
                     });
                     if (r.ok) { toast.success("اتحفظ"); setSavingAs(null); router.refresh(); }
-                    else toast.error(r.error ?? "تعذّر الحفظ");
+                    else toast.error(r.error ?? t("تعذّر الحفظ"));
                   })}>
                   <Icon name="Check" className="size-4" />احفظ
                 </Button>
@@ -341,10 +341,10 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
             {result.totals.length > 0 && (
               <div className="flex flex-wrap gap-4 rounded-lg border p-3">
-                {result.totals.map((t, i) => (
+                {result.totals.map((it, i) => (
                   <div key={i}>
-                    <div className="text-xs text-muted-foreground">{t.label}</div>
-                    <div className="text-lg font-bold tabular-nums">{fmt(t.value)}</div>
+                    <div className="text-xs text-muted-foreground">{t(it.label)}</div>
+                    <div className="text-lg font-bold tabular-nums">{fmt(it.value)}</div>
                   </div>
                 ))}
               </div>

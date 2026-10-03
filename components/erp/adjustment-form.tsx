@@ -101,7 +101,7 @@ export function AdjustmentForm({
       };
       const r = await createStockAdjustmentAction(payload);
       if (r.ok) { toast.success("تم حفظ التسوية (مسودة) — راجِعها ثم أكّدها للترحيل"); router.push(r.number ? `/inventory/adjustments/${encodeURIComponent(r.number)}` : "/inventory/adjustments"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
@@ -182,7 +182,7 @@ export function AdjustmentForm({
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></TableCell>
                         <TableCell><Input type="number" step="1" min="0" className="w-28" value={l.counted} onChange={(e) => updateLine(l.id, { counted: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                        <TableCell><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? "مطلوب" : "تلقائي"} /></TableCell>
+                        <TableCell><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? t("مطلوب") : t("تلقائي")} /></TableCell>
                         <TableCell>
                           <div className={`flex h-9 items-center px-2 text-sm font-bold ${!hasCount ? "text-muted-foreground" : delta > 0 ? "text-emerald-600" : delta < 0 ? "text-destructive" : ""}`}>
                             {hasCount ? `${delta > 0 ? "+" : ""}${q(delta)}` : "—"}

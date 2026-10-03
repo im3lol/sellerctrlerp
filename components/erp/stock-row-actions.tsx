@@ -38,10 +38,10 @@ export function StockRowActions({
       if (!(await confirm(opts))) return;
       const r = await fn();
       if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
+      else toast.error(r.error ?? t("تعذّر التنفيذ"));
     });
 
-  const label = isTransfer ? "التحويل" : "التسوية";
+  const label = isTransfer ? t("التحويل") : t("التسوية");
 
   return (
     <div className="flex gap-1">

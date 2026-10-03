@@ -51,7 +51,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
       start(async () => {
         const r = await bulkSalesInvoicesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} فاتورة`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -101,7 +101,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                   <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <SalesInvoiceRowMenu id={r.id} number={r.number} status={r.status} canPost={canPost} canManage={canCreate} />
                   </TableCell>
@@ -117,7 +117,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

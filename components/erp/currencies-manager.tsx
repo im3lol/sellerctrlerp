@@ -150,7 +150,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "إضافة"}</Button>
+        <Button onClick={save} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("إضافة")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -223,7 +223,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         {nonBase.length > 0 && (
-          <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button>
+          <Button onClick={save} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("حفظ")}</Button>
         )}
       </DialogFooter>
     </DialogContent>
@@ -295,7 +295,7 @@ export function CurrenciesManager({
                       </td>
                       <td>
                         <Badge variant={c.isActive ? "default" : "secondary"}>
-                          {c.isBase ? "أساسية" : c.isActive ? "نشطة" : "معطّلة"}
+                          {c.isBase ? t("أساسية") : c.isActive ? t("نشطة") : t("معطّلة")}
                         </Badge>
                       </td>
                       <td>
@@ -308,7 +308,7 @@ export function CurrenciesManager({
                             onClick={() =>
                               startTransition(async () => {
                                 const r = await toggleCurrencyActiveAction(c.id);
-                                if (!r.ok) toast.error(r.error ?? "خطأ");
+                                if (!r.ok) toast.error(r.error ?? t("خطأ"));
                                 else router.refresh();
                               })
                             }

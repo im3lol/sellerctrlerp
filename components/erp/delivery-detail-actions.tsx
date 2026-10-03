@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmDeliveryAction, deleteDeliveryAction, cancelDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
@@ -20,6 +21,7 @@ export function DeliveryDetailActions({
   id: string; number: string; status: string; canManage: boolean;
   printHref: string; barcodeRows?: BulkRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -29,7 +31,7 @@ export function DeliveryDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -40,7 +42,7 @@ export function DeliveryDetailActions({
       start(async () => {
         const r = await convertDeliveryToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 
@@ -63,7 +65,7 @@ export function DeliveryDetailActions({
           start(async () => {
             const r = await deleteCancelledDocumentAction("delivery", id);
             if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/sales/deliveries"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
     }

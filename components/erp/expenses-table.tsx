@@ -66,7 +66,7 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
               <TableCell>{r.payee ?? "—"}</TableCell>
               <TableCell>{r.paidFrom ?? "—"}</TableCell>
               <TableCell>{fmt(r.amount)}</TableCell>
-              <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+              <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>
               {showSelect && <TableCell><ExpenseRowActions id={r.id} number={r.number} status={r.status} canManage /></TableCell>}
             </TableRow>
           ))}

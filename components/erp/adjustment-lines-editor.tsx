@@ -59,7 +59,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
       lines: rows.map((x) => ({ lineId: x.lineId, actual: x.actual, unitCost: Number(edits[x.lineId]?.unitCost) > 0 ? Number(edits[x.lineId].unitCost) : undefined })),
     });
     if (r.ok) { toast.success("تم حفظ الكميات — التسوية ما زالت مسودة حتى التأكيد"); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   const inputCls = "h-8 w-24 rounded-md border bg-background px-2 text-sm tabular-nums";
@@ -104,7 +104,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
                   <input
                     type="number" min="0" step="any" dir="ltr"
                     className={inputCls}
-                    placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : "أدخل التكلفة"}
+                    placeholder={r.defaultCost > 0 ? fmt(r.defaultCost) : t("أدخل التكلفة")}
                     value={edits[r.lineId]?.unitCost ?? ""}
                     onChange={(e) => setEdits((s) => ({ ...s, [r.lineId]: { ...s[r.lineId], unitCost: e.target.value } }))}
                   />

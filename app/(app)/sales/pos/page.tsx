@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { warehouses, accounts, customers, organizations, promotions } from "@/db/schema";
@@ -10,6 +11,7 @@ import { PosTerminal } from "@/components/erp/pos-terminal";
 export const dynamic = "force-dynamic";
 
 export default async function PosPage() {
+  const t = await getT();
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [whList, cashList, custList, org, promoRows] = await Promise.all([
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr })
@@ -42,8 +44,8 @@ export default async function PosPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Store"
-          title="نقطة البيع"
-          subtitle="بيع سريع بالباركود — كل بيعة فاتورة مرحّلة وسند قبض"
+          title={t("نقطة البيع")}
+          subtitle={t("بيع سريع بالباركود — كل بيعة فاتورة مرحّلة وسند قبض")}
           backHref="/sales"
           action={<DatasetExport dataset="pos-shifts" />}
         />

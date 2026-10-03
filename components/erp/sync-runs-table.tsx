@@ -81,7 +81,7 @@ export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-medium">{KIND_AR[r.kind] ?? r.kind}</TableCell>
+                  <TableCell className="font-medium">{t(KIND_AR[r.kind] ?? r.kind)}</TableCell>
                   <TableCell><StatusBadge status={r.status} failed={r.failedProducts} /></TableCell>
                   <TableCell className="tabular-nums">{r.productsProcessed}</TableCell>
                   <TableCell className="tabular-nums">{r.newProducts}</TableCell>

@@ -182,7 +182,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
             <select value={docKey} onChange={(e) => setDocKey(e.target.value)} className={selectCls + " max-w-xs"}>
               {PRINT_DOC_REGISTRY.map((d) => {
                 const n = (docs[d.key] ?? []).length;
-                return <option key={d.key} value={d.key}>{d.label}{n > 0 ? ` (${n} مخفي)` : ""}</option>;
+                return <option key={d.key} value={d.key}>{t(d.label)}{n > 0 ? ` (${n} مخفي)` : ""}</option>;
               })}
             </select>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -191,7 +191,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                 return (
                   <label key={c.label} className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${c.locked ? "opacity-60" : "cursor-pointer"}`}>
                     <Checkbox checked={checked} disabled={c.locked} onCheckedChange={(v) => toggleColumn(c.label, v === true)} />
-                    {c.label === "#" ? "مسلسل (#)" : c.label}
+                    {c.label === "#" ? t("مسلسل (#)") : c.label}
                   </label>
                 );
               })}

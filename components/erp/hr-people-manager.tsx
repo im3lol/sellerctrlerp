@@ -57,13 +57,14 @@ const num = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFraction
 const today = () => new Date().toISOString().slice(0, 10);
 
 const useRun = () => {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, good: string, after?: () => void) =>
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(good); after?.(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّرت العملية");
+      else toast.error(r.error ?? t("تعذّرت العملية"));
     });
   return { pending, run };
 };
@@ -127,7 +128,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 <select className={`${selectCls} w-32`} value={openingForm.status ?? "OPEN"}
                   onChange={(e) => setOpeningForm((v) => ({ ...v!, status: e.target.value as OpeningRow["status"] }))}>
                   {(Object.keys(OPENING_STATUS) as OpeningRow["status"][]).map((k) => (
-                    <option key={k} value={k}>{OPENING_STATUS[k]}</option>
+                    <option key={k} value={k}>{t(OPENING_STATUS[k])}</option>
                   ))}
                 </select></div>
               <Button disabled={pending || !openingForm.titleAr?.trim()}
@@ -172,7 +173,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                       <TableCell className="text-sm tabular-nums">
                         {o.salaryFrom > 0 || o.salaryTo > 0 ? `${money(o.salaryFrom)} — ${money(o.salaryTo)}` : "—"}
                       </TableCell>
-                      <TableCell><Badge variant="outline">{OPENING_STATUS[o.status]}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{t(OPENING_STATUS[o.status])}</Badge></TableCell>
                       <TableCell className="tabular-nums">{applicants.filter((a) => a.openingId === o.id).length}</TableCell>
                       <TableCell>
                         {canManage && (
@@ -250,12 +251,12 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
 
             <div className="flex flex-wrap gap-2">
               {PIPELINE.map((s) => (
-                <Badge key={s} variant="outline">{STAGE_LABEL[s]}: {f.counts[s]}</Badge>
+                <Badge key={s} variant="outline">{t(STAGE_LABEL[s])}: {f.counts[s]}</Badge>
               ))}
               <Badge variant="outline">{STAGE_LABEL.REJECTED}: {f.counts.REJECTED}</Badge>
               {mine.length > 0 && (
                 <Button size="sm" variant="outline" className="ms-auto" onClick={() => setBoard((b) => !b)}>
-                  <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? "قائمة" : "كانبان"}
+                  <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? t("قائمة") : t("كانبان")}
                 </Button>
               )}
             </div>
@@ -270,7 +271,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 readOnly={!canManage}
                 why={(from, to) => canMoveTo(from as Stage, to as Stage)}
                 move={(id, _from, to) => moveApplicantAction(id, to as Stage)}
-                askBefore={(_from, to) => (to === "REJECTED" ? "رفض المتقدّم؟" : null)}
+                askBefore={(_from, to) => (to === "REJECTED" ? t("رفض المتقدّم؟") : null)}
               />
             ) : mine.map((a) => (
               <div key={a.id} className="space-y-3 rounded-xl border p-4">
@@ -285,14 +286,14 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className={a.stage === "HIRED" ? "bg-emerald-600" : a.stage === "REJECTED" ? "bg-destructive" : undefined}
                       variant={a.stage === "HIRED" || a.stage === "REJECTED" ? undefined : "outline"}>
-                      {STAGE_LABEL[a.stage]}
+                      {t(STAGE_LABEL[a.stage])}
                     </Badge>
                     {canManage && a.stage !== "HIRED" && (
                       <>
                         <select className={`${selectCls} w-32`} value={a.stage}
                           onChange={(e) => run(() => moveApplicantAction(a.id, e.target.value as Stage), "اتحرّك")}>
                           {(Object.keys(STAGE_LABEL) as Stage[]).map((s) => (
-                            <option key={s} value={s}>{STAGE_LABEL[s]}</option>
+                            <option key={s} value={s}>{t(STAGE_LABEL[s])}</option>
                           ))}
                         </select>
                         <Button size="sm" variant="outline" onClick={() => setInterviewFor(interviewFor === a.id ? null : a.id)}>
@@ -360,7 +361,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                       <div key={i.id} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span className="tabular-nums">{i.at}</span>
                         <span>{i.interviewerName ?? "—"}</span>
-                        <Badge variant="outline">{i.outcome === "PASS" ? "نجح" : i.outcome === "FAIL" ? "مرفوض" : "مستنية"}</Badge>
+                        <Badge variant="outline">{i.outcome === "PASS" ? t("نجح") : i.outcome === "FAIL" ? t("مرفوض") : t("مستنية")}</Badge>
                         {i.rating != null && <span>{i.rating}/٥</span>}
                       </div>
                     ))}
@@ -541,7 +542,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                       <TableCell>
                         <Badge className={r.status === "ACKNOWLEDGED" ? "bg-emerald-600" : undefined}
                           variant={r.status === "ACKNOWLEDGED" ? undefined : "outline"}>
-                          {REVIEW_STATUS[r.status]}
+                          {t(REVIEW_STATUS[r.status])}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -652,7 +653,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                 <select className={`${selectCls} w-32`} value={form.status ?? "PLANNED"}
                   onChange={(e) => setForm((v) => ({ ...v!, status: e.target.value as CourseRow["status"] }))}>
                   {(Object.keys(COURSE_STATUS) as CourseRow["status"][]).map((k) => (
-                    <option key={k} value={k}>{COURSE_STATUS[k]}</option>
+                    <option key={k} value={k}>{t(COURSE_STATUS[k])}</option>
                   ))}
                 </select></div>
               <Button disabled={pending || !form.nameAr?.trim()}
@@ -679,10 +680,10 @@ export function TrainingManager({ courses, employees, canManage }: {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs">{c.code}</span>
                       <span className="font-medium">{c.nameAr}</span>
-                      <Badge variant="outline">{COURSE_STATUS[c.status]}</Badge>
+                      <Badge variant="outline">{t(COURSE_STATUS[c.status])}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {c.provider ?? "داخلي"}
+                      {c.provider ?? t("داخلي")}
                       {c.hours > 0 && ` · ${num(c.hours)} ساعة`}
                       {c.startsAt && ` · ${c.startsAt}`}
                       {` · ${o.taken}${c.seats > 0 ? `/${c.seats}` : ""} مقعد`}
@@ -712,7 +713,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                       {employees.map((e) => (
                         <Button key={e.id} size="sm" variant={picked.includes(e.id) ? "default" : "outline"}
                           onClick={() => setPicked((p) => (p.includes(e.id) ? p.filter((x) => x !== e.id) : [...p, e.id]))}>
-                          {e.label}
+                          {t(e.label)}
                         </Button>
                       ))}
                     </div>
@@ -743,10 +744,10 @@ export function TrainingManager({ courses, employees, canManage }: {
                                 <select className={`${selectCls} w-32`} value={e.status}
                                   onChange={(ev) => run(() => setEnrollmentStatusAction(e.id, ev.target.value as Enrollment["status"], e.score), "اتحدّثت")}>
                                   {(Object.keys(ENROLL_STATUS) as Enrollment["status"][]).map((k) => (
-                                    <option key={k} value={k}>{ENROLL_STATUS[k]}</option>
+                                    <option key={k} value={k}>{t(ENROLL_STATUS[k])}</option>
                                   ))}
                                 </select>
-                              ) : <Badge variant="outline">{ENROLL_STATUS[e.status]}</Badge>}
+                              ) : <Badge variant="outline">{t(ENROLL_STATUS[e.status])}</Badge>}
                             </TableCell>
                             <TableCell className="tabular-nums">{e.score == null ? "—" : num(e.score)}</TableCell>
                             <TableCell>

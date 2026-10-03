@@ -47,7 +47,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
     start(async () => {
       const r = await createExpenseClaimAction({ employeeName, cashAccountId, date, notes, lines });
       if (r.ok) { toast.success("تم حفظ المطالبة (مسودة)"); router.push(r.number ? `/hr/expense-claims/${encodeURIComponent(r.number)}` : "/hr/expense-claims"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 

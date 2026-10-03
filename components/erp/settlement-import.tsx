@@ -65,7 +65,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
         if (st.phase === "done" || st.phase === "error" || ticks > 40) {
           if (timer.current) clearInterval(timer.current);
           setPulling(false);
-          if (st.phase === "error") toast.error(st.error ?? "فشل سحب المدفوعات");
+          if (st.phase === "error") toast.error(st.error ?? t("فشل سحب المدفوعات"));
           else toast.success(`تم السحب: ${st.imported ?? 0} معاملة جديدة${st.posted ? `، ${st.posted} مُرحّلة` : ""}`);
           router.refresh();
         }
@@ -163,7 +163,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
           <CardTitle>سحب المدفوعات من {label}</CardTitle>
           <CardDescription>
             {isAmazon
-              ? "يسحب تقارير التسويات مباشرة من أمازون — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات. التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد)."
+              ? t("يسحب تقارير التسويات مباشرة من أمازون — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات. التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد).")
               : `يسحب مدفوعات ${label} (Payments) مباشرة عبر الـ API — تحصيل الطلبات + التحويلات البنكية + العمولات. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر.`}
           </CardDescription>
         </CardHeader>
@@ -171,7 +171,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={pull} disabled={!code || pulling}>
               {pulling ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Download" className="size-4" />}
-              {pulling ? "جارٍ السحب…" : "اسحب المدفوعات الآن"}
+              {pulling ? t("جارٍ السحب…") : t("اسحب المدفوعات الآن")}
             </Button>
             {unpostedReleased > 0 && (
               <Button onClick={postPulled} disabled={posting} className="bg-emerald-600 hover:bg-emerald-700">
@@ -200,13 +200,13 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
                 <TableBody>
                   {rows.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell>{TYPE_AR[r.type] ?? r.type}</TableCell>
+                      <TableCell>{t(TYPE_AR[r.type] ?? r.type)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {r.orderId || "—"}{r.sku ? <span className="ms-2 font-mono text-xs">{r.sku}</span> : null}
                       </TableCell>
                       <TableCell className={`tabular-nums ${r.total < 0 ? "text-destructive" : ""}`}>{fmt(r.total)}</TableCell>
                       <TableCell>
-                        <Badge variant={r.status === "Released" ? "default" : "outline"}>{r.status === "Released" ? "مُفرج عنها" : "مؤجّلة"}</Badge>
+                        <Badge variant={r.status === "Released" ? "default" : "outline"}>{r.status === "Released" ? t("مُفرج عنها") : t("مؤجّلة")}</Badge>
                       </TableCell>
                       <TableCell>
                         {r.posted ? <Badge className="bg-emerald-600">{t("مُرحّلة")}</Badge> : <Badge variant="secondary">{t("غير مُرحّلة")}</Badge>}
@@ -260,8 +260,8 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
           )}
           {preview && (
             <div className="flex flex-wrap gap-2 text-xs">
-              {Object.entries(preview.byType).map(([t, n]) => (
-                <Badge key={t} variant="outline">{TYPE_AR[t] ?? t}: {n}</Badge>
+              {Object.entries(preview.byType).map(([it, n]) => (
+                <Badge key={it} variant="outline">{t(TYPE_AR[it] ?? it)}: {n}</Badge>
               ))}
             </div>
           )}

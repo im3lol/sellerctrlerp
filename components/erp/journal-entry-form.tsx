@@ -95,11 +95,11 @@ export function JournalEntryForm({
         ? await updateManualEntryAction(initial!.id, { date, description, reference, lines: payload.lines })
         : await createManualEntryAction(payload);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : mode === "post" ? "تم ترحيل القيد" : "تم حفظ المسودة");
+        toast.success(isEdit ? t("تم حفظ التعديلات") : mode === "post" ? t("تم ترحيل القيد") : t("تم حفظ المسودة"));
         router.push(isEdit ? `/accounting/journal/${initial!.id}` : "/accounting/journal");
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر الحفظ");
+        toast.error(r.error ?? t("تعذّر الحفظ"));
       }
     });
 
@@ -198,7 +198,7 @@ export function JournalEntryForm({
                 <TableCell>{fmt(totals.credit)}</TableCell>
                 <TableCell colSpan={costCenters.length > 0 ? 2 : 1}>
                   <span className={totals.balanced ? "text-emerald-600" : "text-destructive"}>
-                    {totals.diff === 0 ? "متوازن" : `فرق ${fmt(totals.diff)}`}
+                    {totals.diff === 0 ? t("متوازن") : `فرق ${fmt(totals.diff)}`}
                   </span>
                 </TableCell>
               </TableRow>

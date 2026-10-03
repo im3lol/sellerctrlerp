@@ -141,7 +141,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
           </Button>
         )}
         <Button type="button" variant="ghost" size="sm" onClick={dl}><Icon name="Download" className="size-4" /> {t("قالب")}</Button>
-        <span className="text-xs text-muted-foreground">{CSV_COLS[kind]}</span>
+        <span className="text-xs text-muted-foreground">{t(CSV_COLS[kind])}</span>
       </div>
       {preview && (
         <div className="rounded-lg border">
@@ -202,7 +202,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
   })), [rows]);
 
   const tot = useMemo(() => totals(lines), [lines]);
-  const problem = useMemo(() => (rows.length ? validateOpening(lines) : "أضف بندًا واحدًا على الأقل"), [lines, rows.length]);
+  const problem = useMemo(() => (rows.length ? validateOpening(lines) : t("أضف بندًا واحدًا على الأقل")), [lines, rows.length, t]);
   const equityZero = Math.abs(tot.balancing) < 0.005; // the entry always balances (3002 absorbs); this is the "no residual equity" signal
 
   const set = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -212,12 +212,12 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
 
   const save = (thenPost: boolean) => start(async () => {
     const res = await saveOpeningBalanceAction({ date, lines });
-    if (!res.ok || !res.id) { toast.error(res.error ?? "تعذّر الحفظ"); return; }
+    if (!res.ok || !res.id) { toast.error(res.error ?? t("تعذّر الحفظ")); return; }
     if (!thenPost) { toast.success("تم حفظ المسودة"); router.refresh(); return; }
     // Post runs in the BACKGROUND (an 11k-item post takes minutes); poll for a live
     // "done / total" line instead of blocking the request.
     const s0 = await startOpeningPostAction(res.id);
-    if (!s0.ok) { toast.error(s0.error ?? "تعذّر بدء الترحيل"); return; }
+    if (!s0.ok) { toast.error(s0.error ?? t("تعذّر بدء الترحيل")); return; }
     const id = res.id;
     setPosting({ done: 0, total: s0.total ?? lines.length });
     pollRef.current = setInterval(async () => {
@@ -225,7 +225,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
       if (st.phase === "running") { setPosting({ done: st.done, total: st.total }); return; }
       if (pollRef.current) clearInterval(pollRef.current);
       setPosting(null);
-      if (st.phase === "error") toast.error(st.error ?? "تعذّر الترحيل");
+      if (st.phase === "error") toast.error(st.error ?? t("تعذّر الترحيل"));
       else toast.success("تم ترحيل الأرصدة الافتتاحية");
       router.refresh();
     }, 1500);
@@ -235,7 +235,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
     if (!(await confirm({ title: "إلغاء ترحيل الأرصدة الافتتاحية؟", description: "سيُعكس القيد وتُلغى الفواتير الافتتاحية وتُزال حركات المخزون، ثم تعود مسودة للتعديل. (متاح فقط قبل أي معاملة على الأرصدة).", danger: true }))) return;
     const r = await reverseOpeningBalanceAction(id);
     if (r.ok) { toast.success("تم إلغاء الترحيل — عادت مسودة"); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الإلغاء");
+    else toast.error(r.error ?? t("تعذّر الإلغاء"));
   });
 
   // Merge CSV-matched rows (any section) into the draft.
@@ -275,10 +275,10 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
             <div><div className="text-muted-foreground">{t("إجمالي الدائن")}</div><div className="text-lg font-bold tabular-nums">{money(tot.credit)}</div></div>
             <div>
               <div className="text-muted-foreground">حساب الأرصدة الافتتاحية ({OPENING_EQUITY_CODE})</div>
-              <div className="text-lg font-bold tabular-nums">{money(Math.abs(tot.balancing))} <span className="text-xs font-normal">{tot.balancing >= 0 ? "دائن" : "مدين"}</span></div>
+              <div className="text-lg font-bold tabular-nums">{money(Math.abs(tot.balancing))} <span className="text-xs font-normal">{tot.balancing >= 0 ? t("دائن") : t("مدين")}</span></div>
             </div>
             <div className={cn("self-center rounded-full px-3 py-1 text-xs font-medium", equityZero ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600")}>
-              {equityZero ? "متوازن (الفرق صفر)" : "الفرق يذهب لحقوق الملكية الافتتاحية"}
+              {equityZero ? t("متوازن (الفرق صفر)") : t("الفرق يذهب لحقوق الملكية الافتتاحية")}
             </div>
           </div>
         </CardContent>

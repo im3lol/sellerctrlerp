@@ -51,16 +51,16 @@ function EditDialog({ rsi, customers, items, onClose }: { rsi: RSI | null; custo
     if (lines.some((l) => !l.itemId)) { toast.error("اختر الصنف في كل بند"); return; }
     const r = await upsertRecurringSalesInvoiceAction({ id: rsi?.id, customerId, frequency, nextRunDate, notes, lines });
     if (r.ok) { toast.success("تم حفظ القالب"); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
     <DialogContent dir="rtl" className="max-w-2xl">
-      <DialogHeader><DialogTitle>{rsi ? "تعديل فاتورة دورية" : "فاتورة دورية جديدة"}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{rsi ? t("تعديل فاتورة دورية") : t("فاتورة دورية جديدة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5"><Label>{t("العميل")}</Label><CellCombobox selectedLabel={custLabel.get(customerId) ?? ""} options={custOptions} onSelect={setCustomerId} placeholder={t("ابحث…")} /></div>
-          <div className="space-y-1.5"><Label>{t("التكرار")}</Label><select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>{Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+          <div className="space-y-1.5"><Label>{t("التكرار")}</Label><select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>{Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}</select></div>
           <div className="space-y-1.5"><Label>{t("أول تنفيذ")}</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
         </div>
         <div className="rounded-xl border">
@@ -126,14 +126,14 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.customer}</TableCell>
-                <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
+                <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell className="text-end tabular-nums">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("مفعّل") : t("موقوف")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rsi: r })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
                     <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>

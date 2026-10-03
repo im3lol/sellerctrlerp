@@ -139,7 +139,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
         {deliveries.map((d) => (
           <Badge key={d.id} variant="outline" className={cn("gap-1 font-mono",
             d.status !== "DRAFT" ? "border-emerald-300 text-emerald-700 dark:text-emerald-400" : d.ready ? "border-primary/50 text-primary" : "")}>
-            {d.number} · {d.status !== "DRAFT" ? "اتسلّم" : d.ready ? "جاهز" : "ناقص"}
+            {d.number} · {d.status !== "DRAFT" ? t("اتسلّم") : d.ready ? t("جاهز") : t("ناقص")}
           </Badge>
         ))}
       </div>

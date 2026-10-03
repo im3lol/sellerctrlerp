@@ -45,9 +45,9 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
       `• الشركة: ${account.orgName}`,
       `• الاسم: ${account.userName}`,
       `• البريد: ${account.email}`,
-      `• الباقة: ${plan.name} — ${interval === "ANNUAL" ? "سنوي" : "شهري"}`,
+      `• الباقة: ${plan.name} — ${interval === "ANNUAL" ? t("سنوي") : t("شهري")}`,
       `• المبلغ: ${egp(price)}`,
-      `• طريقة الدفع: ${chosen.label}`,
+      `• طريقة الدفع: ${t(chosen.label)}`,
       `• مرجع التحويل: ${reference.trim() || "—"}`,
     ];
     window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
@@ -76,18 +76,18 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
     <DialogContent dir="rtl">
       <DialogHeader>
         <DialogTitle>الاشتراك في باقة {plan.name}</DialogTitle>
-        <DialogDescription>{isXpay ? "ادفع أونلاين ويُفعَّل اشتراكك فور نجاح الدفع." : "حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك."}</DialogDescription>
+        <DialogDescription>{isXpay ? t("ادفع أونلاين ويُفعَّل اشتراكك فور نجاح الدفع.") : t("حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label>{t("طريقة الدفع")}</Label>
           <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
-            {methods.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+            {methods.map((m) => <option key={m.key} value={m.key}>{t(m.label)}</option>)}
           </select>
         </div>
 
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-          <div className="mb-1 font-medium">المبلغ: {egp(price)} <span className="font-normal text-muted-foreground">({annual ? "سنوي" : "شهري"})</span></div>
+          <div className="mb-1 font-medium">المبلغ: {egp(price)} <span className="font-normal text-muted-foreground">({annual ? t("سنوي") : t("شهري")})</span></div>
           <p className="text-muted-foreground">{chosen.detail}</p>
           {(method === "INSTAPAY" || method === "VODAFONE") && (
             <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
@@ -176,11 +176,11 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
                   <li className="flex items-center gap-2"><Check className="size-4 text-primary" />حتى {cap(p.maxUsers, "مستخدم")}</li>
                   <li className="flex items-center gap-2"><Check className="size-4 text-primary" />تخزين {cap(p.storageGb, "جيجابايت")}</li>
                   {p.enabledModules.map((m) => (
-                    <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{MODULE_LABELS[m] ?? m}</li>
+                    <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{t(MODULE_LABELS[m] ?? m)}</li>
                   ))}
                 </ul>
                 <Button className="w-full" variant={isCurrent ? "outline" : "default"} disabled={!canSubscribe || hasPending} onClick={() => setChosen(p)}>
-                  {isCurrent ? "تجديد / ترقية" : "اشترك"}
+                  {isCurrent ? t("تجديد / ترقية") : t("اشترك")}
                 </Button>
               </CardContent>
             </Card>

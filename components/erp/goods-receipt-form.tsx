@@ -55,7 +55,7 @@ export function GoodsReceiptForm({
     if (!id) return;
     startLoad(async () => {
       const r = await getReceivableOrderLinesAction(id);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر استدعاء الأمر")); return; }
       if (r.lines.length === 0) { toast.message("تم استلام كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
       setLines(r.lines.map((l) => ({
@@ -90,7 +90,7 @@ export function GoodsReceiptForm({
         toast.success("تم حفظ إذن الاستلام (مسودة) — أكّده لترحيله");
         router.push(r.number ? `/purchases/receipts/${encodeURIComponent(r.number)}` : "/purchases/receipts");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -129,14 +129,14 @@ export function GoodsReceiptForm({
           <div className="space-y-2">
             <Label>{t("استدعاء أمر شراء")}</Label>
             <select className={selectCls} value={orderId} disabled={!supplierId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{supplierId ? "— اختر أمراً مفتوحاً —" : "اختر المورد أولاً"}</option>
+              <option value="">{supplierId ? t("— اختر أمراً مفتوحاً —") : t("اختر المورد أولاً")}</option>
               {supplierOrders.map((o) => <option key={o.id} value={o.id}>{o.number} — {o.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الأمر…")}</span>
-              : supplierId && supplierOrders.length === 0 ? "لا توجد أوامر شراء مفتوحة لهذا المورد."
-              : "تنزل أصناف الأمر المتبقّية (غير المستلمة) في الجدول."}
+              : supplierId && supplierOrders.length === 0 ? t("لا توجد أوامر شراء مفتوحة لهذا المورد.")
+              : t("تنزل أصناف الأمر المتبقّية (غير المستلمة) في الجدول.")}
           </div>
         </div>
 

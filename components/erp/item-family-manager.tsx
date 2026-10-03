@@ -43,14 +43,14 @@ export function ItemFamilyManager({
     start(async () => {
       const r = await setItemParentAction(picked.id, currentItemId, variation);
       if (r.ok) { toast.success("تم ربط التنويعة"); setPicked(null); setVariation(""); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الربط");
+      else toast.error(r.error ?? t("تعذّر الربط"));
     });
   };
   const unlink = (childId: string) =>
     start(async () => {
       const r = await setItemParentAction(childId, null);
       if (r.ok) { toast.success("تم فك الربط"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر فك الربط");
+      else toast.error(r.error ?? t("تعذّر فك الربط"));
     });
 
   const rows = head ? [head, ...variations] : [];
@@ -136,7 +136,7 @@ export function ItemFamilyManager({
             <div className="mb-2 text-sm font-medium">{t("ربط تنويعة جديدة")}</div>
             {picked ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex-1 text-sm">{t("التنويعة:")} <span className="font-medium">{picked.label}</span></span>
+                <span className="flex-1 text-sm">{t("التنويعة:")} <span className="font-medium">{t(picked.label)}</span></span>
                 <Input value={variation} onChange={(e) => setVariation(e.target.value)} placeholder={t("قيمة التنويعة (مثال: أحمر - L)")} className="w-48" />
                 <Button type="button" size="sm" disabled={pending} onClick={link}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}ربط</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => { setPicked(null); setVariation(""); }}>{t("إلغاء")}</Button>

@@ -39,10 +39,10 @@ export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>
-              {mode === "choose" ? "استيراد أو تصدير" : mode === "import" ? "اختر نوع الاستيراد" : "اختر نوع التصدير"}
+              {mode === "choose" ? t("استيراد أو تصدير") : mode === "import" ? t("اختر نوع الاستيراد") : t("اختر نوع التصدير")}
             </DialogTitle>
             <DialogDescription>
-              {mode === "choose" ? "اختر ما تريد فعله لهذه المنصة." : "البيانات مرتبطة بعميل المنصة ومخزنها وحسابها البنكي."}
+              {mode === "choose" ? t("اختر ما تريد فعله لهذه المنصة.") : t("البيانات مرتبطة بعميل المنصة ومخزنها وحسابها البنكي.")}
             </DialogDescription>
           </DialogHeader>
 
@@ -56,7 +56,7 @@ export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
           {mode === "import" && (
             <div className="grid gap-3">
               <OptionCard href={`${base}/import?tab=orders`} onClick={close} icon={<ShoppingCart className="size-5" />} title={t("مبيعات")} subtitle={t("استيراد أوامر البيع من ملف المنصة")} />
-              <OptionCard href={`${base}/import?tab=${paymentsTab}`} onClick={close} icon={<Banknote className="size-5" />} title={t("مدفوعات")} subtitle={isAmazon ? "من تقرير التسويات" : "سندات قبض على حساب المنصة البنكي"} />
+              <OptionCard href={`${base}/import?tab=${paymentsTab}`} onClick={close} icon={<Banknote className="size-5" />} title={t("مدفوعات")} subtitle={isAmazon ? t("من تقرير التسويات") : t("سندات قبض على حساب المنصة البنكي")} />
               <OptionCard href={`${base}/import?tab=inventory`} onClick={close} icon={<Boxes className="size-5" />} title={t("مخزون")} subtitle={t("مطابقة مستويات المخزون")} />
               <OptionCard href={`${base}/import?tab=removals`} onClick={close} icon={<Boxes className="size-5" />} title={t("إزالات وإتلاف")} subtitle={t("الوحدات المُتلَفة/المُرتجَعة من المخزن")} />
               <button type="button" onClick={() => setMode("choose")} className="text-sm text-muted-foreground hover:text-foreground">{t("→ رجوع")}</button>

@@ -6,6 +6,11 @@
  * and they get done by hand):
  *   • JSX text:   >حفظ<            → >{t("حفظ")}<     (plain text nodes only)
  *   • JSX props:  title="حفظ"      → title={t("حفظ")}  (whitelisted props)
+ *   • ternary / fallback literals:  ok ? "تم" : "فشل"  and  x ?? "—عربي"  → t("…")
+ *     (the else-branch only when the line holds the `?`, so a map's "KEY": "قيمة" is left alone)
+ *   • label render sites: {st.label}, <option>{v}</option>, {STATUS_AR[x]} → t(…) — the
+ *     dictionary is keyed by the Arabic text, so a label map defined at module scope gets
+ *     translated where it is shown, and data that has no entry passes through unchanged.
  *   • it NEVER touches template literals, concatenations, object keys, imports,
  *     "use client", className, href, or any string holding {} or `${}`.
  *
@@ -17,7 +22,10 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-const PROPS = ["title", "placeholder", "label", "aria-label", "description", "subtitle", "emptyText", "confirmText", "cancelText", "alt"];
+const PROPS = [
+  "title", "placeholder", "label", "aria-label", "description", "subtitle", "emptyText", "confirmText", "cancelText", "alt",
+  "unit", "valueLabel", "heading", "hint", "note", "emptyLabel",
+];
 const AR = /[؀-ۿ]/;
 const dry = process.argv.includes("--dry");
 const files = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -46,6 +54,23 @@ for (const file of files) {
     wrapped++;
     return `>${lead}{t(${JSON.stringify(trimmed)})}${trail}<`;
   });
+
+  // 3) ternary + fallback literals — only Arabic, only plain (no braces / interpolation).
+  const LIT = `"([^"{}\\n$]*[\\u0600-\\u06FF][^"{}\\n$]*)"`;
+  src = src.replace(new RegExp(`(\\?\\s*)${LIT}(?=\\s*:)`, "g"), (_m, lhs, text) => { wrapped++; return `${lhs}t(${JSON.stringify(text)})`; });
+  src = src.replace(new RegExp(`([")\\]}]\\s*:\\s*)${LIT}`, "g"), (m, lhs, text, at: number, all: string) => {
+    const lineStart = all.lastIndexOf("\n", at) + 1;
+    if (!all.slice(lineStart, at).includes("?")) return m;
+    wrapped++;
+    return `${lhs}t(${JSON.stringify(text)})`;
+  });
+  src = src.replace(new RegExp(`((?:\\?\\?|\\|\\|)\\s*)${LIT}`, "g"), (_m, lhs, text) => { wrapped++; return `${lhs}t(${JSON.stringify(text)})`; });
+
+  // 4) where module-scope label maps are rendered.
+  // Never inside an attribute (variant={…}, key={…}): those values are not shown as text.
+  src = src.replace(/(?<!=)\{([a-z]\w*)\.label\}/g, (_m, v) => { wrapped++; return `{t(${v}.label)}`; });
+  src = src.replace(/>\{([a-z]\w*)\}<\/option>/g, (_m, v) => { wrapped++; return `>{t(${v})}</option>`; });
+  src = src.replace(/(?<!=)\{([A-Z][A-Z0-9_]*\[[^\]{}\n]+\](?: \?\? [^{}\n]+)?)\}/g, (_m, e) => { wrapped++; return `{t(${e})}`; });
 
   if (!wrapped) continue;
 

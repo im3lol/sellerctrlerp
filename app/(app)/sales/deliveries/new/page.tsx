@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, warehouses, salesOrders, organizations } from "@/db/schema";
@@ -8,6 +9,7 @@ import { DeliveryForm } from "@/components/erp/delivery-form";
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function NewDeliveryPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [custList, whList, org, openOrders] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers)
@@ -25,7 +27,7 @@ export default async function NewDeliveryPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Truck" title="إذن صرف جديد" subtitle="اختر العميل ثم استدعِ أمر بيع لتسليم بضاعته (كاملاً أو جزئياً)" backHref="/sales/deliveries" />
+        <ErpPageHeader icon="Truck" title={t("إذن صرف جديد")} subtitle={t("اختر العميل ثم استدعِ أمر بيع لتسليم بضاعته (كاملاً أو جزئياً)")} backHref="/sales/deliveries" />
         <DeliveryForm orgName={org[0]?.nameAr ?? "—"} customers={custList} warehouses={whList} openOrders={orders} />
       </div>
     );

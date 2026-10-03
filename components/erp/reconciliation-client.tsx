@@ -38,7 +38,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
     const toUn = lines.filter((l) => !checks[l.id] && l.reconciled).map((l) => l.id);
     const r = await setLinesReconciledAction(toRec, toUn);
     if (r.ok) { toast.success("تم حفظ المطابقة"); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
@@ -48,7 +48,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
           <Label>{t("الحساب البنكي / النقدي")}</Label>
           <select className={selectCls} value={selectedAccountId} onChange={(e) => onAccount(e.target.value)}>
             <option value="">{t("— اختر —")}</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            {accounts.map((a) => <option key={a.id} value={a.id}>{t(a.label)}</option>)}
           </select>
         </div>
         <div className="space-y-1.5">
@@ -65,7 +65,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("رصيد الدفاتر")}</div><div className="text-xl font-bold tabular-nums">{fmt(bookBalance)}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("الرصيد المطابَق (المحدّد)")}</div><div className="text-xl font-bold tabular-nums">{fmt(cleared)}</div></CardContent></Card>
           <Card className={statement && Math.abs(diff) < 0.01 ? "border-emerald-500/50" : statement ? "border-destructive/50" : ""}>
-            <CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("الفرق عن الكشف")}</div><div className={`text-xl font-bold tabular-nums ${statement ? (Math.abs(diff) < 0.01 ? "text-emerald-600" : "text-destructive") : ""}`}>{statement ? (Math.abs(diff) < 0.01 ? "مطابَق ✓" : fmt(diff)) : "—"}</div></CardContent></Card>
+            <CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("الفرق عن الكشف")}</div><div className={`text-xl font-bold tabular-nums ${statement ? (Math.abs(diff) < 0.01 ? "text-emerald-600" : "text-destructive") : ""}`}>{statement ? (Math.abs(diff) < 0.01 ? t("مطابَق ✓") : fmt(diff)) : "—"}</div></CardContent></Card>
         </div>
       )}
 

@@ -116,7 +116,7 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
         <div>
           <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
-            <Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV / Excel"}
+            <Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV / Excel")}
           </Button>
           {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
         </div>

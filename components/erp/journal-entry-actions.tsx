@@ -39,7 +39,7 @@ export function JournalEntryActions({
         if (after) router.push(after);
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر تنفيذ الإجراء");
+        toast.error(r.error ?? t("تعذّر تنفيذ الإجراء"));
       }
     });
 

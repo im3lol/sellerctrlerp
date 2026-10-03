@@ -46,12 +46,12 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
   const save = () => start(async () => {
     const r = await upsertRecurringJournalAction({ id: rj?.id, name, description, frequency, nextRunDate, lines: lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, description: l.description })) });
     if (r.ok) { toast.success("تم حفظ القالب"); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
     <DialogContent dir="rtl" className="max-w-2xl">
-      <DialogHeader><DialogTitle>{rj ? "تعديل قيد متكرر" : "قيد متكرر جديد"}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{rj ? t("تعديل قيد متكرر") : t("قيد متكرر جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5"><Label>{t("اسم القالب")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("استحقاق الإيجار الشهري")} /></div>
@@ -59,7 +59,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
           <div className="space-y-1.5">
             <Label>{t("التكرار")}</Label>
             <select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
-              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           <div className="space-y-1.5"><Label>{t("أول تنفيذ")}</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
@@ -82,7 +82,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
         </div>
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, nl()])}><Plus className="size-4" />{t("إضافة بند")}</Button>
-          <span className={`text-sm font-medium ${balanced ? "text-emerald-600" : "text-destructive"}`}>مدين {fmt(totDr)} · دائن {fmt(totCr)} {balanced ? "· متوازن ✓" : "· غير متوازن"}</span>
+          <span className={`text-sm font-medium ${balanced ? "text-emerald-600" : "text-destructive"}`}>مدين {fmt(totDr)} · دائن {fmt(totCr)} {balanced ? t("· متوازن ✓") : t("· غير متوازن")}</span>
         </div>
       </div>
       <DialogFooter>
@@ -128,14 +128,14 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
+                <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell className="tabular-nums">{r.lines.length}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("مفعّل") : t("موقوف")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rj: r })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
                     <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>

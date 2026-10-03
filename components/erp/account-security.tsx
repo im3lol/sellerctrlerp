@@ -27,7 +27,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
     start(async () => {
       const r = await changePasswordAction(cur, nw);
       if (r.ok) { toast.success("تم تغيير كلمة المرور"); setCur(""); setNw(""); setConfirm(""); }
-      else toast.error(r.error ?? "تعذّر التغيير");
+      else toast.error(r.error ?? t("تعذّر التغيير"));
     });
   };
 
@@ -46,12 +46,12 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
   const confirmEnable = () => start(async () => {
     const r = await enableMfaAction(code);
     if (r.ok) { setEnabled(true); setSetup(null); setCode(""); setBackup(r.backupCodes ?? []); toast.success("تم تفعيل المصادقة الثنائية"); }
-    else toast.error(r.error ?? "تعذّر التفعيل");
+    else toast.error(r.error ?? t("تعذّر التفعيل"));
   });
   const disable = () => start(async () => {
     const r = await disableMfaAction(disablePw);
     if (r.ok) { setEnabled(false); setDisablePw(""); toast.success("تم إيقاف المصادقة الثنائية"); }
-    else toast.error(r.error ?? "تعذّر الإيقاف");
+    else toast.error(r.error ?? t("تعذّر الإيقاف"));
   });
 
   const daysSinceChange = passwordChangedAt ? Math.floor((Date.now() - new Date(passwordChangedAt).getTime()) / 86400000) : null;
@@ -63,7 +63,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
       <Card>
         <CardHeader>
           <CardTitle>{t("تغيير كلمة المرور")}</CardTitle>
-          <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>آخر تغيير قبل {daysSinceChange} يوم{expiringSoon ? " — يُنصح بالتغيير (تنتهي كل 365 يوم)" : ""}.</span>}</CardDescription>
+          <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>آخر تغيير قبل {daysSinceChange} يوم{expiringSoon ? t(" — يُنصح بالتغيير (تنتهي كل 365 يوم)") : ""}.</span>}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5"><Label>{t("كلمة المرور الحالية")}</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>

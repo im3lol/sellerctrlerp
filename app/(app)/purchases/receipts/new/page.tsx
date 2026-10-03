@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, warehouses, purchaseOrders, organizations } from "@/db/schema";
@@ -8,6 +9,7 @@ import { GoodsReceiptForm } from "@/components/erp/goods-receipt-form";
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function NewReceiptPage() {
+  const t = await getT();
   return loadErpPage("purchases.receive", async ({ orgId }) => {
     const [supList, whList, org, openOrders] = await Promise.all([
       db.select({ id: suppliers.id, nameAr: suppliers.nameAr }).from(suppliers)
@@ -25,7 +27,7 @@ export default async function NewReceiptPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="PackageCheck" title="إذن استلام جديد" subtitle="اختر المورد ثم استدعِ أمر شراء لاستلام بضاعته (كاملاً أو جزئياً)" backHref="/purchases/receipts" />
+        <ErpPageHeader icon="PackageCheck" title={t("إذن استلام جديد")} subtitle={t("اختر المورد ثم استدعِ أمر شراء لاستلام بضاعته (كاملاً أو جزئياً)")} backHref="/purchases/receipts" />
         <GoodsReceiptForm orgName={org[0]?.nameAr ?? "—"} suppliers={supList} warehouses={whList} openOrders={orders} />
       </div>
     );

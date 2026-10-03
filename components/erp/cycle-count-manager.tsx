@@ -54,7 +54,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
     setLoading(true);
     void listCountsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
     });
   };
@@ -62,7 +62,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
 
   const openSession = (id: string) =>
     void getCountAction(id).then((r) => {
-      if (!r.ok || !r.detail) { toast.error(r.error ?? "تعذّر الفتح"); return; }
+      if (!r.ok || !r.detail) { toast.error(r.error ?? t("تعذّر الفتح")); return; }
       setOpen(r.detail);
       setCounts(Object.fromEntries(r.detail.lines.map((l) => [l.itemId, l.countedQty == null ? "" : String(l.countedQty)])));
     });
@@ -75,7 +75,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         method: gen.method as "VALUE" | "MOVEMENT",
         limit: Number(gen.limit) || 25,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الإنشاء")); return; }
       toast.success(`ورقة ${r.number} — ${r.count} صنف`);
       load();
       if (r.id) openSession(r.id);
@@ -93,7 +93,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         })),
       });
       if (r.ok) { toast.success("تم الحفظ"); openSession(open.session.id); load(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -117,7 +117,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       start(async () => {
         const r = await postCountAction(open.session.id);
         if (r.ok) { toast.success(`تم الترحيل عبر تسوية ${r.adjustmentNumber ?? ""}`); setOpen(null); load(); }
-        else toast.error(r.error ?? "تعذّر الترحيل");
+        else toast.error(r.error ?? t("تعذّر الترحيل"));
       });
     })();
 
@@ -128,7 +128,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       start(async () => {
         const r = await cancelCountAction(row.id);
         if (r.ok) { toast.success("تم الإلغاء"); load(); setOpen(null); }
-        else toast.error(r.error ?? "تعذّر الإلغاء");
+        else toast.error(r.error ?? t("تعذّر الإلغاء"));
       });
     })();
 
@@ -252,7 +252,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <div className="space-y-2">
                 <Label>{t("المستودع")}</Label>
                 <select className={`${selectCls} w-52`} value={gen.warehouseId} onChange={(e) => setGen((g) => ({ ...g, warehouseId: e.target.value }))}>
-                  {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                  {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -274,7 +274,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       <Card>
         <CardHeader>
           <CardTitle>{t("الجرد الدوري")}</CardTitle>
-          <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} ورقة`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} ورقة`}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (

@@ -186,7 +186,7 @@ export async function DocumentSheet({
             <div style={{ marginTop: 8, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
               <div>{t("رقم المستند")} <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
               {meta.map((m) => (
-                <div key={m.label}>{m.label} <b style={{ color: T.ink }}>{m.value}</b></div>
+                <div key={m.label}>{t(m.label)} <b style={{ color: T.ink }}>{m.value}</b></div>
               ))}
             </div>
           </div>
@@ -197,7 +197,7 @@ export async function DocumentSheet({
           <div className="mb-6 grid gap-8" style={{ gridTemplateColumns: `repeat(${parties.length}, 1fr)` }}>
             {parties.map((p) => (
               <div key={p.label}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: T.muted }}>{p.label}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: T.muted }}>{t(p.label)}</div>
                 <div style={{ fontWeight: 800, fontSize: 14, marginTop: 6 }}>{p.name}</div>
                 <div style={{ fontSize: 11.5, color: T.body, marginTop: 4, lineHeight: 1.6 }}>
                   {p.lines.filter(Boolean).map((l, i) => <div key={i}>{l}</div>)}
@@ -213,7 +213,7 @@ export async function DocumentSheet({
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{c.label}</th>
+                  <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{t(c.label)}</th>
                 ))}
               </tr>
             </thead>
@@ -233,21 +233,21 @@ export async function DocumentSheet({
         {(totals.length > 0 || balance) && (
           <div className="flex justify-start">
             <div style={{ width: 270 }}>
-              {totals.map((t) => (
-                <div key={t.label} className="flex justify-between" style={{
+              {totals.map((it) => (
+                <div key={it.label} className="flex justify-between" style={{
                   padding: "5px 0",
-                  fontSize: t.tone === "strong" ? 14 : 12,
-                  fontWeight: t.tone === "strong" ? 800 : 500,
-                  borderTop: t.tone === "strong" ? `1px solid ${T.line}` : undefined,
-                  marginTop: t.tone === "strong" ? 4 : undefined,
+                  fontSize: it.tone === "strong" ? 14 : 12,
+                  fontWeight: it.tone === "strong" ? 800 : 500,
+                  borderTop: it.tone === "strong" ? `1px solid ${T.line}` : undefined,
+                  marginTop: it.tone === "strong" ? 4 : undefined,
                 }}>
-                  <span style={{ color: t.tone === "strong" ? T.ink : T.muted }}>{t.label}</span>
+                  <span style={{ color: it.tone === "strong" ? T.ink : T.muted }}>{t(it.label)}</span>
                   <span style={{
-                    fontWeight: t.tone === "strong" ? 800 : 700,
-                    color: t.tone === "danger" ? T.danger
-                      : t.tone === "success" ? T.success
-                      : t.tone === "strong" ? T.primary : T.ink,
-                  }}>{t.value}</span>
+                    fontWeight: it.tone === "strong" ? 800 : 700,
+                    color: it.tone === "danger" ? T.danger
+                      : it.tone === "success" ? T.success
+                      : it.tone === "strong" ? T.primary : T.ink,
+                  }}>{it.value}</span>
                 </div>
               ))}
               {balance && (
@@ -255,7 +255,7 @@ export async function DocumentSheet({
                   marginTop: 8, padding: "9px 12px", borderRadius: 6,
                   background: T.accent, color: T.accentText, fontSize: 12.5, fontWeight: 800,
                 }}>
-                  <span>{balance.label}</span><span>{balance.value}</span>
+                  <span>{t(balance.label)}</span><span>{balance.value}</span>
                 </div>
               )}
             </div>

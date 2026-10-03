@@ -29,7 +29,7 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
   const create = () => start(async () => {
     const r = await createApiKeyAction({ name, scope, expiresInDays: Number(expiresInDays) });
     if ("ok" in r && r.ok) { setNewKey(r.key ?? null); setName(""); router.refresh(); }
-    else toast.error(("error" in r && r.error) || "تعذّر الإنشاء");
+    else toast.error(("error" in r && r.error) || t("تعذّر الإنشاء"));
   });
   const revoke = (id: string) => start(async () => { const r = await revokeApiKeyAction(id); if (r.ok) { toast.success("تم إلغاء المفتاح"); router.refresh(); } else toast.error(r.error ?? ""); });
   const closeDialog = () => { setOpen(false); setNewKey(null); setName(""); setScope("write"); setExpiresInDays("0"); };
@@ -54,10 +54,10 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
               <TableRow key={k.id}>
                 <TableCell className="font-medium">{k.name}</TableCell>
                 <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">{k.hint}</TableCell>
-                <TableCell><Badge variant={k.scope === "write" ? "default" : "secondary"}>{k.scope === "write" ? "قراءة/كتابة" : "قراءة فقط"}</Badge></TableCell>
+                <TableCell><Badge variant={k.scope === "write" ? "default" : "secondary"}>{k.scope === "write" ? t("قراءة/كتابة") : t("قراءة فقط")}</Badge></TableCell>
                 <TableCell className="text-sm text-muted-foreground">{k.expires ? <span className={k.expired ? "text-destructive" : ""}>{k.expires}</span> : "دائم"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{k.lastUsed || "—"}</TableCell>
-                <TableCell><Badge variant={k.active && !k.expired ? "default" : "outline"}>{!k.active ? "ملغى" : k.expired ? "منتهٍ" : "فعّال"}</Badge></TableCell>
+                <TableCell><Badge variant={k.active && !k.expired ? "default" : "outline"}>{!k.active ? t("ملغى") : k.expired ? t("منتهٍ") : t("فعّال")}</Badge></TableCell>
                 <TableCell>{k.active && <Button size="sm" variant="ghost" disabled={pending} onClick={() => revoke(k.id)}><Trash2 className="size-4 text-destructive" />{t("إلغاء")}</Button>}</TableCell>
               </TableRow>
             ))}
@@ -69,7 +69,7 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
         <DialogContent dir="rtl">
           <DialogHeader>
             <DialogTitle>{t("مفتاح API جديد")}</DialogTitle>
-            <DialogDescription>{newKey ? "انسخ المفتاح الآن — لن يظهر مرة أخرى." : "سيُعرض المفتاح مرة واحدة فقط عند الإنشاء."}</DialogDescription>
+            <DialogDescription>{newKey ? t("انسخ المفتاح الآن — لن يظهر مرة أخرى.") : t("سيُعرض المفتاح مرة واحدة فقط عند الإنشاء.")}</DialogDescription>
           </DialogHeader>
           {newKey ? (
             <div className="space-y-3">

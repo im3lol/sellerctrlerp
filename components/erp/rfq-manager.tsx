@@ -61,7 +61,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
     setLoading(true);
     void listRfqsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
     });
   };
@@ -69,7 +69,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
 
   const openRfq = (id: string) =>
     void getRfqAction(id).then((r) => {
-      if (!r.ok || !r.detail) { toast.error(r.error ?? "تعذّر الفتح"); return; }
+      if (!r.ok || !r.detail) { toast.error(r.error ?? t("تعذّر الفتح")); return; }
       setOpen(r.detail);
       setCreating(false);
       setQuoting(null);
@@ -85,8 +85,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
         supplierIds: draft.supplierIds,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
-      toast.success(`تم حفظ ${r.number ?? "الطلب"}`);
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
+      toast.success(`تم حفظ ${r.number ?? t("الطلب")}`);
       setCreating(false);
       setDraft({ date: new Date().toISOString().slice(0, 10), dueDate: "", lines: [{ itemId: "", quantity: 1 }], supplierIds: [], notes: "" });
       load();
@@ -98,7 +98,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
     start(async () => {
       const r = await sendRfqAction(id);
       if (r.ok) { toast.success("الطلب مُرسل — سجّل عروض الموردين لما توصل"); load(); openRfq(id); }
-      else toast.error(r.error ?? "تعذّر الإرسال");
+      else toast.error(r.error ?? t("تعذّر الإرسال"));
     });
 
   const cancel = (row: ListRow) =>
@@ -108,7 +108,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       start(async () => {
         const r = await cancelRfqAction(row.id);
         if (r.ok) { toast.success("تم الإلغاء"); load(); setOpen(null); }
-        else toast.error(r.error ?? "تعذّر الإلغاء");
+        else toast.error(r.error ?? t("تعذّر الإلغاء"));
       });
     })();
 
@@ -133,8 +133,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         declined,
         prices: open.lines.map((l) => ({ rfqLineId: l.id, unitPrice: Number(quote.prices[l.id]) || 0 })),
       });
-      if (r.ok) { toast.success(declined ? "تم تسجيل الاعتذار" : "تم حفظ العرض"); setQuoting(null); openRfq(open.rfq.id); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      if (r.ok) { toast.success(declined ? t("تم تسجيل الاعتذار") : t("تم حفظ العرض")); setQuoting(null); openRfq(open.rfq.id); }
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -152,7 +152,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       start(async () => {
         const r = await awardRfqAction(open.rfq.id, rfqSupplierId, awardWarehouse);
         if (r.ok) { toast.success("تمت الترسية — راجع أمر الشراء"); router.push(r.orderId ? `/purchases/orders/${r.orderId}` : "/purchases/orders"); }
-        else toast.error(r.error ?? "تعذّر الترسية");
+        else toast.error(r.error ?? t("تعذّر الترسية"));
       });
     })();
 
@@ -226,7 +226,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                       <TableHead key={s.id} className="text-start">
                         <div className="font-medium">{s.supplierName}</div>
                         <div className="text-xs font-normal text-muted-foreground">
-                          {s.status === "DECLINED" ? "اعتذر" : s.quotedLines === 0 ? "لسه مردّش" : s.complete ? "عرض كامل" : `ناقص (${s.quotedLines}/${open.lines.length})`}
+                          {s.status === "DECLINED" ? t("اعتذر") : s.quotedLines === 0 ? t("لسه مردّش") : s.complete ? t("عرض كامل") : `ناقص (${s.quotedLines}/${open.lines.length})`}
                         </div>
                       </TableHead>
                     ))}
@@ -384,7 +384,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                 selectedLabel=""
                 options={suppliers.filter((s) => !draft.supplierIds.includes(s.id))}
                 onSelect={(id) => setDraft((d) => ({ ...d, supplierIds: [...d.supplierIds, id] }))}
-                placeholder={suppliers.length ? "أضِف مورّد…" : "مفيش موردين"}
+                placeholder={suppliers.length ? t("أضِف مورّد…") : t("مفيش موردين")}
               />
             </div>
             {draft.supplierIds.length > 0 && (
@@ -450,7 +450,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>{t("طلبات عروض الأسعار")}</CardTitle>
-            <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} طلب`}</CardDescription>
+            <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} طلب`}</CardDescription>
           </div>
           {canManage && (
             <Button size="sm" onClick={() => setCreating(true)}><Icon name="Plus" className="size-4" />{t("طلب جديد")}</Button>

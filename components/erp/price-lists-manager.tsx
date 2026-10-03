@@ -79,7 +79,7 @@ export function PriceListsManager({
         rows: draft.rows.map((r) => ({ itemId: r.itemId, price: r.price, minQuantity: r.minQuantity })),
       });
       if (r.ok) { toast.success("تم حفظ القائمة"); setDraft(null); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -97,7 +97,7 @@ export function PriceListsManager({
       start(async () => {
         const r = await deletePriceListAction(l.id);
         if (r.ok) { toast.success("تم الحذف"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -107,7 +107,7 @@ export function PriceListsManager({
         <CardHeader>
           <div className="flex w-full flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>{draft.id ? `تعديل ${draft.nameAr || "قائمة"}` : "قائمة أسعار جديدة"}</CardTitle>
+              <CardTitle>{draft.id ? `تعديل ${draft.nameAr || t("قائمة")}` : "قائمة أسعار جديدة"}</CardTitle>
               <CardDescription>{t("الأصناف اللي مش في القائمة بتاخد سعر البيع المسجّل على الصنف نفسه.")}</CardDescription>
             </div>
             <div className="flex gap-2">

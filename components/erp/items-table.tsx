@@ -133,7 +133,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                       : <span className="tabular-nums">{int(r.onHand)}</span>}
                 </TableCell>
                 <TableCell>{money(r.sellPrice)}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "نشط" : "متوقف"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? t("نشط") : t("متوقف")}</Badge></TableCell>
               </TableRow>
             );
           })}

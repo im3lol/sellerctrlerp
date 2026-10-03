@@ -181,7 +181,7 @@ export function AmazonImport() {
                   <TableRow key={o.externalId}>
                     <TableCell className="font-mono text-xs" dir="ltr">{o.externalId}</TableCell>
                     <TableCell>{dt(o.date)}</TableCell>
-                    <TableCell><Badge variant={o.status === "Shipped" ? "default" : "secondary"}>{STATUS_AR[o.status] ?? o.status}</Badge></TableCell>
+                    <TableCell><Badge variant={o.status === "Shipped" ? "default" : "secondary"}>{t(STATUS_AR[o.status] ?? o.status)}</Badge></TableCell>
                     <TableCell className="max-w-[280px] whitespace-normal text-xs text-muted-foreground"><div className="line-clamp-2 leading-snug">{o.lines.map((l) => `${l.itemName ?? l.code} ×${l.qty}`).join("، ")}</div></TableCell>
                     <TableCell>{fmt(o.total)}</TableCell>
                   </TableRow>

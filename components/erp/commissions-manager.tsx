@@ -50,7 +50,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
     setLoading(true);
     void getCommissionReportAction(from, to).then((r) => {
       setLoading(false);
-      if (!r.ok || !r.report) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok || !r.report) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setReport(r.report);
     });
   };
@@ -65,7 +65,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         validFrom: form.validFrom || null, validTo: form.validTo || null, isActive: true,
       });
       if (r.ok) { toast.success("تم حفظ القاعدة"); setForm({ ...form, percent: "" }); load(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -80,7 +80,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
       start(async () => {
         const r = await deleteCommissionRuleAction(id);
         if (r.ok) { toast.success("تم الحذف"); load(); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -149,7 +149,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                           {!r.employeeId && <Badge className="ms-2" variant="secondary">{t("افتراضية")}</Badge>}
                           {!r.isActive && <Badge className="ms-2" variant="outline">{t("موقوفة")}</Badge>}
                         </TableCell>
-                        <TableCell>{BASIS_LABEL[r.basis as Basis] ?? r.basis}</TableCell>
+                        <TableCell>{t(BASIS_LABEL[r.basis as Basis] ?? r.basis)}</TableCell>
                         <TableCell className="tabular-nums">{r.percent}%</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {r.validFrom || r.validTo ? `${r.validFrom ?? "—"} ← ${r.validTo ?? "—"}` : "دائمة"}
@@ -175,7 +175,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
             <div>
               <CardTitle>{t("المستحق")}</CardTitle>
               <CardDescription>
-                {loading ? "جارٍ الحساب…" : `${report?.rows.length ?? 0} حركة · إجمالي ${money(grand)}`}
+                {loading ? t("جارٍ الحساب…") : `${report?.rows.length ?? 0} حركة · إجمالي ${money(grand)}`}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -241,7 +241,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                         <TableCell className="font-mono text-xs">
                           {r.sourceNumber}
                           <span className="block text-[11px] text-muted-foreground">
-                            {r.sourceType === "RECEIPT" ? "تحصيل" : "فاتورة"}
+                            {r.sourceType === "RECEIPT" ? t("تحصيل") : t("فاتورة")}
                           </span>
                         </TableCell>
                         <TableCell>{r.customerName}</TableCell>

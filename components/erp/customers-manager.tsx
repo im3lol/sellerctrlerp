@@ -59,7 +59,7 @@ function CustomerDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل عميل" : "عميل جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل عميل") : t("عميل جديد")}</DialogTitle>
             <DialogDescription>{t("بيانات العميل للمؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -119,8 +119,8 @@ function PortalLinkDialog({
   const handle = () => {
     start(async () => {
       const r = await linkCustomerPortalUserAction({ customerId: customer.id, email });
-      if (r.ok) { toast.success(email ? "تم الربط بالبوابة" : "تم إلغاء الربط"); onOpenChange(false); }
-      else toast.error(r.error ?? "تعذّر الربط");
+      if (r.ok) { toast.success(email ? t("تم الربط بالبوابة") : t("تم إلغاء الربط")); onOpenChange(false); }
+      else toast.error(r.error ?? t("تعذّر الربط"));
     });
   };
 
@@ -148,7 +148,7 @@ function PortalLinkDialog({
         <DialogFooter>
           <Button onClick={handle} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-            {email ? "ربط" : "إلغاء الربط"}
+            {email ? t("ربط") : t("إلغاء الربط")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -173,7 +173,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
     startTransition(async () => {
       const r = await deleteCustomerAction(c.id);
       if (r.ok) toast.success("تم الحذف");
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
 
   const addBtn = (

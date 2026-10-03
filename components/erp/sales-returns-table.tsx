@@ -54,7 +54,7 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
       start(async () => {
         const r = await bulkSalesReturnsAction(op, ids);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} مرتجع`); setSel(new Set()); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -97,13 +97,13 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell>
                   <div>{r.customer ?? "—"}</div>
-                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? (ORIGIN[r.channel] ?? r.channel) : "يدوي"}</Badge>
+                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? (ORIGIN[r.channel] ?? r.channel) : t("يدوي")}</Badge>
                 </TableCell>
                 <TableCell>{r.orderNumber ? <Link href={`/sales/orders/${encodeURIComponent(r.orderNumber)}`} className="text-primary hover:underline">{r.orderNumber}</Link> : "—"}</TableCell>
                 <TableCell className="max-w-[200px]"><div className="line-clamp-2 text-sm text-muted-foreground" title={r.reason ?? undefined}>{r.reason ?? "—"}</div></TableCell>
                 <TableCell>
                   {r.disposition
-                    ? <Badge variant="outline" className={unsellable(r.disposition) ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>{unsellable(r.disposition) ? "تالف / غير قابل للبيع" : "قابل للبيع"}</Badge>
+                    ? <Badge variant="outline" className={unsellable(r.disposition) ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>{unsellable(r.disposition) ? t("تالف / غير قابل للبيع") : t("قابل للبيع")}</Badge>
                     : <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell className="tabular-nums text-destructive">−{fmt(r.total)}</TableCell>

@@ -168,7 +168,7 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
                             onClick={() => toggleReconcile(l.id)}
                             disabled={pending}
                             className="rounded p-1 hover:bg-muted transition-colors"
-                            title={l.isReconciled ? "إلغاء التسوية" : "تسوية"}
+                            title={l.isReconciled ? t("إلغاء التسوية") : t("تسوية")}
                           >
                             <Icon
                               name={l.isReconciled ? "CheckCircle2" : "Circle"}
@@ -206,7 +206,7 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
             <CardTitle className="text-base">{t("حركات الأستاذ (للمقارنة)")}</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setShowGl(!showGl)}>
               <Icon name={showGl ? "ChevronUp" : "ChevronDown"} className="size-4" />
-              {showGl ? "إخفاء" : "عرض"}
+              {showGl ? t("إخفاء") : t("عرض")}
             </Button>
           </CardHeader>
           {showGl && (

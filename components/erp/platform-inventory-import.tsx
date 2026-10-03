@@ -60,7 +60,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
           <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasWarehouse || pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}{fileName ? "تغيير الملف" : "رفع دفتر المخزون"}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}{fileName ? t("تغيير الملف") : t("رفع دفتر المخزون")}
           </Button>
           {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName}</span>}
         </div>

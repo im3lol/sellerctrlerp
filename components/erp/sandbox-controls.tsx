@@ -24,7 +24,7 @@ export function SandboxStartButton({ variant = "outline" }: { variant?: "outline
     <Button variant={variant} disabled={pending} onClick={go}
       title={t("شركة منفصلة فيها بيانات أمازون وهمية — شركتك الحقيقية مش بتتلمس")}>
       <Icon name={pending ? "LoaderCircle" : "FlaskConical"} className={`size-4 ${pending ? "animate-spin" : ""}`} />
-      {pending ? "بنجهّز الشركة التجريبية… حوالي دقيقة" : "جرّب بشركة تجريبية"}
+      {pending ? t("بنجهّز الشركة التجريبية… حوالي دقيقة") : t("جرّب بشركة تجريبية")}
     </Button>
   );
 }

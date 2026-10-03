@@ -31,7 +31,7 @@ export function SerialLookup() {
     if (!query) return;
     start(async () => {
       const r = await findSerialAction(query);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر البحث"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر البحث")); return; }
       setHits(r.hits ?? []);
     });
   };

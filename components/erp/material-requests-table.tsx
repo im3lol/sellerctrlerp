@@ -61,7 +61,7 @@ export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: R
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.requester ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">{Number(r.lineCount)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                 {showSelect && <TableCell><RequisitionRowActions id={r.id} number={r.number} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

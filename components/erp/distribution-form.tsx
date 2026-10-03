@@ -30,7 +30,7 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
         totalProfit: Number(fd.get("totalProfit") ?? 0),
       });
       if (res.ok) { toast.success("تم إنشاء التوزيع كمسودة"); router.refresh(); setOpen(false); }
-      else toast.error(res.error ?? "تعذّر الإنشاء");
+      else toast.error(res.error ?? t("تعذّر الإنشاء"));
     });
   }
 
@@ -93,12 +93,12 @@ export function DistributionActions({ id, status }: { id: string; status: string
       <Button size="sm" disabled={pending} onClick={() => start(async () => {
         const res = await confirmDistributionAction(id);
         if (res.ok) { toast.success("تم ترحيل التوزيع"); router.refresh(); }
-        else toast.error(res.error ?? "تعذّر الترحيل");
+        else toast.error(res.error ?? t("تعذّر الترحيل"));
       })}>{t("تأكيد وترحيل")}</Button>
       <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => {
         const res = await deleteDistributionAction(id);
         if (res.ok) { toast.success("تم حذف المسودة"); router.refresh(); }
-        else toast.error(res.error ?? "تعذّر الحذف");
+        else toast.error(res.error ?? t("تعذّر الحذف"));
       })}>{t("حذف")}</Button>
     </div>
   );

@@ -64,7 +64,7 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DOC_TYPES.map((d) => (
-              <Row key={d.key} docKey={d.key} label={d.label} initial={overrides[d.key] ?? ""} canEdit={canEdit} />
+              <Row key={d.key} docKey={d.key} label={t(d.label)} initial={overrides[d.key] ?? ""} canEdit={canEdit} />
             ))}
           </div>
           {canEdit && <SaveBtn />}

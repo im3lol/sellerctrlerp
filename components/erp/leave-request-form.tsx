@@ -38,7 +38,7 @@ export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employ
     start(async () => {
       const r = await createLeaveRequestAction({ employeeId, leaveType, startDate, endDate, reason });
       if (r.ok) { toast.success("تم حفظ طلب الإجازة (مسودة)"); router.push("/hr/leaves"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -60,7 +60,7 @@ export function LeaveRequestForm({ employees, orgName, holidays = [] }: { employ
           <div className="space-y-2">
             <Label htmlFor="leaveType">{t("نوع الإجازة")}</Label>
             <select id="leaveType" className={selectCls} value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
-              {LEAVE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {LEAVE_TYPES.map((it) => <option key={it.value} value={it.value}>{t(it.label)}</option>)}
             </select>
           </div>
           <div className="space-y-2"><Label>{t("المدة")}</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{days > 0 ? `${days} يوم (${workDays} يوم عمل)` : "—"}</div></div>

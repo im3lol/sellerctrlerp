@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -20,6 +21,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function ItemSalesReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
@@ -65,8 +67,8 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
       <ReportShell
         reportKey="sales-items"
         icon="BarChart3"
-        title="تقرير مبيعات الأصناف"
-        subtitle="إجمالي المبيعات مجمّعاً لكل صنف"
+        title={t("تقرير مبيعات الأصناف")}
+        subtitle={t("إجمالي المبيعات مجمّعاً لكل صنف")}
         query={qs.toString()}
         permissions={permissions}
         filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
@@ -75,31 +77,31 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
           { label: "إجمالي الكميات", value: qtyf(totalQty), tone: "muted" },
           { label: "عدد الأصناف", value: String(filtered.length), tone: "muted" },
         ]}
-        chartTitle={filtered.length > 0 ? "أعلى ٨ أصناف إيرادًا" : undefined}
+        chartTitle={filtered.length > 0 ? t("أعلى ٨ أصناف إيرادًا") : undefined}
         chart={filtered.length > 0
-          ? <BarChart data={filtered.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: Number(r.totalRevenue ?? 0) }))} valueLabel="الإيراد" money height={240} />
+          ? <BarChart data={filtered.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: Number(r.totalRevenue ?? 0) }))} valueLabel={t("الإيراد")} money height={240} />
           : undefined}
       >
         <Card>
           <CardHeader>
-            <CardTitle>تفصيل الأصناف</CardTitle>
+            <CardTitle>{t("تفصيل الأصناف")}</CardTitle>
             <CardDescription>مرتّب تنازلياً حسب الإيراد — الفترة: {from} إلى {to}</CardDescription>
           </CardHeader>
           <CardContent>
             {filtered.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-start">#</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية المباعة</TableHead>
-                    <TableHead className="text-end">متوسط السعر</TableHead>
-                    <TableHead className="text-end">الإيراد</TableHead>
-                    <TableHead className="text-end">الضريبة</TableHead>
-                    <TableHead className="text-end">عدد الفواتير</TableHead>
-                    <TableHead className="text-end">% من الإجمالي</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية المباعة")}</TableHead>
+                    <TableHead className="text-end">{t("متوسط السعر")}</TableHead>
+                    <TableHead className="text-end">{t("الإيراد")}</TableHead>
+                    <TableHead className="text-end">{t("الضريبة")}</TableHead>
+                    <TableHead className="text-end">{t("عدد الفواتير")}</TableHead>
+                    <TableHead className="text-end">{t("% من الإجمالي")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

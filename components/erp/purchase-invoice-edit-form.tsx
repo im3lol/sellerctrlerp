@@ -61,7 +61,7 @@ export function PurchaseInvoiceEditForm({
         toast.success("تم حفظ التعديلات");
         router.push(`/purchases/invoices/${encodeURIComponent(number)}`);
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (

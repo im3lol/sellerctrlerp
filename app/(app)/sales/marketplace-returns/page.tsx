@@ -1,4 +1,5 @@
 import { ErpPageHeader } from "@/components/erp/page-header";
+import { getT } from "@/lib/i18n/server";
 import { getMarketplaceReturns, getReturnWarehouses } from "@/app/actions/erp/platform-returns";
 import { MarketplaceReturnsClient } from "@/components/erp/marketplace-returns-client";
 
@@ -8,13 +9,14 @@ export const dynamic = "force-dynamic";
 // credit note (from the FBA sync or CSV import); confirming with a receipt choice posts
 // the invoice reversal and — only when the goods were actually received — the restock.
 export default async function MarketplaceReturnsPage() {
+  const t = await getT();
   const [rows, warehouses] = await Promise.all([getMarketplaceReturns(), getReturnWarehouses()]);
   return (
     <div className="space-y-6">
       <ErpPageHeader
         icon="PackageX"
-        title="مرتجعات المنصات"
-        subtitle="مرتجعات العملاء من أمازون/نون كمسودّات — أكّد الاستلام ليترحّل على الفاتورة والمخزون والطلب"
+        title={t("مرتجعات المنصات")}
+        subtitle={t("مرتجعات العملاء من أمازون/نون كمسودّات — أكّد الاستلام ليترحّل على الفاتورة والمخزون والطلب")}
         backHref="/sales/returns"
       />
       <MarketplaceReturnsClient initial={rows} warehouses={warehouses} />

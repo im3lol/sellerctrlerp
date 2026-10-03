@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
@@ -10,6 +11,7 @@ import { confirm } from "@/components/erp/confirm";
 /** Per-row "⋮" quick actions for the goods receipts (إذن استلام) list — same
  *  action set as ReceiptDetailActions, compacted into a row menu. */
 export function ReceiptRowMenu({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -19,7 +21,7 @@ export function ReceiptRowMenu({ id, number, status, canManage }: { id: string; 
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -30,7 +32,7 @@ export function ReceiptRowMenu({ id, number, status, canManage }: { id: string; 
       start(async () => {
         const r = await convertReceiptToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 

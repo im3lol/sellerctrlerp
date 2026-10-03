@@ -55,7 +55,7 @@ function WarehouseDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مخزن" : "مخزن جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل مخزن") : t("مخزن جديد")}</DialogTitle>
             <DialogDescription>{t("مخزن رئيسي أو موقع فرعي (منطقة/رف/صندوق) ضمن المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -65,7 +65,7 @@ function WarehouseDialog({
             <div className="space-y-2">
               <Label htmlFor="w-type">{t("النوع / المستوى")}</Label>
               <select id="w-type" name="type" defaultValue={defaultType} className={selectCls}>
-                {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{WAREHOUSE_TYPE_LABEL[t]}</option>)}
+                {WAREHOUSE_TYPES.map((it) => <option key={it} value={it}>{t(WAREHOUSE_TYPE_LABEL[it])}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -113,7 +113,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
   const openEdit = (w: Warehouse) => { setEditing(w); setPresetParent(null); setOpen(true); };
   const remove = (w: Warehouse) => startTransition(async () => {
     const r = await deleteWarehouseAction(w.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const onImportFile = (file: File) => startImport(async () => {
@@ -140,7 +140,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
           <Icon name={w.type === "WAREHOUSE" ? "Warehouse" : hasKids ? "FolderTree" : "Box"} className={cn("size-4 shrink-0", w.type === "WAREHOUSE" ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{w.code}</span>
           <span className={cn(w.type === "WAREHOUSE" && "font-semibold")}>{w.nameAr}</span>
-          <Badge variant="outline">{WAREHOUSE_TYPE_LABEL[w.type] ?? w.type}</Badge>
+          <Badge variant="outline">{t(WAREHOUSE_TYPE_LABEL[w.type] ?? w.type)}</Badge>
           {w.location && <span className="text-xs text-muted-foreground">{w.location}</span>}
           {!w.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
           {canManage && (

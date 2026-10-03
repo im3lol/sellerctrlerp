@@ -31,7 +31,7 @@ export async function LinkedDocsCard({ links }: { links: DocLink[] }) {
       <CardContent className="flex flex-wrap gap-2">
         {present.map((l) => (
           <div key={l.label} className="rounded-lg border px-3 py-2 text-sm">
-            <span className="text-muted-foreground">{l.label}: </span>
+            <span className="text-muted-foreground">{t(l.label)}: </span>
             {l.href ? (
               <Link href={l.href} className="font-mono font-medium text-primary underline">{l.number}</Link>
             ) : (

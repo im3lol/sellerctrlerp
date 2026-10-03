@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -28,6 +29,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function SalesInvoiceDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -76,27 +78,27 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><div className="flex items-center gap-2"><Badge variant={st.variant}>{st.label}</Badge>{hasReturn && <Badge variant="destructive">مرتجع</Badge>}</div></Field>
-          <Field label="التاريخ">{dt(inv.date)}</Field>
-          <Field label="الإجمالي">{fmt(inv.totalAmount)}</Field>
-          <Field label="المدفوع / المتبقّي">{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
+          <Field label={t("الحالة")}><div className="flex items-center gap-2"><Badge variant={st.variant}>{t(st.label)}</Badge>{hasReturn && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></Field>
+          <Field label={t("التاريخ")}>{dt(inv.date)}</Field>
+          <Field label={t("الإجمالي")}>{fmt(inv.totalAmount)}</Field>
+          <Field label={t("المدفوع / المتبقّي")}>{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
           {inv.foreignAmount && inv.currencyCode && (
-            <Field label="بالعملة الأجنبية">{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
+            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
           )}
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الفاتورة.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الفاتورة.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -114,10 +116,10 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
             </Table>
 
             <div className="mt-4 flex flex-col items-end gap-1 text-sm">
-              <div>الإجمالي الفرعي: <span className="font-medium">{fmt(inv.subtotal)}</span></div>
-              <div>الخصم: <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
-              <div>الضريبة: <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
-              {Number(inv.shippingAmount) > 0 && <div>الشحن: <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>}
+              <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(inv.subtotal)}</span></div>
+              <div>{t("الخصم:")} <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
+              <div>{t("الضريبة:")} <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
+              {Number(inv.shippingAmount) > 0 && <div>{t("الشحن:")} <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>}
               <div className="text-base font-bold text-primary">الإجمالي للكل: {fmt(inv.totalAmount)}</div>
             </div>
             {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}

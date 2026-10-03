@@ -19,7 +19,7 @@ export function ItemDetailActions({ itemId, canEdit, canDelete }: { itemId: stri
     start(async () => {
       const r = await deleteItemAction(itemId);
       if (r.ok) { toast.success("تم حذف الصنف"); router.push("/inventory/items"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
 
   return (

@@ -90,7 +90,7 @@ export async function AuditLinesTable({ rows, reimbursedSkus }: { rows: AuditLin
               <TableCell className={`tabular-nums ${(l.expired ?? 0) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>{int(l.expired ?? 0)}</TableCell>
               <TableCell className={`tabular-nums font-medium ${diff !== 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{qty(diff)}</TableCell>
               <TableCell>
-                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>
+                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{t(s.label)}</span>
                 {(l.status === "LOST" || l.status === "DAMAGED") && reimbursedSkus && (
                   reimbursedSkus.has(l.code)
                     ? <span className="ms-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">{t("تم التعويض")}</span>

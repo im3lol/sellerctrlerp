@@ -56,7 +56,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
     const ids = selRows.filter((r) => r.status === "DRAFT").map((r) => r.id);
     start(async () => {
       const r = await createPickListAction(ids);
-      if (r.error || !r.number) { toast.error(r.error ?? "تعذّر إنشاء الجولة"); return; }
+      if (r.error || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء الجولة")); return; }
       toast.success(`جولة التجهيز ${r.number}`);
       router.push(`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`);
     });
@@ -68,7 +68,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
       start(async () => {
         const r = await bulkDeliveriesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} إذن`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -118,7 +118,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                   <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title={t("المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)")}>{t("نقص مخزون")}</Badge>}{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title={t("المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)")}>{t("نقص مخزون")}</Badge>}{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <DeliveryRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
                   </TableCell>
@@ -134,7 +134,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

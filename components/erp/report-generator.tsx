@@ -79,7 +79,7 @@ export function ReportGenerator() {
                   <span className={`grid size-10 place-items-center rounded-lg ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
                     <Icon name={m.icon} className="size-5" />
                   </span>
-                  <span className="text-sm font-medium">{m.label}</span>
+                  <span className="text-sm font-medium">{t(m.label)}</span>
                 </button>
               );
             })}
@@ -100,7 +100,7 @@ export function ReportGenerator() {
                     onClick={() => pickReport(r)}
                     className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-sm transition-colors ${active ? "border-primary bg-primary/5 font-medium" : "bg-card hover:border-primary/60 hover:bg-accent"}`}
                   >
-                    <span>{r.label}</span>
+                    <span>{t(r.label)}</span>
                     {active && <Icon name="Check" className="size-4 text-primary" />}
                   </button>
                 );
@@ -121,7 +121,7 @@ export function ReportGenerator() {
                 </div>
               )}
               <div className="space-y-1">
-                <Label htmlFor="to">{report.dates === "asOf" ? "كما في تاريخ" : "إلى تاريخ"}</Label>
+                <Label htmlFor="to">{report.dates === "asOf" ? t("كما في تاريخ") : t("إلى تاريخ")}</Label>
                 <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus:border-primary" />
               </div>
             </div>
@@ -146,7 +146,7 @@ export function ReportGenerator() {
                     onClick={() => setFormat(f.v)}
                     className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/60"}`}
                   >
-                    <Icon name={f.icon} className="size-4" />{f.label}
+                    <Icon name={f.icon} className="size-4" />{t(f.label)}
                   </button>
                 );
               })}
@@ -160,7 +160,7 @@ export function ReportGenerator() {
           <div className="border-t pt-5">
             <Button onClick={run} size="lg" className="gap-2">
               <Icon name={report.party ? "ArrowLeft" : format === "excel" ? "Download" : "FileText"} className="size-4" />
-              {report.party ? `اختيار ${report.party === "customer" ? "العميل" : "المورّد"} ثم استخراج «${report.label}»` : `استخراج «${report.label}» ${format === "excel" ? "Excel" : "PDF"}`}
+              {report.party ? `اختيار ${report.party === "customer" ? t("العميل") : t("المورّد")} ثم استخراج «${t(report.label)}»` : `استخراج «${t(report.label)}» ${format === "excel" ? "Excel" : "PDF"}`}
             </Button>
             {report.party && <p className="mt-2 text-xs text-muted-foreground">{t("اختَر الطرف أولاً، ثم صدّر كشفه Excel أو PDF بنفس الفترة.")}</p>}
           </div>

@@ -40,7 +40,7 @@ export function BudgetEntryClient({
       if (res.ok) {
         toast.success("تم حفظ الميزانية");
       } else {
-        toast.error(res.error ?? "تعذّر الحفظ");
+        toast.error(res.error ?? t("تعذّر الحفظ"));
       }
     });
   }

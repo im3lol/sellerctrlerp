@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { MaterialRequestsTable } from "@/components/erp/material-requests-table";
 
 export default async function RequisitionsPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canManage = can("purchases.create");
 
@@ -31,21 +33,21 @@ export default async function RequisitionsPage() {
     return (
       <div className="space-y-6">
         <ErpPageHeader
-          icon="ClipboardList" title="طلبات المواد" subtitle={`${rows.length} طلب`} backHref="/purchases"
-          action={canManage ? <Button asChild><Link href="/purchases/requisitions/new"><Icon name="Plus" className="size-4" />طلب جديد</Link></Button> : undefined}
+          icon="ClipboardList" title={t("طلبات المواد")} subtitle={`${rows.length} طلب`} backHref="/purchases"
+          action={canManage ? <Button asChild><Link href="/purchases/requisitions/new"><Icon name="Plus" className="size-4" />{t("طلب جديد")}</Link></Button> : undefined}
         />
 
         {rows.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">بانتظار الاعتماد (مسودة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{draftCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">معتمدة</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{approvedCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("بانتظار الاعتماد (مسودة)")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{draftCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("معتمدة")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{approvedCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
           </div>
         )}
 
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد طلبات مواد بعد.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد طلبات مواد بعد.")}</div>
             ) : (
               <MaterialRequestsTable rows={rows} canApprove={can("purchases.confirm")} canCreate={can("purchases.create")} />
             )}

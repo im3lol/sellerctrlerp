@@ -143,10 +143,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
       const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, exchangeRate: isManualRate ? rate : undefined, materialRequestId: requisitionId, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
+        toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه"));
         router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -156,7 +156,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات أمر الشراء")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/orders/${initial!.id}` : "/purchases/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -230,7 +230,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 <span className="shrink-0 text-sm text-muted-foreground">١ {currency} =</span>
                 <Input
                   type="number" step="0.000001" min="0" className="tabular-nums"
-                  placeholder={autoRate > 0 ? ratef(autoRate) : "اكتب السعر"}
+                  placeholder={autoRate > 0 ? ratef(autoRate) : t("اكتب السعر")}
                   value={rateOverride}
                   onChange={(e) => setRateOverride(e.target.value)}
                 />

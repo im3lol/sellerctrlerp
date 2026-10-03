@@ -67,14 +67,14 @@ export function DocumentActions({
 
   const item = (a: DocAction, i: number) =>
     a.href ? (
-      <DropdownMenuItem key={`${a.label}-${i}`} asChild disabled={a.disabled}>
+      <DropdownMenuItem key={`${t(a.label)}-${i}`} asChild disabled={a.disabled}>
         <Link href={a.href} {...(a.newTab ? { target: "_blank", rel: "noopener" } : {})}>
-          <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{a.label}
+          <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{t(a.label)}
         </Link>
       </DropdownMenuItem>
     ) : (
-      <DropdownMenuItem key={`${a.label}-${i}`} disabled={a.disabled} onSelect={a.onSelect}>
-        <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{a.label}
+      <DropdownMenuItem key={`${t(a.label)}-${i}`} disabled={a.disabled} onSelect={a.onSelect}>
+        <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{t(a.label)}
       </DropdownMenuItem>
     );
 

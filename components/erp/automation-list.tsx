@@ -11,13 +11,14 @@ import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
 export function RuleToggle({ id, enabled }: { id: string; enabled: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Switch checked={enabled} disabled={pending} aria-label={enabled ? "إيقاف القاعدة" : "تشغيل القاعدة"}
+    <Switch checked={enabled} disabled={pending} aria-label={enabled ? t("إيقاف القاعدة") : t("تشغيل القاعدة")}
       onCheckedChange={(v) => start(async () => {
         const r = await toggleRuleAction(id, v);
-        if (!r.ok) toast.error(r.error ?? "تعذّر التغيير");
+        if (!r.ok) toast.error(r.error ?? t("تعذّر التغيير"));
         router.refresh();
       })} />
   );
@@ -33,7 +34,7 @@ export function RuleDelete({ id, name }: { id: string; name: string }) {
       if (!go) return;
       start(async () => {
         const r = await deleteRuleAction(id);
-        if (r.ok) { toast.success("اتمسحت"); router.refresh(); } else toast.error(r.error ?? "تعذّر المسح");
+        if (r.ok) { toast.success("اتمسحت"); router.refresh(); } else toast.error(r.error ?? t("تعذّر المسح"));
       });
     })()}>
       <Icon name="Trash2" className="size-4 text-destructive" />
@@ -42,12 +43,13 @@ export function RuleDelete({ id, name }: { id: string; name: string }) {
 }
 
 export function AddTemplateButton({ templateKey, needsSetup }: { templateKey: string; needsSetup: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => {
       const r = await addTemplateAction(templateKey);
-      if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر الإضافة"); return; }
+      if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر الإضافة")); return; }
       if (needsSetup) {
         toast.success("اتضافت متوقفة — حط الرابط بتاعك وشغّلها");
         router.push(`/automation/${encodeURIComponent(r.number)}`);
@@ -56,7 +58,7 @@ export function AddTemplateButton({ templateKey, needsSetup }: { templateKey: st
         router.refresh();
       }
     })}>
-      <Icon name="Plus" className="size-4" />{needsSetup ? "ضيف وظبّط" : "فعّلها"}
+      <Icon name="Plus" className="size-4" />{needsSetup ? t("ضيف وظبّط") : t("فعّلها")}
     </Button>
   );
 }

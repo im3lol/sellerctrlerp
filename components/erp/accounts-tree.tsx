@@ -30,11 +30,12 @@ const money = (n: number) => Math.abs(n).toLocaleString("ar-EG-u-nu-latn", { min
 
 /** Balance label: net = debit − credit → Dr if ≥0, Cr if <0. */
 function Balance({ net }: { net: number }) {
+  const t = useT();
   if (Math.abs(net) < 0.005) return <span className="text-muted-foreground tabular-nums">0.00</span>;
   const dr = net > 0;
   return (
     <span className={cn("tabular-nums font-medium", dr ? "text-foreground" : "text-foreground")}>
-      {money(net)} <span className={cn("text-xs", dr ? "text-emerald-600" : "text-blue-600")}>{dr ? "مدين" : "دائن"}</span>
+      {money(net)} <span className={cn("text-xs", dr ? "text-emerald-600" : "text-blue-600")}>{dr ? t("مدين") : t("دائن")}</span>
     </span>
   );
 }
@@ -64,7 +65,7 @@ function AccountDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل حساب" : "حساب جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل حساب") : t("حساب جديد")}</DialogTitle>
             <DialogDescription>{t("حساب ضمن دليل حسابات المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -158,11 +159,11 @@ export function AccountsTree({
   const openEdit = (a: Account) => { setEditing(a); setPresetParent(null); setOpen(true); };
   const remove = (a: Account) => startTransition(async () => {
     const r = await deleteAccountAction(a.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
   const initialize = () => startTransition(async () => {
     const r = await initializeChartAction();
-    if (r.ok) toast.success("تم إنشاء دليل الحسابات القياسي"); else toast.error(r.error ?? "تعذّرت التهيئة");
+    if (r.ok) toast.success("تم إنشاء دليل الحسابات القياسي"); else toast.error(r.error ?? t("تعذّرت التهيئة"));
   });
 
   const renderNode = (a: Account, depth: number): React.ReactNode => {

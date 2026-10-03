@@ -49,7 +49,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
       const init: Record<string, string> = {};
       for (const row of r.rows) if (row.autoItemId) init[row.sku] = row.autoItemId;
       setChosen(init);
-      if (r.rows.length === 0) toast.success(live ? "كل منتجات أمازون مربوطة بالفعل 🎉" : "كل أكواد الملف مربوطة بالفعل 🎉");
+      if (r.rows.length === 0) toast.success(live ? t("كل منتجات أمازون مربوطة بالفعل 🎉") : t("كل أكواد الملف مربوطة بالفعل 🎉"));
     });
   };
 
@@ -87,11 +87,11 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{live ? "التحقق من ربط منتجات أمازون" : "ربط أكواد أمازون بالأصناف"}</CardTitle>
+          <CardTitle>{live ? t("التحقق من ربط منتجات أمازون") : t("ربط أكواد أمازون بالأصناف")}</CardTitle>
           <CardDescription>
             {live
-              ? "اضغط «تحقق الآن» لجلب منتجاتك من أمازون ومقارنتها بأصنافك. المنتجات غير المربوطة تظهر بالأسفل — اربط كلاً منها بصنف موجود (يُقترح تلقائياً)، أو أنشئ صنفاً جديداً مباشرة. بعد ما يكون كل شيء مربوطاً تقدر تعمل مزامنة الطلبات والمخزون والمرتجعات بأمان."
-              : "ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)، أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة."}
+              ? t("اضغط «تحقق الآن» لجلب منتجاتك من أمازون ومقارنتها بأصنافك. المنتجات غير المربوطة تظهر بالأسفل — اربط كلاً منها بصنف موجود (يُقترح تلقائياً)، أو أنشئ صنفاً جديداً مباشرة. بعد ما يكون كل شيء مربوطاً تقدر تعمل مزامنة الطلبات والمخزون والمرتجعات بأمان.")
+              : t("ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)، أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -106,7 +106,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
             )}
             <Button onClick={doPreview} disabled={busy || (!live && !file)}>
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
-              {live ? "تحقق الآن" : "فحص الأكواد"}
+              {live ? t("تحقق الآن") : t("فحص الأكواد")}
             </Button>
             {preview && preview.rows.length > 0 && (
               <>

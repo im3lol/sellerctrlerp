@@ -59,7 +59,7 @@ export function ItemCombobox({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
-        placeholder={placeholder ?? "ابحث بالاسم أو الكود أو الباركود…"}
+        placeholder={placeholder ?? t("ابحث بالاسم أو الكود أو الباركود…")}
       />
       {open && (results.length > 0 || pending) && (
         <div className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover shadow-lg">

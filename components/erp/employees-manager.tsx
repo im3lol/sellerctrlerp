@@ -78,7 +78,7 @@ function EmployeeDialog({
   return (
     <DialogContent className="max-w-lg" dir="rtl">
       <DialogHeader>
-        <DialogTitle>{isStandalone && !emp ? "موظف جديد (بدون حساب)" : `بيانات راتب — ${member.name}`}</DialogTitle>
+        <DialogTitle>{isStandalone && !emp ? t("موظف جديد (بدون حساب)") : `بيانات راتب — ${member.name}`}</DialogTitle>
       </DialogHeader>
 
       <div className="grid gap-4">
@@ -101,7 +101,7 @@ function EmployeeDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>{payType === "HOURLY" ? "معدل الساعة" : "الراتب الأساسي"}</Label>
+            <Label>{payType === "HOURLY" ? t("معدل الساعة") : t("الراتب الأساسي")}</Label>
             <Input type="number" min="0" step="0.01" value={basic} onChange={(e) => setBasic(e.target.value)} />
           </div>
         </div>
@@ -137,7 +137,7 @@ function EmployeeDialog({
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button>
+        <Button onClick={save} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -214,7 +214,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
                     <div className="text-xs text-muted-foreground">{m.title ?? m.email}</div>
                   </td>
                   <td className="text-xs">
-                    {emp ? (emp.payType === "HOURLY" ? "بالساعة" : "شهري") : "—"}
+                    {emp ? (emp.payType === "HOURLY" ? t("بالساعة") : t("شهري")) : "—"}
                   </td>
                   <td className="tabular-nums text-xs">
                     {emp ? money(emp.basicSalary) : "—"}
@@ -228,7 +228,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
                   <td>
                     {emp ? (
                       <Badge variant={emp.isActive ? "default" : "secondary"} className="text-xs">
-                        {emp.isActive ? "نشط" : "موقوف"}
+                        {emp.isActive ? t("نشط") : t("موقوف")}
                       </Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">{t("غير مسجّل")}</span>
@@ -243,7 +243,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
                         onClick={() => setEditing(m)}
                       >
                         <UserCog className="me-1 h-3.5 w-3.5" />
-                        {emp ? "تعديل" : "إضافة"}
+                        {emp ? t("تعديل") : t("إضافة")}
                       </Button>
                       {emp && (
                         <Button

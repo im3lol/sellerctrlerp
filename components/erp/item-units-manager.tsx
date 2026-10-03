@@ -42,13 +42,13 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
       const r = await getItemUnitsAction(itemId);
       if (!alive) return;
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر تحميل الوحدات"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر تحميل الوحدات")); return; }
       setRows((r.units ?? []).map(toDraft));
       setAllUoms(r.allUoms ?? []);
       setBaseLabel(r.baseLabel ?? "");
     })();
     return () => { alive = false; };
-  }, [itemId]);
+  }, [itemId, t]);
 
   const addRow = () =>
     setRows((rs) => [...rs, {
@@ -75,7 +75,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
     start(async () => {
       const res = await saveItemUnitsAction({ itemId, units });
       if (res.ok) { toast.success("تم حفظ وحدات الصنف"); router.refresh(); }
-      else toast.error(res.error ?? "تعذّر الحفظ");
+      else toast.error(res.error ?? t("تعذّر الحفظ"));
     });
   };
 

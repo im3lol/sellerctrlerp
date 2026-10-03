@@ -22,7 +22,7 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
 
   const save = () => start(async () => {
     const r = await saveOrgAiKeyAction({ apiKey, model });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
     toast.success("اتحفظ"); setApiKey(""); router.refresh();
   });
 
@@ -35,7 +35,7 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
     if (!go) return;
     start(async () => {
       const r = await removeOrgAiKeyAction();
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الحذف"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الحذف")); return; }
       toast.success("اتشال"); router.refresh();
     });
   })();
@@ -45,12 +45,12 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
       <div className="space-y-2">
         <Label htmlFor="org-ai-key">{t("مفتاح Anthropic API")}</Label>
         <Input id="org-ai-key" type="password" dir="ltr" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-          placeholder={hasKey ? "••••••••  (محفوظ — سيبه فاضي عشان يفضل)" : "sk-ant-…"} />
+          placeholder={hasKey ? t("••••••••  (محفوظ — سيبه فاضي عشان يفضل)") : "sk-ant-…"} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="org-ai-model">{t("الموديل")}</Label>
         <select id="org-ai-model" className={`${selectCls} w-72`} value={model} onChange={(e) => setModel(e.target.value)}>
-          {AI_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          {AI_MODELS.map((m) => <option key={m.id} value={m.id}>{t(m.label)}</option>)}
         </select>
       </div>
       <div className="flex flex-wrap gap-2">

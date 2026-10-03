@@ -54,7 +54,7 @@ export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; 
                 <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.validUntil ? dt(r.validUntil) : "—"}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                 {showSelect && <TableCell><QuotationRowActions id={r.id} number={r.number} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

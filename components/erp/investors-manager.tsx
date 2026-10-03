@@ -41,7 +41,7 @@ function InvestorDialog({ open, onOpenChange, editing }: { open: boolean; onOpen
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مستثمر" : "مستثمر جديد"}</DialogTitle>
+            <DialogTitle>{editing ? t("تعديل مستثمر") : t("مستثمر جديد")}</DialogTitle>
             <DialogDescription>{t("بيانات المستثمر للمؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
@@ -78,7 +78,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
 
   const remove = (inv: Investor) => startTransition(async () => {
     const r = await deleteInvestorAction(inv.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const q = query.trim().toLowerCase();
@@ -133,7 +133,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
                   <TableCell className="font-mono">{inv.code}</TableCell>
                   <TableCell>{inv.fullName}</TableCell>
                   <TableCell dir="ltr" className="text-start">{inv.phone ?? "—"}</TableCell>
-                  <TableCell><Badge variant={inv.status === "active" ? "default" : "secondary"}>{inv.status === "active" ? "نشط" : "غير نشط"}</Badge></TableCell>
+                  <TableCell><Badge variant={inv.status === "active" ? "default" : "secondary"}>{inv.status === "active" ? t("نشط") : t("غير نشط")}</Badge></TableCell>
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">

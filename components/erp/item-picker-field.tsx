@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Input } from "@/components/ui/input";
 
 export type ItemFieldOption = { id: string; label: string; hint?: string };
@@ -23,6 +24,7 @@ export function ItemPickerField({
   placeholder?: string;
   options: ItemFieldOption[];
 }) {
+  const t = useT();
   const [q, setQ] = useState(defaultLabel);
   const [id, setId] = useState(defaultId);
   const [open, setOpen] = useState(false);
@@ -70,7 +72,7 @@ export function ItemPickerField({
                   setOpen(false);
                 }}
               >
-                <span>{o.label}</span>
+                <span>{t(o.label)}</span>
                 {o.hint && <span className="text-xs text-muted-foreground">{o.hint}</span>}
               </button>
             </li>

@@ -61,13 +61,13 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
   const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
   const bulk = (op: "confirm" | "cancel" | "delete" | "deliver") => {
-    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : op === "deliver" ? "تحويل لإذن صرف" : "حذف";
+    const verb = op === "confirm" ? t("تأكيد") : op === "cancel" ? t("إلغاء") : op === "deliver" ? t("تحويل لإذن صرف") : t("حذف");
     void (async () => {
       if (!(await confirm({ title: `${verb} ${int(count)} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
         const r = await bulkSalesOrdersAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
         if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} أمر`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -115,7 +115,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                     <Link href={`/sales/orders/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                     {r.externalOrderId && (
                       <div className="mt-0.5 flex items-center gap-1">
-                        {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{CHANNEL_LABEL[r.channel]}</Badge>}
+                        {r.channel && CHANNEL_LABEL[r.channel] && <Badge variant="secondary" className="text-[10px]">{t(CHANNEL_LABEL[r.channel])}</Badge>}
                         {r.fulfillmentType && <Badge variant="outline" className="text-[10px]" title={t("قناة التنفيذ")}>{r.fulfillmentType}</Badge>}
                         {r.channelStatus && CHANNEL_STATUS[r.channelStatus] && (
                           <Badge variant={CHANNEL_STATUS[r.channelStatus].variant} className={`text-[10px] ${CHANNEL_STATUS[r.channelStatus].cls ?? ""}`}>
@@ -131,7 +131,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div>
+                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div>
                       {showBar && (
                         <div className="flex items-center gap-2">
                           <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
@@ -156,7 +156,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

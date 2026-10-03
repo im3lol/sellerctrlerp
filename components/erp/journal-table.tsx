@@ -86,9 +86,9 @@ export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows
                 </TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{SOURCE[r.sourceType ?? ""] ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{t(SOURCE[r.sourceType ?? ""] ?? "—")}</TableCell>
                 <TableCell className="tabular-nums">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
               </TableRow>
             );
           })}

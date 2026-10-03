@@ -80,7 +80,7 @@ function CreatePlatformDialog({
   const provision = (fulfillment?: string) => start(async () => {
     const r = await provisionMarketplaceAction({ connector: autoConnector!, fulfillment });
     if (r.ok) { toast.success("تم التجهيز: عميل + مخزن + بنك التسويات — اربط الحساب من صفحة المنصة"); onClose(); router.push(`/platforms/${r.code ?? autoConnector!.toLowerCase()}`); }
-    else toast.error(r.error ?? "تعذّر التجهيز");
+    else toast.error(r.error ?? t("تعذّر التجهيز"));
   });
 
   const save = () => {
@@ -98,18 +98,18 @@ function CreatePlatformDialog({
         bankAccountId: bankAccountId === "__new__" ? null : (bankAccountId || null),
       });
       if (r.ok) { toast.success("تم إنشاء المنصة وعميلها"); onClose(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
-        <DialogTitle>{mode === "auto" ? "ربط آلي" : mode === "manual" ? "منصة يدوية" : "منصة بيع جديدة"}</DialogTitle>
+        <DialogTitle>{mode === "auto" ? t("ربط آلي") : mode === "manual" ? t("منصة يدوية") : t("منصة بيع جديدة")}</DialogTitle>
         <DialogDescription>
-          {mode === "choose" ? "اختر طريقة الإضافة."
-            : mode === "auto" ? "اختر المنصة ونوع التنفيذ — يتم التجهيز تلقائيًا."
-            : "سيُنشأ عميل تلقائيًا بنفس اسم المنصة، وتُضبط بقية الإعدادات لاحقًا من صفحة الإعدادات."}
+          {mode === "choose" ? t("اختر طريقة الإضافة.")
+            : mode === "auto" ? t("اختر المنصة ونوع التنفيذ — يتم التجهيز تلقائيًا.")
+            : t("سيُنشأ عميل تلقائيًا بنفس اسم المنصة، وتُضبط بقية الإعدادات لاحقًا من صفحة الإعدادات.")}
         </DialogDescription>
       </DialogHeader>
 
@@ -132,7 +132,7 @@ function CreatePlatformDialog({
                 <button key={b.code} type="button" disabled={!on} onClick={() => on && setAutoConnector(b.code)} className={`relative flex items-center justify-center rounded-xl border p-4 transition-colors ${on ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
                   {/* Fixed box + object-contain → every logo occupies the same width AND height regardless of its native aspect ratio. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={b.logo} alt={b.label} className="h-8 w-28 object-contain dark:invert" />
+                  <img src={b.logo} alt={t(b.label)} className="h-8 w-28 object-contain dark:invert" />
                   {!on && <Badge variant="secondary" className="absolute start-1.5 top-1.5">{t("قريبًا")}</Badge>}
                 </button>
               );
@@ -148,7 +148,7 @@ function CreatePlatformDialog({
           <div className="grid gap-2">
             {FULFILLMENTS.map((f) => (
               <button key={f.code} type="button" disabled={!f.active || pending} onClick={() => f.active && provision(f.code)} className={`${tileCls} ${f.active ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
-                <span className="font-mono text-base font-bold">{f.label}</span>
+                <span className="font-mono text-base font-bold">{t(f.label)}</span>
                 <span className="flex-1 text-sm text-muted-foreground">{f.hint}</span>
                 {!f.active && <Badge variant="secondary">{t("قريبًا")}</Badge>}
                 {f.active && pending && <Loader2 className="size-4 animate-spin" />}
@@ -183,9 +183,9 @@ function CreatePlatformDialog({
                     className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs transition-colors ${active ? "border-primary bg-primary/5" : "hover:border-primary"}`}>
                     {p.logo
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={p.logo} alt={p.label} className="h-6 w-16 object-contain dark:invert" />
-                      : <span className="text-sm font-bold">{p.label}</span>}
-                    <span className="text-muted-foreground">{p.label}</span>
+                      ? <img src={p.logo} alt={t(p.label)} className="h-6 w-16 object-contain dark:invert" />
+                      : <span className="text-sm font-bold">{t(p.label)}</span>}
+                    <span className="text-muted-foreground">{t(p.label)}</span>
                   </button>
                 );
               })}
@@ -246,7 +246,7 @@ export function PlatformsManager({
 
   const toggle = (id: string) => start(async () => {
     const r = await togglePlatformActiveAction(id);
-    if (r.ok) router.refresh(); else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) router.refresh(); else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
 
   return (
@@ -284,7 +284,7 @@ export function PlatformsManager({
                       </div>
                       <div>
                         {available ? <Link href={detail} className="font-semibold hover:text-primary">{p.name}</Link> : <span className="font-semibold">{p.name}</span>}
-                        <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {TYPE_LABEL[p.integrationType] ?? p.integrationType}</div>
+                        <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {t(TYPE_LABEL[p.integrationType] ?? p.integrationType)}</div>
                       </div>
                     </div>
                     {!available ? <Badge variant="secondary">{t("قريبًا")}</Badge>
@@ -296,7 +296,7 @@ export function PlatformsManager({
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <div>{t("المخزن:")} <span className="text-foreground">{p.warehouseName ?? "—"}</span></div>
                     <div>{t("العميل:")} <span className="text-foreground">{p.customerName ?? "—"}</span></div>
-                    <div>{t("آخر مزامنة:")} <span className="text-foreground">{last ?? "لم تتم بعد"}</span></div>
+                    <div>{t("آخر مزامنة:")} <span className="text-foreground">{last ?? t("لم تتم بعد")}</span></div>
                   </div>
 
                   <div className="flex gap-2 border-t pt-3">
@@ -310,7 +310,7 @@ export function PlatformsManager({
                           <Link href={`${detail}/settings`}><Settings className="size-4" />{t("إعدادات")}</Link>
                         </Button>
                         <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(p.id)}>
-                          {p.isActive ? "إيقاف" : "تفعيل"}
+                          {p.isActive ? t("إيقاف") : t("تفعيل")}
                         </Button>
                       </>
                     )}

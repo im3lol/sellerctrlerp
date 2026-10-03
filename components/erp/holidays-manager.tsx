@@ -31,14 +31,14 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
     start(async () => {
       const r = await createHolidayAction({ date, nameAr });
       if (r.ok) { toast.success("تمت الإضافة"); setNameAr(""); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
   const remove = (id: string) =>
     start(async () => {
       const r = await deleteHolidayAction(id);
       if (r.ok) { toast.success("تم الحذف"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
 
   return (

@@ -41,7 +41,7 @@ export function DeliveryForm({
   const [orderId, setOrderId] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [channel, setChannel] = useState("");
-  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? "كود نون" : "";
+  const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? t("كود نون") : "";
 
   const customerOrders = useMemo(() => openOrders.filter((o) => o.customerId === customerId), [openOrders, customerId]);
   const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
@@ -56,7 +56,7 @@ export function DeliveryForm({
     if (!id) return;
     startLoad(async () => {
       const r = await getDeliverableOrderLinesAction(id);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر استدعاء الأمر"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر استدعاء الأمر")); return; }
       if (r.lines.length === 0) { toast.message("تم تسليم كل أصناف هذا الأمر"); return; }
       const def = r.defaultWarehouseId ?? warehouses[0]?.id ?? "";
       setChannel(r.channel ?? "");
@@ -83,7 +83,7 @@ export function DeliveryForm({
         toast.success("تم حفظ إذن الصرف (مسودة) — أكّده لترحيله");
         router.push(r.id ? `/sales/deliveries/${r.id}` : "/sales/deliveries");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -120,14 +120,14 @@ export function DeliveryForm({
           <div className="space-y-2">
             <Label>{t("استدعاء أمر بيع")}</Label>
             <select className={selectCls} value={orderId} disabled={!customerId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{customerId ? "— اختر أمراً مفتوحاً —" : "اختر العميل أولاً"}</option>
+              <option value="">{customerId ? t("— اختر أمراً مفتوحاً —") : t("اختر العميل أولاً")}</option>
               {customerOrders.map((o) => <option key={o.id} value={o.id}>{o.number} — {o.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الأمر…")}</span>
-              : customerId && customerOrders.length === 0 ? "لا توجد أوامر بيع مفتوحة لهذا العميل."
-              : "تنزل أصناف الأمر المتبقّية (غير المسلّمة) في الجدول."}
+              : customerId && customerOrders.length === 0 ? t("لا توجد أوامر بيع مفتوحة لهذا العميل.")
+              : t("تنزل أصناف الأمر المتبقّية (غير المسلّمة) في الجدول.")}
           </div>
         </div>
 

@@ -70,7 +70,7 @@ export function ReportSwitcher({
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }}>
       <DialogTrigger className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent">
         <Icon name="ChartColumn" className="size-4 text-muted-foreground" />
-        <span className="font-medium">{currentLabel ?? "التقارير"}</span>
+        <span className="font-medium">{currentLabel ?? t("التقارير")}</span>
         <Icon name="ChevronDown" className="size-4 text-muted-foreground" />
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
@@ -84,7 +84,7 @@ export function ReportSwitcher({
               <div key={m.key} className="space-y-1">
                 <div className="flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <Icon name={m.icon} className="size-3.5" />
-                  {m.label}
+                  {t(m.label)}
                 </div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {m.reports.map((r) => (
@@ -97,7 +97,7 @@ export function ReportSwitcher({
                         r.view === current ? "bg-primary text-primary-foreground" : "hover:bg-accent",
                       )}
                     >
-                      <span className="min-w-0 flex-1 truncate">{r.label}</span>
+                      <span className="min-w-0 flex-1 truncate">{t(r.label)}</span>
                       {r.view === current && <Icon name="Check" className="size-4 shrink-0" />}
                     </Link>
                   ))}

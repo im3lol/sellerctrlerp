@@ -114,7 +114,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
               {period && <div>{period}</div>}
               <div>{t("طُبع في")} <b style={{ color: T.ink }}>{printedAt}</b></div>
               {filters.map((f) => (
-                <div key={f.label}>{f.label}: <b style={{ color: T.ink }}>{f.value}</b></div>
+                <div key={f.label}>{t(f.label)}: <b style={{ color: T.ink }}>{f.value}</b></div>
               ))}
             </div>
           </div>
@@ -125,7 +125,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
           <div className="mb-6 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)}, 1fr)` }}>
             {kpis.map((k) => (
               <div key={k.label} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 9.5, color: T.muted }}>{k.label}</div>
+                <div style={{ fontSize: 9.5, color: T.muted }}>{t(k.label)}</div>
                 <div style={{
                   fontSize: 14, fontWeight: 800, marginTop: 2,
                   color: k.tone === "danger" ? T.danger : k.tone === "success" ? T.success : T.ink,
@@ -145,7 +145,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
               <thead>
                 <tr>
                   {s.columns.map((c) => (
-                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{c.label}</th>
+                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{t(c.label)}</th>
                   ))}
                 </tr>
               </thead>

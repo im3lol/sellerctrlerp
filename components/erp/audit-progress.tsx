@@ -58,7 +58,7 @@ export function AuditProgress({ code, open, onClose }: { code: string; open: boo
         <div className="min-w-0 flex-1">
           {running && <span>{t("جاري مطابقة مخزون FBA مع النظام… (قد يستغرق دقائق)")}</span>}
           {st.phase === "done" && <span className="text-muted-foreground">{t("تم:")} <b>{st.totalSkus ?? 0}</b> صنف · {st.withDiff ?? 0} فرق. <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("افتح التقرير")}</Link></span>}
-          {st.phase === "error" && <span className="text-destructive">{st.error ?? "فشل التدقيق"}</span>}
+          {st.phase === "error" && <span className="text-destructive">{st.error ?? t("فشل التدقيق")}</span>}
         </div>
       </div>
 

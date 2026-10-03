@@ -64,7 +64,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
     const r = await uploadItemImageAction(fd);
     setUploading(false);
     if (r.ok && r.url) { setImage(r.url); toast.success("تم رفع الصورة"); }
-    else toast.error(r.error ?? "تعذّر رفع الصورة");
+    else toast.error(r.error ?? t("تعذّر رفع الصورة"));
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -85,7 +85,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         toast.success("تم حفظ الصنف");
         router.push(r.id ? `/inventory/items/${r.id}` : "/inventory/items");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
@@ -154,7 +154,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
               <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                <Icon name={uploading ? "Loader2" : "Upload"} className={`size-4 ${uploading ? "animate-spin" : ""}`} />{uploading ? "جارٍ الرفع…" : "رفع صورة"}
+                <Icon name={uploading ? "Loader2" : "Upload"} className={`size-4 ${uploading ? "animate-spin" : ""}`} />{uploading ? t("جارٍ الرفع…") : t("رفع صورة")}
               </Button>
               {image && <Button type="button" variant="ghost" size="sm" onClick={() => setImage("")}>{t("إزالة")}</Button>}
             </div>
@@ -204,7 +204,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           {codes.map((c, i) => (
             <div key={i} className="flex gap-2">
               <select className={`${selectCls} w-32`} value={c.codeType} onChange={(e) => setCodeRow(i, { codeType: e.target.value })}>
-                {CODE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {CODE_TYPES.map((it) => <option key={it} value={it}>{t(it)}</option>)}
               </select>
               <Input value={c.code} onChange={(e) => setCodeRow(i, { code: e.target.value })} placeholder={t("القيمة")} />
               <Button type="button" variant="ghost" size="icon" aria-label={t("حذف")} onClick={() => removeCode(i)}><Icon name="Trash2" className="size-4 text-destructive" /></Button>

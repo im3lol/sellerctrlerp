@@ -15,7 +15,7 @@ export function LeaveRequestRowActions({ id, status, canManage }: { id: string; 
   if (!canManage || status !== "DRAFT") return null;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) =>
-    start(async () => { const r = await fn(); if (r.ok) { toast.success(ok); router.refresh(); } else toast.error(r.error ?? "تعذّر التنفيذ"); });
+    start(async () => { const r = await fn(); if (r.ok) { toast.success(ok); router.refresh(); } else toast.error(r.error ?? t("تعذّر التنفيذ")); });
 
   return (
     <div className="flex gap-1">

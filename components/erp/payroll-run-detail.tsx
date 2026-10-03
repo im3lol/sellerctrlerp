@@ -86,7 +86,7 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button variant="destructive" onClick={confirm} disabled={pending}>
-          {pending ? "جارٍ العكس…" : "تأكيد العكس"}
+          {pending ? t("جارٍ العكس…") : t("تأكيد العكس")}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -132,7 +132,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             {run.status === "DRAFT" && (
               <Button size="sm" onClick={confirmRun} disabled={pending}>
                 <CheckCircle className="me-1.5 h-4 w-4" />
-                {pending ? "جارٍ الترحيل…" : "ترحيل وتسجيل القيد"}
+                {pending ? t("جارٍ الترحيل…") : t("ترحيل وتسجيل القيد")}
               </Button>
             )}
             {run.status === "POSTED" && (
@@ -154,7 +154,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             { label: "صافي المدفوعات",  value: money(run.totalNet), highlight: true },
           ].map((s) => (
             <div key={s.label} className="rounded-lg bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{t(s.label)}</p>
               <p className={`mt-0.5 text-lg font-semibold tabular-nums ${s.highlight ? "text-primary" : ""}`}>
                 {s.value}
               </p>

@@ -47,7 +47,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
     setLoading(true);
     void listInspectionsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
       setStats(r.stats ?? null);
     });
@@ -82,15 +82,15 @@ export function QualityManager({ items, canDecide, canEdit }: {
           toast.success(r.transferNumber ? `تم الإفراج بتحويل ${r.transferNumber}` : "تم تسجيل القرار");
           setDeciding(null);
           load();
-        } else toast.error(r.error ?? "تعذّر التسجيل");
+        } else toast.error(r.error ?? t("تعذّر التسجيل"));
       });
     })();
 
   const flagItem = (itemId: string, requires: boolean) =>
     start(async () => {
       const r = await setItemInspectionAction(itemId, requires);
-      if (r.ok) { toast.success(requires ? "الصنف بقى تحت الفحص" : "اتشال من الفحص"); load(); }
-      else toast.error(r.error ?? "تعذّر التعديل");
+      if (r.ok) { toast.success(requires ? t("الصنف بقى تحت الفحص") : t("اتشال من الفحص")); load(); }
+      else toast.error(r.error ?? t("تعذّر التعديل"));
     });
 
   const pendingRows = rows.filter((r) => r.status === "PENDING");
@@ -145,7 +145,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
               <div className="flex flex-wrap gap-2">
                 {flagged.map((i) => (
                   <span key={i.id} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-sm">
-                    {i.label}
+                    {t(i.label)}
                     <button type="button" aria-label={t("إزالة")} className="text-muted-foreground hover:text-destructive"
                       onClick={() => flagItem(i.id, false)}>×</button>
                   </span>
@@ -199,7 +199,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
       <Card>
         <CardHeader>
           <CardTitle>{t("طابور الفحص")}</CardTitle>
-          <CardDescription>{loading ? "جارٍ التحميل…" : `${pendingRows.length} في الانتظار · ${rows.length} إجمالاً`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : `${pendingRows.length} في الانتظار · ${rows.length} إجمالاً`}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
@@ -243,7 +243,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
                       <TableCell className="text-xs text-muted-foreground">{r.targetName}</TableCell>
                       <TableCell>
                         <Badge variant={r.status === "PENDING" ? "outline" : "secondary"}>
-                          {r.status === "PENDING" ? "في الحجر" : "تم البتّ"}
+                          {r.status === "PENDING" ? t("في الحجر") : t("تم البتّ")}
                         </Badge>
                       </TableCell>
                       {canDecide && (

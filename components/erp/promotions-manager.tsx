@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
+import type { T } from "@/lib/i18n";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -38,12 +39,12 @@ const blank = {
 };
 
 /** How the rule reads in one line — the shop owner should not have to decode the columns. */
-function describe(p: Promotion): string {
-  const on = p.itemId ? "على الصنف" : "على الفاتورة كلها";
+function describe(p: Promotion, t: T): string {
+  const on = p.itemId ? t("على الصنف") : t("على الفاتورة كلها");
   const min = p.minAmount > 0 ? ` فوق ${money(p.minAmount)}` : p.minQuantity > 0 ? ` من ${p.minQuantity} قطعة` : "";
   switch (p.type) {
     case "PERCENT": return `خصم ${p.value}٪ ${on}${min}`;
-    case "AMOUNT": return `خصم ${money(p.value)} ${p.itemId ? "لكل قطعة" : "على الفاتورة"}${min}`;
+    case "AMOUNT": return `خصم ${money(p.value)} ${p.itemId ? t("لكل قطعة") : t("على الفاتورة")}${min}`;
     case "BUY_X_GET_Y": return `اشترِ ${p.buyQty} تاخد ${p.getQty} ببلاش`;
   }
 }
@@ -75,7 +76,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         startsAt: form.startsAt || null, endsAt: form.endsAt || null,
         priority: Number(form.priority) || 0, isActive: form.isActive, notes: form.notes || null,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
       toast.success("اتحفظ");
       setForm(null);
       router.refresh();
@@ -93,7 +94,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
       start(async () => {
         const r = await deletePromotionAction(row.id);
         if (r.ok) { toast.success("اتمسح"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر المسح");
+        else toast.error(r.error ?? t("تعذّر المسح"));
       });
     })();
 
@@ -105,7 +106,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         minRedeem: Number(prog.minRedeem) || 0,
       });
       if (r.ok) { toast.success("اتحفظ"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   const earn = Number(prog.earnRate) || 0;
@@ -141,14 +142,14 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                 <div className="space-y-2">
                   <Label>{t("النوع")}</Label>
                   <select className={selectCls} value={form.type} onChange={(e) => set("type", e.target.value)}>
-                    {(Object.keys(TYPE_LABEL) as Promotion["type"][]).map((t) => (
-                      <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                    {(Object.keys(TYPE_LABEL) as Promotion["type"][]).map((it) => (
+                      <option key={it} value={it}>{t(TYPE_LABEL[it])}</option>
                     ))}
                   </select>
                 </div>
                 {form.type !== "BUY_X_GET_Y" ? (
                   <div className="space-y-2">
-                    <Label>{form.type === "PERCENT" ? "النسبة ٪" : "المبلغ"}</Label>
+                    <Label>{form.type === "PERCENT" ? t("النسبة ٪") : t("المبلغ")}</Label>
                     <Input type="number" step="0.01" min="0" value={form.value} onChange={(e) => set("value", e.target.value)} />
                   </div>
                 ) : (
@@ -221,9 +222,9 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                       <TableCell className="font-mono text-xs">{r.code}</TableCell>
                       <TableCell>
                         <div className="font-medium">{r.nameAr}</div>
-                        <div className="text-xs text-muted-foreground">{describe(r)}</div>
+                        <div className="text-xs text-muted-foreground">{describe(r, t)}</div>
                       </TableCell>
-                      <TableCell className="text-sm">{r.itemLabel ?? "الفاتورة كلها"}</TableCell>
+                      <TableCell className="text-sm">{r.itemLabel ?? t("الفاتورة كلها")}</TableCell>
                       <TableCell className="text-xs tabular-nums">
                         {r.startsAt || r.endsAt ? `${r.startsAt || "—"} ← ${r.endsAt || "—"}` : "دائم"}
                       </TableCell>

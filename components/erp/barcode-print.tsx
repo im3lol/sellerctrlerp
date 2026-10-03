@@ -109,7 +109,7 @@ export function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: bo
       ) : (
         <select className={selectCls} value={printer} onChange={(e) => setPrinter(e.target.value)} disabled={qzOk === null}>
           {qzOk === null && <option>{t("جاري الاتصال بـ QZ Tray…")}</option>}
-          {printers.map((p) => <option key={p} value={p}>{p}</option>)}
+          {printers.map((p) => <option key={p} value={p}>{t(p)}</option>)}
         </select>
       )}
     </div>
@@ -178,7 +178,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("الكود")}</label>
               <select className={selectCls} value={sel} onChange={(e) => setSel(Number(e.target.value))}>
-                {codes.map((c, i) => <option key={i} value={i}>{c.label} — {c.value}</option>)}
+                {codes.map((c, i) => <option key={i} value={i}>{t(c.label)} — {c.value}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -286,7 +286,7 @@ export function BulkBarcodePrintButton({
               <label className="text-sm font-medium">{t("الكود لكل الأصناف")}</label>
               <select className={selectCls} defaultValue="" onChange={(e) => { if (e.target.value) applyGlobal(e.target.value); }}>
                 <option value="">{t("— اختر ثم عدّل أي صنف —")}</option>
-                {codeLabels.map((l) => <option key={l} value={l}>{l}</option>)}
+                {codeLabels.map((l) => <option key={l} value={l}>{t(l)}</option>)}
               </select>
             </div>
             <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
@@ -308,7 +308,7 @@ export function BulkBarcodePrintButton({
                     <td className="max-w-[200px] p-2"><div className="line-clamp-2 leading-snug" title={r.itemName}>{r.itemName}</div></td>
                     <td className="p-2">
                       <select className={selectCls} value={r.sel} disabled={!r.include} onChange={(e) => patch(i, { sel: Number(e.target.value) })}>
-                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{c.label} — {c.value}</option>)}
+                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{t(c.label)} — {c.value}</option>)}
                       </select>
                     </td>
                     <td className="p-2">
@@ -317,7 +317,7 @@ export function BulkBarcodePrintButton({
                         className="h-8 w-20 rounded-md border bg-background px-2 text-sm" />
                     </td>
                     <td className="p-2">
-                      <Button variant="ghost" size="icon" onClick={() => patch(i, { include: !r.include })} aria-label={r.include ? "استبعاد" : "إرجاع"}>
+                      <Button variant="ghost" size="icon" onClick={() => patch(i, { include: !r.include })} aria-label={r.include ? t("استبعاد") : t("إرجاع")}>
                         {r.include ? <Trash2 className="size-4 text-destructive" /> : <RotateCcw className="size-4 text-muted-foreground" />}
                       </Button>
                     </td>

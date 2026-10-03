@@ -32,7 +32,7 @@ export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }:
       damagedWarehouseId: cond === "DAMAGED" && dest2 ? dest2 : null,
     });
     if (r.ok) { toast.success("تم تأكيد المرتجع وترحيله"); router.push(dest); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الترحيل");
+    else toast.error(r.error ?? t("تعذّر الترحيل"));
   });
 
   const doDelete = () => void (async () => {
@@ -40,7 +40,7 @@ export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }:
     start(async () => {
       const r = await deleteSalesReturnAction(id);
       if (r.ok) { toast.success("تم حذف المرتجع"); router.push(dest); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
   })();
 

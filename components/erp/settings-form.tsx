@@ -76,7 +76,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
         <Button type="button" variant="outline" size="sm" disabled={disabled || busy}
           onClick={() => fileRef.current?.click()}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-          {busy ? "جارٍ الرفع…" : url ? "تغيير" : "رفع شعار"}
+          {busy ? t("جارٍ الرفع…") : url ? t("تغيير") : t("رفع شعار")}
         </Button>
         {url && (
           <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => setUrl("")}>
@@ -173,7 +173,7 @@ export function SettingsForm({
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {STUCK_RULES.map((r) => (
                       <div key={r.key} className="space-y-1">
-                        <Label htmlFor={`st_${r.key}`}>{r.label} (يوم)</Label>
+                        <Label htmlFor={`st_${r.key}`}>{t(r.label)} (يوم)</Label>
                         <Input id={`st_${r.key}`} name={`st_${r.key}`} type="number" min="0" max="365" step="1"
                           defaultValue={profile.stuckDays[r.key]} placeholder={String(r.def)} dir="ltr" />
                       </div>

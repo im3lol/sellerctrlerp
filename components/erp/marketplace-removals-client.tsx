@@ -29,7 +29,7 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
     setBusy(id);
     const r = await confirmRemovalAction(id, outcome);
     if ("error" in r) toast.error(r.error);
-    else { setRows((rs) => rs.filter((x) => x.id !== id)); toast.success(outcome === "IGNORE" ? "تم التجاهل" : "تمّت المعالجة"); }
+    else { setRows((rs) => rs.filter((x) => x.id !== id)); toast.success(outcome === "IGNORE" ? t("تم التجاهل") : t("تمّت المعالجة")); }
     setBusy(null);
   });
 

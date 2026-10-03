@@ -76,7 +76,7 @@ export function AutomationEditor({ rule, members, roles }: {
 
   const save = () => start(async () => {
     const r = await saveRuleAction({ id: rule?.id, name, enabled, spec });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
     toast.success("اتحفظت");
     router.push("/automation");
     router.refresh();
@@ -94,7 +94,7 @@ export function AutomationEditor({ rule, members, roles }: {
           </div>
           <label className="flex items-center gap-2 pb-2 text-sm">
             <Switch checked={enabled} onCheckedChange={setEnabled} />
-            {enabled ? "شغّالة" : "متوقفة"}
+            {enabled ? t("شغّالة") : t("متوقفة")}
           </label>
         </CardContent>
       </Card>
@@ -108,14 +108,14 @@ export function AutomationEditor({ rule, members, roles }: {
           <div className="space-y-2">
             <Label>{t("المستند")}</Label>
             <select className={`${selectCls} w-52`} value={entity} onChange={(e) => changeEntity(e.target.value)}>
-              {Object.entries(DOCS).map(([k, d]) => <option key={k} value={k}>{d.label}</option>)}
+              {Object.entries(DOCS).map(([k, d]) => <option key={k} value={k}>{t(d.label)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <Label>{t("الحدث")}</Label>
             <select className={`${selectCls} w-52`} value={spec.trigger.event}
               onChange={(e) => setSpec((s) => ({ ...s, trigger: { ...s.trigger, event: e.target.value as AutoEvent } }))}>
-              {(Object.keys(EVENT_LABEL) as AutoEvent[]).map((k) => <option key={k} value={k}>{EVENT_LABEL[k]}</option>)}
+              {(Object.keys(EVENT_LABEL) as AutoEvent[]).map((k) => <option key={k} value={k}>{t(EVENT_LABEL[k])}</option>)}
             </select>
           </div>
         </CardContent>
@@ -126,7 +126,7 @@ export function AutomationEditor({ rule, members, roles }: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle className="text-base">{t("لو")}</CardTitle>
-              <CardDescription>من غير شروط = كل {def?.label ?? "مستند"}.</CardDescription>
+              <CardDescription>من غير شروط = كل {def?.label ?? t("مستند")}.</CardDescription>
             </div>
             {spec.conditions.length > 1 && (
               <select className={`${selectCls} w-40`} value={spec.match}
@@ -148,10 +148,10 @@ export function AutomationEditor({ rule, members, roles }: {
                     const t = typeOf(e.target.value);
                     setCond(i, { field: e.target.value, op: OPS_FOR[t].includes(c.op) ? c.op : OPS_FOR[t][0] });
                   }}>
-                  {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  {fields.map((f) => <option key={f.key} value={f.key}>{t(f.label)}</option>)}
                 </select>
                 <select className={`${selectCls} w-44`} value={c.op} onChange={(e) => setCond(i, { op: e.target.value as Op })}>
-                  {OPS_FOR[type].map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
+                  {OPS_FOR[type].map((o) => <option key={o} value={o}>{t(OP_LABEL[o])}</option>)}
                 </select>
                 {!noValue && (
                   <Input className="w-48" dir={type === "text" ? undefined : "ltr"}
@@ -183,7 +183,7 @@ export function AutomationEditor({ rule, members, roles }: {
           {spec.actions.map((a, i) => (
             <div key={i} className="space-y-3 rounded-xl border p-3">
               <div className="flex items-center justify-between gap-2">
-                <Badge variant="secondary">{ACTION_LABEL[a.type]}</Badge>
+                <Badge variant="secondary">{t(ACTION_LABEL[a.type])}</Badge>
                 <Button size="icon" variant="ghost" aria-label={t("شيل الإجراء")} onClick={() => removeAction(i)}>
                   <Icon name="X" className="size-4 text-destructive" />
                 </Button>
@@ -201,7 +201,7 @@ export function AutomationEditor({ rule, members, roles }: {
                       <label key={r.value} className="flex items-center gap-2">
                         <input type="checkbox" className="size-4" checked={(a.to.roles ?? []).includes(r.value)}
                           onChange={() => setAction(i, { ...a, to: { ...a.to, roles: toggleIn(a.to.roles, r.value) } })} />
-                        كل «{r.label}»
+                        كل «{t(r.label)}»
                       </label>
                     ))}
                   </div>
@@ -259,7 +259,7 @@ export function AutomationEditor({ rule, members, roles }: {
                     <div className="flex flex-wrap items-center gap-2">
                       <Input dir="ltr" type="password" autoComplete="new-password" className="max-w-xs"
                         value={a.secret === SECRET_KEPT ? "" : (a.secret ?? "")}
-                        placeholder={a.secret === SECRET_KEPT ? "محفوظ — اكتب جديد لتغييره" : "مفتاح توقيع (اختياري)"}
+                        placeholder={a.secret === SECRET_KEPT ? t("محفوظ — اكتب جديد لتغييره") : t("مفتاح توقيع (اختياري)")}
                         onChange={(e) => setAction(i, { ...a, secret: e.target.value || (kept ? SECRET_KEPT : undefined) })} />
                       {a.secret === SECRET_KEPT && (
                         <Button size="sm" variant="ghost" onClick={() => setAction(i, { type: "webhook", url: a.url })}>{t("شيل المفتاح")}</Button>
@@ -282,8 +282,8 @@ export function AutomationEditor({ rule, members, roles }: {
             }}>
             <option value="">{t("+ ضيف إجراء…")}</option>
             {(Object.keys(ACTION_LABEL) as Action["type"][])
-              .filter((t) => def?.chatter || (t !== "followUp" && t !== "comment"))
-              .map((t) => <option key={t} value={t}>{ACTION_LABEL[t]}</option>)}
+              .filter((it) => def?.chatter || (it !== "followUp" && it !== "comment"))
+              .map((it) => <option key={it} value={it}>{t(ACTION_LABEL[it])}</option>)}
           </select>
         </CardContent>
       </Card>
@@ -302,12 +302,12 @@ export function AutomationEditor({ rule, members, roles }: {
           </div>
           {test && (test.ok ? (
             <div className="space-y-2 rounded-lg border p-3 text-sm">
-              <div className="font-medium">{test.matched ? "✅ الشروط اتحققت — هيتنفّذ:" : "⏸ الشروط ماتحققتش — مش هيحصل حاجة."}</div>
+              <div className="font-medium">{test.matched ? t("✅ الشروط اتحققت — هيتنفّذ:") : t("⏸ الشروط ماتحققتش — مش هيحصل حاجة.")}</div>
               {test.matched && <ul className="list-disc space-y-1 ps-5">{(test.lines ?? []).map((l, k) => <li key={k}>{l}</li>)}</ul>}
               <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer">{t("بيانات المستند")}</summary>
                 <div className="mt-2 grid gap-1 sm:grid-cols-2">
-                  {fields.map((f) => <div key={f.key}>{f.label}: <b>{String(test.facts?.[f.key] ?? "—")}</b></div>)}
+                  {fields.map((f) => <div key={f.key}>{t(f.label)}: <b>{String(test.facts?.[f.key] ?? "—")}</b></div>)}
                 </div>
               </details>
             </div>

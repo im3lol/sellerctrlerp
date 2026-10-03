@@ -27,7 +27,7 @@ export async function AgingTable({
         <TableRow>
           <TableHead className="text-start">{partyLabel}</TableHead>
           {AGING_BUCKETS.map((b) => (
-            <TableHead key={b} className="text-start">{BUCKET_LABELS[b]}</TableHead>
+            <TableHead key={b} className="text-start">{t(BUCKET_LABELS[b])}</TableHead>
           ))}
           <TableHead className="text-start">{t("الإجمالي")}</TableHead>
         </TableRow>

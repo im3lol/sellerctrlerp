@@ -53,7 +53,7 @@ function YearClosingDialog({
   function run() {
     startTransition(async () => {
       const res = await runYearClosingAction(period.id);
-      if (!res.ok) { toast.error(res.error ?? "فشل إقفال السنة"); return; }
+      if (!res.ok) { toast.error(res.error ?? t("فشل إقفال السنة")); return; }
       toast.success("تم إقفال السنة المالية وترحيل قيود الإقفال");
       onClose();
       router.refresh();
@@ -121,7 +121,7 @@ function YearClosingDialog({
           {/* Net result */}
           <div className={`flex items-center justify-between rounded-xl border p-4 ${preview.netIncome >= 0 ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20" : "border-destructive/20 bg-destructive/5"}`}>
             <span className="font-semibold">
-              {preview.netIncome >= 0 ? "صافي ربح → يُضاف لـ 3001 أرباح محتجزة" : "صافي خسارة → يُخصَم من 3001 أرباح محتجزة"}
+              {preview.netIncome >= 0 ? t("صافي ربح → يُضاف لـ 3001 أرباح محتجزة") : t("صافي خسارة → يُخصَم من 3001 أرباح محتجزة")}
             </span>
             <span className={`text-xl font-bold tabular-nums ${preview.netIncome >= 0 ? "text-emerald-700" : "text-destructive"}`}>
               {fmt(Math.abs(preview.netIncome))}
@@ -137,7 +137,7 @@ function YearClosingDialog({
         {preview && (
           <Button onClick={run} disabled={pending}>
             <Icon name="Lock" className="me-1.5 size-4" />
-            {pending ? "جارٍ الإقفال…" : "تأكيد إقفال السنة"}
+            {pending ? t("جارٍ الإقفال…") : t("تأكيد إقفال السنة")}
           </Button>
         )}
       </DialogFooter>
@@ -155,7 +155,7 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
     start(async () => {
       const r = await setPeriodStatusAction(id, status);
       if (r.ok) { toast.success("تم تحديث الفترة"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التحديث");
+      else toast.error(r.error ?? t("تعذّر التحديث"));
     });
 
   return (
@@ -187,7 +187,7 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>{dt(p.startDate)}</TableCell>
                       <TableCell>{dt(p.endDate)}</TableCell>
-                      <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                      <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">

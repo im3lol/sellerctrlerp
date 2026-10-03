@@ -29,8 +29,8 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
 
   const decide = (decision: "APPROVE" | "REJECT") => start(async () => {
     const r = await decideApprovalAction(requestId, decision, comment);
-    if (r.ok) { toast.success(decision === "APPROVE" ? "تم الاعتماد" : "تم الرفض"); setRejecting(false); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) { toast.success(decision === "APPROVE" ? t("تم الاعتماد") : t("تم الرفض")); setRejecting(false); router.refresh(); }
+    else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
 
   if (rejecting) {
@@ -95,7 +95,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
       <Icon name={approved ? "CheckCircle2" : "XCircle"} className="mt-0.5 size-4 shrink-0" />
       <div>
         <div className="font-semibold">
-          {approved ? "معتمد" : "مرفوض"}
+          {approved ? t("معتمد") : t("مرفوض")}
           {approval.decidedByName ? ` — ${approval.decidedByName}` : ""}
           {approval.decidedAt ? ` · ${ago(approval.decidedAt)}` : ""}
         </div>

@@ -142,7 +142,7 @@ export function ItemPicker({
           // from its START (left) and an Arabic one from its start (right), never the middle.
           dir="auto"
           className="text-start"
-          placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
+          placeholder={placeholder ?? t("ابحث بالاسم أو الكود…")}
           onFocus={() => { setEditing(true); setQ(""); }}
           onChange={(e) => setQ(e.target.value)}
         />

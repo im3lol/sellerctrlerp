@@ -81,7 +81,7 @@ export function PurchaseInvoiceFromReceiptForm({
     if (ids.length !== 1) return;
     startLoad(async () => {
       const r = await getReceiptInvoicePreviewAction(ids[0]);
-      if (!r.ok || !r.preview) { toast.error(r.error ?? "تعذّر استدعاء الإذن"); return; }
+      if (!r.ok || !r.preview) { toast.error(r.error ?? t("تعذّر استدعاء الإذن")); return; }
       if (r.preview.lines.length === 0) { toast.message("لا توجد كميات قابلة للفوترة في هذا الإذن"); return; }
       setPreview(r.preview);
     });
@@ -120,7 +120,7 @@ export function PurchaseInvoiceFromReceiptForm({
           const label = receipts.find((r) => r.id === id)?.number ?? id;
           const r = await convertReceiptToInvoiceAction(id, date, notes || undefined);
           if (r.ok) done.push(label);
-          else failed.push(`${label}: ${r.error ?? "تعذّر الحفظ"}`);
+          else failed.push(`${label}: ${r.error ?? t("تعذّر الحفظ")}`);
         }
         // Say exactly what happened. A partial run reported as success is how a missing
         // invoice goes unnoticed until the supplier chases it.
@@ -143,7 +143,7 @@ export function PurchaseInvoiceFromReceiptForm({
         toast.success("تم حفظ الفاتورة (مسودة) — رحّلها لاعتمادها");
         router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -212,7 +212,7 @@ export function PurchaseInvoiceFromReceiptForm({
               <Label>{t("عملة الفاتورة")}</Label>
               <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
                 {currencies.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? " (أساسية)" : ""}</option>
+                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? t(" (أساسية)") : ""}</option>
                 ))}
               </select>
             </div>

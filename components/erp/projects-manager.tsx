@@ -75,7 +75,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(good); router.refresh(); }
-      else toast.error(r.error ?? "تعذّرت العملية");
+      else toast.error(r.error ?? t("تعذّرت العملية"));
     });
 
   const blank = { nameAr: "", customerId: "", managerEmployeeId: "", status: "DRAFT" as ProjectStatus, startDate: today(), endDate: "", budget: "", defaultBillRate: "", costCenterId: "" };
@@ -138,7 +138,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   <select className={selectCls} value={form.status}
                     onChange={(e) => setForm((f) => (f ? { ...f, status: e.target.value as ProjectStatus } : f))}>
                     {(Object.keys(PROJECT_STATUS_LABEL) as ProjectStatus[]).map((k) => (
-                      <option key={k} value={k}>{PROJECT_STATUS_LABEL[k]}</option>
+                      <option key={k} value={k}>{t(PROJECT_STATUS_LABEL[k])}</option>
                     ))}
                   </select></div>
                 {costCenters.length > 0 && (
@@ -196,7 +196,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell>
                         <div className="font-medium">{r.nameAr}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.customerName ?? "داخلي"}{r.managerName && ` · ${r.managerName}`}
+                          {r.customerName ?? t("داخلي")}{r.managerName && ` · ${r.managerName}`}
                         </div>
                       </TableCell>
                       <TableCell className="tabular-nums">{money(r.budget)}</TableCell>
@@ -204,7 +204,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell className="tabular-nums">{money(r.invoiced)}</TableCell>
                       <TableCell className="tabular-nums">{r.progress}٪</TableCell>
                       <TableCell className="text-sm">
-                        <Badge variant="outline">{PROJECT_STATUS_LABEL[r.status]}</Badge>
+                        <Badge variant="outline">{t(PROJECT_STATUS_LABEL[r.status])}</Badge>
                         <div className={`mt-1 text-xs ${r.overBudget || r.headingOver ? "text-destructive" : "text-muted-foreground"}`}>
                           {r.verdict}
                         </div>
@@ -246,7 +246,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   onClick={() => void (async () => {
                     const go = await confirm({
                       title: "تعمل فاتورة للمشروع؟",
-                      description: `${bill.lines.map((l) => `${l.label}: ${money(l.amount)}`).join("\n")}\n\nالإجمالي ${money(bill.total)}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني.`,
+                      description: `${bill.lines.map((l) => `${t(l.label)}: ${money(l.amount)}`).join("\n")}\n\nالإجمالي ${money(bill.total)}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني.`,
                       confirmText: "اعمل الفاتورة", cancelText: "رجوع",
                     });
                     if (go) run(() => billProjectAction(project.id), "اتعملت الفاتورة");
@@ -336,7 +336,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                           <TableCell>
                             <Badge className={p.status === "DONE" ? "bg-emerald-600" : p.status === "IN_PROGRESS" ? "bg-amber-600" : undefined}
                               variant={p.status === "PENDING" ? "outline" : undefined}>
-                              {p.status === "DONE" ? "خلصت" : p.status === "IN_PROGRESS" ? "شغّالة" : "مستنية"}
+                              {p.status === "DONE" ? t("خلصت") : p.status === "IN_PROGRESS" ? t("شغّالة") : t("مستنية")}
                             </Badge>
                           </TableCell>
                           <TableCell className="tabular-nums">{money(p.budget)}</TableCell>
@@ -402,7 +402,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <select className={`${selectCls} w-32`} value={taskForm.status}
                         onChange={(e) => setTaskForm((f) => (f ? { ...f, status: e.target.value as TaskRow["status"] } : f))}>
                         {(Object.keys(TASK_STATUS) as TaskRow["status"][]).map((k) => (
-                          <option key={k} value={k}>{TASK_STATUS[k]}</option>
+                          <option key={k} value={k}>{t(TASK_STATUS[k])}</option>
                         ))}
                       </select>
                       <Input type="number" step="0.5" min="0" className="w-28" placeholder={t("ساعات")}
@@ -434,12 +434,12 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                     <div>
                       <div className="font-medium">{task.nameAr}</div>
                       <div className="text-xs text-muted-foreground">
-                        {task.assignedName ?? "مش متكلّف حد"}{task.plannedHours > 0 && ` · ${num(task.plannedHours)} ساعة`}{task.dueDate && ` · ${task.dueDate}`}
+                        {task.assignedName ?? t("مش متكلّف حد")}{task.plannedHours > 0 && ` · ${num(task.plannedHours)} ساعة`}{task.dueDate && ` · ${task.dueDate}`}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={task.status === "DONE" ? undefined : "outline"} className={task.status === "DONE" ? "bg-emerald-600" : undefined}>
-                        {TASK_STATUS[task.status]}
+                        {t(TASK_STATUS[task.status])}
                       </Badge>
                       {canManage && (
                         <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => run(() => deleteTaskAction(task.id), "اتمسحت")}>

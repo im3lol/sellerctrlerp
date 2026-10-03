@@ -16,7 +16,7 @@ export function QuotationRowActions({ id, number, status, canManage }: { id: str
   if (!canManage) return null;
 
   const run = (fn: () => Promise<{ ok?: boolean; error?: string }>, ok: string) =>
-    start(async () => { const r = await fn(); if (r.ok) { toast.success(ok); router.refresh(); } else toast.error(r.error ?? "تعذّر التنفيذ"); });
+    start(async () => { const r = await fn(); if (r.ok) { toast.success(ok); router.refresh(); } else toast.error(r.error ?? t("تعذّر التنفيذ")); });
 
   return (
     <div className="flex flex-wrap gap-1">

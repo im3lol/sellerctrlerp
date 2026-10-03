@@ -16,7 +16,7 @@ export function FxPostButton() {
   const post = () => start(async () => {
     const r = await postFxRevaluationAction();
     if ("ok" in r && r.ok) { toast.success("تم إنشاء قيد إعادة التقييم كمسودة — راجِعه وأكّده من القيود"); router.refresh(); }
-    else toast.error(("error" in r && r.error) || "تعذّر الترحيل");
+    else toast.error(("error" in r && r.error) || t("تعذّر الترحيل"));
   });
   return (
     <Button size="sm" variant="outline" className="gap-1.5" onClick={post} disabled={pending} title={t("ترحيل الفروق كقيد مسودة للمراجعة")}>

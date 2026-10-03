@@ -55,7 +55,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     setLoading(true);
     void getAttendanceMonthAction(from, to).then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.days ?? []);
     });
   };
@@ -69,7 +69,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     start(async () => {
       const r = await saveAttendanceAction({ userId: form.userId, workDate: form.workDate, clockIn, clockOut, notes: form.notes || null });
       if (r.ok) { toast.success("تم حفظ اليوم"); load(month); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -84,7 +84,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
       start(async () => {
         const r = await deleteAttendanceAction(row.userId, row.workDate);
         if (r.ok) { toast.success("تم الحذف"); load(month); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -92,7 +92,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     if (!csv.trim()) return toast.error("الصق محتوى الملف أولاً");
     start(async () => {
       const r = await importAttendanceCsvAction(csv);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الاستيراد"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الاستيراد")); return; }
       setSkipped(r.skipped ?? []);
       toast.success(`تم استيراد ${r.imported} يوم${r.skipped?.length ? ` — ${r.skipped.length} سطر متخطّى` : ""}`);
       setCsv("");
@@ -174,7 +174,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>{t("سجل الحضور")}</CardTitle>
-              <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} يوم · ${toHours(totalSeconds)} ساعة`}</CardDescription>
+              <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} يوم · ${toHours(totalSeconds)} ساعة`}</CardDescription>
             </div>
             <Input type="month" className="w-44" value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
@@ -209,7 +209,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
                         {r.clockOut ? hhmm(r.clockOut) : <Badge variant="outline">{t("مفتوح")}</Badge>}
                       </TableCell>
                       <TableCell className="font-medium tabular-nums" dir="ltr">{formatDuration(r.seconds)}</TableCell>
-                      <TableCell><span className="text-xs text-muted-foreground">{SOURCE_LABEL[r.source] ?? r.source}</span></TableCell>
+                      <TableCell><span className="text-xs text-muted-foreground">{t(SOURCE_LABEL[r.source] ?? r.source)}</span></TableCell>
                       {canEdit && (
                         <TableCell>
                           <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(r)}>

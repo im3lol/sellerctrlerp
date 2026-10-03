@@ -99,7 +99,7 @@ export function WarehousePicker({
       <Input
         value={q}
         disabled={disabled}
-        placeholder={placeholder ?? "ابحث عن مستودع…"}
+        placeholder={placeholder ?? t("ابحث عن مستودع…")}
         onFocus={() => { setEditing(true); setQ(""); setOpen(true); }}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
       />

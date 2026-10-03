@@ -49,12 +49,12 @@ function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recu
   const save = () => start(async () => {
     const r = await upsertRecurringExpenseAction({ id: rec?.id, expenseAccountId, cashAccountId, amount: Number(amount) || 0, frequency, nextRunDate, payee, notes });
     if (r.ok) { toast.success("تم حفظ القالب المتكرر"); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
     <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>{rec ? "تعديل مصروف متكرر" : "مصروف متكرر جديد"}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{rec ? t("تعديل مصروف متكرر") : t("مصروف متكرر جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label>{t("بند المصروف")}</Label>
@@ -69,7 +69,7 @@ function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recu
           <div className="space-y-1.5">
             <Label>{t("التكرار")}</Label>
             <select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
-              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           <div className="space-y-1.5"><Label>{t("أول تنفيذ")}</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
@@ -127,14 +127,14 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
                 <TableCell className="font-medium">{r.category}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
                 <TableCell className="tabular-nums">{egp(r.amount)}</TableCell>
-                <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
+                <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell>{r.paidFrom}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("مفعّل") : t("موقوف")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rec: r })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
                     <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>

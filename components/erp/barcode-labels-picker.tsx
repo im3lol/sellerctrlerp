@@ -80,10 +80,10 @@ export function BarcodeLabelsPicker() {
               <TableBody>
                 {rows.map((r, i) => (
                   <TableRow key={r.itemId}>
-                    <TableCell className="truncate font-medium" title={r.label}>{r.label}</TableCell>
+                    <TableCell className="truncate font-medium" title={t(r.label)}>{t(r.label)}</TableCell>
                     <TableCell>
                       <select className={selectCls} value={r.sel} onChange={(e) => patch(i, { sel: Number(e.target.value) })}>
-                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{c.label} — {c.value}</option>)}
+                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{t(c.label)} — {c.value}</option>)}
                       </select>
                     </TableCell>
                     <TableCell><Input type="number" step="1" min="1" max="500" value={r.qty} onChange={(e) => patch(i, { qty: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>

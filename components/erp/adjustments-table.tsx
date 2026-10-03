@@ -81,10 +81,10 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className={r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : ""}>{r.delta > 0 ? "+" : ""}{intl(r.delta)}</TableCell>
                 <TableCell>{fmt(r.totalValue)}</TableCell>
-                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>
                 <TableCell>
                   <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-                    {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
+                    {r.status === "DRAFT" ? t("مراجعة وتأكيد") : t("عرض")}<Icon name="ChevronLeft" className="size-4" />
                   </Link>
                 </TableCell>
               </TableRow>

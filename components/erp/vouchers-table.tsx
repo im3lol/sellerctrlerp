@@ -20,7 +20,7 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
   const t = useT();
   const sel = useSelection(total);
   const isReceipt = type === "receipt";
-  const partyLabel = isReceipt ? "العميل" : "المورد";
+  const partyLabel = isReceipt ? t("العميل") : t("المورد");
   const invoiceBase = isReceipt ? "/sales/invoices" : "/purchases/invoices";
   const detailBase = isReceipt ? "/sales/receipts" : "/purchases/payments";
   const bulkAction = isReceipt ? bulkReceiptVouchersAction : bulkPaymentVouchersAction;
@@ -71,9 +71,9 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell className="max-w-[200px] truncate" title={r.party ?? undefined}>{r.party ?? "—"}</TableCell>
                 <TableCell className="font-mono">{r.invoice ? <Link href={`${invoiceBase}/${encodeURIComponent(r.invoice)}`} className="text-primary hover:underline">{r.invoice}</Link> : "تحت الحساب"}</TableCell>
-                <TableCell>{METHOD[r.method] ?? r.method}</TableCell>
+                <TableCell>{t(METHOD[r.method] ?? r.method)}</TableCell>
                 <TableCell>{fmt(r.amount)}</TableCell>
-                <TableCell><Badge variant={r.status === "POSTED" ? "default" : r.status === "REVERSED" ? "destructive" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : r.status === "REVERSED" ? "معكوس" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "POSTED" ? "default" : r.status === "REVERSED" ? "destructive" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : r.status === "REVERSED" ? t("معكوس") : t("مسودة")}</Badge></TableCell>
               </TableRow>
             );
           })}

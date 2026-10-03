@@ -44,7 +44,7 @@ export function ExpenseClaimsTable({ rows, canApprove, canCreate }: { rows: Row[
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.employee}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={r.status === "APPROVED" ? "default" : "secondary"}>{r.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "APPROVED" ? "default" : "secondary"}>{r.status === "APPROVED" ? t("معتمد") : t("مسودة")}</Badge></TableCell>
                 {showSelect && <TableCell><ExpenseClaimRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

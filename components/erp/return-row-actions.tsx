@@ -30,7 +30,7 @@ export function ReturnRowActions({
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(ok); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
+      else toast.error(r.error ?? t("تعذّر التنفيذ"));
     });
 
   return (

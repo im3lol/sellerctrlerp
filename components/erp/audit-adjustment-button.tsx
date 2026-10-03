@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createAdjustmentFromAuditAction } from "@/app/actions/erp/fba-inventory";
@@ -10,6 +11,7 @@ import { Icon } from "@/components/icon";
 /** One click: the latest audit's LOST/FOUND lines → ONE DRAFT stock adjustment
  *  (set to Amazon's qty, in the audit's warehouse) the user reviews then posts. */
 export function AuditAdjustmentButton() {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
@@ -19,7 +21,7 @@ export function AuditAdjustmentButton() {
         if (r.ok && r.id) {
           toast.success(`تم إنشاء مسودة تسوية (${r.count} صنف) — راجعها ثم رحّلها`);
           router.push(`/inventory/adjustments/${encodeURIComponent(r.number!)}`);
-        } else toast.error(r.error ?? "تعذّر إنشاء التسوية");
+        } else toast.error(r.error ?? t("تعذّر إنشاء التسوية"));
       })}>
       <Icon name="ClipboardCheck" className="size-4" />
       إنشاء تسوية من الفروقات

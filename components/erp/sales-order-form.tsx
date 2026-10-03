@@ -180,11 +180,11 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       };
       const r = isEdit ? await updateSalesOrderAction(initial!.id, body) : await createSalesOrderAction(body);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر البيع (مسودة) — أكّده");
+        toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ أمر البيع (مسودة) — أكّده"));
         if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
         router.push(r.number ? `/sales/orders/${encodeURIComponent(r.number)}` : "/sales/orders"); router.refresh();
       }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -194,7 +194,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات أمر البيع")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/orders/${initial!.id}` : "/sales/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -241,7 +241,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           <div className="space-y-2">
             <Label>{t("القناة")}</Label>
             <select className={selectCls} value={channel} onChange={(e) => onChannel(e.target.value)}>
-              {CHANNELS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {CHANNELS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           {channel !== "MANUAL" && (
@@ -301,7 +301,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                           options={whOpts}
                           value={l.warehouseId}
                           disabled={!l.itemId}
-                          placeholder={l.itemId ? "ابحث عن مستودع…" : "اختر الصنف أولاً"}
+                          placeholder={l.itemId ? t("ابحث عن مستودع…") : t("اختر الصنف أولاً")}
                           onSelect={(id) => setLine(i, { warehouseId: id })}
                         />
                       </TableCell>

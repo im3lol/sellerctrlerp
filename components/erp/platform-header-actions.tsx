@@ -61,7 +61,7 @@ export function PlatformHeaderActions({
   const refreshFees = () => startFees(async () => {
     const r = await refreshAmazonFeesAction(code);
     if (r.ok) toast.success("بدأ تحديث رسوم أمازون — النتائج تظهر في تقرير الربحية خلال دقائق");
-    else toast.error(r.error ?? "تعذّر بدء التحديث");
+    else toast.error(r.error ?? t("تعذّر بدء التحديث"));
   });
 
   const pullOrders = () => startPull(async () => {
@@ -74,8 +74,8 @@ export function PlatformHeaderActions({
   // On-demand image sync: backfill images for items still missing one (Catalog API).
   const syncImages = () => startImages(async () => {
     const r = await startImagesSyncAction(code);
-    if (r.ok) toast.success(r.started ? "بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون" : "اكتملت مزامنة الصور — حدّث صفحة المنتجات");
-    else toast.error(r.error ?? "تعذّر بدء مزامنة الصور");
+    if (r.ok) toast.success(r.started ? t("بدأت مزامنة الصور في الخلفية — الصور الناقصة تُجلب من أمازون") : t("اكتملت مزامنة الصور — حدّث صفحة المنتجات"));
+    else toast.error(r.error ?? t("تعذّر بدء مزامنة الصور"));
   });
 
   // FNSKU backfill: Amazon's own barcode for the unit in its warehouse. Rides free on
@@ -83,8 +83,8 @@ export function PlatformHeaderActions({
   // import, whose report has no FNSKU column — needs this pass.
   const syncFbaCodes = () => startCodes(async () => {
     const r = await startFbaCodesSyncAction(code);
-    if (r.ok) toast.success(r.started ? "بدأت مزامنة أكواد FBA في الخلفية — يُضاف FNSKU للأصناف المُشحَنة عبر أمازون" : "اكتملت مزامنة أكواد FBA — افتح الصنف لرؤية الـFNSKU");
-    else toast.error(r.error ?? "تعذّر بدء مزامنة الأكواد");
+    if (r.ok) toast.success(r.started ? t("بدأت مزامنة أكواد FBA في الخلفية — يُضاف FNSKU للأصناف المُشحَنة عبر أمازون") : t("اكتملت مزامنة أكواد FBA — افتح الصنف لرؤية الـFNSKU"));
+    else toast.error(r.error ?? t("تعذّر بدء مزامنة الأكواد"));
   });
 
   // Start the chosen sync. If orders are selected with no go-live date yet: save the
@@ -101,7 +101,7 @@ export function PlatformHeaderActions({
       setStartSaved(true);
       const r = await startOrdersSyncAction(code, startDate);
       if (r.ok) setOrdersOpen(true);
-      else toast.error(r.error ?? "تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»");
+      else toast.error(r.error ?? t("تعذّر بدء سحب المبيعات — أعد المحاولة من «أدوات»"));
       sel.orders = false; // the backfill owns orders this run
     }
     setChooseOpen(false);
@@ -206,7 +206,7 @@ export function PlatformHeaderActions({
                   disabled={!syncFlags[s.key]}
                   onChange={(e) => setChosen((c) => ({ ...c, [s.key]: e.target.checked }))}
                 />
-                <span className="flex items-center gap-2 text-sm font-medium">{s.icon}{s.label}</span>
+                <span className="flex items-center gap-2 text-sm font-medium">{s.icon}{t(s.label)}</span>
                 <span className="mr-auto text-xs text-muted-foreground">{syncFlags[s.key] ? s.desc : "موقوف من إعدادات المنصّة"}</span>
               </label>
             ))}

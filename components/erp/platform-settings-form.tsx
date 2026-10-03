@@ -57,7 +57,7 @@ export function PlatformSettingsForm({
     setAutoSync(next);
     startAutoSync(async () => {
       const r = await setAutoSyncAction(platform.code.toLowerCase(), next);
-      if (r.ok) toast.success(next ? "تم تفعيل المزامنة التلقائية" : "تم إيقاف المزامنة التلقائية");
+      if (r.ok) toast.success(next ? t("تم تفعيل المزامنة التلقائية") : t("تم إيقاف المزامنة التلقائية"));
       else { setAutoSync(!next); toast.error(r.error); }
     });
   };
@@ -90,7 +90,7 @@ export function PlatformSettingsForm({
         defaultWarehouseId: warehouseId || null, bankAccountId: bankAccountId || null,
       });
       if (r.ok) { toast.success("تم حفظ إعدادات المنصة"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -147,7 +147,7 @@ export function PlatformSettingsForm({
           {SOURCES.map((s) => (
             <div key={s.key} className="flex items-center justify-between gap-4 rounded-lg px-2 py-2.5 hover:bg-muted/40">
               <div>
-                <div className="text-sm font-medium">{s.label}</div>
+                <div className="text-sm font-medium">{t(s.label)}</div>
                 <div className="text-xs text-muted-foreground">{s.desc}</div>
               </div>
               <Switch checked={sources[s.key]} onCheckedChange={(v) => setSources((p) => ({ ...p, [s.key]: v }))} />

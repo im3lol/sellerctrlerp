@@ -65,7 +65,7 @@ export function SalesInvoiceFromDeliveryForm({
     if (!id) return;
     startLoad(async () => {
       const r = await getDeliveryInvoicePreviewAction(id);
-      if (!r.ok || !r.preview) { toast.error(r.error ?? "تعذّر استدعاء التسليم"); return; }
+      if (!r.ok || !r.preview) { toast.error(r.error ?? t("تعذّر استدعاء التسليم")); return; }
       if (r.preview.lines.length === 0) { toast.message("لا توجد كميات قابلة للفوترة في هذا التسليم"); return; }
       setPreview(r.preview);
     });
@@ -90,7 +90,7 @@ export function SalesInvoiceFromDeliveryForm({
         toast.success("تم حفظ الفاتورة (مسودة) — أكّدها لاعتمادها");
         router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -130,7 +130,7 @@ export function SalesInvoiceFromDeliveryForm({
               <Label>{t("عملة الفاتورة")}</Label>
               <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
                 {currencies.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? " (أساسية)" : ""}</option>
+                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? t(" (أساسية)") : ""}</option>
                 ))}
               </select>
             </div>
@@ -161,14 +161,14 @@ export function SalesInvoiceFromDeliveryForm({
           <div className="space-y-2">
             <Label>{t("استدعاء إذن صرف")}</Label>
             <select className={selectCls} value={deliveryId} disabled={!customerId || loading} onChange={(e) => recall(e.target.value)}>
-              <option value="">{customerId ? "— اختر إذن صرف —" : "اختر العميل أولاً"}</option>
+              <option value="">{customerId ? t("— اختر إذن صرف —") : t("اختر العميل أولاً")}</option>
               {customerDeliveries.map((d) => <option key={d.id} value={d.id}>{d.number} — {d.dateLabel}</option>)}
             </select>
           </div>
           <div className="flex items-end text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود التسليم…")}</span>
-              : customerId && customerDeliveries.length === 0 ? "لا توجد إذون صرف مؤكَّدة غير مفوترة لهذا العميل."
-              : "تنزل أصناف التسليم وأسعارها من أمر البيع في الجدول."}
+              : customerId && customerDeliveries.length === 0 ? t("لا توجد إذون صرف مؤكَّدة غير مفوترة لهذا العميل.")
+              : t("تنزل أصناف التسليم وأسعارها من أمر البيع في الجدول.")}
           </div>
         </div>
 
@@ -193,7 +193,7 @@ export function SalesInvoiceFromDeliveryForm({
                     <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
                       <span>{l.code}</span>
-                      {l.marketplaceCode && <span dir="ltr">{preview.channel === "AMAZON" ? "ASIN" : "كود نون"}: {l.marketplaceCode}</span>}
+                      {l.marketplaceCode && <span dir="ltr">{preview.channel === "AMAZON" ? "ASIN" : t("كود نون")}: {l.marketplaceCode}</span>}
                     </div>
                   </TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>

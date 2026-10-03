@@ -34,7 +34,7 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
   const today = new Date().toISOString().slice(0, 10);
 
   const isInv = kind === "investment";
-  const title = isInv ? "تسجيل مساهمة رأس مال" : "تسجيل سحب";
+  const title = isInv ? t("تسجيل مساهمة رأس مال") : t("تسجيل سحب");
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,10 +51,10 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
         ? await createInvestmentAction(base)
         : await createWithdrawalAction({ ...base, type: String(fd.get("type") ?? "profit") });
       if (res.ok) {
-        toast.success(isInv ? "تم تسجيل المساهمة وترحيل القيد" : "تم تسجيل السحب وترحيل القيد");
+        toast.success(isInv ? t("تم تسجيل المساهمة وترحيل القيد") : t("تم تسجيل السحب وترحيل القيد"));
         router.refresh();
         setOpen(false);
-      } else toast.error(res.error ?? "تعذّر التنفيذ");
+      } else toast.error(res.error ?? t("تعذّر التنفيذ"));
     });
   }
 
@@ -88,7 +88,7 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
               <Input id="amount" name="amount" type="number" step="0.01" min="0.01" required placeholder="0.00" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="accountId">{isInv ? "استُلم في حساب *" : "صُرف من حساب *"}</Label>
+              <Label htmlFor="accountId">{isInv ? t("استُلم في حساب *") : t("صُرف من حساب *")}</Label>
               <FormCombobox name="accountId" options={cashAccounts} placeholder={t("النقدية / البنك…")} />
             </div>
           </div>

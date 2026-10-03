@@ -49,12 +49,12 @@ function BomDialog({ bundle, onClose }: { bundle: Bundle | null; onClose: () => 
     if (components.length === 0) { toast.error("أضف مكوّناً واحداً على الأقل"); return; }
     const r = await setBundleComponentsAction({ parentItemId, components });
     if (r.ok) { toast.success("تم حفظ مكوّنات الحزمة"); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
     <DialogContent dir="rtl" className="max-w-lg">
-      <DialogHeader><DialogTitle>{bundle ? "تعديل مكوّنات الحزمة" : "حزمة جديدة"}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{bundle ? t("تعديل مكوّنات الحزمة") : t("حزمة جديدة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label>{t("صنف الحزمة (المنتج النهائي)")}</Label>
@@ -107,7 +107,7 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
   const go = () => start(async () => {
     const r = await assembleAction({ kitItemId: bundle.parentItemId, warehouseId, quantity: Number(quantity), date });
     if (r.ok) { toast.success(`تم تجميع ${quantity} وحدة من «${bundle.name}»`); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر التجميع");
+    else toast.error(r.error ?? t("تعذّر التجميع"));
   });
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { DocumentActions, type DocAction } from "@/components/erp/document-actio
 
 /** DRAFT: post / delete. POSTED: cancel (reverses the revaluation + the GL). */
 export function LandedCostDetailActions({ id, status, canManage, canPost }: { id: string; status: string; canManage: boolean; canPost: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -23,7 +25,7 @@ export function LandedCostDetailActions({ id, status, canManage, canPost }: { id
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -42,7 +44,7 @@ export function LandedCostDetailActions({ id, status, canManage, canPost }: { id
           start(async () => {
             const r = await deleteCancelledDocumentAction("landedCost", id);
             if (r.ok) { toast.success("تم حذف المستند نهائياً"); router.push("/purchases/landed-costs"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
   }

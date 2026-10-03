@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmSalesReturnAction, deleteSalesReturnAction, reverseSalesReturnAction } from "@/app/actions/erp/sales-returns";
@@ -14,6 +15,7 @@ import { confirmPurge } from "@/components/erp/purge-confirm";
 
 /** Manage a return from its detail page: delete a draft, or cancel (reverse) a posted one. */
 export function ReturnDetailActions({ id, type, status, canManage, dest: destProp }: { id: string; type: "sales" | "purchase"; status: string; canManage: boolean; dest?: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage) return null;
@@ -25,7 +27,7 @@ export function ReturnDetailActions({ id, type, status, canManage, dest: destPro
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -40,12 +42,12 @@ export function ReturnDetailActions({ id, type, status, canManage, dest: destPro
   } else if (status === "CANCELLED") {
     items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
       onSelect: () => void (async () => {
-        const label = type === "sales" ? "مرتجع البيع" : "مرتجع الشراء";
+        const label = type === "sales" ? t("مرتجع البيع") : t("مرتجع الشراء");
         if (!(await confirmPurge(label))) return;
         start(async () => {
           const r = await deleteCancelledDocumentAction(type === "sales" ? "salesReturn" : "purchaseReturn", id);
           if (r.ok) { toast.success("تم حذف المرتجع نهائياً"); router.push(dest); router.refresh(); }
-          else toast.error(r.error ?? "تعذّر الحذف");
+          else toast.error(r.error ?? t("تعذّر الحذف"));
         });
       })() });
   }

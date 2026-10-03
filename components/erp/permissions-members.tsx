@@ -47,7 +47,7 @@ function OverridesDialog({
     const grant = Object.keys(state).filter((p) => state[p] === "grant");
     const revoke = Object.keys(state).filter((p) => state[p] === "revoke");
     const r = await setMemberOverridesAction(member.userId, grant, revoke);
-    if (r.ok) { toast.success("تم حفظ الصلاحيات المخصّصة"); onClose(); } else toast.error(r.error ?? "تعذّر الحفظ");
+    if (r.ok) { toast.success("تم حفظ الصلاحيات المخصّصة"); onClose(); } else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
@@ -62,7 +62,7 @@ function OverridesDialog({
       <div className="space-y-4">
         {catalog.map((g) => (
           <div key={g.key} className="rounded-xl border">
-            <div className="border-b bg-muted/30 px-3 py-2 text-sm font-bold text-primary">{g.label}</div>
+            <div className="border-b bg-muted/30 px-3 py-2 text-sm font-bold text-primary">{t(g.label)}</div>
             <div className="divide-y">
               {g.perms.map((p) => {
                 const st = state[p.key] ?? "inherit";
@@ -72,8 +72,8 @@ function OverridesDialog({
                   <div key={p.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span>{p.action}</span>
-                      <span className="text-xs text-muted-foreground">(الدور: {roleHas ? "مسموح" : "لا"})</span>
-                      <Badge variant={eff ? "default" : "outline"} className="text-[10px]">{eff ? "الفعلي: مسموح" : "الفعلي: ممنوع"}</Badge>
+                      <span className="text-xs text-muted-foreground">(الدور: {roleHas ? t("مسموح") : t("لا")})</span>
+                      <Badge variant={eff ? "default" : "outline"} className="text-[10px]">{eff ? t("الفعلي: مسموح") : t("الفعلي: ممنوع")}</Badge>
                     </div>
                     <select value={st} onChange={(e) => setOne(p.key, e.target.value as OverrideState)} className={`${selectCls} h-8 text-xs`}>
                       <option value="inherit">{t("موروث من الدور")}</option>
@@ -121,23 +121,23 @@ export function PermissionsMembers({
     start(async () => {
       const r = await inviteMemberAction(inv);
       if (r.ok) { toast.success("تمت إضافة العضو"); setInv({ name: "", email: "", role: "viewer", password: "" }); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
+      else toast.error(r.error ?? t("تعذّر التنفيذ"));
     });
   };
 
   const setRole = (userId: string, role: string) => start(async () => {
     const r = await addUserToOrgAction(userId, role);
-    if (r.ok) toast.success("تم تحديث الدور"); else toast.error(r.error ?? "تعذّر التحديث");
+    if (r.ok) toast.success("تم تحديث الدور"); else toast.error(r.error ?? t("تعذّر التحديث"));
   });
   const remove = (userId: string) => start(async () => {
     const r = await removeUserFromOrgAction(userId);
-    if (r.ok) toast.success("تمت الإزالة"); else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) toast.success("تمت الإزالة"); else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
   const add = () => {
     if (!addUser) { toast.error("اختر مستخدماً"); return; }
     start(async () => {
       const r = await addUserToOrgAction(addUser, addRole);
-      if (r.ok) { toast.success("تمت الإضافة"); setAddUser(""); } else toast.error(r.error ?? "تعذّر التنفيذ");
+      if (r.ok) { toast.success("تمت الإضافة"); setAddUser(""); } else toast.error(r.error ?? t("تعذّر التنفيذ"));
     });
   };
 
@@ -155,7 +155,7 @@ export function PermissionsMembers({
               <input className={`${selectCls} w-full`} placeholder={t("الاسم")} value={inv.name} onChange={(e) => setInv({ ...inv, name: e.target.value })} />
               <input className={`${selectCls} w-full`} placeholder={t("البريد الإلكتروني")} type="email" dir="ltr" value={inv.email} onChange={(e) => setInv({ ...inv, email: e.target.value })} />
               <select className={`${selectCls} w-full`} value={inv.role} onChange={(e) => setInv({ ...inv, role: e.target.value })}>
-                {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
               <input className={`${selectCls} w-full`} placeholder={`كلمة مرور مبدئية — ${PASSWORD_RULE_AR}`} type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
             </div>
@@ -178,7 +178,7 @@ export function PermissionsMembers({
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">{t("الدور")}</label>
               <select value={addRole} onChange={(e) => setAddRole(e.target.value)} className={selectCls}>
-                {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
             </div>
             <Button onClick={add} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}إضافة</Button>
@@ -208,7 +208,7 @@ export function PermissionsMembers({
                       <Badge>{t("مدير النظام — كل الصلاحيات")}</Badge>
                     ) : canManage ? (
                       <select value={m.role} onChange={(e) => setRole(m.userId, e.target.value)} disabled={pending} className={selectCls}>
-                        {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
                       </select>
                     ) : (
                       <Badge variant="outline">{roleLabels[m.role] ?? m.role}</Badge>

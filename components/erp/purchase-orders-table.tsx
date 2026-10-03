@@ -45,13 +45,13 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
   const toggleAll = () => setSel(allSelected ? new Set() : new Set(ids));
 
   const bulk = (op: "confirm" | "cancel" | "delete") => {
-    const verb = op === "confirm" ? "تأكيد" : op === "cancel" ? "إلغاء" : "حذف";
+    const verb = op === "confirm" ? t("تأكيد") : op === "cancel" ? t("إلغاء") : t("حذف");
     void (async () => {
       if (!(await confirm({ title: `${verb} ${sel.size} أمر`, danger: op !== "confirm" }))) return;
       start(async () => {
         const r = await bulkPurchaseOrdersAction(op, [...sel]);
         if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} أمر`); setSel(new Set()); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -103,7 +103,7 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div>
+                      <div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div>
                       {showBar && (
                         <div className="flex items-center gap-2">
                           <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
@@ -128,7 +128,7 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

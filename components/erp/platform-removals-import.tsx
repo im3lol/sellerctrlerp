@@ -68,7 +68,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
     start(async () => {
       const r = await importPlatformRemovalsAction(platformId, removals);
       setResult(r);
-      if (r.ok) { toast.success(`إتلاف ${int(r.matchedDisposedUnits)} وحدة${r.adjustmentId ? " — أُنشئت تسوية مسودة" : ""}`); router.refresh(); }
+      if (r.ok) { toast.success(`إتلاف ${int(r.matchedDisposedUnits)} وحدة${r.adjustmentId ? t(" — أُنشئت تسوية مسودة") : ""}`); router.refresh(); }
       else toast.error(r.error);
     });
   };
@@ -93,7 +93,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
         )}
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-          <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasWarehouse}><Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV"}</Button>
+          <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasWarehouse}><Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV")}</Button>
           {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
         </div>
 

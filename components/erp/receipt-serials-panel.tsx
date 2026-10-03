@@ -37,13 +37,13 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
       const r = await getReceiptSerialsAction(receiptId);
       if (!alive) return;
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر تحميل الأرقام"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر تحميل الأرقام")); return; }
       const next: Record<string, string> = {};
       for (const [itemId, serials] of Object.entries(r.byItem ?? {})) next[itemId] = serials.join("\n");
       setText(next);
     })();
     return () => { alive = false; };
-  }, [receiptId]);
+  }, [receiptId, t]);
 
   const save = () => {
     for (const l of lines) {
@@ -57,7 +57,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
         lines.map((l) => ({ itemId: l.itemId, serials: parseSerials(text[l.itemId] ?? "") })),
       );
       if (r.ok) { toast.success("تم حفظ الأرقام التسلسلية"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 

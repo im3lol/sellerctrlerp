@@ -28,7 +28,7 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -44,7 +44,7 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
       start(async () => {
         const r = await confirmSalesOrderAction(orderId);
         if (r.ok) { toast.success("تم تأكيد الأمر"); router.refresh(); return; }
-        if (!r.creditBlocked) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+        if (!r.creditBlocked) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
         const go = await confirm({
           danger: true,
           title: "تجاوز حد الائتمان",
@@ -58,7 +58,7 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
         start(async () => {
           const r2 = await confirmSalesOrderAction(orderId, { overrideCredit: true });
           if (r2.ok) { toast.success("تم تأكيد الأمر باعتماد مالي"); router.refresh(); }
-          else toast.error(r2.error ?? "تعذّر التنفيذ");
+          else toast.error(r2.error ?? t("تعذّر التنفيذ"));
         });
       });
     })();

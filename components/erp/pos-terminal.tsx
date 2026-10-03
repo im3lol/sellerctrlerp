@@ -62,7 +62,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
   const load = () => {
     void getMyShiftAction().then((r) => {
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setState(r.state ?? null);
     });
   };
@@ -101,7 +101,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         openingFloat: Number(openForm.float) || 0,
       });
       if (r.ok) { toast.success(`فتحت وردية ${r.number}`); load(); }
-      else toast.error(r.error ?? "تعذّر فتح الوردية");
+      else toast.error(r.error ?? t("تعذّر فتح الوردية"));
     });
 
   const addScanned = () => {
@@ -109,7 +109,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
     if (!code) return;
     setScan("");
     const add = (it: Awaited<ReturnType<typeof scanItemAction>>) => {
-      if (!it) { toast.error(q.online ? "مفيش صنف بالكود ده" : "الصنف ده مش متخزّن على الجهاز — محتاج نت أول مرة"); return; }
+      if (!it) { toast.error(q.online ? t("مفيش صنف بالكود ده") : t("الصنف ده مش متخزّن على الجهاز — محتاج نت أول مرة")); return; }
       // Scanning the same barcode again bumps the line rather than adding a second one —
       // three of the same thing is one line with a 3 in it.
       setCart((c) => {
@@ -182,7 +182,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             clientRef: sale.clientRef, soldAt: sale.soldAt,
             redeemPoints,
           });
-          if (!r.ok) { toast.error(r.error ?? "تعذّر إتمام البيع"); return; }
+          if (!r.ok) { toast.error(r.error ?? t("تعذّر إتمام البيع")); return; }
           toast.success(
             `${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`
             + (r.earnedPoints ? ` · +${r.earnedPoints} نقطة` : ""),
@@ -212,14 +212,14 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         title: `قفل وردية ${state.shift.number}؟`,
         description: diff === 0
           ? `الدرج مطابق (${money(expected)}).`
-          : `المتوقّع ${money(expected)} والمعدود ${money(c)} — ${diff > 0 ? "زيادة" : "عجز"} ${money(Math.abs(diff))}. الفرق هيتسجّل على الوردية.`,
+          : `المتوقّع ${money(expected)} والمعدود ${money(c)} — ${diff > 0 ? t("زيادة") : t("عجز")} ${money(Math.abs(diff))}. الفرق هيتسجّل على الوردية.`,
         confirmText: "اقفل الوردية", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await closeShiftAction({ shiftId: state.shift!.id, countedCash: c });
         if (r.ok) { toast.success(`اتقفلت — الفرق ${money(r.difference ?? 0)}`); setClosing(false); setCounted(""); load(); }
-        else toast.error(r.error ?? "تعذّر القفل");
+        else toast.error(r.error ?? t("تعذّر القفل"));
       });
     })();
 
@@ -241,14 +241,14 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <Label>{t("المخزن")}</Label>
               <select className={`${selectCls} w-48`} value={openForm.warehouseId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, warehouseId: e.target.value }))}>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label>{t("الخزينة")}</Label>
               <select className={`${selectCls} w-56`} value={openForm.cashAccountId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, cashAccountId: e.target.value }))}>
-                {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                {cashAccounts.map((a) => <option key={a.id} value={a.id}>{t(a.label)}</option>)}
               </select>
             </div>
             <div className="space-y-2"><Label>{t("رصيد افتتاحي في الدرج")}</Label>
@@ -446,7 +446,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                 <div key={i} className="flex gap-2">
                   <select className={`${selectCls} w-32`} value={p.method}
                     onChange={(e) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, method: e.target.value as PaymentMethod } : x)))}>
-                    {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
+                    {METHODS.map((m) => <option key={m} value={m}>{t(METHOD_LABEL[m])}</option>)}
                   </select>
                   <Input type="number" step="0.01" min="0" className="tabular-nums" value={p.amount || ""}
                     placeholder="0"
@@ -471,7 +471,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
             {paid > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{paid >= totals.total ? "الفكة" : "الباقي"}</span>
+                <span className="text-muted-foreground">{paid >= totals.total ? t("الفكة") : t("الباقي")}</span>
                 <span className={`font-bold tabular-nums ${paid >= totals.total ? "text-emerald-600" : "text-destructive"}`}>
                   {money(paid >= totals.total ? change : totals.total - paid)}
                 </span>
@@ -522,7 +522,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                       <TableCell className="whitespace-nowrap text-xs tabular-nums">
                         {new Date(x.soldAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}
                       </TableCell>
-                      <TableCell className="text-sm">{x.lines.map((l) => `${l.label} ×${l.quantity}`).join(" · ")}</TableCell>
+                      <TableCell className="text-sm">{x.lines.map((l) => `${t(l.label)} ×${l.quantity}`).join(" · ")}</TableCell>
                       <TableCell className="font-medium tabular-nums">{money(x.total)}</TableCell>
                       <TableCell>
                         {x.status === "FAILED"

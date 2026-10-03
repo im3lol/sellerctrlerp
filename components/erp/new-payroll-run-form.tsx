@@ -72,7 +72,7 @@ export function NewPayrollRunForm() {
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.back()}>{t("إلغاء")}</Button>
         <Button onClick={submit} disabled={pending}>
-          {pending ? "جارٍ الإنشاء…" : "إنشاء المسير"}
+          {pending ? t("جارٍ الإنشاء…") : t("إنشاء المسير")}
         </Button>
       </div>
     </div>

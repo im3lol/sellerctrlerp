@@ -102,8 +102,8 @@ export function TransferForm({
         lines: ready.map((l) => ({ itemId: l.itemId, fromWarehouseId: l.fromWh, toWarehouseId: l.toWh, quantity: Number(l.quantity) })),
       };
       const r = isEdit ? await updateStockTransferAction(initial!.id, body) : await createStockTransferAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ التحويل (مسودة) — أكّده للترحيل"); router.push(r.number ? `/inventory/transfers/${encodeURIComponent(r.number)}` : "/inventory/transfers"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      if (r.ok) { toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ التحويل (مسودة) — أكّده للترحيل")); router.push(r.number ? `/inventory/transfers/${encodeURIComponent(r.number)}` : "/inventory/transfers"); router.refresh(); }
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
@@ -194,7 +194,7 @@ export function TransferForm({
           </div>
 
           <div className="flex justify-end">
-            <Button disabled={pending} onClick={submit}>{isEdit ? "حفظ التعديلات" : "حفظ التحويل (مسودة)"}</Button>
+            <Button disabled={pending} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("حفظ التحويل (مسودة)")}</Button>
           </div>
         </CardContent>
       </Card>

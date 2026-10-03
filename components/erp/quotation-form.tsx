@@ -96,8 +96,8 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
     start(async () => {
       const body = { customerId, date, validUntil: validUntil || undefined, notes, discountAmount: headerDiscount, lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount, taxAmount: lineTax(l, vatRate, applyVat), exempt: false })) };
       const r = isEdit ? await updateQuotationAction(initial!.id, body) : await createQuotationAction(body);
-      if (r.ok) { toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ عرض السعر (مسودة)"); router.push(r.number ? `/sales/quotations/${encodeURIComponent(r.number)}` : "/sales/quotations"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      if (r.ok) { toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ عرض السعر (مسودة)")); router.push(r.number ? `/sales/quotations/${encodeURIComponent(r.number)}` : "/sales/quotations"); router.refresh(); }
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -107,7 +107,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات عرض السعر")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ العرض"}</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ العرض")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${encodeURIComponent(initial!.number)}` : "/sales/quotations")}>{t("إلغاء")}</Button>
           </div>
         </div>

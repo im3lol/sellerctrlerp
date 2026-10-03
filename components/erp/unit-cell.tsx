@@ -44,7 +44,7 @@ export function UnitCell({
     >
       {units.map((u) => (
         <option key={u.uomId || "__base__"} value={u.uomId}>
-          {u.label}{u.isBase ? "" : ` (${u.factor})`}
+          {t(u.label)}{u.isBase ? "" : ` (${u.factor})`}
         </option>
       ))}
     </select>

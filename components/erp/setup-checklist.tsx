@@ -75,7 +75,7 @@ async function StepCard({ step, done, isNext, manual = true }: { step: Step; don
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {step.ctas.map((c, i) => (
               <Button key={c.href} asChild size="sm" variant={!done && isNext && i === 0 ? "default" : "outline"}>
-                <Link href={c.href}>{c.label}</Link>
+                <Link href={c.href}>{t(c.label)}</Link>
               </Button>
             ))}
           </div>
@@ -101,8 +101,8 @@ export async function SetupChecklist({ status }: { status: SetupStatus }) {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-lg font-bold">{pct === 100 ? "اكتمل الإعداد الأساسي 🎉" : `اكتمل ${status.essentialDone} من ${status.essentialTotal} خطوات أساسية`}</div>
-              <div className="text-sm text-muted-foreground">{pct === 100 ? "جاهز للعمل — راجع الخطوات الاختيارية لو تحتاجها." : "أكمل الخطوات بالترتيب — كل خطوة تتعلّم تلقائيًا أول ما تنفّذها."}</div>
+              <div className="text-lg font-bold">{pct === 100 ? t("اكتمل الإعداد الأساسي 🎉") : `اكتمل ${status.essentialDone} من ${status.essentialTotal} خطوات أساسية`}</div>
+              <div className="text-sm text-muted-foreground">{pct === 100 ? t("جاهز للعمل — راجع الخطوات الاختيارية لو تحتاجها.") : t("أكمل الخطوات بالترتيب — كل خطوة تتعلّم تلقائيًا أول ما تنفّذها.")}</div>
             </div>
             <div className="text-2xl font-bold tabular-nums text-primary">{pct}٪</div>
           </div>

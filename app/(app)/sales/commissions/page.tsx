@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, users } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { CommissionsManager } from "@/components/erp/commissions-manager";
 
 export default async function CommissionsPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const reps = await db
       .select({ id: employees.id, fullName: employees.fullName, code: employees.employeeCode, name: users.name })
@@ -18,8 +20,8 @@ export default async function CommissionsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Percent"
-          title="عمولات المبيعات"
-          subtitle="محسوبة من الفواتير وسندات القبض — والافتراضي إنها تُستحق لما العميل يدفع"
+          title={t("عمولات المبيعات")}
+          subtitle={t("محسوبة من الفواتير وسندات القبض — والافتراضي إنها تُستحق لما العميل يدفع")}
           backHref="/sales"
         />
         <CommissionsManager

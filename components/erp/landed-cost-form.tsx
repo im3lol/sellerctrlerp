@@ -92,7 +92,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     if (!next.length) { setLines([]); return; }
     startLoad(async () => {
       const r = await getLandedCostBasisAction(next);
-      if (!r.ok || !r.lines) { toast.error(r.error ?? "تعذّر تحميل بنود الإذون"); return; }
+      if (!r.ok || !r.lines) { toast.error(r.error ?? t("تعذّر تحميل بنود الإذون")); return; }
       setLines(r.lines);
     });
   };
@@ -114,7 +114,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
         toast.success("تم حفظ المستند (مسودة) — راجِعه ثم رحّله");
         router.push(r.number ? `/purchases/landed-costs/${encodeURIComponent(r.number)}` : "/purchases/landed-costs");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 

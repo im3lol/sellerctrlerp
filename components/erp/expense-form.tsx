@@ -46,11 +46,11 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
       const body = { expenseAccountId, cashAccountId, amount: Number(amount), date, paymentMethod: method, payee, reference, notes, projectId: projectId || null };
       const r = isEdit ? await updateExpenseAction(initial!.id, body) : await createExpenseAction(body);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ المصروف (مسودة) — أكّده للترحيل");
+        toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ المصروف (مسودة) — أكّده للترحيل"));
         router.push("/accounting/expenses");
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر الحفظ");
+        toast.error(r.error ?? t("تعذّر الحفظ"));
       }
     });
 
@@ -63,7 +63,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
             selectedLabel={expLabelById.get(expenseAccountId) ?? ""}
             options={expOptions}
             onSelect={(id) => setExpenseAccountId(id)}
-            placeholder={expenseAccounts.length === 0 ? "لا توجد حسابات مصروفات" : "ابحث عن بند المصروف…"}
+            placeholder={expenseAccounts.length === 0 ? t("لا توجد حسابات مصروفات") : t("ابحث عن بند المصروف…")}
           />
         </div>
 
@@ -78,7 +78,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
             selectedLabel={cashLabelById.get(cashAccountId) ?? ""}
             options={cashOptions}
             onSelect={(id) => setCashAccountId(id)}
-            placeholder={cashAccounts.length === 0 ? "لا توجد حسابات نقدية" : "ابحث عن الحساب…"}
+            placeholder={cashAccounts.length === 0 ? t("لا توجد حسابات نقدية") : t("ابحث عن الحساب…")}
           />
         </div>
 
@@ -131,7 +131,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
         </div>
 
         <div className="flex justify-end sm:col-span-2">
-          <Button disabled={pending} onClick={submit}>{isEdit ? "حفظ التعديلات" : "تسجيل المصروف"}</Button>
+          <Button disabled={pending} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("تسجيل المصروف")}</Button>
         </div>
       </CardContent>
     </Card>

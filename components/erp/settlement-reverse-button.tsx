@@ -19,7 +19,7 @@ export function SettlementReverseButton({ channel, settlementId }: { channel: st
     start(async () => {
       const r = await reverseAmazonSettlementAction(channel, settlementId);
       if (r.ok) { toast.success(`تم عكس ${r.reversed.toLocaleString("ar-EG-u-nu-latn")} قيد`); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر العكس");
+      else toast.error(r.error ?? t("تعذّر العكس"));
     });
   })();
   return (

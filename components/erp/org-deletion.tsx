@@ -20,7 +20,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) => start(async () => {
     const r = await fn();
-    if (!r.ok) { toast.error(r.error ?? "حصلت مشكلة"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("حصلت مشكلة")); return; }
     toast.success(done);
     setName("");
     router.refresh();

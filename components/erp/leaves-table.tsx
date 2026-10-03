@@ -43,11 +43,11 @@ export function LeavesTable({ rows, canApprove, canCreate }: { rows: Row[]; canA
                 {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}</TableCell>}
                 <TableCell className="font-mono">{r.number}</TableCell>
                 <TableCell>{r.employee}</TableCell>
-                <TableCell>{LEAVE_TYPE_LABEL[r.type] ?? r.type}</TableCell>
+                <TableCell>{t(LEAVE_TYPE_LABEL[r.type] ?? r.type)}</TableCell>
                 <TableCell>{dt(r.start)}</TableCell>
                 <TableCell>{dt(r.end)}</TableCell>
                 <TableCell className="text-end tabular-nums">{r.days as number}</TableCell>
-                <TableCell><Badge variant={statusVariant(r.status)}>{LEAVE_STATUS_LABEL[r.status] ?? r.status}</Badge></TableCell>
+                <TableCell><Badge variant={statusVariant(r.status)}>{t(LEAVE_STATUS_LABEL[r.status] ?? r.status)}</Badge></TableCell>
                 {showSelect && <TableCell><LeaveRequestRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

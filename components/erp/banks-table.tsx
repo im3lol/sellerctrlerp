@@ -40,7 +40,7 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
     start(async () => {
       const r = await upsertBankAccountAction({ id: row.id, nameAr, bankName, accountNumber, iban, glAccountId: glAccountId || undefined });
       if (r.ok) { toast.success("تم تحديث الحساب البنكي"); onClose(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -84,12 +84,12 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
 
   const toggle = (id: string) => start(async () => {
     const r = await toggleBankAccountActiveAction(id);
-    if (r.ok) router.refresh(); else toast.error(r.error ?? "تعذّر التنفيذ");
+    if (r.ok) router.refresh(); else toast.error(r.error ?? t("تعذّر التنفيذ"));
   });
   const del = (row: BankRow) => start(async () => {
     const r = await deleteBankAccountAction(row.id);
     if (r.ok) { toast.success("تم حذف الحساب البنكي"); setConfirmDel(null); router.refresh(); }
-    else { toast.error(r.error ?? "تعذّر الحذف"); setConfirmDel(null); }
+    else { toast.error(r.error ?? t("تعذّر الحذف")); setConfirmDel(null); }
   });
 
   return (
@@ -122,14 +122,14 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
                 </TableCell>
                 <TableCell className="text-xs">{r.glCode ? `${r.glCode} — ${r.glName}` : <span className="text-muted-foreground">{t("غير مربوط")}</span>}</TableCell>
                 <TableCell className={`tabular-nums ${r.balance < 0 ? "text-destructive" : ""}`}>{fmt(r.balance)}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "نشط" : "غير نشط"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("نشط") : t("غير نشط")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button asChild size="sm" variant="outline"><Link href={`/accounting/banks/${r.id}`}><FileText className="size-4" />{t("الكشف")}</Link></Button>
                     {canEdit && (
                       <>
                         <Button size="icon" variant="ghost" onClick={() => setEditing(r)} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
-                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
+                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
                         <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                       </>
                     )}

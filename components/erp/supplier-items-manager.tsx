@@ -76,7 +76,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
         })),
       });
       if (res.ok) { toast.success("تم حفظ موردي الصنف"); router.refresh(); }
-      else toast.error(res.error ?? "تعذّر الحفظ");
+      else toast.error(res.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -146,7 +146,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
                             className={cn("w-28", f !== "sku" && "tabular-nums")}
                             type={f === "sku" ? "text" : "number"} min="0" step={f === "leadDays" ? "1" : "any"}
                             dir={f === "sku" ? "ltr" : undefined}
-                            value={r[f]} placeholder={f === "sku" ? "اختياري" : "—"}
+                            value={r[f]} placeholder={f === "sku" ? t("اختياري") : "—"}
                             onChange={(e) => patch(r.key, { [f]: e.target.value })}
                           />
                         ) : (
@@ -157,7 +157,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
                     <TableCell>
                       <button
                         type="button" disabled={!canEdit} onClick={() => togglePreferred(r.key)}
-                        aria-label={r.isPreferred ? "المورد المفضّل" : "اجعله المفضّل"}
+                        aria-label={r.isPreferred ? t("المورد المفضّل") : t("اجعله المفضّل")}
                         className={cn("rounded-md p-1 transition-colors", canEdit && "hover:bg-accent")}
                       >
                         <Icon name="Star" className={cn("size-4", r.isPreferred ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} />

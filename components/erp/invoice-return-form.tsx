@@ -29,8 +29,8 @@ export function InvoiceReturnForm({
   lines: ReturnLine[];
 }) {
   const t = useT();
-  const docLabel = type === "receipt" ? "إذن استلام" : type === "delivery" ? "إذن صرف" : "فاتورة";
-  const qtyLabel = type === "receipt" ? "المستلم" : type === "delivery" ? "المُسلّم" : "المفوتر";
+  const docLabel = type === "receipt" ? t("إذن استلام") : type === "delivery" ? t("إذن صرف") : t("فاتورة");
+  const qtyLabel = type === "receipt" ? t("المستلم") : type === "delivery" ? t("المُسلّم") : t("المفوتر");
   const salesSide = type === "sales" || type === "delivery";
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -58,7 +58,7 @@ export function InvoiceReturnForm({
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
         router.push(`/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
+      } else toast.error(r.error ?? t("تعذّر حفظ المرتجع"));
     });
   };
 

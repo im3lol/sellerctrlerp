@@ -37,7 +37,7 @@ export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
         notes: String(fd.get("notes") ?? ""),
       });
       if (res.ok) { toast.success("تم تسجيل الاستبعاد"); router.refresh(); setOpen(false); }
-      else toast.error(res.error ?? "تعذّر التنفيذ");
+      else toast.error(res.error ?? t("تعذّر التنفيذ"));
     });
   }
 

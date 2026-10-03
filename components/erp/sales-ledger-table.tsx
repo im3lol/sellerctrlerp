@@ -82,11 +82,11 @@ export function SalesLedgerTable({
                 </td>
                 <td className="px-3 py-2">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${doc.cls}`}>
-                    {doc.label}
+                    {t(doc.label)}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
-                  {STATUS[r.status] ?? r.status}
+                  {t(STATUS[r.status] ?? r.status)}
                 </td>
                 <td className="px-3 py-2 text-left"><QtyCell v={r.qtyTotal} strong /></td>
                 <td className="px-3 py-2 text-left text-emerald-700"><QtyCell v={r.qtyDelivered} /></td>

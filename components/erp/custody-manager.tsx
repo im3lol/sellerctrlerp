@@ -57,7 +57,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
     setLoading(true);
     void listCustodyAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
       setSettlements(r.settlements ?? {});
     });
@@ -77,7 +77,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
         toast.success(`تم صرف العهدة ${r.number ?? ""}`);
         setIssue({ ...issue, amount: "", purpose: "" });
         load(); router.refresh();
-      } else toast.error(r.error ?? "تعذّر الصرف");
+      } else toast.error(r.error ?? t("تعذّر الصرف"));
     });
   };
 
@@ -102,7 +102,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
         lines: lines.map((l) => ({ expenseAccountId: l.expenseAccountId, amount: l.amount, description: l.description || null })),
       });
       if (r.ok) { toast.success("تم تسجيل التسوية"); setSettling(null); load(); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التسجيل");
+      else toast.error(r.error ?? t("تعذّر التسجيل"));
     });
   };
 
@@ -117,7 +117,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
       start(async () => {
         const r = await cancelCustodyAction(row.id);
         if (r.ok) { toast.success("تم الإلغاء"); load(); }
-        else toast.error(r.error ?? "تعذّر الإلغاء");
+        else toast.error(r.error ?? t("تعذّر الإلغاء"));
       });
     })();
 
@@ -253,7 +253,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
       <Card>
         <CardHeader>
           <CardTitle>{t("العُهد")}</CardTitle>
-          <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} عهدة`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} عهدة`}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (

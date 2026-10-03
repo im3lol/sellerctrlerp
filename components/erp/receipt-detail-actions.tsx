@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmReceiptAction, deleteReceiptAction, cancelReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
@@ -24,6 +25,7 @@ export function ReceiptDetailActions({
   canReceive: boolean;
   printHref: string; barcodeRows?: BulkRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -33,7 +35,7 @@ export function ReceiptDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -44,7 +46,7 @@ export function ReceiptDetailActions({
       start(async () => {
         const r = await convertReceiptToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 
@@ -69,7 +71,7 @@ export function ReceiptDetailActions({
           start(async () => {
             const r = await deleteCancelledDocumentAction("receipt", id);
             if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/purchases/receipts"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
     }

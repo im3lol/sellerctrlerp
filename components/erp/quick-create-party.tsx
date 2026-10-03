@@ -54,8 +54,8 @@ export function QuickCreateParty({
       fd.set("nameAr", nameAr);
       if (phone.trim()) fd.set("phone", phone.trim());
       const r = isSupplier ? await saveSupplierAction({}, fd) : await saveCustomerAction({}, fd);
-      if (!r.ok || !r.created) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
-      toast.success(isSupplier ? "تم إضافة المورد" : "تم إضافة العميل");
+      if (!r.ok || !r.created) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
+      toast.success(isSupplier ? t("تم إضافة المورد") : t("تم إضافة العميل"));
       onCreated(r.created);
       onOpenChange(false);
     });
@@ -65,10 +65,10 @@ export function QuickCreateParty({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isSupplier ? "مورد جديد" : "عميل جديد"}</DialogTitle>
+          <DialogTitle>{isSupplier ? t("مورد جديد") : t("عميل جديد")}</DialogTitle>
           <DialogDescription>
             الاسم يكفي — الكود يتولّد تلقائياً، وباقي البيانات تُستكمل لاحقاً من صفحة
-            {isSupplier ? " الموردين" : " العملاء"}.
+            {isSupplier ? t(" الموردين") : t(" العملاء")}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -79,7 +79,7 @@ export function QuickCreateParty({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
-              placeholder={isSupplier ? "اسم المورد" : "اسم العميل"}
+              placeholder={isSupplier ? t("اسم المورد") : t("اسم العميل")}
             />
           </div>
           <div className="space-y-2">
@@ -95,7 +95,7 @@ export function QuickCreateParty({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>{t("إلغاء")}</Button>
-          <Button onClick={submit} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ واختيار"}</Button>
+          <Button onClick={submit} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("حفظ واختيار")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

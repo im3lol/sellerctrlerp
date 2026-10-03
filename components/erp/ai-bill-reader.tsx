@@ -42,7 +42,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
     fd.set("file", file);
     start(async () => {
       const r = await readBillAction(fd);
-      if (!r.ok) { toast.error(r.error ?? "تعذّرت القراءة"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّرت القراءة")); return; }
       setRes(r);
       setReceiptId(r.receipts?.[0]?.id ?? "");
     });
@@ -50,14 +50,14 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
 
   const toInvoice = () => start(async () => {
     const r = await billToInvoiceAction(res!.captureId!, receiptId);
-    if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر إنشاء الفاتورة"); return; }
+    if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء الفاتورة")); return; }
     toast.success(`فاتورة شراء مسودة ${r.number}${r.unmatched ? ` — ${r.unmatched} بند ماتطابقش، راجع أسعاره` : ""}`);
     router.push(`/purchases/invoices/${encodeURIComponent(r.number)}`);
   });
 
   const toExpense = () => start(async () => {
     const r = await billToExpenseAction(res!.captureId!, { expenseAccountId: expenseAcc!.id, cashAccountId: cashAcc });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر إنشاء المصروف"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر إنشاء المصروف")); return; }
     toast.success(`مصروف مسودة ${r.number ?? ""}`);
     router.push(r.number ? `/accounting/expenses/${encodeURIComponent(r.number)}/edit` : "/accounting/expenses");
   });
@@ -73,7 +73,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-2">
         {!res?.supplier ? (
-          <p className="text-sm text-muted-foreground">المورد «{b.supplierName ?? "؟"}» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.</p>
+          <p className="text-sm text-muted-foreground">المورد «{b.supplierName ?? t("؟")}» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.</p>
         ) : (res.receipts ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">مفيش إذن استلام مفتوح لـ«{res.supplier.nameAr}» — استلم البضاعة الأول (أمر شراء ← إذن استلام).</p>
         ) : (
@@ -142,7 +142,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">{t("اللي اتقرا")}</CardTitle>
-              <Badge variant="outline">{KIND[b.kind] ?? b.kind}</Badge>
+              <Badge variant="outline">{t(KIND[b.kind] ?? b.kind)}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">

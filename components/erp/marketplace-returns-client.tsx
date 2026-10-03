@@ -100,7 +100,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
             {CONDITIONS.map((c) => (
               <div key={c.key} className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                 <PackageCheck className={`mt-0.5 size-4 shrink-0 ${c.tone}`} />
-                <span><b>{c.label}</b> — {c.effect}</span>
+                <span><b>{t(c.label)}</b> — {c.effect}</span>
               </div>
             ))}
             <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -165,7 +165,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                           onChange={(e) => setCond((d) => ({ ...d, [o.id]: e.target.value as ReturnCondition | "" }))}
                         >
                           <option value="">{t("ماستلمتوش")}</option>
-                          {CONDITIONS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                          {CONDITIONS.map((c) => <option key={c.key} value={c.key}>{t(c.label)}</option>)}
                         </select>
 
                         {/* Nothing came back: which of these decides the claim you can make. */}
@@ -175,7 +175,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                             value={reason[o.id] ?? "NEVER_ARRIVED"}
                             onChange={(e) => setReason((d) => ({ ...d, [o.id]: e.target.value as NotReceivedReason }))}
                           >
-                            {REASONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                            {REASONS.map((r) => <option key={r.key} value={r.key}>{t(r.label)}</option>)}
                           </select>
                         )}
 

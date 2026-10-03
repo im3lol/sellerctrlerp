@@ -33,7 +33,7 @@ export function NewDashboardButton() {
         e.preventDefault();
         start(async () => {
           const r = await saveDashboardAction({ nameAr: name, widgets: [] });
-          if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
+          if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر الإنشاء")); return; }
           router.push(`/reports/dashboards/${encodeURIComponent(r.number)}?edit=1`);
         });
       }}>
@@ -71,7 +71,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
   const save = () => start(async () => {
     const r = await saveDashboardAction({ id: dashboard.id, nameAr, isShared, widgets });
-    if (!r.ok) { toast.error(r.error ?? "تعذّر الحفظ"); return; }
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
     toast.success("اتحفظت");
     router.push(view);
     router.refresh();
@@ -86,7 +86,7 @@ export function DashboardEditor({ dashboard, reports }: {
     if (!go) return;
     start(async () => {
       const r = await deleteDashboardAction(dashboard.id);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر المسح"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر المسح")); return; }
       toast.success("اتمسحت");
       router.push("/reports/dashboards");
     });
@@ -135,10 +135,10 @@ export function DashboardEditor({ dashboard, reports }: {
           <ol className="space-y-2">
             {widgets.map((w, i) => (
               <li key={`${w.reportId}-${i}`} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                <span className="flex-1 truncate">{report(w.reportId)?.nameAr ?? "تقرير مش متاح"}</span>
+                <span className="flex-1 truncate">{report(w.reportId)?.nameAr ?? t("تقرير مش متاح")}</span>
                 <Button size="sm" variant={w.wide ? "default" : "outline"}
                   onClick={() => setWidgets((ws) => ws.map((x, k) => (k === i ? { ...x, wide: !x.wide } : x)))}>
-                  {w.wide ? "عرض كامل" : "نص عرض"}
+                  {w.wide ? t("عرض كامل") : t("نص عرض")}
                 </Button>
                 <Button size="icon" variant="ghost" aria-label={t("لفوق")} disabled={i === 0} onClick={() => move(i, -1)}>
                   <Icon name="ArrowUp" className="size-4" />

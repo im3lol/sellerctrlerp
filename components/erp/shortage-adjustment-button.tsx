@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createDeliveryShortageAdjustmentAction } from "@/app/actions/erp/deliveries";
@@ -10,6 +11,7 @@ import { Icon } from "@/components/icon";
 /** One click: DRAFT deliveries' aggregated stock shortages → ONE DRAFT stock
  *  adjustment (جرد) the user reviews then posts. */
 export function ShortageAdjustmentButton({ items }: { items: number }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
@@ -19,7 +21,7 @@ export function ShortageAdjustmentButton({ items }: { items: number }) {
         if (r.ok && r.id) {
           toast.success(`تم إنشاء مسودة تسوية جرد (${r.count} صنف) — عدّ الكميات فعليًا ثم رحّلها`);
           router.push(`/inventory/adjustments/${encodeURIComponent(r.number!)}`);
-        } else toast.error(r.error ?? "تعذّر إنشاء التسوية");
+        } else toast.error(r.error ?? t("تعذّر إنشاء التسوية"));
       })}>
       <Icon name="PackageX" className="size-4" />
       تسوية النواقص ({items.toLocaleString("ar-EG-u-nu-latn")} صنف)

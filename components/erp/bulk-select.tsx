@@ -134,8 +134,8 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
   const run = (o: BulkOp<T>) => start(async () => {
     setAsk(null);
     const r = await action(o.op, ids, active);
-    if (!r.ok) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
-    toast.success(`تم ${o.label}: ${int(r.count ?? 0)} ${entity}`);
+    if (!r.ok) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
+    toast.success(`تم ${t(o.label)}: ${int(r.count ?? 0)} ${entity}`);
     onDone();
     router.refresh();
   });
@@ -150,7 +150,7 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
       <div className="ms-auto flex flex-wrap gap-2">
         {ops.map((o) => (
           <Button key={o.op} size="sm" variant={o.danger ? "ghost" : "outline"} disabled={pending} onClick={() => setAsk(o)}>
-            {o.icon && <Icon name={o.icon} className={`size-4 ${o.danger ? "text-destructive" : ""}`} />}{o.label}
+            {o.icon && <Icon name={o.icon} className={`size-4 ${o.danger ? "text-destructive" : ""}`} />}{t(o.label)}
           </Button>
         ))}
       </div>

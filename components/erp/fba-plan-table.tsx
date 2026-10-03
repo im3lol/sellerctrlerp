@@ -73,7 +73,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
       notes: "خطة شحن FBA",
       lines: chosen.map((x) => ({ itemId: x.itemId, fromWarehouseId, toWarehouseId, quantity: qty[x.itemId] })),
     });
-    if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر إنشاء التحويل"); return; }
+    if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء التحويل")); return; }
     toast.success(`تحويل مسودة ${r.number} — أكّده لما الشحنة تطلع فعلاً`);
     router.push(`/inventory/transfers/${encodeURIComponent(r.number)}`);
   });
