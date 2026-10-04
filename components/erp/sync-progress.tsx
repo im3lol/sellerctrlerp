@@ -128,7 +128,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
   const done = steps.filter((s) => s.status === "done" || s.status === "error").length;
 
   return (
-    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
           <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة {label}

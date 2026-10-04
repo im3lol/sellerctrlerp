@@ -66,7 +66,7 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
       </CardContent>
 
       <Dialog open={open} onOpenChange={(o) => !o && closeDialog()}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("مفتاح API جديد")}</DialogTitle>
             <DialogDescription>{newKey ? t("انسخ المفتاح الآن — لن يظهر مرة أخرى.") : t("سيُعرض المفتاح مرة واحدة فقط عند الإنشاء.")}</DialogDescription>

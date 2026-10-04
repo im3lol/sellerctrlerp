@@ -63,7 +63,7 @@ export function QuickCreateParty({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isSupplier ? t("مورد جديد") : t("عميل جديد")}</DialogTitle>
           <DialogDescription>

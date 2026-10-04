@@ -145,7 +145,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
             </div>
 
             {/* Live letterhead preview — same structure as the printed sheet. */}
-            <div className="rounded-xl border bg-white p-4 text-black" dir="rtl">
+            <div className="rounded-xl border bg-white p-4 text-black">
               <div className="mb-1 text-[10px] font-medium text-muted-foreground">{t("معاينة الترويسة")}</div>
               <div className="flex items-start justify-between gap-6">
                 <div className="flex items-start gap-3">

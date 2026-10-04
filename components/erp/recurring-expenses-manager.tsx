@@ -53,7 +53,7 @@ function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recu
   });
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader><DialogTitle>{rec ? t("تعديل مصروف متكرر") : t("مصروف متكرر جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -150,7 +150,7 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
+          <DialogContent>
             <DialogHeader><DialogTitle>{t("حذف القالب المتكرر؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("لن يؤثر على المصروفات التي وُلّدت بالفعل.")}</p>
             <DialogFooter>

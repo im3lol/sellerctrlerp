@@ -198,7 +198,7 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
     : {};
 
   const card = S && (
-    <div dir="rtl" className={cn("overflow-hidden rounded-2xl bg-card shadow-2xl", anchored ? "z-[51]" : "w-full max-w-md")} style={anchored ? { ...popStyle, zIndex: 51 } : undefined} onClick={(e) => e.stopPropagation()}>
+    <div className={cn("overflow-hidden rounded-2xl bg-card shadow-2xl", anchored ? "z-[51]" : "w-full max-w-md")} style={anchored ? { ...popStyle, zIndex: 51 } : undefined} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between bg-primary px-5 py-3 text-primary-foreground">
         <span className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="size-4" /> جولة تعريفية</span>
         <button type="button" onClick={close} aria-label="إغلاق" className="rounded-lg p-1 hover:bg-white/10"><X className="size-4" /></button>

@@ -169,7 +169,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
         <Printer className="size-4" />{t("طباعة الباركود")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("طباعة باركود —")} {itemName}</DialogTitle>
             <DialogDescription>{t("ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.")}</DialogDescription>
@@ -276,7 +276,7 @@ export function BulkBarcodePrintButton({
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("طباعة باركود —")} {docTitle}</DialogTitle>
             <DialogDescription>{t("ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.")}</DialogDescription>

@@ -32,7 +32,7 @@ export default async function WhatsNewPage() {
   const entries = await listChangelog();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-6">
       <ErpPageHeader icon="Sparkles" title={t("آخر التحديثات")}
         subtitle={t("كل حاجة جديدة في النظام — الأحدث الأول")} />
 

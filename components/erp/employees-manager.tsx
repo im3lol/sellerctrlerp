@@ -77,7 +77,7 @@ function EmployeeDialog({
   }
 
   return (
-    <DialogContent className="max-w-lg" dir="rtl">
+    <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle>{isStandalone && !emp ? t("موظف جديد (بدون حساب)") : fill(t("بيانات راتب — {0}"), [member.name])}</DialogTitle>
       </DialogHeader>

@@ -35,7 +35,7 @@ export default async function AcademyPage() {
   const p = progress(lessons);
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <ErpPageHeader icon="GraduationCap" title={t("الأكاديمية")}
         subtitle={t("دروس قصيرة تشرح كل جزء في النظام — اختر الموديول")} />
 

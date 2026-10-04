@@ -46,7 +46,7 @@ export function OrdersProgress({ code, label = "المنصة", open, onClose }: 
   const running = st.phase === "running" || st.phase === "idle";
 
   return (
-    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold"><ShoppingCart className={`size-4 ${running ? "animate-pulse" : ""}`} />{t("سحب المبيعات")}</div>
         <button onClick={close} aria-label={t("إغلاق")} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>

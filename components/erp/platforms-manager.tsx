@@ -104,7 +104,7 @@ function CreatePlatformDialog({
   };
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>{mode === "auto" ? t("ربط آلي") : mode === "manual" ? t("منصة يدوية") : t("منصة بيع جديدة")}</DialogTitle>
         <DialogDescription>

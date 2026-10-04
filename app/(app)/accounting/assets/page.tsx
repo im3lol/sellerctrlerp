@@ -56,7 +56,7 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
     };
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Building2"
           title={t("الأصول الثابتة")}

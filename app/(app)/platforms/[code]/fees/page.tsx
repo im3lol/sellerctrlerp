@@ -70,7 +70,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
     const s = summarizeSettlementFees(feeRows);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Percent"
           title={fill(t("مصاريف {0} من التسويات"), [platform.name])}

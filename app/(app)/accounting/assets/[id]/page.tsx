@@ -70,7 +70,7 @@ export default async function AssetDetailPage({ params }: Params) {
       : 0;
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Building2"
           title={a.nameAr}

@@ -76,7 +76,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   });
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>{t("الاشتراك في باقة")} {plan.name}</DialogTitle>
         <DialogDescription>{isXpay ? t("ادفع أونلاين ويُفعَّل اشتراكك فور نجاح الدفع.") : t("حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.")}</DialogDescription>

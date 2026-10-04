@@ -76,7 +76,7 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
     }));
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Landmark"
           title={t("الحسابات البنكية")}

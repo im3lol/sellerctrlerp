@@ -54,7 +54,7 @@ function BomDialog({ bundle, onClose }: { bundle: Bundle | null; onClose: () => 
   });
 
   return (
-    <DialogContent dir="rtl" className="max-w-lg">
+    <DialogContent className="max-w-lg">
       <DialogHeader><DialogTitle>{bundle ? t("تعديل مكوّنات الحزمة") : t("حزمة جديدة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -112,7 +112,7 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
   });
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader><DialogTitle>{t("تجميع حزمة «")}{bundle.name}»</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("سيتم خصم المكوّنات من المستودع وإنتاج الحزمة كمخزون قابل للبيع بتكلفة مكوّناتها.")}</p>
@@ -228,7 +228,7 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
+          <DialogContent>
             <DialogHeader><DialogTitle>{t("حذف حزمة «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("سيُحذف تعريف المكوّنات فقط؛ عمليات التجميع السابقة ومخزونها لا تتأثر.")}</p>
             <DialogFooter>

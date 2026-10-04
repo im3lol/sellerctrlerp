@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Icon } from "@/components/icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -13,9 +14,10 @@ export function SettingsTile({ label, icon, brandCls, configured, enabled, dialo
   label: string; icon: string; brandCls: string; configured: boolean; enabled?: boolean;
   dialogTitle: string; dialogDescription?: string; children: ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const dotOn = enabled === undefined ? configured : enabled;
-  const statusText = `${configured ? "مُعدّة" : "غير مُعدّة"}${enabled === undefined ? "" : enabled ? " · مُفعّلة" : " · موقوفة"}`;
+  const statusText = `${configured ? t("مُعدّة") : t("غير مُعدّة")}${enabled === undefined ? "" : enabled ? t(" · مُفعّلة") : t(" · موقوفة")}`;
 
   return (
     <>
@@ -28,7 +30,7 @@ export function SettingsTile({ label, icon, brandCls, configured, enabled, dialo
           <Icon name={icon} className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{label}</div>
+          <div className="truncate font-medium">{t(label)}</div>
           <div className="mt-0.5 flex items-center gap-1.5 text-xs">
             <span className={`inline-block size-1.5 rounded-full ${dotOn ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
             <span className="text-muted-foreground">{statusText}</span>

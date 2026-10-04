@@ -70,7 +70,7 @@ export default async function ErpHrPage() {
     ];
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="UsersRound" title={t("الموارد البشرية")} subtitle={t("نظرة عامة على الموظفين والإجازات والرواتب")}
           action={<AcademyLink module="hr" />} />
 

@@ -40,7 +40,7 @@ export default function PostDepreciationPage() {
   ];
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <ErpPageHeader
         icon="CalendarCheck"
         title={t("ترحيل الإهلاك الشهري")}

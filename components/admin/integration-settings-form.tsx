@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Copy } from "lucide-react";
@@ -41,6 +43,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl, initial }: {
   code: string; label: string; fields: IntegrationField[]; hasOAuth: boolean; appUrl: string; initial: IntegrationInitial;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [enabled, setEnabled] = useState(initial.enabled);
@@ -66,7 +69,7 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
   const regenSecret = () => start(async () => {
     setWhBusy(true);
     const r = await regenerateNoonWebhookAction();
-    if (r.ok) { setWhSecret(r.secret); toast.success(r.note ?? (r.registered ? "تم تجديد السرّ وإعادة التسجيل" : "تم تجديد السرّ")); }
+    if (r.ok) { setWhSecret(r.secret); toast.success(r.note ?? (r.registered ? t("تم تجديد السرّ وإعادة التسجيل") : t("تم تجديد السرّ"))); }
     else toast.error(r.error);
     setWhBusy(false);
   });
@@ -81,7 +84,7 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
       webhookSecret: secrets.webhookSecret,
       enabled,
     });
-    if ("ok" in r) { toast.success(`تم حفظ إعدادات ${label}`); setSecrets({}); router.refresh(); }
+    if ("ok" in r) { toast.success(fill(t("تم حفظ إعدادات {0}"), [label])); setSecrets({}); router.refresh(); }
     else toast.error(r.error);
   });
 
@@ -89,17 +92,17 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-        <span className="text-sm text-muted-foreground">حالة التكامل</span>
-        <label className="flex items-center gap-2 text-sm"><Switch checked={enabled} onCheckedChange={setEnabled} />{enabled ? "مُفعّلة" : "موقوفة"}</label>
+        <span className="text-sm text-muted-foreground">{t("حالة التكامل")}</span>
+        <label className="flex items-center gap-2 text-sm"><Switch checked={enabled} onCheckedChange={setEnabled} />{enabled ? t("مُفعّلة") : t("موقوفة")}</label>
       </div>
       {fields.map((f) => (
           <div key={f.key} className="space-y-2">
-            <Label htmlFor={`${code}-${f.key}`}>{f.label}</Label>
+            <Label htmlFor={`${code}-${f.key}`}>{t(f.label)}</Label>
             <Input
               id={`${code}-${f.key}`}
               value={f.secret ? (secrets[f.key] ?? "") : (text[f.key] ?? "")}
               onChange={(e) => setField(f.key, !!f.secret, e.target.value)}
-              placeholder={f.secret && initial.has[f.key as "clientSecret" | "webhookSecret"] ? "••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)" : (f.placeholder ?? "")}
+              placeholder={f.secret && initial.has[f.key as "clientSecret" | "webhookSecret"] ? t("••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)") : (f.placeholder ?? "")}
               dir="ltr" autoComplete="off"
             />
             {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
@@ -108,10 +111,10 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
 
         {hasOAuth && (
           <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
-            <div className="text-sm font-medium">رابط التحويل (OAuth Redirect URI) — أضِفه في إعدادات تطبيق المنصّة:</div>
-            <CopyRow label="الافتراضي" value={defaultRedirect} />
+            <div className="text-sm font-medium">{t("رابط التحويل (OAuth Redirect URI) — أضِفه في إعدادات تطبيق المنصّة:")}</div>
+            <CopyRow label={t("الافتراضي")} value={defaultRedirect} />
             <div className="space-y-1">
-              <Label htmlFor={`${code}-redirectUri`} className="text-xs text-muted-foreground">تجاوز (اختياري) — فارغ يستخدم الافتراضي</Label>
+              <Label htmlFor={`${code}-redirectUri`} className="text-xs text-muted-foreground">{t("تجاوز (اختياري) — فارغ يستخدم الافتراضي")}</Label>
               <Input id={`${code}-redirectUri`} value={text.redirectUri ?? ""} onChange={(e) => setText((t) => ({ ...t, redirectUri: e.target.value }))} placeholder={defaultRedirect} dir="ltr" autoComplete="off" />
             </div>
           </div>
@@ -119,27 +122,27 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
 
       {code === "NOON" && (
         <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
-          <div className="text-sm font-medium">ويب‌هوك نون (طلبات + مرتجعات)</div>
-          <p className="text-xs text-muted-foreground">السرّ بيتولّد تلقائيًا. نون ما بتتيحش تسجيلًا تلقائيًا عبر API، فانسخ القيم دي وسجّلها <b>مرة واحدة</b> في بوابة نون: Event Notifications → Destinations → Create Destination. العميل ما بيشوفش الجزء ده.</p>
+          <div className="text-sm font-medium">{t("ويب‌هوك نون (طلبات + مرتجعات)")}</div>
+          <p className="text-xs text-muted-foreground">{t("السرّ بيتولّد تلقائيًا. نون ما بتتيحش تسجيلًا تلقائيًا عبر API، فانسخ القيم دي وسجّلها")} <b>{t("مرة واحدة")}</b> {t("في بوابة نون: Event Notifications → Destinations → Create Destination. العميل ما بيشوفش الجزء ده.")}</p>
           <CopyRow label="Destination URL" value={webhookUrl} />
           <CopyRow label="Credentials · Key" value="key" />
-          {whSecret !== null && whSecret !== "" && <CopyRow label="Credentials · Value (السرّ)" value={whSecret} />}
+          {whSecret !== null && whSecret !== "" && <CopyRow label={t("Credentials · Value (السرّ)")} value={whSecret} />}
           <div className="flex flex-wrap items-center gap-2">
             {whSecret === null && (
               <Button type="button" variant="outline" size="sm" onClick={revealSecret} disabled={whBusy}>
-                {whBusy && <Loader2 className="size-3.5 animate-spin" />}إظهار السرّ
+                {whBusy && <Loader2 className="size-3.5 animate-spin" />}{t("إظهار السرّ")}
               </Button>
             )}
             <Button type="button" variant="outline" size="sm" onClick={regenSecret} disabled={whBusy}>
-              {whBusy && <Loader2 className="size-3.5 animate-spin" />}تجديد السرّ
+              {whBusy && <Loader2 className="size-3.5 animate-spin" />}{t("تجديد السرّ")}
             </Button>
           </div>
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</p>
+      <p className="text-xs text-muted-foreground">{t("مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.")}</p>
       <div className="flex justify-end">
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}</Button>
       </div>
     </div>
   );

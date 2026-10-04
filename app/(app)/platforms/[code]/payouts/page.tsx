@@ -104,7 +104,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
     }, null);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Wallet"
           title={fill(t("محفظة ومدفوعات {0}"), [platform.name])}

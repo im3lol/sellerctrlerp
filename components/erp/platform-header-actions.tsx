@@ -187,7 +187,7 @@ export function PlatformHeaderActions({
       {/* «مزامنة الآن» chooser: pick exactly what to sync. Also hosts the one-time
           go-live date question — without it the order floor silently lands on today. */}
       <Dialog open={chooseOpen} onOpenChange={setChooseOpen}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("مزامنة")} {label}</DialogTitle>
             <DialogDescription>{t("اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.")}</DialogDescription>
@@ -228,7 +228,7 @@ export function PlatformHeaderActions({
 
       {/* سحب المبيعات: pick a start date (blank = today only). */}
       <Dialog open={pullOpen} onOpenChange={setPullOpen}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("سحب المبيعات")}</DialogTitle>
             <DialogDescription>{t("اترك التاريخ فارغًا لسحب طلبات اليوم فقط، أو ابدأ من تاريخ بدء الربط المحاسبي.")}</DialogDescription>

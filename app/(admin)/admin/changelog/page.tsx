@@ -1,9 +1,11 @@
 import { listChangelogForAdmin } from "@/lib/erp/changelog";
+import { getT } from "@/lib/i18n/server";
 import { PageHeader } from "@/components/page-header";
 import { ChangelogManager } from "@/components/admin/changelog-manager";
 
 /** Where release notes get written. Platform content — every tenant reads the same list. */
 export default async function AdminChangelogPage() {
+  const t = await getT();
   const rows = await listChangelogForAdmin();
 
   // The <input type="date"> wants yyyy-mm-dd, and the date is the sort key the whole
@@ -17,8 +19,8 @@ export default async function AdminChangelogPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="آخر التحديثات"
-        description="ملاحظات الإصدار كما يقرأها كل العملاء. المسودة تتكتب دلوقتي وتتنشر لما تشحن." />
+      <PageHeader title={t("آخر التحديثات")}
+        description={t("ملاحظات الإصدار كما يقرأها كل العملاء. المسودة تتكتب دلوقتي وتتنشر لما تشحن.")} />
       <ChangelogManager entries={entries} today={iso(new Date())} />
     </div>
   );

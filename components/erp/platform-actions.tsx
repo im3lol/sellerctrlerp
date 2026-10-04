@@ -36,7 +36,7 @@ export function PlatformActions({ code, isAmazon, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {mode === "choose" ? t("استيراد أو تصدير") : mode === "import" ? t("اختر نوع الاستيراد") : t("اختر نوع التصدير")}

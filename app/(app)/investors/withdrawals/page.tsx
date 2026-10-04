@@ -35,7 +35,7 @@ export default async function WithdrawalsPage() {
     const profit = rows.filter((r) => r.type === "profit").reduce((s, r) => s + Number(r.amount), 0);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="Banknote" title={t("سحوبات المستثمرين")}
           subtitle={fill(t("أرباح مصروفة {0} · سحب رأس مال {1}"), [money(profit), money(capital)])} backHref="/investors"
           action={can("accounting.post") ? (

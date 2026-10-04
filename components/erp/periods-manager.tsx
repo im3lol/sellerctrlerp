@@ -61,7 +61,7 @@ function YearClosingDialog({
   }
 
   return (
-    <DialogContent className="max-w-2xl" dir="rtl">
+    <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle>{t("إقفال السنة المالية —")} {period.name}</DialogTitle>
       </DialogHeader>

@@ -41,7 +41,7 @@ export function ConfirmHost() {
   const o = s.opts;
   return (
     <AlertDialog open={s.open} onOpenChange={(open) => { if (!open) settle(false); }}>
-      <AlertDialogContent size="sm" dir="rtl">
+      <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogTitle>{o.title ?? t("تأكيد الإجراء")}</AlertDialogTitle>
           <AlertDialogDescription>{o.description ?? t("هل تريد تنفيذ هذا الأمر؟")}</AlertDialogDescription>

@@ -45,7 +45,7 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
   };
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>{t("تعديل حساب بنكي")}</DialogTitle>
         <DialogDescription>{t("اسم الحساب والبنك وربطه بحساب الأستاذ.")}</DialogDescription>
@@ -147,7 +147,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
 
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("حذف الحساب البنكي")}</DialogTitle>
               <DialogDescription>

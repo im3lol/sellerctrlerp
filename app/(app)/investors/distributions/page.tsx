@@ -36,7 +36,7 @@ export default async function DistributionsPage() {
       balances.filter((b) => b.type === "EXPENSE").reduce((s, b) => s + naturalAmount(b), 0);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="PieChart" title={t("توزيعات الأرباح")} subtitle={fill(t("{0} توزيع"), [rows.length])} backHref="/investors"
           action={can("investors.edit") ? <DistributionForm suggestedProfit={Math.round(netProfit * 100) / 100} /> : undefined}
         />

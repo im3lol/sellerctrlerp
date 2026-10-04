@@ -52,7 +52,7 @@ function OverridesDialog({
   });
 
   return (
-    <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto" dir="rtl">
+    <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{t("صلاحيات مخصّصة —")} {member.name}</DialogTitle>
         <DialogDescription>

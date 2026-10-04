@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dirOf } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -180,6 +181,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
   amazonCode?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [date, setDate] = useState(initialDate);
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, key: ++KEY })));
@@ -252,7 +254,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
 
   const numCell = "w-32";
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       {posted.length > 0 && (
         <Card><CardContent className="space-y-2 pt-6">
           <div className="flex items-center gap-2 text-sm font-medium"><Icon name="CheckCircle2" className="size-4 text-emerald-600" /> {t("أرصدة افتتاحية مُرحّلة")}</div>
@@ -285,7 +287,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="ACCOUNT" dir="rtl">
+      <Tabs defaultValue="ACCOUNT" dir={dirOf(locale)}>
         <TabsList>
           <TabsTrigger value="ACCOUNT">{t("الحسابات (")}{byKind("ACCOUNT").length})</TabsTrigger>
           <TabsTrigger value="CUSTOMER">{t("أرصدة العملاء (")}{byKind("CUSTOMER").length})</TabsTrigger>

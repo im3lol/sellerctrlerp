@@ -78,7 +78,7 @@ export default async function ErpSalesPage() {
     ];
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="ShoppingCart" title={t("المبيعات")} subtitle={t("نظرة عامة على دورة البيع والعملاء")}
           action={<AcademyLink module="sales" />} />
 

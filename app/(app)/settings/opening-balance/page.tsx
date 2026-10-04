@@ -86,7 +86,7 @@ export default async function OpeningBalancePage() {
     const date = (draft ?? posted[0]) ? new Date((draft ?? posted[0]).date).toISOString().slice(0, 10) : fyStart.toISOString().slice(0, 10);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="Upload" title={t("الأرصدة الافتتاحية")}
           subtitle={t("أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية")} backHref="/settings" />
 

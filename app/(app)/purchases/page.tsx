@@ -80,7 +80,7 @@ export default async function ErpPurchasesPage() {
     ];
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="Truck" title={t("المشتريات")} subtitle={t("نظرة عامة على دورة الشراء والموردين")}
           action={<AcademyLink module="purchases" />} />
 

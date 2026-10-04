@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { setNoonExpressAction } from "@/app/actions/admin/tenants";
@@ -11,14 +12,15 @@ import { Icon } from "@/components/icon";
 /** Owner-only opt-in for Noon Express (FBPI) order auto-ingest — not a tenant self-service
  *  setting, so it lives here on the admin tenant page rather than the org's own settings. */
 export function NoonExpressToggle({ orgId, noon }: { orgId: string; noon: { connected: boolean; expressEnabled: boolean } }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [enabled, setEnabled] = useState(noon.expressEnabled);
 
   const toggle = (v: boolean) => start(async () => {
     const r = await setNoonExpressAction({ orgId, enabled: v });
-    if ("ok" in r && r.ok) { setEnabled(v); toast.success(v ? "تم تفعيل Noon Express لهذه المؤسسة" : "تم إيقاف Noon Express"); router.refresh(); }
-    else toast.error(("error" in r && r.error) || "تعذّر الحفظ");
+    if ("ok" in r && r.ok) { setEnabled(v); toast.success(v ? t("تم تفعيل Noon Express لهذه المؤسسة") : t("تم إيقاف Noon Express")); router.refresh(); }
+    else toast.error(("error" in r && r.error) || t("تعذّر الحفظ"));
   });
 
   return (
@@ -29,7 +31,7 @@ export function NoonExpressToggle({ orgId, noon }: { orgId: string; noon: { conn
           <div>
             <div className="text-sm font-medium">Noon Express (FBPI)</div>
             <div className="text-xs text-muted-foreground">
-              {noon.connected ? "استقبال طلبات FBPI تلقائيًا عبر Webhook نون." : "المؤسسة لسه مربوطاش حساب نون — اربطها أولًا."}
+              {noon.connected ? t("استقبال طلبات FBPI تلقائيًا عبر Webhook نون.") : t("المؤسسة لسه مربوطاش حساب نون — اربطها أولًا.")}
             </div>
           </div>
         </div>

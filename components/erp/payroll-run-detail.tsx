@@ -73,7 +73,7 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
   }
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader><DialogTitle>{t("عكس مسير الرواتب")}</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">{t("سيتم إنشاء قيد عكسي يلغي الأثر المحاسبي لهذا المسير.")}</p>
@@ -110,7 +110,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       {/* Header card */}
       <div className="rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">

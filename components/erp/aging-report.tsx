@@ -2,7 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dirOf } from "@/lib/i18n";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type InvoiceRow = {
@@ -147,8 +148,9 @@ export function AgingReport({
   today: Date;
 }) {
   const t = useT();
+  const locale = useLocale();
   return (
-    <Tabs defaultValue="ar" dir="rtl">
+    <Tabs defaultValue="ar" dir={dirOf(locale)}>
       <TabsList>
         <TabsTrigger value="ar">
           ذمم مدينة (AR)

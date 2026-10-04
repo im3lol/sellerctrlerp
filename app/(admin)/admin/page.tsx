@@ -1,4 +1,6 @@
 import { withPlatformScope } from "@/lib/db-scope";
+import { fill, type Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -11,15 +13,17 @@ import { Badge } from "@/components/ui/badge";
 import { ADMIN_NAV } from "@/components/admin/admin-nav";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const egp = (n: number) => `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`;
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" });
+const egp = (n: number, locale: Locale) => (locale === "en" ? `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })} EGP` : `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`);
+const dt = (d: Date, locale: Locale) => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "short", day: "numeric" });
 
 const EVENT_LABEL: Record<string, string> = { ACTIVATED: "تفعيل", RENEWED: "تجديد", UPGRADED: "ترقية", DOWNGRADED: "تخفيض", EXPIRED: "انتهاء", CANCELLED: "إلغاء" };
+const EVENT_EN: Record<string, string> = { ACTIVATED: "Activation", RENEWED: "Renewal", UPGRADED: "Upgrade", DOWNGRADED: "Downgrade", EXPIRED: "Expiry", CANCELLED: "Cancellation" };
 
 /** Inline area chart of MRR over time — no external lib, theme-aware via the primary token. */
-function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
+async function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
+  const t = await getT();
   if (points.length < 2)
-    return <p className="grid h-[140px] place-items-center text-center text-sm text-muted-foreground">يتجمّع التاريخ من اليوم — ارجع بعد أيام لرؤية الاتجاه. 📈</p>;
+    return <p className="grid h-[140px] place-items-center text-center text-sm text-muted-foreground">{t("يتجمّع التاريخ من اليوم — ارجع بعد أيام لرؤية الاتجاه. 📈")}</p>;
   const W = 600, H = 140, pad = 8;
   const max = Math.max(...points.map((p) => p.mrr), 1), min = Math.min(...points.map((p) => p.mrr), 0);
   const x = (i: number) => pad + (i / (points.length - 1)) * (W - 2 * pad);
@@ -27,7 +31,7 @@ function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.mrr).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="اتجاه الإيراد الشهري المتكرر">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label={t("اتجاه الإيراد الشهري المتكرر")}>
       <path d={area} className="fill-primary/10" />
       <path d={line} className="fill-none stroke-primary" strokeWidth={2} vectorEffect="non-scaling-stroke" />
     </svg>
@@ -38,6 +42,8 @@ function MrrTrend({ points }: { points: { date: string; mrr: number }[] }) {
 const SECTIONS = ADMIN_NAV.filter((n) => n.href !== "/admin");
 
 export default async function AdminHome() {
+  const locale = await getLocale();
+  const t = await getT();
   return withPlatformScope(async () => {
     const m = await computePlatformMetrics();
     const trend = await getMrrTrend(90);
@@ -45,25 +51,25 @@ export default async function AdminHome() {
     const collected = await getCollectionsSummary();
     const alerts = await getOwnerAlerts();
     const alertChips = [
-      alerts.pendingRequests > 0 && { txt: `${int(alerts.pendingRequests)} طلب تفعيل معلّق`, href: "/admin/licensing", tone: "amber" },
-      alerts.expiring7d > 0 && { txt: `${int(alerts.expiring7d)} اشتراك ينتهي هذا الأسبوع`, href: "/admin/licensing", tone: "amber" },
-      alerts.churned7d > 0 && { txt: `${int(alerts.churned7d)} انسحاب هذا الأسبوع`, href: "/admin/analytics", tone: "red" },
-      alerts.newSignups7d > 0 && { txt: `${int(alerts.newSignups7d)} تسجيل جديد هذا الأسبوع`, href: "/admin/analytics", tone: "green" },
+      alerts.pendingRequests > 0 && { txt: fill(t("{0} طلب تفعيل معلّق"), [int(alerts.pendingRequests)]), href: "/admin/licensing", tone: "amber" },
+      alerts.expiring7d > 0 && { txt: fill(t("{0} اشتراك ينتهي هذا الأسبوع"), [int(alerts.expiring7d)]), href: "/admin/licensing", tone: "amber" },
+      alerts.churned7d > 0 && { txt: fill(t("{0} انسحاب هذا الأسبوع"), [int(alerts.churned7d)]), href: "/admin/analytics", tone: "red" },
+      alerts.newSignups7d > 0 && { txt: fill(t("{0} تسجيل جديد هذا الأسبوع"), [int(alerts.newSignups7d)]), href: "/admin/analytics", tone: "green" },
     ].filter(Boolean) as { txt: string; href: string; tone: string }[];
     const [{ coupons } = { coupons: 0 }] = await db
       .select({ coupons: sql<number>`count(*)::int` }).from(discountCoupons).where(sql`is_active`);
 
     const hero = [
-      { label: "الإيراد الشهري المتكرر (MRR)", value: egp(m.mrr), icon: "TrendingUp", accent: true },
-      { label: "الإيراد السنوي (ARR)", value: egp(m.arr), icon: "Coins" },
-      { label: "مؤسسات مفعّلة", value: int(m.activeCount), icon: "BadgeCheck", hint: m.newActiveThisMonth ? `+${int(m.newActiveThisMonth)} هذا الشهر` : undefined },
-      { label: "إجمالي المؤسسات", value: int(m.orgCount), icon: "Building2", hint: `${int(m.trialCount)} تجريبي · ${int(m.expiredCount)} منتهٍ` },
+      { label: "الإيراد الشهري المتكرر (MRR)", value: egp(m.mrr, locale), icon: "TrendingUp", accent: true },
+      { label: "الإيراد السنوي (ARR)", value: egp(m.arr, locale), icon: "Coins" },
+      { label: "مؤسسات مفعّلة", value: int(m.activeCount), icon: "BadgeCheck", hint: m.newActiveThisMonth ? fill(t("+{0} هذا الشهر"), [int(m.newActiveThisMonth)]) : undefined },
+      { label: "إجمالي المؤسسات", value: int(m.orgCount), icon: "Building2", hint: fill(t("{0} تجريبي · {1} منتهٍ"), [int(m.trialCount), int(m.expiredCount)]) },
     ];
     const maxPlanMrr = Math.max(1, ...m.planMix.map((p) => p.mrr));
 
     return (
       <div className="space-y-6">
-        <PageHeader title="لوحة الإدارة" description="أداء المنصّة كـ SaaS — الإيراد والاشتراكات والتجديدات، منفصلة عن استخدام الـ ERP." />
+        <PageHeader title={t("لوحة الإدارة")} description={t("أداء المنصّة كـ SaaS — الإيراد والاشتراكات والتجديدات، منفصلة عن استخدام الـ ERP.")} />
 
         {alertChips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 p-3">
@@ -82,7 +88,7 @@ export default async function AdminHome() {
           {hero.map((s) => (
             <Card key={s.label} className={s.accent ? "border-primary/40 bg-primary/5" : undefined}>
               <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={s.icon} className="size-4" />{s.label}</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={s.icon} className="size-4" />{t(s.label)}</div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">{s.value}</div>
                 {s.hint && <div className="text-xs text-muted-foreground">{s.hint}</div>}
               </CardContent>
@@ -95,30 +101,30 @@ export default async function AdminHome() {
           <Card className="lg:col-span-2">
             <CardContent className="pt-6">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 font-semibold"><Icon name="TrendingUp" className="size-4" />اتجاه الإيراد الشهري (MRR)</h3>
-                <span className="text-sm tabular-nums text-muted-foreground">{egp(m.mrr)}/شهر</span>
+                <h3 className="flex items-center gap-2 font-semibold"><Icon name="TrendingUp" className="size-4" />{t("اتجاه الإيراد الشهري (MRR)")}</h3>
+                <span className="text-sm tabular-nums text-muted-foreground">{egp(m.mrr, locale)}{t("/شهر")}</span>
               </div>
               <MrrTrend points={trend} />
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="ArrowLeftRight" className="size-4" />حركة الشهر</h3>
+              <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="ArrowLeftRight" className="size-4" />{t("حركة الشهر")}</h3>
               <ul className="space-y-2 text-sm">
-                <li className="flex justify-between"><span className="text-muted-foreground">جديد</span><span className="tabular-nums text-emerald-600">+{egp(mv.newMrr)}</span></li>
-                <li className="flex justify-between"><span className="text-muted-foreground">ترقيات</span><span className="tabular-nums text-emerald-600">+{egp(mv.expansionMrr)}</span></li>
-                <li className="flex justify-between"><span className="text-muted-foreground">تخفيضات</span><span className="tabular-nums text-amber-600">−{egp(mv.contractionMrr)}</span></li>
-                <li className="flex justify-between"><span className="text-muted-foreground">منسحب (churn)</span><span className="tabular-nums text-destructive">−{egp(mv.churnedMrr)}</span></li>
-                <li className="mt-1 flex justify-between border-t pt-2 font-medium"><span>الصافي</span><span className={`tabular-nums ${mv.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{mv.net >= 0 ? "+" : "−"}{egp(Math.abs(mv.net))}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">{t("جديد")}</span><span className="tabular-nums text-emerald-600">+{egp(mv.newMrr, locale)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">{t("ترقيات")}</span><span className="tabular-nums text-emerald-600">+{egp(mv.expansionMrr, locale)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">{t("تخفيضات")}</span><span className="tabular-nums text-amber-600">−{egp(mv.contractionMrr, locale)}</span></li>
+                <li className="flex justify-between"><span className="text-muted-foreground">{t("منسحب (churn)")}</span><span className="tabular-nums text-destructive">−{egp(mv.churnedMrr, locale)}</span></li>
+                <li className="mt-1 flex justify-between border-t pt-2 font-medium"><span>{t("الصافي")}</span><span className={`tabular-nums ${mv.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{mv.net >= 0 ? "+" : "−"}{egp(Math.abs(mv.net), locale)}</span></li>
               </ul>
               {recent.length > 0 && (
                 <div className="mt-3 border-t pt-2">
-                  <div className="mb-1 text-xs text-muted-foreground">أحدث الأحداث</div>
+                  <div className="mb-1 text-xs text-muted-foreground">{t("أحدث الأحداث")}</div>
                   <ul className="space-y-1 text-xs">
                     {recent.slice(0, 4).map((e, i) => (
                       <li key={i} className="flex items-center justify-between gap-2">
-                        <span className="truncate text-muted-foreground">{EVENT_LABEL[e.type] ?? e.type}{e.planName ? ` · ${e.planName}` : ""}</span>
-                        <span className={`shrink-0 tabular-nums ${e.mrrDelta >= 0 ? "text-emerald-600" : "text-destructive"}`}>{e.mrrDelta >= 0 ? "+" : "−"}{egp(Math.abs(e.mrrDelta))}</span>
+                        <span className="truncate text-muted-foreground">{(locale === "en" ? EVENT_EN[e.type] : t(EVENT_LABEL[e.type])) ?? e.type}{e.planName ? ` · ${e.planName}` : ""}</span>
+                        <span className={`shrink-0 tabular-nums ${e.mrrDelta >= 0 ? "text-emerald-600" : "text-destructive"}`}>{e.mrrDelta >= 0 ? "+" : "−"}{egp(Math.abs(e.mrrDelta), locale)}</span>
                       </li>
                     ))}
                   </ul>
@@ -133,21 +139,21 @@ export default async function AdminHome() {
           <Card>
             <CardContent className="pt-6">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 font-semibold"><Icon name="CalendarClock" className="size-4" />تنبيهات التجديد (خلال ٣٠ يومًا)</h3>
+                <h3 className="flex items-center gap-2 font-semibold"><Icon name="CalendarClock" className="size-4" />{t("تنبيهات التجديد (خلال ٣٠ يومًا)")}</h3>
                 <Badge variant={m.expiringSoon.length ? "secondary" : "outline"}>{int(m.expiringSoon.length)}</Badge>
               </div>
               {m.expiringSoon.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">لا اشتراكات قرب انتهائها. 🎉</p>
+                <p className="py-6 text-center text-sm text-muted-foreground">{t("لا اشتراكات قرب انتهائها. 🎉")}</p>
               ) : (
                 <ul className="space-y-2">
                   {m.expiringSoon.slice(0, 8).map((e) => (
                     <li key={e.orgId} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
                       <div className="min-w-0">
                         <div className="truncate font-medium">{e.orgName}</div>
-                        <div className="text-xs text-muted-foreground">{e.planName ?? "—"} · {dt(e.expiresAt)}</div>
+                        <div className="text-xs text-muted-foreground">{e.planName ?? "—"} · {dt(e.expiresAt, locale)}</div>
                       </div>
                       <Badge variant={e.daysLeft <= 7 ? "destructive" : "secondary"} className="shrink-0 tabular-nums">
-                        {e.daysLeft === 0 ? "ينتهي اليوم" : `${int(e.daysLeft)} يوم`}
+                        {e.daysLeft === 0 ? t("ينتهي اليوم") : fill(t("{0} يوم"), [int(e.daysLeft)])}
                       </Badge>
                     </li>
                   ))}
@@ -159,16 +165,16 @@ export default async function AdminHome() {
           {/* Plan mix */}
           <Card>
             <CardContent className="pt-6">
-              <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="PieChart" className="size-4" />توزيع الإيراد على الباقات</h3>
+              <h3 className="mb-3 flex items-center gap-2 font-semibold"><Icon name="PieChart" className="size-4" />{t("توزيع الإيراد على الباقات")}</h3>
               {m.planMix.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">لا اشتراكات مفعّلة بعد.</p>
+                <p className="py-6 text-center text-sm text-muted-foreground">{t("لا اشتراكات مفعّلة بعد.")}</p>
               ) : (
                 <ul className="space-y-3">
                   {m.planMix.map((p) => (
                     <li key={p.planName}>
                       <div className="mb-1 flex items-center justify-between text-sm">
                         <span className="font-medium">{p.planName} <span className="text-xs text-muted-foreground">({int(p.count)})</span></span>
-                        <span className="tabular-nums text-muted-foreground">{egp(p.mrr)}/شهر</span>
+                        <span className="tabular-nums text-muted-foreground">{egp(p.mrr, locale)}{t("/شهر")}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((p.mrr / maxPlanMrr) * 100)}%` }} />
@@ -186,18 +192,18 @@ export default async function AdminHome() {
           <Link href="/admin/licensing" className="block">
             <Card className={m.pendingRequests ? "border-amber-500/40 bg-amber-500/5 transition-colors hover:border-amber-500" : "transition-colors hover:border-primary"}>
               <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Clock" className="size-4" />طلبات تفعيل معلّقة</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Clock" className="size-4" />{t("طلبات تفعيل معلّقة")}</div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">{int(m.pendingRequests)}</div>
-                {m.pendingRequests > 0 && <div className="text-xs text-amber-600">تحتاج مراجعة ←</div>}
+                {m.pendingRequests > 0 && <div className="text-xs text-amber-600">{t("تحتاج مراجعة ←")}</div>}
               </CardContent>
             </Card>
           </Link>
           <Link href="/admin/collections" className="block">
             <Card className="transition-colors hover:border-primary">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Wallet" className="size-4" />محصّل هذا الشهر</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums">{egp(collected.thisMonth)}</div>
-                <div className="text-xs text-muted-foreground">الإجمالي {egp(collected.allTime)}</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name="Wallet" className="size-4" />{t("محصّل هذا الشهر")}</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums">{egp(collected.thisMonth, locale)}</div>
+                <div className="text-xs text-muted-foreground">{t("الإجمالي")} {egp(collected.allTime, locale)}</div>
               </CardContent>
             </Card>
           </Link>
@@ -207,7 +213,7 @@ export default async function AdminHome() {
             { label: "كوبونات فعّالة", value: int(Number(coupons ?? 0)), icon: "Ticket" },
           ].map((s) => (
             <Card key={s.label}><CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={s.icon} className="size-4" />{s.label}</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={s.icon} className="size-4" />{t(s.label)}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums">{s.value}</div>
             </CardContent></Card>
           ))}
@@ -218,7 +224,7 @@ export default async function AdminHome() {
           {SECTIONS.map((s) => (
             <Link key={s.href} href={s.href} className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary hover:bg-accent">
               <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Icon name={s.icon} className="size-5" /></div>
-              <div><div className="font-semibold">{s.label}</div><div className="text-xs text-muted-foreground">{s.desc}</div></div>
+              <div><div className="font-semibold">{t(s.label)}</div><div className="text-xs text-muted-foreground">{t(s.desc)}</div></div>
             </Link>
           ))}
         </div>

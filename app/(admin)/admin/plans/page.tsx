@@ -1,10 +1,12 @@
 import { asc } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { plans } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { PlansManager } from "@/components/admin/plans-manager";
 
 export default async function PlansPage() {
+  const t = await getT();
   const rows = await db.select().from(plans).orderBy(asc(plans.sortOrder), asc(plans.name));
   const list = rows.map((p) => ({
     id: p.id, name: p.name, priceMonthly: Number(p.priceMonthly), priceAnnual: Number(p.priceAnnual),
@@ -13,7 +15,7 @@ export default async function PlansPage() {
   }));
   return (
     <div className="space-y-6">
-      <PageHeader title="الباقات" description="خطط الاشتراك: الوحدات المضمّنة وحدود المستخدمين والتخزين والأسعار." />
+      <PageHeader title={t("الباقات")} description={t("خطط الاشتراك: الوحدات المضمّنة وحدود المستخدمين والتخزين والأسعار.")} />
       <PlansManager plans={list} />
     </div>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight, ImagePlus } from "lucide-react";
@@ -35,6 +37,7 @@ const live = (l: AdminLesson) => (l.kind === "video" ? !!l.url : !!l.body) && l.
 type Preset = { module: string; kind: LessonKind; sortOrder: number };
 
 function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; preset?: Preset; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const isEdit = !!lesson;
@@ -87,22 +90,22 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
       minutes: minutes ? Number(minutes) : null,
       level, sortOrder: Number(sortOrder || 0),
     }, lesson?.id);
-    if ("ok" in res) { toast.success(isEdit ? "تم الحفظ" : "تمت الإضافة"); router.refresh(); onClose(); }
+    if ("ok" in res) { toast.success(isEdit ? t("تم الحفظ") : t("تمت الإضافة")); router.refresh(); onClose(); }
     else toast.error(res.error);
   });
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" dir="rtl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? `تعديل ${KIND_LABELS[kind]}` : kind === "video" ? "فيديو جديد" : "دليل جديد"}
+            {isEdit ? fill(t("تعديل {0}"), [t(KIND_LABELS[kind])]) : kind === "video" ? t("فيديو جديد") : t("دليل جديد")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>النوع *</Label>
+            <Label>{t("النوع *")}</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {LESSON_KINDS.map((k) => (
                 <button key={k} type="button" onClick={() => setKind(k)}
@@ -112,9 +115,9 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
                   )}>
                   <Icon name={KIND_ICONS[k]} className="size-4 shrink-0 text-muted-foreground" />
                   <div>
-                    <div className="text-sm font-medium">{KIND_LABELS[k]}</div>
+                    <div className="text-sm font-medium">{t(KIND_LABELS[k])}</div>
                     <div className="text-xs text-muted-foreground">
-                      {k === "video" ? "رابط يوتيوب يتشغّل في الصفحة" : "شرح مكتوب بالصور"}
+                      {k === "video" ? t("رابط يوتيوب يتشغّل في الصفحة") : t("شرح مكتوب بالصور")}
                     </div>
                   </div>
                 </button>
@@ -122,106 +125,106 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
             </div>
             {isEdit && (
               // The two catalogues are separate lists; changing this moves the lesson.
-              <p className="text-xs text-muted-foreground">تغيير النوع بينقل الدرس للقائمة التانية.</p>
+              <p className="text-xs text-muted-foreground">{t("تغيير النوع بينقل الدرس للقائمة التانية.")}</p>
             )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="title">العنوان *</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="دورة البيع كاملة" />
+              <Label htmlFor="title">{t("العنوان *")}</Label>
+              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("دورة البيع كاملة")} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="module">الموديول *</Label>
+              <Label htmlFor="module">{t("الموديول *")}</Label>
               <select id="module" className={selectCls} value={module} onChange={(e) => setModule(e.target.value)}>
-                {ALL_MODULES.map((m) => <option key={m} value={m}>{MODULE_LABELS[m]}</option>)}
+                {ALL_MODULES.map((m) => <option key={m} value={m}>{t(MODULE_LABELS[m])}</option>)}
               </select>
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="outcome">هيقدر يعمل إيه بعد الدرس؟</Label>
+            <Label htmlFor="outcome">{t("هيقدر يعمل إيه بعد الدرس؟")}</Label>
             <Input id="outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}
-              placeholder="تمشي أمر بيع من العرض للتسليم للفاتورة" />
-            <p className="text-xs text-muted-foreground">ده اللي بيخلي المستخدم يعرف إن الدرس ده هيجاوب سؤاله — العنوان لوحده مابيكفيش.</p>
+              placeholder={t("تمشي أمر بيع من العرض للتسليم للفاتورة")} />
+            <p className="text-xs text-muted-foreground">{t("ده اللي بيخلي المستخدم يعرف إن الدرس ده هيجاوب سؤاله — العنوان لوحده مابيكفيش.")}</p>
           </div>
 
           {kind === "video" ? (
             <div className="space-y-1">
-              <Label htmlFor="url">رابط فيديو يوتيوب</Label>
+              <Label htmlFor="url">{t("رابط فيديو يوتيوب")}</Label>
               <Input id="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtu.be/…" dir="ltr" />
               {url.trim() ? (
                 yt ? (
-                  <p className="text-xs text-emerald-600">✓ هيتشغّل جوّه النظام — الفيديو: {yt}</p>
+                  <p className="text-xs text-emerald-600">{t("✓ هيتشغّل جوّه النظام — الفيديو:")} {yt}</p>
                 ) : (
                   // Say it now, not after a customer opens a lesson that dumps them
                   // on another site.
                   <p className="text-xs text-amber-600">
-                    مش رابط يوتيوب — الدرس هيبقى لينك بيفتح بره النظام بدل مشغّل الفيديو.
+                    {t("مش رابط يوتيوب — الدرس هيبقى لينك بيفتح بره النظام بدل مشغّل الفيديو.")}
                   </p>
                 )
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  الصق أي شكل من روابط يوتيوب (watch / youtu.be / shorts) — هيتشغّل داخل الصفحة. سيبه فاضي = «قريباً».
+                  {t("الصق أي شكل من روابط يوتيوب (watch / youtu.be / shorts) — هيتشغّل داخل الصفحة. سيبه فاضي = «قريباً».")}
                 </p>
               )}
             </div>
           ) : (
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="body">الشرح (Markdown)</Label>
+                <Label htmlFor="body">{t("الشرح (Markdown)")}</Label>
                 <div className="flex items-center gap-2">
                   <input ref={fileRef} type="file" accept="image/*" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
                   <Button type="button" variant="outline" size="sm" disabled={uploading}
                     onClick={() => fileRef.current?.click()}>
                     {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-                    {uploading ? "جارٍ الرفع…" : "أضف صورة"}
+                    {uploading ? t("جارٍ الرفع…") : t("أضف صورة")}
                   </Button>
                 </div>
               </div>
               <Textarea id="body" ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={14}
                 className="font-mono text-xs"
-                placeholder={"## الخطوة الأولى\n\nافتح **المبيعات ← أوامر البيع** ودوس «أمر جديد».\n\n![شاشة أوامر البيع](…)\n\n- اختار العميل\n- ضيف الأصناف\n\n> الأمر بيفضل مسودة لحد ما تأكّده."} />
+                placeholder={t("## الخطوة الأولى\n\nافتح **المبيعات ← أوامر البيع** ودوس «أمر جديد».\n\n![شاشة أوامر البيع](…)\n\n- اختار العميل\n- ضيف الأصناف\n\n> الأمر بيفضل مسودة لحد ما تأكّده.")} />
               <p className="text-xs text-muted-foreground">
-                <b>«أضف صورة»</b> بيرفع الـscreenshot ويحطه مكان المؤشر. يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول.
-                سيبه فاضي = «قريباً».
+                <b>{t("«أضف صورة»")}</b> {t("بيرفع الـscreenshot ويحطه مكان المؤشر. يدعم العناوين (##) والقوائم (-) والغامق (**) والجداول.")}
+                {" "}{t("سيبه فاضي = «قريباً».")}
               </p>
             </div>
           )}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <Label htmlFor="minutes">المدة (دقائق)</Label>
+              <Label htmlFor="minutes">{t("المدة (دقائق)")}</Label>
               <Input id="minutes" type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="level">المستوى</Label>
+              <Label htmlFor="level">{t("المستوى")}</Label>
               <select id="level" className={selectCls} value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="basic">أساسي</option>
-                <option value="advanced">متقدّم</option>
+                <option value="basic">{t("أساسي")}</option>
+                <option value="advanced">{t("متقدّم")}</option>
               </select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="sortOrder">الترتيب</Label>
+              <Label htmlFor="sortOrder">{t("الترتيب")}</Label>
               <Input id="sortOrder" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="slug">المعرّف (slug) *</Label>
+            <Label htmlFor="slug">{t("المعرّف (slug) *")}</Label>
             <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="sales-cycle" dir="ltr"
               disabled={isEdit} />
             <p className="text-xs text-muted-foreground">
-              {isEdit ? "مش قابل للتعديل — الروابط المتشاركة معتمدة عليه." : "حروف إنجليزية صغيرة وأرقام وشرطات."}
+              {isEdit ? t("مش قابل للتعديل — الروابط المتشاركة معتمدة عليه.") : t("حروف إنجليزية صغيرة وأرقام وشرطات.")}
             </p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button variant="ghost" onClick={onClose}>{t("إلغاء")}</Button>
           <Button onClick={save} disabled={pending || !title || !slug}>
-            {pending && <Loader2 className="size-4 animate-spin" />} حفظ
+            {pending && <Loader2 className="size-4 animate-spin" />} {t("حفظ")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -230,6 +233,7 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
 }
 
 export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<string | null>(null);
@@ -287,14 +291,14 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
       )}
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>حذف «{confirmDel.title}»؟</DialogTitle></DialogHeader>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{t("حذف «")}{confirmDel.title}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
-              لو الدرس هيرجع تاني، «إخفاء» أفضل — بيحتفظ بالمعرّف فالروابط المتشاركة ماتكسرش.
+              {t("لو الدرس هيرجع تاني، «إخفاء» أفضل — بيحتفظ بالمعرّف فالروابط المتشاركة ماتكسرش.")}
             </p>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setConfirmDel(null)}>إلغاء</Button>
-              <Button variant="destructive" disabled={pending} onClick={() => remove(confirmDel)}>حذف</Button>
+              <Button variant="ghost" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>
+              <Button variant="destructive" disabled={pending} onClick={() => remove(confirmDel)}>{t("حذف")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -305,7 +309,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
   const rowActions = (l: AdminLesson) => (
     <div className="flex gap-1">
       <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(l.id)}
-        title={l.isActive ? "إخفاء" : "إظهار"}>
+        title={l.isActive ? t("إخفاء") : t("إظهار")}>
         {l.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </Button>
       <Button variant="ghost" size="sm" onClick={() => setDialog({ open: true, lesson: l })}>
@@ -324,14 +328,14 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
         <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex items-center gap-2.5">
             <Icon name={KIND_ICONS[kind]} className="size-[18px] text-muted-foreground" />
-            <span className="font-semibold">{KIND_PLURAL[kind]}</span>
+            <span className="font-semibold">{t(KIND_PLURAL[kind])}</span>
             <span className="text-xs text-muted-foreground">
-              {c.total === 0 ? "لا يوجد بعد" : `${c.total} · ${c.live} متاح`}
+              {c.total === 0 ? t("لا يوجد بعد") : fill(t("{0} · {1} متاح"), [c.total, c.live])}
             </span>
           </div>
           <Button variant="ghost" size="sm"
             onClick={() => setDialog({ open: true, lesson: null, preset: { module: current.module, kind, sortOrder: c.nextSort } })}>
-            <Plus className="size-4" /> {kind === "video" ? "فيديو جديد" : "دليل جديد"}
+            <Plus className="size-4" /> {kind === "video" ? t("فيديو جديد") : t("دليل جديد")}
           </Button>
         </div>
 
@@ -340,10 +344,10 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">العنوان</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">المدة</TableHead>
-                  <TableHead className="text-right">الترتيب</TableHead>
+                  <TableHead className="text-right">{t("العنوان")}</TableHead>
+                  <TableHead className="text-right">{t("الحالة")}</TableHead>
+                  <TableHead className="text-right">{t("المدة")}</TableHead>
+                  <TableHead className="text-right">{t("الترتيب")}</TableHead>
                   <TableHead className="w-28" />
                 </TableRow>
               </TableHeader>
@@ -356,10 +360,10 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                     </TableCell>
                     <TableCell>
                       {!l.isActive
-                        ? <Badge variant="outline">مخفي</Badge>
+                        ? <Badge variant="outline">{t("مخفي")}</Badge>
                         : live(l)
-                          ? <Badge>متاح</Badge>
-                          : <Badge variant="secondary">قريباً</Badge>}
+                          ? <Badge>{t("متاح")}</Badge>
+                          : <Badge variant="secondary">{t("قريباً")}</Badge>}
                     </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.minutes ?? "—"}</TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">{l.sortOrder}</TableCell>
@@ -374,16 +378,16 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
     );
 
     return (
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setOpen(null)}>
-            <ArrowRight className="size-4" /> كل الموديولات
+            <ArrowRight className="size-4" /> {t("كل الموديولات")}
           </Button>
           <div className="flex items-center gap-2">
             <Icon name={MODULE_ICONS[current.module] ?? "GraduationCap"} className="size-[18px] text-muted-foreground" />
-            <span className="font-semibold">{MODULE_LABELS[current.module]}</span>
+            <span className="font-semibold">{t(MODULE_LABELS[current.module])}</span>
             <span className="text-sm text-muted-foreground">
-              {current.video.live} فيديو · {current.doc.live} دليل · {current.total - current.live} قريباً
+              {fill(t("{0} فيديو · {1} دليل · {2} قريباً"), [current.video.live, current.doc.live, current.total - current.live])}
             </span>
           </div>
         </div>
@@ -398,16 +402,16 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
 
   /* ── the index ── */
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">
-          {videoLive} فيديو · {docLive} دليل متاح · {lessons.length - liveTotal} قريباً
+          {fill(t("{0} فيديو · {1} دليل متاح · {2} قريباً"), [videoLive, docLive, lessons.length - liveTotal])}
         </span>
         <div className="flex gap-2">
           {LESSON_KINDS.map((k) => (
             <Button key={k} size="sm" variant={k === "video" ? "default" : "outline"}
               onClick={() => setDialog({ open: true, lesson: null, preset: { module: "accounting", kind: k, sortOrder: 0 } })}>
-              <Plus className="size-4" /> {k === "video" ? "فيديو جديد" : "دليل جديد"}
+              <Plus className="size-4" /> {k === "video" ? t("فيديو جديد") : t("دليل جديد")}
             </Button>
           ))}
         </div>
@@ -429,18 +433,18 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
               </div>
               {c.total > 0 && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-                  {c.total} درس
+                  {fill(t("{0} درس"), [c.total])}
                 </span>
               )}
             </div>
-            <div className="mt-3 font-semibold">{MODULE_LABELS[c.module]}</div>
+            <div className="mt-3 font-semibold">{t(MODULE_LABELS[c.module])}</div>
             <div className="mt-1 text-sm text-muted-foreground">
               {c.total === 0
-                ? "لا توجد دروس — ابدأ من هنا"
-                : `${c.video.live} فيديو · ${c.doc.live} دليل`}
+                ? t("لا توجد دروس — ابدأ من هنا")
+                : fill(t("{0} فيديو · {1} دليل"), [c.video.live, c.doc.live])}
             </div>
             {c.total > c.live && (
-              <div className="mt-0.5 text-xs text-muted-foreground/70">{c.total - c.live} قريباً</div>
+              <div className="mt-0.5 text-xs text-muted-foreground/70">{c.total - c.live} {t("قريباً")}</div>
             )}
           </button>
         ))}
@@ -449,7 +453,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
       {orphans.length > 0 && (
         <Card className="border-destructive/50">
           <div className="border-b px-4 py-3 text-sm font-semibold text-destructive">
-            دروس بموديول غير معروف — عدّل الموديول عشان تظهر للعملاء
+            {t("دروس بموديول غير معروف — عدّل الموديول عشان تظهر للعملاء")}
           </div>
           <CardContent className="p-0">
             <Table>

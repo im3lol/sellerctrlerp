@@ -82,7 +82,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader><DialogTitle>{t("إضافة عملة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -180,7 +180,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
   }
 
   return (
-    <DialogContent dir="rtl">
+    <DialogContent>
       <DialogHeader><DialogTitle>{t("تحديث سعر الصرف")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         {nonBase.length === 0

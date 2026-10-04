@@ -50,7 +50,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
   });
 
   return (
-    <DialogContent dir="rtl" className="max-w-2xl">
+    <DialogContent className="max-w-2xl">
       <DialogHeader><DialogTitle>{rj ? t("تعديل قيد متكرر") : t("قيد متكرر جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -151,7 +151,7 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
+          <DialogContent>
             <DialogHeader><DialogTitle>{t("حذف القالب «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("القيود التي وُلّدت بالفعل لا تتأثر.")}</p>
             <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button></DialogFooter>

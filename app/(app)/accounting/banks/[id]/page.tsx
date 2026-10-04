@@ -105,7 +105,7 @@ export default async function BankAccountDetailPage({ params }: Params) {
     const diff = balance - glBalance;
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Landmark"
           title={ba.nameAr}

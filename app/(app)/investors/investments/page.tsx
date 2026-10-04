@@ -33,7 +33,7 @@ export default async function InvestmentsPage() {
     const total = rows.reduce((s, r) => s + Number(r.amount), 0);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="PiggyBank" title={t("مساهمات رأس المال")} subtitle={fill(t("{0} مساهمة — إجمالي {1}"), [rows.length, money(total)])} backHref="/investors"
           action={can("accounting.post") ? (
             <InvestorTxnForm kind="investment"

@@ -73,7 +73,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
     const tot = stmts.reduce((a, s) => ({ gross: a.gross + s.gross, net: a.net + s.net, transferred: a.transferred + s.transferred }), { gross: 0, net: 0, transferred: 0 });
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
           title={fill(t("كشوف تسويات {0}"), [platform.name])}

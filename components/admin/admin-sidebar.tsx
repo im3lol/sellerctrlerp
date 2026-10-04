@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV } from "@/components/admin/admin-nav";
 
 export function AdminSidebar() {
+  const t = useT();
   const p = usePathname();
   const active = (h: string, exact?: boolean) => (exact ? p === h : p === h || p.startsWith(h + "/"));
   // min-h-0 + overflow-y-auto: the aside is h-screen, so the nav has to scroll itself
@@ -18,7 +20,7 @@ export function AdminSidebar() {
           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
           active(i.href, i.exact) ? "bg-sidebar-foreground text-sidebar shadow-sm" : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}>
-          <Icon name={i.icon} className="size-[18px]" />{i.label}
+          <Icon name={i.icon} className="size-[18px]" />{t(i.label)}
         </Link>
       ))}
     </nav>

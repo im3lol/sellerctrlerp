@@ -61,7 +61,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
     }
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="Building2" title={t("أصل ثابت جديد")} backHref="/accounting/assets" />
 
         <Card className="max-w-2xl">

@@ -1,5 +1,7 @@
 "use client";
 
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { SettingsTile } from "./settings-tile";
 import { IntegrationSettingsForm, type IntegrationInitial } from "./integration-settings-form";
 import type { IntegrationField } from "@/lib/erp/marketplace/connector";
@@ -18,15 +20,16 @@ const BRAND: Record<string, { cls: string; icon: string }> = {
 export function IntegrationCard({ code, label, fields, hasOAuth, appUrl, initial }: {
   code: string; label: string; fields: IntegrationField[]; hasOAuth: boolean; appUrl: string; initial: IntegrationInitial;
 }) {
+  const t = useT();
   const brand = BRAND[code] ?? { cls: "bg-muted text-muted-foreground", icon: "Store" };
   // Server already folded in env-config + a live connection (Amazon's creds live in env);
   // keep the row-only check as a floor for older callers.
   const configured = initial.configured || initial.has.clientSecret || !!initial.text.clientId;
   return (
     <SettingsTile
-      label={label} icon={brand.icon} brandCls={brand.cls}
+      label={t(label)} icon={brand.icon} brandCls={brand.cls}
       configured={configured} enabled={initial.enabled}
-      dialogTitle={`ربط ${label}`} dialogDescription="أدخل مفاتيح التطبيق لتفعيل الربط. تُخزَّن الأسرار مشفّرة."
+      dialogTitle={fill(t("ربط {0}"), [t(label)])} dialogDescription={t("أدخل مفاتيح التطبيق لتفعيل الربط. تُخزَّن الأسرار مشفّرة.")}
     >
       <IntegrationSettingsForm code={code} label={label} fields={fields} hasOAuth={hasOAuth} appUrl={appUrl} initial={initial} />
     </SettingsTile>

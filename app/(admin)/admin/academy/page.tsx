@@ -1,4 +1,5 @@
 import { listAllLessonsForAdmin } from "@/lib/erp/academy";
+import { getT } from "@/lib/i18n/server";
 import { PageHeader } from "@/components/page-header";
 import { AcademyManager } from "@/components/admin/academy-manager";
 
@@ -10,6 +11,7 @@ import { AcademyManager } from "@/components/admin/academy-manager";
  * employee.manage on the write path.
  */
 export default async function AdminAcademyPage() {
+  const t = await getT();
   const rows = await listAllLessonsForAdmin();
   const list = rows.map((l) => ({
     id: l.id, slug: l.slug, title: l.title, module: l.module, kind: l.kind,
@@ -19,8 +21,8 @@ export default async function AdminAcademyPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="الأكاديمية"
-        description="قائمتان منفصلتان لكل موديول: شروحات فيديو (يوتيوب) وأدلة مكتوبة بالصور. الدرس بدون محتوى يظهر «قريباً»." />
+      <PageHeader title={t("الأكاديمية")}
+        description={t("قائمتان منفصلتان لكل موديول: شروحات فيديو (يوتيوب) وأدلة مكتوبة بالصور. الدرس بدون محتوى يظهر «قريباً».")} />
       <AcademyManager lessons={list} />
     </div>
   );

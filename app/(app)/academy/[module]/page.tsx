@@ -43,7 +43,7 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
   const p = progress(lessons);
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
         title={fill(t("الأكاديمية — {0}"), [t(MODULE_LABELS[module] ?? module)])}

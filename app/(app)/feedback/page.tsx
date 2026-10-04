@@ -41,7 +41,7 @@ export default async function FeedbackPage() {
     .limit(50));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-6">
       <ErpPageHeader icon="MessageSquarePlus" title={t("اقتراح أو شكوى")}
         subtitle={t("قول لنا إيه اللي ناقص أو إيه اللي مضايقك — بنقرا كل حاجة")} />
 

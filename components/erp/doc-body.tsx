@@ -38,7 +38,7 @@ const drop = <T extends object>({ node: _node, ...rest }: T & { node?: unknown }
 
 export function DocBody({ body }: { body: string }) {
   return (
-    <div className="space-y-3 text-sm" dir="rtl">
+    <div className="space-y-3 text-sm">
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 type Initial = { hasBotToken: boolean; hasAlertChatId: boolean; botUsername: string | null; importedFromEnv: boolean };
 
 export function TelegramSettingsForm({ initial, appUrl }: { initial: Initial; appUrl: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [botToken, setBotToken] = useState("");
@@ -52,28 +54,28 @@ export function TelegramSettingsForm({ initial, appUrl }: { initial: Initial; ap
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground">
-        يُستخدم البوت لتنبيهات التشغيل ولموافقات الفريق. تُخزّن القيم مشفّرة ولا تُعرض مجددًا. اترك أي حقل فارغًا للحفاظ على القيمة المحفوظة.
+        {t("يُستخدم البوت لتنبيهات التشغيل ولموافقات الفريق. تُخزّن القيم مشفّرة ولا تُعرض مجددًا. اترك أي حقل فارغًا للحفاظ على القيمة المحفوظة.")}
       </p>
-      {initial.importedFromEnv && <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">تم ترحيل إعدادات تليجرام الموجودة على السيرفر تلقائيًا إلى لوحة الإدارة.</p>}
+      {initial.importedFromEnv && <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{t("تم ترحيل إعدادات تليجرام الموجودة على السيرفر تلقائيًا إلى لوحة الإدارة.")}</p>}
       <div className="space-y-2">
-        <Label htmlFor="telegram-token">رمز البوت (Bot token)</Label>
+        <Label htmlFor="telegram-token">{t("رمز البوت (Bot token)")}</Label>
         <Input id="telegram-token" type="password" value={botToken} onChange={(e) => setBotToken(e.target.value)} dir="ltr" autoComplete="new-password"
-          placeholder={initial.hasBotToken ? "••••••••  (محفوظ ومشفّر)" : "123456:ABC…"} />
+          placeholder={initial.hasBotToken ? t("••••••••  (محفوظ ومشفّر)") : "123456:ABC…"} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="telegram-chat">معرّف محادثة التنبيهات (Chat ID)</Label>
+        <Label htmlFor="telegram-chat">{t("معرّف محادثة التنبيهات (Chat ID)")}</Label>
         <Input id="telegram-chat" value={alertChatId} onChange={(e) => setAlertChatId(e.target.value)} dir="ltr" inputMode="numeric" autoComplete="off"
-          placeholder={initial.hasAlertChatId ? "••••••••  (محفوظ ومشفّر)" : "123456789"} />
+          placeholder={initial.hasAlertChatId ? t("••••••••  (محفوظ ومشفّر)") : "123456789"} />
       </div>
       <div className="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
-        <p>Webhook الموافقات: <span className="font-mono" dir="ltr">{webhookUrl}</span></p>
-        {initial.botUsername && <p className="mt-1">البوت المتصل: <span dir="ltr" className="font-medium">@{initial.botUsername}</span></p>}
+        <p>{t("Webhook الموافقات:")} <span className="font-mono" dir="ltr">{webhookUrl}</span></p>
+        {initial.botUsername && <p className="mt-1">{t("البوت المتصل:")} <span dir="ltr" className="font-medium">@{initial.botUsername}</span></p>}
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={test} disabled={pending || !configured}>اختبار الإرسال</Button>
-        <Button variant="outline" onClick={webhook} disabled={pending || !initial.hasBotToken}>تهيئة Webhook</Button>
+        <Button variant="outline" onClick={test} disabled={pending || !configured}>{t("اختبار الإرسال")}</Button>
+        <Button variant="outline" onClick={webhook} disabled={pending || !initial.hasBotToken}>{t("تهيئة Webhook")}</Button>
         <Button onClick={save} disabled={pending}>
-          {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
+          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
         </Button>
       </div>
     </div>

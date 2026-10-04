@@ -43,7 +43,7 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
   const videoId = lesson.kind === "video" ? youtubeId(lesson.url) : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-6">
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
         title={lesson.title}

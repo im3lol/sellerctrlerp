@@ -55,7 +55,7 @@ function EditDialog({ rsi, customers, items, onClose }: { rsi: RSI | null; custo
   });
 
   return (
-    <DialogContent dir="rtl" className="max-w-2xl">
+    <DialogContent className="max-w-2xl">
       <DialogHeader><DialogTitle>{rsi ? t("تعديل فاتورة دورية") : t("فاتورة دورية جديدة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
@@ -149,7 +149,7 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
+          <DialogContent>
             <DialogHeader><DialogTitle>{t("حذف القالب؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("الفواتير التي وُلّدت بالفعل لا تتأثر.")}</p>
             <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button></DialogFooter>

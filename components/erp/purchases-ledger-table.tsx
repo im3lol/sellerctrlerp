@@ -48,7 +48,7 @@ export function PurchasesLedgerTable({
   const t = useT();
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm" dir="rtl">
+      <table className="w-full text-sm">
         <thead className="bg-muted/50 text-muted-foreground text-xs">
           <tr>
             <th className="px-3 py-2 text-right font-medium">{t("الرقم")}</th>

@@ -43,7 +43,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
     const drift = Math.round((sum - header) * 100) / 100;
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader icon="PieChart" title={dist.periodName}
           subtitle={fill(t("{0} → {1} · تاريخ التوزيع {2}"), [dt(dist.periodStart), dt(dist.periodEnd), dt(dist.distributionDate)])}
           backHref="/investors/distributions"

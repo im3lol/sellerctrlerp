@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
@@ -12,6 +14,7 @@ import { Label } from "@/components/ui/label";
 type Initial = { host: string; port: number; user: string; from: string; fromName: string; hasPass: boolean };
 
 export function EmailSettingsForm({ initial }: { initial: Initial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [host, setHost] = useState(initial.host);
@@ -27,7 +30,7 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
       if ("ok" in r) { toast.success("تم حفظ إعدادات البريد"); setPass(""); router.refresh(); }
       else toast.error(r.error);
     } catch (e) {
-      toast.error("تعذّر الحفظ: " + (e instanceof Error ? e.message : "خطأ غير متوقع"));
+      toast.error(fill(t("تعذّر الحفظ: {0}"), [e instanceof Error ? e.message : t("خطأ غير متوقع")]));
     }
   });
 
@@ -43,43 +46,43 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-muted-foreground">خادم SMTP لإرسال رسائل الترحيب وإيصالات الدفع وتذكيرات انتهاء الاشتراك. تُخزَّن كلمة المرور مشفّرة. اترك حقل كلمة المرور فارغًا للإبقاء على المحفوظة.</p>
+      <p className="text-xs text-muted-foreground">{t("خادم SMTP لإرسال رسائل الترحيب وإيصالات الدفع وتذكيرات انتهاء الاشتراك. تُخزَّن كلمة المرور مشفّرة. اترك حقل كلمة المرور فارغًا للإبقاء على المحفوظة.")}</p>
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2 space-y-2">
-            <Label htmlFor="host">خادم SMTP</Label>
+            <Label htmlFor="host">{t("خادم SMTP")}</Label>
             <Input id="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.example.com" dir="ltr" autoComplete="off" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="port">المنفذ</Label>
+            <Label htmlFor="port">{t("المنفذ")}</Label>
             <Input id="port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="587" dir="ltr" inputMode="numeric" />
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="user">اسم المستخدم</Label>
+          <Label htmlFor="user">{t("اسم المستخدم")}</Label>
           <Input id="user" value={user} onChange={(e) => setUser(e.target.value)} placeholder="info@sellerctrl.com" dir="ltr" autoComplete="off" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="pass">كلمة المرور</Label>
-          <Input id="pass" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder={initial.hasPass ? "••••••••  (محفوظة — اتركها فارغة للإبقاء عليها)" : "كلمة مرور SMTP"} dir="ltr" autoComplete="new-password" />
+          <Label htmlFor="pass">{t("كلمة المرور")}</Label>
+          <Input id="pass" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder={initial.hasPass ? t("••••••••  (محفوظة — اتركها فارغة للإبقاء عليها)") : t("كلمة مرور SMTP")} dir="ltr" autoComplete="new-password" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="from">عنوان المُرسِل</Label>
+            <Label htmlFor="from">{t("عنوان المُرسِل")}</Label>
             <Input id="from" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="info@sellerctrl.com" dir="ltr" autoComplete="off" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="fromName">اسم المُرسِل</Label>
+            <Label htmlFor="fromName">{t("اسم المُرسِل")}</Label>
             <Input id="fromName" value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="SellerCtrl" />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">المنفذ ٤٦٥ = SSL، و٥٨٧ = STARTTLS. مع Gmail استخدم «كلمة مرور تطبيق».</p>
+        <p className="text-xs text-muted-foreground">{t("المنفذ ٤٦٥ = SSL، و٥٨٧ = STARTTLS. مع Gmail استخدم «كلمة مرور تطبيق».")}</p>
 
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={test} disabled={pending || !initial.hasPass}>
-            اختبار الإرسال
+            {t("اختبار الإرسال")}
           </Button>
           <Button onClick={save} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
           </Button>
         </div>
     </div>
