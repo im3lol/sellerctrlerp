@@ -110,7 +110,8 @@ export async function signupAction(input: SignupInput): Promise<{ error: string 
   try {
     const { sendEmail } = await import("@/lib/erp/email");
     const { welcomeEmail } = await import("@/lib/saas/email-templates");
-    const mail = welcomeEmail({ name: d.personName, orgName: d.companyName, appUrl: process.env.APP_URL || "" });
+    const { getLocale } = await import("@/lib/i18n/server");
+    const mail = welcomeEmail({ name: d.personName, orgName: d.companyName, appUrl: process.env.APP_URL || "" }, await getLocale());
     await sendEmail({ to: d.email, subject: mail.subject, html: mail.html, text: mail.text });
   } catch { /* non-fatal */ }
 
