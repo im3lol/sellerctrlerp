@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,14 +55,16 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    const msg =
-      `السلام عليكم 👋\nحابب أجرّب ديمو SellerCtrl.\n\n` +
-      `الاسم: ${name.trim()}\n` +
-      `النشاط / المتجر: ${business.trim() || "—"}\n` +
-      `ببيع على: ${sells}\n` +
-      `رقم واتساب: ${phone.trim()}\n` +
-      `مهتم بالوحدات: ${modules.length ? modules.join("، ") : "لسه بستكشف"}\n` +
-      `ملاحظات: ${notes.trim() || "—"}`;
+    // In the language the visitor is reading the page in.
+    const msg = [
+      t("السلام عليكم 👋\nحابب أجرّب ديمو SellerCtrl."), "",
+      fill(t("الاسم: {0}"), [name.trim()]),
+      fill(t("النشاط / المتجر: {0}"), [business.trim() || "—"]),
+      fill(t("ببيع على: {0}"), [t(sells)]),
+      fill(t("رقم واتساب: {0}"), [phone.trim()]),
+      fill(t("مهتم بالوحدات: {0}"), [modules.length ? modules.map(t).join(t("، ")) : t("لسه بستكشف")]),
+      fill(t("ملاحظات: {0}"), [notes.trim() || "—"]),
+    ].join("\n");
     window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
     setOpen(false);
   }
