@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -69,17 +70,17 @@ export function QualityManager({ items, canDecide, canEdit }: {
       const err = validateDecision({ quantity: deciding.quantity, passedQty: p, failedQty: f });
       if (err) return toast.error(err);
       const go = await confirm({
-        title: `فحص ${deciding.number}`,
+        title: fill(t("فحص {0}"), [deciding.number]),
         description: p > 0
-          ? `هيتعمل تحويل بـ${qf(p)} من الحجر إلى ${deciding.targetName}${f > 0 ? `، و${qf(f)} هيفضلوا في الحجر لحد ما ترجّعهم أو تعدمهم.` : "."}`
-          : `كل الكمية (${qf(f)}) مرفوضة وهتفضل في الحجر لحد ما ترجّعها للمورّد أو تعدمها.`,
+          ? fill(t("هيتعمل تحويل بـ{0} من الحجر إلى {1}"), [qf(p), deciding.targetName]) + (f > 0 ? fill(t("، و{0} هيفضلوا في الحجر لحد ما ترجّعهم أو تعدمهم."), [qf(f)]) : ".")
+          : fill(t("كل الكمية ({0}) مرفوضة وهتفضل في الحجر لحد ما ترجّعها للمورّد أو تعدمها."), [qf(f)]),
         confirmText: "سجّل القرار", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await decideInspectionAction({ id: deciding.id, passedQty: p, failedQty: f, notes: notes || null });
         if (r.ok) {
-          toast.success(r.transferNumber ? `تم الإفراج بتحويل ${r.transferNumber}` : "تم تسجيل القرار");
+          toast.success(r.transferNumber ? fill(t("تم الإفراج بتحويل {0}"), [r.transferNumber]) : t("تم تسجيل القرار"));
           setDeciding(null);
           load();
         } else toast.error(r.error ?? t("تعذّر التسجيل"));
@@ -161,7 +162,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
           <CardHeader>
             <div className="flex w-full flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle>قرار الفحص — {deciding.number}</CardTitle>
+                <CardTitle>{t("قرار الفحص —")} {deciding.number}</CardTitle>
                 <CardDescription>
                   {deciding.itemName} · استلام {deciding.receiptNumber} · الكمية {qf(deciding.quantity)}
                 </CardDescription>
@@ -199,7 +200,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
       <Card>
         <CardHeader>
           <CardTitle>{t("طابور الفحص")}</CardTitle>
-          <CardDescription>{loading ? t("جارٍ التحميل…") : `${pendingRows.length} في الانتظار · ${rows.length} إجمالاً`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} في الانتظار · {1} إجمالاً"), [pendingRows.length, rows.length])}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (

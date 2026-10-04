@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useT } from "@/lib/i18n/client";
+import { fill, type Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { T } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -20,14 +21,15 @@ import { selectCls } from "@/lib/utils";
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; enabledModules: string[]; maxUsers: number | null; storageGb: number | null };
 export type Account = { orgName: string; userName: string; email: string };
 
-const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
-const cap = (n: number | null, unit: string, t: T) => (n == null ? t("بلا حد") : `${n.toLocaleString("ar-EG")} ${unit}`);
+const egp = (n: number, locale: Locale) => (locale === "en" ? `${n.toLocaleString("en-US")} EGP` : `${n.toLocaleString("ar-EG")} ج.م`);
+const cap = (n: number | null, unit: string, t: T, locale: Locale) => (n == null ? t("بلا حد") : `${n.toLocaleString(locale === "en" ? "en-US" : "ar-EG")} ${t(unit)}`);
 // Effective monthly price + % saved when billed annually.
 const effMonthly = (p: PlanCard, annual: boolean) => (annual ? Math.round(p.priceAnnual / 12) : p.priceMonthly);
 const discountPct = (p: PlanCard) => (p.priceMonthly > 0 ? Math.round((1 - p.priceAnnual / (p.priceMonthly * 12)) * 100) : 0);
 
 function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { plan: PlanCard; account: Account; interval: "MONTHLY" | "ANNUAL"; xpayEnabled: boolean; onClose: () => void }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, start] = useTransition();
   const methods = PAYMENT_METHODS.filter((m) => m.enabled && (m.key !== "XPAY" || xpayEnabled));
@@ -43,13 +45,13 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   const openWhatsApp = () => {
     const lines = [
       "مرحبًا، أرغب في تفعيل اشتراك SellerCtrl بعد التحويل 👇",
-      `• الشركة: ${account.orgName}`,
-      `• الاسم: ${account.userName}`,
-      `• البريد: ${account.email}`,
-      `• الباقة: ${plan.name} — ${interval === "ANNUAL" ? t("سنوي") : t("شهري")}`,
-      `• المبلغ: ${egp(price)}`,
-      `• طريقة الدفع: ${t(chosen.label)}`,
-      `• مرجع التحويل: ${reference.trim() || "—"}`,
+      fill(t("• الشركة: {0}"), [account.orgName]),
+      fill(t("• الاسم: {0}"), [account.userName]),
+      fill(t("• البريد: {0}"), [account.email]),
+      fill(t("• الباقة: {0} — {1}"), [plan.name, interval === "ANNUAL" ? t("سنوي") : t("شهري")]),
+      fill(t("• المبلغ: {0}"), [egp(price, locale)]),
+      fill(t("• طريقة الدفع: {0}"), [t(chosen.label)]),
+      fill(t("• مرجع التحويل: {0}"), [reference.trim() || "—"]),
     ];
     window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
   };
@@ -76,7 +78,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   return (
     <DialogContent dir="rtl">
       <DialogHeader>
-        <DialogTitle>الاشتراك في باقة {plan.name}</DialogTitle>
+        <DialogTitle>{t("الاشتراك في باقة")} {plan.name}</DialogTitle>
         <DialogDescription>{isXpay ? t("ادفع أونلاين ويُفعَّل اشتراكك فور نجاح الدفع.") : t("حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
@@ -88,7 +90,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
         </div>
 
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-          <div className="mb-1 font-medium">المبلغ: {egp(price)} <span className="font-normal text-muted-foreground">({annual ? t("سنوي") : t("شهري")})</span></div>
+          <div className="mb-1 font-medium">{t("المبلغ:")} {egp(price, locale)} <span className="font-normal text-muted-foreground">({annual ? t("سنوي") : t("شهري")})</span></div>
           <p className="text-muted-foreground">{chosen.detail}</p>
           {(method === "INSTAPAY" || method === "VODAFONE") && (
             <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
@@ -127,6 +129,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
 
 export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPending, account, xpayEnabled, xpayResult }: { plans: PlanCard[]; currentPlanId: string | null; canSubscribe: boolean; hasPending: boolean; account: Account; xpayEnabled: boolean; xpayResult?: string }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [chosen, setChosen] = useState<PlanCard | null>(null);
   const [annual, setAnnual] = useState(false);
@@ -152,7 +155,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
           <button type="button" onClick={() => setAnnual(false)} className={`rounded-full px-5 py-1.5 font-medium transition ${!annual ? "bg-primary text-primary-foreground" : ""}`}>{t("شهري")}</button>
           <button type="button" onClick={() => setAnnual(true)} className={`flex items-center gap-1.5 rounded-full px-5 py-1.5 font-medium transition ${annual ? "bg-primary text-primary-foreground" : ""}`}>
             {t("سنوي")}
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${annual ? "bg-primary-foreground/20" : "bg-emerald-500/15 text-emerald-600"}`}>وفّر حتى {topPct}%</span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${annual ? "bg-primary-foreground/20" : "bg-emerald-500/15 text-emerald-600"}`}>{fill(t("وفّر حتى {0}%"), [topPct])}</span>
           </button>
         </div>
       </div>
@@ -169,13 +172,13 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
                   <h3 className="text-lg font-bold">{p.name}</h3>
                   {isCurrent && <Badge>{t("باقتك الحالية")}</Badge>}
                 </div>
-                <div className="text-2xl font-bold tabular-nums">{egp(eff)}<span className="text-sm font-normal text-muted-foreground"> {t("/ شهر")}</span></div>
+                <div className="text-2xl font-bold tabular-nums">{egp(eff, locale)}<span className="text-sm font-normal text-muted-foreground"> {t("/ شهر")}</span></div>
                 {annual
-                  ? <div className="flex flex-wrap items-center gap-2 text-xs"><s className="text-muted-foreground tabular-nums">{egp(p.priceMonthly)}</s><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">وفّر {pct}%</span><span className="text-muted-foreground">يُدفع {egp(p.priceAnnual)} سنوياً</span></div>
-                  : <div className="text-xs text-muted-foreground">أو {egp(p.priceAnnual)} سنوياً — وفّر {pct}%</div>}
+                  ? <div className="flex flex-wrap items-center gap-2 text-xs"><s className="text-muted-foreground tabular-nums">{egp(p.priceMonthly, locale)}</s><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">{t("وفّر")} {pct}%</span><span className="text-muted-foreground">{t("يُدفع")} {egp(p.priceAnnual, locale)} {t("سنوياً")}</span></div>
+                  : <div className="text-xs text-muted-foreground">{t("أو")} {egp(p.priceAnnual, locale)} {t("سنوياً — وفّر")} {pct}%</div>}
                 <ul className="space-y-1.5 text-sm">
-                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />حتى {cap(p.maxUsers, "مستخدم", t)}</li>
-                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />تخزين {cap(p.storageGb, "جيجابايت", t)}</li>
+                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />{t("حتى")} {cap(p.maxUsers, "مستخدم", t, locale)}</li>
+                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />{t("تخزين")} {cap(p.storageGb, "جيجابايت", t, locale)}</li>
                   {p.enabledModules.map((m) => (
                     <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{t(MODULE_LABELS[m] ?? m)}</li>
                   ))}

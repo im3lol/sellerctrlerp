@@ -132,22 +132,22 @@ export function PlatformHeaderActions({
             )}
             {connected && isAmazon && (
               <DropdownMenuItem onClick={runAudit} disabled={auditPending}>
-                <ClipboardCheck className="size-4" />تدقيق المخزون
+                <ClipboardCheck className="size-4" />{t("تدقيق المخزون")}
               </DropdownMenuItem>
             )}
             {connected && isAmazon && (
               <DropdownMenuItem onClick={refreshFees} disabled={feesPending}>
-                <Percent className="size-4" />تحديث الرسوم
+                <Percent className="size-4" />{t("تحديث الرسوم")}
               </DropdownMenuItem>
             )}
             {connected && isAmazon && (
               <DropdownMenuItem onClick={syncImages} disabled={imagesPending}>
-                <ImageIcon className="size-4" />مزامنة الصور
+                <ImageIcon className="size-4" />{t("مزامنة الصور")}
               </DropdownMenuItem>
             )}
             {connected && isAmazon && (
               <DropdownMenuItem onClick={syncFbaCodes} disabled={codesPending}>
-                <Barcode className="size-4" />مزامنة أكواد FBA
+                <Barcode className="size-4" />{t("مزامنة أكواد FBA")}
               </DropdownMenuItem>
             )}
             {isAmazon && (
@@ -162,7 +162,7 @@ export function PlatformHeaderActions({
               <Link href={`/platforms/${code}/payouts`}><Wallet className="size-4" />{t("المحفظة والمدفوعات")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIoOpen(true)}>
-              <ArrowRightLeft className="size-4" />استيراد / تصدير
+              <ArrowRightLeft className="size-4" />{t("استيراد / تصدير")}
             </DropdownMenuItem>
             {connected && (
               <>
@@ -170,7 +170,7 @@ export function PlatformHeaderActions({
                 {/* First pull asks for a start date (historical backfill); once the
                     platform has an orders watermark, run incrementally with no prompt. */}
                 <DropdownMenuItem onClick={() => (hasOrderHistory ? pullOrders() : setPullOpen(true))} disabled={pullPending}>
-                  <ShoppingCart className="size-4" />سحب المبيعات
+                  <ShoppingCart className="size-4" />{t("سحب المبيعات")}
                 </DropdownMenuItem>
               </>
             )}
@@ -189,7 +189,7 @@ export function PlatformHeaderActions({
       <Dialog open={chooseOpen} onOpenChange={setChooseOpen}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>مزامنة {label}</DialogTitle>
+            <DialogTitle>{t("مزامنة")} {label}</DialogTitle>
             <DialogDescription>{t("اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2.5">
@@ -214,7 +214,7 @@ export function PlatformHeaderActions({
           {chosen.orders && !hasStartDate && !startSaved && (
             <div className="space-y-1.5 rounded-lg border border-dashed p-3">
               <label htmlFor="goLiveDate" className="text-sm font-medium">{t("تاريخ بدء المحاسبة")}</label>
-              <p className="text-xs text-muted-foreground">من أي تاريخ نبدأ محاسبة مبيعات {label}؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.</p>
+              <p className="text-xs text-muted-foreground">{t("من أي تاريخ نبدأ محاسبة مبيعات")} {label}{t("؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.")}</p>
               <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
             </div>
           )}

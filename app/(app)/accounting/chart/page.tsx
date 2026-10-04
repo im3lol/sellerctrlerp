@@ -1,4 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -50,7 +51,7 @@ export default async function ChartOfAccountsPage() {
         <ErpPageHeader
           icon="Calculator"
           title={t("دليل الحسابات")}
-          subtitle={`${rows.length} حساب (${leafCount} تفصيلي)`}
+          subtitle={fill(t("{0} حساب ({1} تفصيلي)"), [rows.length, leafCount])}
           backHref="/accounting"
         />
         <AccountsTree accounts={rows} balances={balances} canManage={can("accounting.create")} />

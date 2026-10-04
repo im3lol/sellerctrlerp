@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Plus, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
@@ -53,9 +54,9 @@ function OverridesDialog({
   return (
     <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto" dir="rtl">
       <DialogHeader>
-        <DialogTitle>صلاحيات مخصّصة — {member.name}</DialogTitle>
+        <DialogTitle>{t("صلاحيات مخصّصة —")} {member.name}</DialogTitle>
         <DialogDescription>
-          الدور: <b>{roleLabels[member.role] ?? member.role}</b>. «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها. {overrideCount > 0 && <span>({overrideCount} تخصيص)</span>}
+          الدور: <b>{roleLabels[member.role] ?? member.role}</b>{t(". «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها.")} {overrideCount > 0 && <span>({overrideCount} {t("تخصيص)")}</span>}
         </DialogDescription>
       </DialogHeader>
 
@@ -72,7 +73,7 @@ function OverridesDialog({
                   <div key={p.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span>{p.action}</span>
-                      <span className="text-xs text-muted-foreground">(الدور: {roleHas ? t("مسموح") : t("لا")})</span>
+                      <span className="text-xs text-muted-foreground">{t("(الدور:")} {roleHas ? t("مسموح") : t("لا")})</span>
                       <Badge variant={eff ? "default" : "outline"} className="text-[10px]">{eff ? t("الفعلي: مسموح") : t("الفعلي: ممنوع")}</Badge>
                     </div>
                     <select value={st} onChange={(e) => setOne(p.key, e.target.value as OverrideState)} className={`${selectCls} h-8 text-xs`}>
@@ -90,7 +91,7 @@ function OverridesDialog({
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -157,10 +158,10 @@ export function PermissionsMembers({
               <select className={`${selectCls} w-full`} value={inv.role} onChange={(e) => setInv({ ...inv, role: e.target.value })}>
                 {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
-              <input className={`${selectCls} w-full`} placeholder={`كلمة مرور مبدئية — ${PASSWORD_RULE_AR}`} type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
+              <input className={`${selectCls} w-full`} placeholder={fill(t("كلمة مرور مبدئية — {0}"), [PASSWORD_RULE_AR])} type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={invite} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}إضافة العضو</Button>
+              <Button onClick={invite} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{t("إضافة العضو")}</Button>
               <span className="text-xs text-muted-foreground">{t("يدخل العضو بالبريد وكلمة المرور المبدئية، ويشوف الوحدات حسب دوره فقط.")}</span>
             </div>
           </div>
@@ -181,7 +182,7 @@ export function PermissionsMembers({
                 {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
             </div>
-            <Button onClick={add} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}إضافة</Button>
+            <Button onClick={add} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{t("إضافة")}</Button>
           </div>
         )}
 
@@ -217,8 +218,8 @@ export function PermissionsMembers({
                   <TableCell>
                     {m.isSystemAdmin ? <span className="text-xs text-muted-foreground">—</span> : overrides > 0 ? (
                       <div className="flex gap-1">
-                        {m.grant.length > 0 && <Badge variant="default" className="text-[10px]">+{m.grant.length} سماح</Badge>}
-                        {m.revoke.length > 0 && <Badge variant="destructive" className="text-[10px]">−{m.revoke.length} منع</Badge>}
+                        {m.grant.length > 0 && <Badge variant="default" className="text-[10px]">+{m.grant.length} {t("سماح")}</Badge>}
+                        {m.revoke.length > 0 && <Badge variant="destructive" className="text-[10px]">−{m.revoke.length} {t("منع")}</Badge>}
                       </div>
                     ) : <span className="text-xs text-muted-foreground">{t("لا شيء")}</span>}
                   </TableCell>
@@ -228,7 +229,7 @@ export function PermissionsMembers({
                         {!m.isSystemAdmin && (
                           <>
                             <Button variant="ghost" size="sm" disabled={pending} onClick={() => setCustomizing(m)}>
-                              <SlidersHorizontal className="me-1 size-4" />تخصيص
+                              <SlidersHorizontal className="me-1 size-4" />{t("تخصيص")}
                             </Button>
                             <Button variant="ghost" size="icon" disabled={pending} onClick={() => remove(m.userId)} aria-label={t("إزالة من المؤسسة")}>
                               <Trash2 className="size-4 text-destructive" />

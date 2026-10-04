@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -90,7 +91,7 @@ function BomDialog({ bundle, onClose }: { bundle: Bundle | null; onClose: () => 
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -106,13 +107,13 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
 
   const go = () => start(async () => {
     const r = await assembleAction({ kitItemId: bundle.parentItemId, warehouseId, quantity: Number(quantity), date });
-    if (r.ok) { toast.success(`تم تجميع ${quantity} وحدة من «${bundle.name}»`); onClose(); router.refresh(); }
+    if (r.ok) { toast.success(fill(t("تم تجميع {0} وحدة من «{1}»"), [quantity, bundle.name])); onClose(); router.refresh(); }
     else toast.error(r.error ?? t("تعذّر التجميع"));
   });
 
   return (
     <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>تجميع حزمة «{bundle.name}»</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t("تجميع حزمة «")}{bundle.name}»</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("سيتم خصم المكوّنات من المستودع وإنتاج الحزمة كمخزون قابل للبيع بتكلفة مكوّناتها.")}</p>
         <div className="grid grid-cols-2 gap-3">
@@ -154,11 +155,11 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
 
   return (
     <>
-      {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteBundlesAction} onDone={sel.clear} entity="حزمة" />}
+      {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteBundlesAction} onDone={sel.clear} entity={t("حزمة")} />}
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between p-4">
-            <span className="text-sm text-muted-foreground">{bundles.length} حزمة معرّفة</span>
+            <span className="text-sm text-muted-foreground">{bundles.length} {t("حزمة معرّفة")}</span>
             {canManage && <Button size="sm" onClick={() => setBom({ open: true, bundle: null })}><Plus className="size-4" />{t("حزمة جديدة")}</Button>}
           </div>
           <Table>
@@ -228,7 +229,7 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
           <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>حذف حزمة «{confirmDel.name}»؟</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف حزمة «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("سيُحذف تعريف المكوّنات فقط؛ عمليات التجميع السابقة ومخزونها لا تتأثر.")}</p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>

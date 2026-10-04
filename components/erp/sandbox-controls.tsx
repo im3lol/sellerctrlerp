@@ -60,7 +60,7 @@ export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
           <Button size="sm" variant="outline" disabled={pending} onClick={back}>{t("ارجع لشركتي")}</Button>
         )}
         <Button size="sm" variant="ghost" disabled={pending} onClick={remove}>
-          <Icon name="Trash2" className="size-4" />امسح الشركة التجريبية
+          <Icon name="Trash2" className="size-4" />{t("امسح الشركة التجريبية")}
         </Button>
       </div>
     </div>

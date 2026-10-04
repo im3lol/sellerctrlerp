@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -29,8 +30,9 @@ export type Supplier = {
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function SupplierDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Supplier | null }) {
@@ -85,7 +87,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
 
   return (
     <div className="space-y-6">
-      {title && <ErpPageHeader icon="Truck" title={title} subtitle={`${suppliers.length.toLocaleString("ar-EG-u-nu-latn")} مورد`} action={addBtn} />}
+      {title && <ErpPageHeader icon="Truck" title={title} subtitle={fill(t("{0} مورد"), [suppliers.length.toLocaleString("ar-EG-u-nu-latn")])} action={addBtn} />}
       {kpis}
       <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -97,7 +99,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا يوجد موردون بعد.")}</div>
         ) : (
           <>
-          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteSuppliersAction} onDone={sel.clear} entity="مورد" />}
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteSuppliersAction} onDone={sel.clear} entity={t("مورد")} />}
           <Table>
             <TableHeader>
               <TableRow>
@@ -118,7 +120,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                   <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{s.nameAr}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(s.balance)}</TableCell>
-                  <TableCell>{s.paymentTerms} يوم</TableCell>
+                  <TableCell>{s.paymentTerms} {t("يوم")}</TableCell>
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">
@@ -126,7 +128,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>حذف المورد «{s.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف المورد «")}{s.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(s)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

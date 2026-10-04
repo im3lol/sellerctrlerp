@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -52,9 +53,9 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     const counts = new Map<string, number>();
     for (const r of receipts) if (r.supplierId) counts.set(r.supplierId, (counts.get(r.supplierId) ?? 0) + 1);
     return suppliers
-      .map((s) => ({ id: s.id, label: counts.get(s.id) ? `${s.nameAr} — ${counts.get(s.id)} إذن` : s.nameAr, n: counts.get(s.id) ?? 0 }))
+      .map((s) => ({ id: s.id, label: counts.get(s.id) ? fill(t("{0} — {1} إذن"), [s.nameAr, counts.get(s.id)]) : s.nameAr, n: counts.get(s.id) ?? 0 }))
       .sort((a, b) => b.n - a.n);
-  }, [suppliers, receipts]);
+  }, [suppliers, receipts, t]);
   // Every receipt for the supplier stays listed whether ticked or not: removing a row the
   // moment it is ticked makes the list jump under the cursor mid-selection.
   const openReceipts = useMemo(
@@ -127,7 +128,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
             <CardDescription>{t("فاتورة الشحن/الجمارك بالجنيه المصري، تُوزَّع على إذون الاستلام وتُرفع تكلفة المخزون.")}</CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || !lines.length}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المستند</Button>
+            <Button size="sm" onClick={submit} disabled={pending || !lines.length}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ المستند")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/purchases/landed-costs")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -173,7 +174,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                     {t("امسح الاختيار")}
                   </Button>
                 )}
-                <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>
+                <span className="text-sm text-muted-foreground">{t("محدَّد")} {picked.length}</span>
               </div>
 
               <div className="max-h-56 overflow-y-auto rounded-xl border">
@@ -201,7 +202,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                     <span key={r.id} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-sm">
                       <span className="font-medium">{r.number}</span>
                       <span className="text-muted-foreground">— {r.date}</span>
-                      <button type="button" aria-label={`إزالة ${r.number}`} className="text-muted-foreground hover:text-destructive" onClick={() => toggle(r.id)}>×</button>
+                      <button type="button" aria-label={fill(t("إزالة {0}"), [r.number])} className="text-muted-foreground hover:text-destructive" onClick={() => toggle(r.id)}>×</button>
                     </span>
                   ))}
                 </div>
@@ -214,7 +215,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
         <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-semibold">{t("قيمة التكاليف (بالجنيه المصري)")}</Label>
-            {total > 0 && <span className="text-sm text-muted-foreground">{t("الإجمالي:")} <span className="font-medium">{fmt(total)} ج.م</span></span>}
+            {total > 0 && <span className="text-sm text-muted-foreground">{t("الإجمالي:")} <span className="font-medium">{fmt(total)} {t("ج.م")}</span></span>}
           </div>
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1.5"><Label className="text-xs">{t("الشحن")}</Label><Input type="number" step="0.01" min="0" value={charges.shipping} onChange={(e) => setCharges((c) => ({ ...c, shipping: e.target.value }))} placeholder="0" /></div>
@@ -238,7 +239,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
               </div>
             )}
             {method === "weight" && (
-              <span className="text-xs text-muted-foreground">إجمالي الوزن {qtyf(totalWeightKg)} كجم{pricePerKg ? ` × ${pricePerKg} = ${fmt(round2(Number(pricePerKg) * totalWeightKg))} ج.م` : ""}.</span>
+              <span className="text-xs text-muted-foreground">{t("إجمالي الوزن")} {qtyf(totalWeightKg)} {t("كجم")}{pricePerKg ? fill(t(" × {0} = {1} ج.م"), [pricePerKg, fmt(round2(Number(pricePerKg) * totalWeightKg))]) : ""}.</span>
             )}
           </div>
         </div>
@@ -280,7 +281,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                       <TableCell>{l.warehouseName}</TableCell>
                       <TableCell>{qtyf(l.quantity)}</TableCell>
                       <TableCell className={sold > 0 ? "text-amber-600" : "text-muted-foreground"}>
-                        {qtyf(l.onHand)}{sold > 0 && <span className="block text-xs">مُباع {qtyf(sold)} ← تكلفة مبيعات</span>}
+                        {qtyf(l.onHand)}{sold > 0 && <span className="block text-xs">{t("مُباع")} {qtyf(sold)} {t("← تكلفة مبيعات")}</span>}
                       </TableCell>
                       <TableCell className="tabular-nums">{fmt(perUnit[i] ?? 0)}</TableCell>
                       <TableCell className="font-medium tabular-nums">{fmt(round2((perUnit[i] ?? 0) * l.quantity))}</TableCell>

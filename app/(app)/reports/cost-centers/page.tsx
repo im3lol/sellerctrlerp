@@ -94,7 +94,7 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
         <Card>
           <CardHeader>
             <CardTitle>{t("حسب مركز التكلفة")}</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — من القيود المرحّلة. «غير محدّد» = بنود بلا مركز تكلفة.</CardDescription>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} — من القيود المرحّلة. «غير محدّد» = بنود بلا مركز تكلفة.</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -93,7 +94,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardList"
-          title={`أمر شراء ${po.number}`}
+          title={fill(t("أمر شراء {0}"), [po.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "أمر شراء"}
           backHref="/purchases/orders"
           action={
@@ -111,7 +112,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           <Field label={t("التاريخ")}>{dt(po.date)}</Field>
           <Field label={t("الشحن")}>{dfmt(po.shippingAmount)}</Field>
           <Field label={t("الضريبة")}>{dfmt(po.taxAmount)}</Field>
-          <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
+          <Field label={fill(t("الإجمالي ({0})"), [cur])}>{dfmt(po.totalAmount)}</Field>
           {isForeignDoc && (
             <Field label={t("الإجمالي بالحسابات (EGP)")}>
               {fmt(po.totalAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
@@ -163,12 +164,12 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={6}>الإجمالي ({cur})</TableCell>
+                  <TableCell colSpan={6}>{t("الإجمالي (")}{cur})</TableCell>
                   <TableCell>{dfmt(po.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-            {po.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {po.notes}</p>}
+            {po.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {po.notes}</p>}
           </CardContent>
         </Card>
 

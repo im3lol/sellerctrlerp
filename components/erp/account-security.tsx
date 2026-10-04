@@ -63,20 +63,20 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
       <Card>
         <CardHeader>
           <CardTitle>{t("تغيير كلمة المرور")}</CardTitle>
-          <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>آخر تغيير قبل {daysSinceChange} يوم{expiringSoon ? t(" — يُنصح بالتغيير (تنتهي كل 365 يوم)") : ""}.</span>}</CardDescription>
+          <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>{t("آخر تغيير قبل")} {daysSinceChange} {t("يوم")}{expiringSoon ? t(" — يُنصح بالتغيير (تنتهي كل 365 يوم)") : ""}.</span>}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5"><Label>{t("كلمة المرور الحالية")}</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>{t("كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={nw} onChange={(e) => setNw(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
           <div className="space-y-1.5"><Label>{t("تأكيد كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
-          <Button onClick={changePassword} disabled={pending || !cur || !nw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}تغيير كلمة المرور</Button>
+          <Button onClick={changePassword} disabled={pending || !cur || !nw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("تغيير كلمة المرور")}</Button>
         </CardContent>
       </Card>
 
       {/* MFA */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">المصادقة الثنائية (2FA) {enabled ? <Badge className="bg-emerald-600">{t("مفعّلة")}</Badge> : <Badge variant="secondary">{t("غير مفعّلة")}</Badge>}</CardTitle>
+          <CardTitle className="flex items-center gap-2">{t("المصادقة الثنائية (2FA)")} {enabled ? <Badge className="bg-emerald-600">{t("مفعّلة")}</Badge> : <Badge variant="secondary">{t("غير مفعّلة")}</Badge>}</CardTitle>
           <CardDescription>{t("طبقة حماية إضافية عبر رمز مؤقّت من تطبيق مصادقة (Google Authenticator / Authy).")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -88,7 +88,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
           )}
 
           {!enabled && !setup && (
-            <Button onClick={beginSetup} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}تفعيل المصادقة الثنائية</Button>
+            <Button onClick={beginSetup} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("تفعيل المصادقة الثنائية")}</Button>
           )}
 
           {!enabled && setup && (
@@ -99,7 +99,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
               <p className="text-xs text-muted-foreground">{t("أو أدخل السر يدويًا:")} <span className="font-mono" dir="ltr">{setup.secret}</span></p>
               <div className="flex items-end gap-2">
                 <div className="space-y-1.5"><Label>{t("رمز التأكيد")}</Label><Input dir="ltr" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" className="w-40" /></div>
-                <Button onClick={confirmEnable} disabled={pending || code.length < 6}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}تأكيد وتفعيل</Button>
+                <Button onClick={confirmEnable} disabled={pending || code.length < 6}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("تأكيد وتفعيل")}</Button>
                 <Button variant="ghost" onClick={() => setSetup(null)}>{t("إلغاء")}</Button>
               </div>
             </div>
@@ -108,7 +108,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
           {enabled && (
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1.5"><Label>{t("لإيقافها، أدخل كلمة مرورك")}</Label><Input type="password" dir="ltr" value={disablePw} onChange={(e) => setDisablePw(e.target.value)} className="w-56" /></div>
-              <Button variant="destructive" onClick={disable} disabled={pending || !disablePw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}إيقاف المصادقة الثنائية</Button>
+              <Button variant="destructive" onClick={disable} disabled={pending || !disablePw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("إيقاف المصادقة الثنائية")}</Button>
             </div>
           )}
         </CardContent>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import Image from "next/image";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -64,7 +65,7 @@ export default async function AppsPage() {
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">{today}</p>
-            <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? (locale === "ar" ? `، ${firstName}` : `, ${firstName}`) : ""}</h1>
+            <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? (locale === "ar" ? fill(t("، {0}"), [firstName]) : `, ${firstName}`) : ""}</h1>
             <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}{t("اختار الوحدة اللي هتشتغل عليها")}</p>
           </div>
           {org && !org.isSandbox && user?.role !== "system_admin" ? <SandboxStartButton /> : (
@@ -131,7 +132,7 @@ export default async function AppsPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{t(it.label)}</span>
-                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{n(it.pages)} صفحة</span>}
+                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{n(it.pages)} {t("صفحة")}</span>}
                 </span>
                 <Icon name="ArrowLeft" className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:-translate-x-0.5 group-hover:opacity-100" />
               </div>

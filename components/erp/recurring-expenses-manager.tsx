@@ -79,7 +79,7 @@ function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recu
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -101,11 +101,11 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{items.length} قالب — تُولَّد كمسودة تلقائياً عند حلول موعدها</span>
+          <span className="text-sm text-muted-foreground">{items.length} {t("قالب — تُولَّد كمسودة تلقائياً عند حلول موعدها")}</span>
           <Button size="sm" onClick={() => setDialog({ open: true, rec: null })}><Plus className="size-4" />{t("قالب جديد")}</Button>
         </div>
         <>
-        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringExpensesAction} onDone={sel.clear} entity="قالب" />
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringExpensesAction} onDone={sel.clear} entity={t("قالب")} />
         <Table>
           <TableHeader>
             <TableRow>

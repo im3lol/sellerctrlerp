@@ -31,8 +31,9 @@ const TYPE_LABELS: Record<string, string> = {
 
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Account | null }) {
@@ -130,7 +131,7 @@ export function AccountsManager({ accounts, canManage }: { accounts: Account[]; 
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>حذف الحساب «{a.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{a.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

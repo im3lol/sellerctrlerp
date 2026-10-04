@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -75,7 +76,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <ErpPageHeader
           icon="Package"
           title={item.nameAr ?? item.code}
-          subtitle={`الكود: ${item.code}`}
+          subtitle={fill(t("الكود: {0}"), [item.code])}
           backHref="/inventory/items"
           action={
             <div className="flex flex-wrap items-center gap-2">
@@ -208,7 +209,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                   <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
                 </Field>
               </div>
-              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">رسوم أمازون أخرى: {money(pnl.otherFee)} · إجمالي رسوم أمازون: {money(pnl.amazonFees)}</p>}
+              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">{t("رسوم أمازون أخرى:")} {money(pnl.otherFee)} {t("· إجمالي رسوم أمازون:")} {money(pnl.amazonFees)}</p>}
             </CardContent>
           </Card>
         )}

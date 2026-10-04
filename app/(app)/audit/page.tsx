@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, sql, count } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { loadErpPage } from "@/lib/erp/org";
@@ -88,7 +89,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ScrollText" title={t("سجل التدقيق")} subtitle={`${total} حدث`} />
+        <ErpPageHeader icon="ScrollText" title={t("سجل التدقيق")} subtitle={fill(t("{0} حدث"), [total])} />
         <Card>
           <CardHeader>
             <CardTitle>{t("أحداث المستندات")}</CardTitle>
@@ -97,7 +98,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium flex items-center gap-2">
-                <Icon name="ListFilter" className="size-4" /> التصفية
+                <Icon name="ListFilter" className="size-4" /> {t("التصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
                 <div className="space-y-1">
@@ -157,7 +158,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                   </TableBody>
                 </Table>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

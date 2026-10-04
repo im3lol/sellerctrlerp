@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -101,7 +102,7 @@ export default async function AssetDetailPage({ params }: Params) {
               {[
                 ["الحالة",          STATUS[a.status] ?? a.status],
                 ["تاريخ الشراء",    dt(a.purchaseDate)],
-                ["العمر الإنتاجي",  `${a.usefulLifeYears} سنة`],
+                ["العمر الإنتاجي",  fill(t("{0} سنة"), [a.usefulLifeYears])],
                 ["القيمة التخريدية", fmt(a.salvageValue)],
                 ["الإهلاك السنوي",  fmt(annualDeprec)],
                 ...(a.disposalDate ? [["تاريخ الاستبعاد", dt(a.disposalDate)]] : []),
@@ -124,7 +125,7 @@ export default async function AssetDetailPage({ params }: Params) {
 
         {/* Depreciation lines */}
         <Card>
-          <CardHeader><CardTitle className="text-base">سجل الإهلاك ({deprecLines.length} فترة)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("سجل الإهلاك (")}{deprecLines.length} {t("فترة)")}</CardTitle></CardHeader>
           <CardContent>
             {deprecLines.length === 0 ? (
               <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">

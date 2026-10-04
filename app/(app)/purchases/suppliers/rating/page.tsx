@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { loadErpPage } from "@/lib/erp/org";
@@ -101,8 +102,8 @@ export default async function SupplierRatingPage() {
           <CardHeader>
             <CardTitle>{t("كيف بيتحسب")}</CardTitle>
             <CardDescription>
-              <b>{t("الالتزام بالمواعيد (٤٠٪)")}</b> من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·{" "}
-              <b>{t("الجودة (٣٥٪)")}</b> من الكمية المرفوضة عند الاستلام ·{" "}
+              <b>{t("الالتزام بالمواعيد (٤٠٪)")}</b> {t("من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·")}{" "}
+              <b>{t("الجودة (٣٥٪)")}</b> {t("من الكمية المرفوضة عند الاستلام ·")}{" "}
               <b>{t("الالتزام بالسعر (٢٥٪)")}</b> من فرق سعر الفاتورة عن سعر الأمر.
               البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات
               بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.
@@ -121,7 +122,7 @@ export default async function SupplierRatingPage() {
         <Card>
           <CardHeader>
             <CardTitle>{t("الترتيب")}</CardTitle>
-            <CardDescription>{scores.length ? `${scores.length} مورّد` : "مفيش بيانات كفاية بعد"}</CardDescription>
+            <CardDescription>{scores.length ? fill(t("{0} مورّد"), [scores.length]) : t("مفيش بيانات كفاية بعد")}</CardDescription>
           </CardHeader>
           <CardContent>
             {scores.length === 0 ? (
@@ -163,7 +164,7 @@ export default async function SupplierRatingPage() {
                           <TableCell className={`tabular-nums ${tone(s.quality)}`}>{n1(s.quality)}</TableCell>
                           <TableCell className={`tabular-nums ${tone(s.priceHonesty)}`}>{n1(s.priceHonesty)}</TableCell>
                           <TableCell className="tabular-nums">
-                            {s.avgDaysLate == null ? "—" : `${n1(s.avgDaysLate)} يوم`}
+                            {s.avgDaysLate == null ? "—" : fill(t("{0} يوم"), [n1(s.avgDaysLate)])}
                           </TableCell>
                           <TableCell className="tabular-nums">{pct(s.rejectRate)}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -123,7 +124,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               onSelect={setCustomerId}
               placeholder={t("ابحث عن العميل…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
-              createLabel="إضافة عميل"
+              createLabel={t("إضافة عميل")}
             />
             <QuickCreateParty
               kind="customer"
@@ -139,7 +140,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
             <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
-              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+              {vatRate > 0 ? fill(t("إضافة ض.ق.م ({0}%)"), [qtyf(vatRate)]) : t("لا توجد نسبة ضريبة مضبوطة")}
             </label>
           </div>
           <div className="space-y-2"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
@@ -198,7 +199,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               <Input id="qt-disc" type="number" min={0} step="0.01" className="h-8 w-28 text-start"
                 value={headerDiscount || ""} onChange={(e) => setHeaderDiscount(Math.max(0, Number(e.target.value) || 0))} />
             </div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+            <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)}</div>
           </div>
         </div>
       </CardContent>

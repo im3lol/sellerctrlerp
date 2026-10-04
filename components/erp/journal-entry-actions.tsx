@@ -47,7 +47,7 @@ export function JournalEntryActions({
     <div className="flex flex-wrap gap-2">
       {status === "DRAFT" && canPost && (
         <Button disabled={pending} onClick={() => run(() => postDraftEntryAction(entryId), "تم ترحيل القيد")}>
-          <Icon name="Check" className="size-4" />ترحيل
+          <Icon name="Check" className="size-4" />{t("ترحيل")}
         </Button>
       )}
       {status === "DRAFT" && canDelete && editHref && (
@@ -61,7 +61,7 @@ export function JournalEntryActions({
           disabled={pending}
           onClick={() => run(() => deleteDraftEntryAction(entryId), "تم حذف المسودة", "/accounting/journal")}
         >
-          <Icon name="Trash2" className="size-4" />حذف
+          <Icon name="Trash2" className="size-4" />{t("حذف")}
         </Button>
       )}
       {status === "POSTED" && !isReversal && canReverse && (
@@ -72,7 +72,7 @@ export function JournalEntryActions({
               disabled={pending}
               onClick={() => run(() => reverseEntryAction(entryId), "تم عكس القيد")}
             >
-              <Icon name="Undo2" className="size-4" />تأكيد العكس
+              <Icon name="Undo2" className="size-4" />{t("تأكيد العكس")}
             </Button>
             <Button variant="outline" disabled={pending} onClick={() => setConfirmReverse(false)}>
               {t("إلغاء")}
@@ -80,7 +80,7 @@ export function JournalEntryActions({
           </>
         ) : (
           <Button variant="outline" disabled={pending} onClick={() => setConfirmReverse(true)}>
-            <Icon name="Undo2" className="size-4" />عكس القيد
+            <Icon name="Undo2" className="size-4" />{t("عكس القيد")}
           </Button>
         )
       )}

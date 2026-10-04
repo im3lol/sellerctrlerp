@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -46,7 +47,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
     const isAmazon = platform?.integrationType === "amazon";
     const header = (
       <ErpPageHeader icon="Truck" title={t("خطة شحن FBA")} backHref={isAmazon ? back : "/platforms"}
-        subtitle={`${isAmazon ? platform.name : "أمازون"} — تبعت إيه لأمازون قبل ما يخلص عندهم`} />
+        subtitle={fill(t("{0} — تبعت إيه لأمازون قبل ما يخلص عندهم"), [isAmazon ? platform.name : "أمازون"])} />
     );
     const note = (text: string, cta?: { label: string; href: string }) => (
       <div className="space-y-6">{header}
@@ -94,7 +95,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
               <div className="space-y-2">
                 <Label htmlFor="window">{t("البيع محسوب على آخر")}</Label>
                 <select id="window" name="window" defaultValue={String(windowDays)} className={`${selectCls} w-32`}>
-                  {[14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} يوم</option>)}
+                  {[14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} {t("يوم")}</option>)}
                 </select>
               </div>
               <Button type="submit">{t("احسب")}</Button>
@@ -103,7 +104,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
               المطلوب = بيع أمازون اليومي × ({transitDays} يوم شحن + {coverDays} يوم تغطية) − المتاح في أمازون − اللي في الطريق،
               وبحد أقصى اللي عندك في «{source.name}». البيع = اللي خرج من مخزن «{platform.fbaWarehouseName}».{" "}
               {auditAt
-                ? `المتاح والوارد من تدقيق مخزون أمازون (${when(auditAt)}) — بيتحدّث لوحده كل يوم.`
+                ? fill(t("المتاح والوارد من تدقيق مخزون أمازون ({0}) — بيتحدّث لوحده كل يوم."), [when(auditAt)])
                 : <>{t("مفيش تدقيق مخزون لسه، فالمتاح من رصيد النظام والوارد مش محسوب — شغّل «تدقيق المخزون» من")} <Link href={back} className="text-primary underline">{t("صفحة المنصة")}</Link>.</>}
             </p>
           </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -41,7 +42,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
     const g = groups.find((x) => x.itemId === item.id);
     if (!g) { toast.error("الصنف ده مش في الجولة"); return; }
     const next = (picked[g.itemId] ?? 0) + 1;
-    if (next > g.required) toast.warning(`${g.code}: كده أكتر من المطلوب (${q(g.required)})`);
+    if (next > g.required) toast.warning(fill(t("{0}: كده أكتر من المطلوب ({1})"), [g.code, q(g.required)]));
     setPicked((p) => ({ ...p, [g.itemId]: next }));
   };
 
@@ -57,7 +58,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
       if (s.error) { toast.error(s.error); return; }
       const r = await confirmReadyAction(pickListId);
       if (r.error) { toast.error(r.error); return; }
-      toast.success(`اتأكد ${q(r.confirmed ?? 0)} إذن${r.waiting ? ` · ${q(r.waiting)} لسه ناقص` : ""}`);
+      toast.success(fill(t("اتأكد {0} إذن"), [q(r.confirmed ?? 0)]) + (r.waiting ? fill(t(" · {0} لسه ناقص"), [q(r.waiting)]) : ""));
       for (const f of r.failed ?? []) toast.error(f);
       router.refresh();
     });
@@ -79,7 +80,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
           <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
             <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
           </div>
-          <span className="tabular-nums text-muted-foreground">{q(done)} من {q(total)}</span>
+          <span className="tabular-nums text-muted-foreground">{q(done)} {t("من")} {q(total)}</span>
         </div>
         <div className="ms-auto flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()}><Icon name="Printer" className="size-4" />{t("طباعة")}</Button>

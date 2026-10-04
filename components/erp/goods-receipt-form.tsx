@@ -100,7 +100,7 @@ export function GoodsReceiptForm({
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات إذن الاستلام")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الاستلام</Button>
+            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الاستلام")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/purchases/receipts")}>{t("إلغاء")}</Button>
           </div>
         </div>

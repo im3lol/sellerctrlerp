@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -87,10 +88,10 @@ export function PriceListsManager({
     void (async () => {
       const go = await confirm({
         danger: true,
-        title: `حذف قائمة «${l.nameAr}»؟`,
+        title: fill(t("حذف قائمة «{0}»؟"), [l.nameAr]),
         description: l.customerCount > 0
-          ? `${l.customerCount} عميل مربوطين بالقائمة دي — هيرجعوا للقائمة الافتراضية.`
-          : "القائمة وأسعارها هيتمسحوا. الفواتير القديمة مش هتتأثر — سعرها متسجّل فيها.",
+          ? fill(t("{0} عميل مربوطين بالقائمة دي — هيرجعوا للقائمة الافتراضية."), [l.customerCount])
+          : t("القائمة وأسعارها هيتمسحوا. الفواتير القديمة مش هتتأثر — سعرها متسجّل فيها."),
         confirmText: "احذف", cancelText: "رجوع",
       });
       if (!go) return;
@@ -107,7 +108,7 @@ export function PriceListsManager({
         <CardHeader>
           <div className="flex w-full flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>{draft.id ? `تعديل ${draft.nameAr || t("قائمة")}` : "قائمة أسعار جديدة"}</CardTitle>
+              <CardTitle>{draft.id ? fill(t("تعديل {0}"), [draft.nameAr || t("قائمة")]) : t("قائمة أسعار جديدة")}</CardTitle>
               <CardDescription>{t("الأصناف اللي مش في القائمة بتاخد سعر البيع المسجّل على الصنف نفسه.")}</CardDescription>
             </div>
             <div className="flex gap-2">
@@ -141,7 +142,7 @@ export function PriceListsManager({
             </label>
             <div className="ms-auto">
               <Button size="sm" variant="outline" onClick={addRow} disabled={pending}>
-                <Icon name="Plus" className="size-4" />صنف
+                <Icon name="Plus" className="size-4" />{t("صنف")}
               </Button>
             </div>
           </div>
@@ -204,11 +205,11 @@ export function PriceListsManager({
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>{t("قوائم الأسعار")}</CardTitle>
-            <CardDescription>{lists.length ? `${lists.length} قائمة` : "لسه مفيش قوائم"}</CardDescription>
+            <CardDescription>{lists.length ? fill(t("{0} قائمة"), [lists.length]) : t("لسه مفيش قوائم")}</CardDescription>
           </div>
           {canManage && (
             <Button size="sm" onClick={() => setDraft(blank())}>
-              <Icon name="Plus" className="size-4" />قائمة جديدة
+              <Icon name="Plus" className="size-4" />{t("قائمة جديدة")}
             </Button>
           )}
         </div>

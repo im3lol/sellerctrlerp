@@ -13,7 +13,7 @@ export function TablePaginationFooter({ page, pages, total, onChange }: { page: 
     <TableRow className="hover:bg-transparent">
       <TableCell colSpan={100} className="p-0">
         <div className="flex items-center justify-between border-t px-3 py-2 text-sm text-muted-foreground">
-          <span>صفحة {(page + 1).toLocaleString("ar-EG-u-nu-latn")} من {pages.toLocaleString("ar-EG-u-nu-latn")} — {total.toLocaleString("ar-EG-u-nu-latn")} بند</span>
+          <span>{t("صفحة")} {(page + 1).toLocaleString("ar-EG-u-nu-latn")} {t("من")} {pages.toLocaleString("ar-EG-u-nu-latn")} — {total.toLocaleString("ar-EG-u-nu-latn")} {t("بند")}</span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" disabled={page <= 0} onClick={() => onChange(page - 1)}>{t("السابق")}</Button>
             <Button type="button" variant="outline" size="sm" disabled={page >= pages - 1} onClick={() => onChange(page + 1)}>{t("التالي")}</Button>

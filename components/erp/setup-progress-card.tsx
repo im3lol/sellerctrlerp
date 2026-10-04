@@ -23,7 +23,7 @@ export function SetupProgressCard({ done, total }: { done: number; total: number
       <CardContent className="flex flex-wrap items-center gap-4 py-4">
         <Rocket className="size-6 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <div className="font-semibold">أكمل إعداد حسابك — {done} من {total}</div>
+          <div className="font-semibold">{t("أكمل إعداد حسابك —")} {done} {t("من")} {total}</div>
           <div className="mt-1.5 h-2 max-w-xs overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
           </div>

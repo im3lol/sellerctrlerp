@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -100,7 +101,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         warehouseId: openForm.warehouseId, cashAccountId: openForm.cashAccountId,
         openingFloat: Number(openForm.float) || 0,
       });
-      if (r.ok) { toast.success(`فتحت وردية ${r.number}`); load(); }
+      if (r.ok) { toast.success(fill(t("فتحت وردية {0}"), [r.number])); load(); }
       else toast.error(r.error ?? t("تعذّر فتح الوردية"));
     });
 
@@ -166,7 +167,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         if (blocked) return toast.error(blocked);
         if (redeemPoints > 0) return toast.error("النقط محتاجة نت — رصيد العميل مش هيتخمّن");
         q.add(sale);
-        toast.success(`اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع${change > 0 ? ` · الفكة ${money(change)}` : ""}`);
+        toast.success(t("اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع") + (change > 0 ? fill(t(" · الفكة {0}"), [money(change)]) : ""));
         clearCart();
         return;
       }
@@ -185,7 +186,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           if (!r.ok) { toast.error(r.error ?? t("تعذّر إتمام البيع")); return; }
           toast.success(
             `${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`
-            + (r.earnedPoints ? ` · +${r.earnedPoints} نقطة` : ""),
+            + (r.earnedPoints ? fill(t(" · +{0} نقطة"), [r.earnedPoints]) : ""),
           );
           clearCart();
           load();
@@ -209,16 +210,16 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       const diff = Math.round((c - expected) * 100) / 100;
       const go = await confirm({
         danger: Math.abs(diff) > 0.005,
-        title: `قفل وردية ${state.shift.number}؟`,
+        title: fill(t("قفل وردية {0}؟"), [state.shift.number]),
         description: diff === 0
-          ? `الدرج مطابق (${money(expected)}).`
-          : `المتوقّع ${money(expected)} والمعدود ${money(c)} — ${diff > 0 ? t("زيادة") : t("عجز")} ${money(Math.abs(diff))}. الفرق هيتسجّل على الوردية.`,
+          ? fill(t("الدرج مطابق ({0})."), [money(expected)])
+          : fill(t("المتوقّع {0} والمعدود {1} — {2} {3}. الفرق هيتسجّل على الوردية."), [money(expected), money(c), diff > 0 ? t("زيادة") : t("عجز"), money(Math.abs(diff))]),
         confirmText: "اقفل الوردية", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await closeShiftAction({ shiftId: state.shift!.id, countedCash: c });
-        if (r.ok) { toast.success(`اتقفلت — الفرق ${money(r.difference ?? 0)}`); setClosing(false); setCounted(""); load(); }
+        if (r.ok) { toast.success(fill(t("اتقفلت — الفرق {0}"), [money(r.difference ?? 0)])); setClosing(false); setCounted(""); load(); }
         else toast.error(r.error ?? t("تعذّر القفل"));
       });
     })();
@@ -255,7 +256,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <Input type="number" step="0.01" min="0" className="w-32" value={openForm.float}
                 onChange={(e) => setOpenForm((f) => ({ ...f, float: e.target.value }))} /></div>
             <Button onClick={openShift} disabled={pending || !openForm.warehouseId || !openForm.cashAccountId}>
-              <Icon name="LogIn" className="size-4" />افتح
+              <Icon name="LogIn" className="size-4" />{t("افتح")}
             </Button>
           </div>
         </CardContent>
@@ -283,11 +284,11 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               </CardTitle>
               <CardDescription>
                 {state.sales.length + unsettled} بيعة · إجمالي {money((r?.totalSales ?? 0) + queued.sales)} · كاش في الدرج (متوقّع) {money(expectedCash)}
-                {unsettled > 0 && ` · ${unsettled} لسه ما اترحّلتش`}
+                {unsettled > 0 && fill(t(" · {0} لسه ما اترحّلتش"), [unsettled])}
               </CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => setClosing((v) => !v)}>
-              <Icon name="LogOut" className="size-4" />قفل الوردية
+              <Icon name="LogOut" className="size-4" />{t("قفل الوردية")}
             </Button>
           </div>
         </CardHeader>
@@ -298,11 +299,11 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                 <Input type="number" step="0.01" min="0" className="w-40" value={counted} autoFocus
                   onChange={(e) => setCounted(e.target.value)} /></div>
               <Button onClick={close} disabled={pending || counted === "" || unsettled > 0}>
-                <Icon name="Check" className="size-4" />اقفل
+                <Icon name="Check" className="size-4" />{t("اقفل")}
               </Button>
               <span className="pb-2 text-sm text-muted-foreground">
                 المتوقّع {money(expectedCash)}
-                {counted !== "" && ` · الفرق ${money((Number(counted) || 0) - expectedCash)}`}
+                {counted !== "" && fill(t(" · الفرق {0}"), [money((Number(counted) || 0) - expectedCash)])}
               </span>
               {unsettled > 0 && (
                 <span className="pb-2 text-sm font-medium text-destructive">
@@ -399,7 +400,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <div className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t("رصيد النقط")}</span>
-                  <span className="font-medium tabular-nums">{points} نقطة · {money(pointsValue(points, loyalty))}</span>
+                  <span className="font-medium tabular-nums">{points} {t("نقطة ·")} {money(pointsValue(points, loyalty))}</span>
                 </div>
                 {maxRedeemable(points, beforePoints, loyalty) > 0 && (
                   <div className="flex gap-2">
@@ -427,10 +428,10 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               ))}
               {redeemAmount > 0 && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>{redeemPoints} نقطة</span><span className="tabular-nums">−{money(redeemAmount)}</span>
+                  <span>{redeemPoints} {t("نقطة")}</span><span className="tabular-nums">−{money(redeemAmount)}</span>
                 </div>
               )}
-              {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">ضريبة {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
+              {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">{t("ضريبة")} {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
               <div className="flex justify-between border-t pt-1 text-base font-bold"><span>{t("المطلوب")}</span><span className="tabular-nums">{money(totals.total)}</span></div>
             </div>
 
@@ -461,7 +462,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               ))}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setPayments((ps) => [...ps, { method: "CARD", amount: 0 }])}>
-                  <Icon name="Plus" className="size-4" />طريقة تانية
+                  <Icon name="Plus" className="size-4" />{t("طريقة تانية")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setPayments((ps) => ps.map((x, k) => (k === 0 ? { ...x, amount: totals.total } : x)).slice(0, 1))}>
                   {t("المبلغ بالظبط")}
@@ -479,7 +480,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             )}
 
             <Button className="w-full" size="lg" onClick={ring} disabled={pending || !cart.length}>
-              <Icon name="Check" className="size-4" />إتمام البيع
+              <Icon name="Check" className="size-4" />{t("إتمام البيع")}
             </Button>
           </CardContent>
         </Card>
@@ -497,8 +498,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               </div>
               <Button size="sm" variant="outline" disabled={!q.online || q.syncing}
                 onClick={() => void q.sync().then((res) => {
-                  if (res.failed > 0) toast.error(`${res.failed} بيعة اترفضت — شوف السبب تحت`);
-                  else if (res.done > 0) { toast.success(`اترحّلت ${res.done} بيعة`); load(); }
+                  if (res.failed > 0) toast.error(fill(t("{0} بيعة اترفضت — شوف السبب تحت"), [res.failed]));
+                  else if (res.done > 0) { toast.success(fill(t("اترحّلت {0} بيعة"), [res.done])); load(); }
                 })}>
                 <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />زامن دلوقتي
               </Button>
@@ -539,7 +540,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                               const go = await confirm({
                                 danger: true,
                                 title: "تلغي البيعة دي نهائياً؟",
-                                description: `${money(x.total)} اتاخدوا فعلاً من العميل. لو مسحتها من غير ما ترحّلها، الفلوس دي هتفضل في الدرج من غير فاتورة ومحدش هيعرف مصدرها.`,
+                                description: fill(t("{0} اتاخدوا فعلاً من العميل. لو مسحتها من غير ما ترحّلها، الفلوس دي هتفضل في الدرج من غير فاتورة ومحدش هيعرف مصدرها."), [money(x.total)]),
                                 confirmText: "امسحها", cancelText: "رجوع",
                               });
                               if (go) q.discard(x.clientRef);
@@ -562,7 +563,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         <Card>
           <CardHeader>
             <CardTitle>{t("مبيعات الوردية")}</CardTitle>
-            <CardDescription>{state.sales.length} فاتورة</CardDescription>
+            <CardDescription>{state.sales.length} {t("فاتورة")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-xl border">

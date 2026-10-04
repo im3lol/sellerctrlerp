@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -76,8 +77,8 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
   const remove = (row: Row) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `حذف يوم ${row.workDate}؟`,
-        description: `هيتشال من حساب ساعات ${row.name}. لو الراتب اتحسب بالفعل، أعِد احتسابه.`,
+        danger: true, title: fill(t("حذف يوم {0}؟"), [row.workDate]),
+        description: fill(t("هيتشال من حساب ساعات {0}. لو الراتب اتحسب بالفعل، أعِد احتسابه."), [row.name]),
         confirmText: "احذف", cancelText: "رجوع",
       });
       if (!go) return;
@@ -94,7 +95,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
       const r = await importAttendanceCsvAction(csv);
       if (!r.ok) { toast.error(r.error ?? t("تعذّر الاستيراد")); return; }
       setSkipped(r.skipped ?? []);
-      toast.success(`تم استيراد ${r.imported} يوم${r.skipped?.length ? ` — ${r.skipped.length} سطر متخطّى` : ""}`);
+      toast.success(fill(t("تم استيراد {0} يوم"), [r.imported]) + (r.skipped?.length ? fill(t(" — {0} سطر متخطّى"), [r.skipped.length]) : ""));
       setCsv("");
       load(month);
     });
@@ -156,9 +157,9 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="outline" onClick={runImport} disabled={pending}>
-                <Icon name="Upload" className="size-4" />استورد
+                <Icon name="Upload" className="size-4" />{t("استورد")}
               </Button>
-              {skipped.length > 0 && <span className="text-sm text-amber-600">{skipped.length} سطر متخطّى</span>}
+              {skipped.length > 0 && <span className="text-sm text-amber-600">{skipped.length} {t("سطر متخطّى")}</span>}
             </div>
             {skipped.length > 0 && (
               <ul className="max-h-40 overflow-y-auto rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
@@ -174,7 +175,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>{t("سجل الحضور")}</CardTitle>
-              <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} يوم · ${toHours(totalSeconds)} ساعة`}</CardDescription>
+              <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} يوم · {1} ساعة"), [rows.length, toHours(totalSeconds)])}</CardDescription>
             </div>
             <Input type="month" className="w-44" value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>

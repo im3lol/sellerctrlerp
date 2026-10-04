@@ -90,7 +90,7 @@ export function OrderRowActions({
     return (
       <Button size="sm" variant="ghost" disabled={pending}
         onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? t("أمر البيع") : t("أمر الشراء"))}>
-        <Icon name="Trash2" className="size-4 text-destructive" />حذف
+        <Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}
       </Button>
     );
   }
@@ -104,12 +104,12 @@ export function OrderRowActions({
         {needApprove ? (
           <Button size="sm" disabled={pending}
             onClick={() => run(() => approvePurchaseOrderAction(orderId), "تم اعتماد الأمر")}>
-            <Icon name="ShieldCheck" className="size-4" />اعتماد
+            <Icon name="ShieldCheck" className="size-4" />{t("اعتماد")}
           </Button>
         ) : (
           <Button size="sm" disabled={pending}
             onClick={() => (isSales ? confirmSales() : run(() => confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر"))}>
-            <Icon name="Check" className="size-4" />تأكيد
+            <Icon name="Check" className="size-4" />{t("تأكيد")}
           </Button>
         )}
         {/* Drafts are freely editable (no stock/GL yet). */}
@@ -118,7 +118,7 @@ export function OrderRowActions({
         </Button>
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
-          <Icon name="X" className="size-4 text-destructive" />إلغاء
+          <Icon name="X" className="size-4 text-destructive" />{t("إلغاء")}
         </Button>
       </div>
     );
@@ -149,7 +149,7 @@ export function OrderRowActions({
           <>
             <DropdownMenuItem className="font-medium text-emerald-700 focus:text-emerald-700"
               onClick={() => run(() => fulfillOrderAction(orderId), "تم تنفيذ الدورة: إذن صرف + فاتورة مُرحّلة")}>
-              <Icon name="Zap" className="size-4" />الدورة الكاملة (صرف + فاتورة)
+              <Icon name="Zap" className="size-4" />{t("الدورة الكاملة (صرف + فاتورة)")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -163,18 +163,18 @@ export function OrderRowActions({
         {isSales && (
           <DropdownMenuItem
             onClick={() => run(() => convertSalesOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", invoiceDest)}>
-            <Icon name="FileText" className="size-4" />إنشاء فاتورة بيع
+            <Icon name="FileText" className="size-4" />{t("إنشاء فاتورة بيع")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
           onClick={() => run(() => isSales ? revertSalesOrderToDraftAction(orderId) : revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
-          <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
+          <Icon name="Undo2" className="size-4" />{t("إعادة فتح كمسودة")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={() => run(() => isSales ? cancelSalesOrderAction(orderId) : cancelPurchaseOrderAction(orderId), "تم إلغاء الأمر")}>
-          <Icon name="X" className="size-4" />إلغاء الأمر
+          <Icon name="X" className="size-4" />{t("إلغاء الأمر")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

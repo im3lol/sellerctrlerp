@@ -25,7 +25,7 @@ export function ExpenseRowActions({ id, number, status, canManage }: { id: strin
   return (
     <div className="flex gap-1">
       <Button size="sm" disabled={pending} onClick={() => run(() => confirmExpenseAction(id), "تم تأكيد المصروف وترحيله")}>
-        <Icon name="Check" className="size-4" />تأكيد
+        <Icon name="Check" className="size-4" />{t("تأكيد")}
       </Button>
       <Button size="sm" variant="outline" asChild><Link href={`/accounting/expenses/${encodeURIComponent(number)}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></Button>
       <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")} onClick={() => run(() => deleteExpenseAction(id), "تم حذف المسودة")}>

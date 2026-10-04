@@ -38,7 +38,7 @@ export function TransfersTable({ rows, canConfirm, canCreate, total, filter }: {
           ops={ops}
           action={(op, ids, allPages) => bulkStockTransfersAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="تحويل"
+          entity={t("تحويل")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}

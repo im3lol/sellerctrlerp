@@ -56,7 +56,7 @@ export function ReconciliationClient({ accounts, selectedAccountId, lines }: { a
           <Input type="number" step="0.01" value={statement} onChange={(e) => setStatement(e.target.value)} placeholder={t("أدخل الرصيد الختامي")} />
         </div>
         <div className="flex items-end">
-          <Button onClick={save} disabled={!dirty || pending} className="w-full">{pending && <Loader2 className="size-4 animate-spin" />}حفظ المطابقة</Button>
+          <Button onClick={save} disabled={!dirty || pending} className="w-full">{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ المطابقة")}</Button>
         </div>
       </CardContent></Card>
 

@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -33,7 +34,7 @@ export default async function InvestmentsPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="PiggyBank" title={t("مساهمات رأس المال")} subtitle={`${rows.length} مساهمة — إجمالي ${money(total)}`} backHref="/investors"
+        <ErpPageHeader icon="PiggyBank" title={t("مساهمات رأس المال")} subtitle={fill(t("{0} مساهمة — إجمالي {1}"), [rows.length, money(total)])} backHref="/investors"
           action={can("accounting.post") ? (
             <InvestorTxnForm kind="investment"
               investors={people.map((p) => ({ id: p.id, label: `${p.code} — ${p.name}` }))}

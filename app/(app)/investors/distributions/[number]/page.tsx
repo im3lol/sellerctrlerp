@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -44,7 +45,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
     return (
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader icon="PieChart" title={dist.periodName}
-          subtitle={`${dt(dist.periodStart)} → ${dt(dist.periodEnd)} · تاريخ التوزيع ${dt(dist.distributionDate)}`}
+          subtitle={fill(t("{0} → {1} · تاريخ التوزيع {2}"), [dt(dist.periodStart), dt(dist.periodEnd), dt(dist.distributionDate)])}
           backHref="/investors/distributions"
           action={
             <div className="flex gap-2">

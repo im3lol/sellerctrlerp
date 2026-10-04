@@ -35,7 +35,7 @@ export default async function DashboardsPage() {
 
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            مفيش لوحات لسه. احفظ تقرير من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> (مع رسم لو حابب)، وبعدين اعمل لوحة وضيفه فيها.
+            مفيش لوحات لسه. احفظ تقرير من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("(مع رسم لو حابب)، وبعدين اعمل لوحة وضيفه فيها.")}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

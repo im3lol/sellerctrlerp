@@ -1,5 +1,7 @@
 import { EmptyState } from "@/components/empty-state";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -20,7 +22,7 @@ import { cn, selectCls } from "@/lib/utils";
 const PER_PAGE = 10;
 /** The board shows every status at once, so it takes the latest N under the filters. */
 const BOARD_LIMIT = 300;
-const day = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
+const day = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short" });
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_RECEIVED", "استلام جزئي"],
@@ -31,6 +33,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PurchaseOrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canManage = can("purchases.create");
@@ -126,7 +129,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
           .orderBy(desc(purchaseOrders.date), desc(purchaseOrders.number)).limit(BOARD_LIMIT))
           .map((r) => ({
             id: r.id, column: r.status, title: r.number, subtitle: r.supplier, amount: money(Number(r.total ?? 0)),
-            meta: day(r.date), href: `/purchases/orders/${encodeURIComponent(r.number)}`,
+            meta: day(r.date, locale), href: `/purchases/orders/${encodeURIComponent(r.number)}`,
           }))
       : [];
 
@@ -155,7 +158,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
         <ErpPageHeader
           icon="ClipboardList"
           title={t("أوامر الشراء")}
-          subtitle={`${total} أمر`}
+          subtitle={fill(t("{0} أمر"), [total])}
           action={
             <div className="flex flex-wrap gap-2">
               <div className="flex rounded-lg border p-0.5">
@@ -185,7 +188,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 {view === "board" && <input type="hidden" name="view" value="board" />}
@@ -217,7 +220,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
               <>
                 <OrdersKanban kind="purchase" cards={boardCards} canMove={canConfirm || canManage} />
                 {boardCards.length >= BOARD_LIMIT && (
-                  <p className="text-xs text-muted-foreground">بيعرض آخر {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} أمر — ضيّق الفلاتر عشان توصل للأقدم.</p>
+                  <p className="text-xs text-muted-foreground">{t("بيعرض آخر")} {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} {t("أمر — ضيّق الفلاتر عشان توصل للأقدم.")}</p>
                 )}
               </>
             ) : rows.length === 0 ? (
@@ -230,7 +233,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
               <>
                 <PurchaseOrdersTable rows={tableRows} canConfirm={canConfirm} canCreate={canManage} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

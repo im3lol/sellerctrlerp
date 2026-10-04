@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
@@ -190,7 +191,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         <ErpPageHeader
           icon="Store"
           title={platform.name}
-          subtitle={`منصة ${connector?.label ?? (isAmazon ? t("أمازون") : t("عامة"))} · الكود ${platform.code}${platform.isActive ? "" : t(" · موقوفة")}`}
+          subtitle={fill(t("منصة {0} · الكود {1}{2}"), [connector?.label ?? (isAmazon ? t("أمازون") : t("عامة")), platform.code, platform.isActive ? "" : t(" · موقوفة")])}
           backHref="/platforms"
           action={
             <PlatformHeaderActions
@@ -233,7 +234,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <CardTitle>{t("تدقيق مخزون FBA")}</CardTitle>
-                  <CardDescription>مطابقة كميات أمازون مع مخزن «{platform.warehouseName ?? t("غير محدد")}» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.</CardDescription>
+                  <CardDescription>{t("مطابقة كميات أمازون مع مخزن «")}{platform.warehouseName ?? t("غير محدد")}{t("» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.")}</CardDescription>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm">
                   <Link href={`/platforms/${platform.code.toLowerCase()}/health`} className="text-primary hover:underline">{t("صحة أمازون ←")}</Link>
@@ -255,7 +256,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                       quantity diffs → one DRAFT adjustment to review then post. */}
                   {amazonFbaQty > 0 && invQty === 0 ? (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
-                      <p className="flex-1 text-sm text-muted-foreground">مخزون النظام صفر بينما أمازون لديها {int(amazonFbaQty)} وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.</p>
+                      <p className="flex-1 text-sm text-muted-foreground">{t("مخزون النظام صفر بينما أمازون لديها")} {int(amazonFbaQty)} {t("وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.")}</p>
                       <Button asChild variant="outline"><Link href="/settings/opening-balance">{t("إنشاء رصيد افتتاحي")}</Link></Button>
                     </div>
                   ) : audit.withDiff > 0 ? (
@@ -264,7 +265,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                       <AuditAdjustmentButton />
                     </div>
                   ) : null}
-                  <div className="text-xs text-muted-foreground">آخر تدقيق: {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} · يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل")}</Link>.</div>
+                  <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} {t("· يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في")} <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل")}</Link>.</div>
                 </>
               )}
             </CardContent>
@@ -273,13 +274,13 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Kpi label={t("عدد المنتجات")} value={int(productCount)} hint={`أصناف ${platform.name} النشطة`} />
+          <Kpi label={t("عدد المنتجات")} value={int(productCount)} hint={fill(t("أصناف {0} النشطة"), [platform.name])} />
           {isAmazon && <Kpi label={t("مخزون أمازون FBA")} value={int(amazonFbaQty)} hint={audit ? t("الكمية من أمازون · آخر تدقيق") : t("شغّل «تدقيق المخزون»")} />}
-          <Kpi label={isAmazon ? t("مخزون النظام (FBA)") : t("مخزون النظام")} value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
-          <Kpi label={t("عدد الأوامر")} value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
-          <Kpi label={t("إجمالي المبيعات")} value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
+          <Kpi label={isAmazon ? t("مخزون النظام (FBA)") : t("مخزون النظام")} value={int(invQty)} hint={platform.warehouseName ? fill(t("مخزن {0}"), [platform.warehouseName]) : t("كل المخازن")} />
+          <Kpi label={t("عدد الأوامر")} value={int(ordersCount)} hint={fill(t("{0} هذا الشهر"), [int(monthN)])} />
+          <Kpi label={t("إجمالي المبيعات")} value={fmt(salesTotal)} hint={fill(t("{0} هذا الشهر"), [fmt(monthTotal)])} />
           <Kpi label={t("متوسط قيمة الأمر")} value={fmt(avgOrder)} />
-          <Kpi label={t("المرتجعات")} value={fmt(retTotal)} hint={`${int(retN)} مرتجع`} tone={retTotal > 0 ? "danger" : undefined} />
+          <Kpi label={t("المرتجعات")} value={fmt(retTotal)} hint={fill(t("{0} مرتجع"), [int(retN)])} tone={retTotal > 0 ? "danger" : undefined} />
           <Kpi label={t("المحصّل (سندات مرحّلة)")} value={fmt(collTotal)} tone="ok" />
           <Kpi label={t("رصيد العميل (مستحق)")} value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
         </div>

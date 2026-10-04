@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -47,7 +48,7 @@ export default async function PurchaseInvoiceReturnPage({ params }: { params: Pr
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Undo2" title={`مرتجع مشتريات — ${inv.number}`} subtitle={t("حدّد كميات المرتجع ثم أكّد — يُسجَّل إشعار مدين ويُرحَّل")} backHref={back} />
+        <ErpPageHeader icon="Undo2" title={fill(t("مرتجع مشتريات — {0}"), [inv.number])} subtitle={t("حدّد كميات المرتجع ثم أكّد — يُسجَّل إشعار مدين ويُرحَّل")} backHref={back} />
         <InvoiceReturnForm type="purchase" invoiceId={inv.id} invoiceNumber={inv.number} backHref={back} lines={lines} />
       </div>
     );

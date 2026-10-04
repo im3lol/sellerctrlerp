@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -24,7 +25,7 @@ export default function PostDepreciationPage() {
       if (res.ok) {
         const msg = res.count === 0
           ? t("لا توجد أصول تستحق إهلاكًا في هذه الفترة (أو تم ترحيلها مسبقًا).")
-          : `تم ترحيل إهلاك ${res.count} أصل بنجاح.`;
+          : fill(t("تم ترحيل إهلاك {0} أصل بنجاح."), [res.count]);
         setResult(msg);
         toast.success(msg);
       } else {

@@ -93,7 +93,7 @@ export function DeliveryForm({
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات إذن الصرف")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ إذن الصرف</Button>
+            <Button size="sm" onClick={submit} disabled={pending || lines.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ إذن الصرف")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/sales/deliveries")}>{t("إلغاء")}</Button>
           </div>
         </div>

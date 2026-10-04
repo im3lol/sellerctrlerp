@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
@@ -113,7 +114,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
         <ErpPageHeader
           icon="ReceiptText"
           title={t("فواتير البيع")}
-          subtitle={`${total} فاتورة`}
+          subtitle={fill(t("{0} فاتورة"), [total])}
           action={canManage ? (
             <Button asChild><Link href="/sales/invoices/new"><Icon name="Plus" className="size-4" />{t("فاتورة بيع")}</Link></Button>
           ) : undefined}
@@ -133,7 +134,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1"><Label htmlFor="q">{t("رقم الفاتورة")}</Label><Input id="q" name="q" defaultValue={q} placeholder="SI-2026-..." /></div>
@@ -170,7 +171,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
               <>
                 <SalesInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} canCollect={canCollect} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

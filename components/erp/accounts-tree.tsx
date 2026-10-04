@@ -41,8 +41,9 @@ function Balance({ net }: { net: number }) {
 }
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function AccountDialog({
@@ -207,7 +208,7 @@ export function AccountsTree({
                   <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                     <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>حذف الحساب «{a.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{a.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
                       <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

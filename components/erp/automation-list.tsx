@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -30,7 +31,7 @@ export function RuleDelete({ id, name }: { id: string; name: string }) {
   const [pending, start] = useTransition();
   return (
     <Button size="icon" variant="ghost" aria-label={t("مسح")} disabled={pending} onClick={() => void (async () => {
-      const go = await confirm({ danger: true, title: `تمسح القاعدة «${name}»؟`, description: "هتقف فوراً، وسجل تشغيلها هيتمسح معاها.", confirmText: "امسح", cancelText: "رجوع" });
+      const go = await confirm({ danger: true, title: fill(t("تمسح القاعدة «{0}»؟"), [name]), description: "هتقف فوراً، وسجل تشغيلها هيتمسح معاها.", confirmText: "امسح", cancelText: "رجوع" });
       if (!go) return;
       start(async () => {
         const r = await deleteRuleAction(id);

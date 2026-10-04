@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getErpOverview } from "@/lib/erp/overview";
@@ -34,11 +35,11 @@ export default async function AnalyticsPage() {
 
     const alerts = ov
       ? ([
-          ov.overdueAR > 0 && { label: `ذمم متأخرة: ${money(ov.overdueAR)}`, href: "/sales/aging", danger: true },
-          ov.overdueAP > 0 && { label: `مستحقات متأخرة: ${money(ov.overdueAP)}`, href: "/purchases/aging", danger: true },
-          ov.outOfStock > 0 && { label: `أصناف نافدة: ${int(ov.outOfStock)}`, href: "/inventory/reorder", danger: true },
-          ov.lowStock > 0 && { label: `مخزون منخفض: ${int(ov.lowStock)}`, href: "/inventory/reorder", danger: false },
-          ov.nearExpiryCount > 0 && { label: `قرب انتهاء الصلاحية: ${int(ov.nearExpiryCount)}`, href: "/inventory/expiry", danger: false },
+          ov.overdueAR > 0 && { label: fill(t("ذمم متأخرة: {0}"), [money(ov.overdueAR)]), href: "/sales/aging", danger: true },
+          ov.overdueAP > 0 && { label: fill(t("مستحقات متأخرة: {0}"), [money(ov.overdueAP)]), href: "/purchases/aging", danger: true },
+          ov.outOfStock > 0 && { label: fill(t("أصناف نافدة: {0}"), [int(ov.outOfStock)]), href: "/inventory/reorder", danger: true },
+          ov.lowStock > 0 && { label: fill(t("مخزون منخفض: {0}"), [int(ov.lowStock)]), href: "/inventory/reorder", danger: false },
+          ov.nearExpiryCount > 0 && { label: fill(t("قرب انتهاء الصلاحية: {0}"), [int(ov.nearExpiryCount)]), href: "/inventory/expiry", danger: false },
         ].filter(Boolean) as { label: string; href: string; danger: boolean }[])
       : [];
 

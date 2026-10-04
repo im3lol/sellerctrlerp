@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, or } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -27,7 +28,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Package" title={`تعديل ${item.code}`} subtitle={t("تعديل بيانات الصنف وأكواده وصورته")} backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
+        <ErpPageHeader icon="Package" title={fill(t("تعديل {0}"), [item.code])} subtitle={t("تعديل بيانات الصنف وأكواده وصورته")} backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
         <ItemForm initial={{
           id: item.id, code: item.code, nameAr: item.nameAr ?? "",
           description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",

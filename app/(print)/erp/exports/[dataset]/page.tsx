@@ -26,7 +26,7 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
           <PrintNowButton />
         </div>
         <h1 className="mb-1 text-xl font-bold">{ds.title}</h1>
-        <p className="mb-4 text-sm text-gray-500">{today} — {rows.length} سجل</p>
+        <p className="mb-4 text-sm text-gray-500">{today} — {rows.length} {t("سجل")}</p>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>

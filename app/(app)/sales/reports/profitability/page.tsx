@@ -1,4 +1,5 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -129,8 +130,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
           ] : []),
           { op: "=" },
           hasFees
-            ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` }
-            : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` },
+            ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: fill(t("هامش {0}"), [pct(tMargin)]) }
+            : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: fill(t("هامش {0}"), [pct(tMargin)]) },
         ]}
         chartTitle={list.length > 0 ? t("أعلى ٨ أصناف ربحًا") : undefined}
         chart={list.length > 0 ? (
@@ -142,7 +143,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         <Card>
           <CardHeader>
             <CardTitle>{t("الربحية حسب الصنف")}</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).</CardDescription>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
@@ -188,7 +189,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
               متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية.
               أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.
               {missingFees > 0 && (
-                <span className="text-amber-600"> · {qtyf(missingFees)} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.</span>
+                <span className="text-amber-600"> · {qtyf(missingFees)} {t("صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.")}</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -206,7 +207,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                     <TableHead className="text-end">{t("رسوم أمازون/وحدة")}</TableHead>
                     <TableHead className="text-end">{t("سعر التعادل")}</TableHead>
                     <TableHead className="text-end">{t("الفرق")}</TableHead>
-                    <TableHead className="text-end">السعر المقترح ({qtyf(targetMargin)}%)</TableHead>
+                    <TableHead className="text-end">{t("السعر المقترح (")}{qtyf(targetMargin)}%)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

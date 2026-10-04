@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -18,7 +20,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DONE: { label: "اتقفلت", variant: "default" },
   CANCELLED: { label: "ملغية", variant: "destructive" },
 };
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short", year: "numeric" });
+const dt = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", year: "numeric" });
 const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
 
 /**
@@ -27,6 +29,7 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
  * drafts → «جولة تجهيز»).
  */
 export default async function PickListsPage({ searchParams }: { searchParams: Promise<{ n?: string }> }) {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const number = ((await searchParams).n ?? "").trim();
@@ -65,8 +68,8 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
         <div className="space-y-6">
           <ErpPageHeader
             icon="ScanLine"
-            title={`جولة تجهيز ${pl.number}`}
-            subtitle={`${pl.warehouse ?? "—"} · ${dt(pl.date)} · ${n(deliveries.length)} إذن · ${n(groups.length)} صنف`}
+            title={fill(t("جولة تجهيز {0}"), [pl.number])}
+            subtitle={fill(t("{0} · {1} · {2} إذن · {3} صنف"), [pl.warehouse ?? "—", dt(pl.date, locale), n(deliveries.length), n(groups.length)])}
             backHref="/inventory/pick-lists"
             action={<Badge variant={st.variant}>{t(st.label)}</Badge>}
           />
@@ -120,7 +123,7 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
                     return (
                       <TableRow key={r.id}>
                         <TableCell><Link href={`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`} className="font-mono font-medium text-primary hover:underline">{r.number}</Link></TableCell>
-                        <TableCell>{dt(r.date)}</TableCell>
+                        <TableCell>{dt(r.date, locale)}</TableCell>
                         <TableCell>{r.warehouse ?? "—"}</TableCell>
                         <TableCell className="tabular-nums">{n(r.deliveries)}</TableCell>
                         <TableCell className="tabular-nums">{n(r.itemCount)}</TableCell>

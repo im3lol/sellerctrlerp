@@ -50,7 +50,7 @@ export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows
           ops={ops}
           action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="قيد"
+          entity={t("قيد")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 
 // Reusable single-series time trend (area+line). Themed via CSS vars so it tracks
@@ -21,6 +22,7 @@ export function TrendChart({
   /** Unique gradient id when more than one TrendChart renders on a page. */
   id?: string;
 }) {
+  const t = useT();
   const fmt = money ? arMoney : arInt;
   const gid = `trendFill-${id}`;
   return (
@@ -33,11 +35,12 @@ export function TrendChart({
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+        <XAxis dataKey="label" tickFormatter={(v) => t(String(v))} tickLine={false} axisLine={false} minTickGap={24} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
         <YAxis width={52} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => fmt(Number(v))} />
         <Tooltip
           contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", fontSize: 12 }}
           labelStyle={{ color: "hsl(var(--foreground))" }}
+          labelFormatter={(l) => t(String(l))}
           formatter={(v) => [fmt(Number(v)), valueLabel]}
         />
         <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} fill={`url(#${gid})`} dot={false} activeDot={{ r: 4 }} />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -52,10 +53,11 @@ export function QuotationDetailActions({
   };
 
   const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const shareMsg = `عرض سعر رقم: ${number}${total != null ? `\nالإجمالي: ${fmt(total)}` : ""}\nفي انتظار ردكم، وشكراً لثقتكم.`;
+  const shareMsg = fill(t("عرض سعر رقم: {0}"), [number])
+    + (total != null ? "\n" + fill(t("الإجمالي: {0}"), [fmt(total)]) : "")
+    + "\n" + t("في انتظار ردكم، وشكراً لثقتكم.");
   const waPhone = waNumber(customerPhone);
-  const message = link ? `${shareMsg}
-للاطلاع على العرض والرد عليه: ${link}` : shareMsg;
+  const message = link ? fill(t("{0}\nللاطلاع على العرض والرد عليه: {1}"), [shareMsg, link]) : shareMsg;
 
   // Print and share need no write permission — a viewer may still send the customer a copy.
   const items: DocAction[] = [

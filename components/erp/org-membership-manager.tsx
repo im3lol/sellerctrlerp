@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -23,7 +24,7 @@ export function OrgMembershipManager({
 
   const save = () => start(async () => {
     const r = await addUserToOrgAction(userId, role);
-    if (r.ok) toast.success(currentRole ? t("تم تحديث الدور") : `تمت الإضافة إلى ${orgName}`);
+    if (r.ok) toast.success(currentRole ? t("تم تحديث الدور") : fill(t("تمت الإضافة إلى {0}"), [orgName]));
     else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
   const remove = () => start(async () => {
@@ -39,7 +40,7 @@ export function OrgMembershipManager({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-xl border p-3">
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">دور ERP في «{orgName}»</label>
+        <label className="text-xs text-muted-foreground">{t("دور ERP في «")}{orgName}»</label>
         <select value={role} onChange={(e) => setRole(e.target.value)}
           className="flex h-9 w-40 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm">
           {ERP_ROLES.map((r) => <option key={r} value={r}>{t(ROLE_AR[r] ?? r)}</option>)}
@@ -51,10 +52,10 @@ export function OrgMembershipManager({
       </Button>
       {currentRole && (
         <Button size="sm" variant="ghost" disabled={pending} onClick={remove}>
-          <Trash2 className="size-4 text-destructive" />إزالة
+          <Trash2 className="size-4 text-destructive" />{t("إزالة")}
         </Button>
       )}
-      {currentRole && <Badge variant="outline">عضو حالياً: {t(ROLE_AR[currentRole] ?? currentRole)}</Badge>}
+      {currentRole && <Badge variant="outline">{t("عضو حالياً:")} {t(ROLE_AR[currentRole] ?? currentRole)}</Badge>}
     </div>
   );
 }

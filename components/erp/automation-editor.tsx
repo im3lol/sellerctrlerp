@@ -167,7 +167,7 @@ export function AutomationEditor({ rule, members, roles }: {
           })}
           <Button size="sm" variant="outline" disabled={spec.conditions.length >= 10 || fields.length === 0}
             onClick={() => setSpec((s) => ({ ...s, conditions: [...s.conditions, { field: fields[0].key, op: OPS_FOR[fields[0].type][0], value: "" }] }))}>
-            <Icon name="Plus" className="size-4" />شرط
+            <Icon name="Plus" className="size-4" />{t("شرط")}
           </Button>
         </CardContent>
       </Card>
@@ -297,7 +297,7 @@ export function AutomationEditor({ rule, members, roles }: {
           <div className="flex flex-wrap items-center gap-2">
             <Input dir="ltr" className="w-48" placeholder="SO-2026-0001" value={testNo} onChange={(e) => setTestNo(e.target.value)} />
             <Button variant="outline" disabled={pending || !testNo.trim()} onClick={runTest}>
-              <Icon name="Play" className="size-4" />جرّب
+              <Icon name="Play" className="size-4" />{t("جرّب")}
             </Button>
           </div>
           {test && (test.ok ? (

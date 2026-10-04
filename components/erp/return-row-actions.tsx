@@ -37,7 +37,7 @@ export function ReturnRowActions({
     <div className="flex gap-1">
       <Button size="sm" disabled={pending}
         onClick={() => run(() => isSales ? confirmSalesReturnAction(returnId) : confirmPurchaseReturnAction(returnId), "تم تأكيد المرتجع وترحيله")}>
-        <Icon name="Check" className="size-4" />تأكيد
+        <Icon name="Check" className="size-4" />{t("تأكيد")}
       </Button>
       <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")}
         onClick={() => run(() => isSales ? deleteSalesReturnAction(returnId) : deletePurchaseReturnAction(returnId), "تم حذف المسودة")}>

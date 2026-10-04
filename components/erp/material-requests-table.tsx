@@ -28,7 +28,7 @@ export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: R
   return (
     <div>
       {showSelect && (
-        <BulkBar ids={sel.ids} ops={ops} action={bulkMaterialRequestsAction} onDone={sel.clear} entity="طلب" />
+        <BulkBar ids={sel.ids} ops={ops} action={bulkMaterialRequestsAction} onDone={sel.clear} entity={t("طلب")} />
       )}
       <Table>
         <TableHeader>

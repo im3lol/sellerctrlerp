@@ -56,7 +56,7 @@ export function ReturnDetailActions({ id, type, status, canManage, dest: destPro
     <DocumentActions
       primary={status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => type === "sales" ? confirmSalesReturnAction(id) : confirmPurchaseReturnAction(id), "تم تأكيد المرتجع وترحيله")}>
-          <Icon name="Check" className="size-4" />تأكيد المرتجع
+          <Icon name="Check" className="size-4" />{t("تأكيد المرتجع")}
         </Button>
       ) : undefined}
       items={items}

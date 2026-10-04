@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -37,11 +38,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
   const [reversing, startReverse] = useTransition();
 
   const reversePosting = () => {
-    if (!confirm(`عكس ترحيل كل قيود تسوية ${label} المرحّلة؟ سيُعاد بناؤها على مستوى كل طلب عند الترحيل التالي، وتُستعاد أرصدة العملاء والفواتير.`)) return;
+    if (!confirm(fill(t("عكس ترحيل كل قيود تسوية {0} المرحّلة؟ سيُعاد بناؤها على مستوى كل طلب عند الترحيل التالي، وتُستعاد أرصدة العملاء والفواتير."), [label]))) return;
     startReverse(async () => {
       const r = await reverseAmazonSettlementAction(channel);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(r.reversed ? `تم عكس ${r.reversed} قيد تسوية — أعد الترحيل الآن` : "لا توجد قيود تسوية مرحّلة لعكسها");
+      toast.success(r.reversed ? fill(t("تم عكس {0} قيد تسوية — أعد الترحيل الآن"), [r.reversed]) : t("لا توجد قيود تسوية مرحّلة لعكسها"));
       router.refresh();
     });
   };
@@ -66,7 +67,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
           if (timer.current) clearInterval(timer.current);
           setPulling(false);
           if (st.phase === "error") toast.error(st.error ?? t("فشل سحب المدفوعات"));
-          else toast.success(`تم السحب: ${st.imported ?? 0} معاملة جديدة${st.posted ? `، ${st.posted} مُرحّلة` : ""}`);
+          else toast.success(fill(t("تم السحب: {0} معاملة جديدة"), [st.imported ?? 0]) + (st.posted ? fill(t("، {0} مُرحّلة"), [st.posted]) : ""));
           router.refresh();
         }
       }, 3000);
@@ -77,9 +78,12 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
     startPost(async () => {
       const r = await postAmazonSettlementsAction(channel);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم ترحيل ${r.posted} معاملة${r.perOrderEntries ? ` (${r.perOrderEntries} قيد لكل طلب)` : ""}${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}${r.deferredHeld ? `، ${r.deferredHeld} مؤجّلة محفوظة` : ""}`);
-      if (r.returnsUnmatched.length) toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length})`, { duration: 10000 });
-      if (r.heldForImport) toast.warning(`${r.heldForImport} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)`, { duration: 10000 });
+      toast.success(fill(t("تم ترحيل {0} معاملة"), [r.posted])
+        + (r.perOrderEntries ? fill(t(" ({0} قيد لكل طلب)"), [r.perOrderEntries]) : "")
+        + (r.returnsCreated ? fill(t("، {0} مرتجع"), [r.returnsCreated]) : "")
+        + (r.deferredHeld ? fill(t("، {0} مؤجّلة محفوظة"), [r.deferredHeld]) : ""));
+      if (r.returnsUnmatched.length) toast.warning(fill(t("مرتجعات لم تُطابَق ({0})"), [r.returnsUnmatched.length]), { duration: 10000 });
+      if (r.heldForImport) toast.warning(fill(t("{0} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)"), [r.heldForImport]), { duration: 10000 });
       router.refresh();
     });
   };
@@ -100,11 +104,14 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       const fd = new FormData(); fd.append("file", file);
       const r = await runAmazonSettlementAction(fd);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم: ${r.posted} معاملة مُرحّلة${r.perOrderEntries ? ` (${r.perOrderEntries} قيد لكل طلب)` : ""}، ${r.imported} جديدة، ${r.deferredHeld} مؤجّلة محفوظة${r.returnsCreated ? `، ${r.returnsCreated} مرتجع` : ""}`);
+      toast.success(fill(t("تم: {0} معاملة مُرحّلة"), [r.posted])
+        + (r.perOrderEntries ? fill(t(" ({0} قيد لكل طلب)"), [r.perOrderEntries]) : "")
+        + fill(t("، {0} جديدة، {1} مؤجّلة محفوظة"), [r.imported, r.deferredHeld])
+        + (r.returnsCreated ? fill(t("، {0} مرتجع"), [r.returnsCreated]) : ""));
       if (r.returnsUnmatched.length) {
-        toast.warning(`مرتجعات لم تُطابَق (${r.returnsUnmatched.length}): ${r.returnsUnmatched.slice(0, 5).join("؛ ")}${r.returnsUnmatched.length > 5 ? " …" : ""}`, { duration: 12000 });
+        toast.warning(fill(t("مرتجعات لم تُطابَق ({0}): {1}{2}"), [r.returnsUnmatched.length, r.returnsUnmatched.slice(0, 5).join("؛ "), r.returnsUnmatched.length > 5 ? " …" : ""]), { duration: 12000 });
       }
-      if (r.heldForImport) toast.warning(`${r.heldForImport} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)`, { duration: 10000 });
+      if (r.heldForImport) toast.warning(fill(t("{0} معاملة محجوزة — طلباتها غير مستوردة (لن تمسّ الذمم حتى تُستورد)"), [r.heldForImport]), { duration: 10000 });
       router.refresh();
       setPreview(null); setFile(null); if (inputRef.current) inputRef.current.value = "";
     });
@@ -160,11 +167,11 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       {/* API automatic pull */}
       <Card>
         <CardHeader>
-          <CardTitle>سحب المدفوعات من {label}</CardTitle>
+          <CardTitle>{t("سحب المدفوعات من")} {label}</CardTitle>
           <CardDescription>
             {isAmazon
               ? t("يسحب تقارير التسويات مباشرة من أمازون — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات. التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد).")
-              : `يسحب مدفوعات ${label} (Payments) مباشرة عبر الـ API — تحصيل الطلبات + التحويلات البنكية + العمولات. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر.`}
+              : fill(t("يسحب مدفوعات {0} (Payments) مباشرة عبر الـ API — تحصيل الطلبات + التحويلات البنكية + العمولات. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر."), [label])}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -229,7 +236,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
             بديل للسحب التلقائي: ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب
             ويُرحّل قيداً محاسبياً مجمّعاً للمعاملات <b>{t("المُفرج عنها")}</b> فقط. الإيراد يُعترف به مرة عند فاتورة البيع؛
             التسوية <b>{t("تُحصّل ذمم أمازون")}</b> فقط، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
-            كل صف <b>Refund</b> يُنشئ دورة مرتجع كاملة. المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر.
+            كل صف <b>Refund</b> {t("يُنشئ دورة مرتجع كاملة. المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -252,10 +259,10 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
 
           {preview && (
             <div className="flex flex-wrap gap-2 text-sm">
-              <Badge variant="secondary">إجمالي المعاملات: {preview.total}</Badge>
-              <Badge className="bg-emerald-600">جديدة: {preview.newCount}</Badge>
-              <Badge variant="default">مُفرج عنها: {preview.released}</Badge>
-              <Badge variant="outline">مؤجّلة: {preview.deferred}</Badge>
+              <Badge variant="secondary">{t("إجمالي المعاملات:")} {preview.total}</Badge>
+              <Badge className="bg-emerald-600">{t("جديدة:")} {preview.newCount}</Badge>
+              <Badge variant="default">{t("مُفرج عنها:")} {preview.released}</Badge>
+              <Badge variant="outline">{t("مؤجّلة:")} {preview.deferred}</Badge>
             </div>
           )}
           {preview && (

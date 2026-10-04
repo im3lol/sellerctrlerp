@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -39,7 +40,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={`تعديل عرض سعر ${qt.number}`} subtitle={t("مسودة — عدّل الأصناف والأسعار ثم احفظ")} backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
+        <ErpPageHeader icon="FileText" title={fill(t("تعديل عرض سعر {0}"), [qt.number])} subtitle={t("مسودة — عدّل الأصناف والأسعار ثم احفظ")} backHref={`/sales/quotations/${encodeURIComponent(qt.number)}`} />
         <QuotationForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
       </div>
     );

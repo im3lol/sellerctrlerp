@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -70,28 +71,28 @@ export function BulkDeleteBar({ ids, action, onDone, entity = "عنصر", all }:
   const run = () => start(async () => {
     const r = await action(ids, active);
     if (!r.ok) { toast.error(r.error); return; }
-    toast.success(`تم حذف ${int(r.deleted)} ${entity}${r.blocked ? ` · ${int(r.blocked)} لم يُحذف (مرتبط/مُرحّل)` : ""}`);
+    toast.success(fill(t("تم حذف {0} {1}"), [int(r.deleted), t(entity)]) + (r.blocked ? fill(t(" · {0} لم يُحذف (مرتبط/مُرحّل)"), [int(r.blocked)]) : ""));
     onDone();
     router.refresh();
   });
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-      <span className="font-medium">{active ? `كل الـ${int(count)} محدّد` : `${int(count)} محدّد`}</span>
+      <span className="font-medium">{active ? fill(t("كل الـ{0} محدّد"), [int(count)]) : fill(t("{0} محدّد"), [int(count)])}</span>
       {all && !active && all.canOffer && (
-        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
+        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>{t("حدّد الكل (")}{int(all.total)}{t(") في كل الصفحات")}</button>
       )}
       <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>{t("إلغاء التحديد")}</button>
       <div className="ms-auto">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف ({int(count)})
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}{t("حذف (")}{int(count)})
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>حذف {int(count)} {entity}؟</AlertDialogTitle>
+              <AlertDialogTitle>{t("حذف")} {int(count)} {t(entity)}{t("؟")}</AlertDialogTitle>
               <AlertDialogDescription>{t("لا يمكن التراجع. أي عنصر مرتبط بحركات أو مُرحّل لن يُحذف وسيتم تجاهله.")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -135,16 +136,16 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
     setAsk(null);
     const r = await action(o.op, ids, active);
     if (!r.ok) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
-    toast.success(`تم ${t(o.label)}: ${int(r.count ?? 0)} ${entity}`);
+    toast.success(fill(t("تم {0}: {1} {2}"), [t(o.label), int(r.count ?? 0), entity]));
     onDone();
     router.refresh();
   });
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-      <span className="font-medium">{active ? `كل الـ${int(count)} محدّد` : `${int(count)} محدّد`}</span>
+      <span className="font-medium">{active ? fill(t("كل الـ{0} محدّد"), [int(count)]) : fill(t("{0} محدّد"), [int(count)])}</span>
       {all && !active && all.canOffer && (
-        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>حدّد الكل ({int(all.total)}) في كل الصفحات</button>
+        <button type="button" className="text-primary underline" onClick={all.onSelectAll}>{t("حدّد الكل (")}{int(all.total)}{t(") في كل الصفحات")}</button>
       )}
       <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onDone}>{t("إلغاء التحديد")}</button>
       <div className="ms-auto flex flex-wrap gap-2">
@@ -157,7 +158,7 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
       <AlertDialog open={!!ask} onOpenChange={(o) => !o && setAsk(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{ask?.label} {int(count)} {entity}؟</AlertDialogTitle>
+            <AlertDialogTitle>{ask?.label} {int(count)} {entity}{t("؟")}</AlertDialogTitle>
             <AlertDialogDescription>{t("الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

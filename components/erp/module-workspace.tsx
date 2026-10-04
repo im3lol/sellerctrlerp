@@ -68,7 +68,7 @@ export async function ModuleWorkspace({
         <Card key={g}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{g}</CardTitle>
-            <CardDescription>{grouped[g].length} صفحة</CardDescription>
+            <CardDescription>{grouped[g].length} {t("صفحة")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Tiles items={grouped[g]} counts={counts} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -44,13 +45,13 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="periodName">{t("اسم الفترة *")}</Label>
-              <Input id="periodName" name="periodName" required defaultValue={`أرباح ${year}`} />
+              <Input id="periodName" name="periodName" required defaultValue={fill(t("أرباح {0}"), [year])} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="totalProfit">{t("إجمالي الربح الموزَّع *")}</Label>
               <Input id="totalProfit" name="totalProfit" type="number" step="0.01" required defaultValue={suggestedProfit > 0 ? suggestedProfit : undefined} />
               {suggestedProfit > 0 && (
-                <p className="text-xs text-muted-foreground">صافي ربح السنة حتى الآن: {suggestedProfit.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">{t("صافي ربح السنة حتى الآن:")} {suggestedProfit.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</p>
               )}
             </div>
           </div>

@@ -98,8 +98,8 @@ export function ItemPicker({
                     </div>
                   </div>
                   <div className="shrink-0 text-end text-xs">
-                    <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>متاح: {fmt(it.available)}</div>
-                    {it.reserved > 0 && <div className="text-[10px] text-amber-600">محجوز: {fmt(it.reserved)} · رصيد: {fmt(it.stock)}</div>}
+                    <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>{t("متاح:")} {fmt(it.available)}</div>
+                    {it.reserved > 0 && <div className="text-[10px] text-amber-600">{t("محجوز:")} {fmt(it.reserved)} {t("· رصيد:")} {fmt(it.stock)}</div>}
                   </div>
                 </button>
               ))

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -52,7 +53,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={`عرض سعر ${qt.number}`} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/sales/quotations"
+        <ErpPageHeader icon="FileText" title={fill(t("عرض سعر {0}"), [qt.number])} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/sales/quotations"
           action={
             <QuotationDetailActions
               id={qt.id} number={qt.number} status={qt.status} canManage={can("sales.create")}
@@ -88,7 +89,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
                   <div className="text-muted-foreground">{t("خصم على الإجمالي:")} <span className="font-medium">{fmt(headerDiscount)}</span></div>
                 </>
               )}
-              <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
+              <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(total)}</div>
             </div>
             {qt.notes && (
               <div className="mt-3 text-sm text-muted-foreground">

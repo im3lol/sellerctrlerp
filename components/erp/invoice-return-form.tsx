@@ -66,9 +66,9 @@ export function InvoiceReturnForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>مرتجع من {docLabel} {invoiceNumber}</CardTitle>
+          <CardTitle>{t("مرتجع من")} {docLabel} {invoiceNumber}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المرتجع</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ المرتجع")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -109,7 +109,7 @@ export function InvoiceReturnForm({
         </div>
 
         <div className="flex justify-end text-sm">
-          <div className="text-base font-bold text-primary">إجمالي المرتجع (قبل الضريبة): {fmt(total)}</div>
+          <div className="text-base font-bold text-primary">{t("إجمالي المرتجع (قبل الضريبة):")} {fmt(total)}</div>
         </div>
       </CardContent>
     </Card>

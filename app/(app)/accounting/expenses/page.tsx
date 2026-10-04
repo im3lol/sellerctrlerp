@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { aliasedTable, and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -69,7 +70,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         <ErpPageHeader
           icon="Wallet"
           title={t("المصروفات")}
-          subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} مصروف`}
+          subtitle={fill(t("{0} مصروف"), [total.toLocaleString("ar-EG-u-nu-latn")])}
           action={
             <div className="flex gap-2">
               <Button variant="outline" asChild><Link href="/accounting/expenses/recurring"><Icon name="Repeat" className="size-4" />{t("المتكررة")}</Link></Button>

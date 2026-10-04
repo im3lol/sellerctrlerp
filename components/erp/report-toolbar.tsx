@@ -29,7 +29,7 @@ export function ReportToolbar({ excel, printHref }: { excel?: string; printHref?
         </Button>
       ) : (
         <Button variant="outline" onClick={() => window.print()}>
-          <Icon name="Printer" className="size-4" />طباعة / PDF
+          <Icon name="Printer" className="size-4" />{t("طباعة / PDF")}
         </Button>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -51,7 +52,7 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
       <div className="space-y-6">
         <ErpPageHeader
           icon="Settings"
-          title={`إعدادات ${platform.name}`}
+          title={fill(t("إعدادات {0}"), [platform.name])}
           subtitle={t("الهوية · المزامنة · المعالجة التلقائية · الربط المحاسبي")}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />

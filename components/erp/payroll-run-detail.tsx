@@ -123,7 +123,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
                 href={`/accounting/journal/${run.journalEntryId}`}
                 className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
-                <ExternalLink className="h-3 w-3" /> عرض القيد
+                <ExternalLink className="h-3 w-3" /> {t("عرض القيد")}
               </Link>
             )}
           </div>
@@ -137,7 +137,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             )}
             {run.status === "POSTED" && (
               <Button size="sm" variant="outline" onClick={() => setShowReverse(true)}>
-                <RotateCcw className="me-1.5 h-4 w-4" /> عكس
+                <RotateCcw className="me-1.5 h-4 w-4" /> {t("عكس")}
               </Button>
             )}
           </div>

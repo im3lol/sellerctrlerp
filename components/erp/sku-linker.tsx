@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { toast } from "@/lib/i18n/toast";
@@ -61,7 +62,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     startSave(async () => {
       const r = await saveAmazonCodeLinksAction(links);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم ربط ${r.linked} صنف`);
+      toast.success(fill(t("تم ربط {0} صنف"), [r.linked]));
       // Drop the just-linked rows from the table.
       setPreview((p) => p ? { ...p, rows: p.rows.filter((row) => !chosen[row.sku]), alreadyLinked: p.alreadyLinked + r.linked } : p);
       setChosen({});
@@ -77,7 +78,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     startCreate(async () => {
       const r = await createItemsFromSkusAction(rows);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم إنشاء ${r.created} صنف جديد وربط أكوادها`);
+      toast.success(fill(t("تم إنشاء {0} صنف جديد وربط أكوادها"), [r.created]));
       setPreview((p) => p ? { ...p, rows: p.rows.filter((row) => !set.has(row.sku)), alreadyLinked: p.alreadyLinked + r.created } : p);
       setChosen((c) => { const n = { ...c }; skus.forEach((s) => delete n[s]); return n; });
     });
@@ -126,10 +127,10 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
 
           {preview && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="secondary">إجمالي الأكواد: {preview.totalSkus}</Badge>
-              <Badge className="bg-emerald-600">مربوطة سابقاً: {preview.alreadyLinked}</Badge>
-              <Badge variant="destructive">غير مربوطة: {preview.rows.length}</Badge>
-              {autoCount > 0 && <Badge variant="outline">مُقترح تلقائياً: {autoCount}</Badge>}
+              <Badge variant="secondary">{t("إجمالي الأكواد:")} {preview.totalSkus}</Badge>
+              <Badge className="bg-emerald-600">{t("مربوطة سابقاً:")} {preview.alreadyLinked}</Badge>
+              <Badge variant="destructive">{t("غير مربوطة:")} {preview.rows.length}</Badge>
+              {autoCount > 0 && <Badge variant="outline">{t("مُقترح تلقائياً:")} {autoCount}</Badge>}
               {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">{t("→ العودة لاستيراد الطلبات")}</Link>}
             </div>
           )}
@@ -139,7 +140,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
       {preview && preview.rows.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">أكواد بحاجة لربط ({preview.rows.length})</CardTitle>
+            <CardTitle className="text-base">{t("أكواد بحاجة لربط (")}{preview.rows.length})</CardTitle>
             <CardDescription>{t("اختر الصنف المقابل لكل كود. اترك أي صف فارغاً لتجاهله الآن.")}</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -159,7 +160,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                     <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">{r.asin}</TableCell>
                     <TableCell className="max-w-xs">
                       <div className="truncate" title={r.productName}>{r.productName}</div>
-                      {r.sellPrice > 0 && <div className="text-[11px] text-muted-foreground">سعر مقترح: {r.sellPrice.toLocaleString("ar-EG-u-nu-latn")}</div>}
+                      {r.sellPrice > 0 && <div className="text-[11px] text-muted-foreground">{t("سعر مقترح:")} {r.sellPrice.toLocaleString("ar-EG-u-nu-latn")}</div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -176,7 +177,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                           </Button>
                         ) : (
                           <Button variant="outline" size="sm" className="shrink-0 whitespace-nowrap" disabled={busy} onClick={() => createNew([r.sku])}>
-                            <Icon name="PackagePlus" className="size-3.5" />صنف جديد
+                            <Icon name="PackagePlus" className="size-3.5" />{t("صنف جديد")}
                           </Button>
                         )}
                       </div>

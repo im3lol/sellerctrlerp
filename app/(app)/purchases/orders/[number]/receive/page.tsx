@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -31,7 +32,7 @@ export default async function ReceivePage({ params }: { params: Promise<{ number
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="PackageCheck" title={`استلام أمر شراء ${po.number}`} subtitle={t("إذن استلام — استلام كامل أو جزئي")} backHref={back} />
+        <ErpPageHeader icon="PackageCheck" title={fill(t("استلام أمر شراء {0}"), [po.number])} subtitle={t("إذن استلام — استلام كامل أو جزئي")} backHref={back} />
         <FulfillmentForm type="receipt" orderId={po.id} lines={lines} dest={back} />
       </div>
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -65,10 +66,10 @@ export function BinsManager({ warehouses, items, canEdit }: {
   const removeBin = (b: BinRow) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `حذف موقع ${b.code}؟`,
+        danger: true, title: fill(t("حذف موقع {0}؟"), [b.code]),
         description: b.itemCount > 0
-          ? `${b.itemCount} صنف مسجّل مكانه هنا — هيرجعوا بدون موقع. مفيش أي كمية بتتأثر.`
-          : "مفيش أصناف مربوطة بالموقع ده.",
+          ? fill(t("{0} صنف مسجّل مكانه هنا — هيرجعوا بدون موقع. مفيش أي كمية بتتأثر."), [b.itemCount])
+          : t("مفيش أصناف مربوطة بالموقع ده."),
         confirmText: "احذف", cancelText: "رجوع",
       });
       if (!go) return;
@@ -112,7 +113,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
             <div>
               <CardTitle>{t("مواقع التخزين")}</CardTitle>
               <CardDescription>
-                {loading ? t("جارٍ التحميل…") : `${bins.length} موقع`} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
+                {loading ? t("جارٍ التحميل…") : fill(t("{0} موقع"), [bins.length])} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
               </CardDescription>
             </div>
             <select className={`${selectCls} w-56`} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>

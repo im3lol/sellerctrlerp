@@ -69,14 +69,14 @@ export function PurchaseInvoiceEditForm({
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
           <div>
-            <CardTitle>تعديل فاتورة {number}</CardTitle>
+            <CardTitle>{t("تعديل فاتورة")} {number}</CardTitle>
             <CardDescription>
               طابِق الفاتورة على ما أرسله المورّد فعلياً. الكمية والشحن مقفولان — جايين من إذن الاستلام
               {receiptNumber ? ` ${receiptNumber}` : ""}.
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ التعديلات</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ التعديلات")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(`/purchases/invoices/${encodeURIComponent(number)}`)}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -129,7 +129,7 @@ export function PurchaseInvoiceEditForm({
           <div>{t("الشحن:")} <span className="font-medium">{fmt(totals.shipping)}</span></div>
           <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
           <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
-          <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+          <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)}</div>
           <div className="mt-2 rounded-lg border bg-muted/30 px-3 py-2">
             <div>{t("قيمة البضاعة عند الاستلام:")} <span className="font-medium">{fmt(grniAmount)}</span></div>
             <div className={Math.abs(totals.variance) > 0.004 ? "font-medium text-amber-600" : "text-muted-foreground"}>

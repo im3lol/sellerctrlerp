@@ -82,7 +82,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
           <>
             <ReportField label={t("فترة القياس")}>
               <select name="days" defaultValue={String(days)} className={filterFieldCls}>
-                {DAYS.map((d) => <option key={d} value={d}>آخر {d} يوم</option>)}
+                {DAYS.map((d) => <option key={d} value={d}>{t("آخر")} {d} {t("يوم")}</option>)}
               </select>
             </ReportField>
             <ReportField label={t("بحث")}>

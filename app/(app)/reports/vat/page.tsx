@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -167,7 +168,7 @@ export default async function VatReportPage({ searchParams }: Params) {
         reportKey="vat"
         icon="Percent"
         title={t("تقرير ضريبة القيمة المضافة")}
-        subtitle={`من ${fromISO} إلى ${toISO} — المحصّلة على المبيعات والمدفوعة على المشتريات`}
+        subtitle={fill(t("من {0} إلى {1} — المحصّلة على المبيعات والمدفوعة على المشتريات"), [fromISO, toISO])}
         query={query}
         permissions={permissions}
         filters={
@@ -177,14 +178,14 @@ export default async function VatReportPage({ searchParams }: Params) {
           </>
         }
         kpis={[
-          { label: "المحصّلة (مخرجات)", value: money(outputVat, currency), hint: `على مبيعات ${money(outputBase, currency)}` },
+          { label: "المحصّلة (مخرجات)", value: money(outputVat, currency), hint: fill(t("على مبيعات {0}"), [money(outputBase, currency)]) },
           { op: "−" },
-          { label: "المدفوعة (مدخلات)", value: money(inputVat, currency), hint: `على مشتريات ${money(inputBase, currency)}` },
+          { label: "المدفوعة (مدخلات)", value: money(inputVat, currency), hint: fill(t("على مشتريات {0}"), [money(inputBase, currency)]) },
           { op: "=" },
           { label: netVat >= 0 ? t("المستحقة للهيئة") : t("القابلة للاسترداد"),
             value: money(Math.abs(netVat), currency),
             tone: netVat >= 0 ? "loss" : "profit",
-            hint: `${salesLines.length + purchaseLines.length} فاتورة خاضعة` },
+            hint: fill(t("{0} فاتورة خاضعة"), [salesLines.length + purchaseLines.length]) },
         ]}
       >
         {/* VAT return box */}

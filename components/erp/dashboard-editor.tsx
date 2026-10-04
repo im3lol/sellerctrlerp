@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -79,7 +80,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
   const remove = () => void (async () => {
     const go = await confirm({
-      danger: true, title: `تمسح لوحة «${dashboard.nameAr}»؟`,
+      danger: true, title: fill(t("تمسح لوحة «{0}»؟"), [dashboard.nameAr]),
       description: "اللوحة بس اللي هتتمسح — التقارير المحفوظة والبيانات مش بتتأثر.",
       confirmText: "امسح", cancelText: "رجوع",
     });
@@ -113,7 +114,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
         {reports.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            مفيش تقارير محفوظة لسه — ابنِ واحد من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> واحفظه.
+            مفيش تقارير محفوظة لسه — ابنِ واحد من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("واحفظه.")}
           </p>
         ) : (
           <div className="flex flex-wrap items-end gap-2">
@@ -126,7 +127,7 @@ export function DashboardEditor({ dashboard, reports }: {
             </div>
             <Button variant="outline" disabled={!pick || widgets.length >= 12}
               onClick={() => { setWidgets((w) => [...w, { reportId: pick }]); setPick(""); }}>
-              <Icon name="Plus" className="size-4" />ضيف
+              <Icon name="Plus" className="size-4" />{t("ضيف")}
             </Button>
           </div>
         )}
@@ -164,7 +165,7 @@ export function DashboardEditor({ dashboard, reports }: {
           <Button disabled={pending || !nameAr.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("احفظ")}</Button>
           <Button variant="ghost" onClick={() => router.push(view)}>{t("رجوع")}</Button>
           <Button variant="ghost" className="ms-auto text-destructive" disabled={pending} onClick={remove}>
-            <Icon name="Trash2" className="size-4" />امسح اللوحة
+            <Icon name="Trash2" className="size-4" />{t("امسح اللوحة")}
           </Button>
         </div>
       </CardContent>

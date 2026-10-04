@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { fill, type T } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,10 +36,10 @@ export type SyncRunRow = {
 
 const dt = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
-function duration(start: Date, end: Date | null): string {
+function duration(start: Date, end: Date | null, t: T): string {
   if (!end) return "—";
   const s = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000));
-  return s < 60 ? `${s} ث` : `${Math.floor(s / 60)} د ${s % 60} ث`;
+  return s < 60 ? fill(t("{0} ث"), [s]) : fill(t("{0} د {1} ث"), [Math.floor(s / 60), s % 60]);
 }
 
 async function StatusBadge({ status, failed }: { status: string; failed: number }) {
@@ -57,7 +58,7 @@ export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
     <Card>
       <CardHeader>
         <CardTitle>{t("سجل المزامنات")}</CardTitle>
-        <CardDescription>آخر {rows.length} تشغيلة — النوع والنتيجة والعدادات ومدة التنفيذ.</CardDescription>
+        <CardDescription>{t("آخر")} {rows.length} {t("تشغيلة — النوع والنتيجة والعدادات ومدة التنفيذ.")}</CardDescription>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
@@ -88,7 +89,7 @@ export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
                   <TableCell className="tabular-nums">{r.updatedProducts}</TableCell>
                   <TableCell className={r.failedProducts ? "tabular-nums text-destructive" : "tabular-nums"}>{r.failedProducts}</TableCell>
                   <TableCell className="tabular-nums">{r.apiRequests}</TableCell>
-                  <TableCell className="tabular-nums">{duration(r.startedAt, r.finishedAt)}</TableCell>
+                  <TableCell className="tabular-nums">{duration(r.startedAt, r.finishedAt, t)}</TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{dt(r.startedAt)}</TableCell>
                   <TableCell className="max-w-56 truncate text-destructive" title={r.error ?? undefined}>{r.error ?? "—"}</TableCell>
                 </TableRow>

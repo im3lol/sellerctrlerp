@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -35,7 +36,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={`طلب مواد ${mr.number}`} subtitle={`${mr.requester ?? "—"} · ${dt(mr.date)}`} backHref="/purchases/requisitions"
+        <ErpPageHeader icon="ClipboardList" title={fill(t("طلب مواد {0}"), [mr.number])} subtitle={`${mr.requester ?? "—"} · ${dt(mr.date)}`} backHref="/purchases/requisitions"
           action={<div className="flex gap-2"><PrintDocLink href={`/purchases/requisitions/${encodeURIComponent(mr.number)}/print`} /><RequisitionRowActions id={mr.id} number={mr.number} status={mr.status} canManage={can("purchases.create")} /></div>} />
         <Card>
           <CardHeader className="flex-row items-center justify-between">
@@ -53,7 +54,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
                 ))} />
               </TableBody>
             </Table>
-            {mr.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {mr.notes}</p>}
+            {mr.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {mr.notes}</p>}
           </CardContent>
         </Card>
       </div>

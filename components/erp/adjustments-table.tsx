@@ -41,7 +41,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
           ops={ops}
           action={(op, ids, allPages) => bulkStockAdjustmentsAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="تسوية"
+          entity={t("تسوية")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}

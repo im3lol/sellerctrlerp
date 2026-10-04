@@ -123,7 +123,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
 
         {!isBase && (
           <div className="space-y-1.5">
-            <Label>السعر الحالي (1 {usePreset ? preset : code} = ؟ عملة أساسية)</Label>
+            <Label>{t("السعر الحالي (1")} {usePreset ? preset : code} = ؟ عملة أساسية)</Label>
             <Input
               type="number"
               min="0.000001"
@@ -258,7 +258,7 @@ export function CurrenciesManager({
             </CardDescription>
           </div>
           <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="me-1.5 size-4" /> إضافة عملة
+            <Plus className="me-1.5 size-4" /> {t("إضافة عملة")}
           </Button>
         </CardHeader>
         <CardContent>
@@ -337,7 +337,7 @@ export function CurrenciesManager({
             </CardDescription>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowRate(true)} disabled={currList.filter(c => !c.isBase).length === 0}>
-            <Plus className="me-1.5 size-4" /> تحديث سعر
+            <Plus className="me-1.5 size-4" /> {t("تحديث سعر")}
           </Button>
         </CardHeader>
         <CardContent>

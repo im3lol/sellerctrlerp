@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -125,7 +126,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
       <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title={`فاتورة شراء ${inv.number}`}
+          title={fill(t("فاتورة شراء {0}"), [inv.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "فاتورة شراء"}
           backHref="/purchases/invoices"
           action={<PurchaseInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} />}
@@ -138,7 +139,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
           <Field label={t("الإجمالي")}>{fmt(inv.totalAmount)}</Field>
           <Field label={t("المدفوع / المتبقّي")}>{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
           {inv.foreignAmount && inv.currencyCode && (
-            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
+            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">{t("(سعر الصرف")} {Number(inv.exchangeRate)})</span></Field>
           )}
         </div>
 
@@ -186,7 +187,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
               <div>{t("الخصم:")} <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
               <div>{t("الشحن:")} <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>
               <div>{t("الضريبة:")} <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
-              <div className="text-base font-bold text-primary">إجمالي الفاتورة (المستحق للمورد): {fmt(inv.totalAmount)}</div>
+              <div className="text-base font-bold text-primary">{t("إجمالي الفاتورة (المستحق للمورد):")} {fmt(inv.totalAmount)}</div>
               {/* The row totals include import costs, which this supplier is not owed -
                   so the column sum and the payable are deliberately different numbers. */}
               {anyLanded && (
@@ -196,7 +197,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: { params: Pr
                 </>
               )}
             </div>
-            {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}
+            {inv.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {inv.notes}</p>}
           </CardContent>
         </Card>
 

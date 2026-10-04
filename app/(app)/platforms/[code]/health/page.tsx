@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -83,7 +84,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
       { icon: "Undo2", title: "مرتجعات مستنية قرارك", count: returns, ok: "مفيش مرتجعات معلّقة", bad: "مرتجعات أمازون مستنية تقرر استلمتها ولا لأ", href: "/sales/marketplace-returns", action: "المرتجعات" },
       { icon: "HandCoins", title: "تعويضات مستنية تسجيل", count: reimbursements, ok: "كل تعويضات أمازون متسجّلة", bad: "تعويضات من أمازون لسه ماتسجّلتش", href: "/sales/marketplace-reimbursements", action: "التعويضات", tone: "warn" },
       ...(canViewInventory ? [audit
-        ? { icon: "ClipboardCheck", title: "فروق مخزون FBA (آخر تدقيق)", count: audit.withDiff, ok: "مخزون أمازون مطابق للنظام", bad: `فرق بين أمازون والنظام${audit.lost + audit.damaged > 0 ? ` — منها ${int(audit.lost + audit.damaged)} مفقود/تالف` : ""}`, href: "/inventory/reconciliation", action: "المطابقة" }
+        ? { icon: "ClipboardCheck", title: "فروق مخزون FBA (آخر تدقيق)", count: audit.withDiff, ok: "مخزون أمازون مطابق للنظام", bad: audit.lost + audit.damaged > 0 ? fill(t("فرق بين أمازون والنظام — منها {0} مفقود/تالف"), [int(audit.lost + audit.damaged)]) : t("فرق بين أمازون والنظام"), href: "/inventory/reconciliation", action: "المطابقة" }
         : { icon: "ClipboardCheck", title: "تدقيق مخزون FBA", count: 1, ok: "", bad: "ماعملتش تدقيق لسه — شغّله من صفحة أمازون", href: back, action: "تدقيق المخزون" }] : []),
     ];
     const open = checks.filter((c) => c.count > 0).length;
@@ -94,7 +95,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
         <div className={cn("flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium",
           open === 0 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300")}>
           <Icon name={open === 0 ? "CircleCheck" : "TriangleAlert"} className="size-5 shrink-0" />
-          {open === 0 ? t("كله تمام — مفيش حاجة مستنياك في أمازون.") : `${int(open)} من ${int(checks.length)} محتاجين منك حاجة.`}
+          {open === 0 ? t("كله تمام — مفيش حاجة مستنياك في أمازون.") : fill(t("{0} من {1} محتاجين منك حاجة."), [int(open), int(checks.length)])}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {checks.map((c) => {

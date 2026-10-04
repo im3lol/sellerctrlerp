@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
@@ -86,7 +87,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
       <div className="space-y-6">
         <ErpPageHeader
           icon="BookText"
-          title={`قيد ${entry.number}`}
+          title={fill(t("قيد {0}"), [entry.number])}
           subtitle={SOURCE[entry.sourceType ?? ""] ?? t("قيد محاسبي")}
           backHref="/accounting/journal"
           action={
@@ -118,7 +119,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
             <Link href={`/accounting/journal/${encodeURIComponent(reversalNumber)}`} className="font-medium text-primary underline">
               عرض القيد العكسي ({reversalNumber})
             </Link>
-            {entry.reversalReason ? ` — السبب: ${entry.reversalReason}` : ""}
+            {entry.reversalReason ? fill(t(" — السبب: {0}"), [entry.reversalReason]) : ""}
           </div>
         )}
 

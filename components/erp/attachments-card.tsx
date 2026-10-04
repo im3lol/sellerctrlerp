@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { getAttachmentsAction, addAttachmentAction, deleteAttachmentAction, type AttachmentMeta } from "@/app/actions/erp/attachments";
@@ -55,7 +56,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
-      toast.error(`حجم الملف لا يجب أن يتجاوز ${MAX_MB} ميجابايت`);
+      toast.error(fill(t("حجم الملف لا يجب أن يتجاوز {0} ميجابايت"), [MAX_MB]));
       return;
     }
     const reader = new FileReader();
@@ -91,7 +92,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>{t("المرفقات")}</CardTitle>
-            <CardDescription>{attachments.length} ملف مرفق</CardDescription>
+            <CardDescription>{attachments.length} {t("ملف مرفق")}</CardDescription>
           </div>
           {canManage && (
             <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPending}>
@@ -112,7 +113,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
             onClick={() => fileRef.current?.click()}
           >
             <Icon name="Upload" className="size-4" />
-            اسحب ملفًا هنا أو انقر للرفع (PDF · صورة · Office · حد {MAX_MB} MB)
+            {fill(t("اسحب ملفًا هنا أو انقر للرفع (PDF · صورة · Office · حد {0} MB)"), [MAX_MB])}
           </div>
         )}
         <input ref={fileRef} type="file" className="hidden" accept={ALLOWED_TYPES.join(",")}
@@ -120,7 +121,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
 
         {loadPending && attachments.length === 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-            <Icon name="Loader2" className="size-4 animate-spin" />جارٍ التحميل...
+            <Icon name="Loader2" className="size-4 animate-spin" />{t("جارٍ التحميل...")}
           </div>
         )}
 
@@ -148,7 +149,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>حذف «{att.fileName}»؟</AlertDialogTitle>
+                      <AlertDialogTitle>{t("حذف «")}{att.fileName}{t("»؟")}</AlertDialogTitle>
                       <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

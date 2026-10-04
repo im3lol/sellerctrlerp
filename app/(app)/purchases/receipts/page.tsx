@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -116,7 +117,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
         <ErpPageHeader
           icon="PackageCheck"
           title={t("إذون الاستلام")}
-          subtitle={`${total} إذن`}
+          subtitle={fill(t("{0} إذن"), [total])}
           action={canReceive ? (
             <Button asChild><Link href="/purchases/receipts/new"><Icon name="Plus" className="size-4" />{t("إذن استلام")}</Link></Button>
           ) : undefined}
@@ -136,7 +137,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1"><Label htmlFor="q">{t("رقم الإذن")}</Label><Input id="q" name="q" defaultValue={q} placeholder="GRN-2026-..." /></div>
@@ -169,7 +170,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
               <>
                 <GoodsReceiptsTable rows={rows} canConfirm={canConfirm} canCreate={canManage} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

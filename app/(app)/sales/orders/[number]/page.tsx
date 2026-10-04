@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -122,7 +123,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardList"
-          title={`أمر بيع ${so.number}`}
+          title={fill(t("أمر بيع {0}"), [so.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "أمر بيع"}
           backHref="/sales/orders"
           action={
@@ -138,10 +139,10 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         {so.externalOrderId && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
             <Icon name="ShoppingCart" className="size-4 text-primary" />
-            <span className="text-sm text-muted-foreground">رقم طلب {t(CHANNEL_LABEL[so.channel] ?? t("المتجر"))}:</span>
+            <span className="text-sm text-muted-foreground">{t("رقم طلب")} {t(CHANNEL_LABEL[so.channel] ?? t("المتجر"))}:</span>
             <Copyable text={so.externalOrderId} className="font-mono text-base font-semibold"><span dir="ltr">{so.externalOrderId}</span></Copyable>
             {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{t(CHANNEL_LABEL[so.channel])}</Badge>}
-            {so.channelStatus && <Badge variant="outline" title={t("حالة الطلب على المنصّة")}>حالة المنصّة: {t(CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus)}</Badge>}
+            {so.channelStatus && <Badge variant="outline" title={t("حالة الطلب على المنصّة")}>{t("حالة المنصّة:")} {t(CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus)}</Badge>}
           </div>
         )}
 
@@ -206,7 +207,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 </TableRow>
               </TableFooter>
             </Table>
-            {so.notes && !/^طلب (أمازون|نون)\s/.test(so.notes) && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {so.notes}</p>}
+            {so.notes && !/^طلب (أمازون|نون)\s/.test(so.notes) && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {so.notes}</p>}
           </CardContent>
         </Card>
 

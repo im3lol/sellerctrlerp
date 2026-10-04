@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
         reportKey="inv-expiry"
         icon="CalendarClock"
         title={t("انتهاء الصلاحية")}
-        subtitle={`${rows.length} دفعة لها تاريخ صلاحية`}
+        subtitle={fill(t("{0} دفعة لها تاريخ صلاحية"), [rows.length])}
         query={filterQs.toString()}
         permissions={permissions}
         filters={
@@ -77,7 +78,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
         kpis={[
           { label: "دفعات منتهية", value: intl(totals.expiredCount), tone: "loss" },
           { label: "قيمة المنتهي", value: fmt(totals.expiredValue), tone: "loss" },
-          { label: `قرب الانتهاء (≤${intl(withinDays)} يوم)`, value: intl(totals.nearCount) },
+          { label: fill(t("قرب الانتهاء (≤{0} يوم)"), [intl(withinDays)]), value: intl(totals.nearCount) },
           { label: "قيمة قرب الانتهاء", value: fmt(totals.nearValue) },
         ]}
       >
@@ -113,7 +114,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                       <TableCell>{r.batchNo ?? "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{dt(r.expiryDate)}</TableCell>
                       <TableCell className={r.daysLeft < 0 ? "text-destructive" : r.daysLeft <= withinDays ? "text-amber-600" : ""}>
-                        {r.daysLeft < 0 ? `انتهى منذ ${intl(-r.daysLeft)} يوم` : `${intl(r.daysLeft)} يوم`}
+                        {r.daysLeft < 0 ? fill(t("انتهى منذ {0} يوم"), [intl(-r.daysLeft)]) : fill(t("{0} يوم"), [intl(r.daysLeft)])}
                       </TableCell>
                       <TableCell>{qty(r.remaining)}</TableCell>
                       <TableCell>{fmt(r.value)}</TableCell>

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -39,7 +40,7 @@ export default async function EditExpensePage({ params }: { params: Promise<{ nu
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Wallet" title={`تعديل مصروف ${exp.number}`} subtitle={t("مسودة — عدّل بيانات المصروف ثم احفظ")} backHref="/accounting/expenses" />
+        <ErpPageHeader icon="Wallet" title={fill(t("تعديل مصروف {0}"), [exp.number])} subtitle={t("مسودة — عدّل بيانات المصروف ثم احفظ")} backHref="/accounting/expenses" />
         <ExpenseForm expenseAccounts={expenseAccs} cashAccounts={cashAccs}
           projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${p.nameAr}` }))} initial={initial} />
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { recordReportDownloadAction } from "@/app/actions/erp/report-downloads";
@@ -160,7 +161,7 @@ export function ReportGenerator() {
           <div className="border-t pt-5">
             <Button onClick={run} size="lg" className="gap-2">
               <Icon name={report.party ? "ArrowLeft" : format === "excel" ? "Download" : "FileText"} className="size-4" />
-              {report.party ? `اختيار ${report.party === "customer" ? t("العميل") : t("المورّد")} ثم استخراج «${t(report.label)}»` : `استخراج «${t(report.label)}» ${format === "excel" ? "Excel" : "PDF"}`}
+              {report.party ? fill(t("اختيار {0} ثم استخراج «{1}»"), [report.party === "customer" ? t("العميل") : t("المورّد"), t(report.label)]) : fill(t("استخراج «{0}» {1}"), [t(report.label), format === "excel" ? "Excel" : "PDF"])}
             </Button>
             {report.party && <p className="mt-2 text-xs text-muted-foreground">{t("اختَر الطرف أولاً، ثم صدّر كشفه Excel أو PDF بنفس الفترة.")}</p>}
           </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { and, eq, ilike, or } from "drizzle-orm";
@@ -46,7 +47,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Search" title={t("البحث")} subtitle={query ? `نتائج البحث عن «${query}»` : "ابحث عن صنف أو عميل أو مورّد"} />
+      <ErpPageHeader icon="Search" title={t("البحث")} subtitle={query ? fill(t("نتائج البحث عن «{0}»"), [query]) : t("ابحث عن صنف أو عميل أو مورّد")} />
 
       {!query ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">

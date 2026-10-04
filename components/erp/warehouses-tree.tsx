@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2, Upload } from "lucide-react";
@@ -29,8 +30,9 @@ export type Warehouse = {
 };
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function WarehouseDialog({
@@ -121,8 +123,8 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
     const r = await importWarehousesCsvAction(text);
     if (fileRef.current) fileRef.current.value = "";
     if (!r.ok) { toast.error(r.error); return; }
-    toast.success(`تم الاستيراد: ${r.inserted ?? 0} جديد، ${r.updated ?? 0} محدّث`);
-    if (r.errors?.length) toast.warning(`${r.errors.length} تحذير: ${r.errors.slice(0, 3).join("؛ ")}${r.errors.length > 3 ? " …" : ""}`, { duration: 12000 });
+    toast.success(fill(t("تم الاستيراد: {0} جديد، {1} محدّث"), [r.inserted ?? 0, r.updated ?? 0]));
+    if (r.errors?.length) toast.warning(fill(t("{0} تحذير: {1}{2}"), [r.errors.length, r.errors.slice(0, 3).join("؛ "), r.errors.length > 3 ? " …" : ""]), { duration: 12000 });
   });
 
   const renderNode = (w: Warehouse, depth: number): React.ReactNode => {
@@ -150,7 +152,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
               <AlertDialog>
                 <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>حذف «{w.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.")}</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogHeader><AlertDialogTitle>{t("حذف «")}{w.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.")}</AlertDialogDescription></AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(w)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

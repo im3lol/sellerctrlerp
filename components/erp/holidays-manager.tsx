@@ -61,7 +61,7 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
             <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد عطلات مُسجّلة.")}</div>
           ) : (
             <>
-            {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteHolidaysAction} onDone={sel.clear} entity="إجازة" />}
+            {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteHolidaysAction} onDone={sel.clear} entity={t("إجازة")} />}
             <Table>
               <TableHeader><TableRow>
                 {canManage && <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}

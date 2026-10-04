@@ -96,10 +96,10 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
           {canEdit && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addRow} disabled={pending}>
-                <Icon name="Plus" className="size-4" />وحدة
+                <Icon name="Plus" className="size-4" />{t("وحدة")}
               </Button>
               <Button size="sm" onClick={save} disabled={pending || rows.length === 0}>
-                <Icon name="Check" className="size-4" />حفظ
+                <Icon name="Check" className="size-4" />{t("حفظ")}
               </Button>
             </div>
           )}

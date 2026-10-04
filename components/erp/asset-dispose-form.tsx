@@ -54,7 +54,7 @@ export function AssetDisposeForm({ assetId, assetName, cashAccounts = [] }: {
 
   return (
     <Card className="border-amber-200 dark:border-amber-800">
-      <CardHeader><CardTitle className="text-base text-amber-700 dark:text-amber-400">استبعاد الأصل: {assetName}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base text-amber-700 dark:text-amber-400">{t("استبعاد الأصل:")} {assetName}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">

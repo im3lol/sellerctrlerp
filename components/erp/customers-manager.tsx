@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -128,7 +129,7 @@ function PortalLinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>ربط ببوابة العميل — {customer.nameAr}</DialogTitle>
+          <DialogTitle>{t("ربط ببوابة العميل —")} {customer.nameAr}</DialogTitle>
           <DialogDescription>{t("ادخل بريد المستخدم (دور: client) لربطه بهذا العميل. اتركه فارغاً لإلغاء الربط.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -185,7 +186,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
 
   return (
     <div className="space-y-6">
-      {title && <ErpPageHeader icon="ShoppingCart" title={title} subtitle={`${customers.length.toLocaleString("ar-EG-u-nu-latn")} عميل`} action={addBtn} />}
+      {title && <ErpPageHeader icon="ShoppingCart" title={title} subtitle={fill(t("{0} عميل"), [customers.length.toLocaleString("ar-EG-u-nu-latn")])} action={addBtn} />}
       {kpis}
       <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -200,7 +201,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا يوجد عملاء بعد.")}</div>
         ) : (
           <>
-          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteCustomersAction} onDone={sel.clear} entity="عميل" />}
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteCustomersAction} onDone={sel.clear} entity={t("عميل")} />}
           <Table>
             <TableHeader>
               <TableRow>
@@ -244,7 +245,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>حذف العميل «{c.nameAr}»؟</AlertDialogTitle>
+                              <AlertDialogTitle>{t("حذف العميل «")}{c.nameAr}{t("»؟")}</AlertDialogTitle>
                               <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

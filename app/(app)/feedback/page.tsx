@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
@@ -13,7 +14,7 @@ import { Icon } from "@/components/icon";
 
 export const metadata = { title: "اقتراح أو شكوى" };
 
-const fmt = (d: Date) => d.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+const fmt = (d: Date, locale: Locale = "ar") => d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "long", day: "numeric" });
 
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   open: { label: "مستلمة", variant: "secondary" },
@@ -28,6 +29,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
  * one company must never read another's complaints.
  */
 export default async function FeedbackPage() {
+  const locale = await getLocale();
   const t = await getT();
   const { user, org } = await getActiveOrg();
   if (!user) redirect("/login");
@@ -61,7 +63,7 @@ export default async function FeedbackPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={s.variant}>{t(s.label)}</Badge>
-                      <span className="text-xs text-muted-foreground">{fmt(f.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground">{fmt(f.createdAt, locale)}</span>
                     </div>
                   </div>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">{f.message}</p>

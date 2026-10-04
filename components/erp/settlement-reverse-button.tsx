@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -18,13 +19,13 @@ export function SettlementReverseButton({ channel, settlementId }: { channel: st
     if (!(await confirm({ title: "عكس ترحيل هذه التسوية؟", danger: true }))) return;
     start(async () => {
       const r = await reverseAmazonSettlementAction(channel, settlementId);
-      if (r.ok) { toast.success(`تم عكس ${r.reversed.toLocaleString("ar-EG-u-nu-latn")} قيد`); router.refresh(); }
+      if (r.ok) { toast.success(fill(t("تم عكس {0} قيد"), [r.reversed.toLocaleString("ar-EG-u-nu-latn")])); router.refresh(); }
       else toast.error(r.error ?? t("تعذّر العكس"));
     });
   })();
   return (
     <Button size="sm" variant="ghost" disabled={pending} onClick={run} title={t("عكس ترحيل هذه التسوية فقط")}>
-      <Icon name="Undo2" className="size-4 text-destructive" />عكس
+      <Icon name="Undo2" className="size-4 text-destructive" />{t("عكس")}
     </Button>
   );
 }

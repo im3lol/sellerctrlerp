@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -32,7 +33,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
       const r = await reconcilePlatformInventoryAction(platformId, fd);
       setResult(r);
       if (!r.ok) toast.error(r.error);
-      else toast.success(`طوبق ${int(r.matched)} صنف · ${int(r.withDiff)} فرق`);
+      else toast.success(fill(t("طوبق {0} صنف · {1} فرق"), [int(r.matched), int(r.withDiff)]));
     });
   };
 
@@ -50,7 +51,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
   return (
     <Card>
       <CardHeader>
-        <CardTitle>مطابقة المخزون — {platformName}</CardTitle>
+        <CardTitle>{t("مطابقة المخزون —")} {platformName}</CardTitle>
         <CardDescription>{t("ارفع تقرير دفتر مخزون أمازون (Inventory Ledger). نحسب الرصيد لكل SKU ونطابقه بمخزون المنصة، ثم يمكنك إنشاء تسوية لضبط الفروق.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -76,7 +77,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{t("المخزن:")} <b>{result.warehouseName}</b>{t(". التسوية تضبط رصيد النظام = رصيد أمازون للأصناف المطابَقة.")}</span>
-              <Button onClick={apply} disabled={applying || result.withDiff === 0}>{applying && <Loader2 className="size-4 animate-spin" />}إنشاء تسوية ({int(result.withDiff)})</Button>
+              <Button onClick={apply} disabled={applying || result.withDiff === 0}>{applying && <Loader2 className="size-4 animate-spin" />}{t("إنشاء تسوية (")}{int(result.withDiff)})</Button>
             </div>
 
             {result.rows.length > 0 && (
@@ -98,7 +99,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
             )}
             {result.unmatched > 0 && (
               <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                ⚠ {int(result.unmatched)} SKU غير مربوط بصنف في النظام (لن يدخل التسوية). عيّنة: <span className="font-mono">{result.unmatchedSample.slice(0, 20).join("، ")}</span>
+                ⚠ {int(result.unmatched)} {t("SKU غير مربوط بصنف في النظام (لن يدخل التسوية). عيّنة:")} <span className="font-mono">{result.unmatchedSample.slice(0, 20).join("، ")}</span>
               </div>
             )}
           </>

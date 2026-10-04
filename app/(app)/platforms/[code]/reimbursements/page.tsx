@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -65,8 +66,8 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
       <div className="space-y-6">
         <ErpPageHeader
           icon="HandCoins"
-          title={`تعويضات ${platform.name}`}
-          subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} تعويض · إجمالي نقدي ${money(totals?.amount ?? "0")} · معوَّض كمخزون ${qty(totals?.qtyInv ?? "0")}`}
+          title={fill(t("تعويضات {0}"), [platform.name])}
+          subtitle={fill(t("{0} تعويض · إجمالي نقدي {1} · معوَّض كمخزون {2}"), [total.toLocaleString("ar-EG-u-nu-latn"), money(totals?.amount ?? "0"), qty(totals?.qtyInv ?? "0")])}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
 

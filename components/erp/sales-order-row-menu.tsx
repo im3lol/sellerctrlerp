@@ -80,11 +80,11 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={confirmSales}>
-              <Icon name="Check" className="size-4" />تأكيد
+              <Icon name="Check" className="size-4" />{t("تأكيد")}
             </DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={`/sales/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deleteSalesOrderAction(orderId), "تم حذف المسودة")}>
-              <Icon name="X" className="size-4" />إلغاء
+              <Icon name="X" className="size-4" />{t("إلغاء")}
             </DropdownMenuItem>
           </>
         )}
@@ -93,7 +93,7 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deleteSalesOrderAction(orderId), "تم حذف الأمر", "/sales/orders", "أمر البيع")}>
-              <Icon name="Trash2" className="size-4" />حذف
+              <Icon name="Trash2" className="size-4" />{t("حذف")}
             </DropdownMenuItem>
           </>
         )}
@@ -110,18 +110,18 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
             <DropdownMenuSeparator />
             <DropdownMenuItem className="font-medium text-emerald-700 focus:text-emerald-700"
               onClick={() => run(() => fulfillOrderAction(orderId), "تم تنفيذ الدورة: إذن صرف + فاتورة مُرحّلة")}>
-              <Icon name="Zap" className="size-4" />الدورة الكاملة (صرف + فاتورة)
+              <Icon name="Zap" className="size-4" />{t("الدورة الكاملة (صرف + فاتورة)")}
             </DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={`/sales/orders/${orderId}/deliver`}><Icon name="Truck" className="size-4" />{t("إنشاء إذن صرف")}</Link></DropdownMenuItem>
             <DropdownMenuItem onClick={() => run(() => convertSalesOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", "/sales/invoices")}>
-              <Icon name="FileText" className="size-4" />إنشاء فاتورة بيع
+              <Icon name="FileText" className="size-4" />{t("إنشاء فاتورة بيع")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => run(() => revertSalesOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
-              <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
+              <Icon name="Undo2" className="size-4" />{t("إعادة فتح كمسودة")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => cancelSalesOrderAction(orderId), "تم إلغاء الأمر")}>
-              <Icon name="X" className="size-4" />إلغاء الأمر
+              <Icon name="X" className="size-4" />{t("إلغاء الأمر")}
             </DropdownMenuItem>
           </>
         )}

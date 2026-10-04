@@ -1,14 +1,16 @@
 import { loadErpPage } from "@/lib/erp/org";
-import { getT } from "@/lib/i18n/server";
+import { fill, type Locale, type T } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
 import { listBackups } from "@/lib/erp/backup";
 
-const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : `${(b / 1024 / 1024).toFixed(1)} م.ب`);
-const bdt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "short", day: "numeric" });
+const fmtBytes = (b: number, t: T) => (b < 1024 * 1024 ? fill(t("{0} ك.ب"), [(b / 1024).toFixed(0)]) : fill(t("{0} م.ب"), [(b / 1024 / 1024).toFixed(1)]));
+const bdt = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "short", day: "numeric" });
 
 export default async function BackupSettingsPage() {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("settings.edit", async ({ orgId }) => {
     const backups = await listBackups(orgId, 8);
@@ -23,7 +25,7 @@ export default async function BackupSettingsPage() {
           </CardHeader>
           <CardContent>
             <a href="/api/erp/backup" download className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-              <Icon name="Download" className="size-4" />تحميل نسخة من بياناتي
+              <Icon name="Download" className="size-4" />{t("تحميل نسخة من بياناتي")}
             </a>
             {backups.length > 0 && (
               <div className="mt-4 border-t pt-3">
@@ -31,7 +33,7 @@ export default async function BackupSettingsPage() {
                 <ul className="divide-y">
                   {backups.map((b) => (
                     <li key={b.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                      <span className="text-muted-foreground">{bdt(b.createdAt)} · {fmtBytes(b.sizeBytes)}</span>
+                      <span className="text-muted-foreground">{bdt(b.createdAt, locale)} · {fmtBytes(b.sizeBytes, t)}</span>
                       <a href={`/api/erp/backups/${b.id}`} className="text-primary hover:underline">{t("تنزيل")}</a>
                     </li>
                   ))}

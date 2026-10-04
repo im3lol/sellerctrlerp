@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,9 +48,9 @@ export function StockRowActions({
     <div className="flex gap-1">
       <Button size="sm" disabled={pending}
         onClick={() => run(
-          { title: "تأكيد وترحيل", description: `سيتم ترحيل ${label} محاسبياً وتحديث المخزون.`, confirmText: "تأكيد وترحيل" },
+          { title: t("تأكيد وترحيل"), description: fill(t("سيتم ترحيل {0} محاسبياً وتحديث المخزون."), [t(label)]), confirmText: t("تأكيد وترحيل") },
           () => isTransfer ? confirmStockTransferAction(docId) : confirmStockAdjustmentAction(docId), "تم التأكيد والترحيل")}>
-        <Icon name="Check" className="size-4" />تأكيد
+        <Icon name="Check" className="size-4" />{t("تأكيد")}
       </Button>
       {isTransfer && (
         <Button asChild size="sm" variant="outline">
@@ -58,7 +59,7 @@ export function StockRowActions({
       )}
       <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")}
         onClick={() => run(
-          { title: "حذف المسودة", description: `سيتم حذف مسودة ${label} نهائياً.`, confirmText: "حذف", danger: true },
+          { title: t("حذف المسودة"), description: fill(t("سيتم حذف مسودة {0} نهائياً."), [t(label)]), confirmText: t("حذف"), danger: true },
           () => isTransfer ? deleteStockTransferAction(docId) : deleteStockAdjustmentAction(docId), "تم حذف المسودة")}>
         <Icon name="Trash2" className="size-4 text-destructive" />
       </Button>

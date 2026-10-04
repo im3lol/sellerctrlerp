@@ -63,7 +63,7 @@ export function OrdersProgress({ code, label = "المنصة", open, onClose }: 
             : <X className="size-3.5 text-destructive" />}
         </span>
         <div className="min-w-0 flex-1">
-          {running && !timedOut && <span>جاري سحب الطلبات من {label}… (قد يستغرق دقائق حسب معدّل المنصة)</span>}
+          {running && !timedOut && <span>{t("جاري سحب الطلبات من")} {label}{t("… (قد يستغرق دقائق حسب معدّل المنصة)")}</span>}
           {running && timedOut && <span className="text-muted-foreground">{t("السحب لسه شغّال في الخلفية.")} <Link href="/sales/orders" className="text-primary hover:underline">{t("افتح الطلبات")}</Link> {t("لمتابعة الجديد.")}</span>}
           {st.phase === "done" && <span className="text-muted-foreground">{t("تم سحب")} <b>{st.created ?? 0}</b> {t("أمر بيع.")} <Link href="/sales/orders" className="text-primary hover:underline">{t("افتح الطلبات")}</Link></span>}
           {st.phase === "error" && <span className="text-destructive">{st.error ?? t("فشل سحب المبيعات")}</span>}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -101,10 +102,10 @@ export async function SetupChecklist({ status }: { status: SetupStatus }) {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-lg font-bold">{pct === 100 ? t("اكتمل الإعداد الأساسي 🎉") : `اكتمل ${status.essentialDone} من ${status.essentialTotal} خطوات أساسية`}</div>
+              <div className="text-lg font-bold">{pct === 100 ? t("اكتمل الإعداد الأساسي 🎉") : fill(t("اكتمل {0} من {1} خطوات أساسية"), [status.essentialDone, status.essentialTotal])}</div>
               <div className="text-sm text-muted-foreground">{pct === 100 ? t("جاهز للعمل — راجع الخطوات الاختيارية لو تحتاجها.") : t("أكمل الخطوات بالترتيب — كل خطوة تتعلّم تلقائيًا أول ما تنفّذها.")}</div>
             </div>
-            <div className="text-2xl font-bold tabular-nums text-primary">{pct}٪</div>
+            <div className="text-2xl font-bold tabular-nums text-primary">{pct}{t("٪")}</div>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />

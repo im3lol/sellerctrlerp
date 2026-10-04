@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { clockAction, getMyClockAction } from "@/app/actions/erp/attendance";
@@ -38,7 +39,7 @@ export function ClockButton() {
     start(async () => {
       const r = await clockAction(direction);
       if (!r.ok) { toast.error(r.error ?? t("تعذّر التسجيل")); return; }
-      toast.success(direction === "IN" ? t("تم تسجيل الحضور") : `تم تسجيل الانصراف — ${formatDuration(r.seconds ?? 0)}`);
+      toast.success(direction === "IN" ? t("تم تسجيل الحضور") : fill(t("تم تسجيل الانصراف — {0}"), [formatDuration(r.seconds ?? 0)]));
       refresh();
     });
 
@@ -52,11 +53,11 @@ export function ClockButton() {
       )}
       {state === "IN" ? (
         <Button variant="outline" className="w-full" disabled={pending} onClick={() => go("OUT")}>
-          <Icon name="LogOut" className="size-4" />تسجيل انصراف
+          <Icon name="LogOut" className="size-4" />{t("تسجيل انصراف")}
         </Button>
       ) : (
         <Button className="w-full" disabled={pending} onClick={() => go("IN")}>
-          <Icon name="LogIn" className="size-4" />تسجيل حضور
+          <Icon name="LogIn" className="size-4" />{t("تسجيل حضور")}
         </Button>
       )}
     </div>

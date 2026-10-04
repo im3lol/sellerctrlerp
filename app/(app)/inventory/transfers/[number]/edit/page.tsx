@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -43,7 +44,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ n
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle={t("مسودة — عدّل الأصناف والمستودعات ثم احفظ")} backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
+        <ErpPageHeader icon="ArrowLeftRight" title={fill(t("تعديل تحويل مخزني {0}"), [tr.number])} subtitle={t("مسودة — عدّل الأصناف والمستودعات ثم احفظ")} backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
         <TransferForm
           orgName={org[0]?.nameAr ?? ""}
           warehouses={whList.map((w) => ({ id: w.id, code: w.code, name: w.name }))}

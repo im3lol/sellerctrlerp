@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -74,7 +75,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
         date: issue.date, amount: Number(issue.amount), purpose: issue.purpose || null,
       });
       if (r.ok) {
-        toast.success(`تم صرف العهدة ${r.number ?? ""}`);
+        toast.success(fill(t("تم صرف العهدة {0}"), [r.number ?? ""]));
         setIssue({ ...issue, amount: "", purpose: "" });
         load(); router.refresh();
       } else toast.error(r.error ?? t("تعذّر الصرف"));
@@ -109,7 +110,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
   const cancel = (row: Row) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `إلغاء عهدة ${row.number}؟`,
+        danger: true, title: fill(t("إلغاء عهدة {0}؟"), [row.number]),
         description: "هيتعكس قيدها وترجع النقدية مكانها. مينفعش لو في تسويات مسجّلة عليها.",
         confirmText: "ألغِ العهدة", cancelText: "رجوع",
       });
@@ -183,7 +184,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
           <CardHeader>
             <div className="flex w-full flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle>تسوية عهدة {settling.number}</CardTitle>
+                <CardTitle>{t("تسوية عهدة")} {settling.number}</CardTitle>
                 <CardDescription>
                   {settling.employeeName} · المتبقّي {money(settling.left)} — سجّل المصروفات والباقي اللي رجع.
                 </CardDescription>
@@ -238,7 +239,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <Button size="sm" variant="outline" onClick={() => setSLines((ls) => [...ls, { expenseAccountId: "", amount: 0, description: "" }])}>
-                <Icon name="Plus" className="size-4" />سطر
+                <Icon name="Plus" className="size-4" />{t("سطر")}
               </Button>
               <div className="space-y-2"><Label>{t("نقدية مرتجعة")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-32" value={returned} onChange={(e) => setReturned(e.target.value)} placeholder="0" /></div>
@@ -253,7 +254,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
       <Card>
         <CardHeader>
           <CardTitle>{t("العُهد")}</CardTitle>
-          <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} عهدة`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} عهدة"), [rows.length])}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
@@ -279,7 +280,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                       <TableCell className="font-mono text-xs">
                         {r.number}
                         {(settlements[r.id]?.length ?? 0) > 0 && (
-                          <span className="block text-[11px] text-muted-foreground">{settlements[r.id].length} تسوية</span>
+                          <span className="block text-[11px] text-muted-foreground">{settlements[r.id].length} {t("تسوية")}</span>
                         )}
                       </TableCell>
                       <TableCell className="font-medium">

@@ -1,4 +1,5 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -44,7 +45,7 @@ export default async function CashflowForecastPage() {
       return wk > WEEKS ? WEEKS + 1 : wk;
     };
 
-    const labels = ["متأخر", ...Array.from({ length: WEEKS }, (_, i) => `أسبوع ${i + 1}`), "لاحقاً"];
+    const labels = ["متأخر", ...Array.from({ length: WEEKS }, (_, i) => fill(t("أسبوع {0}"), [i + 1])), "لاحقاً"];
     const inflow = new Array(WEEKS + 2).fill(0);
     const outflow = new Array(WEEKS + 2).fill(0);
     for (const r of arRows as Due[]) inflow[bucketOf(r.due)] += Number(r.bal);
@@ -75,7 +76,7 @@ export default async function CashflowForecastPage() {
 
         {lowest < 0 && (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-            ⚠️ الرصيد المتوقّع يهبط إلى <span className="font-bold tabular-nums">{fmt(lowest)}</span> — قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.
+            ⚠️ الرصيد المتوقّع يهبط إلى <span className="font-bold tabular-nums">{fmt(lowest)}</span> {t("— قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.")}
           </div>
         )}
 

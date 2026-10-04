@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -135,7 +136,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
       <div className="space-y-6">
         <ErpPageHeader
           icon="PackageCheck"
-          title={`إذن استلام ${grn.number}`}
+          title={fill(t("إذن استلام {0}"), [grn.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
           backHref="/purchases/receipts"
           action={
@@ -197,7 +198,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
               <div className="mt-4 flex flex-col items-end gap-1 text-sm">
                 <div>{t("قيمة البضاعة:")} <span className="font-medium tabular-nums">{fmt(totals.goods)}</span></div>
                 <div>{t("تكاليف الاستيراد المحمَّلة:")} <span className={`font-medium tabular-nums ${totals.landed ? "text-amber-600" : ""}`}>{fmt(totals.landed)}</span></div>
-                <div className="text-base font-bold text-primary">الإجمالي الشامل: {fmt(totals.goods + totals.landed)}</div>
+                <div className="text-base font-bold text-primary">{t("الإجمالي الشامل:")} {fmt(totals.goods + totals.landed)}</div>
                 {!anyLanded && (
                   <p className="text-xs text-muted-foreground">
                     {t("لم تُحمَّل تكاليف استيراد على هذه الشحنة بعد — تُسجَّل من «المشتريات ← تكاليف الاستيراد».")}
@@ -205,7 +206,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                 )}
               </div>
             )}
-            {grn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {grn.notes}</p>}
+            {grn.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {grn.notes}</p>}
           </CardContent>
         </Card>
 

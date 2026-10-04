@@ -90,7 +90,7 @@ export function DocumentActions({
               </Button>
             ) : (
               <Button size="sm" variant="outline">
-                <Icon name="Ellipsis" className="size-4" />إجراءات
+                <Icon name="Ellipsis" className="size-4" />{t("إجراءات")}
                 <Icon name="ChevronDown" className="size-3.5 text-muted-foreground" />
               </Button>
             )}
@@ -99,7 +99,7 @@ export function DocumentActions({
             {printish.map(item)}
             {hasBarcode && (
               <DropdownMenuItem onSelect={() => setBarcodeOpen(true)}>
-                <Icon name="Barcode" className="size-4" />طباعة باركود
+                <Icon name="Barcode" className="size-4" />{t("طباعة باركود")}
               </DropdownMenuItem>
             )}
             {(printish.length > 0 || hasBarcode) && rest.length > 0 && <DropdownMenuSeparator />}

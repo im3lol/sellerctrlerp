@@ -69,7 +69,7 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
         <Card>
           <CardHeader>
             <CardTitle>{t("العملاء حسب الإيراد")}</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.</CardDescription>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (

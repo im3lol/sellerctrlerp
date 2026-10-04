@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -75,7 +76,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="ReceiptText"
-          title={`كشوف تسويات ${platform.name}`}
+          title={fill(t("كشوف تسويات {0}"), [platform.name])}
           subtitle={t("كل تسوية: المبيعات − الخصومات = الصافي، مقابل المُحوَّل للبنك — بحيث تُطابِق التسوية إيداعها")}
           backHref={`/platforms/${code}`}
           action={<Button variant="outline" asChild><Link href={`/platforms/${code}/payouts`}><Icon name="Wallet" className="size-4" />{t("المحفظة والتحويلات")}</Link></Button>}
@@ -132,7 +133,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
                                 ? <Badge variant="secondary">{t("لم تُحوَّل بعد")}</Badge>
                                 : foots
                                   ? <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">{t("مطابِقة")}</Badge>
-                                  : <span className="text-xs text-amber-600" title={t("غالبًا رصيد مُرحّل من/إلى تسوية أخرى")}>فرق {money(s.diff)}</span>}
+                                  : <span className="text-xs text-amber-600" title={t("غالبًا رصيد مُرحّل من/إلى تسوية أخرى")}>{t("فرق")} {money(s.diff)}</span>}
                               {canReverse && s.posted && <SettlementReverseButton channel={channel} settlementId={s.id} />}
                             </div>
                           </TableCell>

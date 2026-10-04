@@ -55,7 +55,7 @@ export default async function PrintingSettingsPage() {
               </ol>
               <Button asChild variant="outline">
                 <a href="/api/erp/qz/cert" download="sellerctrl-qz-certificate.txt">
-                  <Download className="size-4" />تحميل شهادة الطباعة
+                  <Download className="size-4" />{t("تحميل شهادة الطباعة")}
                 </a>
               </Button>
             </CardContent>

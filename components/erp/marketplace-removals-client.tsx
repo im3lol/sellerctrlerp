@@ -40,7 +40,7 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>{t("تسوية مخزون مسودّة")}</b> يراجعها المحاسب ويرحّلها.
+        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>{t("تسوية مخزون مسودّة")}</b> {t("يراجعها المحاسب ويرحّلها.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;
@@ -57,22 +57,22 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
                 <div className="text-sm">
                   <span dir="ltr">{o.sku}</span>
                   {o.disposition && <span className="text-muted-foreground"> · {o.disposition}</span>}
-                  <span className="text-muted-foreground"> · راجع {o.shippedQty} · متلَف {o.disposedQty}</span>
+                  <span className="text-muted-foreground"> {t("· راجع")} {o.shippedQty} {t("· متلَف")} {o.disposedQty}</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {o.shippedQty > 0 && (
                   <Button size="sm" variant="outline" disabled={isBusy} onClick={() => act(o.id, "RECEIVED")}>
-                    {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageCheck className="size-4 text-emerald-600" />}استلمت {o.shippedQty}
+                    {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageCheck className="size-4 text-emerald-600" />}{t("استلمت")} {o.shippedQty}
                   </Button>
                 )}
                 {o.disposedQty > 0 && (
                   <Button size="sm" variant="outline" disabled={isBusy} onClick={() => act(o.id, "DISPOSED")}>
-                    <PackageX className="size-4 text-red-600" />إتلاف {o.disposedQty}
+                    <PackageX className="size-4 text-red-600" />{t("إتلاف")} {o.disposedQty}
                   </Button>
                 )}
                 <Button size="sm" variant="ghost" disabled={isBusy} onClick={() => act(o.id, "IGNORE")}>
-                  <XCircle className="size-4 text-muted-foreground" />تجاهل
+                  <XCircle className="size-4 text-muted-foreground" />{t("تجاهل")}
                 </Button>
               </div>
             </CardContent>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,14 +65,14 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
         <ErpPageHeader
           icon="TriangleAlert"
           title={t("تخطيط إعادة الطلب")}
-          subtitle={`${planned.length} صنف يحتاج طلب · ${criticalCount} حرج/نافد`}
+          subtitle={fill(t("{0} صنف يحتاج طلب · {1} حرج/نافد"), [planned.length, criticalCount])}
           backHref="/inventory"
           action={bySupplier.size > 0 && can("purchases.create") ? (
             <div className="flex flex-wrap gap-2">
               {[...bySupplier].map(([key, g], idx) => (
                 <Button key={key} asChild variant={idx === 0 ? "default" : "outline"}>
                   <Link href={`/purchases/orders/new?reorder=1&${qs}&supplier=${encodeURIComponent(key)}`}>
-                    <Icon name="ClipboardList" className="size-4" />أمر شراء — {g.name} ({q(g.count)})
+                    <Icon name="ClipboardList" className="size-4" />{t("أمر شراء —")} {g.name} ({q(g.count)})
                   </Link>
                 </Button>
               ))}
@@ -83,19 +84,19 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
           <div className="space-y-2">
             <Label htmlFor="window">{t("فترة قياس البيع")}</Label>
             <select id="window" name="window" defaultValue={String(windowDays)} className={`${filterFieldCls} min-w-32`}>
-              {WINDOWS.map((w) => <option key={w} value={w}>آخر {w} يوم</option>)}
+              {WINDOWS.map((w) => <option key={w} value={w}>{t("آخر")} {w} {t("يوم")}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="lead">{t("زمن التوريد (يوم)")}</Label>
             <select id="lead" name="lead" defaultValue={String(leadDays)} className={`${filterFieldCls} min-w-28`}>
-              {LEADS.map((w) => <option key={w} value={w}>{w} يوم</option>)}
+              {LEADS.map((w) => <option key={w} value={w}>{w} {t("يوم")}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="cover">{t("تغطية مستهدفة (يوم)")}</Label>
             <select id="cover" name="cover" defaultValue={String(coverDays)} className={`${filterFieldCls} min-w-28`}>
-              {COVERS.map((w) => <option key={w} value={w}>{w} يوم</option>)}
+              {COVERS.map((w) => <option key={w} value={w}>{w} {t("يوم")}</option>)}
             </select>
           </div>
         </FilterBar>

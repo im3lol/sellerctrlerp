@@ -42,7 +42,7 @@ export function ItemSalesFilters({ from, to, q }: { from: string; to: string; q:
               onKeyDown={(e) => e.key === "Enter" && apply()} />
           </div>
           <Button size="sm" onClick={apply} className="h-8">
-            <Icon name="Search" className="size-4" />تطبيق
+            <Icon name="Search" className="size-4" />{t("تطبيق")}
           </Button>
         </div>
       </CardContent>

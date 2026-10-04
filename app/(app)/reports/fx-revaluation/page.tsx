@@ -43,7 +43,7 @@ export default async function FxRevaluationPage() {
                   <TableHead className="text-start">{t("العملة")}</TableHead>
                   <TableHead className="text-start">{t("النوع")}</TableHead>
                   <TableHead className="text-end">{t("الرصيد الأجنبي المتبقّي")}</TableHead>
-                  <TableHead className="text-end">القيمة الدفترية ({base})</TableHead>
+                  <TableHead className="text-end">{t("القيمة الدفترية (")}{base})</TableHead>
                   <TableHead className="text-end">{t("القيمة المعاد تقييمها")}</TableHead>
                   <TableHead className="text-end">{t("غير محقّق")}</TableHead>
                 </TableRow></TableHeader>

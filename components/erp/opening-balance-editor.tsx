@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -123,7 +124,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
   const apply = () => {
     const ok = (preview ?? []).filter((p) => !p.error && p.refId);
     if (!ok.length) { toast.error("لا توجد صفوف صالحة"); return; }
-    onAdd(ok); setPreview(null); toast.success(`تمت إضافة ${ok.length} سطر`);
+    onAdd(ok); setPreview(null); toast.success(fill(t("تمت إضافة {0} سطر"), [ok.length]));
   };
   const dl = () => {
     const blob = new Blob(["﻿" + CSV_TEMPLATE[kind]], { type: "text/csv;charset=utf-8" });
@@ -146,7 +147,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
       {preview && (
         <div className="rounded-lg border">
           <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm">
-            <span>معاينة — {preview.filter((p) => !p.error).length} صالح · {preview.filter((p) => p.error).length} خطأ</span>
+            <span>{t("معاينة —")} {preview.filter((p) => !p.error).length} {t("صالح ·")} {preview.filter((p) => p.error).length} {t("خطأ")}</span>
             <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>{t("إلغاء")}</Button><Button type="button" size="sm" onClick={apply}>{t("إضافة الصالح")}</Button></div>
           </div>
           <div className="max-h-64 overflow-auto"><table className="w-full text-xs">
@@ -257,7 +258,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
           <div className="flex items-center gap-2 text-sm font-medium"><Icon name="CheckCircle2" className="size-4 text-emerald-600" /> {t("أرصدة افتتاحية مُرحّلة")}</div>
           {posted.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-              <span className="text-muted-foreground">مُرحّلة بتاريخ {p.date}</span>
+              <span className="text-muted-foreground">{t("مُرحّلة بتاريخ")} {p.date}</span>
               <Button size="sm" variant="outline" disabled={pending} onClick={() => reverse(p.id)}><Icon name="Undo2" className="size-4" /> {t("إلغاء الترحيل")}</Button>
             </div>
           ))}
@@ -274,7 +275,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
             <div><div className="text-muted-foreground">{t("إجمالي المدين")}</div><div className="text-lg font-bold tabular-nums">{money(tot.debit)}</div></div>
             <div><div className="text-muted-foreground">{t("إجمالي الدائن")}</div><div className="text-lg font-bold tabular-nums">{money(tot.credit)}</div></div>
             <div>
-              <div className="text-muted-foreground">حساب الأرصدة الافتتاحية ({OPENING_EQUITY_CODE})</div>
+              <div className="text-muted-foreground">{t("حساب الأرصدة الافتتاحية (")}{OPENING_EQUITY_CODE})</div>
               <div className="text-lg font-bold tabular-nums">{money(Math.abs(tot.balancing))} <span className="text-xs font-normal">{tot.balancing >= 0 ? t("دائن") : t("مدين")}</span></div>
             </div>
             <div className={cn("self-center rounded-full px-3 py-1 text-xs font-medium", equityZero ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600")}>
@@ -286,10 +287,10 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
 
       <Tabs defaultValue="ACCOUNT" dir="rtl">
         <TabsList>
-          <TabsTrigger value="ACCOUNT">الحسابات ({byKind("ACCOUNT").length})</TabsTrigger>
-          <TabsTrigger value="CUSTOMER">أرصدة العملاء ({byKind("CUSTOMER").length})</TabsTrigger>
-          <TabsTrigger value="SUPPLIER">أرصدة الموردين ({byKind("SUPPLIER").length})</TabsTrigger>
-          <TabsTrigger value="ITEM">المخزون الافتتاحي ({byKind("ITEM").length})</TabsTrigger>
+          <TabsTrigger value="ACCOUNT">{t("الحسابات (")}{byKind("ACCOUNT").length})</TabsTrigger>
+          <TabsTrigger value="CUSTOMER">{t("أرصدة العملاء (")}{byKind("CUSTOMER").length})</TabsTrigger>
+          <TabsTrigger value="SUPPLIER">{t("أرصدة الموردين (")}{byKind("SUPPLIER").length})</TabsTrigger>
+          <TabsTrigger value="ITEM">{t("المخزون الافتتاحي (")}{byKind("ITEM").length})</TabsTrigger>
         </TabsList>
 
         {/* ── Accounts ── */}

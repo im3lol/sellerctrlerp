@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, max, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -44,7 +45,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="Trophy" title={t("مراقبة الـBuy Box")} backHref={`/platforms/${code.toLowerCase()}`}
-          subtitle={`${platform.name} — مين معاه الـBuy Box على كل منتج ليك، وبأي سعر`}
+          subtitle={fill(t("{0} — مين معاه الـBuy Box على كل منتج ليك، وبأي سعر"), [platform.name])}
           action={<BuyBoxRefresh code={platform.code} />} />
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -90,7 +91,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
                         <TableCell className="tabular-nums">{int(r.offerCount)}</TableCell>
                         <TableCell>
                           {r.isWinner === true ? <Badge variant="outline" className="border-emerald-500 text-emerald-600">{t("معاك")}</Badge>
-                            : r.isWinner === false ? <Badge variant="destructive">خسرته{r.lostSince ? ` من ${when(r.lostSince)}` : ""}</Badge>
+                            : r.isWinner === false ? <Badge variant="destructive">{t("خسرته")}{r.lostSince ? fill(t(" من {0}"), [when(r.lostSince)]) : ""}</Badge>
                               : <Badge variant="secondary">{t("مفيش Buy Box")}</Badge>}
                         </TableCell>
                       </TableRow>
@@ -101,7 +102,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
             </div>
             <p className="text-xs text-muted-foreground">
               الأسعار شامل الشحن. «الفرق» = سعرك − سعر الـBuy Box (موجب يعني انت أغلى).
-              {checked ? ` آخر تحديث: ${when(checked)} — بيتحدّث لوحده كل يوم.` : ""}
+              {checked ? fill(t(" آخر تحديث: {0} — بيتحدّث لوحده كل يوم."), [when(checked)]) : ""}
             </p>
           </>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
@@ -26,8 +27,9 @@ export type PrintOrgInfo = {
 };
 
 function SaveBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ إعدادات الطباعة</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ إعدادات الطباعة")}</Button>;
 }
 
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
@@ -182,7 +184,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
             <select value={docKey} onChange={(e) => setDocKey(e.target.value)} className={selectCls + " max-w-xs"}>
               {PRINT_DOC_REGISTRY.map((d) => {
                 const n = (docs[d.key] ?? []).length;
-                return <option key={d.key} value={d.key}>{t(d.label)}{n > 0 ? ` (${n} مخفي)` : ""}</option>;
+                return <option key={d.key} value={d.key}>{t(d.label)}{n > 0 ? fill(t(" ({0} مخفي)"), [n]) : ""}</option>;
               })}
             </select>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">

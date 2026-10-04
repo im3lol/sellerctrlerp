@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -75,7 +76,7 @@ export function TransferForm({
     setScanning(true);
     try {
       const results = await searchItemsAction(term);
-      if (results.length === 0) { toast.error(`لا يوجد صنف بالكود ${term}`); return; }
+      if (results.length === 0) { toast.error(fill(t("لا يوجد صنف بالكود {0}"), [term])); return; }
       const it = results[0];
       const label = `${it.code} — ${it.name}`;
       setLines((ls) => {
@@ -95,7 +96,7 @@ export function TransferForm({
       if (ready.length === 0) { toast.error("أضف صنفاً واحداً على الأقل بكمية"); return; }
       for (const l of ready) {
         if (l.fromWh === l.toWh) { toast.error("المستودع المصدر والوجهة متماثلان في أحد الأصناف"); return; }
-        if (Number(l.quantity) > available(l) + 1e-9) { toast.error(`الكمية أكبر من المتاح للصنف ${l.itemLabel}`); return; }
+        if (Number(l.quantity) > available(l) + 1e-9) { toast.error(fill(t("الكمية أكبر من المتاح للصنف {0}"), [l.itemLabel])); return; }
       }
       const body = {
         date, notes,

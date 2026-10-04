@@ -67,7 +67,7 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -95,7 +95,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
   return (
     <Card>
       <CardContent className="p-0">
-        {canEdit && <div className="p-3 pb-0"><BulkDeleteBar ids={sel.ids} action={bulkDeleteBanksAction} onDone={sel.clear} entity="حساب بنكي" /></div>}
+        {canEdit && <div className="p-3 pb-0"><BulkDeleteBar ids={sel.ids} action={bulkDeleteBanksAction} onDone={sel.clear} entity={t("حساب بنكي")} /></div>}
         <Table>
           <TableHeader>
             <TableRow>
@@ -156,7 +156,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>
-              <Button variant="destructive" onClick={() => del(confirmDel)} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حذف</Button>
+              <Button variant="destructive" onClick={() => del(confirmDel)} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حذف")}</Button>
             </DialogFooter>
           </DialogContent>
         )}

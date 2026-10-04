@@ -25,6 +25,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const PROPS = [
   "title", "placeholder", "label", "aria-label", "description", "subtitle", "emptyText", "confirmText", "cancelText", "alt",
   "unit", "valueLabel", "heading", "hint", "note", "emptyLabel",
+  "entity", "empty", "totalLabel", "createLabel", "partyLabel",
 ];
 const AR = /[؀-ۿ]/;
 const dry = process.argv.includes("--dry");
@@ -67,6 +68,25 @@ for (const file of files) {
     const decoded = trimmed.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
     return `>${lead}{t(${JSON.stringify(decoded)})}${trail}<`;
   });
+
+  // 2c) text that starts on the tag's line and ends at a line break:  <Icon /> بحث\n  </div>
+  //     and text sitting next to an expression:  الإجمالي: {fmt(x)}  ·  {n} ملف مرفق<
+  const okText = (s: string) => !!s.trim() && !s.includes('"') && !/\s\?\s.*:/.test(s) && !/\/\/|\/\*/.test(s);
+  const wrapText = (text: string) => {
+    const [, lead = "", core = "", trail = ""] = text.match(/^(\s*)([\S\s]*?)(\s*)$/) ?? [];
+    const decoded = core.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    wrapped++;
+    return `${lead}{t(${JSON.stringify(decoded)})}${trail}`;
+  };
+  // Only on lines that read as JSX — never inside a template literal (`${a} نص ${b}`) or code.
+  const jsxLine = (all: string, at: number) => {
+    const line = all.slice(all.lastIndexOf("\n", at) + 1, (all.indexOf("\n", at) + 1 || all.length + 1) - 1);
+    return !line.includes("`") && !line.includes("${") && !line.includes("fill(") && /<\/?[A-Za-z]|\/>/.test(line);
+  };
+  src = src.replace(/>([ \t]*[^<>{}\n$`;=]*[؀-ۿ][^<>{}\n$`;=]*?)([ \t]*\n\s*)</g, (m, text: string, trail: string, at: number, all: string) =>
+    okText(text) && jsxLine(all, at) ? `>${wrapText(text)}${trail}<` : m);
+  src = src.replace(/([>}])([^<>{}\n$`;=]*[؀-ۿ][^<>{}\n$`;=]*)(?=[{<])/g, (m, open: string, text: string, at: number, all: string) =>
+    okText(text) && jsxLine(all, at) ? `${open}${wrapText(text)}` : m);
 
   // 3) ternary + fallback literals — only Arabic, only plain (no braces / interpolation).
   const LIT = `"([^"{}\\n$]*[\\u0600-\\u06FF][^"{}\\n$]*)"`;

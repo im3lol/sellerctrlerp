@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, PackageCheck, PackageX, HandCoins, Search } from "lucide-react";
@@ -94,7 +95,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
       <Card>
         <CardContent className="space-y-3 pt-6">
           <p className="text-sm text-muted-foreground">
-            دي مرتجعات عملاء من المنصات، لسه <b>{t("مسودّات")}</b>. العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.
+            دي مرتجعات عملاء من المنصات، لسه <b>{t("مسودّات")}</b>{t(". العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {CONDITIONS.map((c) => (
@@ -144,7 +145,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                       <TableCell className="max-w-[280px] whitespace-normal">
                         <div className="line-clamp-2 leading-snug" title={o.itemsSummary}>{first?.name ?? first?.code ?? "—"}</div>
                         {first?.code && <div className="font-mono text-xs text-muted-foreground" dir="ltr">{first.code}</div>}
-                        {more > 0 && <div className="text-xs text-muted-foreground">+ {qtyf(more)} صنف آخر</div>}
+                        {more > 0 && <div className="text-xs text-muted-foreground">+ {qtyf(more)} {t("صنف آخر")}</div>}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -153,7 +154,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                         </div>
                         <div className="text-xs text-muted-foreground" dir="ltr">{o.externalReturnId ?? ""}</div>
                         <div className="text-xs text-muted-foreground">
-                          {dt(o.date)}{o.invoiceNumber ? ` · فاتورة ${o.invoiceNumber}` : ""}
+                          {dt(o.date)}{o.invoiceNumber ? fill(t(" · فاتورة {0}"), [o.invoiceNumber]) : ""}
                         </div>
                       </TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(totalQty)}</TableCell>
@@ -196,7 +197,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                           <Input
                             type="number" step="any" min="0" max={totalQty}
                             className="mt-1.5 h-8 text-xs"
-                            placeholder={`الكمية المستلمة (${qtyf(totalQty)})`}
+                            placeholder={fill(t("الكمية المستلمة ({0})"), [qtyf(totalQty)])}
                             value={qty[o.id] ?? ""}
                             onChange={(e) => setQty((d) => ({ ...d, [o.id]: e.target.value }))}
                           />

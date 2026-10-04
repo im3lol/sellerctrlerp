@@ -99,7 +99,7 @@ export function BudgetEntryClient({
           </Button>
           <Button variant="outline" asChild>
             <Link href={`/accounting/budget/${year}/report`}>
-              <Icon name="BarChart2" className="size-4" />عرض التقرير
+              <Icon name="BarChart2" className="size-4" />{t("عرض التقرير")}
             </Link>
           </Button>
         </div>

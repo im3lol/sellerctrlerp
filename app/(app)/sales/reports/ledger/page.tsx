@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { getSalesLedger } from "@/lib/erp/sales-ledger";
@@ -65,7 +66,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
         reportKey="sales-ledger"
         icon="BookOpen"
         title={t("تقرير دفتر المبيعات")}
-        subtitle={`${totalRows} حركة`}
+        subtitle={fill(t("{0} حركة"), [totalRows])}
         query={filterQs().toString()}
         permissions={permissions}
       >
@@ -79,7 +80,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1 sm:col-span-2">
@@ -116,7 +117,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
               <>
                 <SalesLedgerTable rows={pageRows} totals={totals} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

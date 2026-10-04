@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { importCustomersCSV, importItemsCSV, importSuppliersCSV, type ImportResult } from "@/app/actions/erp/csv-import";
@@ -11,17 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Icon } from "@/components/icon";
 
-const CUSTOMER_TEMPLATE = `code,nameAr,phone,email,creditLimit,paymentTerms
-C001,شركة الأمل,01012345678,info@amal.com,50000,30
-C002,مؤسسة النجاح,01123456789,,10000,15`;
+const CUSTOMER_TEMPLATE = "code,nameAr,phone,email,creditLimit,paymentTerms\nC001,شركة الأمل,01012345678,info@amal.com,50000,30\nC002,مؤسسة النجاح,01123456789,,10000,15";
 
-const ITEMS_TEMPLATE = `code,nameAr,nameEn,sellPrice,minStock,description,isActive
-ITM001,كرسي مكتبي,Office Chair,250.00,5,كرسي دوار مريح,true
-ITM002,طاولة اجتماعات,Meeting Table,1200.00,2,,true`;
+const ITEMS_TEMPLATE = "code,nameAr,nameEn,sellPrice,minStock,description,isActive\nITM001,كرسي مكتبي,Office Chair,250.00,5,كرسي دوار مريح,true\nITM002,طاولة اجتماعات,Meeting Table,1200.00,2,,true";
 
-const SUPPLIERS_TEMPLATE = `code,nameAr,phone,email,address,paymentTerms
-S001,مورد الشرق,01011122233,info@east.com,القاهرة,30
-S002,شركة الإمداد,01233344455,,الإسكندرية,45`;
+const SUPPLIERS_TEMPLATE = "code,nameAr,phone,email,address,paymentTerms\nS001,مورد الشرق,01011122233,info@east.com,القاهرة,30\nS002,شركة الإمداد,01233344455,,الإسكندرية,45";
 
 // Transactional templates: one row per line, grouped by the `ref` column.
 const SALES_ORDER_TEMPLATE = `ref,date,customer,item,quantity,unitPrice
@@ -29,28 +24,23 @@ A1,2026-07-12,C001,ITM001,10,250
 A1,2026-07-12,C001,ITM002,5,100
 A2,2026-07-13,C002,ITM001,3,250`;
 
-const PURCHASE_ORDER_TEMPLATE = `ref,date,supplier,warehouse,item,quantity,unitPrice
-A1,2026-07-12,S001,المستودع الرئيسي,ITM001,20,180
-A1,2026-07-12,S001,المستودع الرئيسي,ITM002,10,90
-A2,2026-07-13,S002,المستودع الرئيسي,ITM001,15,175`;
+const PURCHASE_ORDER_TEMPLATE = "ref,date,supplier,warehouse,item,quantity,unitPrice\nA1,2026-07-12,S001,المستودع الرئيسي,ITM001,20,180\nA1,2026-07-12,S001,المستودع الرئيسي,ITM002,10,90\nA2,2026-07-13,S002,المستودع الرئيسي,ITM001,15,175";
 
-const TRANSFER_TEMPLATE = `ref,date,item,quantity,fromWarehouse,toWarehouse,notes
-A1,2026-07-12,ITM001,5,المستودع الرئيسي,فرع جدة,نقل تزويد
-A1,2026-07-12,ITM002,3,المستودع الرئيسي,فرع جدة,
-A2,2026-07-13,ITM001,2,فرع جدة,المستودع الرئيسي,مرتجع`;
+const TRANSFER_TEMPLATE = "ref,date,item,quantity,fromWarehouse,toWarehouse,notes\nA1,2026-07-12,ITM001,5,المستودع الرئيسي,فرع جدة,نقل تزويد\nA1,2026-07-12,ITM002,3,المستودع الرئيسي,فرع جدة,\nA2,2026-07-13,ITM001,2,فرع جدة,المستودع الرئيسي,مرتجع";
 
 function ResultBadge({ result }: { result: ImportResult }) {
+  const t = useT();
   return (
     <div className="mt-4 space-y-2">
       <div className="flex gap-4 text-sm">
-        <span className="flex items-center gap-1 text-green-600"><Icon name="CheckCircle" className="size-4" />جديد: {result.inserted}</span>
-        <span className="flex items-center gap-1 text-blue-600"><Icon name="RefreshCw" className="size-4" />تحديث: {result.updated}</span>
-        {result.errors.length > 0 && <span className="flex items-center gap-1 text-destructive"><Icon name="AlertCircle" className="size-4" />أخطاء: {result.errors.length}</span>}
-        <span className="text-muted-foreground">من إجمالي {result.total} صف</span>
+        <span className="flex items-center gap-1 text-green-600"><Icon name="CheckCircle" className="size-4" />{t("جديد:")} {result.inserted}</span>
+        <span className="flex items-center gap-1 text-blue-600"><Icon name="RefreshCw" className="size-4" />{t("تحديث:")} {result.updated}</span>
+        {result.errors.length > 0 && <span className="flex items-center gap-1 text-destructive"><Icon name="AlertCircle" className="size-4" />{t("أخطاء:")} {result.errors.length}</span>}
+        <span className="text-muted-foreground">{t("من إجمالي")} {result.total} {t("صف")}</span>
       </div>
       {result.errors.length > 0 && (
         <ul className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive space-y-1 max-h-40 overflow-y-auto">
-          {result.errors.map((e) => <li key={e.row}>صف {e.row}: {e.message}</li>)}
+          {result.errors.map((e) => <li key={e.row}>{t("صف")} {e.row}: {e.message}</li>)}
         </ul>
       )}
     </div>
@@ -58,16 +48,17 @@ function ResultBadge({ result }: { result: ImportResult }) {
 }
 
 function DocResultBadge({ result }: { result: DocImportResult }) {
+  const t = useT();
   return (
     <div className="mt-4 space-y-2">
       <div className="flex gap-4 text-sm">
-        <span className="flex items-center gap-1 text-green-600"><Icon name="CheckCircle" className="size-4" />مسودات أُنشئت: {result.created}</span>
-        {result.errors.length > 0 && <span className="flex items-center gap-1 text-destructive"><Icon name="AlertCircle" className="size-4" />أخطاء: {result.errors.length}</span>}
-        <span className="text-muted-foreground">من إجمالي {result.total} مستند</span>
+        <span className="flex items-center gap-1 text-green-600"><Icon name="CheckCircle" className="size-4" />{t("مسودات أُنشئت:")} {result.created}</span>
+        {result.errors.length > 0 && <span className="flex items-center gap-1 text-destructive"><Icon name="AlertCircle" className="size-4" />{t("أخطاء:")} {result.errors.length}</span>}
+        <span className="text-muted-foreground">{t("من إجمالي")} {result.total} {t("مستند")}</span>
       </div>
       {result.errors.length > 0 && (
         <ul className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive space-y-1 max-h-40 overflow-y-auto">
-          {result.errors.map((e, i) => <li key={i}>مرجع {e.ref}: {e.message}</li>)}
+          {result.errors.map((e, i) => <li key={i}>{t("مرجع")} {e.ref}: {e.message}</li>)}
         </ul>
       )}
     </div>
@@ -96,7 +87,7 @@ function ImportPane<R>({
       if (r && typeof r === "object" && "error" in r) { toast.error((r as { error: string }).error); return; }
       setResult(r as R);
       const n = successCount(r as R);
-      if (n > 0) toast.success(`تم استيراد ${n}`);
+      if (n > 0) toast.success(fill(t("تم استيراد {0}"), [n]));
     });
   };
 
@@ -124,7 +115,7 @@ function ImportPane<R>({
           URL.revokeObjectURL(url);
         }}
       >
-        <Icon name="Download" className="size-4" />تحميل نموذج CSV
+        <Icon name="Download" className="size-4" />{t("تحميل نموذج CSV")}
       </Button>
 
       <div
@@ -144,7 +135,7 @@ function ImportPane<R>({
 
       {pending && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Icon name="Loader2" className="size-4 animate-spin" />جارٍ المعالجة...
+          <Icon name="Loader2" className="size-4 animate-spin" />{t("جارٍ المعالجة...")}
         </div>
       )}
       {result && renderResult(result)}

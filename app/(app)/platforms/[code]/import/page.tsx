@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -60,7 +61,7 @@ export default async function PlatformImportPage({
       <div className="space-y-6">
         <ErpPageHeader
           icon="Upload"
-          title={`استيراد — ${platform.name}`}
+          title={fill(t("استيراد — {0}"), [platform.name])}
           subtitle={t("استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة")}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />

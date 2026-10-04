@@ -173,7 +173,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
               <Icon name="Boxes" className="size-4 text-primary" />
               <span className="flex-1 text-sm">{t("المنتج الأب:")} <span className="font-medium">{parentLabel || parentItemId}</span></span>
               <Button type="button" variant="ghost" size="sm" onClick={() => { setParentItemId(""); setParentLabel(""); setVariationValue(""); }}>
-                <Icon name="X" className="size-4" />فك الربط
+                <Icon name="X" className="size-4" />{t("فك الربط")}
               </Button>
             </div>
           ) : (
@@ -216,7 +216,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.push("/inventory/items")}>{t("إلغاء")}</Button>
-        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}حفظ الصنف</Button>
+        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("حفظ الصنف")}</Button>
       </div>
     </div>
   );

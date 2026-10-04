@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill, type T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -49,13 +50,13 @@ const FULFILLMENTS: { code: string; label: string; hint: string; active: boolean
 const tileCls = "flex items-center gap-3 rounded-xl border p-3 text-start transition-colors";
 
 /** "منذ ٥ دقائق" style relative time (Arabic, coarse buckets). */
-function ago(iso: string | null): string | null {
+function ago(iso: string | null, t: T): string | null {
   if (!iso) return null;
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 90) return "منذ لحظات";
-  if (s < 3600) return `منذ ${Math.round(s / 60)} دقيقة`;
-  if (s < 86400) return `منذ ${Math.round(s / 3600)} ساعة`;
-  return `منذ ${Math.round(s / 86400)} يوم`;
+  if (s < 90) return t("منذ لحظات");
+  if (s < 3600) return fill(t("منذ {0} دقيقة"), [Math.round(s / 60)]);
+  if (s < 86400) return fill(t("منذ {0} ساعة"), [Math.round(s / 3600)]);
+  return fill(t("منذ {0} يوم"), [Math.round(s / 86400)]);
 }
 
 /** CREATE-only dialog (choose → ربط آلي / يدوي). Editing lives in /platforms/[code]/settings. */
@@ -164,7 +165,7 @@ function CreatePlatformDialog({
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{t("سيُنشأ: المنصة + عميل + مخزن + بنك التسويات — كلها قابلة للتعديل لاحقًا. بعد التجهيز، اربط الحساب من صفحة المنصة.")}</p>
           <Button onClick={() => provision()} disabled={pending} className="w-full">
-            {pending && <Loader2 className="size-4 animate-spin" />}تجهيز {BRANDS.find((b) => b.code === autoConnector)?.label ?? autoConnector}
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("تجهيز")} {BRANDS.find((b) => b.code === autoConnector)?.label ?? autoConnector}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setAutoConnector(null)}>{t("رجوع")}</Button>
         </div>
@@ -227,7 +228,7 @@ function CreatePlatformDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-          <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}إنشاء</Button>
+          <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("إنشاء")}</Button>
         </DialogFooter>
       </>)}
     </DialogContent>
@@ -267,7 +268,7 @@ export function PlatformsManager({
           {platforms.map((p) => {
             const available = p.code.toUpperCase() === "AMAZON";
             const brand = BRANDS.find((b) => b.code === p.code.toUpperCase());
-            const last = ago(p.lastSyncAt);
+            const last = ago(p.lastSyncAt, t);
             const detail = `/platforms/${p.code.toLowerCase()}`;
             return (
               <Card key={p.id} className={p.isActive ? "" : "opacity-70"}>

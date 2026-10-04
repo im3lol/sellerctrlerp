@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, or, asc, count, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -120,7 +121,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         <ErpPageHeader
           icon="Package"
           title={t("الأصناف")}
-          subtitle={`${total} صنف`}
+          subtitle={fill(t("{0} صنف"), [total])}
           backHref="/inventory"
           action={
             <div className="flex items-center gap-2">
@@ -189,7 +190,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                   filter={{ q, status: fStatus, category: fCategory, missing: fMissing }}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

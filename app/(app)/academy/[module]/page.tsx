@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
@@ -19,7 +20,8 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 export async function generateMetadata({ params }: { params: Promise<{ module: string }> }) {
   const { module } = await params;
   const label = MODULE_LABELS[module];
-  return { title: label ? `الأكاديمية — ${label}` : "الأكاديمية" };
+  const t = await getT();
+  return { title: label ? fill(t("الأكاديمية — {0}"), [t(label)]) : t("الأكاديمية") };
 }
 
 /**
@@ -44,10 +46,10 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
     <div className="space-y-6" dir="rtl">
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
-        title={`الأكاديمية — ${t(MODULE_LABELS[module] ?? module)}`}
+        title={fill(t("الأكاديمية — {0}"), [t(MODULE_LABELS[module] ?? module)])}
         subtitle={lessons.length === 0
           ? t("لا توجد دروس بعد")
-          : `${intf(p.videos.live)} فيديو · ${intf(p.docs.live)} دليل · ${intf(p.soon)} قريباً`}
+          : fill(t("{0} فيديو · {1} دليل · {2} قريباً"), [intf(p.videos.live), intf(p.docs.live), intf(p.soon)])}
         backHref="/academy"
       />
 
@@ -78,7 +80,7 @@ async function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] 
         <Icon name={KIND_ICONS[kind]} className="size-[18px] text-muted-foreground" />
         <h2 className="font-semibold">{t(KIND_PLURAL[kind])}</h2>
         <span className="text-xs text-muted-foreground">
-          {lessons.length === 0 ? t("لا يوجد بعد") : `${intf(live)} متاح · ${intf(lessons.length - live)} قريباً`}
+          {lessons.length === 0 ? t("لا يوجد بعد") : fill(t("{0} متاح · {1} قريباً"), [intf(live), intf(lessons.length - live)])}
         </span>
       </div>
 
@@ -112,7 +114,7 @@ async function LessonCard({ lesson }: { lesson: Lesson }) {
       </div>
       {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
-        {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
+        {lesson.minutes && <span>{intf(lesson.minutes)} {t("دقيقة")}</span>}
         {lesson.level && <span>· {lesson.level === "basic" ? t("أساسي") : t("متقدّم")}</span>}
       </div>
     </>

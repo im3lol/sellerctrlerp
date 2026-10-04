@@ -80,7 +80,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
         ) : (
           <>
             <AuditStats audit={audit} />
-            <div className="text-xs text-muted-foreground">آخر تدقيق: {dt(audit.finishedAt ?? audit.createdAt)} · يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.</div>
+            <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {dt(audit.finishedAt ?? audit.createdAt)} {t("· يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.")}</div>
 
             <Card>
               <CardContent className="pt-6">

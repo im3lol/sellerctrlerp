@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -23,7 +24,7 @@ export default async function PeriodsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Lock" title={t("إقفال الفترات المالية")} subtitle={`${rows.length} فترة`} />
+        <ErpPageHeader icon="Lock" title={t("إقفال الفترات المالية")} subtitle={fill(t("{0} فترة"), [rows.length])} />
         <PeriodsManager periods={rows} canManage={can("accounting.create")} />
       </div>
     );

@@ -30,7 +30,7 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
           ops={ops}
           action={(op, opIds, allPages) => bulkExpensesAction(op, allPages ? [] : opIds, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="مصروف"
+          entity={t("مصروف")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(ids) && total > ids.length, onSelectAll: sel.selectAllPages }}
         />
       )}

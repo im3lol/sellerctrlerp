@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -32,7 +33,7 @@ export default async function EditMaterialRequestPage({ params }: { params: Prom
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={`تعديل طلب مواد ${mr.number}`} subtitle={t("مسودة — عدّل الأصناف والكميات ثم احفظ")} backHref={`/purchases/requisitions/${encodeURIComponent(mr.number)}`} />
+        <ErpPageHeader icon="ClipboardList" title={fill(t("تعديل طلب مواد {0}"), [mr.number])} subtitle={t("مسودة — عدّل الأصناف والكميات ثم احفظ")} backHref={`/purchases/requisitions/${encodeURIComponent(mr.number)}`} />
         <MaterialRequestForm items={itemList} orgName={org[0]?.nameAr ?? "—"} initial={initial} />
       </div>
     );

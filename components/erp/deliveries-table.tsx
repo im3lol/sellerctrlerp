@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -57,17 +58,17 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
     start(async () => {
       const r = await createPickListAction(ids);
       if (r.error || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء الجولة")); return; }
-      toast.success(`جولة التجهيز ${r.number}`);
+      toast.success(fill(t("جولة التجهيز {0}"), [r.number]));
       router.push(`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`);
     });
   };
 
   const run = (op: "confirm" | "bill" | "delete" | "reverse", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${int(count)} إذن`, danger: op === "delete" || op === "reverse" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} إذن"), [verb, int(count)]), danger: op === "delete" || op === "reverse" }))) return;
       start(async () => {
         const r = await bulkDeliveriesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
-        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} إذن`); setSel(new Set()); setAllPages(false); router.refresh(); }
+        if (r.ok) { toast.success(fill(t("تم {0} {1} إذن"), [verb, int(r.count ?? 0)])); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -77,9 +78,9 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
     <div className="space-y-3">
       {canAct && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          <span className="font-medium">{allPages ? fill(t("كل الـ{0} محدّد"), [int(total)]) : fill(t("{0} محدّد"), [int(sel.size)])}</span>
           {!allPages && allSelected && total > rows.length && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>{t("حدّد الكل (")}{int(total)}{t(") في كل الصفحات")}</button>
           )}
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
@@ -128,7 +129,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                     {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
-                      <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>
+                      <span className="ms-2 text-destructive">{t("كمية مرتجعة:")} {qf(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>

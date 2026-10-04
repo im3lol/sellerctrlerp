@@ -86,7 +86,7 @@ function EditDialog({ rsi, customers, items, onClose }: { rsi: RSI | null; custo
         </div>
         <div className="space-y-1.5"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
       </div>
-      <DialogFooter><Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button><Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button><Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button></DialogFooter>
     </DialogContent>
   );
 }
@@ -107,11 +107,11 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{templates.length} قالب — يولّد فاتورة بيع كمسودة تلقائياً في موعده</span>
+          <span className="text-sm text-muted-foreground">{templates.length} {t("قالب — يولّد فاتورة بيع كمسودة تلقائياً في موعده")}</span>
           <Button size="sm" onClick={() => setDialog({ open: true, rsi: null })}><Plus className="size-4" />{t("قالب جديد")}</Button>
         </div>
         <>
-        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringSalesInvoicesAction} onDone={sel.clear} entity="قالب" />
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringSalesInvoicesAction} onDone={sel.clear} entity={t("قالب")} />
         <Table>
           <TableHeader><TableRow>
             <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>

@@ -56,12 +56,12 @@ export function ReportSwitcher({
         const reports = m.reports.filter((r) => {
           if (seen.has(r.view)) return false;
           seen.add(r.view);
-          return !needle || r.label.toLowerCase().includes(needle) || m.label.toLowerCase().includes(needle);
+          return !needle || [r.label, m.label, t(r.label), t(m.label)].some((s) => s.toLowerCase().includes(needle));
         });
         return { ...m, reports };
       })
       .filter((m) => m.reports.length > 0);
-  }, [permissions, q]);
+  }, [permissions, q, t]);
 
   const currentLabel = REPORT_MODULES.flatMap((m) => m.reports).find((r) => r.view === current)?.label;
   const total = groups.reduce((s, g) => s + g.reports.length, 0);
@@ -70,7 +70,7 @@ export function ReportSwitcher({
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }}>
       <DialogTrigger className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent">
         <Icon name="ChartColumn" className="size-4 text-muted-foreground" />
-        <span className="font-medium">{currentLabel ?? t("التقارير")}</span>
+        <span className="font-medium">{currentLabel ? t(currentLabel) : t("التقارير")}</span>
         <Icon name="ChevronDown" className="size-4 text-muted-foreground" />
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -70,7 +71,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         <ErpPageHeader
           icon="Banknote"
           title={t("سندات الصرف")}
-          subtitle={`${total.toLocaleString("ar-EG-u-nu-latn")} سند — مدفوع (مرحّل) ${fmt(posted)}`}
+          subtitle={fill(t("{0} سند — مدفوع (مرحّل) {1}"), [total.toLocaleString("ar-EG-u-nu-latn"), fmt(posted)])}
           action={
             can("purchases.pay") ? (
               <Button asChild>

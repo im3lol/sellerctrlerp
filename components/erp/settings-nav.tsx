@@ -35,12 +35,12 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
             pathname === "/settings" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
           )}
         >
-          <Icon name="Settings" className="size-4 shrink-0" />الإعدادات
+          <Icon name="Settings" className="size-4 shrink-0" />{t("الإعدادات")}
         </Link>
         <nav className="space-y-4">
           {groups.map((g) => (
             <div key={g.heading}>
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{g.heading}</div>
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t(g.heading)}</div>
               <div className="space-y-0.5">
                 {g.items.map((it) => {
                   const isActive = active(it.href);

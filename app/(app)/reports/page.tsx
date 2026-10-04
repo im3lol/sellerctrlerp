@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances } from "@/lib/erp/financials";
@@ -34,7 +35,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
         reportKey="trial-balance"
         icon="BarChart3"
         title={t("ميزان المراجعة")}
-        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        subtitle={fill(t("من {0} إلى {1} — من القيود المُرحّلة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={

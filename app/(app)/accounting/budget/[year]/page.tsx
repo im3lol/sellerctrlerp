@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -48,7 +49,7 @@ export default async function BudgetEntryPage({ params }: Params) {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Target"
-          title={`ميزانية ${year}`}
+          title={fill(t("ميزانية {0}"), [year])}
           subtitle={t("ادخل الميزانية التقديرية لكل حساب إيرادات ومصروفات")}
           backHref="/accounting/budget"
         />

@@ -96,7 +96,7 @@ export default async function ReportsCenterPage() {
                           {...(dl.blank ? { target: "_blank", rel: "noopener" } : { download: true })}
                           className="flex shrink-0 items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                         >
-                          <Icon name="Download" className="size-3.5" />إعادة التحميل
+                          <Icon name="Download" className="size-3.5" />{t("إعادة التحميل")}
                         </a>
                       ) : (
                         <span className="shrink-0 text-xs text-muted-foreground">{t("غير متاح")}</span>

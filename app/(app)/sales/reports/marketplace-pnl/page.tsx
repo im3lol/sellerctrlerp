@@ -96,8 +96,8 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
             <CardDescription>
               كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون.
               «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.
-              {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).</span>}
-              {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.</span>}
+              {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} {t("طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).")}</span>}
+              {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} {t("طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.")}</span>}
             </CardDescription>
           </CardHeader>
           <CardContent>

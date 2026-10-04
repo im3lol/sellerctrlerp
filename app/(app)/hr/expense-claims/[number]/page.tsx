@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -37,7 +38,7 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ReceiptText" title={`مطالبة ${claim.number}`} subtitle={`${claim.employee} · ${dt(claim.date)} · التعويض من ${claim.cashName ?? "—"}`} backHref="/hr/expense-claims"
+        <ErpPageHeader icon="ReceiptText" title={fill(t("مطالبة {0}"), [claim.number])} subtitle={fill(t("{0} · {1} · التعويض من {2}"), [claim.employee, dt(claim.date), claim.cashName ?? "—"])} backHref="/hr/expense-claims"
           action={
             <div className="flex gap-2">
               <PrintDocLink href={`/erp/hr/expense-claims/${encodeURIComponent(claim.number)}/print`} />
@@ -61,8 +62,8 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
                 ))}
               </TableBody>
             </Table>
-            <div className="mt-4 flex justify-end text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
-            {claim.notes && <p className="mt-3 text-sm text-muted-foreground">ملاحظات: {claim.notes}</p>}
+            <div className="mt-4 flex justify-end text-base font-bold text-primary">{t("الإجمالي:")} {fmt(total)}</div>
+            {claim.notes && <p className="mt-3 text-sm text-muted-foreground">{t("ملاحظات:")} {claim.notes}</p>}
           </CardContent>
         </Card>
       </div>

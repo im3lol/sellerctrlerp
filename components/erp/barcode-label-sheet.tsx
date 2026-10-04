@@ -35,7 +35,7 @@ export function BarcodeLabelSheet({ labels, title }: { labels: LabelRow[]; title
       <div className="toolbar">
         <button onClick={() => window.print()}>{t("🖨 طباعة / حفظ PDF")}</button>
         <button className="back" onClick={() => window.history.back()}>{t("رجوع")}</button>
-        <span className="info">{title} — {labels.length} ملصق</span>
+        <span className="info">{title} — {labels.length} {t("ملصق")}</span>
       </div>
 
       {labels.length === 0 ? (

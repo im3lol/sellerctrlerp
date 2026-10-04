@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -47,10 +48,10 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
 
   const run = (op: "post" | "delete" | "collect", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${int(count)} فاتورة`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} فاتورة"), [verb, int(count)]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkSalesInvoicesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
-        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} فاتورة`); setSel(new Set()); setAllPages(false); router.refresh(); }
+        if (r.ok) { toast.success(fill(t("تم {0} {1} فاتورة"), [verb, int(r.count ?? 0)])); setSel(new Set()); setAllPages(false); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -60,9 +61,9 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
     <div className="space-y-3">
       {actionable && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          <span className="font-medium">{allPages ? fill(t("كل الـ{0} محدّد"), [int(total)]) : fill(t("{0} محدّد"), [int(sel.size)])}</span>
           {!allPages && allSelected && total > pageIds.length && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>{t("حدّد الكل (")}{int(total)}{t(") في كل الصفحات")}</button>
           )}
           {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>}
           <div className="ms-auto flex gap-2">

@@ -75,7 +75,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
           </div>
           {canEdit && (
             <Button size="sm" onClick={save} disabled={pending}>
-              <Icon name="Check" className="size-4" />حفظ الأرقام
+              <Icon name="Check" className="size-4" />{t("حفظ الأرقام")}
             </Button>
           )}
         </div>

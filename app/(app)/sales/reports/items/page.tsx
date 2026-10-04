@@ -85,7 +85,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
         <Card>
           <CardHeader>
             <CardTitle>{t("تفصيل الأصناف")}</CardTitle>
-            <CardDescription>مرتّب تنازلياً حسب الإيراد — الفترة: {from} إلى {to}</CardDescription>
+            <CardDescription>{t("مرتّب تنازلياً حسب الإيراد — الفترة:")} {from} {t("إلى")} {to}</CardDescription>
           </CardHeader>
           <CardContent>
             {filtered.length === 0 ? (

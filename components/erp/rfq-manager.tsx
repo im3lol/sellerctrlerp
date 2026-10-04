@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -86,7 +87,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         supplierIds: draft.supplierIds,
       });
       if (!r.ok) { toast.error(r.error ?? t("تعذّر الحفظ")); return; }
-      toast.success(`تم حفظ ${r.number ?? t("الطلب")}`);
+      toast.success(fill(t("تم حفظ {0}"), [r.number ?? t("الطلب")]));
       setCreating(false);
       setDraft({ date: new Date().toISOString().slice(0, 10), dueDate: "", lines: [{ itemId: "", quantity: 1 }], supplierIds: [], notes: "" });
       load();
@@ -103,7 +104,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
 
   const cancel = (row: ListRow) =>
     void (async () => {
-      const go = await confirm({ danger: true, title: `إلغاء ${row.number}؟`, description: "الطلب هيتقفل من غير ترسية.", confirmText: "ألغِ", cancelText: "رجوع" });
+      const go = await confirm({ danger: true, title: fill(t("إلغاء {0}؟"), [row.number]), description: "الطلب هيتقفل من غير ترسية.", confirmText: "ألغِ", cancelText: "رجوع" });
       if (!go) return;
       start(async () => {
         const r = await cancelRfqAction(row.id);
@@ -144,8 +145,8 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       if (!awardWarehouse) return toast.error("اختر المستودع اللي هيستلم");
       const s = open.comparison.suppliers.find((x) => x.id === rfqSupplierId);
       const go = await confirm({
-        title: `ترسية على ${s?.supplierName ?? ""}؟`,
-        description: `هيتعمل أمر شراء مسودة بأسعار العرض (${money(s?.total ?? 0)}) ويقفل الطلب.`,
+        title: fill(t("ترسية على {0}؟"), [s?.supplierName ?? ""]),
+        description: fill(t("هيتعمل أمر شراء مسودة بأسعار العرض ({0}) ويقفل الطلب."), [money(s?.total ?? 0)]),
         confirmText: "رسِّ وأنشئ الأمر", cancelText: "رجوع",
       });
       if (!go) return;
@@ -170,14 +171,14 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                 <CardDescription>
                   {open.lines.length} صنف · {c.suppliers.length} مورّد ·{" "}
                   {c.suppliers.filter((s) => s.quotedLines > 0).length} عرض وصل
-                  {open.rfq.dueDate ? ` · الردود لحد ${open.rfq.dueDate}` : ""}
+                  {open.rfq.dueDate ? fill(t(" · الردود لحد {0}"), [open.rfq.dueDate]) : ""}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant={STATUS[open.rfq.status]?.tone ?? "outline"}>{STATUS[open.rfq.status]?.label ?? open.rfq.status}</Badge>
                 {canManage && open.rfq.status === "DRAFT" && (
                   <Button size="sm" onClick={() => send(open.rfq.id)} disabled={pending}>
-                    <Icon name="Send" className="size-4" />أرسل
+                    <Icon name="Send" className="size-4" />{t("أرسل")}
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={() => setOpen(null)}>{t("رجوع")}</Button>
@@ -226,7 +227,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                       <TableHead key={s.id} className="text-start">
                         <div className="font-medium">{s.supplierName}</div>
                         <div className="text-xs font-normal text-muted-foreground">
-                          {s.status === "DECLINED" ? t("اعتذر") : s.quotedLines === 0 ? t("لسه مردّش") : s.complete ? t("عرض كامل") : `ناقص (${s.quotedLines}/${open.lines.length})`}
+                          {s.status === "DECLINED" ? t("اعتذر") : s.quotedLines === 0 ? t("لسه مردّش") : s.complete ? t("عرض كامل") : fill(t("ناقص ({0}/{1})"), [s.quotedLines, open.lines.length])}
                         </div>
                       </TableHead>
                     ))}
@@ -264,7 +265,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     <TableCell colSpan={2} className="text-muted-foreground">{t("التوريد / السداد")}</TableCell>
                     {c.suppliers.map((s) => (
                       <TableCell key={s.id} className="text-xs text-muted-foreground">
-                        {s.leadDays != null ? `${s.leadDays} يوم` : "—"} · {s.paymentTermDays != null ? `${s.paymentTermDays} يوم سداد` : "—"}
+                        {s.leadDays != null ? fill(t("{0} يوم"), [s.leadDays]) : "—"} · {s.paymentTermDays != null ? fill(t("{0} يوم سداد"), [s.paymentTermDays]) : "—"}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -303,7 +304,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             <CardHeader>
               <div className="flex w-full flex-wrap items-start justify-between gap-3">
                 <div>
-                  <CardTitle>عرض {c.suppliers.find((s) => s.id === quoting)?.supplierName}</CardTitle>
+                  <CardTitle>{fill(t("عرض {0}"), [c.suppliers.find((s) => s.id === quoting)?.supplierName])}</CardTitle>
                   <CardDescription>{t("اكتب السعر لكل صنف. سيبه فاضي لو المورّد مسعّرش الصنف ده.")}</CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -436,7 +437,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
             </Table>
           </div>
           <Button size="sm" variant="outline" onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, { itemId: "", quantity: 1 }] }))}>
-            <Icon name="Plus" className="size-4" />صنف
+            <Icon name="Plus" className="size-4" />{t("صنف")}
           </Button>
         </CardContent>
       </Card>
@@ -450,7 +451,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>{t("طلبات عروض الأسعار")}</CardTitle>
-            <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} طلب`}</CardDescription>
+            <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} طلب"), [rows.length])}</CardDescription>
           </div>
           {canManage && (
             <Button size="sm" onClick={() => setCreating(true)}><Icon name="Plus" className="size-4" />{t("طلب جديد")}</Button>

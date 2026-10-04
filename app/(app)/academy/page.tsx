@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { listLessons, moduleCards, progress, requireAcademyAccess } from "@/lib/erp/academy";
@@ -92,10 +93,10 @@ export default async function AcademyPage() {
               <div className="mt-1 text-sm text-muted-foreground">
                 {empty
                   ? t("لا توجد دروس بعد")
-                  : `${intf(c.videos.live)} فيديو · ${intf(c.docs.live)} دليل`}
+                  : fill(t("{0} فيديو · {1} دليل"), [intf(c.videos.live), intf(c.docs.live)])}
               </div>
               {!empty && c.soon > 0 && (
-                <div className="mt-0.5 text-xs text-muted-foreground/70">{intf(c.soon)} قريباً</div>
+                <div className="mt-0.5 text-xs text-muted-foreground/70">{intf(c.soon)} {t("قريباً")}</div>
               )}
             </Link>
           );

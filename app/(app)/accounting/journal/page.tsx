@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -108,7 +109,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ErpPageHeader
           icon="BookText"
           title={t("القيود اليومية")}
-          subtitle={`${num(total)} قيد`}
+          subtitle={fill(t("{0} قيد"), [num(total)])}
           action={
             <div className="flex gap-2">
               {total > 0 && (
@@ -195,7 +196,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                 <JournalTable rows={rows} canPost={can("accounting.post")} canCreate={can("accounting.create")} total={total} filter={{ q, status, source, from, to }} />
 
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {num(page)} من {num(pages)} · {num(total)} قيد</span>
+                  <span>{t("صفحة")} {num(page)} {t("من")} {num(pages)} · {num(total)} {t("قيد")}</span>
                   <div className="flex gap-2">
                     <Button asChild variant="outline" size="sm" disabled={page <= 1} className={page <= 1 ? "pointer-events-none opacity-50" : ""}>
                       <Link href={pageHref(page - 1)}><Icon name="ChevronRight" className="size-4" />{t("السابق")}</Link>

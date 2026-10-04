@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import type { T } from "@/lib/i18n";
 import { toast } from "@/lib/i18n/toast";
@@ -41,11 +42,11 @@ const blank = {
 /** How the rule reads in one line — the shop owner should not have to decode the columns. */
 function describe(p: Promotion, t: T): string {
   const on = p.itemId ? t("على الصنف") : t("على الفاتورة كلها");
-  const min = p.minAmount > 0 ? ` فوق ${money(p.minAmount)}` : p.minQuantity > 0 ? ` من ${p.minQuantity} قطعة` : "";
+  const min = p.minAmount > 0 ? fill(t(" فوق {0}"), [money(p.minAmount)]) : p.minQuantity > 0 ? fill(t(" من {0} قطعة"), [p.minQuantity]) : "";
   switch (p.type) {
-    case "PERCENT": return `خصم ${p.value}٪ ${on}${min}`;
-    case "AMOUNT": return `خصم ${money(p.value)} ${p.itemId ? t("لكل قطعة") : t("على الفاتورة")}${min}`;
-    case "BUY_X_GET_Y": return `اشترِ ${p.buyQty} تاخد ${p.getQty} ببلاش`;
+    case "PERCENT": return fill(t("خصم {0}٪ {1}{2}"), [p.value, on, min]);
+    case "AMOUNT": return fill(t("خصم {0} {1}{2}"), [money(p.value), p.itemId ? t("لكل قطعة") : t("على الفاتورة"), min]);
+    case "BUY_X_GET_Y": return fill(t("اشترِ {0} تاخد {1} ببلاش"), [p.buyQty, p.getQty]);
   }
 }
 
@@ -86,7 +87,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
     void (async () => {
       const go = await confirm({
         danger: true,
-        title: `تمسح «${row.nameAr}»؟`,
+        title: fill(t("تمسح «{0}»؟"), [row.nameAr]),
         description: "الفواتير اللي اتخصمت بالعرض ده مش هتتغيّر — الخصم اتسجّل عليها خلاص. المسح بيوقف العرض على البيع الجاي بس.",
         confirmText: "امسح", cancelText: "رجوع",
       });
@@ -125,7 +126,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setForm({ ...blank })}>
-                <Icon name="Plus" className="size-4" />عرض جديد
+                <Icon name="Plus" className="size-4" />{t("عرض جديد")}
               </Button>
             )}
           </div>
@@ -194,7 +195,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                   {t("مفعّل")}
                 </label>
                 <Button onClick={save} disabled={pending || !form.nameAr.trim()}>
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
                 <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
@@ -280,7 +281,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                 disabled={!canEditSettings} onChange={(e) => setProg((p) => ({ ...p, minRedeem: e.target.value }))} /></div>
             {canEditSettings && (
               <Button onClick={saveProgram} disabled={pending}>
-                <Icon name="Check" className="size-4" />احفظ
+                <Icon name="Check" className="size-4" />{t("احفظ")}
               </Button>
             )}
           </div>

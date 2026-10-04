@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -50,10 +51,10 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
     const ids = [...sel];
     if (ids.length === 0) return;
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${int(ids.length)} مرتجع`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} مرتجع"), [verb, int(ids.length)]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkSalesReturnsAction(op, ids);
-        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} مرتجع`); setSel(new Set()); router.refresh(); }
+        if (r.ok) { toast.success(fill(t("تم {0} {1} مرتجع"), [verb, int(r.count ?? 0)])); setSel(new Set()); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -63,7 +64,7 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
     <div className="space-y-3">
       {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{int(sel.size)} محدّد</span>
+          <span className="font-medium">{int(sel.size)} {t("محدّد")}</span>
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setSel(new Set())}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
             {canConfirm && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")} title={t("يرحّل كل مرتجع محدّد حسب حالته (التالف لا يرجع مخزون قابل للبيع)")}><Icon name="Check" className="size-4" />{t("تأكيد المحدّد")}</Button>}
@@ -89,7 +90,7 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.id}>
-                {canAct && <TableCell>{r.status === "DRAFT" && <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={`تحديد ${r.number}`} />}</TableCell>}
+                {canAct && <TableCell>{r.status === "DRAFT" && <Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={fill(t("تحديد {0}"), [r.number])} />}</TableCell>}
                 <TableCell>
                   <Link href={`/sales/returns/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
                   {r.externalReturnId && <div className="font-mono text-[10px] text-muted-foreground">{r.externalReturnId}</div>}

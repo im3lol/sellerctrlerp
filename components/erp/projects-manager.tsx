@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { useRouter } from "next/navigation";
@@ -94,7 +95,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setForm({ ...blank })}>
-                <Icon name="Plus" className="size-4" />مشروع جديد
+                <Icon name="Plus" className="size-4" />{t("مشروع جديد")}
               </Button>
             )}
           </div>
@@ -165,7 +166,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                     if (r.ok) { setForm(null); if (r.id) setOpen(r.id); }
                     return r;
                   }, "اتحفظ")}>
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
                 <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
@@ -202,7 +203,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell className="tabular-nums">{money(r.budget)}</TableCell>
                       <TableCell className={`tabular-nums ${r.overBudget ? "font-bold text-destructive" : ""}`}>{money(r.spent)}</TableCell>
                       <TableCell className="tabular-nums">{money(r.invoiced)}</TableCell>
-                      <TableCell className="tabular-nums">{r.progress}٪</TableCell>
+                      <TableCell className="tabular-nums">{r.progress}{t("٪")}</TableCell>
                       <TableCell className="text-sm">
                         <Badge variant="outline">{t(PROJECT_STATUS_LABEL[r.status])}</Badge>
                         <div className={`mt-1 text-xs ${r.overBudget || r.headingOver ? "text-destructive" : "text-muted-foreground"}`}>
@@ -236,7 +237,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <Card><CardContent className="pt-6">
               <div className="text-sm text-muted-foreground">{t("ساعات العمل")}</div>
               <div className="text-2xl font-bold tabular-nums">{num(labor.hours)}</div>
-              <div className="text-xs text-muted-foreground">بتكلفة {money(labor.cost)}</div>
+              <div className="text-xs text-muted-foreground">{t("بتكلفة")} {money(labor.cost)}</div>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
               <div className="text-sm text-muted-foreground">{t("جاهز للفوترة")}</div>
@@ -246,12 +247,13 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   onClick={() => void (async () => {
                     const go = await confirm({
                       title: "تعمل فاتورة للمشروع؟",
-                      description: `${bill.lines.map((l) => `${t(l.label)}: ${money(l.amount)}`).join("\n")}\n\nالإجمالي ${money(bill.total)}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني.`,
+                      description: `${bill.lines.map((l) => `${t(l.label)}: ${money(l.amount)}`).join("\n")}`
+                        + "\n\n" + fill(t("الإجمالي {0}. المراحل والساعات دي هتتعلّم كـ«اتفوترت» ومش هتتفوتر تاني."), [money(bill.total)]),
                       confirmText: "اعمل الفاتورة", cancelText: "رجوع",
                     });
                     if (go) run(() => billProjectAction(project.id), "اتعملت الفاتورة");
                   })()}>
-                  <Icon name="ReceiptText" className="size-4" />افوتر
+                  <Icon name="ReceiptText" className="size-4" />{t("افوتر")}
                 </Button>
               )}
               {!project.customerId && bill.total > 0 && (
@@ -264,14 +266,14 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <CardHeader>
               <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle>مراحل {project.nameAr}</CardTitle>
+                  <CardTitle>{t("مراحل")} {project.nameAr}</CardTitle>
                   <CardDescription>
                     التقدّم بيتوزّن بقيمة المرحلة مش بعددها — التقدّم دلوقتي {projectProgress(myPhases)}٪.
                   </CardDescription>
                 </div>
                 {canManage && (
                   <Button size="sm" onClick={() => setPhaseForm({ projectId: project.id, nameAr: "", status: "PENDING", budget: "", billAmount: "", plannedEnd: "" })}>
-                    <Icon name="Plus" className="size-4" />مرحلة
+                    <Icon name="Plus" className="size-4" />{t("مرحلة")}
                   </Button>
                 )}
               </div>
@@ -309,7 +311,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       if (r.ok) setPhaseForm(null);
                       return r;
                     }, "اتحفظت")}>
-                    <Icon name="Check" className="size-4" />احفظ
+                    <Icon name="Check" className="size-4" />{t("احفظ")}
                   </Button>
                   <Button variant="ghost" onClick={() => setPhaseForm(null)}>{t("رجوع")}</Button>
                 </div>
@@ -342,7 +344,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                           <TableCell className="tabular-nums">{money(p.budget)}</TableCell>
                           <TableCell className="tabular-nums">
                             {p.billAmount === 0 ? <span className="text-xs text-muted-foreground">{t("مش مرحلة فوترة")}</span>
-                              : p.invoicedAt ? <span className="text-xs text-emerald-600">اتفوترت — {money(p.billAmount)}</span>
+                              : p.invoicedAt ? <span className="text-xs text-emerald-600">{t("اتفوترت —")} {money(p.billAmount)}</span>
                               : money(p.billAmount)}
                           </TableCell>
                           <TableCell>
@@ -381,7 +383,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   {canManage && (
                     <Button size="sm" variant="outline"
                       onClick={() => setTaskForm({ projectId: project.id, phaseId: "", nameAr: "", assignedTo: "", status: "PENDING", plannedHours: "", dueDate: "" })}>
-                      <Icon name="Plus" className="size-4" />مهمة
+                      <Icon name="Plus" className="size-4" />{t("مهمة")}
                     </Button>
                   )}
                 </div>
@@ -434,7 +436,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                     <div>
                       <div className="font-medium">{task.nameAr}</div>
                       <div className="text-xs text-muted-foreground">
-                        {task.assignedName ?? t("مش متكلّف حد")}{task.plannedHours > 0 && ` · ${num(task.plannedHours)} ساعة`}{task.dueDate && ` · ${task.dueDate}`}
+                        {task.assignedName ?? t("مش متكلّف حد")}{task.plannedHours > 0 && fill(t(" · {0} ساعة"), [num(task.plannedHours)])}{task.dueDate && ` · ${task.dueDate}`}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -462,7 +464,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   {canManage && (
                     <Button size="sm" variant="outline"
                       onClick={() => setSheetForm({ projectId: project.id, taskId: "", employeeId: "", workDate: today(), hours: "", costRate: "", billRate: String(project.defaultBillRate || ""), billable: true })}>
-                      <Icon name="Plus" className="size-4" />ساعات
+                      <Icon name="Plus" className="size-4" />{t("ساعات")}
                     </Button>
                   )}
                 </div>
@@ -564,11 +566,11 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                 budget: String(project.budget), defaultBillRate: String(project.defaultBillRate),
                 costCenterId: "",
               })}>
-                <Icon name="Edit" className="size-4" />عدّل المشروع
+                <Icon name="Edit" className="size-4" />{t("عدّل المشروع")}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => void (async () => {
                 const go = await confirm({
-                  danger: true, title: `تمسح «${project.nameAr}»؟`,
+                  danger: true, title: fill(t("تمسح «{0}»؟"), [project.nameAr]),
                   description: "لو عليه مصروفات أو فواتير أو ساعات، المسح هيترفض — غيّر حالته لملغي بدل كده.",
                   confirmText: "امسح", cancelText: "رجوع",
                 });
@@ -578,7 +580,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                   return r;
                 }, "اتمسح");
               })()}>
-                <Icon name="Trash2" className="size-4 text-destructive" />امسح
+                <Icon name="Trash2" className="size-4 text-destructive" />{t("امسح")}
               </Button>
             </div>
           )}

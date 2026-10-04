@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { getT } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
@@ -18,6 +19,7 @@ export default async function IncomeStatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
@@ -63,7 +65,7 @@ export default async function IncomeStatementPage({
     const monthlyNet = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
+      return { label: d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
     });
 
     const query = new URLSearchParams({ from, to }).toString();
@@ -73,7 +75,7 @@ export default async function IncomeStatementPage({
         reportKey="income-statement"
         icon="TrendingUp"
         title={t("قائمة الدخل")}
-        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        subtitle={fill(t("من {0} إلى {1} — من القيود المُرحّلة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={
@@ -98,20 +100,20 @@ export default async function IncomeStatementPage({
           <Card>
             <CardHeader>
               <CardTitle>{t("الإيرادات")}</CardTitle>
-              <CardDescription>إجمالي {fmt(totalRevenue)}</CardDescription>
+              <CardDescription>{t("إجمالي")} {fmt(totalRevenue)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StatementTable rows={revenue} empty="لا توجد إيرادات في الفترة." totalLabel="إجمالي الإيرادات" total={totalRevenue} />
+              <StatementTable rows={revenue} empty={t("لا توجد إيرادات في الفترة.")} totalLabel={t("إجمالي الإيرادات")} total={totalRevenue} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle>{t("المصروفات")}</CardTitle>
-              <CardDescription>إجمالي {fmt(totalExpense)}</CardDescription>
+              <CardDescription>{t("إجمالي")} {fmt(totalExpense)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StatementTable rows={expense} empty="لا توجد مصروفات في الفترة." totalLabel="إجمالي المصروفات" total={totalExpense} />
+              <StatementTable rows={expense} empty={t("لا توجد مصروفات في الفترة.")} totalLabel={t("إجمالي المصروفات")} total={totalExpense} />
             </CardContent>
           </Card>
         </div>

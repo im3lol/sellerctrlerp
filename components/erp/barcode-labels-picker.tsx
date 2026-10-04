@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Trash2, Printer, Loader2 } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
@@ -52,7 +53,7 @@ export function BarcodeLabelsPicker() {
     try {
       const jobs = valid.flatMap((r) => Array.from({ length: r.qty }, () => ({ itemName: r.label, value: r.codes[r.sel].value })));
       await qzPrint(printer, jobs);
-      toast.success(`أُرسل ${jobs.length} ملصق للطابعة`);
+      toast.success(fill(t("أُرسل {0} ملصق للطابعة"), [jobs.length]));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
     } finally { setBusy(false); }
@@ -100,7 +101,7 @@ export function BarcodeLabelsPicker() {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{rows.length ? `${total} ملصق` : "لم تُضف أصناف بعد"}</span>
+          <span className="text-sm text-muted-foreground">{rows.length ? fill(t("{0} ملصق"), [total]) : t("لم تُضف أصناف بعد")}</span>
           <Button onClick={print} disabled={!rows.length || busy || qzOk !== true}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة الملصقات
           </Button>

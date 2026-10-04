@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -19,7 +20,7 @@ export function AuditAdjustmentButton() {
       onClick={() => start(async () => {
         const r = await createAdjustmentFromAuditAction();
         if (r.ok && r.id) {
-          toast.success(`تم إنشاء مسودة تسوية (${r.count} صنف) — راجعها ثم رحّلها`);
+          toast.success(fill(t("تم إنشاء مسودة تسوية ({0} صنف) — راجعها ثم رحّلها"), [r.count]));
           router.push(`/inventory/adjustments/${encodeURIComponent(r.number!)}`);
         } else toast.error(r.error ?? t("تعذّر إنشاء التسوية"));
       })}>

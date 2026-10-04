@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -76,7 +77,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         limit: Number(gen.limit) || 25,
       });
       if (!r.ok) { toast.error(r.error ?? t("تعذّر الإنشاء")); return; }
-      toast.success(`ورقة ${r.number} — ${r.count} صنف`);
+      toast.success(fill(t("ورقة {0} — {1} صنف"), [r.number, r.count]));
       load();
       if (r.id) openSession(r.id);
     });
@@ -109,21 +110,21 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       const s = countSummary(shaped);
       const go = await confirm({
         danger: true,
-        title: `ترحيل جرد ${open.session.number}؟`,
-        description: `هيتعمل تسوية مخزون بـ${s.counted - s.matched} فرق، صافي أثرها ${money(s.netValue)} ج.م — وده بيتقيّد في الدفاتر.`,
+        title: fill(t("ترحيل جرد {0}؟"), [open.session.number]),
+        description: fill(t("هيتعمل تسوية مخزون بـ{0} فرق، صافي أثرها {1} ج.م — وده بيتقيّد في الدفاتر."), [s.counted - s.matched, money(s.netValue)]),
         confirmText: "رحّل التسوية", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await postCountAction(open.session.id);
-        if (r.ok) { toast.success(`تم الترحيل عبر تسوية ${r.adjustmentNumber ?? ""}`); setOpen(null); load(); }
+        if (r.ok) { toast.success(fill(t("تم الترحيل عبر تسوية {0}"), [r.adjustmentNumber ?? ""])); setOpen(null); load(); }
         else toast.error(r.error ?? t("تعذّر الترحيل"));
       });
     })();
 
   const cancel = (row: ListRow) =>
     void (async () => {
-      const go = await confirm({ danger: true, title: `إلغاء ${row.number}؟`, description: "الورقة هتتقفل من غير تسوية.", confirmText: "ألغِ", cancelText: "رجوع" });
+      const go = await confirm({ danger: true, title: fill(t("إلغاء {0}؟"), [row.number]), description: "الورقة هتتقفل من غير تسوية.", confirmText: "ألغِ", cancelText: "رجوع" });
       if (!go) return;
       start(async () => {
         const r = await cancelCountAction(row.id);
@@ -154,12 +155,12 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                 <Badge variant={STATUS[open.session.status]?.tone ?? "outline"}>{STATUS[open.session.status]?.label ?? open.session.status}</Badge>
                 {canManage && editable && (
                   <Button size="sm" variant="outline" onClick={saveCounts} disabled={pending}>
-                    <Icon name="Check" className="size-4" />احفظ العدّ
+                    <Icon name="Check" className="size-4" />{t("احفظ العدّ")}
                   </Button>
                 )}
                 {mayPost && editable && (
                   <Button size="sm" onClick={post} disabled={pending}>
-                    <Icon name="Upload" className="size-4" />رحّل الفروق
+                    <Icon name="Upload" className="size-4" />{t("رحّل الفروق")}
                   </Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("رجوع")}</Button>
@@ -274,7 +275,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       <Card>
         <CardHeader>
           <CardTitle>{t("الجرد الدوري")}</CardTitle>
-          <CardDescription>{loading ? t("جارٍ التحميل…") : `${rows.length} ورقة`}</CardDescription>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} ورقة"), [rows.length])}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (

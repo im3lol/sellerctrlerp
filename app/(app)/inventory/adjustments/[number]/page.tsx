@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -106,7 +107,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardCheck"
-          title={`تسوية مخزون ${adj.number}`}
+          title={fill(t("تسوية مخزون {0}"), [adj.number])}
           subtitle={adj.reason}
           backHref="/inventory/adjustments"
           action={

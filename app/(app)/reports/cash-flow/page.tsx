@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { getCashFlow } from "@/lib/erp/cashflow";
@@ -34,7 +35,7 @@ export default async function CashFlowPage({
         reportKey="cash-flow"
         icon="ArrowLeftRight"
         title={t("التدفق النقدي")}
-        subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
+        subtitle={fill(t("من {0} إلى {1} — الطريقة غير المباشرة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={
@@ -107,7 +108,7 @@ export default async function CashFlowPage({
   });
 }
 
-function CashSection({
+async function CashSection({
   title,
   total,
   children,
@@ -116,6 +117,7 @@ function CashSection({
   total: number;
   children: React.ReactNode;
 }) {
+  const t = await getT();
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -124,7 +126,7 @@ function CashSection({
       <CardContent className="space-y-1">
         {children}
         <div className="mt-3 flex justify-between border-t pt-2 font-semibold">
-          <span>صافي {title}</span>
+          <span>{t("صافي")} {title}</span>
           <span className={`tabular-nums ${total >= 0 ? "text-emerald-600" : "text-destructive"}`}>
             {total >= 0 ? "+" : ""}{(total < 0 ? "(" + `${(-total).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}` + ")" : total.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }))}
           </span>

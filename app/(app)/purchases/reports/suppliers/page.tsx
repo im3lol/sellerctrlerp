@@ -68,7 +68,7 @@ export default async function SupplierRankingPage({ searchParams }: { searchPara
         <Card>
           <CardHeader>
             <CardTitle>{t("الموردون حسب المشتريات")}</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — المشتريات صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.</CardDescription>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— المشتريات صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (

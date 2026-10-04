@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -74,8 +75,8 @@ export default async function GrniReconciliationPage() {
               <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {grniAccount
-                  ? `حساب ${grniAccount.code} — ${grniAccount.nameAr}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد.`
-                  : "لم يُضبط حساب «بضاعة لم تُفوتر» (2103) في دليل الحسابات."}
+                  ? fill(t("حساب {0} — {1}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد."), [grniAccount.code, grniAccount.nameAr])
+                  : t("لم يُضبط حساب «بضاعة لم تُفوتر» (2103) في دليل الحسابات.")}
               </CardDescription>
             </div>
             <Badge variant={matched ? "default" : "destructive"} className="text-sm">{matched ? t("مطابَق") : t("غير مطابَق")}</Badge>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,8 +48,8 @@ export function AmazonImport() {
       fd.append("file", file);
       const r = await runAmazonImportAction(fd);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم: ${r.created} أمر جديد، ${r.fulfilled} دورة كاملة (صرف+فاتورة)، ${r.transitioned} حالة محدّثة`);
-      if (r.stockBlocked.length) toast.warning(`${r.stockBlocked.length} طلب محظور لنقص مخزون — راجع التقرير`, { duration: 8000 });
+      toast.success(fill(t("تم: {0} أمر جديد، {1} دورة كاملة (صرف+فاتورة)، {2} حالة محدّثة"), [r.created, r.fulfilled, r.transitioned]));
+      if (r.stockBlocked.length) toast.warning(fill(t("{0} طلب محظور لنقص مخزون — راجع التقرير"), [r.stockBlocked.length]), { duration: 8000 });
       setPreview(null); setResult(r); router.refresh();
     });
   };
@@ -87,11 +88,11 @@ export function AmazonImport() {
 
           {preview && (
             <div className="flex flex-wrap gap-2 text-sm">
-              <Badge className="bg-emerald-600">سيُنشأ: {preview.toCreate.length}</Badge>
-              {preview.transitions.length > 0 && <Badge className="bg-sky-600">تحديث حالة (معلّق→مكتمل): {preview.transitions.length}</Badge>}
-              <Badge variant="secondary">مكرّر (مستورد سابقاً): {preview.duplicates.length}</Badge>
-              <Badge variant="destructive">محظور (صنف غير مربوط): {preview.blocked.length}</Badge>
-              <Badge variant="outline">ملغاة متجاهَلة: {preview.cancelledCount}</Badge>
+              <Badge className="bg-emerald-600">{t("سيُنشأ:")} {preview.toCreate.length}</Badge>
+              {preview.transitions.length > 0 && <Badge className="bg-sky-600">{t("تحديث حالة (معلّق→مكتمل):")} {preview.transitions.length}</Badge>}
+              <Badge variant="secondary">{t("مكرّر (مستورد سابقاً):")} {preview.duplicates.length}</Badge>
+              <Badge variant="destructive">{t("محظور (صنف غير مربوط):")} {preview.blocked.length}</Badge>
+              <Badge variant="outline">{t("ملغاة متجاهَلة:")} {preview.cancelledCount}</Badge>
             </div>
           )}
         </CardContent>
@@ -102,15 +103,15 @@ export function AmazonImport() {
           <CardHeader><CardTitle className="text-base">{t("نتيجة الاستيراد")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2 text-sm">
-              <Badge className="bg-emerald-600">أوامر جديدة: {result.created}</Badge>
-              <Badge className="bg-sky-600">دورة كاملة (صرف+فاتورة): {result.fulfilled}</Badge>
-              <Badge variant="secondary">حالة محدّثة: {result.transitioned}</Badge>
-              <Badge variant="outline">مكرّر: {result.skippedDuplicate}</Badge>
-              {result.failed > 0 && <Badge variant="destructive">فشل: {result.failed}</Badge>}
+              <Badge className="bg-emerald-600">{t("أوامر جديدة:")} {result.created}</Badge>
+              <Badge className="bg-sky-600">{t("دورة كاملة (صرف+فاتورة):")} {result.fulfilled}</Badge>
+              <Badge variant="secondary">{t("حالة محدّثة:")} {result.transitioned}</Badge>
+              <Badge variant="outline">{t("مكرّر:")} {result.skippedDuplicate}</Badge>
+              {result.failed > 0 && <Badge variant="destructive">{t("فشل:")} {result.failed}</Badge>}
             </div>
             {result.stockBlocked.length > 0 && (
               <div className="rounded-lg border border-amber-400/50 bg-amber-50/50 p-3">
-                <p className="mb-2 text-sm font-medium text-amber-700">طلبات محظورة لنقص مخزون ({result.stockBlocked.length}) — أُنشئت كأوامر مؤكّدة بلا صرف؛ وفّر المخزون ثم أعد الرفع:</p>
+                <p className="mb-2 text-sm font-medium text-amber-700">{t("طلبات محظورة لنقص مخزون (")}{result.stockBlocked.length}{t(") — أُنشئت كأوامر مؤكّدة بلا صرف؛ وفّر المخزون ثم أعد الرفع:")}</p>
                 <ul className="space-y-1 text-xs">
                   {result.stockBlocked.slice(0, 50).map((b) => (
                     <li key={b.externalId} className="flex gap-2"><span className="font-mono" dir="ltr">{b.externalId}</span><span className="text-muted-foreground">— {b.reason}</span></li>
@@ -125,7 +126,7 @@ export function AmazonImport() {
       {preview && preview.unmatched.length > 0 && (
         <Card className="border-destructive/40">
           <CardHeader>
-            <CardTitle className="text-base text-destructive">أصناف غير مربوطة ({preview.unmatched.length})</CardTitle>
+            <CardTitle className="text-base text-destructive">{t("أصناف غير مربوطة (")}{preview.unmatched.length})</CardTitle>
             <CardDescription>
               {t("هذه الأكواد (SKU) غير مرتبطة بأي صنف في النظام، فطلباتها لن تُستورد. اربط الأكواد بالأصناف دفعة واحدة من الأداة أدناه، ثم أعد رفع الملف.")}
             </CardDescription>
@@ -163,7 +164,7 @@ export function AmazonImport() {
       {preview && preview.toCreate.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">طلبات ستُنشأ ({preview.toCreate.length})</CardTitle>
+            <CardTitle className="text-base">{t("طلبات ستُنشأ (")}{preview.toCreate.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -189,7 +190,7 @@ export function AmazonImport() {
               </TableBody>
             </Table>
             {preview.toCreate.length > 100 && (
-              <p className="mt-2 text-xs text-muted-foreground">تُعرض أول 100 طلب فقط — سيُستورد الكل ({preview.toCreate.length}).</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("تُعرض أول 100 طلب فقط — سيُستورد الكل (")}{preview.toCreate.length}).</p>
             )}
           </CardContent>
         </Card>

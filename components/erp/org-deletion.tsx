@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -38,17 +39,17 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
       <CardContent>
         {dueAt ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-destructive">الشركة هتتمسح يوم {day(dueAt)}.</p>
+            <p className="text-sm font-medium text-destructive">{t("الشركة هتتمسح يوم")} {day(dueAt)}.</p>
             <Button variant="outline" disabled={pending} onClick={() => run(cancelOrgDeletionAction, "اتلغى طلب الحذف")}>{t("إلغاء طلب الحذف")}</Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-64 flex-1 space-y-2">
-              <Label htmlFor="del-name">اكتب اسم الشركة «{orgName}» للتأكيد</Label>
+              <Label htmlFor="del-name">{t("اكتب اسم الشركة «")}{orgName}{t("» للتأكيد")}</Label>
               <Input id="del-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
             </div>
             <Button variant="destructive" disabled={pending || name.trim() !== orgName.trim()}
-              onClick={() => run(() => requestOrgDeletionAction(name), `الشركة هتتمسح بعد ${graceDays} يوم`)}>
+              onClick={() => run(() => requestOrgDeletionAction(name), fill(t("الشركة هتتمسح بعد {0} يوم"), [graceDays]))}>
               {t("اطلب حذف الشركة")}
             </Button>
           </div>

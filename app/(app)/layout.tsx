@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { getActiveOrg } from "@/lib/erp/org";
@@ -85,7 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         {orgRow?.deletion && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive md:px-6">
-            <span>الشركة دي هتتمسح نهائيًا يوم {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
+            <span>{t("الشركة دي هتتمسح نهائيًا يوم")} {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
             <Link href="/settings/organization" className="underline">{t("إلغاء الطلب")}</Link>
           </div>
         )}
@@ -94,7 +95,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">
             <span className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
               <Icon name="ShieldAlert" className="size-4" />
-              وضع الدعم — أنت داخل «{activeOrg.org.nameAr}» كمشرف المنصّة
+              {fill(t("وضع الدعم — أنت داخل «{0}» كمشرف المنصّة"), [activeOrg.org.nameAr])}
             </span>
             <form action={exitImpersonationAction}>
               <button type="submit" className="shrink-0 rounded-md border border-amber-500/50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400">

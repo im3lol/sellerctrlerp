@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -76,7 +77,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
       <div className="space-y-6">
         <ErpPageHeader
           icon="ArrowLeftRight"
-          title={`تحويل مخزني ${tr.number}`}
+          title={fill(t("تحويل مخزني {0}"), [tr.number])}
           subtitle={tr.notes ?? t("نقل بين المستودعات")}
           backHref="/inventory/transfers"
           action={

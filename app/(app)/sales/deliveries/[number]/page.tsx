@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -91,7 +92,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
       <div className="space-y-6">
         <ErpPageHeader
           icon="Truck"
-          title={`إذن صرف ${dn.number}`}
+          title={fill(t("إذن صرف {0}"), [dn.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
           backHref="/sales/deliveries"
           action={
@@ -134,7 +135,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
                 ))} />
               </TableBody>
             </Table>
-            {dn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {dn.notes}</p>}
+            {dn.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {dn.notes}</p>}
           </CardContent>
         </Card>
 

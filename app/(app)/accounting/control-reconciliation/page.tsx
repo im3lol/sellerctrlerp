@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -29,7 +30,7 @@ export default async function ControlReconciliationPage() {
     const glValue = (code: string) => {
       const id = codeMap[code];
       const acc = id ? balances.find((b) => b.id === id) : undefined;
-      return acc ? { value: naturalAmount(acc), label: `${acc.code} — ${acc.nameAr}` } : { value: 0, label: `${code} (غير مضبوط)` };
+      return acc ? { value: naturalAmount(acc), label: `${acc.code} — ${acc.nameAr}` } : { value: 0, label: fill(t("{0} (غير مضبوط)"), [code]) };
     };
 
     const rows = [

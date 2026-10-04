@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -64,7 +65,7 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
       <div className="space-y-6">
         <ErpPageHeader
           icon="Ship"
-          title={`تكاليف استيراد ${v.number}`}
+          title={fill(t("تكاليف استيراد {0}"), [v.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "مستند تكاليف"}
           backHref="/purchases/landed-costs"
           action={<LandedCostDetailActions id={v.id} status={v.status} canManage={can("purchases.create")} canPost={can("purchases.confirm")} />}
@@ -74,7 +75,7 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
           <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
           <Field label={t("التاريخ")}>{dt(v.date)}</Field>
           <Field label={t("طريقة التوزيع")}>{t(METHOD[v.method] ?? v.method)}</Field>
-          <Field label={t("الإجمالي")}>{fmt(v.totalAmount)} ج.م</Field>
+          <Field label={t("الإجمالي")}>{fmt(v.totalAmount)} {t("ج.م")}</Field>
           <Field label={t("الشحن")}>{fmt(v.shipping)}</Field>
           <Field label={t("الجمارك")}>{fmt(v.customs)}</Field>
           <Field label={t("التأمين")}>{fmt(v.insurance)}</Field>
@@ -114,7 +115,7 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
                 ))} />
               </TableBody>
             </Table>
-            {v.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {v.notes}</p>}
+            {v.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {v.notes}</p>}
           </CardContent>
         </Card>
 

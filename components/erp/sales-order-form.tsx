@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -181,7 +182,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       const r = isEdit ? await updateSalesOrderAction(initial!.id, body) : await createSalesOrderAction(body);
       if (r.ok) {
         toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ أمر البيع (مسودة) — أكّده"));
-        if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
+        if (r.warning) toast.warning(fill(t("تنبيه مخزون: {0}"), [r.warning]), { duration: 8000 });
         router.push(r.number ? `/sales/orders/${encodeURIComponent(r.number)}` : "/sales/orders"); router.refresh();
       }
       else toast.error(r.error ?? t("تعذّر الحفظ"));
@@ -217,7 +218,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
               }}
               placeholder={t("ابحث عن العميل…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
-              createLabel="إضافة عميل"
+              createLabel={t("إضافة عميل")}
             />
             <QuickCreateParty
               kind="customer"
@@ -233,7 +234,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
-              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+              {vatRate > 0 ? fill(t("إضافة ض.ق.م ({0}%)"), [qtyf(vatRate)]) : t("لا توجد نسبة ضريبة مضبوطة")}
             </label>
           </div>
         </div>
@@ -247,7 +248,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           {channel !== "MANUAL" && (
             <>
               <div className="space-y-2">
-                <Label>رقم الطلب ({CHANNELS.find(([k]) => k === channel)?.[1]})</Label>
+                <Label>{t("رقم الطلب (")}{CHANNELS.find(([k]) => k === channel)?.[1]})</Label>
                 <Input value={externalOrderId} onChange={(e) => setExternalOrderId(e.target.value)} placeholder={t("مثال: 407-...")} dir="ltr" />
               </div>
               <div className="space-y-2">
@@ -335,7 +336,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
             {(Number(shippingAmount) || 0) > 0 && <div>{t("الشحن:")} <span className="font-medium">{fmt(Number(shippingAmount) || 0)}</span></div>}
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+            <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)}</div>
           </div>
         </div>
       </CardContent>

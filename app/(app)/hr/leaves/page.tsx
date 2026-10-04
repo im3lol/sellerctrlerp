@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -21,7 +22,7 @@ export default async function LeaveRequestsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarDays" title={t("إجازات الموظفين")} subtitle={`${rows.length} طلب`} backHref="/hr"
+        <ErpPageHeader icon="CalendarDays" title={t("إجازات الموظفين")} subtitle={fill(t("{0} طلب"), [rows.length])} backHref="/hr"
           action={
             <div className="flex gap-2">
               <Button asChild variant="outline"><Link href="/hr/leaves/report"><Icon name="BarChart3" className="size-4" />{t("التقرير")}</Link></Button>

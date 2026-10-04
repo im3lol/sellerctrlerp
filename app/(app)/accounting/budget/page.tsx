@@ -36,7 +36,7 @@ export default async function BudgetIndexPage() {
           action={
             <Button asChild>
               <Link href={`/accounting/budget/${currentYear}`}>
-                <Icon name="Plus" className="size-4" />ميزانية {currentYear}
+                <Icon name="Plus" className="size-4" />{t("ميزانية")} {currentYear}
               </Link>
             </Button>
           }
@@ -59,7 +59,7 @@ export default async function BudgetIndexPage() {
                 <CardContent className="p-5">
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-2xl font-bold tabular-nums">{y.year}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{y.count} حساب</span>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{y.count} {t("حساب")}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{t("إجمالي الميزانية")}</p>
                   <p className="text-xl font-semibold tabular-nums">{fmt(Number(y.total))}</p>

@@ -1,4 +1,5 @@
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -70,7 +71,7 @@ export default async function ErpSalesPage() {
     };
 
     const kpis = [
-      { label: `مبيعات ${new Date().getUTCFullYear()}`, value: ranked.total, icon: "ShoppingCart", tone: "text-foreground" },
+      { label: fill(t("مبيعات {0}"), [new Date().getUTCFullYear()]), value: ranked.total, icon: "ShoppingCart", tone: "text-foreground" },
       { label: "الذمم المدينة (عملاء)", value: ar, icon: "Users", tone: "text-foreground" },
       { label: "عدد العملاء", value: cnt(custCount), icon: "Users", tone: "text-foreground", int: true },
       { label: "أوامر بيع مفتوحة", value: cnt(soOpen), icon: "ClipboardList", tone: "text-foreground", int: true },
@@ -103,7 +104,7 @@ export default async function ErpSalesPage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>{t("أكبر العملاء")}</CardTitle>
-              <CardDescription>صافي المبيعات (بدون ضريبة) من الفواتير المُرحّلة — {ranked.from} → {ranked.to}.</CardDescription>
+              <CardDescription>{t("صافي المبيعات (بدون ضريبة) من الفواتير المُرحّلة —")} {ranked.from} → {ranked.to}.</CardDescription>
             </CardHeader>
             <CardContent>
               {top.length === 0 ? (
@@ -114,7 +115,7 @@ export default async function ErpSalesPage() {
                     <div key={r.code} className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span>{r.name}</span>
-                        <span className="tabular-nums text-muted-foreground">{money(r.amount)} · {intf(r.count)} فاتورة</span>
+                        <span className="tabular-nums text-muted-foreground">{money(r.amount)} · {intf(r.count)} {t("فاتورة")}</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((r.amount / max) * 100, 2)}%` }} />

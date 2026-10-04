@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
       ? await bulkDeleteItemsAction({ all: filter })
       : await bulkDeleteItemsAction({ ids: [...sel] });
     if (!r.ok) { toast.error(r.error); return; }
-    toast.success(`تم حذف ${int(r.deleted)} صنف${r.blocked ? ` · ${int(r.blocked)} مرتبط بحركات لم يُحذف` : ""}`);
+    toast.success(fill(t("تم حذف {0} صنف"), [int(r.deleted)]) + (r.blocked ? fill(t(" · {0} مرتبط بحركات لم يُحذف"), [int(r.blocked)]) : ""));
     clearAll();
     router.refresh();
   });
@@ -53,21 +54,21 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
     <div className="space-y-3">
       {canDelete && count > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} صنف محدّد` : `${int(sel.size)} محدّد`}</span>
+          <span className="font-medium">{allPages ? fill(t("كل الـ{0} صنف محدّد"), [int(total)]) : fill(t("{0} محدّد"), [int(sel.size)])}</span>
           {!allPages && allOnPage && hasMorePages && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد كل الـ{int(total)} صنف في كل الصفحات</button>
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>{t("حدّد كل الـ")}{int(total)} {t("صنف في كل الصفحات")}</button>
           )}
           <button type="button" className="text-muted-foreground hover:text-foreground" onClick={clearAll}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" disabled={pending}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}حذف المحدّد ({int(count)})
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}{t("حذف المحدّد (")}{int(count)})
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>حذف {int(count)} صنف؟</AlertDialogTitle>
+                  <AlertDialogTitle>{t("حذف")} {int(count)} {t("صنف؟")}</AlertDialogTitle>
                   <AlertDialogDescription>{t("لا يمكن التراجع. الأصناف المرتبطة بحركات أو أوامر لن تُحذف وسيتم تجاهلها.")}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -120,7 +121,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                   <div className="flex items-center gap-2">
                     <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>
                     {Number(r.childCount) > 0
-                      ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />أب · {int(r.childCount)}</Badge>
+                      ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />{t("أب ·")} {int(r.childCount)}</Badge>
                       : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">{t("تنويعة")}</Badge> : null}
                   </div>
                 </TableCell>
@@ -129,7 +130,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                   {r.onHand <= 0
                     ? <span className="font-semibold text-destructive">{t("نفد")}</span>
                     : r.minStock > 0 && r.onHand <= r.minStock
-                      ? <span className="font-semibold text-amber-600" title={`حد إعادة الطلب ${int(r.minStock)}`}>{int(r.onHand)} · منخفض</span>
+                      ? <span className="font-semibold text-amber-600" title={fill(t("حد إعادة الطلب {0}"), [int(r.minStock)])}>{int(r.onHand)} {t("· منخفض")}</span>
                       : <span className="tabular-nums">{int(r.onHand)}</span>}
                 </TableCell>
                 <TableCell>{money(r.sellPrice)}</TableCell>

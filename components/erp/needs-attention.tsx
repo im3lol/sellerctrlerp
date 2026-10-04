@@ -18,7 +18,7 @@ export async function NeedsAttention({ tiles }: { tiles: AttentionTile[] }) {
           <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600"><Icon name={it.icon} className="size-5" /></div>
           <div className="flex-1">
             <div className="text-sm font-medium">{t(it.label)}</div>
-            {it.hint && <div className="text-xs text-muted-foreground">{it.hint}</div>}
+            {it.hint && <div className="text-xs text-muted-foreground">{t(it.hint)}</div>}
           </div>
           <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-sm font-bold text-white tabular-nums">{it.count.toLocaleString("ar-EG-u-nu-latn")}</span>
         </Link>

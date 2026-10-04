@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ChangeEvent } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Plug, PlugZap, Loader2 } from "lucide-react";
@@ -49,25 +50,25 @@ export function MarketplaceConnect({
 
   const connectNoon = () => start(async () => {
     const r = await connectNoonAction(cred);
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setCred(""); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setCred(""); }
     else toast.error(r.error);
   });
 
   const connectWoo = () => start(async () => {
     const r = await connectWooAction({ storeUrl: f.storeUrl, consumerKey: f.consumerKey, consumerSecret: f.consumerSecret });
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, consumerSecret: "" })); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setF((s) => ({ ...s, consumerSecret: "" })); }
     else toast.error(r.error);
   });
 
   const connectJumia = () => start(async () => {
     const r = await connectJumiaAction({ userId: f.userId, apiKey: f.apiKey, apiHost: f.apiHost });
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, apiKey: "" })); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setF((s) => ({ ...s, apiKey: "" })); }
     else toast.error(r.error);
   });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
-    if (r.ok) toast.success(`تم فصل حساب ${label}`);
+    if (r.ok) toast.success(fill(t("تم فصل حساب {0}"), [label]));
     else toast.error(r.error);
   });
 
@@ -82,10 +83,10 @@ export function MarketplaceConnect({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
+              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />{t("ربط")} {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
                 {justConnected && <span className="text-emerald-600">{t("تم الربط بنجاح.")} </span>}
-                السوق: {market?.name ?? conn.marketplaceId ?? "—"} · معرّف البائع: <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> · آخر مزامنة: {dt(conn.lastSyncAt)}
+                السوق: {market?.name ?? conn.marketplaceId ?? "—"} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt)}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={disconnect} disabled={pending} className="text-muted-foreground">
@@ -118,15 +119,15 @@ export function MarketplaceConnect({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />ربط {label}</CardTitle>
-        <CardDescription>{error ? <span className="text-destructive">تعذّر الربط: {error}</span> : `اربط حساب ${label} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا.`}</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />{t("ربط")} {label}</CardTitle>
+        <CardDescription>{error ? <span className="text-destructive">{t("تعذّر الربط:")} {error}</span> : fill(t("اربط حساب {0} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا."), [label])}</CardDescription>
       </CardHeader>
       {credentialKind === "noon" ? (
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("ملف اعتماد نون (JSON)")}</label>
             <p className="text-xs text-muted-foreground">
-              من <span dir="ltr">access.noon.partners</span> ← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.
+              من <span dir="ltr">access.noon.partners</span> {t("← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.")}
             </p>
             <textarea
               value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={6} spellCheck={false}
@@ -135,7 +136,7 @@ export function MarketplaceConnect({
             />
           </div>
           <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : credentialKind === "woo" ? (
@@ -148,7 +149,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Secret</label>
             <input value={f.consumerSecret} onChange={setFld("consumerSecret")} dir="ltr" type="password" placeholder="cs_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectWoo} disabled={pending || !f.storeUrl.trim() || !f.consumerKey.trim() || !f.consumerSecret.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : credentialKind === "jumia" ? (
@@ -161,7 +162,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5"><label className="text-sm font-medium">API Host</label>
             <input value={f.apiHost} onChange={setFld("apiHost")} dir="ltr" placeholder="https://vendor-api.jumia.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectJumia} disabled={pending || !f.userId.trim() || !f.apiKey.trim() || !f.apiHost.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : !oauthReady ? (
@@ -182,7 +183,7 @@ export function MarketplaceConnect({
           </div>
           <Button asChild disabled={!shopValid}>
             <a href={shopValid ? `/api/erp/marketplace/${provider}/connect?shop=${encodeURIComponent(shop.trim().toLowerCase())}` : undefined}>
-              <Plug className="size-4" />ربط {label}
+              <Plug className="size-4" />{t("ربط")} {label}
             </a>
           </Button>
         </CardContent>

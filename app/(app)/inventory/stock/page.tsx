@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
@@ -52,7 +53,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
         reportKey="inv-stock"
         icon="Boxes"
         title={t("أرصدة المخزون")}
-        subtitle={`${lines.length} صنف`}
+        subtitle={fill(t("{0} صنف"), [lines.length])}
         query={filterQs().toString()}
         permissions={permissions}
       >
@@ -64,7 +65,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
                 <div className="space-y-1 sm:col-span-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -132,7 +133,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!warehouseId) return toast.error("اختر المستودع");
-    if (isForeign && rate <= 0) return toast.error(`أضِف سعر صرف لـ${currency} من الإعدادات ← العملات أولاً`);
+    if (isForeign && rate <= 0) return toast.error(fill(t("أضِف سعر صرف لـ{0} من الإعدادات ← العملات أولاً"), [currency]));
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const payload = lines.map((l) => ({
@@ -171,7 +172,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
               onSelect={(id) => setSupplierId(id)}
               placeholder={t("ابحث عن المورد…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
-              createLabel="إضافة مورد"
+              createLabel={t("إضافة مورد")}
             />
             <QuickCreateParty
               kind="supplier"
@@ -204,7 +205,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
-              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+              {vatRate > 0 ? fill(t("إضافة ض.ق.م ({0}%)"), [qtyf(vatRate)]) : t("لا توجد نسبة ضريبة مضبوطة")}
             </label>
           </div>
           <div className="space-y-2">
@@ -227,7 +228,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <div className="space-y-2">
               <Label>{t("سعر الصرف")}</Label>
               <div className="flex items-center gap-2">
-                <span className="shrink-0 text-sm text-muted-foreground">١ {currency} =</span>
+                <span className="shrink-0 text-sm text-muted-foreground">{t("١")} {currency} =</span>
                 <Input
                   type="number" step="0.000001" min="0" className="tabular-nums"
                   placeholder={autoRate > 0 ? ratef(autoRate) : t("اكتب السعر")}
@@ -264,10 +265,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
               {rate > 0 ? (
                 <>
                   <div className="text-sm">
-                    <span className="font-semibold tabular-nums">١ {currency} = {ratef(rate)} {baseCode}</span>
+                    <span className="font-semibold tabular-nums">{t("١")} {currency} = {ratef(rate)} {baseCode}</span>
                     {isManualRate
                       ? <span className="ms-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">{t("سعر يدوي")}</span>
-                      : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">سعر {date}</span>}
+                      : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("سعر")} {date}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t("ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.")}
@@ -369,9 +370,9 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <div>{t("الشحن:")} <span className="font-medium">{fmt(totals.shipping)}</span></div>
             <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
+            <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
             {isForeign && rate > 0 && (
-              <div className="text-base font-bold">الإجمالي: {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">{t("(يُرحّل بالحسابات)")}</span></div>
+              <div className="text-base font-bold">{t("الإجمالي:")} {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">{t("(يُرحّل بالحسابات)")}</span></div>
             )}
           </div>
         </div>

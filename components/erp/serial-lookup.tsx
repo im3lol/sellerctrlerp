@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { findSerialAction } from "@/app/actions/erp/serials";
@@ -53,7 +54,7 @@ export function SerialLookup() {
               onKeyDown={(e) => { if (e.key === "Enter") search(); }}
             />
             <Button onClick={search} disabled={pending || !q.trim()}>
-              <Icon name="Search" className="size-4" />بحث
+              <Icon name="Search" className="size-4" />{t("بحث")}
             </Button>
           </div>
         </CardContent>
@@ -63,7 +64,7 @@ export function SerialLookup() {
         <Card>
           <CardHeader>
             <CardTitle>{t("النتيجة")}</CardTitle>
-            <CardDescription>{hits.length ? `${hits.length} قطعة` : "مفيش قطعة بالرقم ده"}</CardDescription>
+            <CardDescription>{hits.length ? fill(t("{0} قطعة"), [hits.length]) : t("مفيش قطعة بالرقم ده")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hits.length === 0 ? (

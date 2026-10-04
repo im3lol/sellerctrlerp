@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -71,7 +72,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
       <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title={`فاتورة بيع ${inv.number}`}
+          title={fill(t("فاتورة بيع {0}"), [inv.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "فاتورة بيع"}
           backHref="/sales/invoices"
           action={<SalesInvoiceDetailActions id={inv.id} number={inv.number} status={inv.status} canPost={canPost} canManage={canManage} canCollect={canCollect} balanceDue={String(inv.balanceDue)} totalAmount={String(inv.totalAmount)} customerPhone={cust?.phone ?? null} customerEmail={cust?.email ?? null} link={link} />}
@@ -83,7 +84,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
           <Field label={t("الإجمالي")}>{fmt(inv.totalAmount)}</Field>
           <Field label={t("المدفوع / المتبقّي")}>{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
           {inv.foreignAmount && inv.currencyCode && (
-            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">(سعر الصرف {Number(inv.exchangeRate)})</span></Field>
+            <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">{t("(سعر الصرف")} {Number(inv.exchangeRate)})</span></Field>
           )}
         </div>
 
@@ -120,9 +121,9 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
               <div>{t("الخصم:")} <span className="font-medium">{fmt(inv.discountAmount)}</span></div>
               <div>{t("الضريبة:")} <span className="font-medium">{fmt(inv.taxAmount)}</span></div>
               {Number(inv.shippingAmount) > 0 && <div>{t("الشحن:")} <span className="font-medium">{fmt(inv.shippingAmount)}</span></div>}
-              <div className="text-base font-bold text-primary">الإجمالي للكل: {fmt(inv.totalAmount)}</div>
+              <div className="text-base font-bold text-primary">{t("الإجمالي للكل:")} {fmt(inv.totalAmount)}</div>
             </div>
-            {inv.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {inv.notes}</p>}
+            {inv.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {inv.notes}</p>}
           </CardContent>
         </Card>
 

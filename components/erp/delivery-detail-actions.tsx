@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -75,11 +76,11 @@ export function DeliveryDetailActions({
     <DocumentActions
       primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد إذن الصرف وترحيله")}>
-          <Icon name="Check" className="size-4" />تأكيد الصرف
+          <Icon name="Check" className="size-4" />{t("تأكيد الصرف")}
         </Button>
       ) : undefined}
       items={items}
-      barcode={barcodeRows.length ? { docTitle: `إذن صرف ${number}`, rows: barcodeRows } : undefined}
+      barcode={barcodeRows.length ? { docTitle: fill(t("إذن صرف {0}"), [number]), rows: barcodeRows } : undefined}
     />
   );
 }

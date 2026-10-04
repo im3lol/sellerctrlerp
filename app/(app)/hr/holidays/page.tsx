@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -14,7 +15,7 @@ export default async function HolidaysPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CalendarOff" title={t("تقويم العطلات الرسمية")} subtitle={`${rows.length} عطلة — تُستثنى من أيام العمل`} backHref="/hr/leaves" />
+        <ErpPageHeader icon="CalendarOff" title={t("تقويم العطلات الرسمية")} subtitle={fill(t("{0} عطلة — تُستثنى من أيام العمل"), [rows.length])} backHref="/hr/leaves" />
         <HolidaysManager holidays={rows.map((r) => ({ id: r.id, date: r.date as unknown as string, nameAr: r.nameAr }))} canManage={can("hr.create")} />
       </div>
     );

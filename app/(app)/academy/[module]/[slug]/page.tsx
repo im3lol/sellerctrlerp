@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { getLesson, isModuleKey, opensInApp, requireAcademyAccess, KIND_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
@@ -15,7 +16,8 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const lesson = await getLesson(slug);
-  return { title: lesson ? `الأكاديمية — ${lesson.title}` : "الأكاديمية" };
+  const t = await getT();
+  return { title: lesson ? fill(t("الأكاديمية — {0}"), [t(lesson.title)]) : t("الأكاديمية") };
 }
 
 /**

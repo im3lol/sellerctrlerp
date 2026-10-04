@@ -1,4 +1,5 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -92,7 +93,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
       for (const r of invRows) {
         txRows.push({
           date: r.date, number: r.number, type: "invoice",
-          description: `فاتورة بيع ${r.number}`,
+          description: fill(t("فاتورة بيع {0}"), [r.number]),
           debit: Number(r.totalAmount), credit: 0,
         });
       }
@@ -116,7 +117,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
       for (const r of recRows) {
         txRows.push({
           date: r.date, number: r.number, type: "receipt",
-          description: `سند قبض ${r.number}${r.reference ? ` — ${r.reference}` : ""}`,
+          description: r.reference ? fill(t("سند قبض {0} — {1}"), [r.number, r.reference]) : fill(t("سند قبض {0}"), [r.number]),
           debit: 0, credit: Number(r.amount),
         });
       }
@@ -140,7 +141,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
       for (const r of retRows) {
         txRows.push({
           date: r.date, number: r.number, type: "return",
-          description: `مرتجع مبيعات ${r.number}`,
+          description: fill(t("مرتجع مبيعات {0}"), [r.number]),
           debit: 0, credit: Number(r.totalAmount),
         });
       }

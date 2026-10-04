@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -58,7 +59,7 @@ export default async function PaymentVoucherDetailPage({ params }: { params: Pro
       <div className="space-y-6">
         <ErpPageHeader
           icon="Wallet"
-          title={`سند صرف ${pv.number}`}
+          title={fill(t("سند صرف {0}"), [pv.number])}
           subtitle={`${sup?.name ?? "—"} · ${dt(pv.date)}`}
           backHref="/purchases/payments"
           action={<div className="flex items-center gap-3"><Badge variant={st.variant}>{t(st.label)}</Badge><VoucherDetailActions id={pv.id} number={pv.number} type="payment" status={pv.status} canManage={can("purchases.pay")} /></div>}

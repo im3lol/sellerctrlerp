@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -68,12 +69,12 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
     start(async () => {
       const r = await importPlatformRemovalsAction(platformId, removals);
       setResult(r);
-      if (r.ok) { toast.success(`إتلاف ${int(r.matchedDisposedUnits)} وحدة${r.adjustmentId ? t(" — أُنشئت تسوية مسودة") : ""}`); router.refresh(); }
+      if (r.ok) { toast.success(fill(t("إتلاف {0} وحدة{1}"), [int(r.matchedDisposedUnits), r.adjustmentId ? t(" — أُنشئت تسوية مسودة") : ""])); router.refresh(); }
       else toast.error(r.error);
     });
   };
 
-  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
+  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || fill(t("عمود {0}"), [i + 1])}</option>);
   // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
   const mapProps = (k: keyof Mapping) => ({
     value: map[k],
@@ -84,7 +85,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>الإزالات والإتلاف — {platformName}</CardTitle>
+        <CardTitle>{t("الإزالات والإتلاف —")} {platformName}</CardTitle>
         <CardDescription>{t("ارفع تقرير الإزالة (Removal Order/Shipment Detail). الوحدات المُتلَفة (Disposed) تُسجَّل كخسارة مخزون عبر تسوية (مسودة) في مخزن المنصة؛ الوحدات المُرتجَعة للبائع تُعرَض للحصر فقط. لا تؤكّد التسوية لو سبق وطابقت المخزون بالدفتر (تجنبًا للتكرار).")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -94,7 +95,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
           <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasWarehouse}><Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV")}</Button>
-          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
+          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} {t("صف")}</span>}
         </div>
 
         {rows && (
@@ -106,7 +107,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
               <span>{ready ? <>{t("جاهز:")} <b>{int(removals.length)}</b> {t("سطر")}</> : "اربط الصنف وعمود إتلاف أو إرجاع."}</span>
-              <Button onClick={run} disabled={pending || !ready || removals.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}استيراد</Button>
+              <Button onClick={run} disabled={pending || !ready || removals.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")}</Button>
             </div>
           </>
         )}
@@ -118,7 +119,7 @@ export function PlatformRemovalsImport({ platformId, platformName, hasWarehouse 
             {result.adjustmentId && (
               <div>📝 <Link href={`/inventory/adjustments/${encodeURIComponent(result.adjustmentNumber ?? result.adjustmentId!)}`} className="text-primary underline">{t("تسوية الإتلاف (مسودة)")}</Link> {t("— راجعها وأكّدها لترحيل الخسارة.")}</div>
             )}
-            {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} SKU غير مربوط: <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
+            {result.unmatched > 0 && <div className="text-muted-foreground">⚠ {int(result.unmatched)} {t("SKU غير مربوط:")} <span className="font-mono text-xs">{result.unmatchedSkus.join("، ")}</span></div>}
           </div>
         )}
       </CardContent>

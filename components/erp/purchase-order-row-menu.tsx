@@ -58,16 +58,16 @@ export function PurchaseOrderRowMenu({
             <DropdownMenuSeparator />
             {needApprove ? (
               <DropdownMenuItem onClick={() => run(() => approvePurchaseOrderAction(orderId), "تم اعتماد الأمر")}>
-                <Icon name="ShieldCheck" className="size-4" />اعتماد
+                <Icon name="ShieldCheck" className="size-4" />{t("اعتماد")}
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem onClick={() => run(() => confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر")}>
-                <Icon name="Check" className="size-4" />تأكيد
+                <Icon name="Check" className="size-4" />{t("تأكيد")}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
-              <Icon name="X" className="size-4" />إلغاء
+              <Icon name="X" className="size-4" />{t("إلغاء")}
             </DropdownMenuItem>
           </>
         )}
@@ -76,7 +76,7 @@ export function PurchaseOrderRowMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => deletePurchaseOrderAction(orderId), "تم حذف الأمر", "/purchases/orders", "أمر الشراء")}>
-              <Icon name="Trash2" className="size-4" />حذف
+              <Icon name="Trash2" className="size-4" />{t("حذف")}
             </DropdownMenuItem>
           </>
         )}
@@ -93,11 +93,11 @@ export function PurchaseOrderRowMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link href={`/purchases/orders/${orderId}/receive`}><Icon name="PackageCheck" className="size-4" />{t("إنشاء إذن استلام")}</Link></DropdownMenuItem>
             <DropdownMenuItem onClick={() => run(() => revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
-              <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
+              <Icon name="Undo2" className="size-4" />{t("إعادة فتح كمسودة")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => run(() => cancelPurchaseOrderAction(orderId), "تم إلغاء الأمر")}>
-              <Icon name="X" className="size-4" />إلغاء الأمر
+              <Icon name="X" className="size-4" />{t("إلغاء الأمر")}
             </DropdownMenuItem>
           </>
         )}

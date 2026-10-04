@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getEnabledModules } from "@/lib/erp/entitlements";
@@ -23,8 +25,8 @@ import { cn } from "@/lib/utils";
 
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const pct = (n: number) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 })}٪`;
-const shortDate = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
+const pct = (n: number, locale: Locale) => `${n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 1 })}${locale === "en" ? "%" : "٪"}`;
+const shortDate = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short" });
 const CHANNEL: Record<string, string> = { AMAZON: "أمازون", NOON: "نون", MANUAL: "مبيعات مباشرة" };
 
 /** The everyday documents, one click away — each only for someone who may create it. */
@@ -110,6 +112,7 @@ const Section = ({ title }: { title: string }) => <h2 className="mb-3 text-sm fo
  * neither blank the page nor hold the rest back.
  */
 export default async function DashboardPage() {
+  const locale = await getLocale();
   const t = await getT();
   const user = await requireUser();
   const { org } = await getActiveOrg();
@@ -173,33 +176,33 @@ export default async function DashboardPage() {
     ...(seeSales && ins ? [
       {
         label: "مبيعات الشهر", value: money(ins.salesMtd), href: "/sales/invoices",
-        note: growth == null ? `${intl(ins.invoicesMtd)} فاتورة` : `${growth >= 0 ? "▲" : "▼"} ${pct(Math.abs(growth))} عن نفس الأيام الشهر اللي فات`,
+        note: growth == null ? fill(t("{0} فاتورة"), [intl(ins.invoicesMtd)]) : fill(t("{0} {1} عن نفس الأيام الشهر اللي فات"), [growth >= 0 ? "▲" : "▼", pct(Math.abs(growth), locale)]),
         tone: growth == null ? undefined : growth >= 0 ? "up" as const : "down" as const,
       },
-      { label: "طلبات الشهر", value: intl(orders), href: "/sales/orders", note: ins.invoicesMtd > 0 ? `متوسط الفاتورة ${money(ins.salesMtd / ins.invoicesMtd)}` : "لسه مفيش فواتير" },
+      { label: "طلبات الشهر", value: intl(orders), href: "/sales/orders", note: ins.invoicesMtd > 0 ? fill(t("متوسط الفاتورة {0}"), [money(ins.salesMtd / ins.invoicesMtd)]) : t("لسه مفيش فواتير") },
     ] : []),
     ...(seeMoney && ins ? [{
       label: "مجمل الربح", value: money(gross), href: "/sales/reports/profitability",
-      note: margin == null ? t("بعد تكلفة البضاعة المباعة") : `هامش ${pct(margin)} من المبيعات قبل الضريبة`,
+      note: margin == null ? t("بعد تكلفة البضاعة المباعة") : fill(t("هامش {0} من المبيعات قبل الضريبة"), [pct(margin, locale)]),
       tone: gross < 0 ? "down" as const : undefined,
     }] : []),
     ...(seeMoney && ov ? [
       {
         label: "صافي ربح الشهر", value: money(netMonth), href: "/reports/income-statement",
-        note: lastMonth ? `الشهر اللي فات ${money(lastMonth.revenue - lastMonth.expense)}` : undefined,
+        note: lastMonth ? fill(t("الشهر اللي فات {0}"), [money(lastMonth.revenue - lastMonth.expense)]) : undefined,
         tone: netMonth < 0 ? "down" as const : undefined,
       },
-      { label: "النقدية والبنك", value: money(ov.cash), href: "/accounting/ledger", note: ins ? `دخل ${money(ins.cashIn)} · خرج ${money(ins.cashOut)} الشهر ده` : undefined },
+      { label: "النقدية والبنك", value: money(ov.cash), href: "/accounting/ledger", note: ins ? fill(t("دخل {0} · خرج {1} الشهر ده"), [money(ins.cashIn), money(ins.cashOut)]) : undefined },
     ] : []),
     ...((seeSales || seeMoney) && ov ? [{
       label: "مستحق من العملاء", value: money(ov.ar), href: "/sales/aging",
-      note: ov.overdueAR > 0 ? `متأخر ${money(ov.overdueAR)}` : "مفيش متأخرات", tone: ov.overdueAR > 0 ? "warn" as const : undefined,
+      note: ov.overdueAR > 0 ? fill(t("متأخر {0}"), [money(ov.overdueAR)]) : t("مفيش متأخرات"), tone: ov.overdueAR > 0 ? "warn" as const : undefined,
     }] : []),
     ...((seePurch || seeMoney) && ov ? [{
       label: "مستحق للموردين", value: money(ov.ap), href: "/purchases/aging",
-      note: ov.overdueAP > 0 ? `متأخر ${money(ov.overdueAP)}` : "مفيش متأخرات", tone: ov.overdueAP > 0 ? "warn" as const : undefined,
+      note: ov.overdueAP > 0 ? fill(t("متأخر {0}"), [money(ov.overdueAP)]) : t("مفيش متأخرات"), tone: ov.overdueAP > 0 ? "warn" as const : undefined,
     }] : []),
-    ...(seeStock && ov ? [{ label: "قيمة المخزون", value: money(ov.inventoryValue), href: "/inventory/stock", note: `${intl(ov.totalItems)} صنف` }] : []),
+    ...(seeStock && ov ? [{ label: "قيمة المخزون", value: money(ov.inventoryValue), href: "/inventory/stock", note: fill(t("{0} صنف"), [intl(ov.totalItems)]) }] : []),
   ];
 
   const stock = {
@@ -213,14 +216,14 @@ export default async function DashboardPage() {
   // wall of zeros. (system_admin dashboards are never "empty".)
   const isEmpty = !!org && user.role !== "system_admin" && !ovRes.failed &&
     (!ov || (ov.net === 0 && ov.cash === 0 && ov.ar === 0 && ov.ap === 0 && ov.inventoryValue === 0 && ov.salesMonth === 0));
-  const monthLabel = new Date().toLocaleDateString("ar-EG-u-nu-latn", { month: "long", year: "numeric" });
+  const monthLabel = new Date().toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { month: "long", year: "numeric" });
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">مرحباً، {user.name}</h1>
-          <p className="text-muted-foreground">{org?.nameAr ?? t("الإدارة")} — نظرة على {monthLabel}</p>
+          <h1 className="text-2xl font-bold">{t("مرحباً،")} {user.name}</h1>
+          <p className="text-muted-foreground">{org?.nameAr ?? t("الإدارة")} {t("— نظرة على")} {monthLabel}</p>
         </div>
         <Link href="/apps" className="text-sm text-primary hover:underline">{t("كل التطبيقات ←")}</Link>
       </div>
@@ -318,21 +321,21 @@ export default async function DashboardPage() {
             <CardHeader><CardTitle>{t("المبيعات حسب القناة")}</CardTitle><CardDescription>{t("أوامر البيع المؤكدة هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
               <RankList
-                rows={ins.channels.map((c) => ({ label: CHANNEL[c.channel] ?? c.channel, value: c.value, sub: `${intl(c.orders)} طلب` }))}
-                empty="لسه مفيش طلبات الشهر ده"
+                rows={ins.channels.map((c) => ({ label: CHANNEL[c.channel] ?? c.channel, value: c.value, sub: fill(t("{0} طلب"), [intl(c.orders)]) }))}
+                empty={t("لسه مفيش طلبات الشهر ده")}
               />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle>{t("الأكثر مبيعًا")}</CardTitle><CardDescription>{t("أعلى ٥ أصناف بقيمة الفواتير هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
-              <RankList rows={ins.topItems.map((t) => ({ label: t.name, value: t.value, sub: `${intl(t.qty)} قطعة` }))} empty="لسه مفيش مبيعات الشهر ده" />
+              <RankList rows={ins.topItems.map((it) => ({ label: it.name, value: it.value, sub: fill(t("{0} قطعة"), [intl(it.qty)]) }))} empty={t("لسه مفيش مبيعات الشهر ده")} />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle>{t("أكبر العملاء")}</CardTitle><CardDescription>{t("أعلى ٥ عملاء بقيمة الفواتير هذا الشهر.")}</CardDescription></CardHeader>
             <CardContent>
-              <RankList rows={ins.topCustomers.map((c) => ({ label: c.name, value: c.value, sub: `${intl(c.invoices)} فاتورة` }))} empty="لسه مفيش مبيعات الشهر ده" />
+              <RankList rows={ins.topCustomers.map((c) => ({ label: c.name, value: c.value, sub: fill(t("{0} فاتورة"), [intl(c.invoices)]) }))} empty={t("لسه مفيش مبيعات الشهر ده")} />
             </CardContent>
           </Card>
         </div>
@@ -350,7 +353,7 @@ export default async function DashboardPage() {
                 <MiniStat s={{ label: "مبيعات المنتجات", value: money(ins.mktSales), href: "/platforms" }} />
                 <MiniStat s={{
                   label: "رسوم المنصة", value: money(ins.mktFees), href: "/platforms",
-                  note: ins.mktSales > 0 ? `${pct((ins.mktFees / ins.mktSales) * 100)} من المبيعات` : undefined,
+                  note: ins.mktSales > 0 ? fill(t("{0} من المبيعات"), [pct((ins.mktFees / ins.mktSales) * 100, locale)]) : undefined,
                 }} />
                 <MiniStat s={{ label: "صافي التحويلات", value: money(ins.mktNet), href: "/platforms" }} />
                 <MiniStat s={{
@@ -389,7 +392,7 @@ export default async function DashboardPage() {
                   <Link key={r.number} href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">
                     <span className="font-mono text-xs">{r.number}</span>
                     <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.customer}</span>
-                    <span className="text-xs text-muted-foreground">{shortDate(r.date)}</span>
+                    <span className="text-xs text-muted-foreground">{shortDate(r.date, locale)}</span>
                     <span className="font-medium tabular-nums">{money(r.amount)}</span>
                   </Link>
                 ))}
@@ -404,7 +407,7 @@ export default async function DashboardPage() {
                   <Link key={r.number} href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">
                     <span className="font-mono text-xs">{r.number}</span>
                     <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.supplier}</span>
-                    <span className="text-xs text-muted-foreground">{shortDate(r.date)}</span>
+                    <span className="text-xs text-muted-foreground">{shortDate(r.date, locale)}</span>
                     <span className="font-medium tabular-nums">{money(r.amount)}</span>
                   </Link>
                 ))}

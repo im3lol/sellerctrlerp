@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -71,7 +72,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
       <div className="space-y-6">
         <ErpPageHeader
           icon="Undo2"
-          title={`مرتجع مبيعات ${ret.number}`}
+          title={fill(t("مرتجع مبيعات {0}"), [ret.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
           backHref={backHref}
           action={
@@ -131,7 +132,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
                 <TableRow className="font-bold"><TableCell colSpan={3}>{t("إجمالي المرتجع")}</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
               </TableFooter>
             </Table>
-            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}
+            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {ret.notes}</p>}
           </CardContent>
         </Card>
 

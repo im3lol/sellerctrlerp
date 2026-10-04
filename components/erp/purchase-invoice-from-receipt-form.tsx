@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -124,8 +125,8 @@ export function PurchaseInvoiceFromReceiptForm({
         }
         // Say exactly what happened. A partial run reported as success is how a missing
         // invoice goes unnoticed until the supplier chases it.
-        if (done.length) toast.success(`اتعملت ${done.length} مسودة فاتورة`);
-        if (failed.length) toast.error(`فشل ${failed.length}: ${failed.join(" · ")}`, { duration: 10000 });
+        if (done.length) toast.success(fill(t("اتعملت {0} مسودة فاتورة"), [done.length]));
+        if (failed.length) toast.error(fill(t("فشل {0}: {1}"), [failed.length, failed.join(" · ")]), { duration: 10000 });
         if (done.length) { router.push("/purchases/invoices"); router.refresh(); }
       });
     }
@@ -157,7 +158,7 @@ export function PurchaseInvoiceFromReceiptForm({
                 without one, so gate on the selection instead of on the preview. */}
             <Button size="sm" onClick={submit} disabled={pending || (picked.length === 1 ? !preview : picked.length === 0)}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              {picked.length > 1 ? `حفظ ${picked.length} فاتورة` : "حفظ الفاتورة"}
+              {picked.length > 1 ? fill(t("حفظ {0} فاتورة"), [picked.length]) : t("حفظ الفاتورة")}
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/purchases/invoices")}>{t("إلغاء")}</Button>
           </div>
@@ -195,14 +196,14 @@ export function PurchaseInvoiceFromReceiptForm({
                 ١ {inherited.code} = {ratef(inherited.rate)} {baseCode}
               </div>
               <p className="text-xs text-muted-foreground">
-                {inherited.from ? `سعر معتمد من أمر الشراء ${inherited.from}` : "سعر معتمد من إذن الاستلام"} — مبيتغيّرش هنا
+                {inherited.from ? fill(t("سعر معتمد من أمر الشراء {0}"), [inherited.from]) : t("سعر معتمد من إذن الاستلام")} — مبيتغيّرش هنا
               </p>
             </div>
             {foreignTotal !== null && (
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
                 <span>{t("إجمالي بالعملة الأجنبية:")}</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {inherited.code}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+                <span className="text-xs">{t("(الأستاذ يُسجَّل بـ")} {baseCode})</span>
               </div>
             )}
           </div>
@@ -218,7 +219,7 @@ export function PurchaseInvoiceFromReceiptForm({
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>سعر الصرف (1 {shownCurrency} = ؟ {baseCode})</Label>
+                <Label>{t("سعر الصرف (1")} {shownCurrency} = ؟ {baseCode})</Label>
                 <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder={t("مثال: 3.75")} />
                 <p className="text-xs text-muted-foreground">{t("الإذن ده مش جاي من أمر شراء، فمفيش سعر معتمد يورثه.")}</p>
               </div>
@@ -227,7 +228,7 @@ export function PurchaseInvoiceFromReceiptForm({
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
                 <span>{t("إجمالي بالعملة الأجنبية:")}</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {shownCurrency}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+                <span className="text-xs">{t("(الأستاذ يُسجَّل بـ")} {baseCode})</span>
               </div>
             )}
           </div>
@@ -251,7 +252,7 @@ export function PurchaseInvoiceFromReceiptForm({
                   {t("امسح الاختيار")}
                 </Button>
               )}
-              <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>
+              <span className="text-sm text-muted-foreground">{t("محدَّد")} {picked.length}</span>
             </div>
           </div>
 
@@ -277,8 +278,8 @@ export function PurchaseInvoiceFromReceiptForm({
 
           <p className="text-sm text-muted-foreground">
             {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الإذن…")}</span>
-              : picked.length > 1 ? `هتتعمل ${picked.length} مسودة فاتورة — واحدة لكل إذن، كل واحدة بسعر صرف إذنها.`
-              : "تنزل أصناف الإذن وأسعارها من أمر الشراء في الجدول."}
+              : picked.length > 1 ? fill(t("هتتعمل {0} مسودة فاتورة — واحدة لكل إذن، كل واحدة بسعر صرف إذنها."), [picked.length])
+              : t("تنزل أصناف الإذن وأسعارها من أمر الشراء في الجدول.")}
           </p>
         </div>
 
@@ -302,8 +303,8 @@ export function PurchaseInvoiceFromReceiptForm({
                   {/* With several receipts ticked there is no single set of lines to show —
                       say that, rather than leaving the table looking broken. */}
                   {picked.length > 1
-                    ? `${picked.length} إذون محدَّدة — كل واحد هيطلع مسودة فاتورة بأصنافه. علّم على إذن واحد بس لو عايز تشوف البنود قبل الحفظ.`
-                    : "اختر المورد ثم علّم على إذن استلام لعرض البنود."}
+                    ? fill(t("{0} إذون محدَّدة — كل واحد هيطلع مسودة فاتورة بأصنافه. علّم على إذن واحد بس لو عايز تشوف البنود قبل الحفظ."), [picked.length])
+                    : t("اختر المورد ثم علّم على إذن استلام لعرض البنود.")}
                 </TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>

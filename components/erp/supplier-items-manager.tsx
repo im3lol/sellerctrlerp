@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useT } from "@/lib/i18n/client";
+import type { Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { getSupplierItemsAction, saveSupplierItemsAction, type SupplierItemRow } from "@/app/actions/erp/supplier-items";
@@ -20,8 +21,8 @@ type Draft = {
 
 const str = (v: number | null) => (v == null ? "" : String(v));
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
-const when = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short", year: "numeric" }) : "—";
+const when = (iso: string | null, locale: Locale = "ar") =>
+  iso ? new Date(iso).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 const toDraft = (r: SupplierItemRow): Draft => ({
   key: r.supplierId, supplierId: r.supplierId, supplierName: r.supplierName, sku: r.supplierSku ?? "",
@@ -36,6 +37,7 @@ const toDraft = (r: SupplierItemRow): Draft => ({
  */
 export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canEdit: boolean }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [rows, setRows] = useState<Draft[]>([]);
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
@@ -97,10 +99,10 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
           {canEdit && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addRow} disabled={pending}>
-                <Icon name="Plus" className="size-4" />مورد
+                <Icon name="Plus" className="size-4" />{t("مورد")}
               </Button>
               <Button size="sm" onClick={save} disabled={pending}>
-                <Icon name="Check" className="size-4" />حفظ
+                <Icon name="Check" className="size-4" />{t("حفظ")}
               </Button>
             </div>
           )}
@@ -163,7 +165,7 @@ export function SupplierItemsManager({ itemId, canEdit }: { itemId: string; canE
                         <Icon name="Star" className={cn("size-4", r.isPreferred ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} />
                       </button>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{when(r.lastOrderedAt)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{when(r.lastOrderedAt, locale)}</TableCell>
                     {canEdit && (
                       <TableCell>
                         <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(r.key)}>

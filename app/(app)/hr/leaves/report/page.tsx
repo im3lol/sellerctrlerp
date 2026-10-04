@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -53,7 +54,7 @@ export default async function LeaveReportPage({ searchParams }: { searchParams: 
         reportKey="hr-leaves"
         icon="CalendarDays"
         title={t("تقرير أرصدة الإجازات")}
-        subtitle={`الأيام المعتمدة حسب النوع — من ${from} إلى ${to}`}
+        subtitle={fill(t("الأيام المعتمدة حسب النوع — من {0} إلى {1}"), [from, to])}
         query={new URLSearchParams({ from, to }).toString()}
         permissions={permissions}
         filters={

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -75,7 +76,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
             <div className="font-semibold">{t("مستني اعتماد المدير")}</div>
             <div>{approval.reason}</div>
             <div className="text-xs opacity-80">
-              {approval.requestedByName ? `طلبه ${approval.requestedByName} · ` : ""}{ago(approval.requestedAt)}
+              {approval.requestedByName ? fill(t("طلبه {0} · "), [approval.requestedByName]) : ""}{ago(approval.requestedAt)}
             </div>
           </div>
         </div>
@@ -100,7 +101,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
           {approval.decidedAt ? ` · ${ago(approval.decidedAt)}` : ""}
         </div>
         <div className="opacity-90">{approval.reason}</div>
-        {approval.comment && <div className="mt-1">{approved ? approval.comment : `السبب: ${approval.comment}`}</div>}
+        {approval.comment && <div className="mt-1">{approved ? approval.comment : fill(t("السبب: {0}"), [approval.comment])}</div>}
         {!approved && <div className="mt-1 text-xs opacity-80">{t("عدّل المستند وأكّده تاني — هيتبعت للمدير من جديد.")}</div>}
       </div>
     </div>

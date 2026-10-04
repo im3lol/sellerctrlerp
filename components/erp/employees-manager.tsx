@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { UserCog, Plus, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,7 @@ function EmployeeDialog({
   return (
     <DialogContent className="max-w-lg" dir="rtl">
       <DialogHeader>
-        <DialogTitle>{isStandalone && !emp ? t("موظف جديد (بدون حساب)") : `بيانات راتب — ${member.name}`}</DialogTitle>
+        <DialogTitle>{isStandalone && !emp ? t("موظف جديد (بدون حساب)") : fill(t("بيانات راتب — {0}"), [member.name])}</DialogTitle>
       </DialogHeader>
 
       <div className="grid gap-4">
@@ -188,7 +189,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
           <option value="inactive">{t("موقوف")}</option>
           <option value="unregistered">{t("غير مسجّل")}</option>
         </select>
-        {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} نتيجة</span>}
+        {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} {t("نتيجة")}</span>}
       </div>
 
       <div className="overflow-x-auto rounded-xl border">

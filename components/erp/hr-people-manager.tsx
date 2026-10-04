@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { useRouter } from "next/navigation";
@@ -101,7 +102,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setOpeningForm({ titleAr: "", headcount: 1, status: "OPEN", salaryFrom: 0, salaryTo: 0 })}>
-                <Icon name="Plus" className="size-4" />وظيفة
+                <Icon name="Plus" className="size-4" />{t("وظيفة")}
               </Button>
             )}
           </div>
@@ -138,7 +139,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                   hiringManagerId: openingForm.hiringManagerId ?? null,
                   salaryFrom: openingForm.salaryFrom ?? 0, salaryTo: openingForm.salaryTo ?? 0,
                 }), "اتحفظت", () => setOpeningForm(null))}>
-                <Icon name="Check" className="size-4" />احفظ
+                <Icon name="Check" className="size-4" />{t("احفظ")}
               </Button>
               <Button variant="ghost" onClick={() => setOpeningForm(null)}>{t("رجوع")}</Button>
             </div>
@@ -206,14 +207,14 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                 <CardTitle>{t("المتقدّمون")}</CardTitle>
                 <CardDescription>
                   {f.active} في المسار
-                  {f.hireRate != null && ` · نسبة التعيين ${f.hireRate}٪`}
+                  {f.hireRate != null && fill(t(" · نسبة التعيين {0}٪"), [f.hireRate])}
                   {f.hireRate == null && " · لسه محدش اتقرر فيه"}
                 </CardDescription>
               </div>
               {canManage && (
                 <Button size="sm" variant="outline"
                   onClick={() => setApplicantForm({ openingId: selected, fullName: "", phone: "", email: "", source: "", expectedSalary: "" })}>
-                  <Icon name="Plus" className="size-4" />متقدّم
+                  <Icon name="Plus" className="size-4" />{t("متقدّم")}
                 </Button>
               )}
             </div>
@@ -243,7 +244,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                     source: applicantForm.source || null,
                     expectedSalary: Number(applicantForm.expectedSalary) || 0,
                   }), "اتسجّل", () => setApplicantForm(null))}>
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
                 <Button variant="ghost" onClick={() => setApplicantForm(null)}>{t("رجوع")}</Button>
               </div>
@@ -280,7 +281,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                     <div className="font-medium">{a.fullName}</div>
                     <div className="text-xs text-muted-foreground">
                       {a.phone ?? "—"}{a.email && ` · ${a.email}`}{a.source && ` · ${a.source}`}
-                      {a.expectedSalary > 0 && ` · متوقّع ${money(a.expectedSalary)}`}
+                      {a.expectedSalary > 0 && fill(t(" · متوقّع {0}"), [money(a.expectedSalary)])}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -350,7 +351,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                         rating: interview.rating === "" ? null : Number(interview.rating),
                         notes: interview.notes || null,
                       }), "اتسجّلت", () => setInterviewFor(null))}>
-                      <Icon name="Check" className="size-4" />احفظ
+                      <Icon name="Check" className="size-4" />{t("احفظ")}
                     </Button>
                   </div>
                 )}
@@ -362,7 +363,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                         <span className="tabular-nums">{i.at}</span>
                         <span>{i.interviewerName ?? "—"}</span>
                         <Badge variant="outline">{i.outcome === "PASS" ? t("نجح") : i.outcome === "FAIL" ? t("مرفوض") : t("مستنية")}</Badge>
-                        {i.rating != null && <span>{i.rating}/٥</span>}
+                        {i.rating != null && <span>{i.rating}{t("/٥")}</span>}
                       </div>
                     ))}
                   </div>
@@ -420,7 +421,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setForm({ ...blank })}>
-                <Icon name="Plus" className="size-4" />تقييم
+                <Icon name="Plus" className="size-4" />{t("تقييم")}
               </Button>
             )}
           </div>
@@ -458,7 +459,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                   <Label>{t("البنود")}</Label>
                   <Button size="sm" variant="outline"
                     onClick={() => setForm((f) => (f ? { ...f, scores: [...f.scores, { criterion: "", weight: "1", score: "3" }] } : f))}>
-                    <Icon name="Plus" className="size-4" />بند
+                    <Icon name="Plus" className="size-4" />{t("بند")}
                   </Button>
                   {preview != null && (
                     <span className="text-sm">
@@ -506,7 +507,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                       criterion: s.criterion, weight: Number(s.weight) || 0, score: Number(s.score) || 0,
                     })),
                   }), "اتحفظ", () => setForm(null))}>
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
                 <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
               </div>
@@ -532,7 +533,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                     <TableRow key={r.id}>
                       <TableCell>
                         <div className="font-medium">{r.employeeName}</div>
-                        {r.reviewerName && <div className="text-xs text-muted-foreground">قيّمه {r.reviewerName}</div>}
+                        {r.reviewerName && <div className="text-xs text-muted-foreground">{t("قيّمه")} {r.reviewerName}</div>}
                       </TableCell>
                       <TableCell className="text-xs tabular-nums">{r.periodFrom} ← {r.periodTo}</TableCell>
                       <TableCell>
@@ -620,7 +621,7 @@ export function TrainingManager({ courses, employees, canManage }: {
             </div>
             {canManage && (
               <Button size="sm" onClick={() => setForm({ nameAr: "", hours: 0, costPerSeat: 0, seats: 0, status: "PLANNED" })}>
-                <Icon name="Plus" className="size-4" />كورس
+                <Icon name="Plus" className="size-4" />{t("كورس")}
               </Button>
             )}
           </div>
@@ -663,7 +664,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                   hours: form.hours ?? 0, costPerSeat: form.costPerSeat ?? 0,
                   seats: form.seats ?? 0, status: form.status ?? "PLANNED",
                 }), "اتحفظ", () => setForm(null))}>
-                <Icon name="Check" className="size-4" />احفظ
+                <Icon name="Check" className="size-4" />{t("احفظ")}
               </Button>
               <Button variant="ghost" onClick={() => setForm(null)}>{t("رجوع")}</Button>
             </div>
@@ -684,18 +685,18 @@ export function TrainingManager({ courses, employees, canManage }: {
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {c.provider ?? t("داخلي")}
-                      {c.hours > 0 && ` · ${num(c.hours)} ساعة`}
+                      {c.hours > 0 && fill(t(" · {0} ساعة"), [num(c.hours)])}
                       {c.startsAt && ` · ${c.startsAt}`}
-                      {` · ${o.taken}${c.seats > 0 ? `/${c.seats}` : ""} مقعد`}
-                      {o.cost > 0 && ` · تكلفة ${money(o.cost)}`}
-                      {o.costPerCompletion != null && ` · الإتمام الواحد بـ ${money(o.costPerCompletion)}`}
-                      {o.noShows > 0 && ` · ${o.noShows} ما حضروش`}
+                      {fill(t(" · {0}{1} مقعد"), [o.taken, c.seats > 0 ? `/${c.seats}` : ""])}
+                      {o.cost > 0 && fill(t(" · تكلفة {0}"), [money(o.cost)])}
+                      {o.costPerCompletion != null && fill(t(" · الإتمام الواحد بـ {0}"), [money(o.costPerCompletion)])}
+                      {o.noShows > 0 && fill(t(" · {0} ما حضروش"), [o.noShows])}
                     </div>
                   </div>
                   {canManage && (
                     <div className="flex flex-wrap gap-1">
                       <Button size="sm" variant="outline" onClick={() => { setEnrollFor(enrollFor === c.id ? null : c.id); setPicked([]); }}>
-                        <Icon name="Plus" className="size-4" />سجّل موظفين
+                        <Icon name="Plus" className="size-4" />{t("سجّل موظفين")}
                       </Button>
                       <Button size="icon" variant="ghost" aria-label={t("تعديل")} onClick={() => setForm(c)}>
                         <Icon name="Edit" className="size-4" />
@@ -719,7 +720,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                     </div>
                     <Button size="sm" disabled={pending || picked.length === 0}
                       onClick={() => run(() => enrollAction(c.id, picked), "اتسجّلوا", () => { setEnrollFor(null); setPicked([]); })}>
-                      <Icon name="Check" className="size-4" />سجّل {picked.length}
+                      <Icon name="Check" className="size-4" />{t("سجّل")} {picked.length}
                     </Button>
                   </div>
                 )}

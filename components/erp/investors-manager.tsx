@@ -25,8 +25,9 @@ export type Investor = {
 };
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function InvestorDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Investor | null }) {
@@ -92,7 +93,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>{t("قائمة المستثمرين")}</CardTitle><CardDescription>{investors.length} مستثمر · {activeCount} نشط</CardDescription></div>
+        <div><CardTitle>{t("قائمة المستثمرين")}</CardTitle><CardDescription>{investors.length} {t("مستثمر ·")} {activeCount} {t("نشط")}</CardDescription></div>
         {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />{t("مستثمر جديد")}</Button>}
       </CardHeader>
       <CardContent>
@@ -105,7 +106,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
               <option value="active">{t("نشط")}</option>
               <option value="inactive">{t("غير نشط")}</option>
             </select>
-            {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} نتيجة</span>}
+            {(q || statusFilter) && <span className="text-sm text-muted-foreground">{filtered.length} {t("نتيجة")}</span>}
           </div>
         )}
         {investors.length === 0 ? (
@@ -114,7 +115,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
           <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا نتائج مطابقة.")}</div>
         ) : (
           <>
-          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteInvestorsAction} onDone={sel.clear} entity="مستثمر" />}
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteInvestorsAction} onDone={sel.clear} entity={t("مستثمر")} />}
           <Table>
             <TableHeader>
               <TableRow>
@@ -141,7 +142,7 @@ export function InvestorsManager({ investors, canManage }: { investors: Investor
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>حذف المستثمر «{inv.fullName}»؟</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف المستثمر «")}{inv.fullName}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(inv)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

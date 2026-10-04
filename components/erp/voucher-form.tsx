@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -72,7 +73,7 @@ export function VoucherForm({
 
   const submit = () =>
     start(async () => {
-      if (!partyId) { toast.error(`اختر ${partyLabel}`); return; }
+      if (!partyId) { toast.error(fill(t("اختر {0}"), [partyLabel])); return; }
       if (!cashAccountId) { toast.error("اختر حساب النقدية/البنك"); return; }
       if (!(Number(amount) > 0)) { toast.error("أدخل مبلغاً صحيحاً"); return; }
       const base = { cashAccountId, amount: Number(amount), date, paymentMethod: method, reference, notes };
@@ -102,7 +103,7 @@ export function VoucherForm({
             selectedLabel={partyLabelById.get(partyId) ?? ""}
             options={partyOptions}
             onSelect={(id) => { setPartyId(id); setInvoiceId(""); }}
-            placeholder={`ابحث عن ${partyLabel}…`}
+            placeholder={fill(t("ابحث عن {0}…"), [partyLabel])}
           />
         </div>
 
@@ -111,7 +112,7 @@ export function VoucherForm({
           <select id="invoice" className={selectCls} value={invoiceId} onChange={(e) => pickInvoice(e.target.value)} disabled={!partyId}>
             <option value="">{t("— دفعة تحت الحساب —")}</option>
             {partyInvoices.map((i) => (
-              <option key={i.id} value={i.id}>{i.number} (متبقّي {i.balanceDue.toLocaleString("ar-EG-u-nu-latn")})</option>
+              <option key={i.id} value={i.id}>{i.number} {t("(متبقّي")} {i.balanceDue.toLocaleString("ar-EG-u-nu-latn")})</option>
             ))}
           </select>
         </div>

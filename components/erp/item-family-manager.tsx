@@ -117,7 +117,7 @@ export function ItemFamilyManager({
                       <TableCell>
                         {!m.isHead && (
                           <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => unlink(m.id)}>
-                            <Icon name="Unlink" className="size-4" />فك الربط
+                            <Icon name="Unlink" className="size-4" />{t("فك الربط")}
                           </Button>
                         )}
                       </TableCell>
@@ -138,7 +138,7 @@ export function ItemFamilyManager({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="flex-1 text-sm">{t("التنويعة:")} <span className="font-medium">{t(picked.label)}</span></span>
                 <Input value={variation} onChange={(e) => setVariation(e.target.value)} placeholder={t("قيمة التنويعة (مثال: أحمر - L)")} className="w-48" />
-                <Button type="button" size="sm" disabled={pending} onClick={link}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}ربط</Button>
+                <Button type="button" size="sm" disabled={pending} onClick={link}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("ربط")}</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => { setPicked(null); setVariation(""); }}>{t("إلغاء")}</Button>
               </div>
             ) : (

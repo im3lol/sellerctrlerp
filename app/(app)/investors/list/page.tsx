@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -26,7 +27,7 @@ export default async function InvestorsListPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Coins" title={t("المستثمرون")} subtitle={`${rows.length} مستثمر`} backHref="/investors" />
+        <ErpPageHeader icon="Coins" title={t("المستثمرون")} subtitle={fill(t("{0} مستثمر"), [rows.length])} backHref="/investors" />
         <InvestorsManager investors={rows} canManage={can("investors.edit")} />
       </div>
     );

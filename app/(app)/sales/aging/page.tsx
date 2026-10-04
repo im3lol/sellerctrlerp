@@ -65,11 +65,11 @@ export default async function ArAgingPage({ searchParams }: { searchParams: Prom
         <Card>
           <CardHeader>
             <CardTitle>{t("تحليل الأعمار")}</CardTitle>
-            <CardDescription>إجمالي المستحق {grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</CardDescription>
+            <CardDescription>{t("إجمالي المستحق")} {grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {grand > 0 && <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel={t("المستحق")} money height={220} />}
-            <AgingTable rows={rows} totals={totals} grand={grand} partyLabel="العميل" empty="لا توجد أرصدة مستحقة على العملاء." />
+            <AgingTable rows={rows} totals={totals} grand={grand} partyLabel={t("العميل")} empty={t("لا توجد أرصدة مستحقة على العملاء.")} />
           </CardContent>
         </Card>
       </ReportShell>

@@ -34,7 +34,8 @@ for (const f of ROOTS.flatMap((r) => files(r))) {
   const stat = perArea.get(area) ?? { wrapped: 0, raw: 0 };
   // Only a single-argument t("…") is a translation call; lib/erp/automation/model.ts has
   // its own local t(column, label) helper that must not be counted as one.
-  for (const m of src.matchAll(/\bt\(\s*"([^"]+)"\s*\)/g)) { wrapped.add(m[1]); stat.wrapped++; }
+  // Decode the literal as JS would (\n, \") so the key matches the dictionary entry exactly.
+  for (const m of src.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)+)"\s*\)/g)) { wrapped.add(JSON.parse(`"${m[1]}"`)); stat.wrapped++; }
   // Arabic literals that are NOT already inside a t("…")
   for (const m of src.matchAll(/"([^"\n]*[؀-ۿ][^"\n]*)"/g)) {
     const before = src.slice(Math.max(0, m.index! - 3), m.index!);
@@ -56,7 +57,7 @@ console.log("\nby area (raw Arabic literals left):");
 for (const [area, s] of [...perArea.entries()].sort((a, b) => b[1].raw - a[1].raw).slice(0, 12)) {
   console.log(`  ${area.padEnd(22)} raw ${String(s.raw).padStart(5)}   wrapped ${s.wrapped}`);
 }
-if (missing.length) console.log(`\n⚠ wrapped but untranslated (${missing.length}):\n` + missing.slice(0, 20).map((k) => `  ${k}`).join("\n"));
+if (missing.length) console.log(`\n⚠ wrapped but untranslated (${missing.length}):\n` + missing.slice(0, Number(process.env.I18N_MISSING ?? 20)).map((k) => `  ${k}`).join("\n"));
 if (bogus.length) console.log(`\n✗ t() called with a non-Arabic key (likely a mistake):\n` + bogus.map((k) => `  ${k}`).join("\n"));
 if (process.argv.includes("--list")) {
   console.log("\ntop untranslated strings by occurrences:");

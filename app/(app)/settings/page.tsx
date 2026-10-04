@@ -20,7 +20,7 @@ export default async function ErpSettingsPage() {
         {groups.map((g) => (
           <Card key={g.heading}>
             <CardHeader>
-              <CardTitle>{g.heading}</CardTitle>
+              <CardTitle>{t(g.heading)}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -34,7 +34,7 @@ export default async function ErpSettingsPage() {
                         {t(it.label)}
                         {it.external && <Icon name="ArrowUpLeft" className="size-3 text-muted-foreground" />}
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{it.desc}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{t(it.desc)}</p>
                     </div>
                   </Link>
                 ))}

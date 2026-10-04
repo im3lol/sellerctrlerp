@@ -63,7 +63,7 @@ function YearClosingDialog({
   return (
     <DialogContent className="max-w-2xl" dir="rtl">
       <DialogHeader>
-        <DialogTitle>إقفال السنة المالية — {period.name}</DialogTitle>
+        <DialogTitle>{t("إقفال السنة المالية —")} {period.name}</DialogTitle>
       </DialogHeader>
 
       {loading && <p className="py-6 text-center text-sm text-muted-foreground">{t("جارٍ تحميل معاينة القيود…")}</p>}
@@ -194,15 +194,15 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
                             {p.status !== "CLOSED" ? (
                               <>
                                 <Button size="sm" variant="outline" disabled={pending} onClick={() => setStatus(p.id, "CLOSED")}>
-                                  <Icon name="Lock" className="size-4" />إقفال بسيط
+                                  <Icon name="Lock" className="size-4" />{t("إقفال بسيط")}
                                 </Button>
                                 <Button size="sm" variant="default" disabled={pending} onClick={() => setClosingPeriod(p)}>
-                                  <Icon name="BookCheck" className="size-4" />إقفال السنة
+                                  <Icon name="BookCheck" className="size-4" />{t("إقفال السنة")}
                                 </Button>
                               </>
                             ) : (
                               <Button size="sm" variant="outline" disabled={pending} onClick={() => setStatus(p.id, "OPEN")}>
-                                <Icon name="LockOpen" className="size-4" />إعادة فتح
+                                <Icon name="LockOpen" className="size-4" />{t("إعادة فتح")}
                               </Button>
                             )}
                           </div>

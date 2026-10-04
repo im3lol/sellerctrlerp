@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -68,7 +69,7 @@ export function AdjustmentForm({
     setScanning(true);
     try {
       const results = await searchItemsAction(term);
-      if (results.length === 0) { toast.error(`لا يوجد صنف بالكود ${term}`); return; }
+      if (results.length === 0) { toast.error(fill(t("لا يوجد صنف بالكود {0}"), [term])); return; }
       const it = results[0];
       const label = `${it.code} — ${it.name}`;
       // Merge into an existing empty line if present, else append.

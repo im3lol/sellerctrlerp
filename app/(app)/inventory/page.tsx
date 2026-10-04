@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +24,7 @@ type TrendRow = { m: string; type: string; qty: string };
 const DEAD_DAYS = 90; // matches the dead-stock report default (no sale in N days)
 
 export default async function InventoryDashboardPage() {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     // Two scans only: (1) light — active items + their category; (2) the one heavy
@@ -126,7 +127,7 @@ export default async function InventoryDashboardPage() {
     const trend = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
+      return { label: d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
     });
     const hasMovement = trend.some((t) => t.inQ || t.outQ);
 
@@ -207,7 +208,7 @@ export default async function InventoryDashboardPage() {
                         <span className={cn("flex size-6 items-center justify-center rounded-md text-xs font-bold text-white", a.color)}>{a.cls}</span>
                         <span className="text-muted-foreground">{t(a.label)}</span>
                       </span>
-                      <span className="shrink-0 tabular-nums"><span className="font-semibold">{money(a.val)}</span> · {intf(a.n)} صنف</span>
+                      <span className="shrink-0 tabular-nums"><span className="font-semibold">{money(a.val)}</span> · {intf(a.n)} {t("صنف")}</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted"><div className={cn("h-2 rounded-full", a.color)} style={{ width: `${Math.max((a.val / totalValue) * 100, 1)}%` }} /></div>
                   </div>
@@ -265,7 +266,7 @@ export default async function InventoryDashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("الأصناف الراكدة")}</CardTitle>
-              <CardDescription>لها رصيد ولم تُبَع خلال {intf(DEAD_DAYS)} يوماً — رأس مال متجمّد.</CardDescription>
+              <CardDescription>{t("لها رصيد ولم تُبَع خلال")} {intf(DEAD_DAYS)} {t("يوماً — رأس مال متجمّد.")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border bg-muted/40 p-4">

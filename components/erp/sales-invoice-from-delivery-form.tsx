@@ -100,7 +100,7 @@ export function SalesInvoiceFromDeliveryForm({
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات فاتورة البيع")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ الفاتورة</Button>
+            <Button size="sm" onClick={submit} disabled={pending || !preview}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الفاتورة")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/sales/invoices")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -136,7 +136,7 @@ export function SalesInvoiceFromDeliveryForm({
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>سعر الصرف (1 {currencyCode} = ؟ {baseCurrency?.code ?? "EGP"})</Label>
+                <Label>{t("سعر الصرف (1")} {currencyCode} = ؟ {baseCurrency?.code ?? "EGP"})</Label>
                 <Input
                   type="number"
                   min="0.000001"
@@ -151,7 +151,7 @@ export function SalesInvoiceFromDeliveryForm({
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
                 <span>{t("إجمالي بالعملة الأجنبية:")}</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {currencyCode}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCurrency?.code ?? "EGP"})</span>
+                <span className="text-xs">{t("(الأستاذ يُسجَّل بـ")} {baseCurrency?.code ?? "EGP"})</span>
               </div>
             )}
           </div>

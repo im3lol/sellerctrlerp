@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -68,12 +69,12 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
     start(async () => {
       const r = await importPlatformPaymentsAction(platformId, payments);
       setResult(r);
-      if (r.ok) { toast.success(`تم إنشاء ${r.created} سند قبض${r.skippedDuplicate ? ` · تخطّي ${r.skippedDuplicate} مكرر` : ""}`); router.refresh(); }
+      if (r.ok) { toast.success(fill(t("تم إنشاء {0} سند قبض"), [r.created]) + (r.skippedDuplicate ? fill(t(" · تخطّي {0} مكرر"), [r.skippedDuplicate]) : "")); router.refresh(); }
       else toast.error(r.error);
     });
   };
 
-  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
+  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || fill(t("عمود {0}"), [i + 1])}</option>);
   // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
   const mapProps = (k: keyof Mapping) => ({
     value: map[k],
@@ -84,7 +85,7 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>استيراد المدفوعات — {platformName}</CardTitle>
+        <CardTitle>{t("استيراد المدفوعات —")} {platformName}</CardTitle>
         <CardDescription>{t("ارفع ملف المدفوعات/التحويلات، اربط الأعمدة، ثم استورد. كل دفعة تصبح سند قبض (مسودة) باسم عميل المنصة على حسابها البنكي. أكّد السندات لترحيلها.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -98,7 +99,7 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
           <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasBank}>
             <Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV")}
           </Button>
-          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
+          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} {t("صف")}</span>}
         </div>
 
         {rows && (

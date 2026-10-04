@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { useRouter } from "next/navigation";
@@ -104,7 +105,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   {r.mine && (
                     <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => void (async () => {
                       const go = await confirm({
-                        danger: true, title: `تمسح «${r.nameAr}»؟`,
+                        danger: true, title: fill(t("تمسح «{0}»؟"), [r.nameAr]),
                         description: "التقرير بس اللي هيتمسح — البيانات نفسها مش بتتأثر.",
                         confirmText: "امسح", cancelText: "رجوع",
                       });
@@ -181,7 +182,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 onChange={(e) => setSpec((s) => ({ ...s, limit: e.target.value === "" ? undefined : Number(e.target.value) }))} />
             </div>
             <Button onClick={() => run()} disabled={pending || !dataset}>
-              <Icon name="Play" className="size-4" />شغّل
+              <Icon name="Play" className="size-4" />{t("شغّل")}
             </Button>
             <Button variant="outline" onClick={() => { setSpec({ ...EMPTY_SPEC }); setSavingAs(null); run(dataset, { ...EMPTY_SPEC }); }}>
               {t("ابدأ من جديد")}
@@ -198,7 +199,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
           {spec.groupBy == null && (
             <div className="space-y-2">
-              <Label>الأعمدة {spec.columns.length === 0 && <span className="text-xs text-muted-foreground">{t("(مفيش اختيار = كل الأعمدة)")}</span>}</Label>
+              <Label>{t("الأعمدة")} {spec.columns.length === 0 && <span className="text-xs text-muted-foreground">{t("(مفيش اختيار = كل الأعمدة)")}</span>}</Label>
               <div className="flex flex-wrap gap-2">
                 {headers.map((h, i) => (
                   <Button key={i} size="sm" variant={spec.columns.includes(i) ? "default" : "outline"}
@@ -215,7 +216,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               <Label>{t("الشروط")}</Label>
               <Button size="sm" variant="outline" disabled={spec.filters.length >= 10}
                 onClick={() => setSpec((s) => ({ ...s, filters: [...s.filters, { column: 0, op: "contains", value: "" }] }))}>
-                <Icon name="Plus" className="size-4" />شرط
+                <Icon name="Plus" className="size-4" />{t("شرط")}
               </Button>
             </div>
             {spec.filters.length === 0 ? (
@@ -253,7 +254,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               <Label>{t("الإجماليات")}</Label>
               <Button size="sm" variant="outline" disabled={spec.aggregates.length >= 8}
                 onClick={() => setSpec((s) => ({ ...s, aggregates: [...s.aggregates, { column: 0, agg: "sum" }] }))}>
-                <Icon name="Plus" className="size-4" />إجمالي
+                <Icon name="Plus" className="size-4" />{t("إجمالي")}
               </Button>
             </div>
             {spec.aggregates.map((a, i) => (
@@ -286,7 +287,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 <CardTitle>{result.datasetTitle}</CardTitle>
                 <CardDescription>
                   {result.matched} {result.grouped ? t("مجموعة") : t("صف")}
-                  {result.rows.length < result.matched && ` · معروض ${result.rows.length}`}
+                  {result.rows.length < result.matched && fill(t(" · معروض {0}"), [result.rows.length])}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -303,7 +304,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 </div>
                 <Button size="sm" variant="outline"
                   onClick={() => setSavingAs((v) => v ?? { nameAr: "", isShared: false })}>
-                  <Icon name="Save" className="size-4" />احفظ التقرير
+                  <Icon name="Save" className="size-4" />{t("احفظ التقرير")}
                 </Button>
               </div>
             </div>
@@ -327,7 +328,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                     if (r.ok) { toast.success("اتحفظ"); setSavingAs(null); router.refresh(); }
                     else toast.error(r.error ?? t("تعذّر الحفظ"));
                   })}>
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
                 <Button variant="ghost" onClick={() => setSavingAs(null)}>{t("رجوع")}</Button>
               </div>

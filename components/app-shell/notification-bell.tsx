@@ -7,18 +7,22 @@ import { getNotificationsAction } from "@/app/actions/erp/notifications";
 import type { Notifications } from "@/lib/erp/notifications-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { playChime, isSoundOn, setSoundOn } from "@/lib/sound";
+import { fill, type Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const rtf = new Intl.RelativeTimeFormat("ar-EG", { numeric: "auto" });
-function ago(iso: string): string {
+function ago(iso: string, locale: Locale): string {
+  const rtf = new Intl.RelativeTimeFormat(locale === "en" ? "en" : "ar-EG", { numeric: "auto" });
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "الآن";
+  if (s < 60) return locale === "en" ? "now" : "الآن";
   const m = Math.round(s / 60); if (m < 60) return rtf.format(-m, "minute");
   const h = Math.round(m / 60); if (h < 24) return rtf.format(-h, "hour");
   return rtf.format(-Math.round(h / 24), "day");
 }
 
 export function NotificationBell() {
+  const t = useT();
+  const locale = useLocale();
   const [n, setN] = useState<Notifications | null>(null);
   // Attention counter, not per-message read state: "mark all as read" acknowledges
   // the current total; the badge reappears only when something new pushes it higher.
@@ -58,22 +62,22 @@ export function NotificationBell() {
   const showBadge = total > 0 && total > ackTotal;
 
   const rows = [
-    { show: !!n?.pendingApprovals, icon: <ClipboardCheck className="size-4" />, tone: "red", label: "مستندات مستنية موافقتك", count: n?.pendingApprovals ?? 0, href: "/approvals" },
-    { show: !!n?.myFollowUps, icon: <CalendarClock className="size-4" />, tone: "amber", label: "متابعات عليك النهارده", count: n?.myFollowUps ?? 0, href: "/approvals?tab=tasks" },
-    { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: "طلبات أمازون جديدة", count: n?.newOrders ?? 0, href: "/sales/orders" },
-    { show: !!n?.unmatched, icon: <PackageX className="size-4" />, tone: "red", label: "طلبات بمنتج غير معرَّف", count: n?.unmatched ?? 0, href: "/sales/orders/unmatched" },
-    { show: !!n?.unclaimedReturns, icon: <Undo2 className="size-4" />, tone: "amber", label: "مرتجعات منصّات بانتظار المطابقة", count: n?.unclaimedReturns ?? 0, href: "/sales/returns" },
-    { show: !!n?.mktReturns, icon: <Undo2 className="size-4" />, tone: "red", label: "مرتجعات منصّات بانتظار الاستلام", count: n?.mktReturns ?? 0, href: "/sales/marketplace-returns" },
-    { show: !!n?.mktRemovals, icon: <PackageX className="size-4" />, tone: "amber", label: "أوامر سحب بانتظار المراجعة", count: n?.mktRemovals ?? 0, href: "/sales/marketplace-removals" },
-    { show: !!n?.mktReimbursements, icon: <HandCoins className="size-4" />, tone: "primary", label: "تعويضات بانتظار التسجيل", count: n?.mktReimbursements ?? 0, href: "/sales/marketplace-reimbursements" },
-    { show: !!n?.lostBuyBox, icon: <Trophy className="size-4" />, tone: "red", label: "أصناف خسرت الـBuy Box", count: n?.lostBuyBox ?? 0, href: "/platforms/amazon/buy-box" },
-    { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف من أمازون تحتاج مراجعة", count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
-    { show: !!n?.stockWaiting, icon: <PackageX className="size-4" />, tone: "amber", label: "أذون صرف بانتظار توفّر المخزون", count: n?.stockWaiting ?? 0, href: "/sales/deliveries?status=DRAFT" },
-    { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: "مستندات جديدة", count: n?.newActivity ?? 0, href: "/audit" },
-    { show: !!n?.lowStock, icon: <PackageX className="size-4" />, tone: "amber", label: "أصناف تحت حد الطلب", count: n?.lowStock ?? 0, href: "/inventory/reorder" },
-    { show: !!n?.expiring, icon: <CalendarClock className="size-4" />, tone: "amber", label: "أصناف قرب/بعد انتهاء الصلاحية", count: n?.expiring ?? 0, href: "/inventory/expiry" },
-    { show: !!n?.overdueAR, icon: <Clock className="size-4" />, tone: "red", label: `فواتير بيع متأخرة${n?.overdueTotal ? ` (${int(n.overdueTotal)})` : ""}`, count: n?.overdueAR ?? 0, href: "/accounting/aging" },
-    { show: !!n?.overdueAP, icon: <Clock className="size-4" />, tone: "red", label: `فواتير شراء متأخرة${n?.overdueAPTotal ? ` (${int(n.overdueAPTotal)})` : ""}`, count: n?.overdueAP ?? 0, href: "/accounting/aging" },
+    { show: !!n?.pendingApprovals, icon: <ClipboardCheck className="size-4" />, tone: "red", label: t("مستندات مستنية موافقتك"), count: n?.pendingApprovals ?? 0, href: "/approvals" },
+    { show: !!n?.myFollowUps, icon: <CalendarClock className="size-4" />, tone: "amber", label: t("متابعات عليك النهارده"), count: n?.myFollowUps ?? 0, href: "/approvals?tab=tasks" },
+    { show: !!n?.newOrders, icon: <ShoppingCart className="size-4" />, tone: "primary", label: t("طلبات أمازون جديدة"), count: n?.newOrders ?? 0, href: "/sales/orders" },
+    { show: !!n?.unmatched, icon: <PackageX className="size-4" />, tone: "red", label: t("طلبات بمنتج غير معرَّف"), count: n?.unmatched ?? 0, href: "/sales/orders/unmatched" },
+    { show: !!n?.unclaimedReturns, icon: <Undo2 className="size-4" />, tone: "amber", label: t("مرتجعات منصّات بانتظار المطابقة"), count: n?.unclaimedReturns ?? 0, href: "/sales/returns" },
+    { show: !!n?.mktReturns, icon: <Undo2 className="size-4" />, tone: "red", label: t("مرتجعات منصّات بانتظار الاستلام"), count: n?.mktReturns ?? 0, href: "/sales/marketplace-returns" },
+    { show: !!n?.mktRemovals, icon: <PackageX className="size-4" />, tone: "amber", label: t("أوامر سحب بانتظار المراجعة"), count: n?.mktRemovals ?? 0, href: "/sales/marketplace-removals" },
+    { show: !!n?.mktReimbursements, icon: <HandCoins className="size-4" />, tone: "primary", label: t("تعويضات بانتظار التسجيل"), count: n?.mktReimbursements ?? 0, href: "/sales/marketplace-reimbursements" },
+    { show: !!n?.lostBuyBox, icon: <Trophy className="size-4" />, tone: "red", label: t("أصناف خسرت الـBuy Box"), count: n?.lostBuyBox ?? 0, href: "/platforms/amazon/buy-box" },
+    { show: !!n?.needsReview, icon: <PackageX className="size-4" />, tone: "amber", label: t("أصناف من أمازون تحتاج مراجعة"), count: n?.needsReview ?? 0, href: "/inventory/items?review=1" },
+    { show: !!n?.stockWaiting, icon: <PackageX className="size-4" />, tone: "amber", label: t("أذون صرف بانتظار توفّر المخزون"), count: n?.stockWaiting ?? 0, href: "/sales/deliveries?status=DRAFT" },
+    { show: !!n?.newActivity, icon: <FilePlus2 className="size-4" />, tone: "primary", label: t("مستندات جديدة"), count: n?.newActivity ?? 0, href: "/audit" },
+    { show: !!n?.lowStock, icon: <PackageX className="size-4" />, tone: "amber", label: t("أصناف تحت حد الطلب"), count: n?.lowStock ?? 0, href: "/inventory/reorder" },
+    { show: !!n?.expiring, icon: <CalendarClock className="size-4" />, tone: "amber", label: t("أصناف قرب/بعد انتهاء الصلاحية"), count: n?.expiring ?? 0, href: "/inventory/expiry" },
+    { show: !!n?.overdueAR, icon: <Clock className="size-4" />, tone: "red", label: n?.overdueTotal ? fill(t("فواتير بيع متأخرة ({0})"), [int(n.overdueTotal)]) : t("فواتير بيع متأخرة"), count: n?.overdueAR ?? 0, href: "/accounting/aging" },
+    { show: !!n?.overdueAP, icon: <Clock className="size-4" />, tone: "red", label: n?.overdueAPTotal ? fill(t("فواتير شراء متأخرة ({0})"), [int(n.overdueAPTotal)]) : t("فواتير شراء متأخرة"), count: n?.overdueAP ?? 0, href: "/accounting/aging" },
   ].filter((r) => r.show);
 
   const toneCls: Record<string, string> = {
@@ -84,7 +88,7 @@ export function NotificationBell() {
 
   return (
     <Popover onOpenChange={(o) => o && acknowledgeBadge()}>
-      <PopoverTrigger className="relative grid size-10 place-items-center rounded-lg hover:bg-accent" aria-label="الإشعارات">
+      <PopoverTrigger className="relative grid size-10 place-items-center rounded-lg hover:bg-accent" aria-label={t("الإشعارات")}>
         <Bell className="size-5" />
         {showBadge && (
           <span className="absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">
@@ -92,23 +96,23 @@ export function NotificationBell() {
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[75vh] w-[22rem] overflow-y-auto p-0" dir="rtl">
+      <PopoverContent align="end" className="max-h-[75vh] w-[22rem] overflow-y-auto p-0" dir={locale === "en" ? "ltr" : "rtl"}>
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">الإشعارات</span>
+            <span className="text-sm font-semibold">{t("الإشعارات")}</span>
             {total > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground">{int(total)}</span>}
             <button
               onClick={() => { const next = !soundOn; setSound(next); setSoundOn(next); }}
               className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
-              aria-label={soundOn ? "كتم نغمات الإشعارات" : "تشغيل نغمات الإشعارات"}
-              title={soundOn ? "النغمات مفعّلة" : "النغمات مكتومة"}
+              aria-label={soundOn ? t("كتم نغمات الإشعارات") : t("تشغيل نغمات الإشعارات")}
+              title={soundOn ? t("النغمات مفعّلة") : t("النغمات مكتومة")}
             >
               {soundOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
             </button>
           </div>
           {total > 0 && (
             <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10">
-              <CheckCheck className="size-3.5" /> تحديد الكل كمقروء
+              <CheckCheck className="size-3.5" /> {t("تحديد الكل كمقروء")}
             </button>
           )}
         </div>
@@ -116,7 +120,7 @@ export function NotificationBell() {
         {rows.length === 0 && !n?.recent.length ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted-foreground">
             <CheckCircle2 className="size-8 text-emerald-500/70" />
-            لا توجد إشعارات
+            {t("لا توجد إشعارات")}
           </div>
         ) : (
           <>
@@ -133,7 +137,7 @@ export function NotificationBell() {
             )}
             {!!n?.recent.length && (
               <>
-                <div className="border-y bg-muted/30 px-4 py-1.5 text-xs font-semibold text-muted-foreground">النشاط الأخير</div>
+                <div className="border-y bg-muted/30 px-4 py-1.5 text-xs font-semibold text-muted-foreground">{t("النشاط الأخير")}</div>
                 <div className="p-2">
                   {n.recent.map((a, i) => {
                     const inner = (
@@ -141,8 +145,8 @@ export function NotificationBell() {
                         <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${a.action === "CREATE" ? "bg-primary/12 text-primary" : "bg-emerald-500/12 text-emerald-600"}`}>
                           {a.action === "CREATE" ? <FilePlus2 className="size-4" /> : <CheckCircle2 className="size-4" />}
                         </span>
-                        <span className="flex-1 truncate leading-tight">{a.summary ?? a.number ?? "مستند"}</span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{ago(a.at)}</span>
+                        <span className="flex-1 truncate leading-tight">{a.summary ? t(a.summary) : a.number ?? t("مستند")}</span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{ago(a.at, locale)}</span>
                       </>
                     );
                     return a.href

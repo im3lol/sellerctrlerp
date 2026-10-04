@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -44,10 +45,10 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} فاتورة`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} فاتورة"), [verb, sel.size]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkPurchaseInvoicesAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} فاتورة`); setSel(new Set()); router.refresh(); }
+        if (r.ok) { toast.success(fill(t("تم {0} {1} فاتورة"), [verb, r.count ?? 0])); setSel(new Set()); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -57,11 +58,11 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
     <div className="space-y-3">
       {actionable && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} {t("محدّد")}</span>
           <div className="ms-auto flex gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={`/api/erp/purchases/invoices/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
-                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+                <Icon name="FileSpreadsheet" className="size-4" />{t("تنزيل Excel")}
               </a>
             </Button>
             {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}

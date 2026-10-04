@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -106,7 +107,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="Wallet"
-          title={`محفظة ومدفوعات ${platform.name}`}
+          title={fill(t("محفظة ومدفوعات {0}"), [platform.name])}
           subtitle={t("ما لم تُحوّله المنصّة بعد مقابل ما أودعته في البنك — من التسويات")}
           backHref={`/platforms/${code}`}
           action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />{t("كشوف التسويات")}</Link></Button>}
@@ -134,9 +135,9 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
             <CardContent className="pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-base font-semibold">مطابقة الرصيد مع {platform.name}</div>
+                  <div className="text-base font-semibold">{t("مطابقة الرصيد مع")} {platform.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {lastFetched ? `آخر قراءة: ${dtt(lastFetched)}` : `لم يُقرأ الرصيد بعد — شغّل مزامنة المدفوعات أو حدّث الآن`}
+                    {lastFetched ? fill(t("آخر قراءة: {0}"), [dtt(lastFetched)]) : t("لم يُقرأ الرصيد بعد — شغّل مزامنة المدفوعات أو حدّث الآن")}
                   </div>
                 </div>
                 <PlatformBalanceRefresh code={code} />
@@ -154,7 +155,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(walletBalance)}</div>
                     </div>
                     <div className="rounded-xl border p-4">
-                      <div className="text-sm text-muted-foreground">حسب {platform.name}</div>
+                      <div className="text-sm text-muted-foreground">{t("حسب")} {platform.name}</div>
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(reportedTotal)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">
                         {reported.map((r) => `${r.currency}${r.accountTail ? ` ****${r.accountTail}` : ""}`).join(" · ")}
@@ -238,7 +239,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {wallet?.name ?? ""}). التحويلات من صفوف «Transfer» في تقرير التسويات.</p>
+            <p className="mt-3 text-xs text-muted-foreground">رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {wallet?.name ?? ""}{t("). التحويلات من صفوف «Transfer» في تقرير التسويات.")}</p>
           </CardContent>
         </Card>
       </div>

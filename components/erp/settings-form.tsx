@@ -80,7 +80,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
         </Button>
         {url && (
           <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => setUrl("")}>
-            <X className="size-4" /> إزالة
+            <X className="size-4" /> {t("إزالة")}
           </Button>
         )}
       </div>

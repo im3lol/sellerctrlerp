@@ -39,7 +39,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>{t("قيد يومية مسودّة")}</b> (مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.
+        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>{t("قيد يومية مسودّة")}</b> {t("(مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;
@@ -49,7 +49,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-sm" dir="ltr">{o.reimbursementId}</span>
-                  {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">طلب {o.orderId}</span>}
+                  {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">{t("طلب")} {o.orderId}</span>}
                   <span className="text-xs text-muted-foreground">· {dt(o.approvalDate)}</span>
                   {o.reason && <Badge variant="outline">{o.reason}</Badge>}
                   {o.matchedLoss && <Badge variant="secondary" className="gap-1"><Link2 className="size-3" />{o.matchedLoss}</Badge>}
@@ -57,7 +57,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
                 <div className="text-sm">
                   {o.sku && <span dir="ltr">{o.sku} · </span>}
                   <span className="font-semibold">{fmt(o.amountTotal)} {o.currency ?? ""}</span>
-                  {o.qtyInv > 0 && <span className="text-muted-foreground"> · عيني {o.qtyInv} وحدة</span>}
+                  {o.qtyInv > 0 && <span className="text-muted-foreground"> {t("· عيني")} {o.qtyInv} {t("وحدة")}</span>}
                 </div>
               </div>
               <Button size="sm" variant="outline" disabled={isBusy} onClick={() => confirm(o.id)}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -198,7 +199,7 @@ export function JournalEntryForm({
                 <TableCell>{fmt(totals.credit)}</TableCell>
                 <TableCell colSpan={costCenters.length > 0 ? 2 : 1}>
                   <span className={totals.balanced ? "text-emerald-600" : "text-destructive"}>
-                    {totals.diff === 0 ? t("متوازن") : `فرق ${fmt(totals.diff)}`}
+                    {totals.diff === 0 ? t("متوازن") : fill(t("فرق {0}"), [fmt(totals.diff)])}
                   </span>
                 </TableCell>
               </TableRow>
@@ -207,12 +208,12 @@ export function JournalEntryForm({
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <Button type="button" variant="outline" onClick={addLine}>
-              <Icon name="Plus" className="size-4" />إضافة بند
+              <Icon name="Plus" className="size-4" />{t("إضافة بند")}
             </Button>
             <div className="flex gap-2">
               {isEdit ? (
                 <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("draft")}>
-                  <Icon name="Check" className="size-4" />حفظ التعديلات
+                  <Icon name="Check" className="size-4" />{t("حفظ التعديلات")}
                 </Button>
               ) : (
                 <>
@@ -220,7 +221,7 @@ export function JournalEntryForm({
                     {t("حفظ كمسودة")}
                   </Button>
                   <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
-                    <Icon name="Check" className="size-4" />حفظ وترحيل
+                    <Icon name="Check" className="size-4" />{t("حفظ وترحيل")}
                   </Button>
                 </>
               )}

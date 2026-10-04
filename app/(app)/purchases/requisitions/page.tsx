@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -33,7 +34,7 @@ export default async function RequisitionsPage() {
     return (
       <div className="space-y-6">
         <ErpPageHeader
-          icon="ClipboardList" title={t("طلبات المواد")} subtitle={`${rows.length} طلب`} backHref="/purchases"
+          icon="ClipboardList" title={t("طلبات المواد")} subtitle={fill(t("{0} طلب"), [rows.length])} backHref="/purchases"
           action={canManage ? <Button asChild><Link href="/purchases/requisitions/new"><Icon name="Plus" className="size-4" />{t("طلب جديد")}</Link></Button> : undefined}
         />
 

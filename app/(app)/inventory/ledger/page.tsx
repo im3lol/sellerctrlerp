@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
@@ -60,7 +61,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
         reportKey="inv-ledger"
         icon="ScrollText"
         title={t("دفتر حركة المخزون")}
-        subtitle={`${rows.length} حركة`}
+        subtitle={fill(t("{0} حركة"), [rows.length])}
         query={filterQs().toString()}
         permissions={permissions}
       >
@@ -108,7 +109,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
         <Card>
           <CardHeader>
             <CardTitle>{t("الحركات")}</CardTitle>
-            <CardDescription>{itemLabel ? t("الرصيد بطريقة المتوسط المرجّح.") : t("أحدث الحركات أولاً عبر كل الأصناف.")} — {totalRows} حركة</CardDescription>
+            <CardDescription>{itemLabel ? t("الرصيد بطريقة المتوسط المرجّح.") : t("أحدث الحركات أولاً عبر كل الأصناف.")} — {totalRows} {t("حركة")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {rows.length === 0 ? (
@@ -170,7 +171,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={5}>الإجمالي (صافي {qfmt(totals.net)}{totals.adjNet !== 0 ? ` — تسويات ${totals.adjNet > 0 ? "+" : ""}${qfmt(totals.adjNet)}` : ""})</TableCell>
+                      <TableCell colSpan={5}>{t("الإجمالي (صافي")} {qfmt(totals.net)}{totals.adjNet !== 0 ? fill(t(" — تسويات {0}{1}"), [totals.adjNet > 0 ? "+" : "", qfmt(totals.adjNet)]) : ""})</TableCell>
                       <TableCell>{qfmt(totals.inQty)}</TableCell>
                       <TableCell>{qfmt(totals.outQty)}</TableCell>
                       <TableCell colSpan={3} />
@@ -178,7 +179,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   </TableFooter>
                 </Table>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

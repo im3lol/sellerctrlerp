@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/session";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { listChangelog, KIND_LABELS, type ChangelogEntry } from "@/lib/erp/changelog";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +11,8 @@ import { cn } from "@/lib/utils";
 
 export const metadata = { title: "آخر التحديثات" };
 
-const fmt = (d: Date) =>
-  d.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+const fmt = (d: Date, locale: Locale = "ar") =>
+  d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "long", day: "numeric" });
 
 const KIND_STYLE: Record<string, string> = {
   feature: "bg-primary/10 text-primary",
@@ -52,6 +53,7 @@ export default async function WhatsNewPage() {
 
 async function Entry({ entry }: { entry: ChangelogEntry }) {
   const t = await getT();
+  const locale = await getLocale();
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">
@@ -60,7 +62,7 @@ async function Entry({ entry }: { entry: ChangelogEntry }) {
             {t(KIND_LABELS[entry.kind])}
           </span>
           {entry.module && <Badge variant="outline">{t(MODULE_LABELS[entry.module] ?? entry.module)}</Badge>}
-          <span className="text-xs text-muted-foreground">{fmt(entry.releasedAt)}</span>
+          <span className="text-xs text-muted-foreground">{fmt(entry.releasedAt, locale)}</span>
         </div>
         <h2 className="text-lg font-semibold">{entry.title}</h2>
         <DocBody body={entry.body} />

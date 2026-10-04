@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -36,7 +37,7 @@ export default async function WithdrawalsPage() {
     return (
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader icon="Banknote" title={t("سحوبات المستثمرين")}
-          subtitle={`أرباح مصروفة ${money(profit)} · سحب رأس مال ${money(capital)}`} backHref="/investors"
+          subtitle={fill(t("أرباح مصروفة {0} · سحب رأس مال {1}"), [money(profit), money(capital)])} backHref="/investors"
           action={can("accounting.post") ? (
             <InvestorTxnForm kind="withdrawal"
               investors={people.map((p) => ({ id: p.id, label: `${p.code} — ${p.name}` }))}

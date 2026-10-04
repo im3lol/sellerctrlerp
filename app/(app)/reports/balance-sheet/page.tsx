@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount, type AccountBalance } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +51,7 @@ export default async function BalanceSheetPage({
         reportKey="balance-sheet"
         icon="Scale"
         title={t("الميزانية العمومية")}
-        subtitle={`كما في ${to} — من القيود المُرحّلة`}
+        subtitle={fill(t("كما في {0} — من القيود المُرحّلة"), [to])}
         query={`to=${to}`}
         permissions={permissions}
         filters={<ReportField label={t("كما في تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>}
@@ -67,10 +68,10 @@ export default async function BalanceSheetPage({
           <Card>
             <CardHeader>
               <CardTitle>{t("الأصول")}</CardTitle>
-              <CardDescription>إجمالي {fmt(totalAssets)}</CardDescription>
+              <CardDescription>{t("إجمالي")} {fmt(totalAssets)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <BsTable rows={assets} empty="لا توجد أصول." totalLabel="إجمالي الأصول" total={totalAssets} />
+              <BsTable rows={assets} empty={t("لا توجد أصول.")} totalLabel={t("إجمالي الأصول")} total={totalAssets} />
             </CardContent>
           </Card>
 
@@ -78,24 +79,24 @@ export default async function BalanceSheetPage({
             <Card>
               <CardHeader>
                 <CardTitle>{t("الخصوم")}</CardTitle>
-                <CardDescription>إجمالي {fmt(totalLiabilities)}</CardDescription>
+                <CardDescription>{t("إجمالي")} {fmt(totalLiabilities)}</CardDescription>
               </CardHeader>
               <CardContent>
-                <BsTable rows={liabilities} empty="لا توجد خصوم." totalLabel="إجمالي الخصوم" total={totalLiabilities} />
+                <BsTable rows={liabilities} empty={t("لا توجد خصوم.")} totalLabel={t("إجمالي الخصوم")} total={totalLiabilities} />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle>{t("حقوق الملكية")}</CardTitle>
-                <CardDescription>إجمالي {fmt(totalEquity)}</CardDescription>
+                <CardDescription>{t("إجمالي")} {fmt(totalEquity)}</CardDescription>
               </CardHeader>
               <CardContent>
                 <BsTable
                   rows={equity}
-                  empty="لا توجد حسابات حقوق ملكية."
+                  empty={t("لا توجد حسابات حقوق ملكية.")}
                   extra={{ label: "صافي ربح/خسارة الفترة", amount: netIncome }}
-                  totalLabel="إجمالي حقوق الملكية"
+                  totalLabel={t("إجمالي حقوق الملكية")}
                   total={totalEquity}
                 />
               </CardContent>

@@ -1,4 +1,5 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -72,7 +73,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
       <div className="space-y-6" dir="rtl">
         <ErpPageHeader
           icon="Percent"
-          title={`مصاريف ${platform.name} من التسويات`}
+          title={fill(t("مصاريف {0} من التسويات"), [platform.name])}
           subtitle={t("كل ما خصمه أمازون فعليًا في الفترة — مصنّفًا (إعلانات، FBA، عمولة، تخزين…) من تقرير التسويات")}
           backHref={`/platforms/${code}`}
         />

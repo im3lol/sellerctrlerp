@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -72,7 +73,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
   const removeRule = (id: string, label: string) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `حذف قاعدة ${label}؟`,
+        danger: true, title: fill(t("حذف قاعدة {0}؟"), [label]),
         description: "العمولات المحسوبة قبل كده مش هتتغيّر — الحساب بيتعمل وقت العرض.",
         confirmText: "احذف", cancelText: "رجوع",
       });
@@ -119,7 +120,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                   onChange={(e) => setForm((f) => ({ ...f, percent: e.target.value }))} placeholder="5" /></div>
               <div className="flex items-end">
                 <Button onClick={saveRule} disabled={pending} className="w-full">
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
               </div>
             </div>
@@ -175,7 +176,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
             <div>
               <CardTitle>{t("المستحق")}</CardTitle>
               <CardDescription>
-                {loading ? t("جارٍ الحساب…") : `${report?.rows.length ?? 0} حركة · إجمالي ${money(grand)}`}
+                {loading ? t("جارٍ الحساب…") : fill(t("{0} حركة · إجمالي {1}"), [report?.rows.length ?? 0, money(grand)])}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -38,7 +39,7 @@ export default async function EditJournalEntryPage({ params }: { params: Promise
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BookText" title={`تعديل قيد ${entry.number}`} subtitle={t("مسودة — عدّل البنود مع الحفاظ على التوازن ثم احفظ")} backHref={`/accounting/journal/${encodeURIComponent(entry.number)}`} />
+        <ErpPageHeader icon="BookText" title={fill(t("تعديل قيد {0}"), [entry.number])} subtitle={t("مسودة — عدّل البنود مع الحفاظ على التوازن ثم احفظ")} backHref={`/accounting/journal/${encodeURIComponent(entry.number)}`} />
         <JournalEntryForm accounts={accountList} costCenters={centerList} initial={initial} />
       </div>
     );

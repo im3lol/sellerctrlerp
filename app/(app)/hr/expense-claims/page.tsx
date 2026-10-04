@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -20,7 +21,7 @@ export default async function ExpenseClaimsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ReceiptText" title={t("مطالبات مصروفات الموظفين")} subtitle={`${rows.length} مطالبة`} backHref="/hr"
+        <ErpPageHeader icon="ReceiptText" title={t("مطالبات مصروفات الموظفين")} subtitle={fill(t("{0} مطالبة"), [rows.length])} backHref="/hr"
           action={can("accounting.create") ? <Button asChild><Link href="/hr/expense-claims/new"><Icon name="Plus" className="size-4" />{t("مطالبة جديدة")}</Link></Button> : undefined} />
         <Card>
           <CardContent className="p-0">

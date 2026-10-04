@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -120,7 +121,7 @@ export default async function BankAccountDetailPage({ params }: Params) {
             { label: "إجمالي الصادر",     value: fmt(totalOut),   cls: "text-red-600 dark:text-red-400" },
             { label: "رصيد الكشف",        value: fmt(balance),    cls: balance < 0 ? "text-red-600 dark:text-red-400" : "" },
             ...(ba.glAccountId
-              ? [{ label: `فرق التسوية${diff !== 0 ? " ⚠" : ""}`, value: fmt(Math.abs(diff)), cls: diff !== 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" }]
+              ? [{ label: fill(t("فرق التسوية{0}"), [diff !== 0 ? " ⚠" : ""]), value: fmt(Math.abs(diff)), cls: diff !== 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" }]
               : [{ label: "غير مسوّى",    value: String(unrec),   cls: unrec > 0 ? "text-amber-600 dark:text-amber-400" : "" }]
             ),
           ].map((it, i) => (
@@ -157,10 +158,10 @@ export default async function BankAccountDetailPage({ params }: Params) {
                           {!line ? (
                             <span className="text-amber-600 dark:text-amber-400">{t("لسه ماظهرش في الكشف")}</span>
                           ) : line.isReconciled ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">مطابق ✓ إيداع {ymd(line.date)}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{t("مطابق ✓ إيداع")} {ymd(line.date)}</span>
                           ) : (
                             <>
-                              <span className="text-muted-foreground">إيداع {ymd(line.date)}</span>
+                              <span className="text-muted-foreground">{t("إيداع")} {ymd(line.date)}</span>
                               {canEdit && <MatchButton lineId={line.id} />}
                             </>
                           )}

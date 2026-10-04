@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -43,7 +44,7 @@ export default async function AutomationPage() {
           )} />
 
         <p className="text-sm text-muted-foreground">
-          {limit == null ? `${int(rules.length)} قاعدة — من غير حد في باقتك.` : `${int(rules.length)} من ${int(limit)} قاعدة في باقتك.`}
+          {limit == null ? fill(t("{0} قاعدة — من غير حد في باقتك."), [int(rules.length)]) : fill(t("{0} من {1} قاعدة في باقتك."), [int(rules.length), int(limit)])}
           {full && " وصلت للحد — امسح قاعدة أو رقّي الباقة عشان تضيف تاني."}
         </p>
 
@@ -67,11 +68,11 @@ export default async function AutomationPage() {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {describeTrigger(spec.trigger)}
-                      {spec.conditions.length > 0 && ` · ${int(spec.conditions.length)} شرط`}
+                      {spec.conditions.length > 0 && fill(t(" · {0} شرط"), [int(spec.conditions.length)])}
                       {" ← "}{spec.actions.map((a) => ACTION_LABEL[a.type]).join("، ")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      اشتغلت {int(r.runCount)} مرة{r.lastRunAt ? ` · آخر مرة ${when(r.lastRunAt)}` : ""}
+                      اشتغلت {int(r.runCount)} مرة{r.lastRunAt ? fill(t(" · آخر مرة {0}"), [when(r.lastRunAt)]) : ""}
                     </p>
                   </CardContent>
                 </Card>

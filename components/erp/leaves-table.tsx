@@ -26,7 +26,7 @@ export function LeavesTable({ rows, canApprove, canCreate }: { rows: Row[]; canA
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkLeaveRequestsAction} onDone={sel.clear} entity="طلب إجازة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkLeaveRequestsAction} onDone={sel.clear} entity={t("طلب إجازة")} />}
       <Table>
         <TableHeader><TableRow>
           {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} /></TableHead>}

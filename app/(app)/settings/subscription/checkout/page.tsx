@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useT } from "@/lib/i18n/client";
+import { fill, type Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, ShieldCheck, Zap, Lock, ArrowRight } from "lucide-react";
@@ -12,13 +13,14 @@ import { Label } from "@/components/ui/label";
 import { initXpayElements } from "@/lib/saas/xpay-elements";
 
 const BRAND_PRIMARY = "#0A33D1"; // ponytail: SellerCtrl blue — matches --primary; change here if the brand color moves
-const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
+const egp = (n: number, locale: Locale) => (locale === "en" ? `${n.toLocaleString("en-US")} EGP` : `${n.toLocaleString("ar-EG")} ج.م`);
 
 type Checkout = { confirm: (o: Record<string, unknown>) => Promise<{ type: "success" | "error"; error?: { message?: string } }> };
 type Stashed = { clientSecret: string; publishableKey: string; planName: string; amount: number; interval: string };
 
 export default function XpayCheckoutPage() {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [data, setData] = useState<Stashed | null>(null);
   const [email, setEmail] = useState("");
@@ -76,9 +78,9 @@ export default function XpayCheckoutPage() {
           <div className="relative">
             <Logo className="text-2xl" variant="white" />
             <div className="mt-8 text-sm opacity-80">{t("إتمام الاشتراك")}</div>
-            <div className="mt-1 text-xl font-bold">{data ? `باقة ${data.planName}` : "…"}</div>
-            <div className="mt-4 text-4xl font-black tabular-nums">{data ? egp(data.amount) : ""}</div>
-            <div className="text-sm opacity-80">{data ? `اشتراك ${intervalLabel}` : ""}</div>
+            <div className="mt-1 text-xl font-bold">{data ? fill(t("باقة {0}"), [data.planName]) : "…"}</div>
+            <div className="mt-4 text-4xl font-black tabular-nums">{data ? egp(data.amount, locale) : ""}</div>
+            <div className="text-sm opacity-80">{data ? fill(t("اشتراك {0}"), [intervalLabel]) : ""}</div>
           </div>
           <ul className="relative space-y-3 text-sm">
             <li className="flex items-center gap-2"><Zap className="size-4" />{t("تفعيل فوري بعد الدفع")}</li>
@@ -107,11 +109,11 @@ export default function XpayCheckoutPage() {
 
           <Button onClick={pay} disabled={paying || mounting || !canPay || !email} size="lg" className="w-full">
             {paying ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
-            {data ? `ادفع ${egp(data.amount)}` : "ادفع"}
+            {data ? fill(t("ادفع {0}"), [egp(data.amount, locale)]) : t("ادفع")}
           </Button>
 
           <button type="button" onClick={() => router.replace("/settings/subscription")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowRight className="size-4" />الرجوع للباقات
+            <ArrowRight className="size-4" />{t("الرجوع للباقات")}
           </button>
           <div className="pt-2 text-center text-xs text-muted-foreground">{t("مدعوم بأمان من xpay · وضع اختبار عند استخدام مفاتيح test")}</div>
         </div>

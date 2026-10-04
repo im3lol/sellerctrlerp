@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -28,7 +29,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
     const r = await importStatementAction(bankAccountId, fd, commit);
     if (r.error) { toast.error(r.error); return; }
     if (!commit) { setPreview(r); return; }
-    toast.success(`اتضاف ${n(r.added ?? 0)} حركة${r.duplicates ? ` · ${n(r.duplicates)} كانت متسجلة قبل كده` : ""}`);
+    toast.success(fill(t("اتضاف {0} حركة"), [n(r.added ?? 0)]) + (r.duplicates ? fill(t(" · {0} كانت متسجلة قبل كده"), [n(r.duplicates)]) : ""));
     setPreview(null);
     setFile(null);
     router.refresh();
@@ -80,11 +81,11 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="font-medium">{n(preview.total ?? 0)} حركة جديدة</span>
-              {!!preview.duplicates && <span className="text-muted-foreground">· {n(preview.duplicates)} متسجلة قبل كده</span>}
-              {!!preview.skipped && <span className="text-muted-foreground">· {n(preview.skipped)} سطر مش حركة (رصيد أو إجمالي)</span>}
+              <span className="font-medium">{n(preview.total ?? 0)} {t("حركة جديدة")}</span>
+              {!!preview.duplicates && <span className="text-muted-foreground">· {n(preview.duplicates)} {t("متسجلة قبل كده")}</span>}
+              {!!preview.skipped && <span className="text-muted-foreground">· {n(preview.skipped)} {t("سطر مش حركة (رصيد أو إجمالي)")}</span>}
               <Button className="ms-auto" disabled={pending || !preview.total} onClick={() => run(true)}>
-                {pending && <Loader2 className="size-4 animate-spin" />}استورد {n(preview.total ?? 0)} حركة
+                {pending && <Loader2 className="size-4 animate-spin" />}{t("استورد")} {n(preview.total ?? 0)} حركة
               </Button>
             </div>
           </div>

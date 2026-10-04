@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -124,7 +125,7 @@ function AgingTable({
                 <td className="tabular-nums font-semibold">{fmt(r.balanceDue)}</td>
                 <td>
                   <Badge variant={BUCKET_VARIANT[r.bucket]}>
-                    {r.days <= 0 ? t("لم تستحق") : `${r.days} يوم`}
+                    {r.days <= 0 ? t("لم تستحق") : fill(t("{0} يوم"), [r.days])}
                   </Badge>
                 </td>
               </tr>

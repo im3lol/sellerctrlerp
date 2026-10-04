@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -87,7 +88,7 @@ export default async function PaymentPlanPage() {
           <Card><CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">{t("إجمالي المستحق")}</div>
             <div className="text-2xl font-bold tabular-nums">{money(s.total)}</div>
-            <div className="text-xs text-muted-foreground">{intl(s.count)} فاتورة</div>
+            <div className="text-xs text-muted-foreground">{intl(s.count)} {t("فاتورة")}</div>
           </CardContent></Card>
           <Card><CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">{t("متأخّر عن موعده")}</div>
@@ -96,7 +97,7 @@ export default async function PaymentPlanPage() {
           <Card><CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">{t("العجز عن السداد الكامل")}</div>
             <div className={`text-2xl font-bold tabular-nums ${s.shortfall > 0 ? "text-amber-600" : "text-emerald-600"}`}>{money(s.shortfall)}</div>
-            <div className="text-xs text-muted-foreground">{s.unaffordable > 0 ? `${intl(s.unaffordable)} فاتورة مش مغطّاة` : "السيولة تكفي الكل"}</div>
+            <div className="text-xs text-muted-foreground">{s.unaffordable > 0 ? fill(t("{0} فاتورة مش مغطّاة"), [intl(s.unaffordable)]) : t("السيولة تكفي الكل")}</div>
           </CardContent></Card>
         </div>
 
@@ -137,7 +138,7 @@ export default async function PaymentPlanPage() {
                         <TableCell className="font-medium">{p.supplierName}</TableCell>
                         <TableCell className="text-xs">{day(p.dueDate)}</TableCell>
                         <TableCell className={`tabular-nums ${p.daysOverdue > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {!Number.isFinite(p.daysOverdue) ? "—" : p.daysOverdue > 0 ? `${intl(p.daysOverdue)} يوم` : `بعد ${intl(-p.daysOverdue)} يوم`}
+                          {!Number.isFinite(p.daysOverdue) ? "—" : p.daysOverdue > 0 ? fill(t("{0} يوم"), [intl(p.daysOverdue)]) : fill(t("بعد {0} يوم"), [intl(-p.daysOverdue)])}
                         </TableCell>
                         <TableCell className="font-medium tabular-nums">{money(p.outstanding)}</TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">{p.affordable ? money(p.cashAfter) : "—"}</TableCell>

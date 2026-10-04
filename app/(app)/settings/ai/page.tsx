@@ -1,4 +1,5 @@
 import { and, eq, gte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { aiCaptures, organizations, platformSettings } from "@/db/schema";
@@ -45,7 +46,7 @@ export default async function AiSettingsPage() {
             <div>
               <div className="text-xs text-muted-foreground">{t("الشهر ده")}</div>
               <div className="font-medium tabular-nums">
-                {org?.key ? `${int(used(true))} قراءة بمفتاحك` : platformOn ? `${int(used(false))} من ${int(ps!.limit)}` : "—"}
+                {org?.key ? fill(t("{0} قراءة بمفتاحك"), [int(used(true))]) : platformOn ? fill(t("{0} من {1}"), [int(used(false)), int(ps!.limit)]) : "—"}
               </div>
             </div>
           </CardContent>

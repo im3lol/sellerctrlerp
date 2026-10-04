@@ -29,7 +29,7 @@ export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; 
 
   return (
     <div>
-      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkQuotationsAction} onDone={sel.clear} entity="عرض" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkQuotationsAction} onDone={sel.clear} entity={t("عرض سعر")} />}
       <Table>
         <TableHeader><TableRow>
           {showSelect && (

@@ -57,7 +57,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات المطالبة")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المطالبة</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ المطالبة")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/hr/expense-claims")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -89,7 +89,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
 
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-2 sm:w-1/2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
-          <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
+          <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(total)}</div>
         </div>
       </CardContent>
     </Card>

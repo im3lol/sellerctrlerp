@@ -67,12 +67,12 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
               <div className="flex gap-2">
                 <Button asChild variant="outline">
                   <Link href="/accounting/assets/depreciation">
-                    <Icon name="CalendarCheck" className="size-4" />ترحيل إهلاك
+                    <Icon name="CalendarCheck" className="size-4" />{t("ترحيل إهلاك")}
                   </Link>
                 </Button>
                 <Button asChild>
                   <Link href="/accounting/assets/new">
-                    <Icon name="Plus" className="size-4" />أصل جديد
+                    <Icon name="Plus" className="size-4" />{t("أصل جديد")}
                   </Link>
                 </Button>
               </div>

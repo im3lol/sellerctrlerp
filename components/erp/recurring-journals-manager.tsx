@@ -87,7 +87,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
-        <Button onClick={save} disabled={pending || !balanced || !name.trim()}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button onClick={save} disabled={pending || !balanced || !name.trim()}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -109,11 +109,11 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{items.length} قالب — يولّد قيداً كمسودة تلقائياً في موعده</span>
+          <span className="text-sm text-muted-foreground">{items.length} {t("قالب — يولّد قيداً كمسودة تلقائياً في موعده")}</span>
           <Button size="sm" onClick={() => setDialog({ open: true, rj: null })}><Plus className="size-4" />{t("قالب جديد")}</Button>
         </div>
         <>
-        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringJournalsAction} onDone={sel.clear} entity="قالب" />
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringJournalsAction} onDone={sel.clear} entity={t("قالب")} />
         <Table>
           <TableHeader><TableRow>
             <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
@@ -152,7 +152,7 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
           <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>حذف القالب «{confirmDel.name}»؟</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف القالب «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("القيود التي وُلّدت بالفعل لا تتأثر.")}</p>
             <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button></DialogFooter>
           </DialogContent>

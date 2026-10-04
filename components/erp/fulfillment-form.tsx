@@ -71,7 +71,7 @@ export function FulfillmentForm({
     <Card>
       <CardHeader>
         <CardTitle>{isDelivery ? t("تسليم أصناف") : t("استلام أصناف")}</CardTitle>
-        <CardDescription>أدخل الكمية {isDelivery ? t("المسلّمة") : t("المستلمة")} الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).</CardDescription>
+        <CardDescription>{t("أدخل الكمية")} {isDelivery ? t("المسلّمة") : t("المستلمة")} {t("الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Table>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { scanItemAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
@@ -33,7 +34,7 @@ export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => vo
     start(async () => {
       const it = await scanItemAction(v);
       if (it) { onScan(it); setCode(""); triedRef.current.clear(); } // re-scanning the same item works again
-      else if (!silent) toast.error(`كود غير معروف: ${v}`);
+      else if (!silent) toast.error(fill(t("كود غير معروف: {0}"), [v]));
     });
   };
 

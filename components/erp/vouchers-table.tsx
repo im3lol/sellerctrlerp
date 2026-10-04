@@ -36,7 +36,7 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
           ops={[{ op: "confirm", label: "تأكيد", icon: "Check" }, { op: "delete", label: "حذف", icon: "Trash2", danger: true }]}
           action={(op, ids, allPages) => bulkAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="سند"
+          entity={t("سند")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
@@ -143,10 +144,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                         </div>
                         <div className="text-sm">{r.reason}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.requestedByName ? `طلبه ${r.requestedByName}` : "اعتماد مباشر"} · {timeAgo(r.requestedAt)}
-                          {r.decidedByName ? ` · قرّره ${r.decidedByName}${r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""}` : ""}
+                          {r.requestedByName ? fill(t("طلبه {0}"), [r.requestedByName]) : t("اعتماد مباشر")} · {timeAgo(r.requestedAt)}
+                          {r.decidedByName ? fill(t(" · قرّره {0}{1}"), [r.decidedByName, r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""]) : ""}
                         </div>
-                        {r.comment && <div className="text-xs">{r.status === "REJECTED" ? `سبب الرفض: ${r.comment}` : r.comment}</div>}
+                        {r.comment && <div className="text-xs">{r.status === "REJECTED" ? fill(t("سبب الرفض: {0}"), [r.comment]) : r.comment}</div>}
                       </div>
                       {tab === "pending" && r.status === "PENDING" && (
                         canDecide && (!mine || isAdmin)

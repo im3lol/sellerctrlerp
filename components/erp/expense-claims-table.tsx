@@ -26,7 +26,7 @@ export function ExpenseClaimsTable({ rows, canApprove, canCreate }: { rows: Row[
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkExpenseClaimsAction} onDone={sel.clear} entity="مطالبة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkExpenseClaimsAction} onDone={sel.clear} entity={t("مطالبة")} />}
       <Table>
         <TableHeader><TableRow>
           {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} /></TableHead>}

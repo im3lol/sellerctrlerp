@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,7 +25,7 @@ export default async function CostCentersPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Target" title={t("مراكز التكلفة")} subtitle={`${rows.length} مركز`} />
+        <ErpPageHeader icon="Target" title={t("مراكز التكلفة")} subtitle={fill(t("{0} مركز"), [rows.length])} />
         <CostCentersTree centers={rows} canManage={can("accounting.create")} />
       </div>
     );

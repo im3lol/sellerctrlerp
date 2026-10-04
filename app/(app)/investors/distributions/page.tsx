@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -36,7 +37,7 @@ export default async function DistributionsPage() {
 
     return (
       <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="PieChart" title={t("توزيعات الأرباح")} subtitle={`${rows.length} توزيع`} backHref="/investors"
+        <ErpPageHeader icon="PieChart" title={t("توزيعات الأرباح")} subtitle={fill(t("{0} توزيع"), [rows.length])} backHref="/investors"
           action={can("investors.edit") ? <DistributionForm suggestedProfit={Math.round(netProfit * 100) / 100} /> : undefined}
         />
 

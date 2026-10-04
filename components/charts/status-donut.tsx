@@ -1,14 +1,16 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useT } from "@/lib/i18n/client";
 
 type Slice = { name: string; value: number; color: string };
 
 export function StatusDonut({ data, unit = "عنصر" }: { data: Slice[]; unit?: string }) {
+  const t = useT();
   const total = data.reduce((s, d) => s + d.value, 0);
 
   if (total === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">لا توجد بيانات</p>;
+    return <p className="py-12 text-center text-sm text-muted-foreground">{t("لا توجد بيانات")}</p>;
   }
 
   return (
@@ -29,7 +31,7 @@ export function StatusDonut({ data, unit = "عنصر" }: { data: Slice[]; unit?:
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold tabular-nums">{total.toLocaleString("ar-EG-u-nu-latn")}</span>
-          <span className="text-xs text-muted-foreground">{unit}</span>
+          <span className="text-xs text-muted-foreground">{t(unit)}</span>
         </div>
       </div>
       <ul className="flex-1 space-y-1.5">
@@ -37,7 +39,7 @@ export function StatusDonut({ data, unit = "عنصر" }: { data: Slice[]; unit?:
           <li key={d.name} className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2">
               <span className="size-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-              {d.name}
+              {t(d.name)}
             </span>
             <span className="font-semibold tabular-nums text-muted-foreground">{d.value}</span>
           </li>

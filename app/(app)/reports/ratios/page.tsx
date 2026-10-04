@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
@@ -73,8 +74,8 @@ export default async function RatiosReportPage() {
         <div>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("الربحية")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label={t("هامش الربح الإجمالي")} value={pctv(grossMargin)} hint={`إجمالي ${fmt(grossProfit)}`} tone={grossProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
-            <Metric label={t("هامش الربح الصافي")} value={pctv(netMargin)} hint={`صافي ${fmt(netProfit)}`} tone={netProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
+            <Metric label={t("هامش الربح الإجمالي")} value={pctv(grossMargin)} hint={fill(t("إجمالي {0}"), [fmt(grossProfit)])} tone={grossProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
+            <Metric label={t("هامش الربح الصافي")} value={pctv(netMargin)} hint={fill(t("صافي {0}"), [fmt(netProfit)])} tone={netProfit >= 0 ? "text-emerald-600" : "text-destructive"} />
             <Metric label={t("الإيراد")} value={fmt(revenue)} />
             <Metric label={t("المصروفات التشغيلية")} value={fmt(opex)} />
           </div>

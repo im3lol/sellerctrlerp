@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { count, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -52,7 +53,7 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
         <ErpPageHeader
           icon="Ship"
           title={t("تكاليف الاستيراد")}
-          subtitle={`${total} مستند`}
+          subtitle={fill(t("{0} مستند"), [total])}
           action={canManage ? (
             <Button asChild><Link href="/purchases/landed-costs/new"><Icon name="Plus" className="size-4" />{t("مستند تكاليف")}</Link></Button>
           ) : undefined}
@@ -103,7 +104,7 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
                 </Table>
                 {pages > 1 && (
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>صفحة {page} من {pages}</span>
+                    <span>{t("صفحة")} {page} {t("من")} {pages}</span>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" disabled={page <= 1} asChild={page > 1}>
                         {page > 1 ? <a href={`?page=${page - 1}`}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

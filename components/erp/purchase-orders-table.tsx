@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -47,10 +48,10 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
   const bulk = (op: "confirm" | "cancel" | "delete") => {
     const verb = op === "confirm" ? t("تأكيد") : op === "cancel" ? t("إلغاء") : t("حذف");
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} أمر`, danger: op !== "confirm" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} أمر"), [verb, sel.size]), danger: op !== "confirm" }))) return;
       start(async () => {
         const r = await bulkPurchaseOrdersAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} أمر`); setSel(new Set()); router.refresh(); }
+        if (r.ok) { toast.success(fill(t("تم {0} {1} أمر"), [verb, r.count ?? 0])); setSel(new Set()); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -60,11 +61,11 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
     <div className="space-y-3">
       {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} {t("محدّد")}</span>
           <div className="ms-auto flex gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={`/api/erp/purchases/orders/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
-                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+                <Icon name="FileSpreadsheet" className="size-4" />{t("تنزيل Excel")}
               </a>
             </Button>
             {canConfirm && <Button size="sm" disabled={pending} onClick={() => bulk("confirm")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
@@ -123,7 +124,7 @@ export function PurchaseOrdersTable({ rows, canConfirm, canCreate }: { rows: Row
                     {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
-                      <span className="ms-2 text-destructive">كمية مرتجعة: {qty(rt.qty)}</span>
+                      <span className="ms-2 text-destructive">{t("كمية مرتجعة:")} {qty(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>

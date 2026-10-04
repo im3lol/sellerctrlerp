@@ -38,7 +38,7 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{keys.length} مفتاح — للوصول للبيانات عبر REST API</span>
+          <span className="text-sm text-muted-foreground">{keys.length} {t("مفتاح — للوصول للبيانات عبر REST API")}</span>
           <Button size="sm" onClick={() => setOpen(true)}><Plus className="size-4" />{t("مفتاح جديد")}</Button>
         </div>
         <Table>
@@ -106,7 +106,7 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
             {newKey ? <Button onClick={closeDialog}>{t("تم")}</Button> : (
               <>
                 <Button variant="outline" onClick={closeDialog}>{t("إلغاء")}</Button>
-                <Button onClick={create} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}إنشاء</Button>
+                <Button onClick={create} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("إنشاء")}</Button>
               </>
             )}
           </DialogFooter>

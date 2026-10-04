@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -83,7 +84,7 @@ export default async function BudgetReportPage({ params }: Params) {
       <div className="space-y-6">
         <ErpPageHeader
           icon="BarChart2"
-          title={`تقرير الميزانية ${year}`}
+          title={fill(t("تقرير الميزانية {0}"), [year])}
           subtitle={t("مقارنة الفعلي بالمخطط لكل حساب إيرادات ومصروفات")}
           backHref="/accounting/budget"
           action={
